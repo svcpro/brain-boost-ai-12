@@ -257,20 +257,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <WeeklyReminderSummary />
 
       {/* Smart Study Insights */}
-      <StudyInsights onReviewTopic={async (topic, subject) => {
-        // If subject not provided by insight, look it up
-        let resolvedSubject = subject;
-        if (!resolvedSubject && user) {
-          const { data: topicData } = await supabase
-            .from("topics")
-            .select("subject_id, subjects(name)")
-            .eq("user_id", user.id)
-            .eq("name", topic)
-            .is("deleted_at", null)
-            .maybeSingle();
-          resolvedSubject = (topicData as any)?.subjects?.name || undefined;
-        }
-        setInsightReviewSubject(resolvedSubject);
+      <StudyInsights onReviewTopic={(topic, subject) => {
+        setInsightReviewSubject(subject);
         setInsightReviewTopic(topic);
       }} />
 

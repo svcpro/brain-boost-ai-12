@@ -12,6 +12,7 @@ interface Insight {
   title: string;
   body: string;
   topic?: string | null;
+  subject?: string | null;
   priority: number;
 }
 
@@ -182,7 +183,7 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
                     <p className="text-xs text-muted-foreground leading-relaxed">{insight.body}</p>
                     {(insight.type === "urgent" || insight.type === "schedule") && insight.topic && onReviewTopic && (
                       <button
-                        onClick={() => onReviewTopic(insight.topic!)}
+                        onClick={() => onReviewTopic(insight.topic!, insight.subject || undefined)}
                         className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/20 border border-destructive/30 hover:bg-destructive/30 transition-all text-xs font-semibold text-destructive active:scale-95"
                       >
                         <Play className="w-3 h-3" />
