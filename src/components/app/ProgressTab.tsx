@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal } from "lucide-react";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,9 +15,10 @@ interface StreakData {
 }
 
 const MILESTONES = [
-  { days: 7, label: "7-Day Streak", icon: Award, emoji: "🔥", color: "text-warning" },
-  { days: 14, label: "14-Day Streak", icon: Star, emoji: "⭐", color: "text-primary" },
-  { days: 30, label: "30-Day Streak", icon: Trophy, emoji: "🏆", color: "text-success" },
+  { days: 3, label: "3-Day Starter", icon: Zap, emoji: "⚡", color: "text-primary", ring: "border-primary/60", glow: "glow-primary" },
+  { days: 7, label: "7-Day Streak", icon: Award, emoji: "🔥", color: "text-warning", ring: "border-warning/60", glow: "" },
+  { days: 14, label: "14-Day Warrior", icon: Star, emoji: "⭐", color: "text-primary", ring: "border-primary/60", glow: "" },
+  { days: 30, label: "30-Day Legend", icon: Trophy, emoji: "🏆", color: "text-success", ring: "border-success/60", glow: "" },
 ];
 
 const ProgressTab = () => {
@@ -195,38 +196,112 @@ const ProgressTab = () => {
 
             {/* Milestone Badges */}
             <div className="mt-4 pt-3 border-t border-border">
-              <p className="text-[10px] text-muted-foreground mb-2">Milestones</p>
-              <div className="flex gap-3">
-                {MILESTONES.map((m) => {
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Medal className="w-4 h-4 text-primary" />
+                  <p className="text-xs font-semibold text-foreground">Badges</p>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {MILESTONES.filter((m) => streak.longestStreak >= m.days).length}/{MILESTONES.length} earned
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {MILESTONES.map((m, idx) => {
                   const earned = streak.longestStreak >= m.days;
                   const active = streak.currentStreak >= m.days;
+                  // Progress toward this badge
+                  const prevDays = idx > 0 ? MILESTONES[idx - 1].days : 0;
+                  const progress = earned
+                    ? 100
+                    : Math.min(100, Math.round(((streak.currentStreak - prevDays) / (m.days - prevDays)) * 100));
+                  const circumference = 2 * Math.PI * 28;
+                  const dashOffset = circumference - (Math.max(0, progress) / 100) * circumference;
+
                   return (
                     <motion.div
                       key={m.days}
-                      initial={{ opacity: 0, scale: 0.8 }}
+                      initial={{ opacity: 0, scale: 0.5 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3, delay: m.days * 0.01 }}
-                      className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                      transition={{ type: "spring", stiffness: 300, damping: 20, delay: idx * 0.08 }}
+                      className={`relative flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
                         active
-                          ? "border-primary/50 bg-primary/10"
+                          ? `${m.ring} bg-primary/5`
                           : earned
-                          ? "border-border bg-secondary/50"
-                          : "border-border/50 bg-secondary/20 opacity-50"
+                          ? "border-border bg-secondary/40"
+                          : "border-border/30 bg-secondary/10"
                       }`}
                     >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        active ? "bg-primary/20" : earned ? "bg-secondary" : "bg-secondary/50"
-                      }`}>
-                        <m.icon className={`w-4 h-4 ${active ? m.color : earned ? "text-foreground" : "text-muted-foreground"}`} />
+                      {/* Circular progress ring */}
+                      <div className="relative w-14 h-14">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                          <circle cx="32" cy="32" r="28" fill="none" stroke="hsl(var(--secondary))" strokeWidth="3" />
+                          <motion.circle
+                            cx="32" cy="32" r="28" fill="none"
+                            stroke={active ? "hsl(var(--primary))" : earned ? "hsl(var(--success))" : "hsl(var(--muted-foreground))"}
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeDasharray={circumference}
+                            initial={{ strokeDashoffset: circumference }}
+                            animate={{ strokeDashoffset: dashOffset }}
+                            transition={{ duration: 1, delay: 0.3 + idx * 0.1 }}
+                            opacity={earned || progress > 0 ? 1 : 0.2}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          {earned ? (
+                            <motion.span
+                              className="text-xl"
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 400, delay: 0.5 + idx * 0.1 }}
+                            >
+                              {m.emoji}
+                            </motion.span>
+                          ) : (
+                            <m.icon className={`w-5 h-5 ${progress > 0 ? "text-muted-foreground" : "text-muted-foreground/40"}`} />
+                          )}
+                        </div>
                       </div>
-                      <span className="text-lg">{earned ? m.emoji : "🔒"}</span>
-                      <span className={`text-[10px] font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
-                        {m.days} Days
+
+                      <span className={`text-[9px] font-semibold text-center leading-tight ${
+                        active ? "text-foreground" : earned ? "text-foreground" : "text-muted-foreground"
+                      }`}>
+                        {m.label}
                       </span>
+
+                      {!earned && (
+                        <span className="text-[8px] text-muted-foreground">
+                          {Math.max(0, m.days - streak.currentStreak)}d left
+                        </span>
+                      )}
+
+                      {active && (
+                        <motion.div
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", delay: 0.6 + idx * 0.1 }}
+                        >
+                          <span className="text-[8px] text-success-foreground font-bold">✓</span>
+                        </motion.div>
+                      )}
                     </motion.div>
                   );
                 })}
               </div>
+
+              {/* Next milestone hint */}
+              {(() => {
+                const next = MILESTONES.find((m) => streak.currentStreak < m.days);
+                if (!next) return (
+                  <p className="text-[10px] text-success text-center mt-3">🎉 All badges unlocked! You're a legend!</p>
+                );
+                return (
+                  <p className="text-[10px] text-muted-foreground text-center mt-3">
+                    {next.emoji} <span className="text-foreground font-medium">{next.days - streak.currentStreak} more days</span> until "{next.label}"
+                  </p>
+                );
+              })()}
             </div>
           </>
         ) : (
