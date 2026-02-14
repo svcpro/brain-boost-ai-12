@@ -349,18 +349,26 @@ const BrainTab = () => {
 
       {/* Features Grid */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="grid grid-cols-2 gap-3">
-        {[
-          { icon: Network, label: "Knowledge Graph", desc: "Visual brain map", action: () => setShowGraph((v) => !v) },
-          { icon: Brain, label: "Brain Plan", desc: "AI auto schedule", action: () => setShowBrainPlan(true) },
-          { icon: Layers, label: "Multi-Source Sync", desc: "PDF, YouTube, Notes", action: () => toast({ title: "Coming Soon", description: "Multi-Source Sync will let you import from PDFs, YouTube, and notes automatically." }) },
-          { icon: Clock, label: "Passive Learning", desc: "Auto detection", action: () => toast({ title: "Coming Soon", description: "Passive Learning will auto-detect your study activity and log it for you." }) },
-        ].map((item, i) => (
-          <button key={i} onClick={item.action ?? undefined} className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left ${item.label === "Knowledge Graph" && showGraph ? "ring-1 ring-primary" : ""} ${item.label === "Brain Plan" && showBrainPlan ? "ring-1 ring-primary" : ""}`}>
-            <item.icon className="w-5 h-5 text-primary mb-2" />
-            <p className="text-sm font-medium text-foreground">{item.label}</p>
-            <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-          </button>
-        ))}
+        <button onClick={() => setShowGraph((v) => !v)} className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left ${showGraph ? "ring-1 ring-primary" : ""}`}>
+          <Network className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Knowledge Graph</p>
+          <p className="text-[10px] text-muted-foreground">Visual brain map</p>
+        </button>
+        <button onClick={() => setShowBrainPlan(true)} className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left ${showBrainPlan ? "ring-1 ring-primary" : ""}`}>
+          <Brain className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Brain Plan</p>
+          <p className="text-[10px] text-muted-foreground">AI auto schedule</p>
+        </button>
+        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Multi-Source Sync will let you import from PDFs, YouTube, and notes automatically." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+          <Layers className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Multi-Source Sync</p>
+          <p className="text-[10px] text-muted-foreground">PDF, YouTube, Notes</p>
+        </button>
+        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Passive Learning will auto-detect your study activity and log it for you." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+          <Clock className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Passive Learning</p>
+          <p className="text-[10px] text-muted-foreground">Auto detection</p>
+        </button>
       </motion.div>
 
       {/* Study Plan Generator from Brain Plan */}
