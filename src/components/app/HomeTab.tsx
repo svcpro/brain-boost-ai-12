@@ -157,6 +157,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       await generateRecommendations();
       await loadRecommendations();
       notifyFeedback();
+      // Record brain update timestamp
+      if (user) {
+        await supabase.from("profiles").update({ last_brain_update_at: new Date().toISOString() }).eq("id", user.id);
+      }
       toast({ title: "✅ AI Analysis complete!", description: "Memory predictions and recommendations updated." });
     } catch {
       toast({ title: "Analysis failed", variant: "destructive" });
