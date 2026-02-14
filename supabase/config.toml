@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.extract-image-topics]
 verify_jwt = false
+
+[functions.extract-voice-topics]
+verify_jwt = false
