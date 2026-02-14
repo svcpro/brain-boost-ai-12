@@ -1,5 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
-import { Bell, BellOff } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Bell, BellOff, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import confetti from "canvas-confetti";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import { getCache } from "@/lib/offlineCache";
 
@@ -28,7 +30,6 @@ function computeInfo() {
 
   const alreadyPassed = now.getHours() >= hour + 1;
 
-  // Minutes until the target hour starts
   const targetMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour).getTime();
   const minsLeft = Math.max(0, Math.round((targetMs - now.getTime()) / 60000));
   const imminent = !firedToday && !alreadyPassed && minsLeft > 0 && minsLeft <= 60;
@@ -43,11 +44,26 @@ interface Props {
 
 const NextReminderIndicator = ({ onOpenVoiceSettings }: Props) => {
   const [info, setInfo] = useState(computeInfo);
+  const prevFiredRef = useRef(info.enabled ? info.firedToday : false);
+  const [justFired, setJustFired] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setInfo(computeInfo()), 30_000);
     return () => clearInterval(id);
   }, []);
+
+  // Detect transition to firedToday and celebrate
+  useEffect(() => {
+    if (!info.enabled) return;
+    const wasFired = prevFiredRef.current;
+    prevFiredRef.current = info.firedToday;
+
+    if (!wasFired && info.firedToday) {
+      setJustFired(true);
+      confetti({ particleCount: 40, spread: 60, origin: { x: 0.15, y: 0.3 }, colors: ["#22c55e", "#3b82f6", "#eab308"] });
+      setTimeout(() => setJustFired(false), 2500);
+    }
+  }, [info]);
 
   return (
     <button
@@ -79,16 +95,34 @@ const NextReminderIndicator = ({ onOpenVoiceSettings }: Props) => {
                 />
               </svg>
             )}
-            <Bell className={`w-3 h-3 ${info.firedToday ? "text-success" : info.imminent ? "text-warning animate-pulse" : "text-primary"}`} />
+            <AnimatePresence mode="wait">
+              {justFired ? (
+                <motion.div
+                  key="check"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1.3, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 12 }}
+                >
+                  <CheckCircle className="w-3 h-3 text-success" />
+                </motion.div>
+              ) : (
+                <motion.div key="bell" initial={{ scale: 0.8 }} animate={{ scale: 1 }}>
+                  <Bell className={`w-3 h-3 ${info.firedToday ? "text-success" : info.imminent ? "text-warning animate-pulse" : "text-primary"}`} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <span className="text-muted-foreground underline decoration-dotted">
-            {info.firedToday
-              ? "Today's reminder sent ✓"
-              : info.imminent
-                ? `Firing in ~${info.minsLeft} min`
-                : info.alreadyPassed
-                  ? `Reminder tomorrow (${info.label})`
-                  : `Next reminder: ${info.label}`}
+            {justFired
+              ? "Reminder sent! 🎉"
+              : info.firedToday
+                ? "Today's reminder sent ✓"
+                : info.imminent
+                  ? `Firing in ~${info.minsLeft} min`
+                  : info.alreadyPassed
+                    ? `Reminder tomorrow (${info.label})`
+                    : `Next reminder: ${info.label}`}
           </span>
         </>
       )}
