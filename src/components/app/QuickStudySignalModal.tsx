@@ -29,6 +29,7 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
   const [customTopic, setCustomTopic] = useState("");
   const [minutes, setMinutes] = useState("");
   const [confidence, setConfidence] = useState("");
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
@@ -106,6 +107,7 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
         durationMinutes: parseInt(minutes),
         confidenceLevel: confidence as "low" | "medium" | "high",
         studyMode: "lazy",
+        notes: notes || undefined,
       });
 
       clearInterval(progressInterval);
@@ -120,6 +122,7 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
           setTopic("");
           setCustomSubject("");
           setCustomTopic("");
+          setNotes("");
           setMinutes("");
           setConfidence("");
           setSubmitting(false);
@@ -300,6 +303,16 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
               </motion.button>
             ))}
           </div>
+
+          {/* Notes */}
+          <textarea
+            placeholder="What did you learn? (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            maxLength={500}
+            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
 
           <div className="space-y-2">
             <button
