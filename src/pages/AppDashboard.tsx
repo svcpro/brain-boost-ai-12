@@ -13,6 +13,7 @@ import { useScheduledVoiceReminder } from "@/hooks/useScheduledVoiceReminder";
 import { useWeakQuestionReminder } from "@/hooks/useWeakQuestionReminder";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { notifyFeedback } from "@/lib/feedback";
 
 // Export voice context so child components can trigger voice
 export const VoiceContext = createContext<ReturnType<typeof useVoiceNotification> | null>(null);
@@ -86,7 +87,10 @@ const AppDashboard = () => {
           table: 'notification_history',
           filter: `user_id=eq.${user.id}`,
         },
-        () => setUnreadNotifs((c) => c + 1)
+        () => {
+          setUnreadNotifs((c) => c + 1);
+          notifyFeedback();
+        }
       )
       .on(
         'postgres_changes',
