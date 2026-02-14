@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { History, Play, Search, CalendarIcon, ArrowUpDown, RefreshCw, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,15 +94,31 @@ const RecentlyStudied = ({ onQuickLog, analyzing }: RecentlyStudiedProps) => {
     return new Date(b.lastStudied).getTime() - new Date(a.lastStudied).getTime();
   });
 
-  // Show success checkmark briefly when analysis finishes
+  // Show success checkmark + confetti briefly when analysis finishes
   useEffect(() => {
     if (!analyzing && clickedLogId) {
       setCompletedLogId(clickedLogId);
       setClickedLogId(null);
+
+      // Fire confetti from the card's position
+      import("canvas-confetti").then(({ default: confetti }) => {
+        const el = cardRefs.current.get(clickedLogId);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const x = (rect.left + rect.width / 2) / window.innerWidth;
+          const y = (rect.top + rect.height / 2) / window.innerHeight;
+          confetti({ particleCount: 60, spread: 55, origin: { x, y }, colors: ["#22c55e", "#3b82f6", "#a855f7"], gravity: 1.2, scalar: 0.8, ticks: 120 });
+        } else {
+          confetti({ particleCount: 50, spread: 60 });
+        }
+      });
+
       const timer = setTimeout(() => setCompletedLogId(null), 2000);
       return () => clearTimeout(timer);
     }
   }, [analyzing]);
+
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const isFiltering = !!(query || dateFrom || dateTo);
   const displayItems = isFiltering ? sortedItems : sortedItems.slice(0, 5);
@@ -207,6 +223,7 @@ const RecentlyStudied = ({ onQuickLog, analyzing }: RecentlyStudiedProps) => {
         {displayItems.map((item, i) => (
           <motion.div
             key={item.logId}
+            ref={(el) => { if (el) cardRefs.current.set(item.logId, el); else cardRefs.current.delete(item.logId); }}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.05 }}
