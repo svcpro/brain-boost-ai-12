@@ -14,6 +14,7 @@ import MonthlyHeatmap from "./MonthlyHeatmap";
 import BrainEvolution from "./BrainEvolution";
 import CompetitionIntel from "./CompetitionIntel";
 import ExamSimulator from "./ExamSimulator";
+import ExamHistory from "./ExamHistory";
 import WeeklyReportAI from "./WeeklyReportAI";
 
 interface StreakData {
@@ -498,6 +499,8 @@ const ProgressTab = () => {
           <p className="text-[10px] text-muted-foreground">AI analysis</p>
         </button>
       </motion.div>
+
+      <ExamHistory />
 
       {showBrainEvo && <BrainEvolution onClose={() => setShowBrainEvo(false)} />}
       {showCompIntel && <CompetitionIntel onClose={() => setShowCompIntel(false)} />}
