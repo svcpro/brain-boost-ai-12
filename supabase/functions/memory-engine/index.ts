@@ -44,7 +44,8 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    const { action } = await req.json();
+    const body = await req.json();
+    const { action } = body;
 
     if (action === "predict") {
       // Get all topics with their study logs
@@ -540,7 +541,8 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
     }
 
     if (action === "exam_simulate") {
-      const { topics: topicList, questionCount } = await req.json().catch(() => ({ topics: "", questionCount: 5 }));
+      const topicList = body.topics || "";
+      const qCount = body.questionCount || 5;
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -551,7 +553,7 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
           model: "google/gemini-3-flash-preview",
           messages: [
             { role: "system", content: "You are an exam question generator. Generate multiple-choice questions as a JSON array. Each object must have: question, options (array of 4 strings), correct (0-3 index), explanation. Output ONLY the JSON array, no markdown." },
-            { role: "user", content: `Generate ${questionCount || 5} exam questions based on these topics: ${topicList}` }
+            { role: "user", content: `Generate ${qCount} exam questions based on these topics: ${topicList}` }
           ],
         }),
       });
@@ -561,7 +563,7 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
     }
 
     if (action === "weekly_report") {
-      const body = await req.json().catch(() => ({}));
+      
       const stats = body.stats || {};
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
