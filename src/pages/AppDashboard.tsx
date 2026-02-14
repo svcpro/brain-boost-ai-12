@@ -73,6 +73,48 @@ const AppDashboard = () => {
     fetchUnreadNotifs();
   }, [user, activeTab]);
 
+  // Realtime updates for unread notification badge
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('notif-badge-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notification_history',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => setUnreadNotifs((c) => c + 1)
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notification_history',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if ((payload.new as any).read && !(payload.old as any).read) {
+            setUnreadNotifs((c) => Math.max(0, c - 1));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notification_history',
+        },
+        () => setUnreadNotifs((c) => Math.max(0, c - 1))
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     const checkExpiry = async () => {
