@@ -9,6 +9,7 @@ import { setCache, getCache } from "@/lib/offlineCache";
 import WeeklyReportCard from "./WeeklyReportCard";
 import LeaderboardCard from "./LeaderboardCard";
 import WeeklyFocusChart from "./WeeklyFocusChart";
+import MonthlyFocusTrend from "./MonthlyFocusTrend";
 
 interface StreakData {
   currentStreak: number;
@@ -320,6 +321,9 @@ const ProgressTab = () => {
 
       {/* Weekly Focus Chart */}
       <WeeklyFocusChart />
+
+      {/* Monthly Focus Trend */}
+      <MonthlyFocusTrend />
 
       {/* Rank Prediction */}
       <motion.div
