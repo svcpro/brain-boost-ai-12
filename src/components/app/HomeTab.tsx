@@ -75,6 +75,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     predictRank();
     loadRecommendations();
     loadExamDate();
+
+    // Auto-refresh Forget Risk Radar every 5 minutes
+    const interval = setInterval(() => {
+      predict();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadRecommendations = async () => {
