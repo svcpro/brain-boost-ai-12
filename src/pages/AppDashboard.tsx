@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { Home, Zap, Brain, TrendingUp, User } from "lucide-react";
+import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X } from "lucide-react";
 import HomeTab from "@/components/app/HomeTab";
 import ActionTab from "@/components/app/ActionTab";
 import BrainTab from "@/components/app/BrainTab";
@@ -30,6 +30,8 @@ const AppDashboard = () => {
   const [autoOpenVoice, setAutoOpenVoice] = useState(false);
   const { user } = useAuth();
   const [recCount, setRecCount] = useState(0);
+  const [expiryWarning, setExpiryWarning] = useState<{ plan: string; daysLeft: number } | null>(null);
+  const [dismissedWarning, setDismissedWarning] = useState(false);
   const voice = useVoiceNotification();
   useStudyReminder();
   useOfflineSync();
@@ -48,6 +50,27 @@ const AppDashboard = () => {
     fetchCount();
   }, [user, activeTab]);
 
+  useEffect(() => {
+    if (!user) return;
+    const checkExpiry = async () => {
+      const { data } = await supabase
+        .from("user_subscriptions")
+        .select("plan_id, expires_at")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .neq("plan_id", "free")
+        .order("created_at", { ascending: false })
+        .maybeSingle();
+      if (data?.expires_at) {
+        const daysLeft = Math.ceil((new Date(data.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        if (daysLeft <= 3 && daysLeft >= 0) {
+          setExpiryWarning({ plan: data.plan_id, daysLeft });
+        }
+      }
+    };
+    checkExpiry();
+  }, [user]);
+
   const renderTab = () => {
     switch (activeTab) {
       case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} />;
@@ -62,6 +85,20 @@ const AppDashboard = () => {
   return (
     <VoiceContext.Provider value={voice}>
       <div className="min-h-screen bg-background flex flex-col">
+        {/* Expiry Warning Banner */}
+        {expiryWarning && !dismissedWarning && (
+          <div className="bg-warning/15 border-b border-warning/30 px-4 py-2.5 flex items-center gap-2 text-sm z-50 relative">
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+            <span className="text-warning font-medium flex-1">
+              Your {expiryWarning.plan === "ultra" ? "Ultra Brain" : "Pro Brain"} plan expires
+              {expiryWarning.daysLeft === 0 ? " today" : ` in ${expiryWarning.daysLeft} day${expiryWarning.daysLeft > 1 ? "s" : ""}`}!
+              Renew to keep your benefits.
+            </span>
+            <button onClick={() => setDismissedWarning(true)} className="text-muted-foreground hover:text-foreground p-0.5">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         {/* Header */}
         <header className="glass-strong border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-2">
