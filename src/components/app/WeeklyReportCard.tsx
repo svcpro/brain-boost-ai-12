@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileText, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus, Share2, Download, RotateCcw, Target } from "lucide-react";
+import { FileText, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus, Share2, Download, RotateCcw, Target, Flame, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { useStudyStreak } from "@/hooks/useStudyStreak";
 import html2canvas from "html2canvas";
 
 interface ReportData {
@@ -29,6 +30,7 @@ const WeeklyReportCard = () => {
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const { streak, loadStreak } = useStudyStreak();
 
   const captureCard = useCallback(async (): Promise<Blob | null> => {
     if (!cardRef.current) return null;
@@ -253,7 +255,8 @@ const WeeklyReportCard = () => {
 
   useEffect(() => {
     loadReport();
-  }, [loadReport]);
+    loadStreak();
+  }, [loadReport, loadStreak]);
 
   if (loading) {
     return (
@@ -390,7 +393,39 @@ const WeeklyReportCard = () => {
               <span className="text-[9px] mt-0.5 text-muted-foreground">
                 {report.dailyGoalMinutes}min daily target
               </span>
+          </div>
+
+          {/* Streak Milestones */}
+          {streak && (
+            <div className="grid grid-cols-2 gap-3">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.35 }}
+                className="flex flex-col items-center p-3 rounded-lg bg-secondary/30 border border-border/50"
+              >
+                <Flame className="w-4 h-4 text-primary mb-1.5" />
+                <span className="text-lg font-bold text-foreground">{streak.currentStreak}</span>
+                <span className="text-[10px] text-muted-foreground">Current Streak</span>
+                <span className="text-[9px] mt-0.5 text-muted-foreground">
+                  {streak.todayMet ? "✅ today done" : "⏳ pending today"}
+                </span>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.4 }}
+                className="flex flex-col items-center p-3 rounded-lg bg-secondary/30 border border-border/50"
+              >
+                <Trophy className="w-4 h-4 text-primary mb-1.5" />
+                <span className="text-lg font-bold text-foreground">{streak.longestStreak}</span>
+                <span className="text-[10px] text-muted-foreground">Longest Streak</span>
+                <span className="text-[9px] mt-0.5 text-muted-foreground">
+                  {streak.goalMinutes}min daily goal
+                </span>
+              </motion.div>
             </div>
+          )}
           </div>
 
           {/* Memory Strength Trend (mini chart) */}
