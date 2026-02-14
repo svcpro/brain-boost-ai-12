@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { History, Play } from "lucide-react";
+import { History, Play, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -11,6 +11,7 @@ interface RecentTopic {
   subjectName: string;
   lastStudied: string;
   minutes: number;
+  notes: string | null;
 }
 
 const RecentlyStudied = () => {
@@ -26,7 +27,7 @@ const RecentlyStudied = () => {
     // Get recent study logs with topic_id
     const { data: logs } = await supabase
       .from("study_logs")
-      .select("topic_id, subject_id, duration_minutes, created_at")
+      .select("topic_id, subject_id, duration_minutes, created_at, notes")
       .eq("user_id", user.id)
       .not("topic_id", "is", null)
       .order("created_at", { ascending: false })
@@ -63,6 +64,7 @@ const RecentlyStudied = () => {
       subjectName: subjectMap.get(l.subject_id!) || "",
       lastStudied: l.created_at,
       minutes: l.duration_minutes,
+      notes: l.notes || null,
     }));
 
     setItems(result);
@@ -111,6 +113,12 @@ const RecentlyStudied = () => {
                   {item.subjectName && `${item.subjectName} · `}
                   {item.minutes}min · {formatDistanceToNow(new Date(item.lastStudied), { addSuffix: true })}
                 </p>
+                {item.notes && (
+                  <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1">
+                    <StickyNote className="w-2.5 h-2.5 shrink-0" />
+                    {item.notes}
+                  </p>
+                )}
               </div>
             </motion.button>
           ))}
