@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Clock, Timer, BookOpen, ChevronDown, ChevronUp, FileText, Target, Pencil, Check } from "lucide-react";
+import { Crosshair, Clock, Timer, BookOpen, ChevronDown, ChevronUp, FileText, Target, Pencil, Check, Download, Share2 } from "lucide-react";
+import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, subDays, startOfDay } from "date-fns";
@@ -42,6 +43,58 @@ const WeeklyFocusChart = () => {
   const [goalMinutes, setGoalMinutes] = useState(300);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const captureCard = async (): Promise<Blob | null> => {
+    if (!cardRef.current) return null;
+    const canvas = await html2canvas(cardRef.current, {
+      backgroundColor: "#0f1419",
+      scale: 2,
+      useCORS: true,
+    });
+    return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
+  };
+
+  const handleDownload = async () => {
+    setSharing(true);
+    try {
+      const blob = await captureCard();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `weekly-focus-${new Date().toISOString().slice(0, 10)}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "📥 Downloaded!", description: "Weekly focus summary saved as image." });
+    } catch {
+      toast({ title: "Download failed", variant: "destructive" });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const blob = await captureCard();
+      if (!blob) return;
+      const file = new File([blob], "weekly-focus.png", { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: "My Weekly Focus", text: "Check out my weekly focus progress! 🎯", files: [file] });
+      } else {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        toast({ title: "📋 Copied!", description: "Image copied to clipboard." });
+      }
+    } catch (e: any) {
+      if (e?.name !== "AbortError") {
+        toast({ title: "Could not share", description: "Try downloading instead.", variant: "destructive" });
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
 
   useEffect(() => {
     if (user) loadData();
@@ -201,6 +254,7 @@ const WeeklyFocusChart = () => {
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-xl p-5 neural-border"
@@ -208,6 +262,18 @@ const WeeklyFocusChart = () => {
       <div className="flex items-center gap-2 mb-4">
         <Crosshair className="w-4 h-4 text-success" />
         <h2 className="font-semibold text-foreground text-sm">Weekly Focus Time</h2>
+        <div className="ml-auto flex items-center gap-1.5">
+          {totalMinutes > 0 && (
+            <>
+              <button onClick={handleDownload} disabled={sharing} className="p-1.5 rounded-lg neural-border hover:glow-primary transition-all disabled:opacity-50" title="Download as image">
+                <Download className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+              <button onClick={handleShare} disabled={sharing} className="p-1.5 rounded-lg neural-border hover:glow-primary transition-all disabled:opacity-50" title="Share">
+                <Share2 className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
