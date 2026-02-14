@@ -13,7 +13,11 @@ function getScheduleHour(settings: ReturnType<typeof getVoiceSettings>): number 
   }
 }
 
-const NextReminderIndicator = () => {
+interface Props {
+  onOpenVoiceSettings?: () => void;
+}
+
+const NextReminderIndicator = ({ onOpenVoiceSettings }: Props) => {
   const info = useMemo(() => {
     const settings = getVoiceSettings();
     if (!settings.enabled) return { enabled: false } as const;
@@ -32,26 +36,29 @@ const NextReminderIndicator = () => {
     return { enabled: true, firedToday, label, alreadyPassed };
   }, []);
 
-  if (!info.enabled) {
-    return (
-      <div className="flex items-center gap-1.5 text-muted-foreground text-[10px]">
-        <BellOff className="w-3 h-3" />
-        <span>Voice reminders off</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center gap-1.5 text-[10px]">
-      <Bell className={`w-3 h-3 ${info.firedToday ? "text-success" : "text-primary"}`} />
-      <span className="text-muted-foreground">
-        {info.firedToday
-          ? "Today's reminder sent ✓"
-          : info.alreadyPassed
-            ? `Reminder tomorrow (${info.label})`
-            : `Next reminder: ${info.label}`}
-      </span>
-    </div>
+    <button
+      onClick={onOpenVoiceSettings}
+      className="flex items-center gap-1.5 text-[10px] hover:opacity-80 transition-opacity cursor-pointer"
+    >
+      {!info.enabled ? (
+        <>
+          <BellOff className="w-3 h-3 text-muted-foreground" />
+          <span className="text-muted-foreground underline decoration-dotted">Voice reminders off</span>
+        </>
+      ) : (
+        <>
+          <Bell className={`w-3 h-3 ${info.firedToday ? "text-success" : "text-primary"}`} />
+          <span className="text-muted-foreground underline decoration-dotted">
+            {info.firedToday
+              ? "Today's reminder sent ✓"
+              : info.alreadyPassed
+                ? `Reminder tomorrow (${info.label})`
+                : `Next reminder: ${info.label}`}
+          </span>
+        </>
+      )}
+    </button>
   );
 };
 

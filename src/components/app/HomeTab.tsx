@@ -18,9 +18,10 @@ import NextReminderIndicator from "./NextReminderIndicator";
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
   onRecommendationsSeen?: () => void;
+  onOpenVoiceSettings?: () => void;
 }
 
-const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps) => {
+const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSettings }: HomeTabProps) => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
@@ -164,7 +165,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps)
             {hasTopics ? "Your AI brain is active and monitoring." : "Log your first study session to activate AI."}
           </p>
           <div className="mt-1.5">
-            <NextReminderIndicator />
+            <NextReminderIndicator onOpenVoiceSettings={onOpenVoiceSettings} />
           </div>
         </div>
         <button onClick={handleRefresh} disabled={loading} className="p-2 rounded-lg neural-gradient neural-border hover:glow-primary transition-all disabled:opacity-50">

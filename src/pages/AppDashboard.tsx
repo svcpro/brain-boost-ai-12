@@ -27,6 +27,7 @@ const tabs = [
 
 const AppDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
+  const [autoOpenVoice, setAutoOpenVoice] = useState(false);
   const { user } = useAuth();
   const [recCount, setRecCount] = useState(0);
   const voice = useVoiceNotification();
@@ -49,11 +50,11 @@ const AppDashboard = () => {
 
   const renderTab = () => {
     switch (activeTab) {
-      case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} />;
+      case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} />;
       case "action": return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
       case "progress": return <ProgressTab />;
-      case "you": return <YouTab />;
+      case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} />;
       default: return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} />;
     }
   };
