@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera } from "lucide-react";
+import { useStudyLogger } from "@/hooks/useStudyLogger";
+import { useToast } from "@/hooks/use-toast";
 
 const modes = [
   {
@@ -26,6 +29,36 @@ const modes = [
 ];
 
 const ActionTab = () => {
+  const [subject, setSubject] = useState("");
+  const [topic, setTopic] = useState("");
+  const [minutes, setMinutes] = useState("");
+  const [confidence, setConfidence] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { logStudy } = useStudyLogger();
+  const { toast } = useToast();
+
+  const handleSubmit = async () => {
+    if (!subject || !minutes || !confidence) {
+      toast({ title: "Missing fields", description: "Please fill subject, time, and confidence.", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    const success = await logStudy({
+      subjectName: subject,
+      topicName: topic || undefined,
+      durationMinutes: parseInt(minutes),
+      confidenceLevel: confidence as "low" | "medium" | "high",
+      studyMode: "lazy",
+    });
+    if (success) {
+      setSubject("");
+      setTopic("");
+      setMinutes("");
+      setConfidence("");
+    }
+    setSubmitting(false);
+  };
+
   return (
     <div className="px-6 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -57,11 +90,7 @@ const ActionTab = () => {
       </div>
 
       {/* Upload Content */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
         <h2 className="font-semibold text-foreground text-sm mb-3">Upload Content</h2>
         <div className="grid grid-cols-3 gap-3">
           {[
@@ -69,10 +98,7 @@ const ActionTab = () => {
             { icon: Camera, label: "Scan" },
             { icon: Mic, label: "Voice" },
           ].map((item, i) => (
-            <button
-              key={i}
-              className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2"
-            >
+            <button key={i} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2">
               <item.icon className="w-5 h-5 text-primary" />
               <span className="text-xs text-muted-foreground">{item.label}</span>
             </button>
@@ -81,39 +107,53 @@ const ActionTab = () => {
       </motion.div>
 
       {/* Quick Study Log */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="glass rounded-xl p-5 neural-border"
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass rounded-xl p-5 neural-border">
         <h2 className="font-semibold text-foreground text-sm mb-4 flex items-center gap-2">
           <Upload className="w-4 h-4 text-primary" />
           Quick Study Signal
         </h2>
         <div className="space-y-3">
-          <select className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-            <option>Select Subject</option>
-            <option>Physics</option>
-            <option>Chemistry</option>
-            <option>Mathematics</option>
-            <option>Biology</option>
-          </select>
+          <input
+            type="text"
+            placeholder="Subject (e.g. Physics)"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <input
+            type="text"
+            placeholder="Topic (optional, e.g. Electrostatics)"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
           <div className="flex gap-3">
             <input
               type="number"
               placeholder="Minutes"
+              value={minutes}
+              onChange={(e) => setMinutes(e.target.value)}
+              min="1"
+              max="480"
               className="flex-1 rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
-            <select className="flex-1 rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-              <option>Confidence</option>
-              <option>Low</option>
-              <option>Medium</option>
-              <option>High</option>
+            <select
+              value={confidence}
+              onChange={(e) => setConfidence(e.target.value)}
+              className="flex-1 rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Confidence</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
             </select>
           </div>
-          <button className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all">
-            Update My Brain
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all disabled:opacity-50"
+          >
+            {submitting ? "Updating..." : "Update My Brain"}
           </button>
         </div>
       </motion.div>
