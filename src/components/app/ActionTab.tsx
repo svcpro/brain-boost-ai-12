@@ -61,10 +61,15 @@ const ActionTab = () => {
   const { toast } = useToast();
   const { syncAll } = useOfflineSync();
 
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [interimText, setInterimText] = useState("");
+
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null);
+  const finalTranscriptRef = useRef("");
 
   const handlePdfUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -193,6 +198,8 @@ const ActionTab = () => {
   const processVoiceRecording = useCallback(async (blob: Blob) => {
     setTranscribing(true);
     setVoiceTranscript(null);
+    setLiveTranscript("");
+    setInterimText("");
     setExtractionResult(null);
     setVoiceBlob(blob);
     toast({ title: "🎙️ Transcribing...", description: "Converting your voice note to text." });
@@ -286,6 +293,10 @@ const ActionTab = () => {
     if (recording) {
       // Stop recording
       mediaRecorderRef.current?.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
       setRecording(false);
       return;
     }
@@ -295,6 +306,48 @@ const ActionTab = () => {
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      setLiveTranscript("");
+      setInterimText("");
+      finalTranscriptRef.current = "";
+
+      // Start Web Speech API for real-time transcription
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+        let finalText = "";
+
+        recognition.onresult = (event: any) => {
+          let interim = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalText += transcript + " ";
+              finalTranscriptRef.current = finalText.trim();
+              setLiveTranscript(finalText.trim());
+            } else {
+              interim += transcript;
+            }
+          }
+          setInterimText(interim);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn("Speech recognition error:", event.error);
+        };
+
+        recognition.onend = () => {
+          // If still recording, restart (browser may stop it after silence)
+          if (mediaRecorderRef.current?.state === "recording") {
+            try { recognition.start(); } catch {}
+          }
+        };
+
+        recognition.start();
+        recognitionRef.current = recognition;
+      }
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
@@ -305,13 +358,25 @@ const ActionTab = () => {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
         setUploadedFile(`Voice recording (${sizeMB}MB)`);
-        // Automatically process the voice recording
-        processVoiceRecording(blob);
+
+        // Use live transcript if available, otherwise fall back to server transcription
+        const currentLiveTranscript = finalTranscriptRef.current;
+        if (currentLiveTranscript.trim()) {
+          setVoiceTranscript(currentLiveTranscript.trim());
+          setEditedTranscript(currentLiveTranscript.trim());
+          setVoiceBlob(blob);
+          setLiveTranscript("");
+          setInterimText("");
+          toast({ title: "✅ Transcription ready!", description: "Review the text, then confirm to extract topics." });
+        } else {
+          // Fallback to server-side transcription
+          processVoiceRecording(blob);
+        }
       };
 
       mediaRecorder.start();
       setRecording(true);
-      toast({ title: "🎙️ Recording...", description: "Tap Voice again to stop and extract topics." });
+      toast({ title: "🎙️ Recording...", description: "Speak now — live transcription is active." });
     } catch (err: any) {
       toast({ title: "Microphone access denied", description: "Please allow microphone access to record voice notes.", variant: "destructive" });
     }
@@ -454,6 +519,29 @@ const ActionTab = () => {
             </span>
           </button>
         </div>
+
+        {/* Live Transcription while recording */}
+        <AnimatePresence>
+          {recording && (liveTranscript || interimText) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3"
+            >
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-destructive animate-pulse" />
+                  <span className="text-xs font-semibold text-foreground">Live Transcription</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {liveTranscript}
+                  {interimText && <span className="text-primary/60 italic"> {interimText}</span>}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Uploaded file indicator */}
         <AnimatePresence>
