@@ -1,14 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3, Globe } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, FileText, Mic, Camera, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3, Globe, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useStudyLogger } from "@/hooks/useStudyLogger";
 import StudyPlanGenerator from "./StudyPlanGenerator";
 import { useToast } from "@/hooks/use-toast";
-import { peekAll, removeFromQueue, type QueuedStudyLog } from "@/lib/offlineQueue";
-import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+
 import LazyModeSession from "./LazyModeSession";
 import FocusModeSession from "./FocusModeSession";
 import EmergencyRecoverySession from "./EmergencyRecoverySession";
@@ -46,14 +43,6 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [lazyModeOpen, setLazyModeOpen] = useState(false);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
-  const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
-  const [minutes, setMinutes] = useState("");
-  const [confidence, setConfidence] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitProgress, setSubmitProgress] = useState(0);
-  const [pendingEntries, setPendingEntries] = useState<QueuedStudyLog[]>(peekAll());
-  const [syncing, setSyncing] = useState(false);
   const [recording, setRecording] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
@@ -65,9 +54,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [editedTranscript, setEditedTranscript] = useState("");
   const [transcribing, setTranscribing] = useState(false);
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
-  const { logStudy } = useStudyLogger();
   const { toast } = useToast();
-  const { syncAll } = useOfflineSync();
   const { user } = useAuth();
 
   const [liveTranscript, setLiveTranscript] = useState("");
@@ -575,68 +562,6 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     }
   }, [recording, toast, processVoiceRecording, voiceLang]);
 
-  const handleSyncNow = async () => {
-    setSyncing(true);
-    await syncAll();
-    setPendingEntries(peekAll());
-    setSyncing(false);
-  };
-
-  // Refresh pending queue periodically
-  useEffect(() => {
-    const interval = setInterval(() => setPendingEntries(peekAll()), 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleSubmit = async () => {
-    if (!subject || !minutes || !confidence) {
-      toast({ title: "Missing fields", description: "Please fill subject, time, and confidence.", variant: "destructive" });
-      return;
-    }
-    setSubmitting(true);
-    setSubmitProgress(0);
-
-    // Animate progress bar
-    const progressInterval = setInterval(() => {
-      setSubmitProgress((prev) => {
-        if (prev >= 85) { clearInterval(progressInterval); return 85; }
-        return prev + Math.random() * 15 + 5;
-      });
-    }, 200);
-
-    try {
-      const success = await logStudy({
-        subjectName: subject,
-        topicName: topic || undefined,
-        durationMinutes: parseInt(minutes),
-        confidenceLevel: confidence as "low" | "medium" | "high",
-        studyMode: "lazy",
-      });
-
-      clearInterval(progressInterval);
-
-      if (success) {
-        setSubmitProgress(100);
-        setSubject("");
-        setTopic("");
-        setMinutes("");
-        setConfidence("");
-        toast({ title: "🧠 Brain updated!", description: "Navigating to Brain tab..." });
-        // Wait for progress bar to complete visually, then navigate
-        setTimeout(() => {
-          setSubmitting(false);
-          setSubmitProgress(0);
-          onNavigateToBrain?.();
-        }, 800);
-        return;
-      }
-    } catch (e: any) {
-      clearInterval(progressInterval);
-      toast({ title: "Error logging study", description: e?.message || "Please try again.", variant: "destructive" });
-    }
-    setSubmitting(false);
-    setSubmitProgress(0);
-  };
 
   return (
     <div className="px-6 py-6 space-y-6">
@@ -984,150 +909,6 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
         </AnimatePresence>
       </motion.div>
 
-      {/* Quick Study Log */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass rounded-xl p-5 neural-border">
-        <h2 className="font-semibold text-foreground text-sm mb-4 flex items-center gap-2">
-          <Upload className="w-4 h-4 text-primary" />
-          Quick Study Signal
-        </h2>
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Subject (e.g. Physics)"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <input
-            type="text"
-            placeholder="Topic (optional, e.g. Electrostatics)"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <div className="flex gap-3">
-            <input
-              type="number"
-              placeholder="Minutes"
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              min="1"
-              max="480"
-              className="flex-1 rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <select
-              value={confidence}
-              onChange={(e) => setConfidence(e.target.value)}
-              className="flex-1 rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">Confidence</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all disabled:opacity-50"
-            >
-              {submitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {submitProgress >= 100 ? "Done! Going to Brain..." : "Updating..."}
-                </span>
-              ) : (
-                "Update My Brain"
-              )}
-            </button>
-            <AnimatePresence>
-              {submitting && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-primary"
-                      initial={{ width: "0%" }}
-                      animate={{ width: `${submitProgress}%` }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground text-center mt-1">
-                    {submitProgress >= 100 ? "✅ Brain updated! Redirecting..." : "Syncing with your Brain..."}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Pending offline entries */}
-          <AnimatePresence>
-            {pendingEntries.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CloudOff className="w-3.5 h-3.5 text-warning" />
-                    <span className="text-xs font-semibold text-warning">
-                      {pendingEntries.length} session{pendingEntries.length > 1 ? "s" : ""} waiting to sync
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {pendingEntries.map((entry) => (
-                      <div key={entry.id} className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <Clock className="w-3 h-3 shrink-0" />
-                        <span className="flex-1 truncate">
-                          {entry.subjectName}{entry.topicName ? ` › ${entry.topicName}` : ""} — {entry.durationMinutes}m
-                        </span>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button className="p-0.5 rounded hover:bg-destructive/20 transition-colors shrink-0">
-                              <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Remove queued session?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently discard "{entry.subjectName}{entry.topicName ? ` › ${entry.topicName}` : ""}" ({entry.durationMinutes}m). It won't be synced.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => { removeFromQueue(entry.id); setPendingEntries(peekAll()); }}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Remove
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleSyncNow}
-                    disabled={syncing}
-                    className="w-full mt-2.5 py-2 rounded-lg border border-warning/30 bg-warning/10 text-warning text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-warning/20 transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-                    {syncing ? "Syncing..." : "Sync Now"}
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
       <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} />
       <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} />
       <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} />
