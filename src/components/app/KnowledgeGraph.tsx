@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { X, ZoomIn, ZoomOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,38 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const updateNodePosition = useCallback((id: string, x: number, y: number) => {
+    setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
+  }, []);
+
+  const getSVGPoint = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const svgPt = pt.matrixTransform(ctm.inverse());
+    return { x: svgPt.x, y: svgPt.y };
+  }, []);
+
+  const handlePointerDown = useCallback((id: string) => {
+    setDragging(id);
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+    if (!dragging) return;
+    const { x, y } = getSVGPoint(e.clientX, e.clientY);
+    updateNodePosition(dragging, x, y);
+  }, [dragging, getSVGPoint, updateNodePosition]);
+
+  const handlePointerUp = useCallback(() => {
+    setDragging(null);
+  }, []);
 
   const loadGraph = useCallback(async () => {
     if (!user) return;
@@ -195,9 +227,13 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
       ) : (
         <>
           <svg
+            ref={svgRef}
             viewBox="0 0 400 360"
-            className="w-full h-auto"
+            className="w-full h-auto touch-none"
             style={{ transform: `scale(${zoom})`, transformOrigin: "center" }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
           >
             {/* Edges */}
             {edges.map((e, i) => {
@@ -205,7 +241,7 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
               const to = nodeMap.get(e.to);
               if (!from || !to) return null;
               return (
-                <motion.line
+                <line
                   key={i}
                   x1={from.x}
                   y1={from.y}
@@ -215,26 +251,23 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
                   strokeWidth={e.crossSubject ? 1 : 0.5}
                   strokeOpacity={e.crossSubject ? 0.6 : 0.4}
                   strokeDasharray={e.crossSubject ? "4 3" : undefined}
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 0.8, delay: i * 0.02 }}
                 />
               );
             })}
 
             {/* Nodes */}
-            {nodes.map((node, i) => {
+            {nodes.map((node) => {
               const color = colorMap.get(node.subjectId) || SUBJECT_COLORS[0];
               const r = 4 + (node.strength / 100) * 8;
+              const isDragging = dragging === node.id;
               return (
-                <motion.g
+                <g
                   key={node.id}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, delay: 0.1 + i * 0.03 }}
+                  onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(node.id); }}
+                  style={{ cursor: isDragging ? "grabbing" : "grab" }}
                 >
-                  <circle cx={node.x} cy={node.y} r={r + 3} fill={color} opacity={0.15} />
-                  <circle cx={node.x} cy={node.y} r={r} fill={color} opacity={0.9} />
+                  <circle cx={node.x} cy={node.y} r={r + 3} fill={color} opacity={isDragging ? 0.3 : 0.15} />
+                  <circle cx={node.x} cy={node.y} r={r} fill={color} opacity={0.9} stroke={isDragging ? "white" : "none"} strokeWidth={isDragging ? 1 : 0} />
                   <title>{`${node.name} (${node.subjectName}) — ${node.strength}%`}</title>
                   <text
                     x={node.x}
@@ -243,10 +276,11 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
                     fill="hsl(var(--muted-foreground))"
                     fontSize={6}
                     fontFamily="inherit"
+                    pointerEvents="none"
                   >
                     {node.name.length > 12 ? node.name.slice(0, 11) + "…" : node.name}
                   </text>
-                </motion.g>
+                </g>
               );
             })}
           </svg>
