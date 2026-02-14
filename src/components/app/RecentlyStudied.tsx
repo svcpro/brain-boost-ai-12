@@ -200,15 +200,13 @@ const RecentlyStudied = () => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="rounded-lg bg-secondary/30 border border-border/50 overflow-hidden"
+              className="rounded-lg bg-secondary/30 border border-border/50 overflow-hidden cursor-pointer hover:bg-secondary/50 active:scale-[0.98] transition-all"
+              onClick={() => handleResume(item)}
             >
               <div className="flex items-center gap-3 p-2.5">
-                <button
-                  onClick={() => handleResume(item)}
-                  className="p-1.5 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors shrink-0"
-                >
+                <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
                   <Play className="w-3 h-3 text-primary" />
-                </button>
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-foreground truncate">{item.topicName}</p>
                   <p className="text-[10px] text-muted-foreground truncate">
