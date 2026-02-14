@@ -164,6 +164,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
   const [analyzing, setAnalyzing] = useState(false);
   const [insightReviewTopic, setInsightReviewTopic] = useState<string | null>(null);
+  const [insightReviewSubject, setInsightReviewSubject] = useState<string | undefined>();
   const [signalModalOpen, setSignalModalOpen] = useState(false);
   const [prefillSubject, setPrefillSubject] = useState<string | undefined>();
   const [prefillTopic, setPrefillTopic] = useState<string | undefined>();
@@ -256,7 +257,22 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <WeeklyReminderSummary />
 
       {/* Smart Study Insights */}
-      <StudyInsights onReviewTopic={(topic) => setInsightReviewTopic(topic)} />
+      <StudyInsights onReviewTopic={async (topic, subject) => {
+        // If subject not provided by insight, look it up
+        let resolvedSubject = subject;
+        if (!resolvedSubject && user) {
+          const { data: topicData } = await supabase
+            .from("topics")
+            .select("subject_id, subjects(name)")
+            .eq("user_id", user.id)
+            .eq("name", topic)
+            .is("deleted_at", null)
+            .maybeSingle();
+          resolvedSubject = (topicData as any)?.subjects?.name || undefined;
+        }
+        setInsightReviewSubject(resolvedSubject);
+        setInsightReviewTopic(topic);
+      }} />
 
       {/* Exam urgency banner — ≤3 days */}
       {examDaysLeft !== null && examDaysLeft <= 3 && (
@@ -427,7 +443,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* Focus session from insight Review Now — auto-starts */}
       <FocusModeSession
         open={!!insightReviewTopic}
-        onClose={() => setInsightReviewTopic(null)}
+        onClose={() => { setInsightReviewTopic(null); setInsightReviewSubject(undefined); }}
+        initialSubject={insightReviewSubject}
         initialTopic={insightReviewTopic || undefined}
         autoStart
       />
