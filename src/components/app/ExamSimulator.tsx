@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw } from "lucide-react";
+import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,8 @@ interface ExamSimulatorProps {
   onClose: () => void;
 }
 
+const TIME_PER_QUESTION = 60; // seconds per question
+
 const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -27,12 +29,56 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [questionCount, setQuestionCount] = useState(5);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timerEnabled, setTimerEnabled] = useState(true);
+  const [timeExpired, setTimeExpired] = useState(false);
+  const [totalTimeUsed, setTotalTimeUsed] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Start/reset timer when a new question appears
+  useEffect(() => {
+    if (questions.length > 0 && !finished && !answered && timerEnabled) {
+      setTimeLeft(TIME_PER_QUESTION);
+      setTimeExpired(false);
+      intervalRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(intervalRef.current!);
+            setTimeExpired(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [current, questions.length, finished, answered, timerEnabled]);
+
+  // Auto-skip when time expires
+  useEffect(() => {
+    if (timeExpired && !answered) {
+      setAnswered(true);
+      setSelected(-1); // no selection
+      // Track time used for this question
+      setTotalTimeUsed(prev => prev + TIME_PER_QUESTION);
+    }
+  }, [timeExpired, answered]);
+
+  const answer = (idx: number) => {
+    if (answered) return;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setSelected(idx);
+    setAnswered(true);
+    setTotalTimeUsed(prev => prev + (TIME_PER_QUESTION - timeLeft));
+    if (idx === questions[current].correct) setScore(s => s + 1);
+  };
 
   const generateQuiz = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Get user's topics
       const { data: topics } = await supabase
         .from("topics")
         .select("name, memory_strength, subject_id")
@@ -64,7 +110,6 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
 
       if (error) throw error;
 
-      // Parse questions from AI response
       const content = data?.choices?.[0]?.message?.content || data?.result || "";
       const parsed = parseQuestions(content);
 
@@ -77,6 +122,8 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
         setSelected(null);
         setAnswered(false);
         setFinished(false);
+        setTotalTimeUsed(0);
+        setTimeExpired(false);
       }
     } catch (e: any) {
       toast({ title: "Quiz generation failed", description: e.message, variant: "destructive" });
@@ -86,7 +133,6 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
 
   const parseQuestions = (text: string): Question[] => {
     try {
-      // Try JSON parse first
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -94,7 +140,6 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
       }
     } catch {}
 
-    // Fallback: parse numbered questions
     const qs: Question[] = [];
     const blocks = text.split(/\n(?=\d+[\.\)])/);
     for (const block of blocks) {
@@ -118,13 +163,6 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
     return qs.slice(0, questionCount);
   };
 
-  const answer = (idx: number) => {
-    if (answered) return;
-    setSelected(idx);
-    setAnswered(true);
-    if (idx === questions[current].correct) setScore(s => s + 1);
-  };
-
   const next = () => {
     if (current + 1 >= questions.length) {
       setFinished(true);
@@ -132,11 +170,21 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
       setCurrent(c => c + 1);
       setSelected(null);
       setAnswered(false);
+      setTimeExpired(false);
     }
   };
 
   const q = questions[current];
   const pct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+  const timerPct = TIME_PER_QUESTION > 0 ? (timeLeft / TIME_PER_QUESTION) * 100 : 0;
+  const timerColor = timeLeft <= 10 ? "text-destructive" : timeLeft <= 20 ? "text-warning" : "text-primary";
+  const avgTimePerQ = questions.length > 0 ? Math.round(totalTimeUsed / questions.length) : 0;
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return m > 0 ? `${m}:${sec.toString().padStart(2, "0")}` : `${sec}s`;
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -160,15 +208,29 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
             <p className="text-xs text-muted-foreground">
               AI will generate quiz questions based on your weakest topics to simulate exam conditions.
             </p>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Questions:</span>
-              <select
-                value={questionCount}
-                onChange={e => setQuestionCount(Number(e.target.value))}
-                className="rounded-lg bg-secondary border border-border px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-              >
-                {[3, 5, 10].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Questions:</span>
+                <select
+                  value={questionCount}
+                  onChange={e => setQuestionCount(Number(e.target.value))}
+                  className="rounded-lg bg-secondary border border-border px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                >
+                  {[3, 5, 10].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={timerEnabled}
+                    onChange={e => setTimerEnabled(e.target.checked)}
+                    className="rounded border-border accent-primary w-3.5 h-3.5"
+                  />
+                  <span className="text-xs text-muted-foreground">Timer ({TIME_PER_QUESTION}s/q)</span>
+                </label>
+              </div>
             </div>
             <button
               onClick={generateQuiz}
@@ -189,16 +251,53 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
 
         {q && !finished && !loading && (
           <div className="space-y-4">
-            {/* Progress */}
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full bg-secondary">
-                <motion.div
-                  className="h-full rounded-full bg-primary"
-                  animate={{ width: `${((current + 1) / questions.length) * 100}%` }}
-                />
+            {/* Progress + Timer */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-secondary">
+                  <motion.div
+                    className="h-full rounded-full bg-primary"
+                    animate={{ width: `${((current + 1) / questions.length) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground">{current + 1}/{questions.length}</span>
               </div>
-              <span className="text-xs text-muted-foreground">{current + 1}/{questions.length}</span>
+
+              {timerEnabled && !answered && (
+                <div className="flex items-center gap-2">
+                  <Clock className={`w-3.5 h-3.5 ${timerColor} ${timeLeft <= 10 ? "animate-pulse" : ""}`} />
+                  <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <motion.div
+                      className={`h-full rounded-full transition-colors ${
+                        timeLeft <= 10 ? "bg-destructive" : timeLeft <= 20 ? "bg-warning" : "bg-primary"
+                      }`}
+                      animate={{ width: `${timerPct}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                  <motion.span
+                    key={timeLeft}
+                    initial={{ scale: timeLeft <= 10 ? 1.2 : 1 }}
+                    animate={{ scale: 1 }}
+                    className={`text-xs font-mono font-semibold min-w-[28px] text-right ${timerColor}`}
+                  >
+                    {formatTime(timeLeft)}
+                  </motion.span>
+                </div>
+              )}
             </div>
+
+            {/* Time expired banner */}
+            {timeExpired && (
+              <motion.div
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20"
+              >
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <span className="text-xs text-destructive font-medium">Time's up! The correct answer is highlighted.</span>
+              </motion.div>
+            )}
 
             <p className="text-sm font-medium text-foreground">{q.question}</p>
 
@@ -246,11 +345,23 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 py-4">
             <p className="text-4xl font-bold gradient-text">{pct}%</p>
             <p className="text-sm text-foreground">{score}/{questions.length} correct</p>
+
+            {timerEnabled && (
+              <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Total: {formatTime(totalTimeUsed)}</span>
+                </div>
+                <span>•</span>
+                <span>Avg: {formatTime(avgTimePerQ)}/question</span>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground">
               {pct >= 80 ? "Excellent! You're well prepared 🎉" : pct >= 50 ? "Good effort! Review weak areas 💪" : "Keep studying! Focus on weak topics 📚"}
             </p>
             <div className="flex gap-2">
-              <button onClick={() => { setQuestions([]); setFinished(false); }} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl neural-gradient neural-border hover:glow-primary transition-all">
+              <button onClick={() => { setQuestions([]); setFinished(false); setTotalTimeUsed(0); }} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl neural-gradient neural-border hover:glow-primary transition-all">
                 <RotateCcw className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-foreground">Try Again</span>
               </button>
