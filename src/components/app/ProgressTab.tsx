@@ -5,6 +5,7 @@ import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import WeeklyReportCard from "./WeeklyReportCard";
 
 interface StreakData {
   currentStreak: number;
@@ -232,6 +233,9 @@ const ProgressTab = () => {
           <p className="text-sm text-muted-foreground text-center py-4">Loading streak data…</p>
         )}
       </motion.div>
+
+      {/* Weekly Report Card */}
+      <WeeklyReportCard />
 
       {/* Rank Prediction */}
       <motion.div
