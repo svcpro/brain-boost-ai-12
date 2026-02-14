@@ -286,7 +286,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
     { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
     { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting) },
-    { icon: Trash2, label: "Trash", value: trashCount > 0 ? `${trashCount} item${trashCount !== 1 ? "s" : ""}` : "", onClick: () => setShowTrash(!showTrash) },
+    { icon: Trash2, label: "Trash", value: "__trash__", onClick: () => setShowTrash(!showTrash) },
     { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup) },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy) },
   ];
@@ -351,9 +351,24 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           >
             <item.icon className="w-5 h-5 text-muted-foreground" />
             <span className="flex-1 text-left text-sm text-foreground">{item.label}</span>
-            {item.value && (
+            {item.value === "__trash__" ? (
+              <AnimatePresence mode="wait">
+                {trashCount > 0 && (
+                  <motion.span
+                    key={trashCount}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                    className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold px-1.5"
+                  >
+                    {trashCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            ) : item.value ? (
               <span className="text-xs text-muted-foreground">{item.value}</span>
-            )}
+            ) : null}
             <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${item.label === "Subjects & Topics" && showSubjects ? "rotate-90" : ""}`} />
           </button>
         ))}
