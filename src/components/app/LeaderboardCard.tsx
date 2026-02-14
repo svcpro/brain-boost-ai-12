@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Flame, Clock, Crown, Medal, Award, RefreshCw, Gift, Snowflake, TrendingUp, ChevronUp, ChevronDown, Minus } from "lucide-react";
 import confetti from "canvas-confetti";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getPushNotifPrefs } from "./NotificationPreferencesPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -347,22 +348,31 @@ const LeaderboardCard = () => {
                       </p>
                       {/* Rank change indicator */}
                       {rankChanges[entry.user_id] !== undefined && rankChanges[entry.user_id] !== 0 && (
-                        <motion.span
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: i * 0.06 + 0.3, type: "spring", stiffness: 400 }}
-                          className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded-full ${
-                            rankChanges[entry.user_id] > 0
-                              ? "bg-emerald-500/15 text-emerald-400"
-                              : "bg-red-500/15 text-red-400"
-                          }`}
-                        >
-                          {rankChanges[entry.user_id] > 0 ? (
-                            <><ChevronUp className="w-2.5 h-2.5" />{rankChanges[entry.user_id]}</>
-                          ) : (
-                            <><ChevronDown className="w-2.5 h-2.5" />{Math.abs(rankChanges[entry.user_id])}</>
-                          )}
-                        </motion.span>
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <motion.span
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ delay: i * 0.06 + 0.3, type: "spring", stiffness: 400 }}
+                                className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded-full cursor-default ${
+                                  rankChanges[entry.user_id] > 0
+                                    ? "bg-emerald-500/15 text-emerald-400"
+                                    : "bg-red-500/15 text-red-400"
+                                }`}
+                              >
+                                {rankChanges[entry.user_id] > 0 ? (
+                                  <><ChevronUp className="w-2.5 h-2.5" />{rankChanges[entry.user_id]}</>
+                                ) : (
+                                  <><ChevronDown className="w-2.5 h-2.5" />{Math.abs(rankChanges[entry.user_id])}</>
+                                )}
+                              </motion.span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Previously #{entry.position + rankChanges[entry.user_id]} → Now #{entry.position}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
                     <div className="flex items-center gap-1">
