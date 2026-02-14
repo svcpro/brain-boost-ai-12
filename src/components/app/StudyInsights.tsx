@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { setCache, getCache } from "@/lib/offlineCache";
+import { formatDistanceToNow } from "date-fns";
 
 interface Insight {
   type: "urgent" | "optimization" | "encouragement" | "schedule";
@@ -40,6 +41,7 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null);
 
   // Load cached insights on mount, auto-fetch if stale or missing
   useEffect(() => {
@@ -47,6 +49,7 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
     const cached = getCache<CachedInsights>(CACHE_KEY);
     if (cached?.insights?.length) {
       setInsights(cached.insights);
+      setLastFetchedAt(cached.fetchedAt);
       setHasLoaded(true);
       // If cache is older than TTL, refresh in background
       if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) {
@@ -69,9 +72,11 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
         return;
       }
       const fetched = data?.insights || [];
+      const now = Date.now();
       setInsights(fetched);
+      setLastFetchedAt(now);
       setHasLoaded(true);
-      setCache(CACHE_KEY, { insights: fetched, fetchedAt: Date.now() } as CachedInsights);
+      setCache(CACHE_KEY, { insights: fetched, fetchedAt: now } as CachedInsights);
     } catch (e) {
       console.error("Failed to fetch insights:", e);
       if (!silent) toast({ title: "Failed to load insights", description: "Please try again later.", variant: "destructive" });
@@ -96,6 +101,11 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
         <div className="flex items-center gap-2">
           <Brain className="w-5 h-5 text-primary" />
           <span className="text-sm font-semibold text-foreground">Smart Study Insights</span>
+          {lastFetchedAt && hasLoaded && (
+            <span className="text-[10px] text-muted-foreground hidden sm:inline">
+              Updated {formatDistanceToNow(lastFetchedAt, { addSuffix: true })}
+            </span>
+          )}
           {insights.some(i => i.type === "urgent") && (
             <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
           )}
