@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Zap, Sparkles, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Brain, Zap, Sparkles, RefreshCw, CheckCircle2, BellRing } from "lucide-react";
 
 interface BrainUpdateHeroProps {
   onUpdate: () => Promise<void>;
@@ -9,16 +9,33 @@ interface BrainUpdateHeroProps {
   hasTopics: boolean;
 }
 
+const LAST_TAP_KEY = "brain-update-last-tap";
+
+const isStale = () => {
+  const last = localStorage.getItem(LAST_TAP_KEY);
+  if (!last) return true;
+  return Date.now() - Number(last) > 24 * 60 * 60 * 1000;
+};
+
 const BrainUpdateHero = ({ onUpdate, isActive, overallHealth, hasTopics }: BrainUpdateHeroProps) => {
   const [done, setDone] = useState(false);
+  const [needsNudge, setNeedsNudge] = useState(isStale);
 
   const handleClick = async () => {
     if (isActive) return;
     setDone(false);
+    localStorage.setItem(LAST_TAP_KEY, String(Date.now()));
+    setNeedsNudge(false);
     await onUpdate();
     setDone(true);
     setTimeout(() => setDone(false), 3000);
   };
+
+  // Re-check staleness every minute
+  useEffect(() => {
+    const id = setInterval(() => setNeedsNudge(isStale()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <motion.button
@@ -29,7 +46,11 @@ const BrainUpdateHero = ({ onUpdate, isActive, overallHealth, hasTopics }: Brain
       transition={{ type: "spring", stiffness: 200, damping: 20 }}
       whileHover={!isActive ? { scale: 1.02, y: -2 } : {}}
       whileTap={!isActive ? { scale: 0.97 } : {}}
-      className="w-full relative overflow-hidden rounded-2xl p-6 text-left group focus:outline-none disabled:cursor-wait shadow-[0_0_20px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_35px_hsl(var(--primary)/0.3)] transition-shadow"
+      className={`w-full relative overflow-hidden rounded-2xl p-6 text-left group focus:outline-none disabled:cursor-wait transition-shadow ${
+        needsNudge
+          ? "shadow-[0_0_30px_hsl(var(--primary)/0.35)] ring-2 ring-primary/50"
+          : "shadow-[0_0_20px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_35px_hsl(var(--primary)/0.3)]"
+      }`}
     >
       {/* Animated gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/10 to-accent/15 rounded-2xl" />
@@ -147,6 +168,8 @@ const BrainUpdateHero = ({ onUpdate, isActive, overallHealth, hasTopics }: Brain
               ? "AI is analyzing your memory patterns…"
               : done
               ? `Brain health: ${overallHealth}% — recommendations refreshed`
+              : needsNudge
+              ? "⏰ It's been a while — tap to refresh your memory predictions!"
               : hasTopics
               ? "Tap to run AI analysis & refresh memory predictions"
               : "Start here — analyze your study data with AI"}
@@ -160,7 +183,13 @@ const BrainUpdateHero = ({ onUpdate, isActive, overallHealth, hasTopics }: Brain
             transition={{ duration: 1.5, repeat: Infinity }}
             className="flex-shrink-0"
           >
-            <Zap className="w-5 h-5 text-primary" />
+            {needsNudge ? (
+              <motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 0.6, repeat: Infinity }}>
+                <BellRing className="w-5 h-5 text-warning" />
+              </motion.div>
+            ) : (
+              <Zap className="w-5 h-5 text-primary" />
+            )}
           </motion.div>
         )}
       </div>
