@@ -79,7 +79,18 @@ serve(async (req) => {
     let emailsSent = 0;
     if (expiringSoon?.length) {
       for (const sub of expiringSoon) {
-        // Get user email from auth
+        // Check if user has email notifications enabled
+        const { data: profile } = await adminClient
+          .from('profiles')
+          .select('email_notifications_enabled')
+          .eq('id', sub.user_id)
+          .maybeSingle();
+
+        if (profile && profile.email_notifications_enabled === false) {
+          console.log(`Skipping email for user ${sub.user_id} (opted out)`);
+          continue;
+        }
+
         const { data: { user } } = await adminClient.auth.admin.getUserById(sub.user_id);
         if (user?.email) {
           const daysLeft = Math.ceil((new Date(sub.expires_at!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
