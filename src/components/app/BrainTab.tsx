@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Component, type ReactNode, type ErrorInfo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Activity, Network, Clock, Layers, RefreshCw, ChevronDown, ChevronUp, AlertTriangle, TrendingDown, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,13 +26,24 @@ interface SubjectHealthData {
 }
 const BrainTab = () => {
   const { user } = useAuth();
-  const { prediction, loading, predict } = useMemoryEngine();
-  const [subjectHealth, setSubjectHealth] = useState<SubjectHealthData[]>(
-    () => getCache("brain-subject-health") || []
-  );
+  const { prediction, loading, error: memoryError, predict } = useMemoryEngine();
+  const [subjectHealth, setSubjectHealth] = useState<SubjectHealthData[]>([]);
   const [showGraph, setShowGraph] = useState(false);
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Load cached data on mount
+  useEffect(() => {
+    try {
+      const cached = getCache<SubjectHealthData[]>("brain-subject-health");
+      if (cached && Array.isArray(cached)) {
+        setSubjectHealth(cached);
+      }
+    } catch (e) {
+      console.error("BrainTab cache error:", e);
+    }
+  }, []);
 
   const loadSubjectHealth = useCallback(async () => {
     if (!user) return;
@@ -74,14 +85,25 @@ const BrainTab = () => {
       }
       setSubjectHealth(health);
       setCache("brain-subject-health", health);
-    } catch {
-      // offline – cached data already loaded via initial state
+    } catch (e) {
+      console.error("BrainTab loadSubjectHealth error:", e);
+      setLoadError("Failed to load subject data");
     }
   }, [user]);
 
   const refreshAll = useCallback(async () => {
-    await predict();
-    await loadSubjectHealth();
+    setLoadError(null);
+    try {
+      await predict();
+    } catch (e) {
+      console.error("BrainTab predict error:", e);
+    }
+    try {
+      await loadSubjectHealth();
+    } catch (e) {
+      console.error("BrainTab loadSubjectHealth error:", e);
+      setLoadError("Failed to load data");
+    }
   }, [predict, loadSubjectHealth]);
 
   useEffect(() => {
@@ -351,4 +373,41 @@ const BrainTab = () => {
   );
 };
 
-export default BrainTab;
+class BrainTabErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("BrainTab crash:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="px-6 py-12 text-center space-y-3">
+          <Brain className="w-8 h-8 text-destructive mx-auto" />
+          <h2 className="text-foreground font-semibold">Something went wrong</h2>
+          <p className="text-sm text-muted-foreground">{this.state.error}</p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: "" })}
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const BrainTabWithErrorBoundary = () => (
+  <BrainTabErrorBoundary>
+    <BrainTab />
+  </BrainTabErrorBoundary>
+);
+
+export default BrainTabWithErrorBoundary;
