@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function sendWeeklyReportEmail(email: string, displayName: string, stats: { totalMinutes: number; sessionsCount: number; topSubject: string; streakDays: number }, userId: string) {
+async function sendWeeklyReportEmail(email: string, displayName: string, stats: { totalMinutes: number; sessionsCount: number; topSubject: string; streakDays: number; weakQuestions: { question_text: string; times_wrong: number; times_seen: number }[]; weakCount: number }, userId: string) {
   const resendKey = Deno.env.get('RESEND_API_KEY');
   if (!resendKey) { console.warn('RESEND_API_KEY not set'); return; }
 
@@ -40,6 +40,19 @@ async function sendWeeklyReportEmail(email: string, displayName: string, stats: 
             <span style="color: #0f172a; font-weight: 700; font-size: 14px;">${stats.streakDays} day${stats.streakDays !== 1 ? 's' : ''}</span>
           </div>
         </div>
+        ${stats.weakCount > 0 ? `
+        <div style="margin-bottom: 24px;">
+          <h3 style="color: #0f172a; font-size: 16px; margin: 0 0 12px;">⚠️ Weak Questions (${stats.weakCount} need review)</h3>
+          <div style="background: #fff7ed; border-radius: 12px; border: 1px solid #fed7aa; overflow: hidden;">
+            ${stats.weakQuestions.slice(0, 5).map((q, i) => `
+              <div style="padding: 12px 16px;${i < Math.min(stats.weakQuestions.length, 5) - 1 ? ' border-bottom: 1px solid #fed7aa;' : ''}">
+                <p style="margin: 0 0 4px; color: #0f172a; font-size: 13px; font-weight: 600;">${q.question_text.length > 80 ? q.question_text.slice(0, 80) + '…' : q.question_text}</p>
+                <p style="margin: 0; color: #9a3412; font-size: 12px;">Wrong ${q.times_wrong}/${q.times_seen} times</p>
+              </div>
+            `).join('')}
+            ${stats.weakCount > 5 ? `<div style="padding: 10px 16px; text-align: center;"><p style="margin: 0; color: #9a3412; font-size: 12px;">+ ${stats.weakCount - 5} more weak questions</p></div>` : ''}
+          </div>
+        </div>` : ''}
         ${stats.totalMinutes === 0
           ? '<div style="background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;"><p style="margin: 0; color: #92400e; font-size: 14px;">You didn\'t study this week. Even 5 minutes a day makes a difference! 💡</p></div>'
           : '<div style="background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;"><p style="margin: 0; color: #065f46; font-size: 14px;">Great work! Keep the momentum going this week. 💪</p></div>'}
@@ -141,10 +154,21 @@ serve(async (req) => {
         else break;
       }
 
+      // Get weak questions (wrong 2+ times)
+      const { data: weakQs, count: weakCount } = await adminClient
+        .from('question_performance')
+        .select('question_text, times_wrong, times_seen', { count: 'exact' })
+        .eq('user_id', profile.id)
+        .gte('times_wrong', 2)
+        .order('times_wrong', { ascending: false })
+        .limit(5);
+
       const { data: { user } } = await adminClient.auth.admin.getUserById(profile.id);
       if (user?.email) {
         await sendWeeklyReportEmail(user.email, profile.display_name || '', {
           totalMinutes, sessionsCount, topSubject, streakDays,
+          weakQuestions: weakQs || [],
+          weakCount: weakCount ?? 0,
         }, profile.id);
         emailsSent++;
       }
