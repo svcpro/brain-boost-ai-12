@@ -64,7 +64,15 @@ serve(async (req) => {
       }
 
       const arrayBuffer = await audioFile.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 8192) {
+        const chunk = bytes.subarray(i, Math.min(i + 8192, bytes.length));
+        for (let j = 0; j < chunk.length; j++) {
+          binary += String.fromCharCode(chunk[j]);
+        }
+      }
+      const base64 = btoa(binary);
       const mimeType = audioFile.type || "audio/webm";
 
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
