@@ -370,6 +370,163 @@ serve(async (req) => {
       });
     }
 
+    if (action === "generate_plan") {
+      // Get user profile for exam date & daily goal
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("exam_date, exam_type, daily_study_goal_minutes")
+        .eq("id", userId)
+        .maybeSingle();
+
+      // Get all topics with memory data
+      const { data: topics } = await supabase
+        .from("topics")
+        .select("*, subjects(name)")
+        .eq("user_id", userId);
+
+      // Get recent study logs for pattern analysis
+      const { data: recentLogs } = await supabase
+        .from("study_logs")
+        .select("duration_minutes, created_at, study_mode, confidence_level")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+      const examDate = profile?.exam_date || null;
+      const dailyGoal = profile?.daily_study_goal_minutes || 60;
+      const examType = profile?.exam_type || "General";
+
+      const topicSummary = (topics || []).map((t: any) =>
+        `- ${t.name} (${t.subjects?.name}): ${t.memory_strength}% strength, predicted drop: ${t.next_predicted_drop_date || "unknown"}`
+      ).join("\n");
+
+      // Analyze study patterns
+      const now = new Date();
+      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const dayTotals: Record<string, number> = {};
+      for (const log of (recentLogs || [])) {
+        const day = dayNames[new Date(log.created_at).getDay()];
+        dayTotals[day] = (dayTotals[day] || 0) + (log.duration_minutes || 0);
+      }
+
+      const daysUntilExam = examDate
+        ? Math.ceil((new Date(examDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+      const prompt = `Create a personalized weekly study plan for a student preparing for ${examType}.
+
+Context:
+- Daily study goal: ${dailyGoal} minutes
+- Exam date: ${examDate ? `${examDate} (${daysUntilExam} days away)` : "Not set"}
+- Total topics tracked: ${(topics || []).length}
+- Today: ${now.toISOString().split("T")[0]} (${dayNames[now.getDay()]})
+
+Topics by forgetting curve priority:
+${topicSummary || "No topics tracked yet — suggest general study structure."}
+
+Recent study pattern (minutes by day):
+${dayNames.map(d => `${d}: ${Math.round(dayTotals[d] || 0)} min`).join("\n")}
+
+Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.getDay() + 6) % 7]}) that:
+1. Prioritizes topics closest to memory drop threshold
+2. Spaces reviews using spaced repetition principles
+3. Respects the daily study goal
+4. Includes rest/light days if needed
+5. Front-loads critical topics if exam is near`;
+
+      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: "You are ACRY, an AI memory optimization engine. Create actionable, time-blocked study plans based on forgetting curve data. Be specific with topic names and durations."
+            },
+            { role: "user", content: prompt }
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "create_study_plan",
+              description: "Create a 7-day study plan with daily sessions",
+              parameters: {
+                type: "object",
+                properties: {
+                  summary: { type: "string", description: "2-3 sentence overview of the plan strategy" },
+                  days: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        day_name: { type: "string" },
+                        date: { type: "string" },
+                        focus: { type: "string", description: "Main focus for the day" },
+                        total_minutes: { type: "number" },
+                        sessions: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              topic: { type: "string" },
+                              subject: { type: "string" },
+                              duration_minutes: { type: "number" },
+                              mode: { type: "string", enum: ["review", "deep-study", "practice", "light-review"] },
+                              reason: { type: "string", description: "Why this session is scheduled now" }
+                            },
+                            required: ["topic", "subject", "duration_minutes", "mode", "reason"],
+                            additionalProperties: false
+                          }
+                        }
+                      },
+                      required: ["day_name", "date", "focus", "total_minutes", "sessions"],
+                      additionalProperties: false
+                    }
+                  }
+                },
+                required: ["summary", "days"],
+                additionalProperties: false
+              }
+            }
+          }],
+          tool_choice: { type: "function", function: { name: "create_study_plan" } }
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        if (aiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (aiResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw new Error(`AI gateway error: ${aiResponse.status}`);
+      }
+
+      const aiData = await aiResponse.json();
+      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      let plan = { summary: "", days: [] };
+
+      if (toolCall?.function?.arguments) {
+        plan = JSON.parse(toolCall.function.arguments);
+      }
+
+      return new Response(JSON.stringify({ plan }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

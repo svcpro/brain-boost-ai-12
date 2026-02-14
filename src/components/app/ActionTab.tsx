@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
+import StudyPlanGenerator from "./StudyPlanGenerator";
 import { useToast } from "@/hooks/use-toast";
 
 const modes = [
@@ -88,6 +89,12 @@ const ActionTab = () => {
           </motion.button>
         ))}
       </div>
+
+      {/* AI Study Plan */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+        <h2 className="font-semibold text-foreground text-sm mb-3">AI Study Planner</h2>
+        <StudyPlanGenerator />
+      </motion.div>
 
       {/* Upload Content */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
