@@ -489,7 +489,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               transition={{ delay: 0.15 }}
               className="text-lg font-bold text-foreground truncate"
             >
-              {user?.user_metadata?.display_name || "Student"}
+              {user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"}
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, x: -8 }}
