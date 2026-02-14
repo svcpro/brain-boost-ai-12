@@ -170,9 +170,24 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
     return qs.slice(0, questionCount);
   };
 
+  const saveResult = useCallback(async (finalScore: number) => {
+    if (!user) return;
+    try {
+      await supabase.from("exam_results").insert({
+        user_id: user.id,
+        score: finalScore,
+        total_questions: questions.length,
+        difficulty,
+        time_used_seconds: totalTimeUsed,
+        topics: questions.map(q => q.question.slice(0, 50)).join("; "),
+      });
+    } catch {}
+  }, [user, questions, difficulty, totalTimeUsed]);
+
   const next = () => {
     if (current + 1 >= questions.length) {
       setFinished(true);
+      saveResult(score);
     } else {
       setCurrent(c => c + 1);
       setSelected(null);

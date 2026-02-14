@@ -85,6 +85,39 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_results: {
+        Row: {
+          created_at: string
+          difficulty: string
+          id: string
+          score: number
+          time_used_seconds: number | null
+          topics: string | null
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          score: number
+          time_used_seconds?: number | null
+          topics?: string | null
+          total_questions: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          score?: number
+          time_used_seconds?: number | null
+          topics?: string | null
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       memory_scores: {
         Row: {
           id: string
