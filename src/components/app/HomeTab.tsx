@@ -13,6 +13,7 @@ import ReviewQueue from "./ReviewQueue";
 import { notifyFeedback } from "@/lib/feedback";
 import { useVoice } from "@/pages/AppDashboard";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
+import NextReminderIndicator from "./NextReminderIndicator";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -162,6 +163,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps)
           <p className="text-muted-foreground text-sm mt-1">
             {hasTopics ? "Your AI brain is active and monitoring." : "Log your first study session to activate AI."}
           </p>
+          <div className="mt-1.5">
+            <NextReminderIndicator />
+          </div>
         </div>
         <button onClick={handleRefresh} disabled={loading} className="p-2 rounded-lg neural-gradient neural-border hover:glow-primary transition-all disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
