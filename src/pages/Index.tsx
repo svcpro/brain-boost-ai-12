@@ -20,7 +20,7 @@ const Index = () => {
             <span className="font-display font-bold text-xl text-foreground">ACRY</span>
           </div>
           <a
-            href="/app"
+            href="/auth"
             className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold glow-primary hover:glow-primary-strong transition-all duration-300"
           >
             Launch App

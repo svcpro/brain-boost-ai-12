@@ -26,7 +26,7 @@ const CTASection = () => {
               Let AI Handle Your Brain.
             </p>
             <Link
-              to="/app"
+              to="/auth"
               className="inline-flex items-center gap-2 px-10 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg glow-primary-strong hover:scale-105 transition-all duration-300"
             >
               <Brain className="w-5 h-5" />

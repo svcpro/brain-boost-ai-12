@@ -86,7 +86,7 @@ const PricingSection = () => {
                 ))}
               </ul>
               <Link
-                to="/app"
+                to="/auth"
                 className={`block text-center py-3 rounded-xl font-semibold transition-all duration-300 ${
                   plan.highlight
                     ? "bg-primary text-primary-foreground glow-primary hover:glow-primary-strong hover:scale-105"
