@@ -253,7 +253,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           className="w-full glass rounded-xl neural-border p-3 flex items-center gap-3 hover:bg-secondary/20 transition-colors text-left"
         >
           <div className="relative w-10 h-10 shrink-0">
-            <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
+            {(prediction.at_risk?.length ?? 0) > 0 && (
+              <motion.div
+                className="absolute inset-0 rounded-full bg-destructive/20"
+                animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              />
+            )}
+            <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90 relative z-10">
               <circle cx="20" cy="20" r="16" fill="none" stroke="hsl(var(--secondary))" strokeWidth="3.5" />
               <motion.circle
                 cx="20" cy="20" r="16" fill="none"
@@ -270,7 +277,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                 transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-foreground">
+            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-foreground z-10">
               {prediction.overall_health ?? 0}%
             </span>
           </div>
