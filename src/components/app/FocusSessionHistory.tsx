@@ -118,7 +118,9 @@ const FocusSessionHistory = () => {
       const escapeCsv = (v: string | null) => v ? `"${v.replace(/"/g, '""')}"` : "";
       return `${date},${escapeCsv(s.subject)},${escapeCsv(s.topic)},${s.duration_minutes},${s.confidence_level || ""},${escapeCsv(s.notes)}`;
     });
-    const csv = [header, ...rows].join("\n");
+    const totalMins = filteredSessions.reduce((sum, s) => sum + s.duration_minutes, 0);
+    const summary = `\nSummary,${filteredSessions.length} sessions,,${totalMins},,`;
+    const csv = [header, ...rows, summary].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
