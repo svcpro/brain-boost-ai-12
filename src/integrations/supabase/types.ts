@@ -297,6 +297,7 @@ export type Database = {
           exam_date: string | null
           exam_type: string | null
           id: string
+          last_brain_update_at: string | null
           opt_in_leaderboard: boolean
           push_notification_prefs: Json
           study_preferences: Json | null
@@ -315,6 +316,7 @@ export type Database = {
           exam_date?: string | null
           exam_type?: string | null
           id: string
+          last_brain_update_at?: string | null
           opt_in_leaderboard?: boolean
           push_notification_prefs?: Json
           study_preferences?: Json | null
@@ -333,6 +335,7 @@ export type Database = {
           exam_date?: string | null
           exam_type?: string | null
           id?: string
+          last_brain_update_at?: string | null
           opt_in_leaderboard?: boolean
           push_notification_prefs?: Json
           study_preferences?: Json | null
