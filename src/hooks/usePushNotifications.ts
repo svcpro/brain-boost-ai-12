@@ -13,12 +13,35 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 const getVapidPublicKey = (): string | null => {
   // 1. Build-time env var
   const envKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-  if (envKey && envKey.length > 10) return envKey;
+  if (envKey && typeof envKey === "string" && envKey.length > 10) return envKey;
   
   // 2. Check localStorage cache from a previous successful fetch
   const cached = localStorage.getItem("vapid_public_key");
   if (cached && cached.length > 10) return cached;
   
+  return null;
+};
+
+const fetchAndCacheVapidKey = async (): Promise<string | null> => {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push-notification`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get-vapid-key" }),
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.vapidPublicKey && data.vapidPublicKey.length > 10) {
+        localStorage.setItem("vapid_public_key", data.vapidPublicKey);
+        return data.vapidPublicKey;
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to fetch VAPID key:", e);
+  }
   return null;
 };
 
@@ -40,22 +63,11 @@ export const usePushNotifications = () => {
     });
   }, [user]);
 
-  // Try to fetch VAPID key from edge function and cache it
+  // Try to fetch VAPID key from edge function and cache it on mount
   useEffect(() => {
-    const fetchVapidKey = async () => {
-      if (getVapidPublicKey()) return; // Already have it
-      try {
-        const { data } = await supabase.functions.invoke("send-push-notification", {
-          body: { action: "get-vapid-key" },
-        });
-        if (data?.vapidPublicKey) {
-          localStorage.setItem("vapid_public_key", data.vapidPublicKey);
-        }
-      } catch {
-        // Silent - will handle in subscribe
-      }
-    };
-    fetchVapidKey();
+    if (!getVapidPublicKey()) {
+      fetchAndCacheVapidKey();
+    }
   }, []);
 
   const subscribe = useCallback(async () => {
@@ -71,10 +83,14 @@ export const usePushNotifications = () => {
       return false;
     }
 
-    const vapidKey = getVapidPublicKey();
+    // Try cached key first, then fetch fresh if missing
+    let vapidKey = getVapidPublicKey();
     if (!vapidKey) {
-      setError("Push notification service is not configured yet. Please try again later.");
-      console.warn("VAPID public key not available from env or cache");
+      vapidKey = await fetchAndCacheVapidKey();
+    }
+    if (!vapidKey) {
+      setError("Push notification service is not configured. Please contact support.");
+      console.warn("VAPID public key not available from env, cache, or edge function");
       return false;
     }
 
