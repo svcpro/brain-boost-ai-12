@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Bell, CheckCircle2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getCache } from "@/lib/offlineCache";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -13,8 +15,19 @@ function getScheduleLabel(settings: ReturnType<typeof getVoiceSettings>): string
   return `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
 }
 
+function getMondayOfWeek() {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((day + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
 const WeeklyReminderSummary = () => {
   const [activeDot, setActiveDot] = useState<number | null>(null);
+  const { user } = useAuth();
+  const [dailyMinutes, setDailyMinutes] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
 
   const stats = useMemo(() => {
     const settings = getVoiceSettings();
@@ -22,20 +35,11 @@ const WeeklyReminderSummary = () => {
 
     const now = new Date();
     const log = getCache<string[]>("voice-reminder-log") || [];
-
-    // Get Monday of current week
-    const day = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((day + 6) % 7));
-    monday.setHours(0, 0, 0, 0);
+    const monday = getMondayOfWeek();
     const mondayStr = monday.toLocaleDateString("en-CA");
-
     const thisWeekSet = new Set(log.filter(d => d >= mondayStr));
-
-    // Days elapsed this week (1-7)
     const elapsed = Math.min(7, Math.floor((now.getTime() - monday.getTime()) / 86400000) + 1);
 
-    // Build per-day info
     const days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
@@ -48,10 +52,40 @@ const WeeklyReminderSummary = () => {
     const delivered = days.filter(d => d.delivered).length;
     const scheduleLabel = getScheduleLabel(settings);
 
-    return { days, delivered, elapsed, scheduleLabel };
+    return { days, delivered, elapsed, scheduleLabel, mondayStr };
   }, []);
 
+  // Fetch daily study minutes for the week
+  useEffect(() => {
+    if (!user || !stats) return;
+    const fetchMinutes = async () => {
+      const monday = getMondayOfWeek();
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 7);
+
+      const { data } = await supabase
+        .from("study_logs")
+        .select("created_at, duration_minutes")
+        .eq("user_id", user.id)
+        .gte("created_at", monday.toISOString())
+        .lt("created_at", sunday.toISOString());
+
+      if (!data) return;
+
+      const mins = [0, 0, 0, 0, 0, 0, 0];
+      for (const log of data) {
+        const d = new Date(log.created_at);
+        const dayIdx = (d.getDay() + 6) % 7; // Mon=0
+        mins[dayIdx] += log.duration_minutes;
+      }
+      setDailyMinutes(mins);
+    };
+    fetchMinutes();
+  }, [user, stats]);
+
   if (!stats) return null;
+
+  const maxMinutes = Math.max(...dailyMinutes, 1);
 
   return (
     <div className="glass rounded-xl p-4 neural-border">
@@ -111,6 +145,45 @@ const WeeklyReminderSummary = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Mini bar chart: study minutes + reminder overlay */}
+      <div className="mt-3 flex items-end gap-1 h-12">
+        {stats.days.map((day, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+            <div className="w-full relative flex items-end justify-center h-8">
+              <motion.div
+                initial={{ height: 0 }}
+                animate={{ height: `${(dailyMinutes[i] / maxMinutes) * 100}%` }}
+                transition={{ duration: 0.4, delay: i * 0.05 }}
+                className={`w-full rounded-t-sm min-h-[2px] ${
+                  day.delivered
+                    ? "bg-success/60"
+                    : day.past
+                      ? "bg-muted-foreground/20"
+                      : "bg-muted/40"
+                }`}
+              />
+              {day.delivered && (
+                <div className="absolute -top-0.5 w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_3px_hsl(var(--success)/0.6)]" />
+              )}
+            </div>
+            <span className="text-[8px] text-muted-foreground leading-none">{day.label.charAt(0)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between mt-1">
+        <div className="flex items-center gap-2 text-[8px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-1.5 h-1.5 rounded-sm bg-success/60" /> Study mins
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-success" /> Reminder sent
+          </span>
+        </div>
+        <span className="text-[8px] text-muted-foreground">
+          {dailyMinutes.reduce((a, b) => a + b, 0)} min total
+        </span>
+      </div>
 
       {stats.delivered === stats.elapsed && stats.delivered > 0 && (
         <div className="flex items-center gap-1 mt-2 text-[10px] text-success">
