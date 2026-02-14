@@ -623,6 +623,21 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) =
           )}
         </AnimatePresence>
 
+        {/* Data Backup Panel */}
+        <AnimatePresence>
+          {showDataBackup && <DataBackup />}
+        </AnimatePresence>
+
+        {/* Privacy & Security Panel */}
+        <AnimatePresence>
+          {showPrivacy && <PrivacySecurity />}
+        </AnimatePresence>
+
+        {/* Subscription Plan Modal */}
+        <AnimatePresence>
+          {showSubscription && <SubscriptionPlan onClose={() => setShowSubscription(false)} />}
+        </AnimatePresence>
+
         <button
           onClick={handleSignOut}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-destructive/10 transition-all"
