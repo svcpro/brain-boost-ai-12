@@ -1,6 +1,7 @@
 /** Lightweight notification feedback utilities (no external deps) */
 
 const FEEDBACK_KEY = "acry-feedback-enabled";
+const VOLUME_KEY = "acry-feedback-volume";
 
 /** Check if feedback is enabled (default: true) */
 export function isFeedbackEnabled(): boolean {
@@ -16,15 +17,32 @@ export function isFeedbackEnabled(): boolean {
 export function setFeedbackEnabled(enabled: boolean) {
   try {
     localStorage.setItem(FEEDBACK_KEY, String(enabled));
+  } catch {}
+}
+
+/** Get volume level 0–100 (default: 50) */
+export function getFeedbackVolume(): number {
+  try {
+    const val = localStorage.getItem(VOLUME_KEY);
+    return val === null ? 50 : Math.min(100, Math.max(0, Number(val)));
   } catch {
-    // storage unavailable
+    return 50;
   }
+}
+
+/** Set volume level 0–100 */
+export function setFeedbackVolume(volume: number) {
+  try {
+    localStorage.setItem(VOLUME_KEY, String(Math.min(100, Math.max(0, volume))));
+  } catch {}
 }
 
 /** Play a short, pleasant notification chime using Web Audio API */
 export function playNotificationSound() {
   if (!isFeedbackEnabled()) return;
   try {
+    const vol = getFeedbackVolume() / 100;
+    if (vol === 0) return;
     const ctx = new AudioContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -33,18 +51,16 @@ export function playNotificationSound() {
     gain.connect(ctx.destination);
 
     osc.type = "sine";
-    osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.08); // C#6
-    osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.16); // E6
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.08);
+    osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.16);
 
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15 * vol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
 
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.3);
-  } catch {
-    // Audio not supported — silently ignore
-  }
+  } catch {}
 }
 
 /** Trigger a short haptic vibration if supported */
@@ -52,9 +68,7 @@ export function triggerHaptic(pattern: number | number[] = 50) {
   if (!isFeedbackEnabled()) return;
   try {
     navigator?.vibrate?.(pattern);
-  } catch {
-    // Haptic not supported — silently ignore
-  }
+  } catch {}
 }
 
 /** Combined feedback for notifications */

@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
-import { isFeedbackEnabled, setFeedbackEnabled, notifyFeedback } from "@/lib/feedback";
+import { isFeedbackEnabled, setFeedbackEnabled, getFeedbackVolume, setFeedbackVolume, notifyFeedback, playNotificationSound } from "@/lib/feedback";
 
 interface Topic {
   id: string;
@@ -42,6 +42,7 @@ const YouTab = () => {
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
   const [showLeaderboardSetting, setShowLeaderboardSetting] = useState(false);
   const [feedbackOn, setFeedbackOn] = useState(() => isFeedbackEnabled());
+  const [volume, setVolume] = useState(() => getFeedbackVolume());
   const [showFeedbackSetting, setShowFeedbackSetting] = useState(false);
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
@@ -547,6 +548,34 @@ const YouTab = () => {
                     ? "A chime and vibration play when AI analysis or recommendations complete."
                     : "Notifications will be silent with no vibration."}
                 </p>
+
+                {feedbackOn && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Volume</span>
+                      <span className="text-xs text-foreground font-medium">{volume}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={volume}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setVolume(v);
+                        setFeedbackVolume(v);
+                      }}
+                      onMouseUp={() => playNotificationSound()}
+                      onTouchEnd={() => playNotificationSound()}
+                      className="w-full h-1.5 rounded-full appearance-none bg-secondary cursor-pointer accent-primary"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Quiet</span>
+                      <span>Loud</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
