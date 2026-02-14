@@ -173,9 +173,11 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
                     <div className="flex items-center gap-2">
                       <Icon className={`w-4 h-4 ${config.color}`} />
                       <span className={`text-[10px] font-bold uppercase tracking-wider ${config.color}`}>{config.label}</span>
-                      {insight.topic && (
-                        <span className="text-[10px] text-muted-foreground ml-auto truncate max-w-[120px]">
-                          {insight.topic}
+                      {(insight.topic || insight.subject) && (
+                        <span className="text-[10px] text-muted-foreground ml-auto truncate max-w-[160px]">
+                          {insight.subject && insight.topic
+                            ? `${insight.subject} › ${insight.topic}`
+                            : insight.topic || insight.subject}
                         </span>
                       )}
                     </div>
