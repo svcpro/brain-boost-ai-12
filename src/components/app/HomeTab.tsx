@@ -242,7 +242,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <QuickStartStudy />
 
       {/* Recently Studied */}
-      <RecentlyStudied onQuickLog={() => handleRefresh()} />
+      <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />
 
       {/* Daily Goal */}
       <DailyGoalTracker />
