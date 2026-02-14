@@ -100,6 +100,9 @@ const RecentlyStudied = ({ onQuickLog, analyzing }: RecentlyStudiedProps) => {
       setCompletedLogId(clickedLogId);
       setClickedLogId(null);
 
+      // Haptic feedback on mobile
+      if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+
       // Fire confetti from the card's position
       import("canvas-confetti").then(({ default: confetti }) => {
         const el = cardRefs.current.get(clickedLogId);
