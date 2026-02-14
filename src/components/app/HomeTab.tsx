@@ -17,6 +17,7 @@ import NextReminderIndicator from "./NextReminderIndicator";
 import WeeklyReminderSummary from "./WeeklyReminderSummary";
 import StudyInsights from "./StudyInsights";
 import FocusModeSession from "./FocusModeSession";
+import DailyStudyTip from "./DailyStudyTip";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -182,6 +183,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* Streak */}
       <StreakTracker />
+
+      {/* Daily Study Tip */}
+      <DailyStudyTip />
 
       {/* Weekly Voice Reminder Summary */}
       <WeeklyReminderSummary />
