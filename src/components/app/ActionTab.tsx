@@ -111,6 +111,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef("");
   const extractionAbortRef = useRef<AbortController | null>(null);
+  const [lastExtraction, setLastExtraction] = useState<{ type: "pdf" | "scan" | "voice-transcribe" | "voice-extract"; file?: File; blob?: Blob; transcript?: string } | null>(null);
+  const [extractionFailed, setExtractionFailed] = useState(false);
 
   const startExtractionProgress = useCallback(() => {
     setExtractionProgress(0);
@@ -139,6 +141,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     stopExtractionProgress(false);
     setExtracting(false);
     setTranscribing(false);
+    setExtractionFailed(true);
     toast({ title: "Cancelled", description: "Extraction was cancelled." });
   }, [stopExtractionProgress, toast]);
 
@@ -159,6 +162,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setUploadedFile(file.name);
     setExtracting(true);
     setExtractionResult(null);
+    setExtractionFailed(false);
+    setLastExtraction({ type: "pdf", file });
     startExtractionProgress();
     const abortController = new AbortController();
     extractionAbortRef.current = abortController;
@@ -190,11 +195,13 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
 
       if (data.success && data.totalTopicsCreated > 0) {
         setExtractionResult(data.results);
+        setLastExtraction(null);
         toast({
           title: `🧠 ${data.totalTopicsCreated} topics extracted!`,
           description: `Added to ${data.results.length} subject(s). Check your Brain tab!`,
         });
       } else if (data.success && data.totalTopicsCreated === 0) {
+        setLastExtraction(null);
         toast({
           title: "No new topics found",
           description: "All topics from this PDF are already in your library.",
@@ -204,6 +211,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       }
     } catch (err: any) {
       stopExtractionProgress(false);
+      setExtractionFailed(true);
       toast({
         title: "Extraction failed",
         description: err?.message || "Could not extract topics from this PDF.",
@@ -212,7 +220,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     } finally {
       setExtracting(false);
       stopExtractionProgress(true);
-      e.target.value = "";
+      if (e?.target) e.target.value = "";
     }
   }, [toast]);
 
@@ -228,6 +236,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setUploadedFile(file.name);
     setExtracting(true);
     setExtractionResult(null);
+    setExtractionFailed(false);
+    setLastExtraction({ type: "scan", file });
     startExtractionProgress();
     const abortController = new AbortController();
     extractionAbortRef.current = abortController;
@@ -257,22 +267,25 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
 
       if (data.success && data.totalTopicsCreated > 0) {
         setExtractionResult(data.results);
+        setLastExtraction(null);
         toast({
           title: `🧠 ${data.totalTopicsCreated} topics extracted!`,
           description: `Added to ${data.results.length} subject(s). Check your Brain tab!`,
         });
       } else if (data.success && data.totalTopicsCreated === 0) {
+        setLastExtraction(null);
         toast({ title: "No new topics found", description: "All topics from this image are already in your library." });
       } else {
         throw new Error(data.error || "Extraction failed");
       }
     } catch (err: any) {
       stopExtractionProgress(false);
+      setExtractionFailed(true);
       toast({ title: "Extraction failed", description: err?.message || "Could not extract topics from this image.", variant: "destructive" });
     } finally {
       setExtracting(false);
       stopExtractionProgress(true);
-      e.target.value = "";
+      if (e?.target) e.target.value = "";
     }
   }, [toast]);
 
@@ -282,6 +295,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setLiveTranscript("");
     setInterimText("");
     setExtractionResult(null);
+    setExtractionFailed(false);
+    setLastExtraction({ type: "voice-transcribe", blob });
     setVoiceBlob(blob);
     toast({ title: "🎙️ Transcribing...", description: "Converting your voice note to text." });
     const abortController = new AbortController();
@@ -312,13 +327,15 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       if (data.success && data.transcription) {
         setVoiceTranscript(data.transcription);
         setEditedTranscript(data.transcription);
+        setLastExtraction(null);
+        setExtractionFailed(false);
         toast({ title: "✅ Transcription ready!", description: "Review the text, then confirm to extract topics." });
       } else {
         throw new Error(data.error || "No transcription returned");
       }
     } catch (err: any) {
+      setExtractionFailed(true);
       toast({ title: "Transcription failed", description: err?.message || "Could not transcribe recording.", variant: "destructive" });
-      setVoiceBlob(null);
     } finally {
       setTranscribing(false);
     }
@@ -329,6 +346,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     if (!transcript) return;
     setExtracting(true);
     setExtractionResult(null);
+    setExtractionFailed(false);
+    setLastExtraction({ type: "voice-extract", transcript });
     startExtractionProgress();
     const abortController = new AbortController();
     extractionAbortRef.current = abortController;
@@ -358,11 +377,13 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
 
       if (data.success && data.totalTopicsCreated > 0) {
         setExtractionResult(data.results);
+        setLastExtraction(null);
         toast({
           title: `🧠 ${data.totalTopicsCreated} topics extracted!`,
           description: `Added to ${data.results.length} subject(s). Check your Brain tab!`,
         });
       } else if (data.success && data.totalTopicsCreated === 0) {
+        setLastExtraction(null);
         toast({ title: "No new topics found", description: "All topics from this recording are already in your library." });
       } else {
         throw new Error(data.error || "Extraction failed");
@@ -371,12 +392,77 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       setVoiceBlob(null);
     } catch (err: any) {
       stopExtractionProgress(false);
+      setExtractionFailed(true);
       toast({ title: "Extraction failed", description: err?.message || "Could not extract topics.", variant: "destructive" });
     } finally {
       setExtracting(false);
       stopExtractionProgress(true);
     }
   }, [editedTranscript, voiceTranscript, toast]);
+
+  const retryLastExtraction = useCallback(() => {
+    if (!lastExtraction) return;
+    setExtractionFailed(false);
+    switch (lastExtraction.type) {
+      case "pdf":
+        if (lastExtraction.file) {
+          const fakeEvent = { target: { value: "" } } as any;
+          setUploadedFile(lastExtraction.file.name);
+          // Re-run PDF extraction directly
+          const runPdf = async () => {
+            setExtracting(true);
+            setExtractionResult(null);
+            startExtractionProgress();
+            const abortController = new AbortController();
+            extractionAbortRef.current = abortController;
+            try {
+              const formData = new FormData();
+              formData.append("pdf", lastExtraction.file!);
+              const { data: { session } } = await supabase.auth.getSession();
+              const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-pdf-topics`, { method: "POST", headers: { Authorization: `Bearer ${session?.access_token}` }, body: formData, signal: abortController.signal });
+              if (!response.ok) { const err = await response.json().catch(() => ({ error: "Processing failed" })); throw new Error(err.error); }
+              const data = await response.json();
+              if (data.success && data.totalTopicsCreated > 0) { setExtractionResult(data.results); setLastExtraction(null); toast({ title: `🧠 ${data.totalTopicsCreated} topics extracted!`, description: `Added to ${data.results.length} subject(s).` }); }
+              else if (data.success) { setLastExtraction(null); toast({ title: "No new topics found" }); }
+              else throw new Error(data.error);
+            } catch (err: any) { stopExtractionProgress(false); setExtractionFailed(true); toast({ title: "Extraction failed", description: err?.message, variant: "destructive" }); }
+            finally { setExtracting(false); stopExtractionProgress(true); }
+          };
+          runPdf();
+        }
+        break;
+      case "scan":
+        if (lastExtraction.file) {
+          const runScan = async () => {
+            setExtracting(true);
+            setExtractionResult(null);
+            startExtractionProgress();
+            const abortController = new AbortController();
+            extractionAbortRef.current = abortController;
+            try {
+              const formData = new FormData();
+              formData.append("image", lastExtraction.file!);
+              const { data: { session } } = await supabase.auth.getSession();
+              const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-image-topics`, { method: "POST", headers: { Authorization: `Bearer ${session?.access_token}` }, body: formData, signal: abortController.signal });
+              if (!response.ok) { const err = await response.json().catch(() => ({ error: "Processing failed" })); throw new Error(err.error); }
+              const data = await response.json();
+              if (data.success && data.totalTopicsCreated > 0) { setExtractionResult(data.results); setLastExtraction(null); toast({ title: `🧠 ${data.totalTopicsCreated} topics extracted!`, description: `Added to ${data.results.length} subject(s).` }); }
+              else if (data.success) { setLastExtraction(null); toast({ title: "No new topics found" }); }
+              else throw new Error(data.error);
+            } catch (err: any) { stopExtractionProgress(false); setExtractionFailed(true); toast({ title: "Extraction failed", description: err?.message, variant: "destructive" }); }
+            finally { setExtracting(false); stopExtractionProgress(true); }
+          };
+          runScan();
+        }
+        break;
+      case "voice-transcribe":
+        if (lastExtraction.blob) processVoiceRecording(lastExtraction.blob);
+        break;
+      case "voice-extract":
+        if (lastExtraction.transcript) confirmVoiceExtraction();
+        break;
+    }
+  }, [lastExtraction, toast, startExtractionProgress, stopExtractionProgress, processVoiceRecording, confirmVoiceExtraction]);
 
   const handleVoiceRecord = useCallback(async () => {
     if (recording) {
@@ -739,6 +825,25 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                         </button>
                       )}
                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Retry button after failure/cancel */}
+              <AnimatePresence>
+                {extractionFailed && lastExtraction && !extracting && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <button
+                      onClick={retryLastExtraction}
+                      className="w-full py-2 rounded-lg border border-primary/30 bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-primary/20 transition-colors"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Retry {lastExtraction.type === "pdf" ? "PDF" : lastExtraction.type === "scan" ? "Scan" : lastExtraction.type === "voice-transcribe" ? "Transcription" : "Voice"} Extraction
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
