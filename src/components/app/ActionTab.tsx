@@ -38,7 +38,11 @@ const modes = [
   },
 ];
 
-const ActionTab = () => {
+interface ActionTabProps {
+  onNavigateToBrain?: () => void;
+}
+
+const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [lazyModeOpen, setLazyModeOpen] = useState(false);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
@@ -47,6 +51,7 @@ const ActionTab = () => {
   const [minutes, setMinutes] = useState("");
   const [confidence, setConfidence] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
   const [pendingEntries, setPendingEntries] = useState<QueuedStudyLog[]>(peekAll());
   const [syncing, setSyncing] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -434,6 +439,16 @@ const ActionTab = () => {
       return;
     }
     setSubmitting(true);
+    setSubmitProgress(0);
+
+    // Animate progress bar
+    const progressInterval = setInterval(() => {
+      setSubmitProgress((prev) => {
+        if (prev >= 85) { clearInterval(progressInterval); return 85; }
+        return prev + Math.random() * 15 + 5;
+      });
+    }, 200);
+
     try {
       const success = await logStudy({
         subjectName: subject,
@@ -442,17 +457,30 @@ const ActionTab = () => {
         confidenceLevel: confidence as "low" | "medium" | "high",
         studyMode: "lazy",
       });
+
+      clearInterval(progressInterval);
+
       if (success) {
+        setSubmitProgress(100);
         setSubject("");
         setTopic("");
         setMinutes("");
         setConfidence("");
+        toast({ title: "🧠 Brain updated!", description: "Navigating to Brain tab..." });
+        // Wait for progress bar to complete visually, then navigate
+        setTimeout(() => {
+          setSubmitting(false);
+          setSubmitProgress(0);
+          onNavigateToBrain?.();
+        }, 800);
+        return;
       }
     } catch (e: any) {
+      clearInterval(progressInterval);
       toast({ title: "Error logging study", description: e?.message || "Please try again.", variant: "destructive" });
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
+    setSubmitProgress(0);
   };
 
   return (
@@ -783,13 +811,43 @@ const ActionTab = () => {
               <option value="high">High</option>
             </select>
           </div>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all disabled:opacity-50"
-          >
-            {submitting ? "Updating..." : "Update My Brain"}
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all disabled:opacity-50"
+            >
+              {submitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {submitProgress >= 100 ? "Done! Going to Brain..." : "Updating..."}
+                </span>
+              ) : (
+                "Update My Brain"
+              )}
+            </button>
+            <AnimatePresence>
+              {submitting && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full bg-primary"
+                      initial={{ width: "0%" }}
+                      animate={{ width: `${submitProgress}%` }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground text-center mt-1">
+                    {submitProgress >= 100 ? "✅ Brain updated! Redirecting..." : "Syncing with your Brain..."}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Pending offline entries */}
           <AnimatePresence>
