@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Quote } from "lucide-react";
+import { Quote, Share2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const QUOTES = [
   { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
@@ -36,10 +37,27 @@ const QUOTES = [
 ];
 
 const DailyQuote = () => {
+  const { toast } = useToast();
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
   );
   const quote = QUOTES[dayOfYear % QUOTES.length];
+  const shareText = `"${quote.text}" — ${quote.author} 📚`;
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: shareText });
+        return;
+      } catch { /* cancelled */ }
+    }
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast({ title: "Quote copied to clipboard!" });
+    } catch {
+      toast({ title: "Couldn't copy quote", variant: "destructive" });
+    }
+  };
 
   return (
     <motion.div
@@ -49,9 +67,18 @@ const DailyQuote = () => {
     >
       <div className="flex gap-3">
         <Quote className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-        <div className="min-w-0">
+        <div className="flex-1 min-w-0">
           <p className="text-sm text-foreground italic leading-relaxed">"{quote.text}"</p>
-          <p className="text-[10px] text-muted-foreground mt-1.5">— {quote.author}</p>
+          <div className="flex items-center justify-between mt-1.5">
+            <p className="text-[10px] text-muted-foreground">— {quote.author}</p>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors active:scale-95"
+            >
+              <Share2 className="w-3 h-3" />
+              Share
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>
