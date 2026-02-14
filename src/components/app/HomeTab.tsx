@@ -4,6 +4,7 @@ import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw,
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { setCache, getCache } from "@/lib/offlineCache";
 import { useToast } from "@/hooks/use-toast";
@@ -71,14 +72,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   }, [recommendations.length, onRecommendationsSeen]);
 
   useEffect(() => {
-    predict();
+    predict().then(() => setRadarLastUpdated(new Date()));
     predictRank();
     loadRecommendations();
     loadExamDate();
 
     // Auto-refresh Forget Risk Radar every 5 minutes
     const interval = setInterval(() => {
-      predict();
+      predict().then(() => setRadarLastUpdated(new Date()));
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
@@ -170,6 +171,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const hasTopics = (prediction?.topics?.length ?? 0) > 0;
 
   const [analyzing, setAnalyzing] = useState(false);
+  const [radarLastUpdated, setRadarLastUpdated] = useState<Date | null>(null);
   const [insightReviewTopic, setInsightReviewTopic] = useState<string | null>(null);
   const [insightReviewSubject, setInsightReviewSubject] = useState<string | undefined>();
   const [signalModalOpen, setSignalModalOpen] = useState(false);
@@ -188,6 +190,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     setAnalyzing(true);
     try {
       await Promise.all([predict(), predictRank()]);
+      setRadarLastUpdated(new Date());
       await generateRecommendations();
       await loadRecommendations();
       notifyFeedback();
@@ -341,6 +344,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-4 h-4 text-destructive" />
           <h2 className="font-semibold text-foreground text-sm">Forget Risk Radar</h2>
+          {radarLastUpdated && (
+            <span className="text-[9px] text-muted-foreground/60 ml-1 tabular-nums">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-success/60 animate-pulse mr-1 align-middle" />
+              {formatDistanceToNow(radarLastUpdated, { addSuffix: true })}
+            </span>
+          )}
           {atRisk.length > 0 && (
             <span className="ml-auto px-2 py-0.5 rounded-full bg-destructive/20 text-destructive text-[10px] font-medium">
               {atRisk.length} at risk
