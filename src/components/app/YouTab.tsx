@@ -62,6 +62,8 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showSubscription, setShowSubscription] = useState(false);
   const [currentPlan, setCurrentPlan] = useState("free");
   const [emailNotifications, setEmailNotifications] = useState(true);
+  const [emailStudyReminders, setEmailStudyReminders] = useState(true);
+  const [emailWeeklyReports, setEmailWeeklyReports] = useState(true);
   const [showEmailSetting, setShowEmailSetting] = useState(false);
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
@@ -89,10 +91,12 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     });
     // Load leaderboard opt-in & subscription
     if (user) {
-      supabase.from("profiles").select("opt_in_leaderboard, email_notifications_enabled").eq("id", user.id).maybeSingle().then(({ data }) => {
+      supabase.from("profiles").select("opt_in_leaderboard, email_notifications_enabled, email_study_reminders, email_weekly_reports").eq("id", user.id).maybeSingle().then(({ data }) => {
         if (data) {
           setLeaderboardOptIn(data.opt_in_leaderboard ?? false);
           setEmailNotifications((data as any).email_notifications_enabled ?? true);
+          setEmailStudyReminders((data as any).email_study_reminders ?? true);
+          setEmailWeeklyReports((data as any).email_weekly_reports ?? true);
         }
       });
       supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
@@ -192,7 +196,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting) },
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
     { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
-    { icon: Mail, label: "Email Notifications", value: emailNotifications ? "On" : "Off", onClick: () => setShowEmailSetting(!showEmailSetting) },
+    { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting) },
     { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup) },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy) },
   ];
@@ -563,35 +567,57 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               transition={{ duration: 0.3 }}
               className="overflow-hidden"
             >
-              <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Mail className={`w-4 h-4 ${emailNotifications ? "text-primary" : "text-muted-foreground"}`} />
-                    <span className="text-sm text-foreground">Email notifications</span>
+              <div className="glass rounded-xl p-4 neural-border space-y-4 mt-1">
+                {/* Master toggle */}
+                {[
+                  {
+                    label: "Subscription expiry alerts",
+                    desc: "Get notified when your plan is about to expire",
+                    value: emailNotifications,
+                    onChange: async (val: boolean) => {
+                      setEmailNotifications(val);
+                      if (user) await supabase.from("profiles").update({ email_notifications_enabled: val } as any).eq("id", user.id);
+                      toast({ title: val ? "📧 Expiry alerts enabled" : "Expiry alerts disabled" });
+                    },
+                  },
+                  {
+                    label: "Daily study reminders",
+                    desc: "Receive emails when topics need revision",
+                    value: emailStudyReminders,
+                    onChange: async (val: boolean) => {
+                      setEmailStudyReminders(val);
+                      if (user) await supabase.from("profiles").update({ email_study_reminders: val } as any).eq("id", user.id);
+                      toast({ title: val ? "📚 Study reminders enabled" : "Study reminders disabled" });
+                    },
+                  },
+                  {
+                    label: "Weekly progress reports",
+                    desc: "Get a summary of your study stats every week",
+                    value: emailWeeklyReports,
+                    onChange: async (val: boolean) => {
+                      setEmailWeeklyReports(val);
+                      if (user) await supabase.from("profiles").update({ email_weekly_reports: val } as any).eq("id", user.id);
+                      toast({ title: val ? "📊 Weekly reports enabled" : "Weekly reports disabled" });
+                    },
+                  },
+                ].map((item, i) => (
+                  <div key={i} className={`${i > 0 ? "border-t border-border pt-3" : ""}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-foreground">{item.label}</span>
+                      <button
+                        onClick={() => item.onChange(!item.value)}
+                        className={`w-10 h-6 rounded-full transition-all relative ${item.value ? "bg-primary" : "bg-secondary"}`}
+                      >
+                        <motion.div
+                          className="w-4 h-4 rounded-full bg-white absolute top-1"
+                          animate={{ left: item.value ? 22 : 4 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">{item.desc}</p>
                   </div>
-                  <button
-                    onClick={async () => {
-                      const newVal = !emailNotifications;
-                      setEmailNotifications(newVal);
-                      if (user) {
-                        await supabase.from("profiles").update({ email_notifications_enabled: newVal } as any).eq("id", user.id);
-                      }
-                      toast({ title: newVal ? "📧 Email notifications enabled" : "Email notifications disabled" });
-                    }}
-                    className={`w-10 h-6 rounded-full transition-all relative ${emailNotifications ? "bg-primary" : "bg-secondary"}`}
-                  >
-                    <motion.div
-                      className="w-4 h-4 rounded-full bg-white absolute top-1"
-                      animate={{ left: emailNotifications ? 22 : 4 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  </button>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {emailNotifications
-                    ? "You'll receive email alerts when your subscription is about to expire."
-                    : "You won't receive any email notifications from ACRY."}
-                </p>
+                ))}
               </div>
             </motion.div>
           )}
