@@ -119,8 +119,17 @@ const FocusSessionHistory = () => {
       return `${date},${escapeCsv(s.subject)},${escapeCsv(s.topic)},${s.duration_minutes},${s.confidence_level || ""},${escapeCsv(s.notes)}`;
     });
     const totalMins = filteredSessions.reduce((sum, s) => sum + s.duration_minutes, 0);
-    const summary = `\nSummary,${filteredSessions.length} sessions,,${totalMins},,`;
-    const csv = [header, ...rows, summary].join("\n");
+    const avgMins = filteredSessions.length > 0 ? Math.round(totalMins / filteredSessions.length) : 0;
+    const high = filteredSessions.filter((s) => s.confidence_level === "high").length;
+    const medium = filteredSessions.filter((s) => s.confidence_level === "medium").length;
+    const low = filteredSessions.filter((s) => s.confidence_level === "low").length;
+    const summaryRows = [
+      "",
+      `Summary,${filteredSessions.length} sessions,,${totalMins} total,,`,
+      `Average,,,,${avgMins} min/session,,`,
+      `Confidence,High: ${high},Medium: ${medium},Low: ${low},,,`,
+    ];
+    const csv = [header, ...rows, ...summaryRows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
