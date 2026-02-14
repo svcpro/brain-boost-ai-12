@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.check-subscription-expiry]
 verify_jwt = false
+
+[functions.send-study-reminder-emails]
+verify_jwt = false
+
+[functions.send-weekly-report-email]
+verify_jwt = false

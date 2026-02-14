@@ -188,6 +188,8 @@ export type Database = {
           daily_study_goal_minutes: number
           display_name: string | null
           email_notifications_enabled: boolean
+          email_study_reminders: boolean
+          email_weekly_reports: boolean
           exam_date: string | null
           exam_type: string | null
           id: string
@@ -201,6 +203,8 @@ export type Database = {
           daily_study_goal_minutes?: number
           display_name?: string | null
           email_notifications_enabled?: boolean
+          email_study_reminders?: boolean
+          email_weekly_reports?: boolean
           exam_date?: string | null
           exam_type?: string | null
           id: string
@@ -214,6 +218,8 @@ export type Database = {
           daily_study_goal_minutes?: number
           display_name?: string | null
           email_notifications_enabled?: boolean
+          email_study_reminders?: boolean
+          email_weekly_reports?: boolean
           exam_date?: string | null
           exam_type?: string | null
           id?: string
