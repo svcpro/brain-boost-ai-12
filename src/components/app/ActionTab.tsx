@@ -94,7 +94,8 @@ const ActionTab = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 + i * 0.1 }}
-            className="w-full glass rounded-xl p-5 neural-border hover:glow-primary transition-all duration-300 text-left group"
+            onClick={() => toast({ title: `${mode.title} activated! 🚀`, description: mode.desc })}
+            className="w-full glass rounded-xl p-5 neural-border hover:glow-primary transition-all duration-300 text-left group active:scale-[0.98]"
           >
             <div className="flex items-start gap-4">
               <div className={`p-3 rounded-xl ${mode.bg} neural-border`}>
