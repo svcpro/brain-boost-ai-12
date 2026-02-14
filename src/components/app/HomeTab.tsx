@@ -6,6 +6,7 @@ import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DailyGoalTracker from "./DailyGoalTracker";
+import ReviewQueue from "./ReviewQueue";
 
 const HomeTab = () => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
@@ -148,6 +149,9 @@ const HomeTab = () => {
           </p>
         )}
       </motion.div>
+
+      {/* Spaced Repetition Review Queue */}
+      <ReviewQueue />
 
       {/* AI Recommendations */}
       {recommendations.length > 0 && (
