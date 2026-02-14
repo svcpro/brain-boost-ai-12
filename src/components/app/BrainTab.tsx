@@ -8,6 +8,8 @@ import { useMemoryEngine } from "@/hooks/useMemoryEngine";
 import { setCache, getCache } from "@/lib/offlineCache";
 import KnowledgeGraph from "./KnowledgeGraph";
 import StudyPlanGenerator from "./StudyPlanGenerator";
+import MultiSourceSync from "./MultiSourceSync";
+import PassiveLearning from "./PassiveLearning";
 import FocusModeSession from "./FocusModeSession";
 import { formatDistanceToNow, isPast, isToday } from "date-fns";
 
@@ -33,6 +35,8 @@ const BrainTab = () => {
   const [subjectHealth, setSubjectHealth] = useState<SubjectHealthData[]>([]);
   const [showGraph, setShowGraph] = useState(false);
   const [showBrainPlan, setShowBrainPlan] = useState(false);
+  const [showMultiSync, setShowMultiSync] = useState(false);
+  const [showPassiveLearning, setShowPassiveLearning] = useState(false);
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -359,12 +363,12 @@ const BrainTab = () => {
           <p className="text-sm font-medium text-foreground">Brain Plan</p>
           <p className="text-[10px] text-muted-foreground">AI auto schedule</p>
         </button>
-        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Multi-Source Sync will let you import from PDFs, YouTube, and notes automatically." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+        <button onClick={() => setShowMultiSync(true)} className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer ${showMultiSync ? "ring-1 ring-primary" : ""}`}>
           <Layers className="w-5 h-5 text-primary mb-2" />
           <p className="text-sm font-medium text-foreground">Multi-Source Sync</p>
           <p className="text-[10px] text-muted-foreground">PDF, YouTube, Notes</p>
         </button>
-        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Passive Learning will auto-detect your study activity and log it for you." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+        <button onClick={() => setShowPassiveLearning(true)} className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer ${showPassiveLearning ? "ring-1 ring-primary" : ""}`}>
           <Clock className="w-5 h-5 text-primary mb-2" />
           <p className="text-sm font-medium text-foreground">Passive Learning</p>
           <p className="text-[10px] text-muted-foreground">Auto detection</p>
@@ -385,6 +389,12 @@ const BrainTab = () => {
           </div>
         </div>
       )}
+
+      {/* Multi-Source Sync */}
+      {showMultiSync && <MultiSourceSync onClose={() => setShowMultiSync(false)} onSynced={() => refreshAll()} />}
+
+      {/* Passive Learning */}
+      {showPassiveLearning && <PassiveLearning onClose={() => setShowPassiveLearning(false)} />}
 
       {/* Focus session from Review Now */}
       <FocusModeSession

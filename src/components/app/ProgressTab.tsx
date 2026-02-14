@@ -11,6 +11,10 @@ import LeaderboardCard from "./LeaderboardCard";
 import WeeklyFocusChart from "./WeeklyFocusChart";
 import MonthlyFocusTrend from "./MonthlyFocusTrend";
 import MonthlyHeatmap from "./MonthlyHeatmap";
+import BrainEvolution from "./BrainEvolution";
+import CompetitionIntel from "./CompetitionIntel";
+import ExamSimulator from "./ExamSimulator";
+import WeeklyReportAI from "./WeeklyReportAI";
 
 interface StreakData {
   currentStreak: number;
@@ -30,6 +34,10 @@ const ProgressTab = () => {
   const { user } = useAuth();
   const { data, loading, predictRank } = useRankPrediction();
   const [streak, setStreak] = useState<StreakData | null>(() => getCache("progress-streak"));
+  const [showBrainEvo, setShowBrainEvo] = useState(false);
+  const [showCompIntel, setShowCompIntel] = useState(false);
+  const [showExamSim, setShowExamSim] = useState(false);
+  const [showWeeklyAI, setShowWeeklyAI] = useState(false);
   const notifiedRef = useRef(false);
 
   const loadStreak = useCallback(async () => {
@@ -469,27 +477,32 @@ const ProgressTab = () => {
         transition={{ delay: 0.4 }}
         className="grid grid-cols-2 gap-3"
       >
-        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Brain Evolution will show a timeline of your cognitive growth." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+        <button onClick={() => setShowBrainEvo(true)} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
           <Clock className="w-5 h-5 text-primary mb-2" />
           <p className="text-sm font-medium text-foreground">Brain Evolution</p>
           <p className="text-[10px] text-muted-foreground">Timeline view</p>
         </button>
-        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Competition Intel will let you compare progress with peers." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+        <button onClick={() => setShowCompIntel(true)} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
           <Users className="w-5 h-5 text-primary mb-2" />
           <p className="text-sm font-medium text-foreground">Competition Intel</p>
           <p className="text-[10px] text-muted-foreground">Peer comparison</p>
         </button>
-        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Exam Simulator will let you test strategies before exam day." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+        <button onClick={() => setShowExamSim(true)} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
           <SlidersHorizontal className="w-5 h-5 text-primary mb-2" />
           <p className="text-sm font-medium text-foreground">Exam Simulator</p>
           <p className="text-[10px] text-muted-foreground">Strategy testing</p>
         </button>
-        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Weekly Report will provide AI-powered analysis of your study habits." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+        <button onClick={() => setShowWeeklyAI(true)} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
           <BarChart3 className="w-5 h-5 text-primary mb-2" />
           <p className="text-sm font-medium text-foreground">Weekly Report</p>
           <p className="text-[10px] text-muted-foreground">AI analysis</p>
         </button>
       </motion.div>
+
+      {showBrainEvo && <BrainEvolution onClose={() => setShowBrainEvo(false)} />}
+      {showCompIntel && <CompetitionIntel onClose={() => setShowCompIntel(false)} />}
+      {showExamSim && <ExamSimulator onClose={() => setShowExamSim(false)} />}
+      {showWeeklyAI && <WeeklyReportAI onClose={() => setShowWeeklyAI(false)} />}
     </div>
   );
 };

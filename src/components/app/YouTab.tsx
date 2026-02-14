@@ -8,6 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { isFeedbackEnabled, setFeedbackEnabled, getFeedbackVolume, setFeedbackVolume, notifyFeedback, playNotificationSound } from "@/lib/feedback";
 import VoiceSettingsPanel from "./VoiceSettingsPanel";
+import DataBackup from "./DataBackup";
+import PrivacySecurity from "./PrivacySecurity";
+import SubscriptionPlan from "./SubscriptionPlan";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 
 interface Topic {
@@ -52,6 +55,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) =
   const [volume, setVolume] = useState(() => getFeedbackVolume());
   const [showFeedbackSetting, setShowFeedbackSetting] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [showDataBackup, setShowDataBackup] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
@@ -162,14 +168,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) =
   };
 
   const menuItems = [
-    { icon: Crown, label: "Subscription Plan", value: "Free Brain", onClick: () => toast({ title: "Coming Soon 🚀", description: "Premium subscription plans with advanced AI features are coming soon." }) },
+    { icon: Crown, label: "Subscription Plan", value: "Free Brain", onClick: () => setShowSubscription(true) },
     { icon: BookOpen, label: "Subjects & Topics", value: `${subjects.length || "—"}`, onClick: () => setShowSubjects(!showSubjects) },
     { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders) },
     { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting) },
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
     { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
-    { icon: Database, label: "Data Backup", value: "", onClick: () => toast({ title: "Coming Soon 🚀", description: "Data backup & export will let you save and restore your brain data." }) },
-    { icon: Shield, label: "Privacy & Security", value: "", onClick: () => toast({ title: "Coming Soon 🚀", description: "Privacy controls and security settings are coming soon." }) },
+    { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup) },
+    { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy) },
   ];
 
   return (
