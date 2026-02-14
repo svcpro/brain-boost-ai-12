@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN weekly_focus_goal_minutes integer NOT NULL DEFAULT 300;
