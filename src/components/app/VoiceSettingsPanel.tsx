@@ -1,14 +1,50 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Volume2, VolumeX, Play, Globe, Sparkles, Clock, Mic } from "lucide-react";
 import { useVoiceNotification, getVoiceSettings, saveVoiceSettings, type VoiceSettings } from "@/hooks/useVoiceNotification";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getFeedbackVolume } from "@/lib/feedback";
 
 const VoiceSettingsPanel = () => {
   const [settings, setSettings] = useState<VoiceSettings>(getVoiceSettings);
   const { speak, loading, playing } = useVoiceNotification();
   const { toast } = useToast();
+  const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const previewVoice = useCallback(async (voiceId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (previewingVoiceId) return;
+
+    setPreviewingVoiceId(voiceId);
+    try {
+      const { data, error } = await supabase.functions.invoke("voice-notification", {
+        body: {
+          type: "test",
+          language: settings.language,
+          tone: settings.tone,
+          voiceId,
+          context: {},
+        },
+      });
+      if (error) throw error;
+      if (data.audio) {
+        const volume = getFeedbackVolume() / 100;
+        const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
+        audio.volume = Math.max(0.05, volume);
+        previewAudioRef.current = audio;
+        audio.onended = () => setPreviewingVoiceId(null);
+        audio.onerror = () => setPreviewingVoiceId(null);
+        await audio.play();
+      } else {
+        setPreviewingVoiceId(null);
+      }
+    } catch {
+      toast({ title: "Preview failed", variant: "destructive" });
+      setPreviewingVoiceId(null);
+    }
+  }, [previewingVoiceId, settings.language, settings.tone, toast]);
   const update = (partial: Partial<VoiceSettings>) => {
     const next = { ...settings, ...partial };
     setSettings(next);
@@ -139,9 +175,27 @@ const VoiceSettingsPanel = () => {
                         : "border-border bg-secondary/30 text-foreground hover:border-primary/50"
                     }`}
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm">{v.gender}</span>
-                      <span>{v.name}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm">{v.gender}</span>
+                        <span>{v.name}</span>
+                      </div>
+                      <button
+                        onClick={(e) => previewVoice(v.id, e)}
+                        disabled={previewingVoiceId !== null}
+                        className="p-1 rounded-full hover:bg-primary/20 transition-colors disabled:opacity-40"
+                        title={`Preview ${v.name}`}
+                      >
+                        {previewingVoiceId === v.id ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full"
+                          />
+                        ) : (
+                          <Play className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     </div>
                     <div className="text-[9px] text-muted-foreground mt-0.5">{v.desc}</div>
                   </button>
