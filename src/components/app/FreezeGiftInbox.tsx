@@ -88,11 +88,24 @@ const FreezeGiftInbox = () => {
         notifyFeedback();
         toast({ title: "❄️ Freeze received!", description: "A streak freeze has been added to your inventory." });
       } else {
+        const gift = gifts.find((g) => g.id === giftId);
         // Decline: just mark as declined, freeze stays with sender
         await (supabase as any)
           .from("freeze_gifts")
           .update({ status: "declined", resolved_at: new Date().toISOString() })
           .eq("id", giftId);
+
+        // Notify the sender that their gift was declined
+        if (gift) {
+          supabase.functions.invoke("send-push-notification", {
+            body: {
+              recipient_id: gift.sender_id,
+              title: "😔 Freeze gift declined",
+              body: `${user.user_metadata?.display_name || "Someone"} declined your streak freeze gift. The freeze is back in your inventory.`,
+              data: { type: "freeze_gift" },
+            },
+          }).catch((err) => console.warn("Gift decline push failed:", err));
+        }
 
         toast({ title: "Gift declined" });
       }
