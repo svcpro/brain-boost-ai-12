@@ -1,7 +1,29 @@
 /** Lightweight notification feedback utilities (no external deps) */
 
+const FEEDBACK_KEY = "acry-feedback-enabled";
+
+/** Check if feedback is enabled (default: true) */
+export function isFeedbackEnabled(): boolean {
+  try {
+    const val = localStorage.getItem(FEEDBACK_KEY);
+    return val === null ? true : val === "true";
+  } catch {
+    return true;
+  }
+}
+
+/** Set feedback enabled/disabled */
+export function setFeedbackEnabled(enabled: boolean) {
+  try {
+    localStorage.setItem(FEEDBACK_KEY, String(enabled));
+  } catch {
+    // storage unavailable
+  }
+}
+
 /** Play a short, pleasant notification chime using Web Audio API */
 export function playNotificationSound() {
+  if (!isFeedbackEnabled()) return;
   try {
     const ctx = new AudioContext();
     const osc = ctx.createOscillator();
@@ -27,6 +49,7 @@ export function playNotificationSound() {
 
 /** Trigger a short haptic vibration if supported */
 export function triggerHaptic(pattern: number | number[] = 50) {
+  if (!isFeedbackEnabled()) return;
   try {
     navigator?.vibrate?.(pattern);
   } catch {

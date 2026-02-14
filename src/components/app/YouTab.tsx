@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
+import { isFeedbackEnabled, setFeedbackEnabled, notifyFeedback } from "@/lib/feedback";
 
 interface Topic {
   id: string;
@@ -40,6 +41,8 @@ const YouTab = () => {
   const [reminderHour, setReminderHour] = useState(18);
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
   const [showLeaderboardSetting, setShowLeaderboardSetting] = useState(false);
+  const [feedbackOn, setFeedbackOn] = useState(() => isFeedbackEnabled());
+  const [showFeedbackSetting, setShowFeedbackSetting] = useState(false);
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
   // Load reminder prefs
@@ -145,6 +148,7 @@ const YouTab = () => {
     { icon: BookOpen, label: "Subjects & Topics", value: `${subjects.length || "—"}`, onClick: () => setShowSubjects(!showSubjects) },
     { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders) },
     { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting) },
+    { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
     { icon: Database, label: "Data Backup", value: "", onClick: undefined },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: undefined },
   ];
@@ -499,6 +503,49 @@ const YouTab = () => {
                   {leaderboardOptIn
                     ? "Your display name and stats are visible to other students. Only the first 2 characters of your name are shown."
                     : "You're hidden from the leaderboard. Other students can't see your rank or stats."}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Sound & Haptics Settings Panel */}
+        <AnimatePresence>
+          {showFeedbackSetting && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Volume2 className={`w-4 h-4 ${feedbackOn ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className="text-sm text-foreground">Sound & haptic feedback</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newVal = !feedbackOn;
+                      setFeedbackOn(newVal);
+                      setFeedbackEnabled(newVal);
+                      if (newVal) notifyFeedback();
+                      toast({ title: newVal ? "🔊 Sound & haptics enabled" : "🔇 Sound & haptics disabled" });
+                    }}
+                    className={`w-10 h-6 rounded-full transition-all relative ${feedbackOn ? "bg-primary" : "bg-secondary"}`}
+                  >
+                    <motion.div
+                      className="w-4 h-4 rounded-full bg-white absolute top-1"
+                      animate={{ left: feedbackOn ? 22 : 4 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {feedbackOn
+                    ? "A chime and vibration play when AI analysis or recommendations complete."
+                    : "Notifications will be silent with no vibration."}
                 </p>
               </div>
             </motion.div>
