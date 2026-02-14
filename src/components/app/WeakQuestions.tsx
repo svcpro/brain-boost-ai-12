@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, RotateCcw, CheckCircle2, XCircle, ChevronDown, ChevronUp, Flame } from "lucide-react";
+import { AlertTriangle, RotateCcw, CheckCircle2, XCircle, ChevronDown, ChevronUp, Flame, Bell, BellOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -25,10 +25,13 @@ const WeakQuestions = ({ onRetryWeak }: WeakQuestionsProps) => {
   const [questions, setQuestions] = useState<WeakQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [remindersOn, setRemindersOn] = useState(true);
+  const [remindersLoading, setRemindersLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
+      // Load weak questions
       const { data } = await supabase
         .from("question_performance")
         .select("*")
@@ -37,9 +40,43 @@ const WeakQuestions = ({ onRetryWeak }: WeakQuestionsProps) => {
         .order("times_wrong", { ascending: false })
         .limit(15);
       setQuestions((data as unknown as WeakQuestion[]) || []);
+
+      // Load reminder pref
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("study_preferences")
+        .eq("id", user.id)
+        .maybeSingle();
+      const prefs = (profile?.study_preferences as Record<string, any>) || {};
+      setRemindersOn(prefs.weak_question_reminders !== false);
+
       setLoading(false);
     })();
   }, [user]);
+
+  const toggleReminders = async () => {
+    if (!user) return;
+    setRemindersLoading(true);
+    const newVal = !remindersOn;
+
+    // Request notification permission if enabling
+    if (newVal && "Notification" in window && Notification.permission !== "granted") {
+      await Notification.requestPermission();
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("study_preferences")
+      .eq("id", user.id)
+      .maybeSingle();
+    const existing = (profile?.study_preferences as Record<string, any>) || {};
+    await supabase.from("profiles").update({
+      study_preferences: { ...existing, weak_question_reminders: newVal },
+    }).eq("id", user.id);
+
+    setRemindersOn(newVal);
+    setRemindersLoading(false);
+  };
 
   if (loading) {
     return (
@@ -74,6 +111,14 @@ const WeakQuestions = ({ onRetryWeak }: WeakQuestionsProps) => {
         <span className="text-[10px] text-muted-foreground ml-auto">
           {questions.length} flagged
         </span>
+        <button
+          onClick={toggleReminders}
+          disabled={remindersLoading}
+          className={`p-1 rounded-lg transition-colors ${remindersOn ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-secondary"}`}
+          title={remindersOn ? "Reminders on — click to disable" : "Reminders off — click to enable"}
+        >
+          {remindersOn ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
+        </button>
       </div>
 
       <p className="text-[10px] text-muted-foreground">

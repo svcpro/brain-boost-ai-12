@@ -10,6 +10,7 @@ import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useVoiceNotification } from "@/hooks/useVoiceNotification";
 import { useScheduledVoiceReminder } from "@/hooks/useScheduledVoiceReminder";
+import { useWeakQuestionReminder } from "@/hooks/useWeakQuestionReminder";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -37,6 +38,7 @@ const AppDashboard = () => {
   useStudyReminder();
   useOfflineSync();
   useScheduledVoiceReminder();
+  useWeakQuestionReminder();
 
   useEffect(() => {
     if (!user) return;
