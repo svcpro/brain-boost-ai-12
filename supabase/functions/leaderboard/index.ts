@@ -55,10 +55,14 @@ serve(async (req) => {
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, display_name, daily_study_goal_minutes")
+      .select("id, display_name, daily_study_goal_minutes, opt_in_leaderboard")
       .in("id", userIds);
 
+    // Filter to only opted-in users (but always include current user)
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+    const filteredUserIds = userIds.filter(uid =>
+      uid === currentUserId || profileMap.get(uid)?.opt_in_leaderboard === true
+    );
 
     // Calculate streaks for each user from study_logs
     const now = new Date();
@@ -68,13 +72,13 @@ serve(async (req) => {
       .from("study_logs")
       .select("user_id, duration_minutes, created_at")
       .gte("created_at", ninetyDaysAgo.toISOString())
-      .in("user_id", userIds);
+      .in("user_id", filteredUserIds);
 
     // Group logs by user and date
     const userStreaks = new Map<string, number>();
     const userTotalMinutes = new Map<string, number>();
 
-    for (const uid of userIds) {
+    for (const uid of filteredUserIds) {
       const userLogs = (allLogs || []).filter(l => l.user_id === uid);
       const profile = profileMap.get(uid);
       const dailyGoal = profile?.daily_study_goal_minutes || 60;
@@ -110,7 +114,7 @@ serve(async (req) => {
     }
 
     // Build leaderboard entries
-    const entries = userIds.map(uid => {
+    const entries = filteredUserIds.map(uid => {
       const rank = latestRanks.get(uid);
       const profile = profileMap.get(uid);
       const displayName = profile?.display_name || "Anonymous";

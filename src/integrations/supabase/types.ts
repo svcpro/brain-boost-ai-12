@@ -190,6 +190,7 @@ export type Database = {
           exam_date: string | null
           exam_type: string | null
           id: string
+          opt_in_leaderboard: boolean
           study_preferences: Json | null
           updated_at: string
         }
@@ -200,6 +201,7 @@ export type Database = {
           exam_date?: string | null
           exam_type?: string | null
           id: string
+          opt_in_leaderboard?: boolean
           study_preferences?: Json | null
           updated_at?: string
         }
@@ -210,6 +212,7 @@ export type Database = {
           exam_date?: string | null
           exam_type?: string | null
           id?: string
+          opt_in_leaderboard?: boolean
           study_preferences?: Json | null
           updated_at?: string
         }

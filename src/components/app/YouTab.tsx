@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,8 @@ const YouTab = () => {
   const [showReminders, setShowReminders] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderHour, setReminderHour] = useState(18);
+  const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
+  const [showLeaderboardSetting, setShowLeaderboardSetting] = useState(false);
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
   // Load reminder prefs
@@ -46,7 +48,13 @@ const YouTab = () => {
       setReminderEnabled(p.enabled);
       setReminderHour(p.reminderHour);
     });
-  }, [getPrefs]);
+    // Load leaderboard opt-in
+    if (user) {
+      supabase.from("profiles").select("opt_in_leaderboard").eq("id", user.id).maybeSingle().then(({ data }) => {
+        if (data) setLeaderboardOptIn(data.opt_in_leaderboard ?? false);
+      });
+    }
+  }, [getPrefs, user]);
 
   const loadSubjects = async () => {
     if (!user) return;
@@ -136,6 +144,7 @@ const YouTab = () => {
     { icon: Crown, label: "Subscription Plan", value: "Free Brain", onClick: undefined },
     { icon: BookOpen, label: "Subjects & Topics", value: `${subjects.length || "—"}`, onClick: () => setShowSubjects(!showSubjects) },
     { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders) },
+    { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting) },
     { icon: Database, label: "Data Backup", value: "", onClick: undefined },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: undefined },
   ];
@@ -452,7 +461,50 @@ const YouTab = () => {
           )}
         </AnimatePresence>
 
-        {/* Sign Out */}
+        {/* Leaderboard Settings Panel */}
+        <AnimatePresence>
+          {showLeaderboardSetting && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Trophy className={`w-4 h-4 ${leaderboardOptIn ? "text-warning" : "text-muted-foreground"}`} />
+                    <span className="text-sm text-foreground">Show me on leaderboard</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const newVal = !leaderboardOptIn;
+                      setLeaderboardOptIn(newVal);
+                      if (user) {
+                        await supabase.from("profiles").update({ opt_in_leaderboard: newVal } as any).eq("id", user.id);
+                      }
+                      toast({ title: newVal ? "🏆 You're now on the leaderboard!" : "You've been hidden from the leaderboard" });
+                    }}
+                    className={`w-10 h-6 rounded-full transition-all relative ${leaderboardOptIn ? "bg-primary" : "bg-secondary"}`}
+                  >
+                    <motion.div
+                      className="w-4 h-4 rounded-full bg-white absolute top-1"
+                      animate={{ left: leaderboardOptIn ? 22 : 4 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {leaderboardOptIn
+                    ? "Your display name and stats are visible to other students. Only the first 2 characters of your name are shown."
+                    : "You're hidden from the leaderboard. Other students can't see your rank or stats."}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <button
           onClick={handleSignOut}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-destructive/10 transition-all"
