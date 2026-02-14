@@ -127,8 +127,12 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           setEmailNotifications((data as any).email_notifications_enabled ?? true);
           setEmailStudyReminders((data as any).email_study_reminders ?? true);
           setEmailWeeklyReports((data as any).email_weekly_reports ?? true);
+          // Convert stored UTC values to local for display
+          const offsetMin = new Date().getTimezoneOffset();
+          const storedUtcHour = (data as any).weekly_report_hour ?? 7;
+          const localH = ((storedUtcHour * 60 - offsetMin) / 60) % 24;
+          setWeeklyReportHour(localH < 0 ? localH + 24 : Math.floor(localH));
           setWeeklyReportDay((data as any).weekly_report_day ?? 0);
-          setWeeklyReportHour((data as any).weekly_report_hour ?? 7);
         }
       });
       supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
@@ -786,13 +790,17 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                         </select>
                       </div>
                       <div className="flex-1">
-                        <label className="text-[10px] text-muted-foreground mb-1 block">Time (UTC)</label>
+                        <label className="text-[10px] text-muted-foreground mb-1 block">Time</label>
                         <select
                           value={weeklyReportHour}
                           onChange={async (e) => {
-                            const val = Number(e.target.value);
-                            setWeeklyReportHour(val);
-                            if (user) await supabase.from("profiles").update({ weekly_report_hour: val } as any).eq("id", user.id);
+                            const localH = Number(e.target.value);
+                            setWeeklyReportHour(localH);
+                            // Convert local hour to UTC for storage
+                            const offsetMin = new Date().getTimezoneOffset();
+                            const utcH = ((localH * 60 + offsetMin) / 60) % 24;
+                            const normalizedUtcH = utcH < 0 ? utcH + 24 : Math.floor(utcH);
+                            if (user) await supabase.from("profiles").update({ weekly_report_hour: normalizedUtcH } as any).eq("id", user.id);
                             toast({ title: "🕐 Report time updated" });
                           }}
                           className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -803,18 +811,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                         </select>
                       </div>
                     </div>
-                    {(() => {
-                      const offset = new Date().getTimezoneOffset();
-                      const localHour = ((weeklyReportHour * 60 - offset) / 60) % 24;
-                      const normalizedHour = localHour < 0 ? localHour + 24 : localHour;
-                      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                      return (
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          🕐 That's <span className="font-semibold text-foreground">{`${Math.floor(normalizedHour).toString().padStart(2, "0")}:00`}</span> in your local time ({tz})
-                        </p>
-                      );
-                    })()}
-                    <p className="text-[10px] text-muted-foreground">Choose when you'd like to receive your weekly digest</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      📍 Times shown in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})
+                    </p>
                   </div>
                 )}
               </div>
