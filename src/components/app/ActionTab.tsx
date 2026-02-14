@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import StudyPlanGenerator from "./StudyPlanGenerator";
 import { useToast } from "@/hooks/use-toast";
+import { peekAll, type QueuedStudyLog } from "@/lib/offlineQueue";
 
 const modes = [
   {
@@ -35,8 +36,15 @@ const ActionTab = () => {
   const [minutes, setMinutes] = useState("");
   const [confidence, setConfidence] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pendingEntries, setPendingEntries] = useState<QueuedStudyLog[]>(peekAll());
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
+
+  // Refresh pending queue periodically
+  useEffect(() => {
+    const interval = setInterval(() => setPendingEntries(peekAll()), 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async () => {
     if (!subject || !minutes || !confidence) {
@@ -162,6 +170,40 @@ const ActionTab = () => {
           >
             {submitting ? "Updating..." : "Update My Brain"}
           </button>
+
+          {/* Pending offline entries */}
+          <AnimatePresence>
+            {pendingEntries.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CloudOff className="w-3.5 h-3.5 text-warning" />
+                    <span className="text-xs font-semibold text-warning">
+                      {pendingEntries.length} session{pendingEntries.length > 1 ? "s" : ""} waiting to sync
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {pendingEntries.map((entry) => (
+                      <div key={entry.id} className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <Clock className="w-3 h-3 shrink-0" />
+                        <span className="truncate">
+                          {entry.subjectName}{entry.topicName ? ` › ${entry.topicName}` : ""} — {entry.durationMinutes}m
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    Will sync automatically when you're back online.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>
