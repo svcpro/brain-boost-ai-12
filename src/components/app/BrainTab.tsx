@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Brain, Activity, Network, Clock, Layers } from "lucide-react";
+import { Brain, Activity, Network, Clock, Layers, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
@@ -10,12 +10,7 @@ const BrainTab = () => {
   const { prediction, loading, predict } = useMemoryEngine();
   const [subjectHealth, setSubjectHealth] = useState<{ name: string; strength: number; topicCount: number }[]>([]);
 
-  useEffect(() => {
-    predict();
-    loadSubjectHealth();
-  }, []);
-
-  const loadSubjectHealth = async () => {
+  const loadSubjectHealth = useCallback(async () => {
     if (!user) return;
     const { data: subjects } = await supabase
       .from("subjects")
@@ -43,16 +38,51 @@ const BrainTab = () => {
       health.push({ name: sub.name, strength: avgStrength, topicCount });
     }
     setSubjectHealth(health);
-  };
+  }, [user]);
+
+  const refreshAll = useCallback(async () => {
+    await predict();
+    await loadSubjectHealth();
+  }, [predict, loadSubjectHealth]);
+
+  useEffect(() => {
+    refreshAll();
+  }, []);
+
+  // Realtime subscription for topic/study_log changes
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("brain-tab-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "topics", filter: `user_id=eq.${user.id}` },
+        () => loadSubjectHealth()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "study_logs", filter: `user_id=eq.${user.id}` },
+        () => refreshAll()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user, loadSubjectHealth, refreshAll]);
 
   const overallHealth = prediction?.overall_health ?? 0;
   const hasData = subjectHealth.length > 0;
 
   return (
     <div className="px-6 py-6 space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold text-foreground">Brain Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Your cognitive health at a glance.</p>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Brain Dashboard</h1>
+          <p className="text-muted-foreground text-sm mt-1">Your cognitive health at a glance.</p>
+        </div>
+        <button onClick={refreshAll} disabled={loading} className="p-2 rounded-lg neural-gradient neural-border hover:glow-primary transition-all disabled:opacity-50">
+          <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
+        </button>
       </motion.div>
 
       {/* Overall Brain Score */}
