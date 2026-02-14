@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History, Clock, Flame, Target, ChevronDown, ChevronUp, Timer, Calendar, StickyNote, Search, X } from "lucide-react";
+import { History, Clock, Flame, Target, ChevronDown, ChevronUp, Timer, Calendar, StickyNote, Search, X, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDistanceToNow, startOfDay, startOfWeek, startOfMonth } from "date-fns";
+import { formatDistanceToNow, startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
 
 interface FocusSession {
   id: string;
@@ -111,6 +111,23 @@ const FocusSessionHistory = () => {
   if (loading) return null;
   if (totalSessions === 0) return null;
 
+  const exportCSV = () => {
+    const header = "Date,Subject,Topic,Duration (min),Confidence,Notes";
+    const rows = filteredSessions.map((s) => {
+      const date = format(new Date(s.created_at), "yyyy-MM-dd HH:mm");
+      const escapeCsv = (v: string | null) => v ? `"${v.replace(/"/g, '""')}"` : "";
+      return `${date},${escapeCsv(s.subject)},${escapeCsv(s.topic)},${s.duration_minutes},${s.confidence_level || ""},${escapeCsv(s.notes)}`;
+    });
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `focus-sessions-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -126,9 +143,16 @@ const FocusSessionHistory = () => {
         <button
           onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); setConfidenceFilter(null); setDateRange("all"); }}
           className={`p-1 rounded-md hover:bg-secondary/50 transition-colors ${showSearch ? "bg-secondary/50" : ""}`}
-          title="Search sessions"
+          title="Search & filter"
         >
           <Search className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
+        <button
+          onClick={exportCSV}
+          className="p-1 rounded-md hover:bg-secondary/50 transition-colors"
+          title="Export as CSV"
+        >
+          <Download className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
 
