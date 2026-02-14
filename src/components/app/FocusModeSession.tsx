@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Play, Pause, RotateCcw, CheckCircle, X, ShieldCheck, Eye, EyeOff, Plus, Minus } from "lucide-react";
+import { Crosshair, Play, Pause, RotateCcw, CheckCircle, X, ShieldCheck, Eye, EyeOff, Plus, Minus, Volume2, VolumeX, CloudRain, Music, Radio } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
+import { useAmbientSound, type AmbientSoundType } from "@/hooks/useAmbientSound";
 
 const PRESETS = [15, 25, 45, 60];
 
@@ -16,6 +17,7 @@ type SessionState = "setup" | "running" | "paused" | "done";
 const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
+  const ambient = useAmbientSound();
 
   const [state, setState] = useState<SessionState>("setup");
   const [totalMinutes, setTotalMinutes] = useState(25);
@@ -36,6 +38,7 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
       setTopic("");
     } else {
       clearTimer();
+      ambient.stop();
     }
   }, [open]);
 
@@ -106,6 +109,7 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
     });
     toast({ title: "Deep focus session logged! 🎯", description: `${elapsed} min on ${subject}` });
     setLogging(false);
+    ambient.stop();
     onClose();
   };
 
@@ -223,6 +227,46 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
                 )}
               </button>
 
+              {/* Ambient Sounds */}
+              <div>
+                <span className="text-xs text-muted-foreground mb-2 block">Ambient Sound</span>
+                <div className="flex items-center gap-2">
+                  {([
+                    { type: "rain" as AmbientSoundType, icon: CloudRain, label: "Rain" },
+                    { type: "lo-fi" as AmbientSoundType, icon: Music, label: "Lo-Fi" },
+                    { type: "white-noise" as AmbientSoundType, icon: Radio, label: "Noise" },
+                  ]).map((s) => (
+                    <button
+                      key={s.type}
+                      onClick={() => ambient.toggle(s.type)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                        ambient.active === s.type
+                          ? "bg-success text-success-foreground"
+                          : "bg-secondary border border-border text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <s.icon className="w-3.5 h-3.5" />
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                {ambient.active && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <VolumeX className="w-3 h-3 text-muted-foreground" />
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={ambient.volume}
+                      onChange={(e) => ambient.setVolume(parseFloat(e.target.value))}
+                      className="flex-1 h-1.5 accent-success"
+                    />
+                    <Volume2 className="w-3 h-3 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+
               {/* Start */}
               <button
                 onClick={startSession}
@@ -247,6 +291,38 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
                   <span className="text-xs text-success font-medium">Distractions blocked — stay in the zone</span>
                 </motion.div>
               )}
+
+              {/* Ambient sound controls (compact) */}
+              <div className="w-full flex items-center gap-2">
+                {([
+                  { type: "rain" as AmbientSoundType, icon: CloudRain },
+                  { type: "lo-fi" as AmbientSoundType, icon: Music },
+                  { type: "white-noise" as AmbientSoundType, icon: Radio },
+                ]).map((s) => (
+                  <button
+                    key={s.type}
+                    onClick={() => ambient.toggle(s.type)}
+                    className={`p-2 rounded-lg transition-all ${
+                      ambient.active === s.type
+                        ? "bg-success/20 text-success"
+                        : "bg-secondary/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <s.icon className="w-4 h-4" />
+                  </button>
+                ))}
+                {ambient.active && (
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={ambient.volume}
+                    onChange={(e) => ambient.setVolume(parseFloat(e.target.value))}
+                    className="flex-1 h-1 accent-success"
+                  />
+                )}
+              </div>
 
               {/* Subject display */}
               <div className="text-center">
