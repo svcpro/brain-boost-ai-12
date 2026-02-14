@@ -20,6 +20,7 @@ import FocusModeSession from "./FocusModeSession";
 import DailyStudyTip from "./DailyStudyTip";
 import WeeklySummaryNotification from "./WeeklySummaryNotification";
 import QuickStartStudy from "./QuickStartStudy";
+import BrainUpdateHero from "./BrainUpdateHero";
 import RecentlyStudied from "./RecentlyStudied";
 
 interface HomeTabProps {
@@ -180,6 +181,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
       </motion.div>
+
+      {/* Brain Update Hero — primary CTA */}
+      <BrainUpdateHero
+        onUpdate={handleRefresh}
+        isActive={analyzing}
+        overallHealth={overallHealth}
+        hasTopics={hasTopics}
+      />
 
       {/* Weekly Summary Notification */}
       <WeeklySummaryNotification />
