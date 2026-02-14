@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
 import { setCache, getCache } from "@/lib/offlineCache";
 import KnowledgeGraph from "./KnowledgeGraph";
+import BrainHealthSparkline from "./BrainHealthSparkline";
 import StudyPlanGenerator from "./StudyPlanGenerator";
 import MultiSourceSync from "./MultiSourceSync";
 import PassiveLearning from "./PassiveLearning";
@@ -361,6 +362,9 @@ const BrainTab = () => {
             </div>
           </motion.div>
         )}
+
+        {/* 7-Day Sparkline */}
+        {hasData && <BrainHealthSparkline />}
       </motion.div>
 
       {/* Section: Subjects */}
