@@ -81,6 +81,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
   const [trashCount, setTrashCount] = useState(0);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "subject" | "topic"; id: string; name: string } | null>(null);
 
 
   const voiceSettings = getVoiceSettings();
@@ -447,7 +448,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                             className={`w-3.5 h-3.5 text-muted-foreground transition-transform cursor-pointer ${expandedSubject === sub.id ? "rotate-180" : ""}`}
                           />
                           <button
-                            onClick={e => { e.stopPropagation(); deleteSubject(sub.id); }}
+                            onClick={e => { e.stopPropagation(); setDeleteConfirm({ type: "subject", id: sub.id, name: sub.name }); }}
                             className="text-muted-foreground hover:text-destructive transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -495,7 +496,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                                       <Pencil className="w-2.5 h-2.5" />
                                     </button>
                                     <button
-                                      onClick={() => deleteTopic(topic.id)}
+                                      onClick={() => setDeleteConfirm({ type: "topic", id: topic.id, name: topic.name })}
                                       className="text-muted-foreground hover:text-destructive transition-colors"
                                     >
                                       <X className="w-3 h-3" />
@@ -929,6 +930,31 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Sign Out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move to trash?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{deleteConfirm?.name}" will be moved to trash. You can restore it from the Trash bin within 30 days.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteConfirm?.type === "subject") deleteSubject(deleteConfirm.id);
+                else if (deleteConfirm?.type === "topic") deleteTopic(deleteConfirm.id);
+                setDeleteConfirm(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Move to Trash
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
