@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History, Play, StickyNote, ChevronDown, Pencil, Trash2, Check, X, Plus } from "lucide-react";
+import { History, Play, StickyNote, ChevronDown, Pencil, Trash2, Check, X, Plus, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -20,6 +20,8 @@ const RecentlyStudied = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<RecentTopic[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
@@ -36,22 +38,12 @@ const RecentlyStudied = () => {
       .eq("user_id", user.id)
       .not("topic_id", "is", null)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(50);
 
     if (!logs || logs.length === 0) return;
 
-    const seen = new Set<string>();
-    const uniqueLogs: typeof logs = [];
-    for (const l of logs) {
-      if (!seen.has(l.topic_id!)) {
-        seen.add(l.topic_id!);
-        uniqueLogs.push(l);
-      }
-      if (uniqueLogs.length >= 3) break;
-    }
-
-    const topicIds = uniqueLogs.map((l) => l.topic_id!);
-    const subjectIds = [...new Set(uniqueLogs.filter((l) => l.subject_id).map((l) => l.subject_id!))];
+    const topicIds = [...new Set(logs.map((l) => l.topic_id!))];
+    const subjectIds = [...new Set(logs.filter((l) => l.subject_id).map((l) => l.subject_id!))];
 
     const [{ data: topics }, { data: subjects }] = await Promise.all([
       supabase.from("topics").select("id, name").in("id", topicIds),
@@ -63,7 +55,7 @@ const RecentlyStudied = () => {
     const topicMap = new Map((topics || []).map((t) => [t.id, t.name]));
     const subjectMap = new Map((subjects || []).map((s) => [s.id, s.name]));
 
-    const result: RecentTopic[] = uniqueLogs.map((l) => ({
+    const result: RecentTopic[] = logs.map((l) => ({
       logId: l.id,
       topicName: topicMap.get(l.topic_id!) || "Unknown",
       subjectName: subjectMap.get(l.subject_id!) || "",
@@ -78,6 +70,15 @@ const RecentlyStudied = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  const query = searchQuery.toLowerCase().trim();
+  const filteredItems = query
+    ? items.filter((item) =>
+        item.topicName.toLowerCase().includes(query) ||
+        item.subjectName.toLowerCase().includes(query) ||
+        (item.notes && item.notes.toLowerCase().includes(query))
+      )
+    : items.slice(0, 5);
 
   if (items.length === 0) return null;
 
@@ -140,11 +141,40 @@ const RecentlyStudied = () => {
       >
         <div className="flex items-center gap-2 mb-3">
           <History className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold text-foreground">Recently Studied</span>
+          <span className="text-sm font-semibold text-foreground flex-1">Recently Studied</span>
+          <button
+            onClick={() => { setShowSearch((v) => !v); if (showSearch) setSearchQuery(""); }}
+            className={`p-1.5 rounded-md transition-colors ${showSearch ? "bg-primary/20 text-primary" : "hover:bg-secondary/50 text-muted-foreground"}`}
+          >
+            <Search className="w-3.5 h-3.5" />
+          </button>
         </div>
 
+        <AnimatePresence>
+          {showSearch && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden mb-2"
+            >
+              <input
+                type="text"
+                placeholder="Search by subject, topic, or notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                autoFocus
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="space-y-2">
-          {items.map((item, i) => (
+          {filteredItems.length === 0 && (
+            <p className="text-[10px] text-muted-foreground text-center py-3">No sessions match your search.</p>
+          )}
+          {filteredItems.map((item, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, x: -10 }}
