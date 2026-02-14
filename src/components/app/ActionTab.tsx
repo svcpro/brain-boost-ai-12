@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X, Square, CheckCircle2 } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import StudyPlanGenerator from "./StudyPlanGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -47,9 +47,71 @@ const ActionTab = () => {
   const [submitting, setSubmitting] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<QueuedStudyLog[]>(peekAll());
   const [syncing, setSyncing] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
   const { syncAll } = useOfflineSync();
+
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const handlePdfUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      toast({ title: "Invalid file", description: "Please select a PDF file.", variant: "destructive" });
+      return;
+    }
+    setUploadedFile(file.name);
+    toast({ title: "📄 PDF uploaded!", description: `"${file.name}" ready for processing.` });
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  }, [toast]);
+
+  const handleScanUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadedFile(file.name);
+    toast({ title: "📸 Image captured!", description: `"${file.name}" ready for processing.` });
+    e.target.value = "";
+  }, [toast]);
+
+  const handleVoiceRecord = useCallback(async () => {
+    if (recording) {
+      // Stop recording
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+        setUploadedFile(`Voice recording (${sizeMB}MB)`);
+        toast({ title: "🎙️ Voice recorded!", description: `Recording saved (${sizeMB}MB). Ready for processing.` });
+      };
+
+      mediaRecorder.start();
+      setRecording(true);
+      toast({ title: "🎙️ Recording...", description: "Tap Voice again to stop recording." });
+    } catch (err: any) {
+      toast({ title: "Microphone access denied", description: "Please allow microphone access to record voice notes.", variant: "destructive" });
+    }
+  }, [recording, toast]);
 
   const handleSyncNow = async () => {
     setSyncing(true);
@@ -146,22 +208,57 @@ const ActionTab = () => {
       {/* Upload Content */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="relative z-10">
         <h2 className="font-semibold text-foreground text-sm mb-3">Upload Content</h2>
+
+        {/* Hidden file inputs */}
+        <input ref={pdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
+        <input ref={scanInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanUpload} />
+
         <div className="grid grid-cols-3 gap-3">
-          {[
-            { icon: FileText, label: "PDF" },
-            { icon: Camera, label: "Scan" },
-            { icon: Mic, label: "Voice" },
-          ].map((item, i) => (
-            <button
-              key={i}
-              onClick={() => toast({ title: `${item.label} upload coming soon!`, description: "This feature is under development." })}
-              className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95"
-            >
-              <item.icon className="w-5 h-5 text-primary" />
-              <span className="text-xs text-muted-foreground">{item.label}</span>
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => pdfInputRef.current?.click()}
+            className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95"
+          >
+            <FileText className="w-5 h-5 text-primary" />
+            <span className="text-xs text-muted-foreground">PDF</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => scanInputRef.current?.click()}
+            className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95"
+          >
+            <Camera className="w-5 h-5 text-primary" />
+            <span className="text-xs text-muted-foreground">Scan</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleVoiceRecord}
+            className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95 ${recording ? "ring-2 ring-destructive animate-pulse" : ""}`}
+          >
+            {recording ? <Square className="w-5 h-5 text-destructive" /> : <Mic className="w-5 h-5 text-primary" />}
+            <span className={`text-xs ${recording ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+              {recording ? "Stop" : "Voice"}
+            </span>
+          </button>
         </div>
+
+        {/* Uploaded file indicator */}
+        <AnimatePresence>
+          {uploadedFile && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-success/10 border border-success/30"
+            >
+              <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+              <span className="text-xs text-foreground truncate flex-1">{uploadedFile}</span>
+              <button onClick={() => setUploadedFile(null)} className="p-0.5 rounded hover:bg-destructive/20 transition-colors">
+                <X className="w-3 h-3 text-muted-foreground" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Quick Study Log */}
