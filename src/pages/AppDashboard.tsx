@@ -23,12 +23,12 @@ const AppDashboard = () => {
 
   const renderTab = () => {
     switch (activeTab) {
-      case "home": return <HomeTab />;
+      case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} />;
       case "action": return <ActionTab />;
       case "brain": return <BrainTab />;
       case "progress": return <ProgressTab />;
       case "you": return <YouTab />;
-      default: return <HomeTab />;
+      default: return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} />;
     }
   };
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp } from "lucide-react";
+import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,11 @@ import DailyGoalTracker from "./DailyGoalTracker";
 import StreakTracker from "./StreakTracker";
 import ReviewQueue from "./ReviewQueue";
 
-const HomeTab = () => {
+interface HomeTabProps {
+  onNavigateToEmergency?: () => void;
+}
+
+const HomeTab = ({ onNavigateToEmergency }: HomeTabProps) => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
@@ -92,6 +96,36 @@ const HomeTab = () => {
 
       {/* Streak */}
       <StreakTracker />
+
+      {/* Exam urgency banner — ≤3 days */}
+      {examDaysLeft !== null && examDaysLeft <= 3 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-xl border border-destructive/30 bg-destructive/10 p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-destructive/20">
+              <AlertOctagon className="w-5 h-5 text-destructive animate-pulse" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-destructive">
+                {examDaysLeft === 0 ? "Exam is TODAY!" : `Exam in ${examDaysLeft} day${examDaysLeft !== 1 ? "s" : ""}!`}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Activate Emergency Recovery for an AI-powered rescue plan to maximize your remaining time.
+              </p>
+              <button
+                onClick={onNavigateToEmergency}
+                className="mt-2.5 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold hover:opacity-90 transition-opacity active:scale-95"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                Activate Emergency Recovery
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Stats row */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-3">
