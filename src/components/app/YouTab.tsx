@@ -22,6 +22,7 @@ import VoiceSettingsPanel from "./VoiceSettingsPanel";
 import DataBackup from "./DataBackup";
 import PrivacySecurity from "./PrivacySecurity";
 import TrashBin from "./TrashBin";
+import BadgeGallery from "./BadgeGallery";
 import SubscriptionPlan from "./SubscriptionPlan";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 
@@ -344,6 +345,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         </div>
         <p className="text-[10px] text-muted-foreground">620 / 1000 XP to Level 5</p>
       </motion.div>
+
+      {/* Badge Gallery */}
+      <BadgeGallery />
 
       {/* Menu Items */}
       <motion.div
