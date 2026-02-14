@@ -1,0 +1,145 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { type, language, tone, context } = await req.json();
+    // type: "daily_reminder" | "forget_risk" | "exam_countdown" | "motivation" | "test"
+    // language: "en" | "hi" | "auto"
+    // tone: "soft" | "energetic" | "calm"
+    // context: { subject?, topic?, memory_score?, exam_days?, rank_change?, daily_minutes?, daily_topic? }
+
+    const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
+    if (!ELEVENLABS_API_KEY) {
+      return new Response(JSON.stringify({ error: "ELEVENLABS_API_KEY not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Step 1: Generate dynamic voice text using Lovable AI
+    const lang = language === "hi" ? "Hindi (Hinglish style, casual)" : "English";
+    const toneDesc = tone === "energetic" ? "energetic and upbeat" : tone === "calm" ? "very calm and soothing" : "soft, sweet, and gentle";
+
+    const promptMap: Record<string, string> = {
+      daily_reminder: `Generate a short (1-2 sentences) ${toneDesc} study reminder in ${lang}. Context: The student should study ${context?.daily_topic || "their planned topics"} for about ${context?.daily_minutes || 20} minutes today. Subject: ${context?.subject || "general"}. Be motivating, varied, and natural. Don't use generic greetings every time — vary the opening.`,
+      forget_risk: `Generate a short (1-2 sentences) ${toneDesc} memory risk alert in ${lang}. Context: The topic "${context?.topic || "a topic"}" in ${context?.subject || "a subject"} has a memory score of ${context?.memory_score ?? 40}%. It may drop soon. Recommend a quick review. Sound slightly urgent but caring.`,
+      exam_countdown: `Generate a short (1-2 sentences) ${toneDesc} exam countdown alert in ${lang}. Context: The student has ${context?.exam_days ?? 7} days until their exam. Be focused and confident. Suggest activating Focus Mode if exam is close.`,
+      motivation: `Generate a short (1-2 sentences) ${toneDesc} motivational notification in ${lang}. Context: ${context?.rank_change ? `Their predicted rank improved by ${context.rank_change} positions.` : "They've been consistent with their studies."} Be encouraging and warm.`,
+      test: `Generate a short (1 sentence) ${toneDesc} test notification in ${lang}. Say something like "Your ACRY voice notifications are working perfectly." Make it sound premium and intelligent.`,
+    };
+
+    const aiPrompt = promptMap[type] || promptMap.test;
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: "You are ACRY, an AI Second Brain voice assistant. You speak with a sweet, calm, motivating tone. Output ONLY the spoken text — no quotes, no labels, no formatting. Keep it natural and human-like. Never repeat the same sentence twice if asked multiple times."
+          },
+          { role: "user", content: aiPrompt }
+        ],
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`AI gateway error: ${aiResponse.status}`);
+    }
+
+    const aiData = await aiResponse.json();
+    const spokenText = aiData.choices?.[0]?.message?.content?.trim() || "Your ACRY brain is active.";
+
+    // Step 2: Convert text to speech using ElevenLabs
+    // Laura - sweet, calm female voice (FGY2WhTYpPnrIDTdsKH5)
+    const voiceId = "FGY2WhTYpPnrIDTdsKH5";
+
+    // Adjust voice settings based on tone
+    const voiceSettings = {
+      soft: { stability: 0.6, similarity_boost: 0.8, style: 0.3, speed: 0.95 },
+      calm: { stability: 0.7, similarity_boost: 0.8, style: 0.2, speed: 0.9 },
+      energetic: { stability: 0.4, similarity_boost: 0.75, style: 0.6, speed: 1.05 },
+    };
+    const settings = voiceSettings[tone as keyof typeof voiceSettings] || voiceSettings.soft;
+
+    const ttsResponse = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: spokenText,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            ...settings,
+            use_speaker_boost: true,
+          },
+        }),
+      }
+    );
+
+    if (!ttsResponse.ok) {
+      const errText = await ttsResponse.text();
+      console.error("ElevenLabs error:", ttsResponse.status, errText);
+      // Return text-only fallback
+      return new Response(JSON.stringify({ text: spokenText, audio: null }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const audioBuffer = await ttsResponse.arrayBuffer();
+
+    // Encode to base64 using Deno's standard library approach
+    const bytes = new Uint8Array(audioBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 8192) {
+      const chunk = bytes.subarray(i, Math.min(i + 8192, bytes.length));
+      for (let j = 0; j < chunk.length; j++) {
+        binary += String.fromCharCode(chunk[j]);
+      }
+    }
+    const base64Audio = btoa(binary);
+
+    return new Response(JSON.stringify({ text: spokenText, audio: base64Audio }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("voice-notification error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

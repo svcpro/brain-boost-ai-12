@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2 } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { isFeedbackEnabled, setFeedbackEnabled, getFeedbackVolume, setFeedbackVolume, notifyFeedback, playNotificationSound } from "@/lib/feedback";
+import VoiceSettingsPanel from "./VoiceSettingsPanel";
+import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 
 interface Topic {
   id: string;
@@ -44,6 +46,8 @@ const YouTab = () => {
   const [feedbackOn, setFeedbackOn] = useState(() => isFeedbackEnabled());
   const [volume, setVolume] = useState(() => getFeedbackVolume());
   const [showFeedbackSetting, setShowFeedbackSetting] = useState(false);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
   // Load reminder prefs
@@ -150,6 +154,7 @@ const YouTab = () => {
     { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders) },
     { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting) },
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
+    { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
     { icon: Database, label: "Data Backup", value: "", onClick: undefined },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: undefined },
   ];
@@ -580,6 +585,21 @@ const YouTab = () => {
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Voice Notification Settings Panel */}
+        <AnimatePresence>
+          {showVoiceSettings && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <VoiceSettingsPanel />
             </motion.div>
           )}
         </AnimatePresence>
