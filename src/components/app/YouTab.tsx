@@ -45,9 +45,11 @@ interface YouTabProps {
   onVoiceSettingsOpened?: () => void;
   autoOpenSubscription?: boolean;
   onSubscriptionOpened?: () => void;
+  autoOpenNotifHistory?: boolean;
+  onNotifHistoryOpened?: () => void;
 }
 
-const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscription, onSubscriptionOpened }: YouTabProps) => {
+const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscription, onSubscriptionOpened, autoOpenNotifHistory, onNotifHistoryOpened }: YouTabProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -108,6 +110,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       onSubscriptionOpened?.();
     }
   }, [autoOpenSubscription, onSubscriptionOpened]);
+
+  // Auto-open notification history when navigated from toast
+  useEffect(() => {
+    if (autoOpenNotifHistory) {
+      setShowNotifHistory(true);
+      onNotifHistoryOpened?.();
+    }
+  }, [autoOpenNotifHistory, onNotifHistoryOpened]);
 
   const loadTrashCount = useCallback(async () => {
     if (!user) return;
