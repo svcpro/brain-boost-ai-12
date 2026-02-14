@@ -22,7 +22,12 @@ interface Subject {
   topics: Topic[];
 }
 
-const YouTab = () => {
+interface YouTabProps {
+  autoOpenVoiceSettings?: boolean;
+  onVoiceSettingsOpened?: () => void;
+}
+
+const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,6 +54,14 @@ const YouTab = () => {
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
+
+  // Auto-open voice settings when navigated from Home indicator
+  useEffect(() => {
+    if (autoOpenVoiceSettings) {
+      setShowVoiceSettings(true);
+      onVoiceSettingsOpened?.();
+    }
+  }, [autoOpenVoiceSettings, onVoiceSettingsOpened]);
 
   // Load reminder prefs
   useEffect(() => {
