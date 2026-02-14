@@ -1,13 +1,93 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame } from "lucide-react";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface StreakData {
+  currentStreak: number;
+  longestStreak: number;
+  last30Days: boolean[]; // true = studied that day
+  todayStudied: boolean;
+}
 
 const ProgressTab = () => {
+  const { user } = useAuth();
   const { data, loading, predictRank } = useRankPrediction();
+  const [streak, setStreak] = useState<StreakData | null>(null);
+
+  const loadStreak = useCallback(async () => {
+    if (!user) return;
+
+    // Fetch study logs from last 90 days to compute streaks
+    const since = new Date();
+    since.setDate(since.getDate() - 90);
+
+    const { data: logs } = await supabase
+      .from("study_logs")
+      .select("created_at")
+      .eq("user_id", user.id)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: true });
+
+    if (!logs) return;
+
+    // Build a set of study dates (YYYY-MM-DD)
+    const studyDays = new Set<string>();
+    for (const log of logs) {
+      const d = new Date(log.created_at);
+      studyDays.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    }
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const todayStudied = studyDays.has(todayStr);
+
+    // Current streak (consecutive days ending today or yesterday)
+    let currentStreak = 0;
+    const checkDate = new Date(today);
+    if (!todayStudied) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    while (true) {
+      const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
+      if (studyDays.has(key)) {
+        currentStreak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else break;
+    }
+
+    // Longest streak in last 90 days
+    let longestStreak = 0;
+    let tempStreak = 0;
+    const iterDate = new Date(since);
+    while (iterDate <= today) {
+      const key = `${iterDate.getFullYear()}-${String(iterDate.getMonth() + 1).padStart(2, "0")}-${String(iterDate.getDate()).padStart(2, "0")}`;
+      if (studyDays.has(key)) {
+        tempStreak++;
+        longestStreak = Math.max(longestStreak, tempStreak);
+      } else {
+        tempStreak = 0;
+      }
+      iterDate.setDate(iterDate.getDate() + 1);
+    }
+
+    // Last 30 days
+    const last30Days: boolean[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      last30Days.push(studyDays.has(key));
+    }
+
+    setStreak({ currentStreak, longestStreak, last30Days, todayStudied });
+  }, [user]);
 
   useEffect(() => {
     predictRank();
+    loadStreak();
   }, []);
 
   const predictedRank = data?.predicted_rank;
@@ -31,6 +111,66 @@ const ProgressTab = () => {
         <button onClick={predictRank} disabled={loading} className="p-2 rounded-lg neural-gradient neural-border hover:glow-primary transition-all disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
+      </motion.div>
+
+      {/* Study Streak */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="glass rounded-xl p-5 neural-border"
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Flame className="w-4 h-4 text-primary" />
+          <h2 className="font-semibold text-foreground text-sm">Study Streak</h2>
+        </div>
+        {streak ? (
+          <>
+            <div className="flex items-center gap-6 mb-4">
+              <div className="text-center">
+                <div className="flex items-center gap-1 justify-center">
+                  <Flame className={`w-5 h-5 ${streak.currentStreak > 0 ? "text-warning" : "text-muted-foreground"}`} />
+                  <span className="text-3xl font-bold gradient-text">{streak.currentStreak}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Current Streak</p>
+              </div>
+              <div className="text-center">
+                <span className="text-xl font-bold text-foreground">{streak.longestStreak}</span>
+                <p className="text-[10px] text-muted-foreground mt-1">Best Streak</p>
+              </div>
+              <div className="text-center ml-auto">
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${streak.todayStudied ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}>
+                  {streak.todayStudied ? "✓ Studied today" : "Not yet today"}
+                </span>
+              </div>
+            </div>
+
+            {/* 30-day heatmap grid */}
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-2">Last 30 days</p>
+              <div className="flex gap-[3px] flex-wrap">
+                {streak.last30Days.map((studied, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2, delay: 0.1 + i * 0.015 }}
+                    className={`w-[14px] h-[14px] rounded-sm ${
+                      studied ? "bg-primary/80" : "bg-secondary"
+                    }`}
+                    title={`${29 - i} days ago${studied ? " — studied" : ""}`}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-[9px] text-muted-foreground">30 days ago</span>
+                <span className="text-[9px] text-muted-foreground">Today</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">Loading streak data…</p>
+        )}
       </motion.div>
 
       {/* Rank Prediction */}
