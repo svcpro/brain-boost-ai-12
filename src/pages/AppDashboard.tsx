@@ -9,6 +9,7 @@ import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay"
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useVoiceNotification } from "@/hooks/useVoiceNotification";
+import { useScheduledVoiceReminder } from "@/hooks/useScheduledVoiceReminder";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -31,6 +32,7 @@ const AppDashboard = () => {
   const voice = useVoiceNotification();
   useStudyReminder();
   useOfflineSync();
+  useScheduledVoiceReminder();
 
   useEffect(() => {
     if (!user) return;
