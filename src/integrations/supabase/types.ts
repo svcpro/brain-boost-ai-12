@@ -121,6 +121,44 @@ export type Database = {
         }
         Relationships: []
       }
+      freeze_gifts: {
+        Row: {
+          created_at: string
+          freeze_id: string
+          id: string
+          recipient_id: string
+          resolved_at: string | null
+          sender_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          freeze_id: string
+          id?: string
+          recipient_id: string
+          resolved_at?: string | null
+          sender_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          freeze_id?: string
+          id?: string
+          recipient_id?: string
+          resolved_at?: string | null
+          sender_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freeze_gifts_freeze_id_fkey"
+            columns: ["freeze_id"]
+            isOneToOne: false
+            referencedRelation: "streak_freezes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memory_scores: {
         Row: {
           id: string

@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Flame, Clock, Crown, Medal, Award, RefreshCw } from "lucide-react";
+import { Trophy, Flame, Clock, Crown, Medal, Award, RefreshCw, Gift, Snowflake } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface LeaderboardEntry {
   position: number;
@@ -18,8 +20,11 @@ const positionIcons = [Crown, Medal, Award];
 const positionColors = ["text-warning", "text-muted-foreground", "text-orange-400"];
 
 const LeaderboardCard = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [gifting, setGifting] = useState<string | null>(null);
 
   const loadLeaderboard = async () => {
     setLoading(true);
@@ -47,6 +52,56 @@ const LeaderboardCard = () => {
   useEffect(() => {
     loadLeaderboard();
   }, []);
+
+  const sendFreezeGift = async (recipientId: string) => {
+    if (!user) return;
+    setGifting(recipientId);
+    try {
+      // Check 1/week limit
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const { data: recentGifts } = await (supabase as any)
+        .from("freeze_gifts")
+        .select("id")
+        .eq("sender_id", user.id)
+        .gte("created_at", weekAgo.toISOString());
+
+      if (recentGifts && recentGifts.length > 0) {
+        toast({ title: "Gift limit reached", description: "You can only gift 1 freeze per week.", variant: "destructive" });
+        return;
+      }
+
+      // Find an available freeze
+      const { data: freezes } = await (supabase as any)
+        .from("streak_freezes")
+        .select("id")
+        .eq("user_id", user.id)
+        .is("used_date", null)
+        .limit(1);
+
+      if (!freezes || freezes.length === 0) {
+        toast({ title: "No freezes available", description: "Earn freezes at streak milestones.", variant: "destructive" });
+        return;
+      }
+
+      // Create gift request
+      const { error } = await (supabase as any)
+        .from("freeze_gifts")
+        .insert({
+          sender_id: user.id,
+          recipient_id: recipientId,
+          freeze_id: freezes[0].id,
+        });
+
+      if (error) throw error;
+
+      toast({ title: "🎁 Gift sent!", description: "They'll need to accept it." });
+    } catch {
+      toast({ title: "Failed to send gift", variant: "destructive" });
+    } finally {
+      setGifting(null);
+    }
+  };
 
   const currentUserEntry = entries.find(e => e.is_current_user);
   const topEntries = entries.slice(0, 10);
@@ -154,8 +209,8 @@ const LeaderboardCard = () => {
                   </p>
                 </div>
 
-                {/* Stats */}
-                <div className="flex items-center gap-3">
+                {/* Stats + Gift */}
+                <div className="flex items-center gap-2">
                   {entry.streak > 0 && (
                     <span className="flex items-center gap-0.5 text-[10px] text-warning font-medium">
                       <Flame className="w-3 h-3" />{entry.streak}
@@ -164,6 +219,16 @@ const LeaderboardCard = () => {
                   <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                     <Clock className="w-3 h-3" />{entry.total_study_hours}h
                   </span>
+                  {!entry.is_current_user && user && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); sendFreezeGift(entry.user_id); }}
+                      disabled={gifting === entry.user_id}
+                      className="p-1 rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
+                      title="Gift a streak freeze"
+                    >
+                      <Gift className={`w-3.5 h-3.5 ${gifting === entry.user_id ? "animate-pulse text-primary" : "text-muted-foreground hover:text-primary"}`} />
+                    </button>
+                  )}
                 </div>
               </motion.div>
             );
