@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertOctagon, X, Zap, Calendar, Brain, Loader2, CheckCircle, Circle, ChevronDown, ChevronUp, RotateCcw, BookOpen, Lightbulb } from "lucide-react";
+import { AlertOctagon, X, Zap, Calendar, Brain, Loader2, CheckCircle, Circle, ChevronDown, ChevronUp, RotateCcw, BookOpen, Lightbulb, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
@@ -53,12 +53,15 @@ const EmergencyRecoverySession = ({ open, onClose }: EmergencyRecoverySessionPro
   const [rescuePlan, setRescuePlan] = useState<RescuePlan | null>(null);
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
   const [completedSessions, setCompletedSessions] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (open) {
       setView("overview");
       setRescuePlan(null);
       setCompletedSessions(new Set());
+      setSaved(false);
       loadData();
     }
   }, [open]);
@@ -132,6 +135,46 @@ const EmergencyRecoverySession = ({ open, onClose }: EmergencyRecoverySessionPro
       setView("overview");
     }
   };
+
+  const saveRescuePlan = async () => {
+    if (!rescuePlan || !user) return;
+    setSaving(true);
+    try {
+      const { data: newPlan, error: planErr } = await supabase
+        .from("study_plans")
+        .insert({ user_id: user.id, summary: `🚨 Emergency: ${rescuePlan.summary}` })
+        .select("id")
+        .single();
+      if (planErr || !newPlan) throw planErr || new Error("Failed to save");
+
+      const sessionRows = rescuePlan.days.flatMap((day, dayIdx) =>
+        day.sessions.map((s) => ({
+          plan_id: newPlan.id,
+          user_id: user.id,
+          day_index: dayIdx,
+          day_name: day.day_name,
+          day_date: day.date,
+          day_focus: day.focus,
+          topic: s.topic,
+          subject: s.subject,
+          duration_minutes: s.duration_minutes,
+          mode: s.mode,
+          reason: s.reason,
+        }))
+      );
+
+      const { error: sessErr } = await supabase.from("plan_sessions").insert(sessionRows);
+      if (sessErr) throw sessErr;
+
+      setSaved(true);
+      toast({ title: "Rescue plan saved! ✅", description: "View it in your AI Study Planner." });
+    } catch (e: any) {
+      toast({ title: "Failed to save", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const toggleSession = (dayIdx: number, sessionIdx: number) => {
     const key = `${dayIdx}-${sessionIdx}`;
@@ -266,9 +309,19 @@ const EmergencyRecoverySession = ({ open, onClose }: EmergencyRecoverySessionPro
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
                 {/* Summary */}
                 <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="w-4 h-4 text-destructive" />
-                    <span className="text-xs font-semibold text-foreground">Rescue Strategy</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-destructive" />
+                      <span className="text-xs font-semibold text-foreground">Rescue Strategy</span>
+                    </div>
+                    <button
+                      onClick={saveRescuePlan}
+                      disabled={saving || saved}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {saved ? <CheckCircle className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                      {saving ? "Saving..." : saved ? "Saved" : "Save Plan"}
+                    </button>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{rescuePlan.summary}</p>
                   {/* Progress */}
