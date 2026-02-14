@@ -539,6 +539,49 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
       });
     }
 
+    if (action === "exam_simulate") {
+      const { topics: topicList, questionCount } = await req.json().catch(() => ({ topics: "", questionCount: 5 }));
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: "You are an exam question generator. Generate multiple-choice questions as a JSON array. Each object must have: question, options (array of 4 strings), correct (0-3 index), explanation. Output ONLY the JSON array, no markdown." },
+            { role: "user", content: `Generate ${questionCount || 5} exam questions based on these topics: ${topicList}` }
+          ],
+        }),
+      });
+      if (!aiResponse.ok) throw new Error(`AI error: ${aiResponse.status}`);
+      const aiData = await aiResponse.json();
+      return new Response(JSON.stringify(aiData), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (action === "weekly_report") {
+      const body = await req.json().catch(() => ({}));
+      const stats = body.stats || {};
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: "You are ACRY, an AI study coach. Generate a concise weekly study report with sections: Summary, Strengths, Areas to Improve, and Next Week's Focus. Use markdown headers and bullet points. Be encouraging but honest." },
+            { role: "user", content: `Weekly stats: ${stats.totalMinutes || 0} minutes studied, ${stats.totalSessions || 0} sessions, ${stats.avgStrength || 0}% avg memory strength, ${stats.topicCount || 0} topics across ${stats.subjectCount || 0} subjects. Weak topics: ${(stats.weakTopics || []).join(", ") || "none"}` }
+          ],
+        }),
+      });
+      if (!aiResponse.ok) throw new Error(`AI error: ${aiResponse.status}`);
+      const aiData = await aiResponse.json();
+      return new Response(JSON.stringify(aiData), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
