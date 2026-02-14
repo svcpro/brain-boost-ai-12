@@ -2,3 +2,6 @@ project_id = "yvxrsujwgmzdjzsjyqfb"
 
 [functions.memory-engine]
 verify_jwt = false
+
+[functions.leaderboard]
+verify_jwt = false
