@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
 import { setCache, getCache } from "@/lib/offlineCache";
 import KnowledgeGraph from "./KnowledgeGraph";
+import StudyPlanGenerator from "./StudyPlanGenerator";
 import FocusModeSession from "./FocusModeSession";
 import { formatDistanceToNow, isPast, isToday } from "date-fns";
 
@@ -29,6 +30,7 @@ const BrainTab = () => {
   const { prediction, loading, error: memoryError, predict } = useMemoryEngine();
   const [subjectHealth, setSubjectHealth] = useState<SubjectHealthData[]>([]);
   const [showGraph, setShowGraph] = useState(false);
+  const [showBrainPlan, setShowBrainPlan] = useState(false);
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -347,17 +349,32 @@ const BrainTab = () => {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="grid grid-cols-2 gap-3">
         {[
           { icon: Network, label: "Knowledge Graph", desc: "Visual brain map", action: () => setShowGraph((v) => !v) },
-          { icon: Brain, label: "Brain Plan", desc: "AI auto schedule" },
+          { icon: Brain, label: "Brain Plan", desc: "AI auto schedule", action: () => setShowBrainPlan(true) },
           { icon: Layers, label: "Multi-Source Sync", desc: "PDF, YouTube, Notes" },
           { icon: Clock, label: "Passive Learning", desc: "Auto detection" },
         ].map((item, i) => (
-          <button key={i} onClick={item.action ?? undefined} className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left ${item.label === "Knowledge Graph" && showGraph ? "ring-1 ring-primary" : ""}`}>
+          <button key={i} onClick={item.action ?? undefined} className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left ${item.label === "Knowledge Graph" && showGraph ? "ring-1 ring-primary" : ""} ${item.label === "Brain Plan" && showBrainPlan ? "ring-1 ring-primary" : ""}`}>
             <item.icon className="w-5 h-5 text-primary mb-2" />
             <p className="text-sm font-medium text-foreground">{item.label}</p>
             <p className="text-[10px] text-muted-foreground">{item.desc}</p>
           </button>
         ))}
       </motion.div>
+
+      {/* Study Plan Generator from Brain Plan */}
+      {showBrainPlan && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto glass rounded-2xl neural-border p-1">
+            <StudyPlanGenerator />
+            <button
+              onClick={() => setShowBrainPlan(false)}
+              className="w-full py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Focus session from Review Now */}
       <FocusModeSession
