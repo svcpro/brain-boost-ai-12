@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { peekAll, removeFromQueue, type QueuedStudyLog } from "@/lib/offlineQueue";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import LazyModeSession from "./LazyModeSession";
 
 const modes = [
   {
@@ -33,6 +34,7 @@ const modes = [
 ];
 
 const ActionTab = () => {
+  const [lazyModeOpen, setLazyModeOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
   const [minutes, setMinutes] = useState("");
@@ -94,7 +96,13 @@ const ActionTab = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 + i * 0.1 }}
-            onClick={() => toast({ title: `${mode.title} activated! 🚀`, description: mode.desc })}
+            onClick={() => {
+              if (mode.title === "Lazy Mode") {
+                setLazyModeOpen(true);
+              } else {
+                toast({ title: `${mode.title} activated! 🚀`, description: mode.desc });
+              }
+            }}
             className="w-full glass rounded-xl p-5 neural-border hover:glow-primary transition-all duration-300 text-left group active:scale-[0.98]"
           >
             <div className="flex items-start gap-4">
@@ -247,6 +255,7 @@ const ActionTab = () => {
           </AnimatePresence>
         </div>
       </motion.div>
+      <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} />
     </div>
   );
 };
