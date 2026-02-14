@@ -23,7 +23,7 @@ const MILESTONES: MilestoneConfig[] = [
 ];
 
 // Milestones that have shareable badge themes in StreakBadge
-const SHAREABLE_MILESTONES = [7, 14, 30, 100];
+const SHAREABLE_MILESTONES = [7, 14, 30, 60, 100, 365];
 
 const BadgeGallery = () => {
   const { streak, loadStreak } = useStudyStreak();

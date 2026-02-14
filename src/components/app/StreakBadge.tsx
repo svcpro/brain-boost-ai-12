@@ -41,6 +41,22 @@ const BADGE_THEMES: Record<number, { bg: string; accent: string; glow: string; e
     title: "100-DAY MASTER",
     subtitle: "Unstoppable. Legendary. Elite.",
   },
+  60: {
+    bg: "linear-gradient(135deg, #2e1065 0%, #581c87 50%, #7e22ce 100%)",
+    accent: "#c084fc",
+    glow: "0 0 60px rgba(192,132,252,0.4)",
+    emoji: "💎",
+    title: "TWO-MONTH TITAN",
+    subtitle: "60 days of unbreakable discipline",
+  },
+  365: {
+    bg: "linear-gradient(135deg, #422006 0%, #854d0e 50%, #ca8a04 100%)",
+    accent: "#facc15",
+    glow: "0 0 60px rgba(250,204,21,0.4)",
+    emoji: "👑",
+    title: "YEAR OF MASTERY",
+    subtitle: "365 days. A true grandmaster.",
+  },
 };
 
 const StreakBadge = ({ milestone, onClose }: StreakBadgeProps) => {
