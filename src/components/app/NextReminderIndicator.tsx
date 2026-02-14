@@ -32,8 +32,9 @@ const NextReminderIndicator = ({ onOpenVoiceSettings }: Props) => {
       : settings.schedule.charAt(0).toUpperCase() + settings.schedule.slice(1);
 
     const alreadyPassed = now.getHours() >= hour + 1;
+    const imminent = !firedToday && !alreadyPassed && now.getHours() === hour - 1;
 
-    return { enabled: true, firedToday, label, alreadyPassed };
+    return { enabled: true, firedToday, label, alreadyPassed, imminent };
   }, []);
 
   return (
@@ -48,7 +49,7 @@ const NextReminderIndicator = ({ onOpenVoiceSettings }: Props) => {
         </>
       ) : (
         <>
-          <Bell className={`w-3 h-3 ${info.firedToday ? "text-success" : "text-primary"}`} />
+          <Bell className={`w-3 h-3 ${info.firedToday ? "text-success" : info.imminent ? "text-warning animate-pulse" : "text-primary"}`} />
           <span className="text-muted-foreground underline decoration-dotted">
             {info.firedToday
               ? "Today's reminder sent ✓"
