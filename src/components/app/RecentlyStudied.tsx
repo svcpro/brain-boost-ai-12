@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History, Play, Search, CalendarIcon, ArrowUpDown, RefreshCw } from "lucide-react";
+import { History, Play, Search, CalendarIcon, ArrowUpDown, RefreshCw, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, format, startOfDay, endOfDay } from "date-fns";
@@ -24,6 +24,7 @@ interface RecentlyStudiedProps {
 const RecentlyStudied = ({ onQuickLog, analyzing }: RecentlyStudiedProps) => {
   const { user } = useAuth();
   const [clickedLogId, setClickedLogId] = useState<string | null>(null);
+  const [completedLogId, setCompletedLogId] = useState<string | null>(null);
   
   const [items, setItems] = useState<RecentTopic[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,9 +94,14 @@ const RecentlyStudied = ({ onQuickLog, analyzing }: RecentlyStudiedProps) => {
     return new Date(b.lastStudied).getTime() - new Date(a.lastStudied).getTime();
   });
 
-  // Clear clicked indicator when analysis finishes
+  // Show success checkmark briefly when analysis finishes
   useEffect(() => {
-    if (!analyzing && clickedLogId) setClickedLogId(null);
+    if (!analyzing && clickedLogId) {
+      setCompletedLogId(clickedLogId);
+      setClickedLogId(null);
+      const timer = setTimeout(() => setCompletedLogId(null), 2000);
+      return () => clearTimeout(timer);
+    }
   }, [analyzing]);
 
   const isFiltering = !!(query || dateFrom || dateTo);
@@ -206,17 +212,31 @@ const RecentlyStudied = ({ onQuickLog, analyzing }: RecentlyStudiedProps) => {
             transition={{ delay: i * 0.05 }}
             className={cn(
               "rounded-lg bg-secondary/30 border border-border/50 overflow-hidden cursor-pointer hover:bg-secondary/50 active:scale-[0.98] transition-all",
-              clickedLogId === item.logId && analyzing && "ring-1 ring-primary/40 bg-primary/5"
+              clickedLogId === item.logId && analyzing && "ring-1 ring-primary/40 bg-primary/5",
+              completedLogId === item.logId && "ring-1 ring-success/40 bg-success/5"
             )}
             onClick={() => !analyzing && handleResume(item)}
           >
             <div className="flex items-center gap-3 p-2.5">
-              <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
-                {clickedLogId === item.logId && analyzing ? (
-                  <RefreshCw className="w-3 h-3 text-primary animate-spin" />
-                ) : (
-                  <Play className="w-3 h-3 text-primary" />
-                )}
+              <div className={cn(
+                "p-1.5 rounded-md shrink-0 transition-colors",
+                completedLogId === item.logId ? "bg-success/20" : "bg-primary/10"
+              )}>
+                <AnimatePresence mode="wait">
+                  {clickedLogId === item.logId && analyzing ? (
+                    <motion.div key="spin" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}>
+                      <RefreshCw className="w-3 h-3 text-primary animate-spin" />
+                    </motion.div>
+                  ) : completedLogId === item.logId ? (
+                    <motion.div key="check" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 300, damping: 15 }}>
+                      <CheckCircle className="w-3 h-3 text-success" />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="play" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                      <Play className="w-3 h-3 text-primary" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground truncate">{item.topicName}</p>
@@ -224,7 +244,9 @@ const RecentlyStudied = ({ onQuickLog, analyzing }: RecentlyStudiedProps) => {
                   {item.subjectName && `${item.subjectName} · `}
                   {clickedLogId === item.logId && analyzing
                     ? "Analyzing…"
-                    : `${item.minutes}min · ${formatDistanceToNow(new Date(item.lastStudied), { addSuffix: true })}`}
+                    : completedLogId === item.logId
+                      ? "✅ Analysis complete!"
+                      : `${item.minutes}min · ${formatDistanceToNow(new Date(item.lastStudied), { addSuffix: true })}`}
                 </p>
               </div>
             </div>
