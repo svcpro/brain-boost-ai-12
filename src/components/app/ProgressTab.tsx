@@ -21,6 +21,7 @@ import WeeklyReportAI from "./WeeklyReportAI";
 import ConfidenceTrendChart from "./ConfidenceTrendChart";
 import ConfidenceGoalTracker from "./ConfidenceGoalTracker";
 import StreakFreezeCard from "./StreakFreezeCard";
+import FreezeGiftInbox from "./FreezeGiftInbox";
 import ConsistencyScore from "./ConsistencyScore";
 
 type DayStatus = "studied" | "frozen" | "none";
@@ -482,6 +483,9 @@ const ProgressTab = () => {
         canUseToday={!!(streak && !streak.todayStudied && streak.currentStreak > 0)}
         onFreezeUsed={loadStreak}
       />
+
+      {/* Freeze Gift Inbox */}
+      <FreezeGiftInbox />
 
       {/* Comeback Celebration */}
       {streak && streak.isComeback && (
