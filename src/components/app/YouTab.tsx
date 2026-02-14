@@ -803,6 +803,17 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                         </select>
                       </div>
                     </div>
+                    {(() => {
+                      const offset = new Date().getTimezoneOffset();
+                      const localHour = ((weeklyReportHour * 60 - offset) / 60) % 24;
+                      const normalizedHour = localHour < 0 ? localHour + 24 : localHour;
+                      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                      return (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          🕐 That's <span className="font-semibold text-foreground">{`${Math.floor(normalizedHour).toString().padStart(2, "0")}:00`}</span> in your local time ({tz})
+                        </p>
+                      );
+                    })()}
                     <p className="text-[10px] text-muted-foreground">Choose when you'd like to receive your weekly digest</p>
                   </div>
                 )}
