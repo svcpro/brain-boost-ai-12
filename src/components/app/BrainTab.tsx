@@ -85,8 +85,10 @@ const BrainTab = () => {
   }, [predict, loadSubjectHealth]);
 
   useEffect(() => {
-    refreshAll();
-  }, []);
+    if (user) {
+      refreshAll();
+    }
+  }, [user]);
 
   // Realtime subscription for topic/study_log changes
   useEffect(() => {
