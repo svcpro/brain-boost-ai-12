@@ -4,6 +4,16 @@ import { Bell, Check, CheckCheck, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Notification {
   id: string;
@@ -19,6 +29,7 @@ const NotificationHistory = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const load = async () => {
     if (!user) return;
@@ -121,6 +132,7 @@ const NotificationHistory = () => {
   };
 
   return (
+    <>
     <motion.div
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: "auto", opacity: 1 }}
@@ -145,7 +157,7 @@ const NotificationHistory = () => {
             )}
             {notifications.length > 0 && (
               <button
-                onClick={clearAll}
+                onClick={() => setShowClearConfirm(true)}
                 className="text-[10px] text-destructive hover:underline flex items-center gap-1"
               >
                 <Trash2 className="w-3 h-3" />
@@ -217,6 +229,24 @@ const NotificationHistory = () => {
         )}
       </div>
     </motion.div>
+
+    <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete all your notifications. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={() => { clearAll(); setShowClearConfirm(false); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Clear all
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
