@@ -95,6 +95,20 @@ const LeaderboardCard = () => {
 
       if (error) throw error;
 
+      // Send push notification to recipient
+      try {
+        await supabase.functions.invoke("send-push-notification", {
+          body: {
+            recipient_id: recipientId,
+            title: "🎁 You received a freeze gift!",
+            body: "Someone sent you a streak freeze. Open ACRY to accept it.",
+            data: { type: "freeze_gift" },
+          },
+        });
+      } catch (pushErr) {
+        console.warn("Push notification failed:", pushErr);
+      }
+
       toast({ title: "🎁 Gift sent!", description: "They'll need to accept it." });
     } catch {
       toast({ title: "Failed to send gift", variant: "destructive" });
