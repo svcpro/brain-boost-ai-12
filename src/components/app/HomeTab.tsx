@@ -404,6 +404,15 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         onClose={() => setInsightReviewTopic(null)}
         initialTopic={insightReviewTopic || undefined}
       />
+
+      {/* Floating Action Button — Quick Study Log */}
+      <button
+        onClick={() => setSignalModalOpen(true)}
+        className="fixed bottom-20 right-5 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+        aria-label="Log study session"
+      >
+        <Zap className="w-6 h-6" />
+      </button>
     </div>
   );
 };
