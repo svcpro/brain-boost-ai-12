@@ -6,6 +6,7 @@ import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { setCache, getCache } from "@/lib/offlineCache";
+import { useToast } from "@/hooks/use-toast";
 import DailyGoalTracker from "./DailyGoalTracker";
 import StreakTracker from "./StreakTracker";
 import ReviewQueue from "./ReviewQueue";
@@ -14,6 +15,7 @@ const HomeTab = () => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [recommendations, setRecommendations] = useState<any[]>(() => getCache("home-recommendations") || []);
   const [examDaysLeft, setExamDaysLeft] = useState<number | null>(() => getCache("home-exam-days"));
 
@@ -203,12 +205,19 @@ const HomeTab = () => {
       )}
 
       {/* Quick Actions */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="grid grid-cols-2 gap-3">
-        <button onClick={handleRefresh} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="grid grid-cols-2 gap-3 relative z-10">
+        <button onClick={handleRefresh} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 active:scale-95">
           <Target className="w-6 h-6 text-primary" />
           <span className="text-xs font-medium text-foreground">Run AI Analysis</span>
         </button>
-        <button className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2">
+        <button
+          onClick={async () => {
+            await generateRecommendations();
+            await loadRecommendations();
+            toast({ title: "Fix suggestions generated! 🔧" });
+          }}
+          className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 active:scale-95"
+        >
           <Wrench className="w-6 h-6 text-warning" />
           <span className="text-xs font-medium text-foreground">Fix Now</span>
         </button>
