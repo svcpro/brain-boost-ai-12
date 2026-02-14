@@ -149,6 +149,110 @@ serve(async (req) => {
       });
     }
 
+    if (action === "predict_rank") {
+      // Get all topics with memory strength
+      const { data: topics } = await supabase
+        .from("topics")
+        .select("*, subjects(name)")
+        .eq("user_id", userId);
+
+      if (!topics || topics.length === 0) {
+        return new Response(JSON.stringify({ predicted_rank: null, percentile: null, factors: {} }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get study logs for volume metrics
+      const { data: studyLogs } = await supabase
+        .from("study_logs")
+        .select("duration_minutes, created_at")
+        .eq("user_id", userId);
+
+      const totalMinutes = (studyLogs || []).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+      const totalHours = totalMinutes / 60;
+
+      // Calculate coverage: % of topics with memory_strength > 50
+      const strongTopics = topics.filter((t: any) => t.memory_strength > 50).length;
+      const coverageRatio = topics.length > 0 ? strongTopics / topics.length : 0;
+
+      // Average memory strength
+      const avgStrength = topics.reduce((s: number, t: any) => s + (t.memory_strength || 0), 0) / topics.length;
+
+      // Composite score (0-100): weighted combination
+      const compositeScore = (avgStrength * 0.4) + (coverageRatio * 100 * 0.35) + (Math.min(totalHours / 200, 1) * 100 * 0.25);
+
+      // Map composite score to rank (simulated population of 100,000)
+      // Higher score = lower (better) rank
+      const totalPopulation = 100000;
+      const percentile = Math.min(99.9, Math.max(0.1, compositeScore));
+      const predictedRank = Math.max(1, Math.round(totalPopulation * (1 - percentile / 100)));
+
+      // Get historical rank predictions for trend
+      const { data: history } = await supabase
+        .from("rank_predictions")
+        .select("predicted_rank, recorded_at")
+        .eq("user_id", userId)
+        .order("recorded_at", { ascending: false })
+        .limit(10);
+
+      // Save current prediction
+      await supabase.from("rank_predictions").insert({
+        user_id: userId,
+        predicted_rank: predictedRank,
+        percentile,
+        factors: {
+          avg_strength: Math.round(avgStrength * 100) / 100,
+          coverage_ratio: Math.round(coverageRatio * 100) / 100,
+          total_hours: Math.round(totalHours * 10) / 10,
+          composite_score: Math.round(compositeScore * 100) / 100,
+          topic_count: topics.length,
+          strong_topics: strongTopics,
+        },
+      });
+
+      // Weekly study data (last 7 days)
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const weekLogs = (studyLogs || []).filter((l: any) => new Date(l.created_at) >= weekAgo);
+      const weeklyHours: Record<string, number> = {};
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      for (const log of weekLogs) {
+        const day = dayNames[new Date(log.created_at).getDay()];
+        weeklyHours[day] = (weeklyHours[day] || 0) + (log.duration_minutes || 0) / 60;
+      }
+      const weeklyData = dayNames.map(day => ({
+        day,
+        hours: Math.round((weeklyHours[day] || 0) * 10) / 10,
+      }));
+      const weekTotalHours = Math.round(weeklyData.reduce((s, d) => s + d.hours, 0) * 10) / 10;
+
+      // Rank change from previous
+      const previousRank = history && history.length > 1 ? history[1].predicted_rank : null;
+      const rankChange = previousRank ? previousRank - predictedRank : 0;
+
+      return new Response(JSON.stringify({
+        predicted_rank: predictedRank,
+        percentile: Math.round(percentile * 10) / 10,
+        rank_change: rankChange,
+        factors: {
+          avg_strength: Math.round(avgStrength * 100) / 100,
+          coverage_ratio: Math.round(coverageRatio * 100) / 100,
+          total_hours: Math.round(totalHours * 10) / 10,
+          composite_score: Math.round(compositeScore * 100) / 100,
+          topic_count: topics.length,
+          strong_topics: strongTopics,
+        },
+        history: (history || []).reverse().map((h: any) => ({
+          rank: h.predicted_rank,
+          date: h.recorded_at,
+        })),
+        weekly_data: weeklyData,
+        week_total_hours: weekTotalHours,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "generate_recommendations") {
       // Get topics at risk
       const { data: topics } = await supabase
