@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X } from "lucide-react";
+import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Bell } from "lucide-react";
 import HomeTab from "@/components/app/HomeTab";
 import ActionTab from "@/components/app/ActionTab";
 import BrainTab from "@/components/app/BrainTab";
@@ -14,6 +14,7 @@ import { useWeakQuestionReminder } from "@/hooks/useWeakQuestionReminder";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { notifyFeedback } from "@/lib/feedback";
+import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 
 // Export voice context so child components can trigger voice
@@ -32,6 +33,7 @@ const AppDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [autoOpenVoice, setAutoOpenVoice] = useState(false);
   const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
+  const [autoOpenNotifHistory, setAutoOpenNotifHistory] = useState(false);
   const { user } = useAuth();
   const [recCount, setRecCount] = useState(0);
   const [pendingGifts, setPendingGifts] = useState(0);
@@ -97,6 +99,14 @@ const AppDashboard = () => {
             title: n.title || "🔔 New notification",
             description: n.body || undefined,
             duration: 5000,
+            action: (
+              <ToastAction altText="View" onClick={() => {
+                setAutoOpenNotifHistory(true);
+                setActiveTab("you");
+              }}>
+                View
+              </ToastAction>
+            ),
           });
         }
       )
@@ -154,7 +164,7 @@ const AppDashboard = () => {
       case "action": return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
       case "progress": return <ProgressTab />;
-      case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} />;
+      case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
       default: return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} />;
     }
   };
