@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, Component, type ReactNode, type ErrorInfo } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Activity, Network, Clock, Layers, RefreshCw, ChevronDown, ChevronUp, AlertTriangle, TrendingDown, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,7 @@ interface SubjectHealthData {
   topics: TopicInfo[];
 }
 const BrainTab = () => {
+  const { toast } = useToast();
   const { user } = useAuth();
   const { prediction, loading, error: memoryError, predict } = useMemoryEngine();
   const [subjectHealth, setSubjectHealth] = useState<SubjectHealthData[]>([]);
@@ -350,8 +352,8 @@ const BrainTab = () => {
         {[
           { icon: Network, label: "Knowledge Graph", desc: "Visual brain map", action: () => setShowGraph((v) => !v) },
           { icon: Brain, label: "Brain Plan", desc: "AI auto schedule", action: () => setShowBrainPlan(true) },
-          { icon: Layers, label: "Multi-Source Sync", desc: "PDF, YouTube, Notes" },
-          { icon: Clock, label: "Passive Learning", desc: "Auto detection" },
+          { icon: Layers, label: "Multi-Source Sync", desc: "PDF, YouTube, Notes", action: () => toast({ title: "Coming Soon", description: "Multi-Source Sync will let you import from PDFs, YouTube, and notes automatically." }) },
+          { icon: Clock, label: "Passive Learning", desc: "Auto detection", action: () => toast({ title: "Coming Soon", description: "Passive Learning will auto-detect your study activity and log it for you." }) },
         ].map((item, i) => (
           <button key={i} onClick={item.action ?? undefined} className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left ${item.label === "Knowledge Graph" && showGraph ? "ring-1 ring-primary" : ""} ${item.label === "Brain Plan" && showBrainPlan ? "ring-1 ring-primary" : ""}`}>
             <item.icon className="w-5 h-5 text-primary mb-2" />
