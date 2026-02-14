@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Play, Pause, RotateCcw, CheckCircle, X, ShieldCheck, Eye, EyeOff, Plus, Minus, Volume2, VolumeX, CloudRain, Music, Radio, Timer, Coffee, SkipForward } from "lucide-react";
+import { Crosshair, Play, Pause, RotateCcw, CheckCircle, X, ShieldCheck, Eye, EyeOff, Plus, Minus, Volume2, VolumeX, CloudRain, Music, Radio, Timer, Coffee, SkipForward, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus as MinusIcon } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
 import { useAmbientSound, type AmbientSoundType } from "@/hooks/useAmbientSound";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import confetti from "canvas-confetti";
 
 const PRESETS = [15, 25, 45, 60];
 const POMODORO_WORK = 25;
@@ -18,15 +21,27 @@ interface FocusModeSessionProps {
   initialTopic?: string;
 }
 
-type SessionState = "setup" | "running" | "paused" | "done";
+type SessionState = "setup" | "running" | "paused" | "done" | "summary";
 type PomodoroPhase = "work" | "short-break" | "long-break";
+
+interface SessionSummary {
+  elapsedMinutes: number;
+  subject: string;
+  topic: string;
+  strengthBefore: number | null;
+  strengthAfter: number | null;
+  pomodoroEnabled: boolean;
+  cyclesCompleted: number;
+}
 
 const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: FocusModeSessionProps) => {
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
   const ambient = useAmbientSound();
+  const { user } = useAuth();
 
   const [state, setState] = useState<SessionState>("setup");
+  const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [totalMinutes, setTotalMinutes] = useState(25);
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [subject, setSubject] = useState(initialSubject || "");
@@ -159,10 +174,27 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
     setSecondsLeft(totalMinutes * 60);
   };
 
+  // Fetch topic memory strength before logging
+  const getTopicStrength = async (topicName: string): Promise<number | null> => {
+    if (!user || !topicName) return null;
+    const { data } = await supabase
+      .from("topics")
+      .select("memory_strength")
+      .eq("user_id", user.id)
+      .eq("name", topicName)
+      .is("deleted_at", null)
+      .maybeSingle();
+    return data ? Number(data.memory_strength) : null;
+  };
+
   const handleComplete = async () => {
     setLogging(true);
     const elapsedMs = Date.now() - startTimeRef.current;
     const elapsed = Math.max(1, Math.round(elapsedMs / 60000));
+
+    // Capture strength before logging
+    const strengthBefore = await getTopicStrength(topic);
+
     await logStudy({
       subjectName: subject,
       topicName: topic || undefined,
@@ -170,9 +202,30 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
       confidenceLevel: "high",
       studyMode: "focus",
     });
-    toast({ title: "Deep focus session logged! 🎯", description: `${elapsed} min on ${subject}` });
-    setLogging(false);
+
+    // Capture strength after logging
+    const strengthAfter = await getTopicStrength(topic);
+
     ambient.stop();
+    setLogging(false);
+
+    // Fire confetti
+    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ["#22c55e", "#6366f1", "#f59e0b"] });
+
+    setSummary({
+      elapsedMinutes: elapsed,
+      subject,
+      topic,
+      strengthBefore,
+      strengthAfter,
+      pomodoroEnabled,
+      cyclesCompleted: totalCyclesCompleted,
+    });
+    setState("summary");
+  };
+
+  const handleCloseSummary = () => {
+    setSummary(null);
     onClose();
   };
 
@@ -509,6 +562,95 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
                   </button>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Session Summary */}
+          {state === "summary" && summary && (
+            <div className="flex flex-col items-center gap-5">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center"
+              >
+                <CheckCircle className="w-8 h-8 text-success" />
+              </motion.div>
+
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-foreground">Session Complete!</h3>
+                <p className="text-xs text-muted-foreground mt-1">Great focus — here's your recap</p>
+              </div>
+
+              <div className="w-full grid grid-cols-2 gap-3">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                  className="flex flex-col items-center p-3 rounded-xl bg-secondary/30 border border-border/50">
+                  <Clock className="w-4 h-4 text-primary mb-1.5" />
+                  <span className="text-lg font-bold text-foreground">
+                    {summary.elapsedMinutes >= 60
+                      ? `${Math.floor(summary.elapsedMinutes / 60)}h ${summary.elapsedMinutes % 60}m`
+                      : `${summary.elapsedMinutes}m`}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">Time Studied</span>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+                  className="flex flex-col items-center p-3 rounded-xl bg-secondary/30 border border-border/50">
+                  <BookOpen className="w-4 h-4 text-primary mb-1.5" />
+                  <span className="text-sm font-bold text-foreground truncate max-w-full px-1">{summary.subject}</span>
+                  <span className="text-[10px] text-muted-foreground truncate max-w-full px-1">{summary.topic || "General"}</span>
+                </motion.div>
+
+                {summary.strengthAfter !== null && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                    className="flex flex-col items-center p-3 rounded-xl bg-secondary/30 border border-border/50">
+                    <Brain className="w-4 h-4 text-primary mb-1.5" />
+                    <span className="text-lg font-bold text-foreground">{Math.round(summary.strengthAfter)}%</span>
+                    <span className="text-[10px] text-muted-foreground">Memory Strength</span>
+                  </motion.div>
+                )}
+
+                {summary.strengthBefore !== null && summary.strengthAfter !== null && (() => {
+                  const delta = Math.round(summary.strengthAfter! - summary.strengthBefore!);
+                  const isPositive = delta > 0;
+                  const isZero = delta === 0;
+                  return (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+                      className="flex flex-col items-center p-3 rounded-xl bg-secondary/30 border border-border/50">
+                      {isPositive ? (
+                        <TrendingUp className="w-4 h-4 text-success mb-1.5" />
+                      ) : isZero ? (
+                        <MinusIcon className="w-4 h-4 text-muted-foreground mb-1.5" />
+                      ) : (
+                        <TrendingDown className="w-4 h-4 text-warning mb-1.5" />
+                      )}
+                      <span className={`text-lg font-bold ${isPositive ? "text-success" : isZero ? "text-foreground" : "text-warning"}`}>
+                        {isPositive ? "+" : ""}{delta}%
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Change</span>
+                    </motion.div>
+                  );
+                })()}
+
+                {summary.pomodoroEnabled && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                    className="col-span-2 flex flex-col items-center p-3 rounded-xl bg-secondary/30 border border-border/50">
+                    <Timer className="w-4 h-4 text-primary mb-1.5" />
+                    <span className="text-lg font-bold text-foreground">{summary.cyclesCompleted}</span>
+                    <span className="text-[10px] text-muted-foreground">Pomodoro Cycles</span>
+                  </motion.div>
+                )}
+              </div>
+
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                onClick={handleCloseSummary}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-success text-success-foreground font-semibold transition-all hover:brightness-110 active:scale-95"
+              >
+                Done
+              </motion.button>
             </div>
           )}
         </motion.div>
