@@ -11,6 +11,8 @@ import DailyGoalTracker from "./DailyGoalTracker";
 import StreakTracker from "./StreakTracker";
 import ReviewQueue from "./ReviewQueue";
 import { notifyFeedback } from "@/lib/feedback";
+import { useVoice } from "@/pages/AppDashboard";
+import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -22,9 +24,11 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps)
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
   const { toast } = useToast();
+  const voice = useVoice();
   const [recommendations, setRecommendations] = useState<any[]>(() => getCache("home-recommendations") || []);
   const [examDaysLeft, setExamDaysLeft] = useState<number | null>(() => getCache("home-exam-days"));
   const recsRef = useRef<HTMLDivElement>(null);
+  const voiceTriggeredRef = useRef(false);
 
   // Auto-dismiss badge when recommendations section scrolls into view
   useEffect(() => {
@@ -82,6 +86,34 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps)
       // offline – cached data already loaded
     }
   };
+
+  // Auto-trigger voice alerts once per session after data loads
+  useEffect(() => {
+    if (voiceTriggeredRef.current || loading || !prediction) return;
+    const settings = getVoiceSettings();
+    if (!settings.enabled || !voice) return;
+
+    voiceTriggeredRef.current = true;
+
+    const criticalTopics = (prediction.at_risk || []).filter(t => t.risk_level === "critical");
+
+    // Priority 1: Exam countdown (≤7 days)
+    if (examDaysLeft !== null && examDaysLeft <= 7) {
+      voice.speak("exam_countdown", { exam_days: examDaysLeft });
+      return;
+    }
+
+    // Priority 2: Critical forget-risk alert (top topic)
+    if (criticalTopics.length > 0) {
+      const top = criticalTopics[0];
+      voice.speak("forget_risk", {
+        topic: top.name,
+        subject: top.subject_name || undefined,
+        memory_score: Math.round(top.memory_strength),
+      });
+      return;
+    }
+  }, [loading, prediction, examDaysLeft, voice]);
 
   const atRisk = prediction?.at_risk || [];
   const overallHealth = prediction?.overall_health ?? 0;
