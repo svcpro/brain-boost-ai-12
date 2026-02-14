@@ -23,6 +23,7 @@ import QuickStartStudy from "./QuickStartStudy";
 import BrainUpdateHero, { markBrainUpdated } from "./BrainUpdateHero";
 import RecentlyStudied from "./RecentlyStudied";
 import QuickStudySignalModal from "./QuickStudySignalModal";
+import DailyQuote from "./DailyQuote";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -187,6 +188,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
       </motion.div>
+
+      {/* Daily Motivational Quote */}
+      <DailyQuote />
 
       {/* Brain Update Hero — opens Quick Study Signal */}
       <BrainUpdateHero
