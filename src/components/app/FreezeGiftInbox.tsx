@@ -68,9 +68,22 @@ const FreezeGiftInbox = () => {
     setResolving(giftId);
     try {
       if (accept) {
+        const gift = gifts.find((g) => g.id === giftId);
         // Use security definer function for atomic transfer
         const { error } = await (supabase as any).rpc("accept_freeze_gift", { gift_id: giftId });
         if (error) throw error;
+
+        // Notify the sender that their gift was accepted
+        if (gift) {
+          supabase.functions.invoke("send-push-notification", {
+            body: {
+              recipient_id: gift.sender_id,
+              title: "🎉 Freeze gift accepted!",
+              body: `${user.user_metadata?.display_name || "Someone"} accepted your streak freeze gift.`,
+              data: { type: "freeze_gift" },
+            },
+          }).catch((err) => console.warn("Gift acceptance push failed:", err));
+        }
 
         notifyFeedback();
         toast({ title: "❄️ Freeze received!", description: "A streak freeze has been added to your inventory." });
