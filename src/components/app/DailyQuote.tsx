@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Quote, Share2, RefreshCw } from "lucide-react";
+import { Quote, Share2, RefreshCw, Heart, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const QUOTES = [
@@ -37,18 +37,46 @@ const QUOTES = [
   { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
 ];
 
+const FAVORITES_KEY = "daily-quote-favorites";
+
+const loadFavorites = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveFavorites = (favs: string[]) => {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+};
+
 const DailyQuote = () => {
   const { toast } = useToast();
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
   );
   const [index, setIndex] = useState(dayOfYear % QUOTES.length);
+  const [favorites, setFavorites] = useState<string[]>(loadFavorites);
+  const [showFavorites, setShowFavorites] = useState(false);
+
   const quote = QUOTES[index];
+  const quoteKey = `${quote.text}|${quote.author}`;
+  const isFav = favorites.includes(quoteKey);
   const shareText = `"${quote.text}" — ${quote.author} 📚`;
 
   const handleRefresh = () => {
     setIndex((prev) => (prev + 1) % QUOTES.length);
   };
+
+  const handleToggleFav = useCallback(() => {
+    setFavorites((prev) => {
+      const next = isFav ? prev.filter((k) => k !== quoteKey) : [...prev, quoteKey];
+      saveFavorites(next);
+      return next;
+    });
+    if (!isFav) toast({ title: "💛 Quote saved to favorites!" });
+  }, [isFav, quoteKey, toast]);
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -64,6 +92,8 @@ const DailyQuote = () => {
       toast({ title: "Couldn't copy quote", variant: "destructive" });
     }
   };
+
+  const favQuotes = QUOTES.filter((q) => favorites.includes(`${q.text}|${q.author}`));
 
   return (
     <motion.div
@@ -88,6 +118,15 @@ const DailyQuote = () => {
           </AnimatePresence>
           <div className="flex items-center justify-end gap-3 mt-2">
             <button
+              onClick={handleToggleFav}
+              className={`flex items-center gap-1 text-[10px] transition-colors active:scale-95 ${
+                isFav ? "text-warning" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Heart className={`w-3 h-3 ${isFav ? "fill-warning" : ""}`} />
+              {isFav ? "Saved" : "Save"}
+            </button>
+            <button
               onClick={handleRefresh}
               className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors active:scale-95"
             >
@@ -104,6 +143,54 @@ const DailyQuote = () => {
           </div>
         </div>
       </div>
+
+      {/* Favorites section */}
+      {favQuotes.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <button
+            onClick={() => setShowFavorites((v) => !v)}
+            className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors w-full"
+          >
+            <Heart className="w-3 h-3 fill-warning text-warning" />
+            {favQuotes.length} favorite{favQuotes.length !== 1 ? "s" : ""}
+            {showFavorites ? <ChevronUp className="w-3 h-3 ml-auto" /> : <ChevronDown className="w-3 h-3 ml-auto" />}
+          </button>
+          <AnimatePresence>
+            {showFavorites && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-2 mt-2 max-h-40 overflow-y-auto">
+                  {favQuotes.map((q, i) => (
+                    <div key={i} className="flex items-start gap-2 group">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-foreground italic leading-relaxed">"{q.text}"</p>
+                        <p className="text-[9px] text-muted-foreground">— {q.author}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const key = `${q.text}|${q.author}`;
+                          setFavorites((prev) => {
+                            const next = prev.filter((k) => k !== key);
+                            saveFavorites(next);
+                            return next;
+                          });
+                        }}
+                        className="text-[9px] text-muted-foreground hover:text-destructive transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </motion.div>
   );
 };
