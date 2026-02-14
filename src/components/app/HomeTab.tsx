@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import DailyGoalTracker from "./DailyGoalTracker";
 import StreakTracker from "./StreakTracker";
 import ReviewQueue from "./ReviewQueue";
+import { notifyFeedback } from "@/lib/feedback";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -94,6 +95,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps)
       await Promise.all([predict(), predictRank()]);
       await generateRecommendations();
       await loadRecommendations();
+      notifyFeedback();
       toast({ title: "✅ AI Analysis complete!", description: "Memory predictions and recommendations updated." });
     } catch {
       toast({ title: "Analysis failed", variant: "destructive" });
@@ -278,6 +280,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps)
           const result = await generateRecommendations();
           await loadRecommendations();
           const count = result?.recommendations?.length ?? 0;
+          if (count > 0) notifyFeedback();
           toast({ title: count > 0 ? `${count} fix suggestions generated! 🔧` : "All topics are healthy — no fixes needed right now 🎉" });
           }}
           className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 active:scale-95"
