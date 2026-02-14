@@ -234,23 +234,24 @@ const ActionTab = () => {
   }, [toast]);
 
   const confirmVoiceExtraction = useCallback(async () => {
-    if (!voiceBlob) return;
+    const transcript = editedTranscript.trim() || voiceTranscript;
+    if (!transcript) return;
     setExtracting(true);
     setExtractionResult(null);
     toast({ title: "🧠 Extracting topics...", description: "AI is analyzing your transcript." });
 
     try {
-      const formData = new FormData();
-      formData.append("audio", voiceBlob, "voice-note.webm");
-
       const { data: { session } } = await supabase.auth.getSession();
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-voice-topics`,
         {
           method: "POST",
-          headers: { Authorization: `Bearer ${session?.access_token}` },
-          body: formData,
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ transcript }),
         }
       );
 
@@ -279,7 +280,7 @@ const ActionTab = () => {
     } finally {
       setExtracting(false);
     }
-  }, [voiceBlob, toast]);
+  }, [editedTranscript, voiceTranscript, toast]);
 
   const handleVoiceRecord = useCallback(async () => {
     if (recording) {
