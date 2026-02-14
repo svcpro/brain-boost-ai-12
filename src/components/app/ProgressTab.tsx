@@ -10,6 +10,7 @@ import WeeklyReportCard from "./WeeklyReportCard";
 import LeaderboardCard from "./LeaderboardCard";
 import WeeklyFocusChart from "./WeeklyFocusChart";
 import MonthlyFocusTrend from "./MonthlyFocusTrend";
+import MonthlyHeatmap from "./MonthlyHeatmap";
 
 interface StreakData {
   currentStreak: number;
@@ -324,6 +325,9 @@ const ProgressTab = () => {
 
       {/* Monthly Focus Trend */}
       <MonthlyFocusTrend />
+
+      {/* Monthly Heatmap */}
+      <MonthlyHeatmap />
 
       {/* Rank Prediction */}
       <motion.div
