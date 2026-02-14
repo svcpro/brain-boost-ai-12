@@ -424,11 +424,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </button>
       </motion.div>
 
-      {/* Focus session from insight Review Now */}
+      {/* Focus session from insight Review Now — auto-starts */}
       <FocusModeSession
         open={!!insightReviewTopic}
         onClose={() => setInsightReviewTopic(null)}
         initialTopic={insightReviewTopic || undefined}
+        autoStart
       />
 
       {/* Floating Action Button — Quick Study Log */}

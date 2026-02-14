@@ -19,6 +19,7 @@ interface FocusModeSessionProps {
   onClose: () => void;
   initialSubject?: string;
   initialTopic?: string;
+  autoStart?: boolean;
 }
 
 type SessionState = "setup" | "running" | "paused" | "done" | "summary";
@@ -34,7 +35,7 @@ interface SessionSummary {
   cyclesCompleted: number;
 }
 
-const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: FocusModeSessionProps) => {
+const FocusModeSession = ({ open, onClose, initialSubject, initialTopic, autoStart }: FocusModeSessionProps) => {
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
   const ambient = useAmbientSound();
@@ -57,22 +58,42 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
+  const autoStartTriggered = useRef(false);
+
   useEffect(() => {
     if (open) {
       setState("setup");
       setTotalMinutes(25);
       setSecondsLeft(25 * 60);
-      setSubject("");
-      setTopic("");
+      setSubject(initialSubject || "");
+      setTopic(initialTopic || "");
       setPomodoroEnabled(false);
       setPomodoroPhase("work");
       setPomodoroCycle(1);
       setTotalCyclesCompleted(0);
+      autoStartTriggered.current = false;
     } else {
       clearTimer();
       ambient.stop();
     }
   }, [open]);
+
+  // Auto-start session when autoStart is true and subject is available
+  useEffect(() => {
+    if (open && autoStart && !autoStartTriggered.current && (initialSubject || initialTopic)) {
+      autoStartTriggered.current = true;
+      const sub = initialSubject || initialTopic || "General";
+      const top = initialTopic || "";
+      setSubject(sub);
+      setTopic(top);
+      setTotalMinutes(25);
+      setSecondsLeft(25 * 60);
+      startTimeRef.current = Date.now();
+      setState("running");
+      // Start countdown in next tick after state is set
+      setTimeout(() => startCountdown(), 0);
+    }
+  }, [open, autoStart, initialSubject, initialTopic]);
 
   const clearTimer = () => {
     if (intervalRef.current) {
