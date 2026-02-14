@@ -22,6 +22,7 @@ const MILESTONE_NOTIF: Record<number, { title: string; body: string }> = {
 
 const MILESTONE_CONFIG: Record<number, { icon: typeof Star; label: string; emoji: string; color: string }> = {
   7: { icon: Star, label: "1 Week Warrior!", emoji: "⭐", color: "text-primary" },
+  14: { icon: Flame, label: "2 Week Phoenix!", emoji: "🔥", color: "text-success" },
   30: { icon: Award, label: "30-Day Legend!", emoji: "🏆", color: "text-warning" },
   100: { icon: Sparkles, label: "100-Day Master!", emoji: "🔥", color: "text-destructive" },
 };

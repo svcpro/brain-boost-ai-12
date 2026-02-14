@@ -17,6 +17,14 @@ const BADGE_THEMES: Record<number, { bg: string; accent: string; glow: string; e
     title: "1 WEEK WARRIOR",
     subtitle: "7 consecutive days of studying",
   },
+  14: {
+    bg: "linear-gradient(135deg, #042f2e 0%, #115e59 50%, #0d9488 100%)",
+    accent: "#5eead4",
+    glow: "0 0 60px rgba(94,234,212,0.4)",
+    emoji: "🔥",
+    title: "2 WEEK PHOENIX",
+    subtitle: "14 days of relentless focus",
+  },
   30: {
     bg: "linear-gradient(135deg, #451a03 0%, #78350f 50%, #b45309 100%)",
     accent: "#fbbf24",
