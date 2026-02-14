@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star } from "lucide-react";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 interface StreakData {
   currentStreak: number;
@@ -12,10 +13,17 @@ interface StreakData {
   todayStudied: boolean;
 }
 
+const MILESTONES = [
+  { days: 7, label: "7-Day Streak", icon: Award, emoji: "🔥", color: "text-warning" },
+  { days: 14, label: "14-Day Streak", icon: Star, emoji: "⭐", color: "text-primary" },
+  { days: 30, label: "30-Day Streak", icon: Trophy, emoji: "🏆", color: "text-success" },
+];
+
 const ProgressTab = () => {
   const { user } = useAuth();
   const { data, loading, predictRank } = useRankPrediction();
   const [streak, setStreak] = useState<StreakData | null>(null);
+  const notifiedRef = useRef(false);
 
   const loadStreak = useCallback(async () => {
     if (!user) return;
@@ -84,6 +92,22 @@ const ProgressTab = () => {
 
     setStreak({ currentStreak, longestStreak, last30Days, todayStudied });
   }, [user]);
+
+  // Show toast notification for milestone achievements
+  useEffect(() => {
+    if (!streak || notifiedRef.current) return;
+    notifiedRef.current = true;
+    const hit = MILESTONES.filter((m) => streak.currentStreak >= m.days);
+    const highest = hit.length > 0 ? hit[hit.length - 1] : null;
+    // Only notify if streak exactly matches a milestone (celebrate the moment)
+    const exact = MILESTONES.find((m) => streak.currentStreak === m.days);
+    if (exact) {
+      toast({
+        title: `${exact.emoji} ${exact.label} Unlocked!`,
+        description: `You've studied ${exact.days} days in a row. Keep it up!`,
+      });
+    }
+  }, [streak]);
 
   useEffect(() => {
     predictRank();
@@ -165,6 +189,42 @@ const ProgressTab = () => {
               <div className="flex justify-between mt-1.5">
                 <span className="text-[9px] text-muted-foreground">30 days ago</span>
                 <span className="text-[9px] text-muted-foreground">Today</span>
+              </div>
+            </div>
+
+            {/* Milestone Badges */}
+            <div className="mt-4 pt-3 border-t border-border">
+              <p className="text-[10px] text-muted-foreground mb-2">Milestones</p>
+              <div className="flex gap-3">
+                {MILESTONES.map((m) => {
+                  const earned = streak.longestStreak >= m.days;
+                  const active = streak.currentStreak >= m.days;
+                  return (
+                    <motion.div
+                      key={m.days}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: m.days * 0.01 }}
+                      className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                        active
+                          ? "border-primary/50 bg-primary/10"
+                          : earned
+                          ? "border-border bg-secondary/50"
+                          : "border-border/50 bg-secondary/20 opacity-50"
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        active ? "bg-primary/20" : earned ? "bg-secondary" : "bg-secondary/50"
+                      }`}>
+                        <m.icon className={`w-4 h-4 ${active ? m.color : earned ? "text-foreground" : "text-muted-foreground"}`} />
+                      </div>
+                      <span className="text-lg">{earned ? m.emoji : "🔒"}</span>
+                      <span className={`text-[10px] font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                        {m.days} Days
+                      </span>
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
           </>
