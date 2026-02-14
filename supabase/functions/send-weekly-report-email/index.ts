@@ -15,35 +15,41 @@ async function sendWeeklyReportEmail(email: string, displayName: string, stats: 
   const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
   const html = `
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #0d9488;">ACRY – Your Weekly Progress Report</h2>
-      <p>Hi ${displayName || 'there'},</p>
-      <p>Here's your study summary for the past week:</p>
-      <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 10px 0; color: #888;">⏱️ Total Study Time</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: 600;">${timeStr}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 10px 0; color: #888;">📖 Sessions Completed</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: 600;">${stats.sessionsCount}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 10px 0; color: #888;">🏆 Top Subject</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: 600;">${stats.topSubject || '—'}</td>
-        </tr>
-        <tr>
-          <td style="padding: 10px 0; color: #888;">🔥 Current Streak</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: 600;">${stats.streakDays} day${stats.streakDays !== 1 ? 's' : ''}</td>
-        </tr>
-      </table>
-      ${stats.totalMinutes === 0 
-        ? '<p style="color: #e67e22;">You didn\'t study this week. Even 5 minutes a day makes a difference!</p>'
-        : '<p style="color: #0d9488;">Great work! Keep the momentum going this week. 💪</p>'}
-      <p style="margin-top: 24px;">
-        <a href="https://id-preview--d1ba6129-f715-4b5b-be21-b93a62f817dd.lovable.app/app" style="background: #0d9488; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View Full Report</a>
-      </p>
-      <p style="color: #888; font-size: 12px; margin-top: 32px;">— The ACRY Team</p>
+    <div style="font-family: 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; background: #f8fffe; border-radius: 16px; overflow: hidden; border: 1px solid #e0f2f1;">
+      <div style="background: linear-gradient(135deg, #0d9488, #065f46); padding: 32px 24px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">ACRY</h1>
+        <p style="color: #a7f3d0; margin: 6px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px;">Weekly Progress Report</p>
+      </div>
+      <div style="padding: 32px 28px;">
+        <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">Hi ${displayName || 'there'}, here's your study summary for the past week:</p>
+        <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #f1f5f9;">
+            <span style="color: #64748b; font-size: 14px;">⏱️ Total Study Time</span>
+            <span style="color: #0f172a; font-weight: 700; font-size: 14px;">${timeStr}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #f1f5f9;">
+            <span style="color: #64748b; font-size: 14px;">📖 Sessions Completed</span>
+            <span style="color: #0f172a; font-weight: 700; font-size: 14px;">${stats.sessionsCount}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #f1f5f9;">
+            <span style="color: #64748b; font-size: 14px;">🏆 Top Subject</span>
+            <span style="color: #0f172a; font-weight: 700; font-size: 14px;">${stats.topSubject || '—'}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 14px 20px;">
+            <span style="color: #64748b; font-size: 14px;">🔥 Current Streak</span>
+            <span style="color: #0f172a; font-weight: 700; font-size: 14px;">${stats.streakDays} day${stats.streakDays !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+        ${stats.totalMinutes === 0
+          ? '<div style="background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;"><p style="margin: 0; color: #92400e; font-size: 14px;">You didn\'t study this week. Even 5 minutes a day makes a difference! 💡</p></div>'
+          : '<div style="background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;"><p style="margin: 0; color: #065f46; font-size: 14px;">Great work! Keep the momentum going this week. 💪</p></div>'}
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="https://id-preview--d1ba6129-f715-4b5b-be21-b93a62f817dd.lovable.app/app" style="background: linear-gradient(135deg, #0d9488, #065f46); color: white; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(13,148,136,0.3);">View Full Report →</a>
+        </div>
+      </div>
+      <div style="background: #f1f5f9; padding: 20px 28px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} ACRY · Smart Study Companion</p>
+      </div>
     </div>
   `;
 
