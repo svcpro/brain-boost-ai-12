@@ -20,6 +20,7 @@ import FocusModeSession from "./FocusModeSession";
 import DailyStudyTip from "./DailyStudyTip";
 import WeeklySummaryNotification from "./WeeklySummaryNotification";
 import QuickStartStudy from "./QuickStartStudy";
+import RecentlyStudied from "./RecentlyStudied";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -184,6 +185,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <WeeklySummaryNotification />
       {/* Quick Start Study */}
       <QuickStartStudy />
+
+      {/* Recently Studied */}
+      <RecentlyStudied />
 
       {/* Daily Goal */}
       <DailyGoalTracker />
