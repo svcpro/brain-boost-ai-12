@@ -1,19 +1,36 @@
 import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
-import { Brain, Activity, Network, Clock, Layers, RefreshCw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Brain, Activity, Network, Clock, Layers, RefreshCw, ChevronDown, ChevronUp, AlertTriangle, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
 import { setCache, getCache } from "@/lib/offlineCache";
 import KnowledgeGraph from "./KnowledgeGraph";
+import { formatDistanceToNow, isPast, isToday } from "date-fns";
 
+interface TopicInfo {
+  id: string;
+  name: string;
+  memory_strength: number;
+  next_predicted_drop_date: string | null;
+  last_revision_date: string | null;
+}
+
+interface SubjectHealthData {
+  id: string;
+  name: string;
+  strength: number;
+  topicCount: number;
+  topics: TopicInfo[];
+}
 const BrainTab = () => {
   const { user } = useAuth();
   const { prediction, loading, predict } = useMemoryEngine();
-  const [subjectHealth, setSubjectHealth] = useState<{ name: string; strength: number; topicCount: number }[]>(
+  const [subjectHealth, setSubjectHealth] = useState<SubjectHealthData[]>(
     () => getCache("brain-subject-health") || []
   );
   const [showGraph, setShowGraph] = useState(false);
+  const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
 
   const loadSubjectHealth = useCallback(async () => {
     if (!user) return;
@@ -28,20 +45,30 @@ const BrainTab = () => {
         return;
       }
 
-      const health = [];
+      const health: SubjectHealthData[] = [];
       for (const sub of subjects) {
         const { data: topics } = await supabase
           .from("topics")
-          .select("memory_strength")
+          .select("id, name, memory_strength, next_predicted_drop_date, last_revision_date")
           .eq("user_id", user.id)
-          .eq("subject_id", sub.id);
+          .eq("subject_id", sub.id)
+          .order("memory_strength", { ascending: true });
 
         const topicCount = topics?.length || 0;
         const avgStrength = topicCount > 0
           ? Math.round((topics!.reduce((s, t) => s + Number(t.memory_strength), 0) / topicCount))
           : 0;
 
-        health.push({ name: sub.name, strength: avgStrength, topicCount });
+        health.push({
+          id: sub.id,
+          name: sub.name,
+          strength: avgStrength,
+          topicCount,
+          topics: (topics || []).map(t => ({
+            ...t,
+            memory_strength: Number(t.memory_strength),
+          })),
+        });
       }
       setSubjectHealth(health);
       setCache("brain-subject-health", health);
@@ -132,30 +159,139 @@ const BrainTab = () => {
           <h2 className="font-semibold text-foreground text-sm">Memory Health</h2>
         </div>
         {hasData ? (
-          <div className="space-y-4">
-            {subjectHealth.map((sub, i) => (
-              <div key={i}>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-sm text-foreground">{sub.name}</span>
-                  <span className={`text-xs font-medium ${
-                    sub.strength > 70 ? "text-success" :
-                    sub.strength > 50 ? "text-warning" : "text-destructive"
-                  }`}>{sub.strength}%</span>
+          <div className="space-y-3">
+            {subjectHealth.map((sub, i) => {
+              const isExpanded = expandedSubject === sub.id;
+              const atRiskCount = sub.topics.filter(t => {
+                if (!t.next_predicted_drop_date) return false;
+                return isPast(new Date(t.next_predicted_drop_date)) || isToday(new Date(t.next_predicted_drop_date));
+              }).length;
+
+              return (
+                <div key={sub.id}>
+                  <button
+                    onClick={() => setExpandedSubject(isExpanded ? null : sub.id)}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${isExpanded ? "bg-secondary/50" : "hover:bg-secondary/30"}`}
+                  >
+                    <div className="flex justify-between items-center mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-foreground font-medium">{sub.name}</span>
+                        {atRiskCount > 0 && (
+                          <span className="flex items-center gap-0.5 text-[9px] text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            {atRiskCount} at risk
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium ${
+                          sub.strength > 70 ? "text-success" :
+                          sub.strength > 50 ? "text-warning" : "text-destructive"
+                        }`}>{sub.strength}%</span>
+                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                      </div>
+                    </div>
+                    <div className="h-2 rounded-full bg-secondary">
+                      <motion.div
+                        className={`h-full rounded-full ${
+                          sub.strength > 70 ? "bg-success" :
+                          sub.strength > 50 ? "bg-warning" : "bg-destructive"
+                        }`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${sub.strength}%` }}
+                        transition={{ duration: 1, delay: 0.3 + i * 0.1 }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">{sub.topicCount} topics tracked</p>
+                  </button>
+
+                  <AnimatePresence>
+                    {isExpanded && sub.topics.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="ml-3 pl-3 border-l-2 border-border space-y-2 py-2">
+                          {sub.topics.map((topic) => {
+                            const strength = topic.memory_strength;
+                            const dropDate = topic.next_predicted_drop_date ? new Date(topic.next_predicted_drop_date) : null;
+                            const isOverdue = dropDate ? isPast(dropDate) : false;
+                            const isDueToday = dropDate ? isToday(dropDate) : false;
+                            const lastRevised = topic.last_revision_date ? new Date(topic.last_revision_date) : null;
+
+                            return (
+                              <div key={topic.id} className="p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-xs text-foreground font-medium truncate flex-1">{topic.name}</span>
+                                  <span className={`text-[10px] font-bold ml-2 ${
+                                    strength > 70 ? "text-success" :
+                                    strength > 50 ? "text-warning" : "text-destructive"
+                                  }`}>{strength}%</span>
+                                </div>
+
+                                {/* Strength bar */}
+                                <div className="h-1.5 rounded-full bg-secondary mb-2">
+                                  <motion.div
+                                    className={`h-full rounded-full ${
+                                      strength > 70 ? "bg-success" :
+                                      strength > 50 ? "bg-warning" : "bg-destructive"
+                                    }`}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${strength}%` }}
+                                    transition={{ duration: 0.6 }}
+                                  />
+                                </div>
+
+                                {/* Decay prediction */}
+                                <div className="flex items-center justify-between">
+                                  {dropDate ? (
+                                    <div className="flex items-center gap-1">
+                                      <TrendingDown className={`w-3 h-3 ${isOverdue || isDueToday ? "text-destructive" : "text-muted-foreground"}`} />
+                                      <span className={`text-[10px] ${
+                                        isOverdue ? "text-destructive font-medium" :
+                                        isDueToday ? "text-warning font-medium" : "text-muted-foreground"
+                                      }`}>
+                                        {isOverdue
+                                          ? `Overdue by ${formatDistanceToNow(dropDate)}`
+                                          : isDueToday
+                                          ? "Review due today"
+                                          : `Drops in ${formatDistanceToNow(dropDate)}`}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">No decay prediction</span>
+                                  )}
+
+                                  {lastRevised && (
+                                    <span className="text-[9px] text-muted-foreground">
+                                      Revised {formatDistanceToNow(lastRevised, { addSuffix: true })}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                    {isExpanded && sub.topics.length === 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <p className="ml-3 pl-3 border-l-2 border-border text-[10px] text-muted-foreground py-2">
+                          No topics added yet
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <div className="h-2 rounded-full bg-secondary">
-                  <motion.div
-                    className={`h-full rounded-full ${
-                      sub.strength > 70 ? "bg-success" :
-                      sub.strength > 50 ? "bg-warning" : "bg-destructive"
-                    }`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${sub.strength}%` }}
-                    transition={{ duration: 1, delay: 0.3 + i * 0.1 }}
-                  />
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">{sub.topicCount} topics tracked</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-4">No subjects tracked yet.</p>
