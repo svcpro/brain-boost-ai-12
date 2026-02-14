@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
-import { History, Play, StickyNote } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { History, Play, StickyNote, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -20,11 +20,11 @@ const RecentlyStudied = () => {
   const [sessionOpen, setSessionOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
 
-    // Get recent study logs with topic_id
     const { data: logs } = await supabase
       .from("study_logs")
       .select("topic_id, subject_id, duration_minutes, created_at, notes")
@@ -35,7 +35,6 @@ const RecentlyStudied = () => {
 
     if (!logs || logs.length === 0) return;
 
-    // Deduplicate by topic_id, keep most recent
     const seen = new Set<string>();
     const uniqueLogs: typeof logs = [];
     for (const l of logs) {
@@ -82,6 +81,10 @@ const RecentlyStudied = () => {
     setSessionOpen(true);
   };
 
+  const toggleExpand = (index: number) => {
+    setExpandedIndex((prev) => (prev === index ? null : index));
+  };
+
   return (
     <>
       <motion.div
@@ -96,31 +99,68 @@ const RecentlyStudied = () => {
 
         <div className="space-y-2">
           {items.map((item, i) => (
-            <motion.button
+            <motion.div
               key={i}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              onClick={() => handleResume(item)}
-              className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-secondary/30 border border-border/50 hover:bg-secondary/50 transition-all active:scale-[0.98] text-left"
+              className="rounded-lg bg-secondary/30 border border-border/50 overflow-hidden"
             >
-              <div className="p-1.5 rounded-md bg-primary/10">
-                <Play className="w-3 h-3 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">{item.topicName}</p>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {item.subjectName && `${item.subjectName} · `}
-                  {item.minutes}min · {formatDistanceToNow(new Date(item.lastStudied), { addSuffix: true })}
-                </p>
-                {item.notes && (
-                  <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1">
-                    <StickyNote className="w-2.5 h-2.5 shrink-0" />
-                    {item.notes}
+              <div className="flex items-center gap-3 p-2.5">
+                <button
+                  onClick={() => handleResume(item)}
+                  className="p-1.5 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors shrink-0"
+                >
+                  <Play className="w-3 h-3 text-primary" />
+                </button>
+                <button
+                  onClick={() => item.notes ? toggleExpand(i) : handleResume(item)}
+                  className="flex-1 min-w-0 text-left"
+                >
+                  <p className="text-xs font-medium text-foreground truncate">{item.topicName}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {item.subjectName && `${item.subjectName} · `}
+                    {item.minutes}min · {formatDistanceToNow(new Date(item.lastStudied), { addSuffix: true })}
                   </p>
+                  {item.notes && (
+                    <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1">
+                      <StickyNote className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{item.notes}</span>
+                    </p>
+                  )}
+                </button>
+                {item.notes && (
+                  <button
+                    onClick={() => toggleExpand(i)}
+                    className="p-1 rounded-md hover:bg-secondary/50 transition-colors shrink-0"
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${
+                        expandedIndex === i ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
                 )}
               </div>
-            </motion.button>
+
+              <AnimatePresence>
+                {expandedIndex === i && item.notes && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-3 pb-3 pt-0.5 border-t border-border/30">
+                      <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        {item.notes}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           ))}
         </div>
       </motion.div>
