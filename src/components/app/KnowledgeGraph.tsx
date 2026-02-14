@@ -10,6 +10,7 @@ interface TopicNode {
   subjectId: string;
   subjectName: string;
   strength: number;
+  lastRevision: string | null;
   x: number;
   y: number;
 }
@@ -35,6 +36,7 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -54,8 +56,11 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
     return { x: svgPt.x, y: svgPt.y };
   }, []);
 
-  const handlePointerDown = useCallback((id: string) => {
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+
+  const handlePointerDown = useCallback((id: string, e: React.PointerEvent) => {
     setDragging(id);
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
@@ -64,9 +69,18 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
     updateNodePosition(dragging, x, y);
   }, [dragging, getSVGPoint, updateNodePosition]);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+    if (dragging && dragStartPos.current) {
+      const dx = e.clientX - dragStartPos.current.x;
+      const dy = e.clientY - dragStartPos.current.y;
+      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+        // It was a click, not a drag
+        setSelectedNode((prev) => (prev === dragging ? null : dragging));
+      }
+    }
     setDragging(null);
-  }, []);
+    dragStartPos.current = null;
+  }, [dragging]);
 
   const loadGraph = useCallback(async () => {
     if (!user) return;
@@ -84,7 +98,7 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
 
     const { data: topics } = await supabase
       .from("topics")
-      .select("id, name, subject_id, memory_strength")
+      .select("id, name, subject_id, memory_strength, last_revision_date")
       .eq("user_id", user.id);
 
     if (!topics || topics.length === 0) {
@@ -123,6 +137,7 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
           subjectId: t.subject_id,
           subjectName: subjectMap.get(t.subject_id) || "Unknown",
           strength: Number(t.memory_strength),
+          lastRevision: t.last_revision_date,
           x: clusterCx + Math.cos(angle) * r,
           y: clusterCy + Math.sin(angle) * r,
         });
@@ -234,6 +249,7 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
+            onClick={() => setSelectedNode(null)}
           >
             {/* Edges */}
             {edges.map((e, i) => {
@@ -263,7 +279,7 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
               return (
                 <g
                   key={node.id}
-                  onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(node.id); }}
+                  onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(node.id, e); }}
                   style={{ cursor: isDragging ? "grabbing" : "grab" }}
                 >
                   <circle cx={node.x} cy={node.y} r={r + 3} fill={color} opacity={isDragging ? 0.3 : 0.15} />
@@ -284,6 +300,60 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
               );
             })}
           </svg>
+
+          {/* Node Detail Tooltip */}
+          {selectedNode && (() => {
+            const node = nodeMap.get(selectedNode);
+            if (!node) return null;
+            const color = colorMap.get(node.subjectId) || SUBJECT_COLORS[0];
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-3 rounded-xl p-4 neural-border bg-background/95 backdrop-blur-sm border border-border"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                    <span className="text-sm font-semibold text-foreground">{node.name}</span>
+                  </div>
+                  <button onClick={() => setSelectedNode(null)} className="p-0.5 rounded hover:bg-secondary transition-colors">
+                    <X className="w-3 h-3 text-muted-foreground" />
+                  </button>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subject</span>
+                    <span className="text-foreground font-medium">{node.subjectName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Memory Strength</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 rounded-full bg-secondary">
+                        <div
+                          className={`h-full rounded-full ${
+                            node.strength > 70 ? "bg-success" : node.strength > 50 ? "bg-warning" : "bg-destructive"
+                          }`}
+                          style={{ width: `${node.strength}%` }}
+                        />
+                      </div>
+                      <span className={`font-medium ${
+                        node.strength > 70 ? "text-success" : node.strength > 50 ? "text-warning" : "text-destructive"
+                      }`}>{node.strength}%</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Last Revision</span>
+                    <span className="text-foreground font-medium">
+                      {node.lastRevision
+                        ? new Date(node.lastRevision).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        : "Never"}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
 
           {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-3">
