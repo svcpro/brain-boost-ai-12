@@ -113,6 +113,11 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const extractionAbortRef = useRef<AbortController | null>(null);
   const [lastExtraction, setLastExtraction] = useState<{ type: "pdf" | "scan" | "voice-transcribe" | "voice-extract"; file?: File; blob?: Blob; transcript?: string } | null>(null);
   const [extractionFailed, setExtractionFailed] = useState(false);
+  const extractionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearExtractionTimeout = useCallback(() => {
+    if (extractionTimeoutRef.current) { clearTimeout(extractionTimeoutRef.current); extractionTimeoutRef.current = null; }
+  }, []);
 
   const startExtractionProgress = useCallback(() => {
     setExtractionProgress(0);
@@ -123,17 +128,30 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
         return prev + Math.random() * 12 + 3;
       });
     }, 300);
-  }, []);
+    // Auto-cancel after 60 seconds
+    clearExtractionTimeout();
+    extractionTimeoutRef.current = setTimeout(() => {
+      extractionAbortRef.current?.abort();
+      extractionAbortRef.current = null;
+      if (extractionProgressRef.current) clearInterval(extractionProgressRef.current);
+      setExtractionProgress(0);
+      setExtracting(false);
+      setTranscribing(false);
+      setExtractionFailed(true);
+      toast({ title: "Timed out", description: "Extraction took too long and was auto-cancelled. You can retry." });
+    }, 60000);
+  }, [clearExtractionTimeout, toast]);
 
   const stopExtractionProgress = useCallback((success: boolean) => {
     if (extractionProgressRef.current) clearInterval(extractionProgressRef.current);
+    clearExtractionTimeout();
     if (success) {
       setExtractionProgress(100);
       setTimeout(() => setExtractionProgress(0), 1500);
     } else {
       setExtractionProgress(0);
     }
-  }, []);
+  }, [clearExtractionTimeout]);
 
   const cancelExtraction = useCallback(() => {
     extractionAbortRef.current?.abort();
