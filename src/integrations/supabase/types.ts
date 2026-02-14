@@ -120,6 +120,68 @@ export type Database = {
           },
         ]
       }
+      plan_sessions: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          day_date: string | null
+          day_focus: string | null
+          day_index: number
+          day_name: string
+          duration_minutes: number
+          id: string
+          mode: string
+          plan_id: string
+          reason: string | null
+          subject: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          day_date?: string | null
+          day_focus?: string | null
+          day_index: number
+          day_name: string
+          duration_minutes?: number
+          id?: string
+          mode?: string
+          plan_id: string
+          reason?: string | null
+          subject: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          day_date?: string | null
+          day_focus?: string | null
+          day_index?: number
+          day_name?: string
+          duration_minutes?: number
+          id?: string
+          mode?: string
+          plan_id?: string
+          reason?: string | null
+          subject?: string
+          topic?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_sessions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -230,6 +292,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      study_plans: {
+        Row: {
+          created_at: string
+          id: string
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          summary: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       subjects: {
         Row: {
