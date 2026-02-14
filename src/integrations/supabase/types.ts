@@ -123,6 +123,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          daily_study_goal_minutes: number
           display_name: string | null
           exam_date: string | null
           exam_type: string | null
@@ -132,6 +133,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          daily_study_goal_minutes?: number
           display_name?: string | null
           exam_date?: string | null
           exam_type?: string | null
@@ -141,6 +143,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          daily_study_goal_minutes?: number
           display_name?: string | null
           exam_date?: string | null
           exam_type?: string | null
