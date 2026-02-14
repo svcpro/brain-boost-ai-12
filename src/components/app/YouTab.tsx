@@ -58,6 +58,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) =
   const [showDataBackup, setShowDataBackup] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState("free");
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
@@ -75,10 +76,13 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) =
       setReminderEnabled(p.enabled);
       setReminderHour(p.reminderHour);
     });
-    // Load leaderboard opt-in
+    // Load leaderboard opt-in & subscription
     if (user) {
       supabase.from("profiles").select("opt_in_leaderboard").eq("id", user.id).maybeSingle().then(({ data }) => {
         if (data) setLeaderboardOptIn(data.opt_in_leaderboard ?? false);
+      });
+      supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
+        if (data) setCurrentPlan(data.plan_id);
       });
     }
   }, [getPrefs, user]);
@@ -168,7 +172,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) =
   };
 
   const menuItems = [
-    { icon: Crown, label: "Subscription Plan", value: "Free Brain", onClick: () => setShowSubscription(true) },
+    { icon: Crown, label: "Subscription Plan", value: currentPlan === "ultra" ? "Ultra Brain" : currentPlan === "pro" ? "Pro Brain" : "Free Brain", onClick: () => setShowSubscription(true) },
     { icon: BookOpen, label: "Subjects & Topics", value: `${subjects.length || "—"}`, onClick: () => setShowSubjects(!showSubjects) },
     { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders) },
     { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting) },
@@ -635,7 +639,11 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) =
 
         {/* Subscription Plan Modal */}
         <AnimatePresence>
-          {showSubscription && <SubscriptionPlan onClose={() => setShowSubscription(false)} />}
+          {showSubscription && <SubscriptionPlan onClose={() => setShowSubscription(false)} currentPlan={currentPlan} onPlanChanged={() => {
+            supabase.from("user_subscriptions").select("plan_id").eq("user_id", user!.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
+              if (data) setCurrentPlan(data.plan_id);
+            });
+          }} />}
         </AnimatePresence>
 
         <button

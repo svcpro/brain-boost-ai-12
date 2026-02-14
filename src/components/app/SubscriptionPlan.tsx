@@ -19,7 +19,7 @@ const plans = [
       "Daily study reminders",
       "Community leaderboard",
     ],
-    current: true,
+    current: false,
   },
   {
     id: "pro",
@@ -59,12 +59,14 @@ const plans = [
 
 interface SubscriptionPlanProps {
   onClose: () => void;
+  currentPlan?: string;
+  onPlanChanged?: () => void;
 }
 
-const SubscriptionPlan = ({ onClose }: SubscriptionPlanProps) => {
+const SubscriptionPlan = ({ onClose, currentPlan = "free", onPlanChanged }: SubscriptionPlanProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState("free");
+  const [selectedPlan, setSelectedPlan] = useState(currentPlan);
   const [loading, setLoading] = useState(false);
 
   const loadRazorpayScript = (): Promise<boolean> => {
@@ -124,6 +126,7 @@ const SubscriptionPlan = ({ onClose }: SubscriptionPlanProps) => {
           }
 
           toast({ title: "Upgrade Successful! 🎉", description: `You're now on ${plan.name}. Enjoy premium features!` });
+          onPlanChanged?.();
           onClose();
         },
         prefill: { email: user.email },
@@ -178,9 +181,9 @@ const SubscriptionPlan = ({ onClose }: SubscriptionPlanProps) => {
               )}
               <div className="flex items-center gap-3 mb-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  plan.current ? "bg-secondary" : "neural-gradient neural-border"
+                  plan.id === currentPlan ? "bg-secondary" : "neural-gradient neural-border"
                 }`}>
-                  <plan.icon className={`w-5 h-5 ${plan.current ? "text-muted-foreground" : "text-primary"}`} />
+                  <plan.icon className={`w-5 h-5 ${plan.id === currentPlan ? "text-muted-foreground" : "text-primary"}`} />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">{plan.name}</p>
@@ -189,7 +192,7 @@ const SubscriptionPlan = ({ onClose }: SubscriptionPlanProps) => {
                     <span className="text-muted-foreground">{plan.period}</span>
                   </p>
                 </div>
-                {plan.current && (
+                {plan.id === currentPlan && (
                   <span className="ml-auto px-2 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-medium">
                     Current
                   </span>
@@ -198,7 +201,7 @@ const SubscriptionPlan = ({ onClose }: SubscriptionPlanProps) => {
               <div className="space-y-1.5">
                 {plan.features.map((f, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <Check className={`w-3 h-3 ${plan.current ? "text-muted-foreground" : "text-success"}`} />
+                    <Check className={`w-3 h-3 ${plan.id === currentPlan ? "text-muted-foreground" : "text-success"}`} />
                     <span className="text-[11px] text-muted-foreground">{f}</span>
                   </div>
                 ))}
@@ -207,7 +210,7 @@ const SubscriptionPlan = ({ onClose }: SubscriptionPlanProps) => {
           ))}
         </div>
 
-        {selectedPlan !== "free" && (
+        {selectedPlan !== "free" && selectedPlan !== currentPlan && (
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
