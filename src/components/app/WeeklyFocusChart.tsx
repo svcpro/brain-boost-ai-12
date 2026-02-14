@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Clock, Timer, BookOpen, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { Crosshair, Clock, Timer, BookOpen, ChevronDown, ChevronUp, FileText, Target, Pencil, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, subDays, startOfDay } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface DayData {
   label: string;
@@ -30,12 +31,16 @@ const SUBJECT_COLORS = [
 
 const WeeklyFocusChart = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [days, setDays] = useState<DayData[]>([]);
   const [subjects, setSubjects] = useState<SubjectBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   const [topicDetails, setTopicDetails] = useState<Map<string, TopicDetail[]>>(new Map());
   const [loadingTopics, setLoadingTopics] = useState<string | null>(null);
+  const [goalMinutes, setGoalMinutes] = useState(300);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
 
   useEffect(() => {
     if (user) loadData();
@@ -43,6 +48,16 @@ const WeeklyFocusChart = () => {
 
   const loadData = async () => {
     if (!user) return;
+
+    // Load goal from profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("weekly_focus_goal_minutes")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.weekly_focus_goal_minutes) {
+      setGoalMinutes(profile.weekly_focus_goal_minutes);
+    }
 
     const today = startOfDay(new Date());
     const weekAgo = subDays(today, 6);
@@ -148,9 +163,23 @@ const WeeklyFocusChart = () => {
     setExpandedSubject((prev) => (prev === subjectId ? null : subjectId));
   };
 
+  const saveGoal = async () => {
+    const hours = parseFloat(goalInput);
+    if (isNaN(hours) || hours <= 0) return;
+    const mins = Math.round(hours * 60);
+    setGoalMinutes(mins);
+    setEditingGoal(false);
+    if (user) {
+      await supabase.from("profiles").update({ weekly_focus_goal_minutes: mins }).eq("id", user.id);
+      toast({ title: "Goal updated! 🎯", description: `Weekly target set to ${hours}h` });
+    }
+  };
+
   const totalMinutes = days.reduce((s, d) => s + d.minutes, 0);
   const maxMinutes = Math.max(...days.map((d) => d.minutes), 1);
   const activeDays = days.filter((d) => d.minutes > 0).length;
+  const goalProgress = Math.min((totalMinutes / goalMinutes) * 100, 100);
+  const goalHours = goalMinutes / 60;
 
   if (loading) return null;
 
@@ -183,6 +212,60 @@ const WeeklyFocusChart = () => {
           <Crosshair className="w-3 h-3 text-warning mx-auto mb-0.5" />
           <p className="text-sm font-bold text-foreground">{activeDays}/7</p>
           <p className="text-[9px] text-muted-foreground">Active Days</p>
+        </div>
+      </div>
+
+      {/* Weekly Goal Progress */}
+      <div className="mb-4 p-3 rounded-xl border border-border bg-secondary/30">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Target className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-semibold text-foreground">Weekly Goal</span>
+          </div>
+          {editingGoal ? (
+            <form onSubmit={(e) => { e.preventDefault(); saveGoal(); }} className="flex items-center gap-1.5">
+              <input
+                type="number"
+                step="0.5"
+                min="0.5"
+                value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)}
+                autoFocus
+                className="w-16 rounded-md bg-secondary border border-border px-2 py-0.5 text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-primary/50"
+                placeholder="hrs"
+              />
+              <span className="text-[10px] text-muted-foreground">hrs</span>
+              <button type="submit" className="p-0.5 text-success hover:text-success/80">
+                <Check className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          ) : (
+            <button
+              onClick={() => { setEditingGoal(true); setGoalInput(String(goalHours)); }}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {goalHours}h target
+              <Pencil className="w-2.5 h-2.5" />
+            </button>
+          )}
+        </div>
+        <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
+          <motion.div
+            className={`h-full rounded-full transition-colors ${
+              goalProgress >= 100 ? "bg-success" : goalProgress >= 60 ? "bg-primary" : "bg-warning"
+            }`}
+            initial={{ width: 0 }}
+            animate={{ width: `${goalProgress}%` }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          />
+        </div>
+        <div className="flex justify-between mt-1.5">
+          <span className="text-[10px] text-muted-foreground">
+            {totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` : `${totalMinutes}m`} done
+          </span>
+          <span className={`text-[10px] font-medium ${goalProgress >= 100 ? "text-success" : "text-muted-foreground"}`}>
+            {goalProgress >= 100 ? "✅ Goal reached!" : `${Math.round(goalProgress)}%`}
+          </span>
         </div>
       </div>
 

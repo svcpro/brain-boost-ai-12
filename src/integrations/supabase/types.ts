@@ -193,6 +193,7 @@ export type Database = {
           opt_in_leaderboard: boolean
           study_preferences: Json | null
           updated_at: string
+          weekly_focus_goal_minutes: number
         }
         Insert: {
           created_at?: string
@@ -204,6 +205,7 @@ export type Database = {
           opt_in_leaderboard?: boolean
           study_preferences?: Json | null
           updated_at?: string
+          weekly_focus_goal_minutes?: number
         }
         Update: {
           created_at?: string
@@ -215,6 +217,7 @@ export type Database = {
           opt_in_leaderboard?: boolean
           study_preferences?: Json | null
           updated_at?: string
+          weekly_focus_goal_minutes?: number
         }
         Relationships: []
       }
