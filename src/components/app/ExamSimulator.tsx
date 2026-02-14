@@ -56,7 +56,7 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
 
       const { data, error } = await supabase.functions.invoke("memory-engine", {
         body: {
-          type: "exam_simulate",
+          action: "exam_simulate",
           topics: topicList,
           questionCount,
         },
