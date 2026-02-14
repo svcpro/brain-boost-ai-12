@@ -76,3 +76,34 @@ export function notifyFeedback() {
   playNotificationSound();
   triggerHaptic([30, 50, 30]);
 }
+
+/** Play a gentle warning tone (descending) for nudges */
+export function playWarningSound() {
+  if (!isFeedbackEnabled()) return;
+  try {
+    const vol = getFeedbackVolume() / 100;
+    if (vol === 0) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(660, ctx.currentTime);
+    osc.frequency.setValueAtTime(440, ctx.currentTime + 0.15);
+
+    gain.gain.setValueAtTime(0.12 * vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {}
+}
+
+/** Combined feedback for warning nudges */
+export function nudgeFeedback() {
+  playWarningSound();
+  triggerHaptic([40, 30, 60]);
+}

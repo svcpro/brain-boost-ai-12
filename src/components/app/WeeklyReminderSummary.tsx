@@ -1,10 +1,11 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Bell, CheckCircle2, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getCache } from "@/lib/offlineCache";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { nudgeFeedback } from "@/lib/feedback";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -256,11 +257,26 @@ const WeeklyReminderSummary = () => {
           <span>Perfect streak so far!</span>
         </div>
       ) : ignoredCount >= (getVoiceSettings().nudgeThreshold ?? 2) ? (
-        <div className="mt-2 px-2 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-[10px] text-warning flex items-center gap-1.5">
-          <Bell className="w-3 h-3 shrink-0" />
-          <span>You ignored {ignoredCount} reminders this week — try studying even 5 minutes after the next one! 💪</span>
-        </div>
+        <NudgeWithFeedback ignoredCount={ignoredCount} />
       ) : null}
+    </div>
+  );
+};
+
+/** Small component that triggers feedback once on mount */
+const NudgeWithFeedback = ({ ignoredCount }: { ignoredCount: number }) => {
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (!firedRef.current) {
+      firedRef.current = true;
+      nudgeFeedback();
+    }
+  }, []);
+
+  return (
+    <div className="mt-2 px-2 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-[10px] text-warning flex items-center gap-1.5">
+      <Bell className="w-3 h-3 shrink-0" />
+      <span>You ignored {ignoredCount} reminders this week — try studying even 5 minutes after the next one! 💪</span>
     </div>
   );
 };
