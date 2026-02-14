@@ -60,7 +60,23 @@ const NextReminderIndicator = ({ onOpenVoiceSettings }: Props) => {
         </>
       ) : (
         <>
-          <Bell className={`w-3 h-3 ${info.firedToday ? "text-success" : info.imminent ? "text-warning animate-pulse" : "text-primary"}`} />
+          <div className="relative w-4 h-4 flex items-center justify-center">
+            {info.imminent && (
+              <svg className="absolute inset-0 w-4 h-4 -rotate-90" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="6.5" fill="none" stroke="hsl(var(--muted))" strokeWidth="1.5" />
+                <circle
+                  cx="8" cy="8" r="6.5" fill="none"
+                  stroke="hsl(var(--warning))"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeDasharray={`${Math.PI * 13}`}
+                  strokeDashoffset={`${Math.PI * 13 * (info.minsLeft / 60)}`}
+                  className="transition-all duration-1000"
+                />
+              </svg>
+            )}
+            <Bell className={`w-3 h-3 ${info.firedToday ? "text-success" : info.imminent ? "text-warning animate-pulse" : "text-primary"}`} />
+          </div>
           <span className="text-muted-foreground underline decoration-dotted">
             {info.firedToday
               ? "Today's reminder sent ✓"
