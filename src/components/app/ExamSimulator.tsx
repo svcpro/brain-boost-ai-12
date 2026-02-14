@@ -14,6 +14,7 @@ interface Question {
 
 interface ExamSimulatorProps {
   onClose: () => void;
+  retryQuestions?: Question[];
 }
 
 type Difficulty = "easy" | "medium" | "hard";
@@ -29,11 +30,27 @@ interface SubjectOption {
   name: string;
 }
 
-const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
+const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [retryMode] = useState(!!retryQuestions);
+
+  // Auto-start retry mode
+  useEffect(() => {
+    if (retryQuestions && retryQuestions.length > 0 && questions.length === 0) {
+      setQuestions(retryQuestions);
+      answersRef.current = retryQuestions.map(q => ({ ...q, userAnswer: null }));
+      setCurrent(0);
+      setScore(0);
+      setSelected(null);
+      setAnswered(false);
+      setFinished(false);
+      setTotalTimeUsed(0);
+      setTimeExpired(false);
+    }
+  }, [retryQuestions]); // eslint-disable-line react-hooks/exhaustive-deps
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -264,8 +281,8 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal className="w-5 h-5 text-primary" />
-            <h2 className="font-semibold text-foreground">Exam Simulator</h2>
+            {retryMode ? <RotateCcw className="w-5 h-5 text-warning" /> : <SlidersHorizontal className="w-5 h-5 text-primary" />}
+            <h2 className="font-semibold text-foreground">{retryMode ? "Retry Mistakes" : "Exam Simulator"}</h2>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-secondary transition-colors">
             <X className="w-4 h-4 text-muted-foreground" />

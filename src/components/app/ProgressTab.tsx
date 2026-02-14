@@ -38,6 +38,7 @@ const ProgressTab = () => {
   const [showBrainEvo, setShowBrainEvo] = useState(false);
   const [showCompIntel, setShowCompIntel] = useState(false);
   const [showExamSim, setShowExamSim] = useState(false);
+  const [retryQuestions, setRetryQuestions] = useState<any[] | undefined>(undefined);
   const [showWeeklyAI, setShowWeeklyAI] = useState(false);
   const notifiedRef = useRef(false);
 
@@ -500,11 +501,14 @@ const ProgressTab = () => {
         </button>
       </motion.div>
 
-      <ExamHistory />
+      <ExamHistory onRetryMistakes={(questions) => {
+        setRetryQuestions(questions);
+        setShowExamSim(true);
+      }} />
 
       {showBrainEvo && <BrainEvolution onClose={() => setShowBrainEvo(false)} />}
       {showCompIntel && <CompetitionIntel onClose={() => setShowCompIntel(false)} />}
-      {showExamSim && <ExamSimulator onClose={() => setShowExamSim(false)} />}
+      {showExamSim && <ExamSimulator onClose={() => { setShowExamSim(false); setRetryQuestions(undefined); }} retryQuestions={retryQuestions} />}
       {showWeeklyAI && <WeeklyReportAI onClose={() => setShowWeeklyAI(false)} />}
     </div>
   );

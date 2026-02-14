@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { X, CheckCircle2, XCircle, Clock, Zap, Flame, Skull, Eye } from "lucide-react";
+import { X, CheckCircle2, XCircle, Clock, Zap, Flame, Skull, Eye, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 
 interface ReviewQuestion {
@@ -12,6 +12,7 @@ interface ReviewQuestion {
 
 interface ExamReviewModalProps {
   onClose: () => void;
+  onRetryMistakes?: (questions: ReviewQuestion[]) => void;
   questions: ReviewQuestion[];
   score: number;
   totalQuestions: number;
@@ -26,10 +27,11 @@ const DIFF_STYLE: Record<string, { icon: typeof Zap; color: string; label: strin
   hard: { icon: Skull, color: "text-destructive", label: "Hard" },
 };
 
-const ExamReviewModal = ({ onClose, questions, score, totalQuestions, difficulty, timeUsed, date }: ExamReviewModalProps) => {
+const ExamReviewModal = ({ onClose, onRetryMistakes, questions, score, totalQuestions, difficulty, timeUsed, date }: ExamReviewModalProps) => {
   const pct = Math.round((score / totalQuestions) * 100);
   const diff = DIFF_STYLE[difficulty] || DIFF_STYLE.medium;
   const DIcon = diff.icon;
+  const mistakes = questions.filter(q => q.userAnswer !== q.correct);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -141,12 +143,23 @@ const ExamReviewModal = ({ onClose, questions, score, totalQuestions, difficulty
           })}
         </div>
 
-        <button
-          onClick={onClose}
-          className="w-full py-2.5 rounded-xl bg-secondary text-foreground text-sm font-medium hover:bg-secondary/80 transition-colors"
-        >
-          Close Review
-        </button>
+        <div className="flex gap-2">
+          {mistakes.length > 0 && onRetryMistakes && (
+            <button
+              onClick={() => onRetryMistakes(mistakes)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl neural-gradient neural-border hover:glow-primary transition-all active:scale-95"
+            >
+              <RotateCcw className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">Retry {mistakes.length} Mistake{mistakes.length > 1 ? "s" : ""}</span>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className={`${mistakes.length > 0 && onRetryMistakes ? "" : "w-full "}flex-1 py-2.5 rounded-xl bg-secondary text-foreground text-sm font-medium hover:bg-secondary/80 transition-colors`}
+          >
+            Close Review
+          </button>
+        </div>
       </motion.div>
     </div>
   );

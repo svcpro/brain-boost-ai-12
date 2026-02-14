@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { History, Zap, Flame, Skull, Trophy, Calendar, Clock, Eye } from "lucide-react";
+import { History, Zap, Flame, Skull, Trophy, Calendar, Clock, Eye, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
@@ -23,7 +23,11 @@ const DIFF_STYLE: Record<string, { icon: typeof Zap; color: string; bg: string; 
   hard: { icon: Skull, color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" },
 };
 
-const ExamHistory = () => {
+interface ExamHistoryProps {
+  onRetryMistakes?: (questions: any[]) => void;
+}
+
+const ExamHistory = ({ onRetryMistakes }: ExamHistoryProps = {}) => {
   const { user } = useAuth();
   const [results, setResults] = useState<ExamResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,13 +176,27 @@ const ExamHistory = () => {
                   </div>
                 </div>
                 {hasReview && (
-                  <button
-                    onClick={() => setReviewResult(r)}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    <Eye className="w-2.5 h-2.5" />
-                    Review
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setReviewResult(r)}
+                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      <Eye className="w-2.5 h-2.5" />
+                      Review
+                    </button>
+                    {onRetryMistakes && r.questions_data!.some((q: any) => q.userAnswer !== q.correct) && (
+                      <button
+                        onClick={() => {
+                          const mistakes = (r.questions_data as any[]).filter((q: any) => q.userAnswer !== q.correct);
+                          onRetryMistakes(mistakes);
+                        }}
+                        className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium text-warning hover:bg-warning/10 transition-colors"
+                      >
+                        <RotateCcw className="w-2.5 h-2.5" />
+                        Retry
+                      </button>
+                    )}
+                  </>
                 )}
                 {r.time_used_seconds && (
                   <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
@@ -199,6 +217,10 @@ const ExamHistory = () => {
       {reviewResult && reviewResult.questions_data && (
         <ExamReviewModal
           onClose={() => setReviewResult(null)}
+          onRetryMistakes={onRetryMistakes ? (mistakes) => {
+            setReviewResult(null);
+            onRetryMistakes(mistakes);
+          } : undefined}
           questions={reviewResult.questions_data as any[]}
           score={reviewResult.score}
           totalQuestions={reviewResult.total_questions}
