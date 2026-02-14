@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
@@ -13,15 +13,30 @@ import ReviewQueue from "./ReviewQueue";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
+  onRecommendationsSeen?: () => void;
 }
 
-const HomeTab = ({ onNavigateToEmergency }: HomeTabProps) => {
+const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps) => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
   const { toast } = useToast();
   const [recommendations, setRecommendations] = useState<any[]>(() => getCache("home-recommendations") || []);
   const [examDaysLeft, setExamDaysLeft] = useState<number | null>(() => getCache("home-exam-days"));
+  const recsRef = useRef<HTMLDivElement>(null);
+
+  // Auto-dismiss badge when recommendations section scrolls into view
+  useEffect(() => {
+    if (recommendations.length === 0 || !onRecommendationsSeen) return;
+    const el = recsRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) onRecommendationsSeen(); },
+      { threshold: 0.5 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [recommendations.length, onRecommendationsSeen]);
 
   useEffect(() => {
     predict();
@@ -218,7 +233,7 @@ const HomeTab = ({ onNavigateToEmergency }: HomeTabProps) => {
 
       {/* AI Recommendations */}
       {recommendations.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl p-5 neural-border">
+        <motion.div ref={recsRef} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl p-5 neural-border">
           <div className="flex items-center gap-2 mb-4">
             <Brain className="w-4 h-4 text-primary" />
             <h2 className="font-semibold text-foreground text-sm">AI Recommendations</h2>
