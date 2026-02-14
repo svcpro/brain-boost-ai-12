@@ -1,5 +1,6 @@
-import { motion } from "framer-motion";
-import { Quote, Share2 } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Quote, Share2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const QUOTES = [
@@ -41,8 +42,13 @@ const DailyQuote = () => {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
   );
-  const quote = QUOTES[dayOfYear % QUOTES.length];
+  const [index, setIndex] = useState(dayOfYear % QUOTES.length);
+  const quote = QUOTES[index];
   const shareText = `"${quote.text}" — ${quote.author} 📚`;
+
+  const handleRefresh = () => {
+    setIndex((prev) => (prev + 1) % QUOTES.length);
+  };
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -68,9 +74,26 @@ const DailyQuote = () => {
       <div className="flex gap-3">
         <Quote className="w-4 h-4 text-primary shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground italic leading-relaxed">"{quote.text}"</p>
-          <div className="flex items-center justify-between mt-1.5">
-            <p className="text-[10px] text-muted-foreground">— {quote.author}</p>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+            >
+              <p className="text-sm text-foreground italic leading-relaxed">"{quote.text}"</p>
+              <p className="text-[10px] text-muted-foreground mt-1.5">— {quote.author}</p>
+            </motion.div>
+          </AnimatePresence>
+          <div className="flex items-center justify-end gap-3 mt-2">
+            <button
+              onClick={handleRefresh}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors active:scale-95"
+            >
+              <RefreshCw className="w-3 h-3" />
+              New
+            </button>
             <button
               onClick={handleShare}
               className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors active:scale-95"
