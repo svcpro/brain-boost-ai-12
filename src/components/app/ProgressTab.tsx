@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import WeeklyReportCard from "./WeeklyReportCard";
+import LeaderboardCard from "./LeaderboardCard";
 
 interface StreakData {
   currentStreak: number;
@@ -441,6 +442,9 @@ const ProgressTab = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Leaderboard */}
+      <LeaderboardCard />
 
       {/* Features */}
       <motion.div

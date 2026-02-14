@@ -1,0 +1,152 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Get caller's user ID from auth header (optional, for highlighting)
+    let currentUserId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const supabaseUser = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData } = await supabaseUser.auth.getClaims(token);
+      currentUserId = claimsData?.claims?.sub || null;
+    }
+
+    // Get latest rank prediction per user
+    const { data: rankData } = await supabaseAdmin
+      .from("rank_predictions")
+      .select("user_id, predicted_rank, percentile, recorded_at")
+      .order("recorded_at", { ascending: false });
+
+    // Deduplicate to latest per user
+    const latestRanks = new Map<string, any>();
+    for (const r of (rankData || [])) {
+      if (!latestRanks.has(r.user_id)) {
+        latestRanks.set(r.user_id, r);
+      }
+    }
+
+    // Get profiles for display names
+    const userIds = Array.from(latestRanks.keys());
+    if (userIds.length === 0) {
+      return new Response(JSON.stringify({ leaderboard: [], current_user_id: currentUserId }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, display_name, daily_study_goal_minutes")
+      .in("id", userIds);
+
+    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+    // Calculate streaks for each user from study_logs
+    const now = new Date();
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    const { data: allLogs } = await supabaseAdmin
+      .from("study_logs")
+      .select("user_id, duration_minutes, created_at")
+      .gte("created_at", ninetyDaysAgo.toISOString())
+      .in("user_id", userIds);
+
+    // Group logs by user and date
+    const userStreaks = new Map<string, number>();
+    const userTotalMinutes = new Map<string, number>();
+
+    for (const uid of userIds) {
+      const userLogs = (allLogs || []).filter(l => l.user_id === uid);
+      const profile = profileMap.get(uid);
+      const dailyGoal = profile?.daily_study_goal_minutes || 60;
+
+      // Aggregate by date
+      const dayTotals = new Map<string, number>();
+      let totalMin = 0;
+      for (const log of userLogs) {
+        const dateStr = log.created_at.split("T")[0];
+        dayTotals.set(dateStr, (dayTotals.get(dateStr) || 0) + (log.duration_minutes || 0));
+        totalMin += (log.duration_minutes || 0);
+      }
+      userTotalMinutes.set(uid, totalMin);
+
+      // Calculate current streak
+      let streak = 0;
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+
+      for (let i = 0; i < 90; i++) {
+        const checkDate = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateStr = checkDate.toISOString().split("T")[0];
+        const dayTotal = dayTotals.get(dateStr) || 0;
+
+        if (i === 0 && dayTotal < dailyGoal) continue; // today not yet met is ok
+        if (dayTotal >= dailyGoal) {
+          streak++;
+        } else if (i > 0) {
+          break;
+        }
+      }
+      userStreaks.set(uid, streak);
+    }
+
+    // Build leaderboard entries
+    const entries = userIds.map(uid => {
+      const rank = latestRanks.get(uid);
+      const profile = profileMap.get(uid);
+      const displayName = profile?.display_name || "Anonymous";
+      // Anonymize: show first 2 chars + asterisks
+      const safeName = displayName.length > 2
+        ? displayName.slice(0, 2) + "***"
+        : displayName;
+
+      return {
+        user_id: uid,
+        display_name: uid === currentUserId ? (profile?.display_name || "You") : safeName,
+        is_current_user: uid === currentUserId,
+        predicted_rank: rank?.predicted_rank || 99999,
+        percentile: rank?.percentile || 0,
+        streak: userStreaks.get(uid) || 0,
+        total_study_hours: Math.round((userTotalMinutes.get(uid) || 0) / 60 * 10) / 10,
+      };
+    });
+
+    // Sort by predicted_rank (lower is better)
+    entries.sort((a, b) => a.predicted_rank - b.predicted_rank);
+
+    // Assign position
+    const leaderboard = entries.slice(0, 50).map((e, i) => ({
+      ...e,
+      position: i + 1,
+    }));
+
+    return new Response(JSON.stringify({ leaderboard, current_user_id: currentUserId }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("leaderboard error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
