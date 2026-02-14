@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail, Trash2, BellRing, Sparkles, Camera, Loader2 } from "lucide-react";
 import {
@@ -56,6 +56,31 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [totalXp, setTotalXp] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [levelUpCelebration, setLevelUpCelebration] = useState<number | null>(null);
+  const prevLevelRef = useRef<number | null>(null);
+
+  const LEVEL_THRESHOLDS = useMemo(() => [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000], []);
+
+  const currentLevel = useMemo(() => {
+    let level = 1;
+    for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (totalXp >= LEVEL_THRESHOLDS[i]) { level = i + 1; break; }
+    }
+    return level;
+  }, [totalXp, LEVEL_THRESHOLDS]);
+
+  // Detect level-up
+  useEffect(() => {
+    if (prevLevelRef.current !== null && currentLevel > prevLevelRef.current) {
+      setLevelUpCelebration(currentLevel);
+      // Fire confetti
+      import("canvas-confetti").then(({ default: confetti }) => {
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: ["hsl(var(--primary))", "hsl(var(--success))", "#FFD700", "#FF6B6B"] });
+      });
+      setTimeout(() => setLevelUpCelebration(null), 3000);
+    }
+    prevLevelRef.current = currentLevel;
+  }, [currentLevel]);
 
   const [showSubjects, setShowSubjects] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -499,19 +524,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             <span className="text-[11px] font-semibold text-muted-foreground">Brain Level</span>
           </div>
           {(() => {
-            const thresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000];
-            let level = 1;
-            for (let i = thresholds.length - 1; i >= 0; i--) {
-              if (totalXp >= thresholds[i]) { level = i + 1; break; }
-            }
-            const currentThreshold = thresholds[Math.min(level - 1, thresholds.length - 1)] || 0;
-            const nextThreshold = thresholds[Math.min(level, thresholds.length - 1)] || currentThreshold + 1000;
+            const currentThreshold = LEVEL_THRESHOLDS[Math.min(currentLevel - 1, LEVEL_THRESHOLDS.length - 1)] || 0;
+            const nextThreshold = LEVEL_THRESHOLDS[Math.min(currentLevel, LEVEL_THRESHOLDS.length - 1)] || currentThreshold + 1000;
             const xpInLevel = totalXp - currentThreshold;
             const xpNeeded = nextThreshold - currentThreshold;
             const pct = Math.min(100, Math.round((xpInLevel / xpNeeded) * 100));
             return (
               <>
-                <p className="text-xl font-bold text-foreground">Level {level}</p>
+                <p className="text-xl font-bold text-foreground">Level {currentLevel}</p>
                 <div className="h-1.5 rounded-full bg-secondary mt-2">
                   <motion.div
                     className="h-full rounded-full bg-gradient-to-r from-primary to-success"
@@ -1217,6 +1237,58 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Level-up celebration overlay */}
+      <AnimatePresence>
+        {levelUpCelebration !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          >
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="bg-card/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-primary/30 text-center pointer-events-auto"
+            >
+              <motion.div
+                animate={{ rotate: [0, -10, 10, -10, 0], scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.6 }}
+                className="text-5xl mb-3"
+              >
+                🧠
+              </motion.div>
+              <motion.p
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-xs font-semibold text-primary uppercase tracking-wider mb-1"
+              >
+                Level Up!
+              </motion.p>
+              <motion.p
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.35 }}
+                className="text-3xl font-extrabold text-foreground"
+              >
+                Level {levelUpCelebration}
+              </motion.p>
+              <motion.p
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-sm text-muted-foreground mt-2"
+              >
+                Keep studying to unlock the next level!
+              </motion.p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
