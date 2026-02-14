@@ -70,20 +70,25 @@ const ActionTab = () => {
       return;
     }
     setSubmitting(true);
-    const success = await logStudy({
-      subjectName: subject,
-      topicName: topic || undefined,
-      durationMinutes: parseInt(minutes),
-      confidenceLevel: confidence as "low" | "medium" | "high",
-      studyMode: "lazy",
-    });
-    if (success) {
-      setSubject("");
-      setTopic("");
-      setMinutes("");
-      setConfidence("");
+    try {
+      const success = await logStudy({
+        subjectName: subject,
+        topicName: topic || undefined,
+        durationMinutes: parseInt(minutes),
+        confidenceLevel: confidence as "low" | "medium" | "high",
+        studyMode: "lazy",
+      });
+      if (success) {
+        setSubject("");
+        setTopic("");
+        setMinutes("");
+        setConfidence("");
+      }
+    } catch (e: any) {
+      toast({ title: "Error logging study", description: e?.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   return (
