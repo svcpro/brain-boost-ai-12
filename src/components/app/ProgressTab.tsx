@@ -21,6 +21,7 @@ import WeeklyReportAI from "./WeeklyReportAI";
 import ConfidenceTrendChart from "./ConfidenceTrendChart";
 import ConfidenceGoalTracker from "./ConfidenceGoalTracker";
 import StreakFreezeCard from "./StreakFreezeCard";
+import ConsistencyScore from "./ConsistencyScore";
 
 interface StreakData {
   currentStreak: number;
@@ -517,6 +518,9 @@ const ProgressTab = () => {
 
       {/* Weekly Report Card */}
       <WeeklyReportCard />
+
+      {/* Consistency Score */}
+      <ConsistencyScore />
 
       {/* Weekly Focus Chart */}
       <WeeklyFocusChart />
