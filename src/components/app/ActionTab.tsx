@@ -144,7 +144,7 @@ const ActionTab = () => {
       </motion.div>
 
       {/* Upload Content */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="relative z-10">
         <h2 className="font-semibold text-foreground text-sm mb-3">Upload Content</h2>
         <div className="grid grid-cols-3 gap-3">
           {[
@@ -152,7 +152,11 @@ const ActionTab = () => {
             { icon: Camera, label: "Scan" },
             { icon: Mic, label: "Voice" },
           ].map((item, i) => (
-            <button key={i} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2">
+            <button
+              key={i}
+              onClick={() => toast({ title: `${item.label} upload coming soon!`, description: "This feature is under development." })}
+              className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95"
+            >
               <item.icon className="w-5 h-5 text-primary" />
               <span className="text-xs text-muted-foreground">{item.label}</span>
             </button>
