@@ -111,7 +111,7 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
       </div>
 
       <p className="text-[9px] text-muted-foreground mt-2">
-        Skip one day without breaking your streak. Earn freezes at every 7-day milestone.
+        Skip one day without breaking your streak. Earn freezes at milestones: 7d → 1, 14d → 2, 30d → 3.
       </p>
     </motion.div>
   );

@@ -237,15 +237,23 @@ const ProgressTab = () => {
         title: `${exact.emoji} ${exact.label} Unlocked!`,
         description: `You've studied ${exact.days} days in a row. Keep it up!`,
       });
-      // Award a streak freeze at every 7-day multiple
-      if (streak.currentStreak > 0 && streak.currentStreak % 7 === 0 && user) {
-        (supabase as any)
-          .from("streak_freezes")
-          .insert({ user_id: user.id })
-          .then(() => {
-            toast({ title: "❄️ Streak freeze earned!", description: "You can now skip a day without breaking your streak." });
-            loadStreak(); // refresh freeze count
-          });
+      // Award scaled streak freezes at milestones
+      if (user) {
+        const freezeRewards: Record<number, number> = { 3: 0, 7: 1, 14: 2, 30: 3 };
+        const reward = freezeRewards[exact.days];
+        if (reward && reward > 0) {
+          const inserts = Array.from({ length: reward }, () => ({ user_id: user.id }));
+          (supabase as any)
+            .from("streak_freezes")
+            .insert(inserts)
+            .then(() => {
+              toast({
+                title: `❄️ ${reward} streak freeze${reward > 1 ? "s" : ""} earned!`,
+                description: `${exact.days}-day milestone reward — skip ${reward > 1 ? "days" : "a day"} without breaking your streak.`,
+              });
+              loadStreak();
+            });
+        }
       }
     }
   }, [streak]);
