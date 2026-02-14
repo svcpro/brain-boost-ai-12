@@ -230,50 +230,64 @@ const NotificationHistory = () => {
                       {group.label}
                     </p>
                     {group.items.map((n) => (
-                      <motion.div
-                        key={n.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 10 }}
-                        className={`flex items-start gap-2 p-2.5 rounded-lg transition-colors mb-1 ${
-                          n.read ? "bg-secondary/20" : "bg-primary/10 border border-primary/20"
-                        }`}
-                      >
-                        <span className="text-base mt-0.5">
-                          {typeEmoji[n.type || ""] || "🔔"}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-medium ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
-                            {n.title}
-                          </p>
-                          {n.body && (
-                            <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
-                              {n.body}
+                      <div key={n.id} className="relative overflow-hidden rounded-lg mb-1">
+                        {/* Delete background revealed on swipe */}
+                        <div className="absolute inset-0 bg-destructive flex items-center justify-end pr-4 rounded-lg">
+                          <Trash2 className="w-4 h-4 text-destructive-foreground" />
+                        </div>
+                        <motion.div
+                          drag="x"
+                          dragConstraints={{ left: -120, right: 0 }}
+                          dragElastic={0.1}
+                          onDragEnd={(_, info) => {
+                            if (info.offset.x < -80) {
+                              deleteNotification(n.id);
+                            }
+                          }}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -200 }}
+                          className={`relative flex items-start gap-2 p-2.5 rounded-lg cursor-grab active:cursor-grabbing ${
+                            n.read ? "bg-secondary/20" : "bg-primary/10 border border-primary/20"
+                          }`}
+                          style={{ touchAction: "pan-y" }}
+                        >
+                          <span className="text-base mt-0.5">
+                            {typeEmoji[n.type || ""] || "🔔"}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-medium ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
+                              {n.title}
                             </p>
-                          )}
-                          <p className="text-[9px] text-muted-foreground/60 mt-1">
-                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {!n.read && (
+                            {n.body && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                                {n.body}
+                              </p>
+                            )}
+                            <p className="text-[9px] text-muted-foreground/60 mt-1">
+                              {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {!n.read && (
+                              <button
+                                onClick={() => markRead(n.id)}
+                                className="p-1 rounded hover:bg-secondary/50"
+                                title="Mark as read"
+                              >
+                                <Check className="w-3 h-3 text-primary" />
+                              </button>
+                            )}
                             <button
-                              onClick={() => markRead(n.id)}
-                              className="p-1 rounded hover:bg-secondary/50"
-                              title="Mark as read"
+                              onClick={() => deleteNotification(n.id)}
+                              className="p-1 rounded hover:bg-destructive/20"
+                              title="Delete"
                             >
-                              <Check className="w-3 h-3 text-primary" />
+                              <Trash2 className="w-3 h-3 text-muted-foreground" />
                             </button>
-                          )}
-                          <button
-                            onClick={() => deleteNotification(n.id)}
-                            className="p-1 rounded hover:bg-destructive/20"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3 h-3 text-muted-foreground" />
-                          </button>
-                        </div>
-                      </motion.div>
+                          </div>
+                        </motion.div>
+                      </div>
                     ))}
                   </div>
                 ));
