@@ -344,6 +344,30 @@ export type Database = {
         }
         Relationships: []
       }
+      streak_freezes: {
+        Row: {
+          created_at: string
+          earned_at: string
+          id: string
+          used_date: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          earned_at?: string
+          id?: string
+          used_date?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          earned_at?: string
+          id?: string
+          used_date?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       study_logs: {
         Row: {
           confidence_level: string | null

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal, HeartCrack, PartyPopper } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal, HeartCrack, PartyPopper, Snowflake } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,7 @@ import WeakQuestions from "./WeakQuestions";
 import WeeklyReportAI from "./WeeklyReportAI";
 import ConfidenceTrendChart from "./ConfidenceTrendChart";
 import ConfidenceGoalTracker from "./ConfidenceGoalTracker";
+import StreakFreezeCard from "./StreakFreezeCard";
 
 interface StreakData {
   currentStreak: number;
@@ -47,6 +48,7 @@ const ProgressTab = () => {
   const [retryQuestions, setRetryQuestions] = useState<any[] | undefined>(undefined);
   const [showWeeklyAI, setShowWeeklyAI] = useState(false);
   const notifiedRef = useRef(false);
+  const [freezeData, setFreezeData] = useState<{ available: number; usedToday: boolean }>({ available: 0, usedToday: false });
 
   const loadStreak = useCallback(async () => {
     if (!user) return;
@@ -63,6 +65,28 @@ const ProgressTab = () => {
         .gte("created_at", since.toISOString())
         .order("created_at", { ascending: true });
 
+      // Fetch streak freezes
+      const { data: freezes } = await (supabase as any)
+        .from("streak_freezes")
+        .select("id, used_date")
+        .eq("user_id", user.id);
+
+      const frozenDays = new Set<string>();
+      let availableFreezes = 0;
+      const todayDate = new Date().toISOString().split("T")[0];
+      let usedFreezeToday = false;
+      if (freezes) {
+        for (const f of freezes) {
+          if (f.used_date) {
+            frozenDays.add(f.used_date);
+            if (f.used_date === todayDate) usedFreezeToday = true;
+          } else {
+            availableFreezes++;
+          }
+        }
+      }
+      setFreezeData({ available: availableFreezes, usedToday: usedFreezeToday });
+
       if (!logs) return;
 
       // Build a set of study dates (YYYY-MM-DD)
@@ -76,14 +100,15 @@ const ProgressTab = () => {
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
       const todayStudied = studyDays.has(todayStr);
 
+      // Count streak considering frozen days as "studied"
       let currentStreak = 0;
       const checkDate = new Date(today);
-      if (!todayStudied) {
+      if (!todayStudied && !frozenDays.has(todayStr)) {
         checkDate.setDate(checkDate.getDate() - 1);
       }
       while (true) {
         const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
-        if (studyDays.has(key)) {
+        if (studyDays.has(key) || frozenDays.has(key)) {
           currentStreak++;
           checkDate.setDate(checkDate.getDate() - 1);
         } else break;
@@ -148,7 +173,7 @@ const ProgressTab = () => {
       const iterDate = new Date(since);
       while (iterDate <= today) {
         const key = `${iterDate.getFullYear()}-${String(iterDate.getMonth() + 1).padStart(2, "0")}-${String(iterDate.getDate()).padStart(2, "0")}`;
-        if (studyDays.has(key)) {
+        if (studyDays.has(key) || frozenDays.has(key)) {
           tempStreak++;
           longestStreak = Math.max(longestStreak, tempStreak);
         } else {
@@ -206,6 +231,16 @@ const ProgressTab = () => {
         title: `${exact.emoji} ${exact.label} Unlocked!`,
         description: `You've studied ${exact.days} days in a row. Keep it up!`,
       });
+      // Award a streak freeze at every 7-day multiple
+      if (streak.currentStreak > 0 && streak.currentStreak % 7 === 0 && user) {
+        (supabase as any)
+          .from("streak_freezes")
+          .insert({ user_id: user.id })
+          .then(() => {
+            toast({ title: "❄️ Streak freeze earned!", description: "You can now skip a day without breaking your streak." });
+            loadStreak(); // refresh freeze count
+          });
+      }
     }
   }, [streak]);
 
@@ -406,6 +441,14 @@ const ProgressTab = () => {
           <p className="text-sm text-muted-foreground text-center py-4">Loading streak data…</p>
         )}
       </motion.div>
+
+      {/* Streak Freeze */}
+      <StreakFreezeCard
+        availableFreezes={freezeData.available}
+        usedToday={freezeData.usedToday}
+        canUseToday={!!(streak && !streak.todayStudied && streak.currentStreak > 0)}
+        onFreezeUsed={loadStreak}
+      />
 
       {/* Comeback Celebration */}
       {streak && streak.isComeback && (
