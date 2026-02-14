@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lightbulb } from "lucide-react";
+import { Lightbulb, Share2, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const tips = [
   { tip: "Teach what you learned today to an imaginary student — it reveals gaps instantly.", category: "technique" },
@@ -37,14 +38,38 @@ const tips = [
 
 const DailyStudyTip = () => {
   const [tip, setTip] = useState<typeof tips[0] | null>(null);
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Use day-of-year to rotate tips deterministically
     const now = new Date();
     const start = new Date(now.getFullYear(), 0, 0);
     const dayOfYear = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     setTip(tips[dayOfYear % tips.length]);
   }, []);
+
+  const handleShare = async () => {
+    if (!tip) return;
+    const text = `💡 Study Tip: ${tip.tip}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast({ title: "Tip copied to clipboard!" });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: "Couldn't copy tip", variant: "destructive" });
+    }
+  };
 
   if (!tip) return null;
 
@@ -64,6 +89,17 @@ const DailyStudyTip = () => {
           </p>
           <p className="text-sm text-foreground leading-relaxed">{tip.tip}</p>
         </div>
+        <button
+          onClick={handleShare}
+          className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors h-fit"
+          aria-label="Share tip"
+        >
+          {copied ? (
+            <Check className="w-4 h-4 text-primary" />
+          ) : (
+            <Share2 className="w-4 h-4 text-muted-foreground" />
+          )}
+        </button>
       </div>
     </motion.div>
   );
