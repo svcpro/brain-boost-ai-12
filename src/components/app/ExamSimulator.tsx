@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle, Zap, Flame, Skull } from "lucide-react";
+import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle, Zap, Flame, Skull, BookOpen, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,11 @@ const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; icon: typeof Zap; t
   hard: { label: "Hard", icon: Skull, time: 35, color: "text-destructive", description: "Deep reasoning & tricky options, 35s per question" },
 };
 
+interface SubjectOption {
+  id: string;
+  name: string;
+}
+
 const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -41,6 +46,28 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
   const [timeExpired, setTimeExpired] = useState(false);
   const [totalTimeUsed, setTotalTimeUsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Subject/topic filter state
+  const [allSubjects, setAllSubjects] = useState<SubjectOption[]>([]);
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<string>>(new Set());
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
+
+  // Load subjects on mount
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("subjects")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .order("name");
+      const subs = (data || []) as SubjectOption[];
+      setAllSubjects(subs);
+      setSelectedSubjectIds(new Set(subs.map(s => s.id))); // all selected by default
+      setSubjectsLoading(false);
+    })();
+  }, [user]);
 
   const timePerQuestion = DIFFICULTY_CONFIG[difficulty].time;
 
@@ -85,12 +112,20 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: topics } = await supabase
+      let topicsQuery = supabase
         .from("topics")
         .select("name, memory_strength, subject_id")
         .eq("user_id", user.id)
+        .is("deleted_at", null)
         .order("memory_strength", { ascending: true })
         .limit(20);
+
+      // Filter by selected subjects if not all selected
+      if (selectedSubjectIds.size > 0 && selectedSubjectIds.size < allSubjects.length) {
+        topicsQuery = topicsQuery.in("subject_id", Array.from(selectedSubjectIds));
+      }
+
+      const { data: topics } = await topicsQuery;
 
       const { data: subjects } = await supabase
         .from("subjects")
@@ -98,7 +133,7 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
         .eq("user_id", user.id);
 
       if (!topics || topics.length === 0) {
-        toast({ title: "No topics found", description: "Add subjects and topics first.", variant: "destructive" });
+        toast({ title: "No topics found", description: "Add topics to the selected subjects first.", variant: "destructive" });
         setLoading(false);
         return;
       }
@@ -136,7 +171,7 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
       toast({ title: "Quiz generation failed", description: e.message, variant: "destructive" });
     }
     setLoading(false);
-  }, [user, questionCount, difficulty, toast]);
+  }, [user, questionCount, difficulty, toast, selectedSubjectIds, allSubjects]);
 
   const parseQuestions = (text: string): Question[] => {
     try {
@@ -261,6 +296,59 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
               <p className="text-[10px] text-muted-foreground text-center">{diffConfig.description}</p>
             </div>
 
+            {/* Subject Filter */}
+            {allSubjects.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">Subjects:</span>
+                  <button
+                    onClick={() => {
+                      if (selectedSubjectIds.size === allSubjects.length) {
+                        setSelectedSubjectIds(new Set());
+                      } else {
+                        setSelectedSubjectIds(new Set(allSubjects.map(s => s.id)));
+                      }
+                    }}
+                    className="ml-auto text-[10px] text-primary hover:underline"
+                  >
+                    {selectedSubjectIds.size === allSubjects.length ? "Deselect all" : "Select all"}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  {allSubjects.map(sub => {
+                    const isOn = selectedSubjectIds.has(sub.id);
+                    return (
+                      <button
+                        key={sub.id}
+                        onClick={() => {
+                          setSelectedSubjectIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(sub.id)) next.delete(sub.id);
+                            else next.add(sub.id);
+                            return next;
+                          });
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                          isOn
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-secondary/20 text-muted-foreground hover:border-primary/40"
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">
+                          <BookOpen className="w-3 h-3" />
+                          {sub.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedSubjectIds.size === 0 && (
+                  <p className="text-[10px] text-destructive">Select at least one subject</p>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Questions:</span>
@@ -287,7 +375,8 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
             </div>
             <button
               onClick={generateQuiz}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl neural-gradient neural-border hover:glow-primary transition-all active:scale-95"
+              disabled={selectedSubjectIds.size === 0 || subjectsLoading}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl neural-gradient neural-border hover:glow-primary transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
             >
               <Play className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-foreground">Start Exam Simulation</span>
