@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Bell, CheckCircle2, TrendingDown, TrendingUp, Minus, X } from "lucide-react";
+import { Bell, CheckCircle2, TrendingDown, TrendingUp, Minus, X, Undo2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getCache } from "@/lib/offlineCache";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
@@ -30,11 +30,11 @@ const WeeklyReminderSummary = () => {
   const { user } = useAuth();
   const [dailyMinutes, setDailyMinutes] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [lastWeekMinutes, setLastWeekMinutes] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
-  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+  const [nudgeDismissed, setNudgeDismissed] = useState<"visible" | "undo" | "hidden">(() => {
     try {
       const dismissed = localStorage.getItem("acry-nudge-dismissed");
-      return dismissed === getMondayOfWeek().toLocaleDateString("en-CA");
-    } catch { return false; }
+      return dismissed === getMondayOfWeek().toLocaleDateString("en-CA") ? "hidden" : "visible";
+    } catch { return "visible"; }
   });
 
   const stats = useMemo(() => {
@@ -262,16 +262,44 @@ const WeeklyReminderSummary = () => {
           <CheckCircle2 className="w-3 h-3" />
           <span>Perfect streak so far!</span>
         </div>
-      ) : ignoredCount >= (getVoiceSettings().nudgeThreshold ?? 2) && !nudgeDismissed ? (
-        <NudgeWithFeedback ignoredCount={ignoredCount} onDismiss={() => {
-          setNudgeDismissed(true);
+      ) : ignoredCount >= (getVoiceSettings().nudgeThreshold ?? 2) && nudgeDismissed === "visible" ? (
+        <NudgeWithFeedback ignoredCount={ignoredCount} onDismiss={() => setNudgeDismissed("undo")} />
+      ) : ignoredCount >= (getVoiceSettings().nudgeThreshold ?? 2) && nudgeDismissed === "undo" ? (
+        <UndoDismiss onUndo={() => setNudgeDismissed("visible")} onExpire={() => {
+          setNudgeDismissed("hidden");
           try {
-            const monday = getMondayOfWeek();
-            localStorage.setItem("acry-nudge-dismissed", monday.toLocaleDateString("en-CA"));
+            localStorage.setItem("acry-nudge-dismissed", getMondayOfWeek().toLocaleDateString("en-CA"));
           } catch {}
         }} />
       ) : null}
     </div>
+  );
+};
+
+/** Brief undo bar that auto-expires after 4 seconds */
+const UndoDismiss = ({ onUndo, onExpire }: { onUndo: () => void; onExpire: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onExpire, 4000);
+    return () => clearTimeout(timer);
+  }, [onExpire]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      className="mt-2 px-2 py-1.5 rounded-lg bg-secondary/40 border border-border text-[10px] text-muted-foreground flex items-center justify-between"
+    >
+      <span>Nudge dismissed</span>
+      <button
+        type="button"
+        onClick={onUndo}
+        className="flex items-center gap-1 text-primary hover:text-primary/80 font-medium transition-colors"
+      >
+        <Undo2 className="w-3 h-3" />
+        Undo
+      </button>
+    </motion.div>
   );
 };
 
