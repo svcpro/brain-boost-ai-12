@@ -332,18 +332,21 @@ export type Database = {
       subjects: {
         Row: {
           created_at: string
+          deleted_at: string | null
           id: string
           name: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           name: string
           user_id: string
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           name?: string
           user_id?: string
@@ -353,6 +356,7 @@ export type Database = {
       topics: {
         Row: {
           created_at: string
+          deleted_at: string | null
           id: string
           last_revision_date: string | null
           marks_impact_weight: number | null
@@ -365,6 +369,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           last_revision_date?: string | null
           marks_impact_weight?: number | null
@@ -377,6 +382,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           last_revision_date?: string | null
           marks_impact_weight?: number | null

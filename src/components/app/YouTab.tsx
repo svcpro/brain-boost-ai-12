@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +21,7 @@ import { isFeedbackEnabled, setFeedbackEnabled, getFeedbackVolume, setFeedbackVo
 import VoiceSettingsPanel from "./VoiceSettingsPanel";
 import DataBackup from "./DataBackup";
 import PrivacySecurity from "./PrivacySecurity";
+import TrashBin from "./TrashBin";
 import SubscriptionPlan from "./SubscriptionPlan";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 
@@ -78,6 +79,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showEmailSetting, setShowEmailSetting] = useState(false);
   const [showDisableAllDialog, setShowDisableAllDialog] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
 
 
   const voiceSettings = getVoiceSettings();
@@ -127,6 +129,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       .from("subjects")
       .select("id, name")
       .eq("user_id", user.id)
+      .is("deleted_at", null)
       .order("name");
 
     if (subs) {
@@ -136,6 +139,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           .from("topics")
           .select("id, name, memory_strength")
           .eq("subject_id", sub.id)
+          .is("deleted_at", null)
           .order("name");
         withTopics.push({ ...sub, topics: topics || [] });
       }
@@ -157,8 +161,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     loadSubjects();
   };
 
-  const pendingDeletesRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-
   const deleteSubject = async (id: string) => {
     const subject = subjects.find(s => s.id === id);
     if (!subject) return;
@@ -166,27 +168,25 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     // Optimistically remove from UI
     setSubjects(prev => prev.filter(s => s.id !== id));
 
-    // Schedule actual deletion
-    const timeoutId = setTimeout(async () => {
-      pendingDeletesRef.current.delete(`subject-${id}`);
-      await supabase.from("topics").delete().eq("subject_id", id);
-      const { error } = await supabase.from("subjects").delete().eq("id", id);
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        loadSubjects();
-      }
-    }, 6000);
-
-    pendingDeletesRef.current.set(`subject-${id}`, timeoutId);
+    // Soft-delete in DB
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("subjects").update({ deleted_at: now } as any).eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      loadSubjects();
+      return;
+    }
+    // Soft-delete topics under this subject
+    await supabase.from("topics").update({ deleted_at: now } as any).eq("subject_id", id).is("deleted_at", null);
 
     toast({
-      title: `🗑️ "${subject.name}" deleted`,
-      description: `Subject and ${subject.topics.length} topic${subject.topics.length !== 1 ? "s" : ""} removed.`,
+      title: `🗑️ "${subject.name}" moved to trash`,
+      description: `Subject and ${subject.topics.length} topic${subject.topics.length !== 1 ? "s" : ""} trashed.`,
       action: (
-        <ToastAction altText="Undo delete" onClick={() => {
-            clearTimeout(pendingDeletesRef.current.get(`subject-${id}`));
-            pendingDeletesRef.current.delete(`subject-${id}`);
-            setSubjects(prev => [...prev, subject].sort((a, b) => a.name.localeCompare(b.name)));
+        <ToastAction altText="Undo delete" onClick={async () => {
+            await supabase.from("subjects").update({ deleted_at: null } as any).eq("id", id);
+            await supabase.from("topics").update({ deleted_at: null } as any).eq("subject_id", id);
+            loadSubjects();
             toast({ title: "↩️ Restored", description: `"${subject.name}" has been restored.` });
           }}>
           Undo
@@ -207,50 +207,35 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   };
 
   const deleteTopic = async (id: string) => {
-    let deletedTopic: Topic | null = null;
-    let parentSubjectId: string | null = null;
+    let deletedTopicName = "";
 
-    // Find and optimistically remove
+    // Optimistically remove from UI
     setSubjects(prev => prev.map(sub => {
       const topic = sub.topics.find(t => t.id === id);
       if (topic) {
-        deletedTopic = topic;
-        parentSubjectId = sub.id;
+        deletedTopicName = topic.name;
         return { ...sub, topics: sub.topics.filter(t => t.id !== id) };
       }
       return sub;
     }));
 
-    if (!deletedTopic || !parentSubjectId) return;
+    if (!deletedTopicName) return;
 
-    const topicName = (deletedTopic as Topic).name;
-    const subId = parentSubjectId;
-
-    const timeoutId = setTimeout(async () => {
-      pendingDeletesRef.current.delete(`topic-${id}`);
-      const { error } = await supabase.from("topics").delete().eq("id", id);
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        loadSubjects();
-      }
-    }, 6000);
-
-    pendingDeletesRef.current.set(`topic-${id}`, timeoutId);
+    const { error } = await supabase.from("topics").update({ deleted_at: new Date().toISOString() } as any).eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      loadSubjects();
+      return;
+    }
 
     toast({
-      title: `🗑️ "${topicName}" deleted`,
-      description: "Topic has been removed.",
+      title: `🗑️ "${deletedTopicName}" moved to trash`,
+      description: "Topic has been trashed.",
       action: (
-        <ToastAction altText="Undo delete" onClick={() => {
-            clearTimeout(pendingDeletesRef.current.get(`topic-${id}`));
-            pendingDeletesRef.current.delete(`topic-${id}`);
-            setSubjects(prev => prev.map(sub => {
-              if (sub.id === subId) {
-                return { ...sub, topics: [...sub.topics, deletedTopic!].sort((a, b) => a.name.localeCompare(b.name)) };
-              }
-              return sub;
-            }));
-            toast({ title: "↩️ Restored", description: `"${topicName}" has been restored.` });
+        <ToastAction altText="Undo delete" onClick={async () => {
+            await supabase.from("topics").update({ deleted_at: null } as any).eq("id", id);
+            loadSubjects();
+            toast({ title: "↩️ Restored", description: `"${deletedTopicName}" has been restored.` });
           }}>
           Undo
         </ToastAction>
@@ -290,6 +275,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
     { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
     { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting) },
+    { icon: Trash2, label: "Trash", value: "", onClick: () => setShowTrash(!showTrash) },
     { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup) },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy) },
   ];
@@ -837,6 +823,11 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               <VoiceSettingsPanel />
             </motion.div>
           )}
+        </AnimatePresence>
+
+        {/* Trash Bin Panel */}
+        <AnimatePresence>
+          {showTrash && <TrashBin />}
         </AnimatePresence>
 
         {/* Data Backup Panel */}
