@@ -9,6 +9,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import LazyModeSession from "./LazyModeSession";
 import FocusModeSession from "./FocusModeSession";
+import EmergencyRecoverySession from "./EmergencyRecoverySession";
 
 const modes = [
   {
@@ -37,6 +38,7 @@ const modes = [
 const ActionTab = () => {
   const [lazyModeOpen, setLazyModeOpen] = useState(false);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
   const [minutes, setMinutes] = useState("");
@@ -103,6 +105,8 @@ const ActionTab = () => {
                 setLazyModeOpen(true);
               } else if (mode.title === "Focus Mode") {
                 setFocusModeOpen(true);
+              } else if (mode.title === "Emergency Recovery") {
+                setEmergencyOpen(true);
               } else {
                 toast({ title: `${mode.title} activated! 🚀`, description: mode.desc });
               }
@@ -261,6 +265,7 @@ const ActionTab = () => {
       </motion.div>
       <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} />
       <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} />
+      <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} />
     </div>
   );
 };
