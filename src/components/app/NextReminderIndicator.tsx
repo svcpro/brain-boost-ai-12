@@ -32,8 +32,9 @@ function computeInfo() {
   const targetMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour).getTime();
   const minsLeft = Math.max(0, Math.round((targetMs - now.getTime()) / 60000));
   const imminent = !firedToday && !alreadyPassed && minsLeft > 0 && minsLeft <= 60;
+  const urgent = imminent && minsLeft <= 10;
 
-  return { enabled: true, firedToday, label, alreadyPassed, imminent, minsLeft };
+  return { enabled: true, firedToday, label, alreadyPassed, imminent, urgent, minsLeft };
 }
 
 interface Props {
@@ -60,9 +61,12 @@ const NextReminderIndicator = ({ onOpenVoiceSettings }: Props) => {
         </>
       ) : (
         <>
-          <div className="relative w-4 h-4 flex items-center justify-center">
+          <div className={`relative w-4 h-4 flex items-center justify-center ${info.urgent ? "drop-shadow-[0_0_4px_hsl(var(--warning))]" : ""}`}>
             {info.imminent && (
               <svg className="absolute inset-0 w-4 h-4 -rotate-90" viewBox="0 0 16 16">
+                {info.urgent && (
+                  <circle cx="8" cy="8" r="6.5" fill="none" stroke="hsl(var(--warning))" strokeWidth="2.5" opacity="0.3" className="animate-pulse" />
+                )}
                 <circle cx="8" cy="8" r="6.5" fill="none" stroke="hsl(var(--muted))" strokeWidth="1.5" />
                 <circle
                   cx="8" cy="8" r="6.5" fill="none"
