@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Trophy, Flame, Clock, Crown, Medal, Award, RefreshCw, Gift, Snowflake } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trophy, Flame, Clock, Crown, Medal, Award, RefreshCw, Gift, Snowflake, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPushNotifPrefs } from "./NotificationPreferencesPanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,11 @@ interface LeaderboardEntry {
 
 const positionIcons = [Crown, Medal, Award];
 const positionColors = ["text-warning", "text-muted-foreground", "text-orange-400"];
+const positionGlows = [
+  "shadow-[0_0_12px_hsl(var(--warning)/0.4)]",
+  "shadow-[0_0_8px_hsl(var(--muted-foreground)/0.2)]",
+  "shadow-[0_0_8px_rgba(251,146,60,0.3)]",
+];
 
 const LeaderboardCard = () => {
   const { user } = useAuth();
@@ -144,19 +149,38 @@ const LeaderboardCard = () => {
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-12 rounded-lg bg-secondary/50 animate-pulse" />
+            <motion.div
+              key={i}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.15 }}
+              className="h-14 rounded-xl bg-secondary/50"
+            />
           ))}
         </div>
       ) : entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">
-          No students on the leaderboard yet. Run AI Analysis to get ranked!
-        </p>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-8"
+        >
+          <Trophy className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">
+            No students on the leaderboard yet.
+          </p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Run AI Analysis to get ranked!</p>
+        </motion.div>
       ) : (
         <div className="space-y-2">
-          {/* Current user highlight */}
+          {/* Current user highlight when outside top 3 */}
           {currentUserEntry && currentUserEntry.position > 3 && (
-            <div className="mb-3 p-3 rounded-xl bg-primary/10 border border-primary/30">
-              <div className="flex items-center gap-3">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-3 p-3 rounded-xl bg-primary/10 border border-primary/30 relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 animate-pulse" />
+              <div className="flex items-center gap-3 relative">
                 <span className="text-xs font-bold text-primary w-6 text-center">
                   #{currentUserEntry.position}
                 </span>
@@ -172,87 +196,145 @@ const LeaderboardCard = () => {
                   </span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Top entries */}
-          {topEntries.map((entry, i) => {
-            const PosIcon = i < 3 ? positionIcons[i] : null;
-            const posColor = i < 3 ? positionColors[i] : "";
+          <AnimatePresence mode="popLayout">
+            {topEntries.map((entry, i) => {
+              const PosIcon = i < 3 ? positionIcons[i] : null;
+              const posColor = i < 3 ? positionColors[i] : "";
+              const posGlow = i < 3 ? positionGlows[i] : "";
+              const isTop3 = i < 3;
 
-            return (
-              <motion.div
-                key={entry.user_id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                  entry.is_current_user
-                    ? "bg-primary/10 border border-primary/30"
-                    : "bg-secondary/30 border border-border hover:bg-secondary/50"
-                }`}
-              >
-                {/* Position */}
-                <div className="w-7 flex justify-center">
-                  {PosIcon ? (
-                    <PosIcon className={`w-5 h-5 ${posColor}`} />
-                  ) : (
-                    <span className="text-xs font-bold text-muted-foreground">
-                      #{entry.position}
+              return (
+                <motion.div
+                  key={entry.user_id}
+                  layout
+                  initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                  transition={{
+                    delay: i * 0.06,
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 25,
+                  }}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`flex items-center gap-3 p-3 rounded-xl transition-colors relative overflow-hidden ${
+                    entry.is_current_user
+                      ? "bg-primary/10 border border-primary/30"
+                      : isTop3
+                      ? `bg-secondary/40 border border-border/60 ${posGlow}`
+                      : "bg-secondary/30 border border-border hover:bg-secondary/50"
+                  }`}
+                >
+                  {/* Shimmer for top 3 */}
+                  {isTop3 && (
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent"
+                      animate={{ x: ["-100%", "200%"] }}
+                      transition={{ duration: 3, repeat: Infinity, delay: i * 0.8, ease: "easeInOut" }}
+                      style={{ width: "50%" }}
+                    />
+                  )}
+
+                  {/* Position */}
+                  <div className="w-7 flex justify-center relative">
+                    {PosIcon ? (
+                      <motion.div
+                        initial={{ rotate: -15, scale: 0 }}
+                        animate={{ rotate: 0, scale: 1 }}
+                        transition={{ delay: i * 0.06 + 0.2, type: "spring", stiffness: 400 }}
+                      >
+                        <PosIcon className={`w-5 h-5 ${posColor} drop-shadow-sm`} />
+                      </motion.div>
+                    ) : (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: i * 0.06 + 0.15 }}
+                        className="text-xs font-bold text-muted-foreground"
+                      >
+                        #{entry.position}
+                      </motion.span>
+                    )}
+                  </div>
+
+                  {/* Avatar */}
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: i * 0.06 + 0.1, type: "spring", stiffness: 350 }}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ${
+                      entry.is_current_user
+                        ? "bg-primary text-primary-foreground ring-primary/40"
+                        : isTop3
+                        ? "bg-secondary text-foreground ring-warning/20"
+                        : "bg-secondary text-foreground ring-border"
+                    }`}
+                  >
+                    {entry.display_name.slice(0, 2).toUpperCase()}
+                  </motion.div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${
+                      entry.is_current_user ? "text-primary" : "text-foreground"
+                    }`}>
+                      {entry.is_current_user ? "You" : entry.display_name}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <TrendingUp className="w-2.5 h-2.5 text-muted-foreground/60" />
+                      <p className="text-[10px] text-muted-foreground">
+                        Top {(100 - (entry.percentile || 0)).toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Stats + Gift */}
+                  <div className="flex items-center gap-2">
+                    {entry.streak > 0 && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: i * 0.06 + 0.25 }}
+                        className="flex items-center gap-0.5 text-[10px] text-warning font-medium"
+                      >
+                        <Flame className="w-3 h-3" />{entry.streak}
+                      </motion.span>
+                    )}
+                    <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                      <Clock className="w-3 h-3" />{entry.total_study_hours}h
                     </span>
-                  )}
-                </div>
-
-                {/* Avatar */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                  entry.is_current_user
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-foreground"
-                }`}>
-                  {entry.display_name.slice(0, 2).toUpperCase()}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${
-                    entry.is_current_user ? "text-primary" : "text-foreground"
-                  }`}>
-                    {entry.is_current_user ? "You" : entry.display_name}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Top {(100 - (entry.percentile || 0)).toFixed(1)}%
-                  </p>
-                </div>
-
-                {/* Stats + Gift */}
-                <div className="flex items-center gap-2">
-                  {entry.streak > 0 && (
-                    <span className="flex items-center gap-0.5 text-[10px] text-warning font-medium">
-                      <Flame className="w-3 h-3" />{entry.streak}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                    <Clock className="w-3 h-3" />{entry.total_study_hours}h
-                  </span>
-                  {user && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); if (!entry.is_current_user) sendFreezeGift(entry.user_id); }}
-                      disabled={entry.is_current_user || gifting === entry.user_id}
-                      className="p-1 rounded-md hover:bg-primary/10 transition-colors disabled:opacity-40"
-                      title={entry.is_current_user ? "You can't gift yourself" : "Gift a streak freeze"}
-                    >
-                      <Gift className={`w-3.5 h-3.5 ${gifting === entry.user_id ? "animate-pulse text-primary" : entry.is_current_user ? "text-muted-foreground" : "text-muted-foreground hover:text-primary"}`} />
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
+                    {user && (
+                      <motion.button
+                        whileHover={{ scale: 1.2 }}
+                        whileTap={{ scale: 0.85 }}
+                        onClick={(e) => { e.stopPropagation(); if (!entry.is_current_user) sendFreezeGift(entry.user_id); }}
+                        disabled={entry.is_current_user || gifting === entry.user_id}
+                        className="p-1 rounded-md hover:bg-primary/10 transition-colors disabled:opacity-40"
+                        title={entry.is_current_user ? "You can't gift yourself" : "Gift a streak freeze"}
+                      >
+                        <Gift className={`w-3.5 h-3.5 ${gifting === entry.user_id ? "animate-pulse text-primary" : entry.is_current_user ? "text-muted-foreground" : "text-muted-foreground hover:text-primary"}`} />
+                      </motion.button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
 
           {entries.length > 10 && (
-            <p className="text-[10px] text-muted-foreground text-center pt-2">
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="text-[10px] text-muted-foreground text-center pt-2"
+            >
               Showing top 10 of {entries.length} students
-            </p>
+            </motion.p>
           )}
         </div>
       )}
