@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Flame, Clock, Crown, Medal, Award, RefreshCw, Gift, Snowflake, TrendingUp } from "lucide-react";
+import confetti from "canvas-confetti";
 import { supabase } from "@/integrations/supabase/client";
 import { getPushNotifPrefs } from "./NotificationPreferencesPanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +32,8 @@ const LeaderboardCard = () => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [gifting, setGifting] = useState<string | null>(null);
+  const prevPositionRef = useRef<number | null>(null);
+  const hasTriggeredConfetti = useRef(false);
 
   const loadLeaderboard = async () => {
     setLoading(true);
@@ -58,6 +61,39 @@ const LeaderboardCard = () => {
   useEffect(() => {
     loadLeaderboard();
   }, []);
+
+  // Confetti when user reaches #1
+  useEffect(() => {
+    const currentUser = entries.find(e => e.is_current_user);
+    if (!currentUser) return;
+
+    const isFirstPlace = currentUser.position === 1;
+    const wasNotFirst = prevPositionRef.current === null || prevPositionRef.current > 1;
+
+    if (isFirstPlace && wasNotFirst && !hasTriggeredConfetti.current) {
+      hasTriggeredConfetti.current = true;
+      // Fire confetti from both sides
+      const fireConfetti = (angle: number, origin: { x: number; y: number }) => {
+        confetti({
+          particleCount: 80,
+          angle,
+          spread: 60,
+          origin,
+          colors: ["#FFD700", "#FFA500", "#FF6347", "#00CED1", "#7B68EE"],
+          gravity: 0.8,
+          scalar: 1.1,
+        });
+      };
+      fireConfetti(60, { x: 0, y: 0.6 });
+      fireConfetti(120, { x: 1, y: 0.6 });
+      setTimeout(() => {
+        fireConfetti(80, { x: 0.3, y: 0.5 });
+        fireConfetti(100, { x: 0.7, y: 0.5 });
+      }, 300);
+    }
+
+    prevPositionRef.current = currentUser.position;
+  }, [entries]);
 
   const sendFreezeGift = async (recipientId: string) => {
     if (!user) return;
