@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import StudyPlanGenerator from "./StudyPlanGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { peekAll, type QueuedStudyLog } from "@/lib/offlineQueue";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 
 const modes = [
   {
@@ -37,8 +38,17 @@ const ActionTab = () => {
   const [confidence, setConfidence] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<QueuedStudyLog[]>(peekAll());
+  const [syncing, setSyncing] = useState(false);
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
+  const { syncAll } = useOfflineSync();
+
+  const handleSyncNow = async () => {
+    setSyncing(true);
+    await syncAll();
+    setPendingEntries(peekAll());
+    setSyncing(false);
+  };
 
   // Refresh pending queue periodically
   useEffect(() => {
@@ -197,9 +207,14 @@ const ActionTab = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    Will sync automatically when you're back online.
-                  </p>
+                  <button
+                    onClick={handleSyncNow}
+                    disabled={syncing}
+                    className="w-full mt-2.5 py-2 rounded-lg border border-warning/30 bg-warning/10 text-warning text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-warning/20 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+                    {syncing ? "Syncing..." : "Sync Now"}
+                  </button>
                 </div>
               </motion.div>
             )}
