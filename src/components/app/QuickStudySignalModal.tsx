@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { notifyFeedback } from "@/lib/feedback";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import confetti from "canvas-confetti";
 
 interface SubjectOption {
   id: string;
@@ -112,6 +113,7 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
       if (success) {
         setSubmitProgress(100);
         notifyFeedback();
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, zIndex: 9999 });
         toast({ title: "🧠 Brain updated!", description: "Your study signal has been logged." });
         setTimeout(() => {
           setSubject("");
