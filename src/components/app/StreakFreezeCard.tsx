@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Snowflake, History, ChevronDown } from "lucide-react";
+import { Snowflake, History, Gift, Check, X, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,13 @@ interface FreezeRecord {
   id: string;
   earned_at: string;
   used_date: string | null;
+}
+
+interface SentGift {
+  id: string;
+  recipient_name: string;
+  status: string;
+  created_at: string;
 }
 
 interface StreakFreezeCardProps {
@@ -25,8 +32,11 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
   const { toast } = useToast();
   const [using, setUsing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSentGifts, setShowSentGifts] = useState(false);
   const [history, setHistory] = useState<FreezeRecord[]>([]);
+  const [sentGifts, setSentGifts] = useState<SentGift[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingSentGifts, setLoadingSentGifts] = useState(false);
 
   const loadHistory = useCallback(async () => {
     if (!user) return;
@@ -44,6 +54,48 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
   useEffect(() => {
     if (showHistory && history.length === 0) loadHistory();
   }, [showHistory, loadHistory]);
+
+  const loadSentGifts = useCallback(async () => {
+    if (!user) return;
+    setLoadingSentGifts(true);
+    const { data } = await (supabase as any)
+      .from("freeze_gifts")
+      .select("id, recipient_id, status, created_at")
+      .eq("sender_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (!data || data.length === 0) {
+      setSentGifts([]);
+      setLoadingSentGifts(false);
+      return;
+    }
+
+    const recipientIds = [...new Set(data.map((g: any) => g.recipient_id))];
+    const { data: profiles } = await (supabase as any)
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", recipientIds);
+
+    const nameMap: Record<string, string> = {};
+    (profiles || []).forEach((p: any) => {
+      nameMap[p.id] = p.display_name || "Someone";
+    });
+
+    setSentGifts(
+      data.map((g: any) => ({
+        id: g.id,
+        recipient_name: nameMap[g.recipient_id] || "Someone",
+        status: g.status,
+        created_at: g.created_at,
+      }))
+    );
+    setLoadingSentGifts(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (showSentGifts && sentGifts.length === 0) loadSentGifts();
+  }, [showSentGifts, loadSentGifts]);
 
   const useFreeze = async () => {
     if (!user || availableFreezes <= 0 || usedToday || !canUseToday) return;
@@ -93,7 +145,14 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
           {availableFreezes} available
         </span>
         <button
-          onClick={() => setShowHistory((s) => !s)}
+          onClick={() => { setShowSentGifts((s) => !s); setShowHistory(false); }}
+          className="p-1.5 rounded-lg neural-border hover:glow-primary transition-all"
+          title="Sent gifts"
+        >
+          <Gift className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
+        <button
+          onClick={() => { setShowHistory((s) => !s); setShowSentGifts(false); }}
           className="p-1.5 rounded-lg neural-border hover:glow-primary transition-all"
           title="Freeze history"
         >
@@ -185,6 +244,63 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
                     ) : (
                       <span className="text-[9px] text-primary font-medium shrink-0">Available</span>
                     )}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sent Gifts panel */}
+      <AnimatePresence>
+        {showSentGifts && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 pt-3 border-t border-border overflow-hidden"
+          >
+            <div className="flex items-center gap-1.5 mb-2">
+              <Gift className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10px] font-semibold text-foreground">Sent Gifts</span>
+              <span className="text-[9px] text-muted-foreground ml-auto">{sentGifts.length} total</span>
+            </div>
+
+            {loadingSentGifts ? (
+              <p className="text-[10px] text-muted-foreground text-center py-2">Loading…</p>
+            ) : sentGifts.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground text-center py-2">No gifts sent yet. Gift a freeze from the leaderboard!</p>
+            ) : (
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {sentGifts.map((g, i) => (
+                  <motion.div
+                    key={g.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-secondary/30"
+                  >
+                    <Gift className={`w-3 h-3 shrink-0 ${
+                      g.status === "accepted" ? "text-primary" : g.status === "declined" ? "text-muted-foreground" : "text-warning"
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] text-foreground truncate block">
+                        To {g.recipient_name}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground">
+                        {format(new Date(g.created_at), "MMM d, yyyy")}
+                      </span>
+                    </div>
+                    <span className={`text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded-full ${
+                      g.status === "accepted"
+                        ? "bg-primary/10 text-primary"
+                        : g.status === "declined"
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-warning/10 text-warning"
+                    }`}>
+                      {g.status === "accepted" ? "✓ Accepted" : g.status === "declined" ? "✗ Declined" : "⏳ Pending"}
+                    </span>
                   </motion.div>
                 ))}
               </div>
