@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
@@ -171,6 +171,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const hasTopics = (prediction?.topics?.length ?? 0) > 0;
 
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisStep, setAnalysisStep] = useState("");
   const [radarLastUpdated, setRadarLastUpdated] = useState<Date | null>(null);
   const [insightReviewTopic, setInsightReviewTopic] = useState<string | null>(null);
   const [insightReviewSubject, setInsightReviewSubject] = useState<string | undefined>();
@@ -188,21 +190,37 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
   const handleRefresh = async () => {
     setAnalyzing(true);
+    setAnalysisProgress(0);
+    setAnalysisStep("Scanning memory patterns…");
     try {
-      await Promise.all([predict(), predictRank()]);
+      setAnalysisProgress(15);
+      await predict();
+      setAnalysisProgress(35);
+      setAnalysisStep("Predicting exam rank…");
+      await predictRank();
       setRadarLastUpdated(new Date());
+      setAnalysisProgress(55);
+      setAnalysisStep("Generating AI recommendations…");
       await generateRecommendations();
+      setAnalysisProgress(80);
+      setAnalysisStep("Finalizing insights…");
       await loadRecommendations();
+      setAnalysisProgress(95);
       notifyFeedback();
-      // Record brain update timestamp
       if (user) {
         await supabase.from("profiles").update({ last_brain_update_at: new Date().toISOString() }).eq("id", user.id);
       }
+      setAnalysisProgress(100);
+      setAnalysisStep("Complete!");
       toast({ title: "✅ AI Analysis complete!", description: "Memory predictions and recommendations updated." });
     } catch {
       toast({ title: "Analysis failed", variant: "destructive" });
     } finally {
-      setAnalyzing(false);
+      setTimeout(() => {
+        setAnalyzing(false);
+        setAnalysisProgress(0);
+        setAnalysisStep("");
+      }, 600);
     }
   };
 
@@ -222,6 +240,41 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
       </motion.div>
+
+      {/* AI Analysis Progress Bar */}
+      <AnimatePresence>
+        {analyzing && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="glass rounded-xl p-4 neural-border overflow-hidden"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Brain className="w-4 h-4 text-primary animate-pulse" />
+              <span className="text-xs font-semibold text-foreground">AI Analysis Running</span>
+              <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">{Math.round(analysisProgress)}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-secondary overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-primary via-primary/80 to-primary"
+                initial={{ width: "0%" }}
+                animate={{ width: `${analysisProgress}%` }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                style={{ boxShadow: "0 0 8px hsl(var(--primary) / 0.5)" }}
+              />
+            </div>
+            <motion.p
+              key={analysisStep}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-[10px] text-muted-foreground mt-2"
+            >
+              {analysisStep}
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Daily Motivational Quote */}
       <DailyQuote />
