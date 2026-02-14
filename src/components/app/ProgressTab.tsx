@@ -23,6 +23,7 @@ import ConfidenceGoalTracker from "./ConfidenceGoalTracker";
 import StreakFreezeCard from "./StreakFreezeCard";
 import FreezeGiftInbox from "./FreezeGiftInbox";
 import ConsistencyScore from "./ConsistencyScore";
+import PushNotificationToggle from "./PushNotificationToggle";
 
 type DayStatus = "studied" | "frozen" | "none";
 
@@ -486,6 +487,9 @@ const ProgressTab = () => {
 
       {/* Freeze Gift Inbox */}
       <FreezeGiftInbox />
+
+      {/* Push Notification Toggle */}
+      <PushNotificationToggle />
 
       {/* Comeback Celebration */}
       {streak && streak.isComeback && (
