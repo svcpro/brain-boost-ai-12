@@ -33,6 +33,7 @@ const AppDashboard = () => {
   const { user } = useAuth();
   const [recCount, setRecCount] = useState(0);
   const [pendingGifts, setPendingGifts] = useState(0);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [expiryWarning, setExpiryWarning] = useState<{ plan: string; daysLeft: number } | null>(null);
   const [dismissedWarning, setDismissedWarning] = useState(false);
   const voice = useVoiceNotification();
@@ -59,8 +60,17 @@ const AppDashboard = () => {
         .eq("status", "pending");
       setPendingGifts(count ?? 0);
     };
+    const fetchUnreadNotifs = async () => {
+      const { count } = await (supabase as any)
+        .from("notification_history")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("read", false);
+      setUnreadNotifs(count ?? 0);
+    };
     fetchCount();
     fetchGifts();
+    fetchUnreadNotifs();
   }, [user, activeTab]);
 
   useEffect(() => {
@@ -164,6 +174,11 @@ const AppDashboard = () => {
                     {tab.id === "progress" && pendingGifts > 0 && (
                       <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
                         {pendingGifts > 9 ? "9+" : pendingGifts}
+                      </span>
+                    )}
+                    {tab.id === "you" && unreadNotifs > 0 && (
+                      <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-warning text-warning-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
+                        {unreadNotifs > 9 ? "9+" : unreadNotifs}
                       </span>
                     )}
                   </div>
