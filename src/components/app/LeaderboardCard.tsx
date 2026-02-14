@@ -234,14 +234,14 @@ const LeaderboardCard = () => {
                   <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                     <Clock className="w-3 h-3" />{entry.total_study_hours}h
                   </span>
-                  {!entry.is_current_user && user && (
+                  {user && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); sendFreezeGift(entry.user_id); }}
-                      disabled={gifting === entry.user_id}
-                      className="p-1 rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
-                      title="Gift a streak freeze"
+                      onClick={(e) => { e.stopPropagation(); if (!entry.is_current_user) sendFreezeGift(entry.user_id); }}
+                      disabled={entry.is_current_user || gifting === entry.user_id}
+                      className="p-1 rounded-md hover:bg-primary/10 transition-colors disabled:opacity-40"
+                      title={entry.is_current_user ? "You can't gift yourself" : "Gift a streak freeze"}
                     >
-                      <Gift className={`w-3.5 h-3.5 ${gifting === entry.user_id ? "animate-pulse text-primary" : "text-muted-foreground hover:text-primary"}`} />
+                      <Gift className={`w-3.5 h-3.5 ${gifting === entry.user_id ? "animate-pulse text-primary" : entry.is_current_user ? "text-muted-foreground" : "text-muted-foreground hover:text-primary"}`} />
                     </button>
                   )}
                 </div>
