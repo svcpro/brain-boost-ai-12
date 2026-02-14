@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { Shield } from "lucide-react";
+import { Shield, Download, Share2 } from "lucide-react";
+import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { format, subDays, startOfDay } from "date-fns";
 
 interface WeekBucket {
@@ -15,8 +17,61 @@ interface WeekBucket {
 
 const ConfidenceTrendChart = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [weeks, setWeeks] = useState<WeekBucket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const captureCard = async (): Promise<Blob | null> => {
+    if (!cardRef.current) return null;
+    const canvas = await html2canvas(cardRef.current, {
+      backgroundColor: "#0f1419",
+      scale: 2,
+      useCORS: true,
+    });
+    return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
+  };
+
+  const handleDownload = async () => {
+    setSharing(true);
+    try {
+      const blob = await captureCard();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `confidence-trend-${format(new Date(), "yyyy-MM-dd")}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "📥 Downloaded!", description: "Confidence trend saved as image." });
+    } catch {
+      toast({ title: "Download failed", variant: "destructive" });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const blob = await captureCard();
+      if (!blob) return;
+      const file = new File([blob], "confidence-trend.png", { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: "My Confidence Trend", text: "Check out my confidence trend! 🛡️", files: [file] });
+      } else {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        toast({ title: "📋 Copied!", description: "Image copied to clipboard." });
+      }
+    } catch (e: any) {
+      if (e?.name !== "AbortError") {
+        toast({ title: "Could not share", description: "Try downloading instead.", variant: "destructive" });
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -70,6 +125,7 @@ const ConfidenceTrendChart = () => {
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-xl p-5 neural-border"
@@ -78,6 +134,16 @@ const ConfidenceTrendChart = () => {
         <Shield className="w-4 h-4 text-primary" />
         <h2 className="font-semibold text-foreground text-sm">Confidence Trend</h2>
         <span className="ml-auto text-[10px] text-muted-foreground">Last 4 weeks</span>
+        {weeks.some((w) => w.total > 0) && (
+          <div className="flex items-center gap-1">
+            <button onClick={handleDownload} disabled={sharing} className="p-1.5 rounded-lg neural-border hover:glow-primary transition-all disabled:opacity-50" title="Download as image">
+              <Download className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            <button onClick={handleShare} disabled={sharing} className="p-1.5 rounded-lg neural-border hover:glow-primary transition-all disabled:opacity-50" title="Share">
+              <Share2 className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Legend */}
