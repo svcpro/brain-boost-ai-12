@@ -229,6 +229,19 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
     onClose();
   };
 
+  const handleStartAnother = () => {
+    setSummary(null);
+    setState("setup");
+    setTotalMinutes(25);
+    setSecondsLeft(25 * 60);
+    setSubject("");
+    setTopic("");
+    setPomodoroEnabled(false);
+    setPomodoroPhase("work");
+    setPomodoroCycle(1);
+    setTotalCyclesCompleted(0);
+  };
+
   useEffect(() => () => clearTimer(), []);
 
   const totalSecs = totalMinutes * 60;
@@ -642,15 +655,26 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
                 )}
               </div>
 
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                onClick={handleCloseSummary}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-success text-success-foreground font-semibold transition-all hover:brightness-110 active:scale-95"
-              >
-                Done
-              </motion.button>
+              <div className="w-full flex gap-2">
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  onClick={handleStartAnother}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary border border-border text-foreground font-semibold transition-all hover:bg-secondary/80 active:scale-95"
+                >
+                  <RotateCcw className="w-4 h-4" /> New Session
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.45 }}
+                  onClick={handleCloseSummary}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-success text-success-foreground font-semibold transition-all hover:brightness-110 active:scale-95"
+                >
+                  Done
+                </motion.button>
+              </div>
             </div>
           )}
         </motion.div>
