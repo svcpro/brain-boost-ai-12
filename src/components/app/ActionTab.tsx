@@ -130,12 +130,59 @@ const ActionTab = () => {
     }
   }, [toast]);
 
-  const handleScanUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleScanUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please upload an image under 10MB.", variant: "destructive" });
+      return;
+    }
+
     setUploadedFile(file.name);
-    toast({ title: "📸 Image captured!", description: `"${file.name}" ready for processing.` });
-    e.target.value = "";
+    setExtracting(true);
+    setExtractionResult(null);
+    toast({ title: "📸 Processing image...", description: `Extracting topics from "${file.name}" with AI.` });
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-image-topics`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Processing failed" }));
+        throw new Error(err.error || `Failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.totalTopicsCreated > 0) {
+        setExtractionResult(data.results);
+        toast({
+          title: `🧠 ${data.totalTopicsCreated} topics extracted!`,
+          description: `Added to ${data.results.length} subject(s). Check your Brain tab!`,
+        });
+      } else if (data.success && data.totalTopicsCreated === 0) {
+        toast({ title: "No new topics found", description: "All topics from this image are already in your library." });
+      } else {
+        throw new Error(data.error || "Extraction failed");
+      }
+    } catch (err: any) {
+      toast({ title: "Extraction failed", description: err?.message || "Could not extract topics from this image.", variant: "destructive" });
+    } finally {
+      setExtracting(false);
+      e.target.value = "";
+    }
   }, [toast]);
 
   const handleVoiceRecord = useCallback(async () => {
@@ -285,10 +332,11 @@ const ActionTab = () => {
           <button
             type="button"
             onClick={() => scanInputRef.current?.click()}
-            className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95"
+            disabled={extracting}
+            className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
           >
-            <Camera className="w-5 h-5 text-primary" />
-            <span className="text-xs text-muted-foreground">Scan</span>
+            {extracting ? <Loader2 className="w-5 h-5 text-primary animate-spin" /> : <Camera className="w-5 h-5 text-primary" />}
+            <span className="text-xs text-muted-foreground">{extracting ? "Extracting..." : "Scan"}</span>
           </button>
           <button
             type="button"
