@@ -6,10 +6,18 @@ import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { useVoice } from "@/pages/AppDashboard";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import { getCache, setCache } from "@/lib/offlineCache";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import confetti from "canvas-confetti";
 
 const STREAK_MILESTONES = [3, 7, 14, 30];
-const CELEBRATION_MILESTONES = [7, 30, 100];
+const CELEBRATION_MILESTONES = [7, 14, 30];
+
+const MILESTONE_NOTIF: Record<number, { title: string; body: string }> = {
+  7: { title: "⭐ 7-Day Streak!", body: "You've studied for 7 days straight. Keep the momentum!" },
+  14: { title: "🔥 14-Day Streak!", body: "Two weeks of consistent studying. You're on fire!" },
+  30: { title: "🏆 30-Day Legend!", body: "30 days of dedication. You're unstoppable!" },
+};
 
 const MILESTONE_CONFIG: Record<number, { icon: typeof Star; label: string; emoji: string; color: string }> = {
   7: { icon: Star, label: "1 Week Warrior!", emoji: "⭐", color: "text-primary" },
@@ -19,6 +27,7 @@ const MILESTONE_CONFIG: Record<number, { icon: typeof Star; label: string; emoji
 
 const StreakTracker = () => {
   const { streak, loading, loadStreak } = useStudyStreak();
+  const { user } = useAuth();
   const voice = useVoice();
   const streakVoiceFiredRef = useRef(false);
   const [celebration, setCelebration] = useState<number | null>(null);
@@ -58,6 +67,14 @@ const StreakTracker = () => {
       if (Date.now() < end) requestAnimationFrame(fire);
     };
     fire();
+
+    // Send push notification for streak milestone
+    if (user && MILESTONE_NOTIF[streak.currentStreak]) {
+      const notif = MILESTONE_NOTIF[streak.currentStreak];
+      supabase.functions.invoke("send-push-notification", {
+        body: { recipient_id: user.id, title: notif.title, body: notif.body, data: { type: "streak_milestone", streak: streak.currentStreak } },
+      }).catch((err) => console.warn("Streak push failed:", err));
+    }
 
     // Auto-dismiss after 5s
     const timer = setTimeout(() => setCelebration(null), 5000);
