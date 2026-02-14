@@ -94,12 +94,24 @@ const NotificationHistory = () => {
     setUnreadCount(0);
   };
 
+  const clearAll = async () => {
+    if (!user) return;
+    await (supabase as any)
+      .from("notification_history")
+      .delete()
+      .eq("user_id", user.id);
+    setNotifications([]);
+    setUnreadCount(0);
+  };
+
   const deleteNotification = async (id: string) => {
+    const n = notifications.find((x) => x.id === id);
     await (supabase as any)
       .from("notification_history")
       .delete()
       .eq("id", id);
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setNotifications((prev) => prev.filter((x) => x.id !== id));
+    if (n && !n.read) setUnreadCount((c) => Math.max(0, c - 1));
   };
 
   const typeEmoji: Record<string, string> = {
@@ -121,15 +133,26 @@ const NotificationHistory = () => {
           <span className="text-sm font-semibold text-foreground">
             Notification History
           </span>
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              className="text-[10px] text-primary hover:underline flex items-center gap-1"
-            >
-              <CheckCheck className="w-3 h-3" />
-              Mark all read
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllRead}
+                className="text-[10px] text-primary hover:underline flex items-center gap-1"
+              >
+                <CheckCheck className="w-3 h-3" />
+                Mark all read
+              </button>
+            )}
+            {notifications.length > 0 && (
+              <button
+                onClick={clearAll}
+                className="text-[10px] text-destructive hover:underline flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
