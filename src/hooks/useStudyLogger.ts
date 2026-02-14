@@ -14,12 +14,14 @@ export function useStudyLogger() {
     durationMinutes,
     confidenceLevel,
     studyMode = "lazy",
+    notes,
   }: {
     subjectName: string;
     topicName?: string;
     durationMinutes: number;
     confidenceLevel: "low" | "medium" | "high";
     studyMode?: "lazy" | "focus" | "emergency" | "fix";
+    notes?: string;
   }) => {
     if (!user) return;
 
@@ -89,6 +91,7 @@ export function useStudyLogger() {
         duration_minutes: durationMinutes,
         confidence_level: confidenceLevel,
         study_mode: studyMode,
+        notes: notes?.trim() || null,
       });
 
       if (logErr) throw logErr;

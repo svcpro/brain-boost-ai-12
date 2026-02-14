@@ -53,6 +53,7 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
   const [totalCyclesCompleted, setTotalCyclesCompleted] = useState(0);
   const [logging, setLogging] = useState(false);
   const [confidence, setConfidence] = useState<"low" | "medium" | "high">("high");
+  const [sessionNotes, setSessionNotes] = useState("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
@@ -210,6 +211,7 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
       cyclesCompleted: totalCyclesCompleted,
     });
     setConfidence("high");
+    setSessionNotes("");
     setState("summary");
   };
 
@@ -223,6 +225,7 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
       durationMinutes: summary.elapsedMinutes,
       confidenceLevel: confidence,
       studyMode: "focus",
+      notes: sessionNotes || undefined,
     });
 
     const strengthAfter = await getTopicStrength(summary.topic);
@@ -697,6 +700,23 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
                     </button>
                   ))}
                 </div>
+              </motion.div>
+
+              {/* Notes field */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.38 }}
+                className="w-full"
+              >
+                <textarea
+                  value={sessionNotes}
+                  onChange={(e) => setSessionNotes(e.target.value.slice(0, 500))}
+                  placeholder="Key takeaways or notes (optional)"
+                  rows={2}
+                  className="w-full rounded-xl bg-secondary/40 border border-border px-3 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
+                />
+                <span className="text-[10px] text-muted-foreground mt-0.5 block text-right">{sessionNotes.length}/500</span>
               </motion.div>
 
               <div className="w-full flex gap-2">
