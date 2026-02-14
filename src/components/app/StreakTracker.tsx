@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flame, Trophy, Star, Sparkles, Award } from "lucide-react";
+import StreakBadge from "./StreakBadge";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { useVoice } from "@/pages/AppDashboard";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
@@ -201,10 +202,13 @@ const StreakTracker = () => {
                 </div>
                 <button
                   onClick={() => setCelebration(null)}
-                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors self-start"
                 >
                   ✕
                 </button>
+              </div>
+              <div className="mt-3">
+                <StreakBadge milestone={celebration} onClose={() => setCelebration(null)} />
               </div>
             </motion.div>
           );
