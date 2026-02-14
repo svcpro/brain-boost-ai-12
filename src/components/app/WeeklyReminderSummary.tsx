@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Bell, CheckCircle2, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { Bell, CheckCircle2, TrendingDown, TrendingUp, Minus, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getCache } from "@/lib/offlineCache";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
@@ -30,6 +30,12 @@ const WeeklyReminderSummary = () => {
   const { user } = useAuth();
   const [dailyMinutes, setDailyMinutes] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [lastWeekMinutes, setLastWeekMinutes] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    try {
+      const dismissed = localStorage.getItem("acry-nudge-dismissed");
+      return dismissed === getMondayOfWeek().toLocaleDateString("en-CA");
+    } catch { return false; }
+  });
 
   const stats = useMemo(() => {
     const settings = getVoiceSettings();
@@ -256,15 +262,21 @@ const WeeklyReminderSummary = () => {
           <CheckCircle2 className="w-3 h-3" />
           <span>Perfect streak so far!</span>
         </div>
-      ) : ignoredCount >= (getVoiceSettings().nudgeThreshold ?? 2) ? (
-        <NudgeWithFeedback ignoredCount={ignoredCount} />
+      ) : ignoredCount >= (getVoiceSettings().nudgeThreshold ?? 2) && !nudgeDismissed ? (
+        <NudgeWithFeedback ignoredCount={ignoredCount} onDismiss={() => {
+          setNudgeDismissed(true);
+          try {
+            const monday = getMondayOfWeek();
+            localStorage.setItem("acry-nudge-dismissed", monday.toLocaleDateString("en-CA"));
+          } catch {}
+        }} />
       ) : null}
     </div>
   );
 };
 
 /** Small component that triggers feedback once on mount */
-const NudgeWithFeedback = ({ ignoredCount }: { ignoredCount: number }) => {
+const NudgeWithFeedback = ({ ignoredCount, onDismiss }: { ignoredCount: number; onDismiss: () => void }) => {
   const firedRef = useRef(false);
   useEffect(() => {
     if (!firedRef.current) {
@@ -276,7 +288,15 @@ const NudgeWithFeedback = ({ ignoredCount }: { ignoredCount: number }) => {
   return (
     <div className="mt-2 px-2 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-[10px] text-warning flex items-center gap-1.5">
       <Bell className="w-3 h-3 shrink-0" />
-      <span>You ignored {ignoredCount} reminders this week — try studying even 5 minutes after the next one! 💪</span>
+      <span className="flex-1">You ignored {ignoredCount} reminders this week — try studying even 5 minutes after the next one! 💪</span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="shrink-0 p-0.5 rounded hover:bg-warning/20 transition-colors"
+        aria-label="Dismiss nudge"
+      >
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 };
