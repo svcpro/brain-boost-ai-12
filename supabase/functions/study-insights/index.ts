@@ -96,9 +96,10 @@ Respond with a JSON array. Each insight object must have:
 - "title": short headline (max 8 words)
 - "body": 1-2 sentence actionable advice
 - "topic": relevant topic name or null
+- "subject": the subject that the topic belongs to, or null if no specific topic
 - "priority": 1 (highest) to 4 (lowest)
 
-Focus on: which topics to revise NOW based on forgetting curve, optimal revision timing, weak question patterns, and study volume trends. Be specific with topic names.`;
+Focus on: which topics to revise NOW based on forgetting curve, optimal revision timing, weak question patterns, and study volume trends. Be specific with topic names and always include the subject they belong to.`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -129,6 +130,7 @@ Focus on: which topics to revise NOW based on forgetting curve, optimal revision
                       title: { type: "string" },
                       body: { type: "string" },
                       topic: { type: "string" },
+                      subject: { type: "string" },
                       priority: { type: "integer" },
                     },
                     required: ["type", "title", "body", "priority"],
