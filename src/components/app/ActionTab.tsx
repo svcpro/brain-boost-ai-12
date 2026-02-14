@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X, Square, CheckCircle2, Loader2, Brain } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import StudyPlanGenerator from "./StudyPlanGenerator";
@@ -52,6 +52,11 @@ const ActionTab = () => {
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [extractionResult, setExtractionResult] = useState<{ subject: string; topics: string[] }[] | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [editingTranscript, setEditingTranscript] = useState(false);
+  const [editedTranscript, setEditedTranscript] = useState("");
+  const [transcribing, setTranscribing] = useState(false);
+  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
   const { syncAll } = useOfflineSync();
@@ -186,13 +191,57 @@ const ActionTab = () => {
   }, [toast]);
 
   const processVoiceRecording = useCallback(async (blob: Blob) => {
-    setExtracting(true);
+    setTranscribing(true);
+    setVoiceTranscript(null);
     setExtractionResult(null);
-    toast({ title: "🎙️ Transcribing voice note...", description: "AI is extracting topics from your recording." });
+    setVoiceBlob(blob);
+    toast({ title: "🎙️ Transcribing...", description: "Converting your voice note to text." });
 
     try {
       const formData = new FormData();
       formData.append("audio", blob, "voice-note.webm");
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-voice`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Transcription failed" }));
+        throw new Error(err.error || `Failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success && data.transcription) {
+        setVoiceTranscript(data.transcription);
+        setEditedTranscript(data.transcription);
+        toast({ title: "✅ Transcription ready!", description: "Review the text, then confirm to extract topics." });
+      } else {
+        throw new Error(data.error || "No transcription returned");
+      }
+    } catch (err: any) {
+      toast({ title: "Transcription failed", description: err?.message || "Could not transcribe recording.", variant: "destructive" });
+      setVoiceBlob(null);
+    } finally {
+      setTranscribing(false);
+    }
+  }, [toast]);
+
+  const confirmVoiceExtraction = useCallback(async () => {
+    if (!voiceBlob) return;
+    setExtracting(true);
+    setExtractionResult(null);
+    toast({ title: "🧠 Extracting topics...", description: "AI is analyzing your transcript." });
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", voiceBlob, "voice-note.webm");
 
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -216,19 +265,21 @@ const ActionTab = () => {
         setExtractionResult(data.results);
         toast({
           title: `🧠 ${data.totalTopicsCreated} topics extracted!`,
-          description: `Added to ${data.results.length} subject(s) from your voice note. Check your Brain tab!`,
+          description: `Added to ${data.results.length} subject(s). Check your Brain tab!`,
         });
       } else if (data.success && data.totalTopicsCreated === 0) {
         toast({ title: "No new topics found", description: "All topics from this recording are already in your library." });
       } else {
         throw new Error(data.error || "Extraction failed");
       }
+      setVoiceTranscript(null);
+      setVoiceBlob(null);
     } catch (err: any) {
-      toast({ title: "Voice extraction failed", description: err?.message || "Could not extract topics from recording.", variant: "destructive" });
+      toast({ title: "Extraction failed", description: err?.message || "Could not extract topics.", variant: "destructive" });
     } finally {
       setExtracting(false);
     }
-  }, [toast]);
+  }, [voiceBlob, toast]);
 
   const handleVoiceRecord = useCallback(async () => {
     if (recording) {
@@ -419,7 +470,7 @@ const ActionTab = () => {
                   <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                 )}
                 <span className="text-xs text-foreground truncate flex-1">{uploadedFile}</span>
-                <button onClick={() => { setUploadedFile(null); setExtractionResult(null); }} className="p-0.5 rounded hover:bg-destructive/20 transition-colors">
+                <button onClick={() => { setUploadedFile(null); setExtractionResult(null); setVoiceTranscript(null); setVoiceBlob(null); }} className="p-0.5 rounded hover:bg-destructive/20 transition-colors">
                   <X className="w-3 h-3 text-muted-foreground" />
                 </button>
               </div>
@@ -454,6 +505,81 @@ const ActionTab = () => {
                   </div>
                 </motion.div>
               )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Voice Transcript Preview */}
+        <AnimatePresence>
+          {(voiceTranscript || transcribing) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3"
+            >
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-semibold text-foreground">Transcript Preview</span>
+                  </div>
+                  {voiceTranscript && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => { setEditingTranscript(!editingTranscript); }}
+                        className="p-1 rounded-md hover:bg-secondary transition-colors"
+                        title="Edit transcript"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={() => { setVoiceTranscript(null); setVoiceBlob(null); setUploadedFile(null); }}
+                        className="p-1 rounded-md hover:bg-destructive/20 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {transcribing ? (
+                  <div className="flex items-center gap-2 py-3">
+                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                    <span className="text-xs text-muted-foreground">Transcribing your voice note...</span>
+                  </div>
+                ) : editingTranscript ? (
+                  <textarea
+                    value={editedTranscript}
+                    onChange={(e) => setEditedTranscript(e.target.value)}
+                    className="w-full min-h-[100px] rounded-lg bg-secondary border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground leading-relaxed max-h-[150px] overflow-y-auto">
+                    {voiceTranscript}
+                  </p>
+                )}
+
+                {voiceTranscript && (
+                  <button
+                    onClick={confirmVoiceExtraction}
+                    disabled={extracting}
+                    className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {extracting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Extracting topics...
+                      </>
+                    ) : (
+                      <>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        Extract Topics to Brain
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
