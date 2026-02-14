@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Bell, Gift, Flame, BookOpen } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { getCache, setCache } from "@/lib/offlineCache";
 
 const PREF_KEY = "push-notif-prefs";
@@ -30,11 +32,39 @@ export function setPushNotifPrefs(prefs: PushNotifPrefs) {
 const NotificationPreferencesPanel = () => {
   const { permission, subscribed, supported, subscribe, unsubscribe } = usePushNotifications();
   const { toast } = useToast();
-  const [prefs, setPrefs] = useState<PushNotifPrefs>(getPushNotifPrefs);
+  const { user } = useAuth();
+  const [prefs, setPrefs] = useState<PushNotifPrefs>(defaultPrefs);
+  const [loaded, setLoaded] = useState(false);
 
+  // Load prefs from DB on mount
   useEffect(() => {
-    setPushNotifPrefs(prefs);
-  }, [prefs]);
+    if (!user) return;
+    (supabase as any)
+      .from("profiles")
+      .select("push_notification_prefs")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.push_notification_prefs) {
+          const dbPrefs = { ...defaultPrefs, ...data.push_notification_prefs };
+          setPrefs(dbPrefs);
+          setPushNotifPrefs(dbPrefs); // sync local cache
+        }
+        setLoaded(true);
+      });
+  }, [user]);
+
+  // Save prefs to DB + local cache
+  const updatePrefs = useCallback(async (updated: PushNotifPrefs) => {
+    setPrefs(updated);
+    setPushNotifPrefs(updated);
+    if (user) {
+      await (supabase as any)
+        .from("profiles")
+        .update({ push_notification_prefs: updated })
+        .eq("id", user.id);
+    }
+  }, [user]);
 
   const handleMasterToggle = async () => {
     if (subscribed) {
@@ -120,7 +150,7 @@ const NotificationPreferencesPanel = () => {
                   <button
                     onClick={() => {
                       const updated = { ...prefs, [item.key]: !prefs[item.key] };
-                      setPrefs(updated);
+                      updatePrefs(updated);
                       toast({ title: updated[item.key] ? `${item.label} notifications enabled` : `${item.label} notifications disabled` });
                     }}
                     className={`w-10 h-6 rounded-full transition-all relative ${prefs[item.key] ? "bg-primary" : "bg-secondary"}`}
