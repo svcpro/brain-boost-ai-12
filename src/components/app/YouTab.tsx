@@ -76,6 +76,8 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [emailStudyReminders, setEmailStudyReminders] = useState(true);
   const [emailWeeklyReports, setEmailWeeklyReports] = useState(true);
+  const [weeklyReportDay, setWeeklyReportDay] = useState(0);
+  const [weeklyReportHour, setWeeklyReportHour] = useState(7);
   const [showEmailSetting, setShowEmailSetting] = useState(false);
   const [showDisableAllDialog, setShowDisableAllDialog] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
@@ -119,12 +121,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     });
     // Load leaderboard opt-in & subscription
     if (user) {
-      supabase.from("profiles").select("opt_in_leaderboard, email_notifications_enabled, email_study_reminders, email_weekly_reports").eq("id", user.id).maybeSingle().then(({ data }) => {
+      supabase.from("profiles").select("opt_in_leaderboard, email_notifications_enabled, email_study_reminders, email_weekly_reports, weekly_report_day, weekly_report_hour").eq("id", user.id).maybeSingle().then(({ data }) => {
         if (data) {
           setLeaderboardOptIn(data.opt_in_leaderboard ?? false);
           setEmailNotifications((data as any).email_notifications_enabled ?? true);
           setEmailStudyReminders((data as any).email_study_reminders ?? true);
           setEmailWeeklyReports((data as any).email_weekly_reports ?? true);
+          setWeeklyReportDay((data as any).weekly_report_day ?? 0);
+          setWeeklyReportHour((data as any).weekly_report_hour ?? 7);
         }
       });
       supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
@@ -758,6 +762,50 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                     <p className="text-[10px] text-muted-foreground mt-1">{item.desc}</p>
                   </div>
                 ))}
+
+                {/* Weekly report schedule picker */}
+                {emailWeeklyReports && (
+                  <div className="border-t border-border pt-3 space-y-3">
+                    <p className="text-xs font-medium text-foreground">📅 Delivery schedule</p>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-[10px] text-muted-foreground mb-1 block">Day</label>
+                        <select
+                          value={weeklyReportDay}
+                          onChange={async (e) => {
+                            const val = Number(e.target.value);
+                            setWeeklyReportDay(val);
+                            if (user) await supabase.from("profiles").update({ weekly_report_day: val } as any).eq("id", user.id);
+                            toast({ title: "📅 Report day updated" });
+                          }}
+                          className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        >
+                          {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => (
+                            <option key={i} value={i}>{d}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[10px] text-muted-foreground mb-1 block">Time (UTC)</label>
+                        <select
+                          value={weeklyReportHour}
+                          onChange={async (e) => {
+                            const val = Number(e.target.value);
+                            setWeeklyReportHour(val);
+                            if (user) await supabase.from("profiles").update({ weekly_report_hour: val } as any).eq("id", user.id);
+                            toast({ title: "🕐 Report time updated" });
+                          }}
+                          className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        >
+                          {Array.from({ length: 24 }, (_, h) => (
+                            <option key={h} value={h}>{`${h.toString().padStart(2, "0")}:00`}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Choose when you'd like to receive your weekly digest</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

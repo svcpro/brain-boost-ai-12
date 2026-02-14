@@ -233,6 +233,8 @@ export type Database = {
           study_preferences: Json | null
           updated_at: string
           weekly_focus_goal_minutes: number
+          weekly_report_day: number
+          weekly_report_hour: number
         }
         Insert: {
           created_at?: string
@@ -248,6 +250,8 @@ export type Database = {
           study_preferences?: Json | null
           updated_at?: string
           weekly_focus_goal_minutes?: number
+          weekly_report_day?: number
+          weekly_report_hour?: number
         }
         Update: {
           created_at?: string
@@ -263,6 +267,8 @@ export type Database = {
           study_preferences?: Json | null
           updated_at?: string
           weekly_focus_goal_minutes?: number
+          weekly_report_day?: number
+          weekly_report_hour?: number
         }
         Relationships: []
       }
