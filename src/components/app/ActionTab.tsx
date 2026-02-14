@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3 } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import StudyPlanGenerator from "./StudyPlanGenerator";
@@ -63,6 +63,7 @@ const ActionTab = () => {
 
   const [liveTranscript, setLiveTranscript] = useState("");
   const [interimText, setInterimText] = useState("");
+  const [voiceLang, setVoiceLang] = useState("en-US");
 
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
@@ -316,7 +317,7 @@ const ActionTab = () => {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = "en-US";
+        recognition.lang = voiceLang;
         let finalText = "";
 
         recognition.onresult = (event: any) => {
@@ -380,7 +381,7 @@ const ActionTab = () => {
     } catch (err: any) {
       toast({ title: "Microphone access denied", description: "Please allow microphone access to record voice notes.", variant: "destructive" });
     }
-  }, [recording, toast, processVoiceRecording]);
+  }, [recording, toast, processVoiceRecording, voiceLang]);
 
   const handleSyncNow = async () => {
     setSyncing(true);
@@ -518,6 +519,35 @@ const ActionTab = () => {
               {extracting && !recording ? "Extracting..." : recording ? "Stop" : "Voice"}
             </span>
           </button>
+        </div>
+
+        {/* Language selector for voice */}
+        <div className="mt-2 flex items-center gap-2">
+          <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+          <select
+            value={voiceLang}
+            onChange={(e) => setVoiceLang(e.target.value)}
+            disabled={recording}
+            className="flex-1 rounded-lg bg-secondary border border-border px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+          >
+            <option value="en-US">English (US)</option>
+            <option value="en-GB">English (UK)</option>
+            <option value="hi-IN">Hindi</option>
+            <option value="es-ES">Spanish</option>
+            <option value="fr-FR">French</option>
+            <option value="de-DE">German</option>
+            <option value="pt-BR">Portuguese (BR)</option>
+            <option value="ja-JP">Japanese</option>
+            <option value="ko-KR">Korean</option>
+            <option value="zh-CN">Chinese (Simplified)</option>
+            <option value="ar-SA">Arabic</option>
+            <option value="ru-RU">Russian</option>
+            <option value="it-IT">Italian</option>
+            <option value="nl-NL">Dutch</option>
+            <option value="ta-IN">Tamil</option>
+            <option value="te-IN">Telugu</option>
+            <option value="bn-IN">Bengali</option>
+          </select>
         </div>
 
         {/* Live Transcription while recording */}
