@@ -61,11 +61,13 @@ const StreakTracker = () => {
     setCache(cacheKey, true);
     setCelebration(streak.currentStreak);
 
-    // Fire confetti
-    const end = Date.now() + 2500;
+    // Fire milestone confetti — bigger burst for higher milestones
+    const intensity = streak.currentStreak >= 30 ? 150 : streak.currentStreak >= 14 ? 120 : 90;
+    const duration = streak.currentStreak >= 30 ? 3500 : 2500;
+    const end = Date.now() + duration;
     const fire = () => {
-      confetti({ particleCount: 80, spread: 100, origin: { y: 0.6 }, colors: ["#6366f1", "#f59e0b", "#ef4444", "#22c55e"] });
-      if (Date.now() < end) requestAnimationFrame(fire);
+      confetti({ particleCount: intensity, spread: 140, origin: { y: 0.5, x: 0.5 }, colors: ["#6366f1", "#f59e0b", "#ef4444", "#22c55e", "#a855f7"], gravity: 0.8, scalar: 1.2, ticks: 120 });
+      if (Date.now() < end) setTimeout(fire, 250);
     };
     fire();
 
