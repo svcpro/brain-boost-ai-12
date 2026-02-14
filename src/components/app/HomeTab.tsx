@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion"; // force rebuild
-import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight } from "lucide-react";
+import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight, User } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +47,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const rankVoiceFiredRef = useRef(false);
   const [fabVisible, setFabVisible] = useState(true);
   const [brainPulseDismissed, setBrainPulseDismissed] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const lastScrollY = useRef(0);
 
   // Hide FAB on scroll down, show on scroll up
@@ -78,8 +79,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     predictRank();
     loadRecommendations();
     loadExamDate();
+    // Load avatar
+    if (user) {
+      supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle().then(({ data }) => {
+        if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+      });
+    }
 
-    // Auto-refresh Forget Risk Radar every 5 minutes
     const interval = setInterval(() => {
       predict().then(() => setRadarLastUpdated(new Date()));
     }, 5 * 60 * 1000);
@@ -228,13 +234,32 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
   return (
     <div className="px-6 py-6 space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Brain Command Center</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+          className="w-12 h-12 rounded-2xl neural-gradient neural-border flex items-center justify-center shrink-0 overflow-hidden"
+        >
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <User className="w-6 h-6 text-primary" />
+          )}
+        </motion.div>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-bold text-foreground truncate">
+            {(() => {
+              const h = new Date().getHours();
+              const greeting = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+              const name = user?.user_metadata?.display_name;
+              return name ? `${greeting}, ${name}` : greeting;
+            })()}
+          </h1>
+          <p className="text-muted-foreground text-xs mt-0.5">
             {hasTopics ? "Your AI brain is active and monitoring." : "Log your first study session to activate AI."}
           </p>
-          <div className="mt-1.5">
+          <div className="mt-1">
             <NextReminderIndicator onOpenVoiceSettings={onOpenVoiceSettings} />
           </div>
         </div>
