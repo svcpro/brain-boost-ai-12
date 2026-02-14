@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion"; // force rebuild
-import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap } from "lucide-react";
+import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,9 +31,10 @@ interface HomeTabProps {
   onNavigateToEmergency?: () => void;
   onRecommendationsSeen?: () => void;
   onOpenVoiceSettings?: () => void;
+  onNavigateToBrain?: () => void;
 }
 
-const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSettings }: HomeTabProps) => {
+const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSettings, onNavigateToBrain }: HomeTabProps) => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
@@ -241,7 +242,51 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </button>
       </motion.div>
 
-      {/* AI Analysis Progress Bar */}
+      {/* Mini Brain Health Badge */}
+      {hasTopics && prediction && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
+          whileTap={{ scale: 0.96 }}
+          onClick={onNavigateToBrain}
+          className="w-full glass rounded-xl neural-border p-3 flex items-center gap-3 hover:bg-secondary/20 transition-colors text-left"
+        >
+          <div className="relative w-10 h-10 shrink-0">
+            <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
+              <circle cx="20" cy="20" r="16" fill="none" stroke="hsl(var(--secondary))" strokeWidth="3.5" />
+              <motion.circle
+                cx="20" cy="20" r="16" fill="none"
+                stroke={
+                  (prediction.overall_health ?? 0) > 70 ? "hsl(var(--success))" :
+                  (prediction.overall_health ?? 0) > 50 ? "hsl(var(--warning))" :
+                  "hsl(var(--destructive))"
+                }
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 16}
+                initial={{ strokeDashoffset: 2 * Math.PI * 16 }}
+                animate={{ strokeDashoffset: 2 * Math.PI * 16 * (1 - (prediction.overall_health ?? 0) / 100) }}
+                transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-foreground">
+              {prediction.overall_health ?? 0}%
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-foreground">Brain Health</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {(prediction.overall_health ?? 0) > 70 ? "Strong retention" :
+               (prediction.overall_health ?? 0) > 50 ? "Needs attention" :
+               "Review recommended"}
+              {prediction.at_risk?.length > 0 && ` · ${prediction.at_risk.length} at risk`}
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </motion.button>
+      )}
+
       <AnimatePresence>
         {analyzing && (
           <motion.div
