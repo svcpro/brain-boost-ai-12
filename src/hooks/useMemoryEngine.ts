@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { setCache, getCache } from "@/lib/offlineCache";
 
 export interface TopicPrediction {
   id: string;
@@ -20,8 +21,10 @@ export interface MemoryPrediction {
   at_risk: TopicPrediction[];
 }
 
+const CACHE_KEY = "memory-prediction";
+
 export function useMemoryEngine() {
-  const [prediction, setPrediction] = useState<MemoryPrediction | null>(null);
+  const [prediction, setPrediction] = useState<MemoryPrediction | null>(() => getCache<MemoryPrediction>(CACHE_KEY));
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +40,11 @@ export function useMemoryEngine() {
       });
       if (fnError) throw fnError;
       setPrediction(data);
+      setCache(CACHE_KEY, data);
       return data;
     } catch (e: any) {
       setError(e.message);
+      // Offline – cached data already loaded via initial state
     } finally {
       setLoading(false);
     }

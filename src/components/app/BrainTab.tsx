@@ -4,42 +4,50 @@ import { Brain, Activity, Network, Clock, Layers, RefreshCw } from "lucide-react
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
+import { setCache, getCache } from "@/lib/offlineCache";
 import KnowledgeGraph from "./KnowledgeGraph";
 
 const BrainTab = () => {
   const { user } = useAuth();
   const { prediction, loading, predict } = useMemoryEngine();
-  const [subjectHealth, setSubjectHealth] = useState<{ name: string; strength: number; topicCount: number }[]>([]);
+  const [subjectHealth, setSubjectHealth] = useState<{ name: string; strength: number; topicCount: number }[]>(
+    () => getCache("brain-subject-health") || []
+  );
   const [showGraph, setShowGraph] = useState(false);
 
   const loadSubjectHealth = useCallback(async () => {
     if (!user) return;
-    const { data: subjects } = await supabase
-      .from("subjects")
-      .select("id, name")
-      .eq("user_id", user.id);
+    try {
+      const { data: subjects } = await supabase
+        .from("subjects")
+        .select("id, name")
+        .eq("user_id", user.id);
 
-    if (!subjects || subjects.length === 0) {
-      setSubjectHealth([]);
-      return;
+      if (!subjects || subjects.length === 0) {
+        setSubjectHealth([]);
+        return;
+      }
+
+      const health = [];
+      for (const sub of subjects) {
+        const { data: topics } = await supabase
+          .from("topics")
+          .select("memory_strength")
+          .eq("user_id", user.id)
+          .eq("subject_id", sub.id);
+
+        const topicCount = topics?.length || 0;
+        const avgStrength = topicCount > 0
+          ? Math.round((topics!.reduce((s, t) => s + Number(t.memory_strength), 0) / topicCount))
+          : 0;
+
+        health.push({ name: sub.name, strength: avgStrength, topicCount });
+      }
+      setSubjectHealth(health);
+      setCache("brain-subject-health", health);
+    } catch {
+      // offline – cached data already loaded via initial state
     }
-
-    const health = [];
-    for (const sub of subjects) {
-      const { data: topics } = await supabase
-        .from("topics")
-        .select("memory_strength")
-        .eq("user_id", user.id)
-        .eq("subject_id", sub.id);
-
-      const topicCount = topics?.length || 0;
-      const avgStrength = topicCount > 0
-        ? Math.round((topics!.reduce((s, t) => s + Number(t.memory_strength), 0) / topicCount))
-        : 0;
-
-      health.push({ name: sub.name, strength: avgStrength, topicCount });
-    }
-    setSubjectHealth(health);
   }, [user]);
 
   const refreshAll = useCallback(async () => {
