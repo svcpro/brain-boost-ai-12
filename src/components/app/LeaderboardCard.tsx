@@ -12,6 +12,7 @@ interface LeaderboardEntry {
   position: number;
   user_id: string;
   display_name: string;
+  avatar_url: string | null;
   is_current_user: boolean;
   predicted_rank: number;
   percentile: number;
@@ -327,7 +328,7 @@ const LeaderboardCard = () => {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: i * 0.06 + 0.1, type: "spring", stiffness: 350 }}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 overflow-hidden ${
                       entry.is_current_user
                         ? "bg-primary text-primary-foreground ring-primary/40"
                         : isTop3
@@ -335,7 +336,11 @@ const LeaderboardCard = () => {
                         : "bg-secondary text-foreground ring-border"
                     }`}
                   >
-                    {entry.display_name.slice(0, 2).toUpperCase()}
+                    {entry.avatar_url ? (
+                      <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      entry.display_name.slice(0, 2).toUpperCase()
+                    )}
                   </motion.div>
 
                   {/* Info */}
