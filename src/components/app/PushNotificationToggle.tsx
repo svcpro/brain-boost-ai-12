@@ -18,7 +18,7 @@ const PushNotificationToggle = () => {
       if (ok) {
         toast({ title: "🔔 Push notifications enabled!", description: "You'll be notified about freeze gifts and more." });
       } else if (permission === "denied") {
-        toast({ title: "Notifications blocked", description: "Please enable notifications in your browser settings.", variant: "destructive" });
+        toast({ title: "Notifications blocked", description: "Click the 🔒 icon in your browser's address bar → Allow notifications, then try again.", variant: "destructive" });
       } else if (error) {
         toast({ title: "Could not enable notifications", description: error, variant: "destructive" });
       }
