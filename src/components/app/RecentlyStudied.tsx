@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History, Play, StickyNote, ChevronDown, Pencil, Trash2, Check, X } from "lucide-react";
+import { History, Play, StickyNote, ChevronDown, Pencil, Trash2, Check, X, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -95,6 +95,7 @@ const RecentlyStudied = () => {
   const startEditing = (index: number) => {
     setEditText(items[index].notes || "");
     setEditingIndex(index);
+    setExpandedIndex(index);
   };
 
   const saveNote = async (index: number) => {
@@ -110,7 +111,8 @@ const RecentlyStudied = () => {
     }
     setItems((prev) => prev.map((it, i) => i === index ? { ...it, notes: trimmed || null } : it));
     setEditingIndex(null);
-    toast({ title: "Note updated ✏️" });
+    if (!trimmed) setExpandedIndex(null);
+    toast({ title: trimmed ? "Note updated ✏️" : "Note removed" });
   };
 
   const deleteNote = async (index: number) => {
@@ -158,7 +160,7 @@ const RecentlyStudied = () => {
                   <Play className="w-3 h-3 text-primary" />
                 </button>
                 <button
-                  onClick={() => item.notes ? toggleExpand(i) : handleResume(item)}
+                  onClick={() => item.notes ? toggleExpand(i) : startEditing(i)}
                   className="flex-1 min-w-0 text-left"
                 >
                   <p className="text-xs font-medium text-foreground truncate">{item.topicName}</p>
@@ -173,7 +175,7 @@ const RecentlyStudied = () => {
                     </p>
                   )}
                 </button>
-                {item.notes && (
+                {item.notes ? (
                   <button
                     onClick={() => toggleExpand(i)}
                     className="p-1 rounded-md hover:bg-secondary/50 transition-colors shrink-0"
@@ -184,11 +186,19 @@ const RecentlyStudied = () => {
                       }`}
                     />
                   </button>
+                ) : (
+                  <button
+                    onClick={() => startEditing(i)}
+                    className="p-1 rounded-md hover:bg-primary/10 transition-colors shrink-0"
+                    title="Add note"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
                 )}
               </div>
 
               <AnimatePresence>
-                {expandedIndex === i && item.notes && (
+                {expandedIndex === i && (item.notes || editingIndex === i) && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
