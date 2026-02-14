@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.razorpay-order]
 verify_jwt = false
+
+[functions.check-subscription-expiry]
+verify_jwt = false
