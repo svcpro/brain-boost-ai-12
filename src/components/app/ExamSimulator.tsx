@@ -244,6 +244,41 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
         topics: questions.map(q => q.question.slice(0, 50)).join("; "),
         questions_data: answersRef.current,
       } as any);
+
+      // Track per-question performance for spaced repetition
+      for (const qa of answersRef.current) {
+        const hash = btoa(encodeURIComponent(qa.question.slice(0, 200))).slice(0, 64);
+        const wasWrong = qa.userAnswer !== qa.correct;
+
+        const { data: existing } = await supabase
+          .from("question_performance")
+          .select("id, times_seen, times_wrong")
+          .eq("user_id", user.id)
+          .eq("question_hash", hash)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase.from("question_performance").update({
+            times_seen: existing.times_seen + 1,
+            times_wrong: existing.times_wrong + (wasWrong ? 1 : 0),
+            last_seen_at: new Date().toISOString(),
+            ...(wasWrong ? { last_wrong_at: new Date().toISOString() } : {}),
+          } as any).eq("id", existing.id);
+        } else {
+          await supabase.from("question_performance").insert({
+            user_id: user.id,
+            question_hash: hash,
+            question_text: qa.question,
+            options: qa.options,
+            correct_index: qa.correct,
+            explanation: qa.explanation || "",
+            times_seen: 1,
+            times_wrong: wasWrong ? 1 : 0,
+            last_seen_at: new Date().toISOString(),
+            last_wrong_at: wasWrong ? new Date().toISOString() : null,
+          } as any);
+        }
+      }
     } catch {}
   }, [user, questions, difficulty, totalTimeUsed]);
 

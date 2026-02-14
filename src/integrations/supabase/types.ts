@@ -266,6 +266,51 @@ export type Database = {
         }
         Relationships: []
       }
+      question_performance: {
+        Row: {
+          correct_index: number
+          created_at: string
+          explanation: string | null
+          id: string
+          last_seen_at: string
+          last_wrong_at: string | null
+          options: Json | null
+          question_hash: string
+          question_text: string
+          times_seen: number
+          times_wrong: number
+          user_id: string
+        }
+        Insert: {
+          correct_index: number
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          last_seen_at?: string
+          last_wrong_at?: string | null
+          options?: Json | null
+          question_hash: string
+          question_text: string
+          times_seen?: number
+          times_wrong?: number
+          user_id: string
+        }
+        Update: {
+          correct_index?: number
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          last_seen_at?: string
+          last_wrong_at?: string | null
+          options?: Json | null
+          question_hash?: string
+          question_text?: string
+          times_seen?: number
+          times_wrong?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       rank_predictions: {
         Row: {
           factors: Json | null

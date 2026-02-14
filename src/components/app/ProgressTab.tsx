@@ -15,6 +15,7 @@ import BrainEvolution from "./BrainEvolution";
 import CompetitionIntel from "./CompetitionIntel";
 import ExamSimulator from "./ExamSimulator";
 import ExamHistory from "./ExamHistory";
+import WeakQuestions from "./WeakQuestions";
 import WeeklyReportAI from "./WeeklyReportAI";
 
 interface StreakData {
@@ -502,6 +503,11 @@ const ProgressTab = () => {
       </motion.div>
 
       <ExamHistory onRetryMistakes={(questions) => {
+        setRetryQuestions(questions);
+        setShowExamSim(true);
+      }} />
+
+      <WeakQuestions onRetryWeak={(questions) => {
         setRetryQuestions(questions);
         setShowExamSim(true);
       }} />
