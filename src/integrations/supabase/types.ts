@@ -194,6 +194,36 @@ export type Database = {
           },
         ]
       }
+      notification_history: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          read: boolean
+          title: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          title: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          title?: string
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_sessions: {
         Row: {
           completed: boolean
