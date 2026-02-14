@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.leaderboard]
 verify_jwt = false
+
+[functions.extract-pdf-topics]
+verify_jwt = false
+
+[functions.extract-image-topics]
+verify_jwt = false
