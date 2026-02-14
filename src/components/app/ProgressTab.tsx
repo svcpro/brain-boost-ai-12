@@ -17,6 +17,7 @@ import ExamSimulator from "./ExamSimulator";
 import ExamHistory from "./ExamHistory";
 import WeakQuestions from "./WeakQuestions";
 import WeeklyReportAI from "./WeeklyReportAI";
+import ConfidenceTrendChart from "./ConfidenceTrendChart";
 
 interface StreakData {
   currentStreak: number;
@@ -333,6 +334,9 @@ const ProgressTab = () => {
 
       {/* Weekly Focus Chart */}
       <WeeklyFocusChart />
+
+      {/* Confidence Trend */}
+      <ConfidenceTrendChart />
 
       {/* Monthly Focus Trend */}
       <MonthlyFocusTrend />
