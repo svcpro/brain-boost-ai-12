@@ -48,6 +48,14 @@ export function useScheduledVoiceReminder() {
     // Mark as fired for today
     setCache(FIRED_KEY, todayStr);
 
+    // Append to weekly delivery log
+    const logKey = "voice-reminder-log";
+    const log = getCache<string[]>(logKey) || [];
+    log.push(todayStr);
+    // Keep only last 14 days
+    const cutoff = new Date(now.getTime() - 14 * 86400000).toLocaleDateString("en-CA");
+    setCache(logKey, log.filter(d => d >= cutoff));
+
     // Fetch today's context: upcoming plan sessions or general daily reminder
     try {
       const { data: plans } = await supabase

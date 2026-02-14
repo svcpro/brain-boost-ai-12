@@ -14,6 +14,7 @@ import { notifyFeedback } from "@/lib/feedback";
 import { useVoice } from "@/pages/AppDashboard";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import NextReminderIndicator from "./NextReminderIndicator";
+import WeeklyReminderSummary from "./WeeklyReminderSummary";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -178,6 +179,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* Streak */}
       <StreakTracker />
+
+      {/* Weekly Voice Reminder Summary */}
+      <WeeklyReminderSummary />
 
       {/* Exam urgency banner — ≤3 days */}
       {examDaysLeft !== null && examDaysLeft <= 3 && (
