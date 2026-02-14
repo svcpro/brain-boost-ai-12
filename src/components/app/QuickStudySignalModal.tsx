@@ -19,9 +19,12 @@ interface QuickStudySignalModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialSubject?: string;
+  initialTopic?: string;
+  initialMinutes?: number;
 }
 
-const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalModalProps) => {
+const QuickStudySignalModal = ({ open, onClose, onSuccess, initialSubject, initialTopic, initialMinutes }: QuickStudySignalModalProps) => {
   const { user } = useAuth();
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
@@ -67,6 +70,29 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
       setLoaded(false); // reload each time modal opens
     }
   }, [open]);
+
+  // Auto-fill from initial props when modal opens
+  useEffect(() => {
+    if (!open || !loaded || subjects.length === 0) return;
+    if (initialSubject) {
+      const match = subjects.find((s) => s.name === initialSubject);
+      if (match) {
+        setSubject(match.id);
+        if (initialTopic) {
+          const topicMatch = match.topics.find((t) => t.name === initialTopic);
+          if (topicMatch) setTopic(topicMatch.id);
+        }
+      } else {
+        setSubject("__custom");
+        setCustomSubject(initialSubject);
+        if (initialTopic) {
+          setTopic("__custom");
+          setCustomTopic(initialTopic);
+        }
+      }
+    }
+    if (initialMinutes) setMinutes(String(initialMinutes));
+  }, [open, loaded, subjects, initialSubject, initialTopic, initialMinutes]);
 
   useEffect(() => {
     if (open && !loaded) loadSubjects();

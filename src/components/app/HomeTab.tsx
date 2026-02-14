@@ -165,6 +165,16 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const [analyzing, setAnalyzing] = useState(false);
   const [insightReviewTopic, setInsightReviewTopic] = useState<string | null>(null);
   const [signalModalOpen, setSignalModalOpen] = useState(false);
+  const [prefillSubject, setPrefillSubject] = useState<string | undefined>();
+  const [prefillTopic, setPrefillTopic] = useState<string | undefined>();
+  const [prefillMinutes, setPrefillMinutes] = useState<number | undefined>();
+
+  const openSignalWithPrefill = (subject?: string, topic?: string, minutes?: number) => {
+    setPrefillSubject(subject);
+    setPrefillTopic(topic);
+    setPrefillMinutes(minutes);
+    setSignalModalOpen(true);
+  };
 
   const handleRefresh = async () => {
     setAnalyzing(true);
@@ -207,7 +217,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* Brain Update Hero — opens Quick Study Signal */}
       <BrainUpdateHero
-        onOpen={() => setSignalModalOpen(true)}
+        onOpen={() => openSignalWithPrefill()}
         overallHealth={overallHealth}
         hasTopics={hasTopics}
       />
@@ -216,6 +226,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <QuickStudySignalModal
         open={signalModalOpen}
         onClose={() => setSignalModalOpen(false)}
+        initialSubject={prefillSubject}
+        initialTopic={prefillTopic}
+        initialMinutes={prefillMinutes}
         onSuccess={async () => {
           markBrainUpdated();
           // Also run AI analysis after logging
@@ -228,7 +241,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <QuickStartStudy />
 
       {/* Recently Studied */}
-      <RecentlyStudied />
+      <RecentlyStudied onQuickLog={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} />
 
       {/* Daily Goal */}
       <DailyGoalTracker />
@@ -429,7 +442,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" />
         <span className="absolute -inset-1 rounded-full bg-primary/20 animate-pulse" />
         <button
-          onClick={() => setSignalModalOpen(true)}
+          onClick={() => openSignalWithPrefill()}
           className="relative w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-transform"
           aria-label="Log study session"
         >
