@@ -527,6 +527,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               setAnalysisProgress(100);
               setAnalysisStep("Complete!");
               toast({ title: count > 0 ? `${count} fix suggestions generated! 🔧` : "All topics are healthy — no fixes needed right now 🎉" });
+              // Auto-scroll to recommendations section
+              if (count > 0) {
+                setTimeout(() => {
+                  recsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 700);
+              }
             } catch {
               toast({ title: "Fix generation failed", variant: "destructive" });
             } finally {
