@@ -509,16 +509,43 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </button>
         <button
           onClick={async () => {
-          const result = await generateRecommendations();
-          await loadRecommendations();
-          const count = result?.recommendations?.length ?? 0;
-          if (count > 0) notifyFeedback();
-          toast({ title: count > 0 ? `${count} fix suggestions generated! 🔧` : "All topics are healthy — no fixes needed right now 🎉" });
+            setAnalyzing(true);
+            setAnalysisProgress(0);
+            setAnalysisStep("Scanning your weak topics…");
+            try {
+              setAnalysisProgress(20);
+              await new Promise((r) => setTimeout(r, 300));
+              setAnalysisProgress(40);
+              setAnalysisStep("AI generating fix suggestions…");
+              const result = await generateRecommendations();
+              setAnalysisProgress(75);
+              setAnalysisStep("Loading recommendations…");
+              await loadRecommendations();
+              setAnalysisProgress(95);
+              const count = result?.recommendations?.length ?? 0;
+              if (count > 0) notifyFeedback();
+              setAnalysisProgress(100);
+              setAnalysisStep("Complete!");
+              toast({ title: count > 0 ? `${count} fix suggestions generated! 🔧` : "All topics are healthy — no fixes needed right now 🎉" });
+            } catch {
+              toast({ title: "Fix generation failed", variant: "destructive" });
+            } finally {
+              setTimeout(() => {
+                setAnalyzing(false);
+                setAnalysisProgress(0);
+                setAnalysisStep("");
+              }, 600);
+            }
           }}
-          className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 active:scale-95"
+          disabled={analyzing}
+          className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 active:scale-95 disabled:opacity-50"
         >
-          <Wrench className="w-6 h-6 text-warning" />
-          <span className="text-xs font-medium text-foreground">Fix Now</span>
+          {analyzing ? (
+            <RefreshCw className="w-6 h-6 text-warning animate-spin" />
+          ) : (
+            <Wrench className="w-6 h-6 text-warning" />
+          )}
+          <span className="text-xs font-medium text-foreground">{analyzing ? "Fixing…" : "Fix Now"}</span>
         </button>
       </motion.div>
 
