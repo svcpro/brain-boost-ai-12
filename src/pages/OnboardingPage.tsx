@@ -15,6 +15,14 @@ const EXAM_TYPES = [
   { id: "other", label: "Other", desc: "Custom exam" },
 ];
 
+const SUGGESTED_SUBJECTS: Record<string, string[]> = {
+  neet: ["Physics", "Chemistry", "Biology (Botany)", "Biology (Zoology)"],
+  jee: ["Physics", "Chemistry", "Mathematics"],
+  upsc: ["History", "Geography", "Polity", "Economics", "Science & Technology", "Environment", "Ethics"],
+  gate: ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  cat: ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+};
+
 const STUDY_MODES = [
   { id: "lazy", label: "Chill Mode", desc: "Light daily revision", emoji: "😴" },
   { id: "focus", label: "Focus Mode", desc: "Balanced study plan", emoji: "🎯" },
@@ -196,6 +204,29 @@ const OnboardingPage = () => {
                 <h1 className="text-2xl font-bold text-foreground">Add your subjects</h1>
               </div>
               <p className="text-muted-foreground text-sm mb-6">You can add topics within each subject later.</p>
+
+              {/* Suggested subjects */}
+              {SUGGESTED_SUBJECTS[examType] && (
+                <div className="mb-4">
+                  <p className="text-xs text-muted-foreground mb-2">Suggested for {EXAM_TYPES.find(e => e.id === examType)?.label}:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {SUGGESTED_SUBJECTS[examType]
+                      .filter(s => !subjects.includes(s))
+                      .map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setSubjects(prev => [...prev, s])}
+                          className="px-3 py-1.5 rounded-full border border-dashed border-primary/40 text-xs text-primary hover:bg-primary/10 transition-all"
+                        >
+                          + {s}
+                        </button>
+                      ))}
+                    {SUGGESTED_SUBJECTS[examType].every(s => subjects.includes(s)) && (
+                      <span className="text-xs text-muted-foreground">All suggested subjects added ✓</span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 mb-4">
                 <input
