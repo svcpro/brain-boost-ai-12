@@ -234,11 +234,29 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
           {renderSubjectInput()}
           {renderTopicInput()}
 
+          {/* Duration presets */}
+          <div className="flex gap-2">
+            {[10, 25, 45].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMinutes(String(m))}
+                className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition-all ${
+                  minutes === String(m)
+                    ? "bg-primary text-primary-foreground border-primary scale-[1.03]"
+                    : "bg-secondary/50 border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                {m} min
+              </button>
+            ))}
+          </div>
+
           <div className="flex gap-3">
             <input
               type="number"
-              placeholder="Minutes"
-              value={minutes}
+              placeholder="Custom mins"
+              value={[10, 25, 45].includes(Number(minutes)) ? "" : minutes}
               onChange={(e) => setMinutes(e.target.value)}
               min="1"
               max="480"
