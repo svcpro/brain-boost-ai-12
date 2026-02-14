@@ -212,6 +212,15 @@ serve(async (req) => {
     }
 
     const payload = JSON.stringify({ title, body: body || "", data: notifData || {} });
+
+    // Log notification to history
+    await supabase.from("notification_history").insert({
+      user_id: recipient_id,
+      title,
+      body: body || null,
+      type: notifType || null,
+    });
+
     let sent = 0;
     const expired: string[] = [];
 

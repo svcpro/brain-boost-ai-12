@@ -25,6 +25,7 @@ import TrashBin from "./TrashBin";
 import BadgeGallery from "./BadgeGallery";
 import SubscriptionPlan from "./SubscriptionPlan";
 import NotificationPreferencesPanel from "./NotificationPreferencesPanel";
+import NotificationHistory from "./NotificationHistory";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 
 interface Topic {
@@ -87,6 +88,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [trashCount, setTrashCount] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: "subject" | "topic"; id: string; name: string } | null>(null);
   const [showPushPrefs, setShowPushPrefs] = useState(false);
+  const [showNotifHistory, setShowNotifHistory] = useState(false);
 
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
@@ -297,6 +299,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
     { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
     { icon: BellRing, label: "Push Notifications", value: "", onClick: () => setShowPushPrefs(!showPushPrefs) },
+    { icon: Bell, label: "Notification History", value: "", onClick: () => setShowNotifHistory(!showNotifHistory) },
     { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting) },
     { icon: Trash2, label: "Trash", value: "__trash__", onClick: () => setShowTrash(!showTrash) },
     { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup) },
@@ -680,6 +683,11 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         {/* Push Notification Preferences Panel */}
         <AnimatePresence>
           {showPushPrefs && <NotificationPreferencesPanel />}
+        </AnimatePresence>
+
+        {/* Notification History Panel */}
+        <AnimatePresence>
+          {showNotifHistory && <NotificationHistory />}
         </AnimatePresence>
 
         {/* Email Notifications Settings Panel */}
