@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Check, CheckCheck, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -176,54 +176,77 @@ const NotificationHistory = () => {
             No notifications yet
           </p>
         ) : (
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-1 max-h-64 overflow-y-auto">
             <AnimatePresence>
-              {notifications.map((n) => (
-                <motion.div
-                  key={n.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 10 }}
-                  className={`flex items-start gap-2 p-2.5 rounded-lg transition-colors ${
-                    n.read ? "bg-secondary/20" : "bg-primary/10 border border-primary/20"
-                  }`}
-                >
-                  <span className="text-base mt-0.5">
-                    {typeEmoji[n.type || ""] || "🔔"}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-medium ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
-                      {n.title}
+              {(() => {
+                const groups: { label: string; items: Notification[] }[] = [];
+                const today: Notification[] = [];
+                const yesterday: Notification[] = [];
+                const earlier: Notification[] = [];
+                for (const n of notifications) {
+                  const d = new Date(n.created_at);
+                  if (isToday(d)) today.push(n);
+                  else if (isYesterday(d)) yesterday.push(n);
+                  else earlier.push(n);
+                }
+                if (today.length) groups.push({ label: "Today", items: today });
+                if (yesterday.length) groups.push({ label: "Yesterday", items: yesterday });
+                if (earlier.length) groups.push({ label: "Earlier", items: earlier });
+
+                return groups.map((group) => (
+                  <div key={group.label}>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 pt-2 pb-1">
+                      {group.label}
                     </p>
-                    {n.body && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
-                        {n.body}
-                      </p>
-                    )}
-                    <p className="text-[9px] text-muted-foreground/60 mt-1">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {!n.read && (
-                      <button
-                        onClick={() => markRead(n.id)}
-                        className="p-1 rounded hover:bg-secondary/50"
-                        title="Mark as read"
+                    {group.items.map((n) => (
+                      <motion.div
+                        key={n.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        className={`flex items-start gap-2 p-2.5 rounded-lg transition-colors mb-1 ${
+                          n.read ? "bg-secondary/20" : "bg-primary/10 border border-primary/20"
+                        }`}
                       >
-                        <Check className="w-3 h-3 text-primary" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => deleteNotification(n.id)}
-                      className="p-1 rounded hover:bg-destructive/20"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-3 h-3 text-muted-foreground" />
-                    </button>
+                        <span className="text-base mt-0.5">
+                          {typeEmoji[n.type || ""] || "🔔"}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-medium ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
+                            {n.title}
+                          </p>
+                          {n.body && (
+                            <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                              {n.body}
+                            </p>
+                          )}
+                          <p className="text-[9px] text-muted-foreground/60 mt-1">
+                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {!n.read && (
+                            <button
+                              onClick={() => markRead(n.id)}
+                              className="p-1 rounded hover:bg-secondary/50"
+                              title="Mark as read"
+                            >
+                              <Check className="w-3 h-3 text-primary" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteNotification(n.id)}
+                            className="p-1 rounded hover:bg-destructive/20"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3 h-3 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                </motion.div>
-              ))}
+                ));
+              })()}
             </AnimatePresence>
           </div>
         )}
