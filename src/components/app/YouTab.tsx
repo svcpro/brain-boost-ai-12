@@ -76,6 +76,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [emailWeeklyReports, setEmailWeeklyReports] = useState(true);
   const [showEmailSetting, setShowEmailSetting] = useState(false);
   const [showDisableAllDialog, setShowDisableAllDialog] = useState(false);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [deleteSubjectTarget, setDeleteSubjectTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTopicTarget, setDeleteTopicTarget] = useState<{ id: string; name: string } | null>(null);
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
@@ -353,7 +356,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                             className={`w-3.5 h-3.5 text-muted-foreground transition-transform cursor-pointer ${expandedSubject === sub.id ? "rotate-180" : ""}`}
                           />
                           <button
-                            onClick={e => { e.stopPropagation(); deleteSubject(sub.id); }}
+                            onClick={e => { e.stopPropagation(); setDeleteSubjectTarget({ id: sub.id, name: sub.name }); }}
                             className="text-muted-foreground hover:text-destructive transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -401,7 +404,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                                       <Pencil className="w-2.5 h-2.5" />
                                     </button>
                                     <button
-                                      onClick={() => deleteTopic(topic.id)}
+                                      onClick={() => setDeleteTopicTarget({ id: topic.id, name: topic.name })}
                                       className="text-muted-foreground hover:text-destructive transition-colors"
                                     >
                                       <X className="w-3 h-3" />
@@ -777,7 +780,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         </AnimatePresence>
 
         <button
-          onClick={handleSignOut}
+          onClick={() => setShowSignOutDialog(true)}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-destructive/10 transition-all"
         >
           <LogOut className="w-5 h-5 text-destructive" />
@@ -807,6 +810,69 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Disable All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Subject Confirmation */}
+      <AlertDialog open={!!deleteSubjectTarget} onOpenChange={(open) => { if (!open) setDeleteSubjectTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteSubjectTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the subject and all its topics. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (deleteSubjectTarget) { deleteSubject(deleteSubjectTarget.id); setDeleteSubjectTarget(null); } }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Subject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Topic Confirmation */}
+      <AlertDialog open={!!deleteTopicTarget} onOpenChange={(open) => { if (!open) setDeleteTopicTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteTopicTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this topic and its memory data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (deleteTopicTarget) { deleteTopic(deleteTopicTarget.id); setDeleteTopicTarget(null); } }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Topic
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Sign Out Confirmation */}
+      <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll need to sign back in to access your study data and progress.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSignOut}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sign Out
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
