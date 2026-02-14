@@ -57,6 +57,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [recording, setRecording] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState(0);
+  const extractionProgressRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [extractionResult, setExtractionResult] = useState<{ subject: string; topics: string[] }[] | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [editingTranscript, setEditingTranscript] = useState(false);
@@ -109,6 +111,27 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef("");
 
+  const startExtractionProgress = useCallback(() => {
+    setExtractionProgress(0);
+    if (extractionProgressRef.current) clearInterval(extractionProgressRef.current);
+    extractionProgressRef.current = setInterval(() => {
+      setExtractionProgress((prev) => {
+        if (prev >= 85) { if (extractionProgressRef.current) clearInterval(extractionProgressRef.current); return 85; }
+        return prev + Math.random() * 12 + 3;
+      });
+    }, 300);
+  }, []);
+
+  const stopExtractionProgress = useCallback((success: boolean) => {
+    if (extractionProgressRef.current) clearInterval(extractionProgressRef.current);
+    if (success) {
+      setExtractionProgress(100);
+      setTimeout(() => setExtractionProgress(0), 1500);
+    } else {
+      setExtractionProgress(0);
+    }
+  }, []);
+
   const handlePdfUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -126,7 +149,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setUploadedFile(file.name);
     setExtracting(true);
     setExtractionResult(null);
-    toast({ title: "📄 Processing PDF...", description: `Extracting topics from "${file.name}" with AI.` });
+    startExtractionProgress();
 
     try {
       const formData = new FormData();
@@ -167,6 +190,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
         throw new Error(data.error || "Extraction failed");
       }
     } catch (err: any) {
+      stopExtractionProgress(false);
       toast({
         title: "Extraction failed",
         description: err?.message || "Could not extract topics from this PDF.",
@@ -174,6 +198,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       });
     } finally {
       setExtracting(false);
+      stopExtractionProgress(true);
       e.target.value = "";
     }
   }, [toast]);
@@ -190,7 +215,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setUploadedFile(file.name);
     setExtracting(true);
     setExtractionResult(null);
-    toast({ title: "📸 Processing image...", description: `Extracting topics from "${file.name}" with AI.` });
+    startExtractionProgress();
 
     try {
       const formData = new FormData();
@@ -226,9 +251,11 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
         throw new Error(data.error || "Extraction failed");
       }
     } catch (err: any) {
+      stopExtractionProgress(false);
       toast({ title: "Extraction failed", description: err?.message || "Could not extract topics from this image.", variant: "destructive" });
     } finally {
       setExtracting(false);
+      stopExtractionProgress(true);
       e.target.value = "";
     }
   }, [toast]);
@@ -283,7 +310,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     if (!transcript) return;
     setExtracting(true);
     setExtractionResult(null);
-    toast({ title: "🧠 Extracting topics...", description: "AI is analyzing your transcript." });
+    startExtractionProgress();
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -321,9 +348,11 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       setVoiceTranscript(null);
       setVoiceBlob(null);
     } catch (err: any) {
+      stopExtractionProgress(false);
       toast({ title: "Extraction failed", description: err?.message || "Could not extract topics.", variant: "destructive" });
     } finally {
       setExtracting(false);
+      stopExtractionProgress(true);
     }
   }, [editedTranscript, voiceTranscript, toast]);
 
@@ -658,6 +687,29 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                   <X className="w-3 h-3 text-muted-foreground" />
                 </button>
               </div>
+
+              {/* Extraction progress bar */}
+              <AnimatePresence>
+                {extracting && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-primary"
+                        initial={{ width: "0%" }}
+                        animate={{ width: `${extractionProgress}%` }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground text-center mt-1">
+                      {extractionProgress >= 100 ? "✅ Done!" : "AI is extracting topics..."}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Extraction results */}
               {extractionResult && extractionResult.length > 0 && (
