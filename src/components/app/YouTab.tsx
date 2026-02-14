@@ -462,7 +462,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             {avatarUrl ? (
               <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
             ) : (
-              <User className="w-8 h-8 text-primary" />
+              <span className="text-lg font-bold text-primary">
+                {(user?.user_metadata?.display_name || "S").slice(0, 2).toUpperCase()}
+              </span>
             )}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
               {uploadingAvatar ? (

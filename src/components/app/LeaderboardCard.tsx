@@ -349,7 +349,7 @@ const LeaderboardCard = () => {
                       <p className={`text-sm font-medium truncate ${
                         entry.is_current_user ? "text-primary" : "text-foreground"
                       }`}>
-                        {entry.is_current_user ? "You" : entry.display_name}
+                        {entry.display_name}
                       </p>
                       {/* Rank change indicator */}
                       {rankChanges[entry.user_id] !== undefined && rankChanges[entry.user_id] !== 0 && (
