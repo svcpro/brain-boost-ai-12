@@ -54,6 +54,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const navigate = useNavigate();
   const { toast } = useToast();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [totalXp, setTotalXp] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [showSubjects, setShowSubjects] = useState(false);
@@ -130,11 +131,16 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     setTrashCount((sc ?? 0) + (tc ?? 0));
   }, [user]);
 
-  // Load avatar URL
+  // Load avatar URL and XP
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle().then(({ data }) => {
       if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+    });
+    // Sum all study minutes as XP
+    supabase.from("study_logs").select("duration_minutes").eq("user_id", user.id).then(({ data }) => {
+      const xp = (data || []).reduce((sum, log) => sum + (log.duration_minutes || 0), 0);
+      setTotalXp(xp);
     });
   }, [user]);
 
@@ -492,16 +498,32 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-[11px] font-semibold text-muted-foreground">Brain Level</span>
           </div>
-          <p className="text-xl font-bold text-foreground">Level 4</p>
-          <div className="h-1.5 rounded-full bg-secondary mt-2">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-success"
-              initial={{ width: 0 }}
-              animate={{ width: "62%" }}
-              transition={{ duration: 1, delay: 0.3 }}
-            />
-          </div>
-          <p className="text-[9px] text-muted-foreground mt-1.5">620 / 1000 XP</p>
+          {(() => {
+            const thresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000];
+            let level = 1;
+            for (let i = thresholds.length - 1; i >= 0; i--) {
+              if (totalXp >= thresholds[i]) { level = i + 1; break; }
+            }
+            const currentThreshold = thresholds[Math.min(level - 1, thresholds.length - 1)] || 0;
+            const nextThreshold = thresholds[Math.min(level, thresholds.length - 1)] || currentThreshold + 1000;
+            const xpInLevel = totalXp - currentThreshold;
+            const xpNeeded = nextThreshold - currentThreshold;
+            const pct = Math.min(100, Math.round((xpInLevel / xpNeeded) * 100));
+            return (
+              <>
+                <p className="text-xl font-bold text-foreground">Level {level}</p>
+                <div className="h-1.5 rounded-full bg-secondary mt-2">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-success"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 1, delay: 0.3 }}
+                  />
+                </div>
+                <p className="text-[9px] text-muted-foreground mt-1.5">{xpInLevel} / {xpNeeded} XP</p>
+              </>
+            );
+          })()}
         </motion.div>
 
         <motion.button
