@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, Sparkles, Clock, BookOpen, RotateCcw, ChevronDown, ChevronUp, Lightbulb, Zap, Save, CheckCircle, Circle, Trash2, History } from "lucide-react";
+import { CalendarDays, Sparkles, Clock, BookOpen, RotateCcw, ChevronDown, ChevronUp, Lightbulb, Zap, Save, CheckCircle, Circle, Trash2, History, Bell, BellOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { usePlanSessionReminders } from "@/hooks/usePlanSessionReminders";
 
 interface Session {
   topic: string;
@@ -59,8 +60,10 @@ const StudyPlanGenerator = () => {
   const [saving, setSaving] = useState(false);
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
   const [showSaved, setShowSaved] = useState(true);
+  const [remindersOn, setRemindersOn] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { startReminders, stopReminders, requestPermission } = usePlanSessionReminders();
 
   const loadSavedPlan = useCallback(async () => {
     if (!user) return;
@@ -214,9 +217,32 @@ const StudyPlanGenerator = () => {
             <CalendarDays className="w-4 h-4 text-primary" />
             <span className="text-xs font-semibold text-foreground">Active Plan</span>
           </div>
-          <button onClick={deleteSavedPlan} className="p-1 rounded hover:bg-destructive/10 transition-colors">
-            <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={async () => {
+                if (!remindersOn) {
+                  const granted = await requestPermission();
+                  if (!granted) {
+                    toast({ title: "Notifications blocked", description: "Enable notifications in browser settings.", variant: "destructive" });
+                    return;
+                  }
+                  setRemindersOn(true);
+                  startReminders();
+                  toast({ title: "🔔 Session reminders enabled", description: "You'll get notified for today's study sessions." });
+                } else {
+                  setRemindersOn(false);
+                  stopReminders();
+                  toast({ title: "🔕 Reminders disabled" });
+                }
+              }}
+              className={`p-1.5 rounded-lg transition-colors ${remindersOn ? "bg-primary/15 text-primary" : "hover:bg-secondary text-muted-foreground"}`}
+            >
+              {remindersOn ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
+            </button>
+            <button onClick={deleteSavedPlan} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
+              <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+            </button>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed mb-3">{savedPlan!.summary}</p>
         {/* Progress bar */}
