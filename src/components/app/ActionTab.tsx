@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, FileText, Mic, Camera, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3, Globe, RefreshCw } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, FileText, Mic, Camera, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import StudyPlanGenerator from "./StudyPlanGenerator";
@@ -61,35 +61,6 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [interimText, setInterimText] = useState("");
   const [voiceLang, setVoiceLang] = useState("en-US");
 
-  // Load saved voice language from profile
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("profiles")
-      .select("study_preferences")
-      .eq("id", user.id)
-      .single()
-      .then(({ data }) => {
-        const prefs = data?.study_preferences as Record<string, any> | null;
-        if (prefs?.voice_lang) setVoiceLang(prefs.voice_lang);
-      });
-  }, [user]);
-
-  // Save voice language to profile when changed
-  const handleVoiceLangChange = useCallback(async (lang: string) => {
-    setVoiceLang(lang);
-    if (!user) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("study_preferences")
-      .eq("id", user.id)
-      .single();
-    const prefs = (data?.study_preferences as Record<string, any>) || {};
-    await supabase
-      .from("profiles")
-      .update({ study_preferences: { ...prefs, voice_lang: lang } })
-      .eq("id", user.id);
-  }, [user]);
 
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
@@ -666,34 +637,6 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           </button>
         </div>
 
-        {/* Language selector for voice */}
-        <div className="mt-2 flex items-center gap-2">
-          <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-          <select
-            value={voiceLang}
-            onChange={(e) => handleVoiceLangChange(e.target.value)}
-            disabled={recording}
-            className="flex-1 rounded-lg bg-secondary border border-border px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-          >
-            <option value="en-US">English (US)</option>
-            <option value="en-GB">English (UK)</option>
-            <option value="hi-IN">Hindi</option>
-            <option value="es-ES">Spanish</option>
-            <option value="fr-FR">French</option>
-            <option value="de-DE">German</option>
-            <option value="pt-BR">Portuguese (BR)</option>
-            <option value="ja-JP">Japanese</option>
-            <option value="ko-KR">Korean</option>
-            <option value="zh-CN">Chinese (Simplified)</option>
-            <option value="ar-SA">Arabic</option>
-            <option value="ru-RU">Russian</option>
-            <option value="it-IT">Italian</option>
-            <option value="nl-NL">Dutch</option>
-            <option value="ta-IN">Tamil</option>
-            <option value="te-IN">Telugu</option>
-            <option value="bn-IN">Bengali</option>
-          </select>
-        </div>
 
         {/* Live Transcription while recording */}
         <AnimatePresence>
