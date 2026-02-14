@@ -17,6 +17,7 @@ interface TopicNode {
 interface Edge {
   from: string;
   to: string;
+  crossSubject?: boolean;
 }
 
 const SUBJECT_COLORS = [
@@ -106,6 +107,45 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
       }
     }
 
+    // Cross-subject edges: topics studied in the same session (same created_at minute window)
+    const { data: studyLogs } = await supabase
+      .from("study_logs")
+      .select("topic_id, created_at")
+      .eq("user_id", user.id)
+      .not("topic_id", "is", null);
+
+    if (studyLogs && studyLogs.length > 1) {
+      // Group logs by 30-min windows to find co-studied topics
+      const windowMap = new Map<string, Set<string>>();
+      for (const log of studyLogs) {
+        if (!log.topic_id) continue;
+        const ts = new Date(log.created_at).getTime();
+        const windowKey = String(Math.floor(ts / (30 * 60 * 1000)));
+        if (!windowMap.has(windowKey)) windowMap.set(windowKey, new Set());
+        windowMap.get(windowKey)!.add(log.topic_id);
+      }
+
+      const topicSubjectMap = new Map(topics.map((t) => [t.id, t.subject_id]));
+      const crossEdgeSet = new Set<string>();
+
+      for (const [, topicIds] of windowMap) {
+        const ids = Array.from(topicIds);
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const sA = topicSubjectMap.get(ids[i]);
+            const sB = topicSubjectMap.get(ids[j]);
+            if (sA && sB && sA !== sB) {
+              const key = [ids[i], ids[j]].sort().join("-");
+              if (!crossEdgeSet.has(key)) {
+                crossEdgeSet.add(key);
+                newEdges.push({ from: ids[i], to: ids[j], crossSubject: true });
+              }
+            }
+          }
+        }
+      }
+    }
+
     setNodes(allNodes);
     setEdges(newEdges);
     setLoading(false);
@@ -171,9 +211,10 @@ const KnowledgeGraph = ({ onClose }: { onClose: () => void }) => {
                   y1={from.y}
                   x2={to.x}
                   y2={to.y}
-                  stroke="hsl(var(--border))"
-                  strokeWidth={0.5}
-                  strokeOpacity={0.4}
+                  stroke={e.crossSubject ? "hsl(45, 90%, 55%)" : "hsl(var(--border))"}
+                  strokeWidth={e.crossSubject ? 1 : 0.5}
+                  strokeOpacity={e.crossSubject ? 0.6 : 0.4}
+                  strokeDasharray={e.crossSubject ? "4 3" : undefined}
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}
                   transition={{ duration: 0.8, delay: i * 0.02 }}
