@@ -80,6 +80,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showDisableAllDialog, setShowDisableAllDialog] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
+  const [trashCount, setTrashCount] = useState(0);
 
 
   const voiceSettings = getVoiceSettings();
@@ -101,6 +102,15 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     }
   }, [autoOpenSubscription, onSubscriptionOpened]);
 
+  const loadTrashCount = useCallback(async () => {
+    if (!user) return;
+    const [{ count: sc }, { count: tc }] = await Promise.all([
+      supabase.from("subjects").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("deleted_at", "is", null),
+      supabase.from("topics").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("deleted_at", "is", null),
+    ]);
+    setTrashCount((sc ?? 0) + (tc ?? 0));
+  }, [user]);
+
   useEffect(() => {
     getPrefs().then((p) => {
       setReminderEnabled(p.enabled);
@@ -119,8 +129,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
         if (data) setCurrentPlan(data.plan_id);
       });
+      loadTrashCount();
     }
-  }, [getPrefs, user]);
+  }, [getPrefs, user, loadTrashCount]);
 
   const loadSubjects = async () => {
     if (!user) return;
@@ -275,7 +286,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
     { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
     { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting) },
-    { icon: Trash2, label: "Trash", value: "", onClick: () => setShowTrash(!showTrash) },
+    { icon: Trash2, label: "Trash", value: trashCount > 0 ? `${trashCount} item${trashCount !== 1 ? "s" : ""}` : "", onClick: () => setShowTrash(!showTrash) },
     { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup) },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy) },
   ];
@@ -827,7 +838,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
         {/* Trash Bin Panel */}
         <AnimatePresence>
-          {showTrash && <TrashBin />}
+          {showTrash && <TrashBin onTrashChanged={loadTrashCount} />}
         </AnimatePresence>
 
         {/* Data Backup Panel */}

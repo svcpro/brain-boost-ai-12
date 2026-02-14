@@ -30,7 +30,7 @@ interface TrashedTopic {
   subject_id: string;
 }
 
-const TrashBin = () => {
+const TrashBin = ({ onTrashChanged }: { onTrashChanged?: () => void }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [trashedSubjects, setTrashedSubjects] = useState<TrashedSubject[]>([]);
@@ -111,6 +111,7 @@ const TrashBin = () => {
 
     toast({ title: "↩️ Subject restored" });
     loadTrashed();
+    onTrashChanged?.();
   };
 
   const restoreTopic = async (id: string) => {
@@ -126,6 +127,7 @@ const TrashBin = () => {
 
     toast({ title: "↩️ Topic restored" });
     loadTrashed();
+    onTrashChanged?.();
   };
 
   const permanentlyDelete = async () => {
@@ -142,6 +144,7 @@ const TrashBin = () => {
     toast({ title: "🗑️ Permanently deleted" });
     setPermanentDeleteTarget(null);
     loadTrashed();
+    onTrashChanged?.();
   };
 
   const emptyTrash = async () => {
@@ -159,6 +162,7 @@ const TrashBin = () => {
     toast({ title: "🗑️ Trash emptied" });
     setShowEmptyTrashDialog(false);
     loadTrashed();
+    onTrashChanged?.();
   };
 
   const formatTimeAgo = (dateStr: string) => {
