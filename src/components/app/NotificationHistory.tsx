@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, BellOff, Check, CheckCheck, Trash2, Loader2, Filter } from "lucide-react";
+import { Bell, BellOff, Check, CheckCheck, Trash2, Loader2, Filter, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, isToday, isYesterday } from "date-fns";
@@ -31,6 +31,17 @@ const NotificationHistory = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+  const pullYRef = useRef(0);
+  const pullThreshold = 60;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+    setPullY(0);
+  };
 
   const load = async () => {
     if (!user) return;
@@ -230,7 +241,45 @@ const NotificationHistory = () => {
             </motion.div>
           </div>
         ) : (
-          <div className="space-y-1 max-h-64 overflow-y-auto">
+          <div
+            className="space-y-1 max-h-64 overflow-y-auto relative"
+            onTouchStart={(e) => {
+              const el = e.currentTarget;
+              if (el.scrollTop === 0) {
+                const startY = e.touches[0].clientY;
+                const onMove = (ev: TouchEvent) => {
+                  const dy = Math.max(0, Math.min(ev.touches[0].clientY - startY, 100));
+                  pullYRef.current = dy;
+                  setPullY(dy);
+                };
+                const onEnd = () => {
+                  if (pullYRef.current >= pullThreshold) handleRefresh();
+                  else setPullY(0);
+                  pullYRef.current = 0;
+                  el.removeEventListener("touchmove", onMove);
+                  el.removeEventListener("touchend", onEnd);
+                };
+                el.addEventListener("touchmove", onMove, { passive: true });
+                el.addEventListener("touchend", onEnd);
+              }
+            }}
+          >
+            {/* Pull-to-refresh indicator */}
+            <AnimatePresence>
+              {(pullY > 0 || refreshing) && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: refreshing ? 36 : Math.min(pullY, 50), opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="flex items-center justify-center"
+                >
+                  <RefreshCw className={`w-4 h-4 text-primary ${refreshing ? "animate-spin" : ""} ${pullY >= pullThreshold ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="text-[10px] text-muted-foreground ml-1.5">
+                    {refreshing ? "Refreshing…" : pullY >= pullThreshold ? "Release to refresh" : "Pull to refresh"}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <AnimatePresence>
               {(() => {
                 const groups: { label: string; items: Notification[] }[] = [];
