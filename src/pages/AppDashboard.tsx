@@ -86,7 +86,7 @@ const AppDashboard = () => {
               >
                 <div className="relative">
                   <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""}`} />
-                  {tab.id === "home" && recCount > 0 && !active && (
+                  {tab.id === "home" && recCount > 0 && (
                     <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center px-0.5">
                       {recCount > 9 ? "9+" : recCount}
                     </span>
