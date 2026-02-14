@@ -4,7 +4,7 @@ import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flam
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { toast, useToast } from "@/hooks/use-toast";
 import { setCache, getCache } from "@/lib/offlineCache";
 import WeeklyReportCard from "./WeeklyReportCard";
 import LeaderboardCard from "./LeaderboardCard";
@@ -469,21 +469,26 @@ const ProgressTab = () => {
         transition={{ delay: 0.4 }}
         className="grid grid-cols-2 gap-3"
       >
-        {[
-          { icon: Clock, label: "Brain Evolution", desc: "Timeline view" },
-          { icon: Users, label: "Competition Intel", desc: "Peer comparison" },
-          { icon: SlidersHorizontal, label: "Exam Simulator", desc: "Strategy testing" },
-          { icon: BarChart3, label: "Weekly Report", desc: "AI analysis" },
-        ].map((item, i) => (
-          <button
-            key={i}
-            className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left"
-          >
-            <item.icon className="w-5 h-5 text-primary mb-2" />
-            <p className="text-sm font-medium text-foreground">{item.label}</p>
-            <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-          </button>
-        ))}
+        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Brain Evolution will show a timeline of your cognitive growth." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+          <Clock className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Brain Evolution</p>
+          <p className="text-[10px] text-muted-foreground">Timeline view</p>
+        </button>
+        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Competition Intel will let you compare progress with peers." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+          <Users className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Competition Intel</p>
+          <p className="text-[10px] text-muted-foreground">Peer comparison</p>
+        </button>
+        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Exam Simulator will let you test strategies before exam day." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+          <SlidersHorizontal className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Exam Simulator</p>
+          <p className="text-[10px] text-muted-foreground">Strategy testing</p>
+        </button>
+        <button onClick={() => toast({ title: "Coming Soon 🚀", description: "Weekly Report will provide AI-powered analysis of your study habits." })} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+          <BarChart3 className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Weekly Report</p>
+          <p className="text-[10px] text-muted-foreground">AI analysis</p>
+        </button>
       </motion.div>
     </div>
   );
