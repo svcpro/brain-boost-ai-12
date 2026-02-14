@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN opt_in_leaderboard BOOLEAN NOT NULL DEFAULT false;
