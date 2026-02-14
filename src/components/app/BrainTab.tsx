@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Activity, Network, Clock, Layers, RefreshCw, ChevronDown, ChevronUp, AlertTriangle, TrendingDown } from "lucide-react";
+import { Brain, Activity, Network, Clock, Layers, RefreshCw, ChevronDown, ChevronUp, AlertTriangle, TrendingDown, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
 import { setCache, getCache } from "@/lib/offlineCache";
 import KnowledgeGraph from "./KnowledgeGraph";
+import FocusModeSession from "./FocusModeSession";
 import { formatDistanceToNow, isPast, isToday } from "date-fns";
 
 interface TopicInfo {
@@ -31,6 +32,7 @@ const BrainTab = () => {
   );
   const [showGraph, setShowGraph] = useState(false);
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
+  const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
 
   const loadSubjectHealth = useCallback(async () => {
     if (!user) return;
@@ -244,7 +246,7 @@ const BrainTab = () => {
                                   />
                                 </div>
 
-                                {/* Decay prediction */}
+                                {/* Decay prediction & Review Now */}
                                 <div className="flex items-center justify-between">
                                   {dropDate ? (
                                     <div className="flex items-center gap-1">
@@ -264,11 +266,25 @@ const BrainTab = () => {
                                     <span className="text-[10px] text-muted-foreground">No decay prediction</span>
                                   )}
 
-                                  {lastRevised && (
-                                    <span className="text-[9px] text-muted-foreground">
-                                      Revised {formatDistanceToNow(lastRevised, { addSuffix: true })}
-                                    </span>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    {lastRevised && (
+                                      <span className="text-[9px] text-muted-foreground">
+                                        {formatDistanceToNow(lastRevised, { addSuffix: true })}
+                                      </span>
+                                    )}
+                                    {(isOverdue || isDueToday) && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setReviewSession({ subject: sub.name, topic: topic.name });
+                                        }}
+                                        className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors"
+                                      >
+                                        <Play className="w-2.5 h-2.5" />
+                                        <span className="text-[9px] font-semibold">Review Now</span>
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -318,6 +334,17 @@ const BrainTab = () => {
           </button>
         ))}
       </motion.div>
+
+      {/* Focus session from Review Now */}
+      <FocusModeSession
+        open={!!reviewSession}
+        onClose={() => {
+          setReviewSession(null);
+          refreshAll();
+        }}
+        initialSubject={reviewSession?.subject}
+        initialTopic={reviewSession?.topic}
+      />
     </div>
   );
 };
