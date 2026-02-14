@@ -49,6 +49,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const [fabVisible, setFabVisible] = useState(true);
   const [brainPulseDismissed, setBrainPulseDismissed] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const lastScrollY = useRef(0);
 
   // Hide FAB on scroll down, show on scroll up
@@ -82,8 +83,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     loadExamDate();
     // Load avatar
     if (user) {
-      supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle().then(({ data }) => {
+      supabase.from("profiles").select("avatar_url, display_name").eq("id", user.id).maybeSingle().then(({ data }) => {
         if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+        if (data?.display_name) setDisplayName(data.display_name);
       });
     }
 
@@ -257,7 +259,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             {(() => {
               const h = new Date().getHours();
               const greeting = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-              const name = user?.user_metadata?.display_name;
+              const name = displayName || user?.user_metadata?.display_name || user?.email?.split("@")[0];
               return name ? `${greeting}, ${name}` : greeting;
             })()}
           </h1>
