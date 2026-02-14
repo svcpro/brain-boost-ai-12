@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Flame, Clock, Crown, Medal, Award, RefreshCw, Gift, Snowflake, TrendingUp } from "lucide-react";
+import { Trophy, Flame, Clock, Crown, Medal, Award, RefreshCw, Gift, Snowflake, TrendingUp, ChevronUp, ChevronDown, Minus } from "lucide-react";
 import confetti from "canvas-confetti";
 import { supabase } from "@/integrations/supabase/client";
 import { getPushNotifPrefs } from "./NotificationPreferencesPanel";
@@ -32,8 +32,11 @@ const LeaderboardCard = () => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [gifting, setGifting] = useState<string | null>(null);
+  const [rankChanges, setRankChanges] = useState<Record<string, number>>({});
   const prevPositionRef = useRef<number | null>(null);
   const hasTriggeredConfetti = useRef(false);
+
+  const STORAGE_KEY = "leaderboard_prev_positions";
 
   const loadLeaderboard = async () => {
     setLoading(true);
@@ -49,7 +52,27 @@ const LeaderboardCard = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setEntries(data.leaderboard || []);
+        const newEntries: LeaderboardEntry[] = data.leaderboard || [];
+
+        // Calculate rank changes from localStorage
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          const prevPositions: Record<string, number> = stored ? JSON.parse(stored) : {};
+          const changes: Record<string, number> = {};
+          newEntries.forEach(e => {
+            if (prevPositions[e.user_id] !== undefined) {
+              changes[e.user_id] = prevPositions[e.user_id] - e.position; // positive = moved up
+            }
+          });
+          setRankChanges(changes);
+
+          // Save current positions
+          const currentPositions: Record<string, number> = {};
+          newEntries.forEach(e => { currentPositions[e.user_id] = e.position; });
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(currentPositions));
+        } catch {}
+
+        setEntries(newEntries);
       }
     } catch (e) {
       console.error("Leaderboard error:", e);
@@ -316,11 +339,32 @@ const LeaderboardCard = () => {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${
-                      entry.is_current_user ? "text-primary" : "text-foreground"
-                    }`}>
-                      {entry.is_current_user ? "You" : entry.display_name}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className={`text-sm font-medium truncate ${
+                        entry.is_current_user ? "text-primary" : "text-foreground"
+                      }`}>
+                        {entry.is_current_user ? "You" : entry.display_name}
+                      </p>
+                      {/* Rank change indicator */}
+                      {rankChanges[entry.user_id] !== undefined && rankChanges[entry.user_id] !== 0 && (
+                        <motion.span
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: i * 0.06 + 0.3, type: "spring", stiffness: 400 }}
+                          className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded-full ${
+                            rankChanges[entry.user_id] > 0
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : "bg-red-500/15 text-red-400"
+                          }`}
+                        >
+                          {rankChanges[entry.user_id] > 0 ? (
+                            <><ChevronUp className="w-2.5 h-2.5" />{rankChanges[entry.user_id]}</>
+                          ) : (
+                            <><ChevronDown className="w-2.5 h-2.5" />{Math.abs(rankChanges[entry.user_id])}</>
+                          )}
+                        </motion.span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1">
                       <TrendingUp className="w-2.5 h-2.5 text-muted-foreground/60" />
                       <p className="text-[10px] text-muted-foreground">
