@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Volume2, VolumeX, Play, Globe, Sparkles, Clock } from "lucide-react";
+import { Volume2, VolumeX, Play, Globe, Sparkles, Clock, Mic } from "lucide-react";
 import { useVoiceNotification, getVoiceSettings, saveVoiceSettings, type VoiceSettings } from "@/hooks/useVoiceNotification";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,6 +25,13 @@ const VoiceSettingsPanel = () => {
     { value: "soft", label: "Soft", emoji: "🌸" },
     { value: "calm", label: "Calm", emoji: "🧘" },
     { value: "energetic", label: "Energetic", emoji: "⚡" },
+  ];
+
+  const voices: { id: string; name: string; desc: string; gender: string }[] = [
+    { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", desc: "Natural, expressive", gender: "♀" },
+    { id: "Xb7hH8MSUJpSbSDYk0k2", name: "Alice", desc: "Warm, friendly", gender: "♀" },
+    { id: "nPczCjzI2devNBz1zQrb", name: "Brian", desc: "Calm, professional", gender: "♂" },
+    { id: "onwK4e9ZLuTAKqWW03F9", name: "Daniel", desc: "Clear, articulate", gender: "♂" },
   ];
 
   const schedules: { value: VoiceSettings["schedule"]; label: string; hour: number }[] = [
@@ -110,6 +117,33 @@ const VoiceSettingsPanel = () => {
                   >
                     <div className="text-base mb-0.5">{t.emoji}</div>
                     {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Voice Selection */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Mic className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-medium">Voice</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {voices.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => update({ voiceId: v.id })}
+                    className={`py-2 px-3 rounded-lg text-xs font-medium transition-all border text-left ${
+                      (settings.voiceId || "EXAVITQu4vr4xnSDxMaL") === v.id
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-border bg-secondary/30 text-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">{v.gender}</span>
+                      <span>{v.name}</span>
+                    </div>
+                    <div className="text-[9px] text-muted-foreground mt-0.5">{v.desc}</div>
                   </button>
                 ))}
               </div>

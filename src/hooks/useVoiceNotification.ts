@@ -22,6 +22,7 @@ export interface VoiceSettings {
   schedule: "morning" | "afternoon" | "evening" | "custom";
   customHour?: number;
   nudgeThreshold?: number;
+  voiceId?: string;
 }
 
 const VOICE_SETTINGS_KEY = "acry-voice-settings";
@@ -70,6 +71,7 @@ export function useVoiceNotification() {
           type,
           language: settings.language,
           tone: settings.tone,
+          voiceId: settings.voiceId || "EXAVITQu4vr4xnSDxMaL",
           context: context || {},
         },
       });
