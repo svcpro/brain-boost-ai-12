@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail } from "lucide-react";
 import {
@@ -11,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -77,8 +78,8 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showEmailSetting, setShowEmailSetting] = useState(false);
   const [showDisableAllDialog, setShowDisableAllDialog] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
-  const [deleteSubjectTarget, setDeleteSubjectTarget] = useState<{ id: string; name: string } | null>(null);
-  const [deleteTopicTarget, setDeleteTopicTarget] = useState<{ id: string; name: string } | null>(null);
+
+
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
@@ -156,12 +157,43 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     loadSubjects();
   };
 
+  const pendingDeletesRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
   const deleteSubject = async (id: string) => {
-    // Delete topics first, then subject
-    await supabase.from("topics").delete().eq("subject_id", id);
-    const { error } = await supabase.from("subjects").delete().eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    loadSubjects();
+    const subject = subjects.find(s => s.id === id);
+    if (!subject) return;
+
+    // Optimistically remove from UI
+    setSubjects(prev => prev.filter(s => s.id !== id));
+
+    // Schedule actual deletion
+    const timeoutId = setTimeout(async () => {
+      pendingDeletesRef.current.delete(`subject-${id}`);
+      await supabase.from("topics").delete().eq("subject_id", id);
+      const { error } = await supabase.from("subjects").delete().eq("id", id);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+        loadSubjects();
+      }
+    }, 6000);
+
+    pendingDeletesRef.current.set(`subject-${id}`, timeoutId);
+
+    toast({
+      title: `🗑️ "${subject.name}" deleted`,
+      description: `Subject and ${subject.topics.length} topic${subject.topics.length !== 1 ? "s" : ""} removed.`,
+      action: (
+        <ToastAction altText="Undo delete" onClick={() => {
+            clearTimeout(pendingDeletesRef.current.get(`subject-${id}`));
+            pendingDeletesRef.current.delete(`subject-${id}`);
+            setSubjects(prev => [...prev, subject].sort((a, b) => a.name.localeCompare(b.name)));
+            toast({ title: "↩️ Restored", description: `"${subject.name}" has been restored.` });
+          }}>
+          Undo
+        </ToastAction>
+      ),
+      duration: 6000,
+    });
   };
 
   const addTopic = async (subjectId: string) => {
@@ -175,9 +207,56 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   };
 
   const deleteTopic = async (id: string) => {
-    const { error } = await supabase.from("topics").delete().eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    loadSubjects();
+    let deletedTopic: Topic | null = null;
+    let parentSubjectId: string | null = null;
+
+    // Find and optimistically remove
+    setSubjects(prev => prev.map(sub => {
+      const topic = sub.topics.find(t => t.id === id);
+      if (topic) {
+        deletedTopic = topic;
+        parentSubjectId = sub.id;
+        return { ...sub, topics: sub.topics.filter(t => t.id !== id) };
+      }
+      return sub;
+    }));
+
+    if (!deletedTopic || !parentSubjectId) return;
+
+    const topicName = (deletedTopic as Topic).name;
+    const subId = parentSubjectId;
+
+    const timeoutId = setTimeout(async () => {
+      pendingDeletesRef.current.delete(`topic-${id}`);
+      const { error } = await supabase.from("topics").delete().eq("id", id);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+        loadSubjects();
+      }
+    }, 6000);
+
+    pendingDeletesRef.current.set(`topic-${id}`, timeoutId);
+
+    toast({
+      title: `🗑️ "${topicName}" deleted`,
+      description: "Topic has been removed.",
+      action: (
+        <ToastAction altText="Undo delete" onClick={() => {
+            clearTimeout(pendingDeletesRef.current.get(`topic-${id}`));
+            pendingDeletesRef.current.delete(`topic-${id}`);
+            setSubjects(prev => prev.map(sub => {
+              if (sub.id === subId) {
+                return { ...sub, topics: [...sub.topics, deletedTopic!].sort((a, b) => a.name.localeCompare(b.name)) };
+              }
+              return sub;
+            }));
+            toast({ title: "↩️ Restored", description: `"${topicName}" has been restored.` });
+          }}>
+          Undo
+        </ToastAction>
+      ),
+      duration: 6000,
+    });
   };
 
   const renameSubject = async (id: string) => {
@@ -356,7 +435,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                             className={`w-3.5 h-3.5 text-muted-foreground transition-transform cursor-pointer ${expandedSubject === sub.id ? "rotate-180" : ""}`}
                           />
                           <button
-                            onClick={e => { e.stopPropagation(); setDeleteSubjectTarget({ id: sub.id, name: sub.name }); }}
+                            onClick={e => { e.stopPropagation(); deleteSubject(sub.id); }}
                             className="text-muted-foreground hover:text-destructive transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -404,7 +483,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                                       <Pencil className="w-2.5 h-2.5" />
                                     </button>
                                     <button
-                                      onClick={() => setDeleteTopicTarget({ id: topic.id, name: topic.name })}
+                                      onClick={() => deleteTopic(topic.id)}
                                       className="text-muted-foreground hover:text-destructive transition-colors"
                                     >
                                       <X className="w-3 h-3" />
@@ -815,47 +894,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Subject Confirmation */}
-      <AlertDialog open={!!deleteSubjectTarget} onOpenChange={(open) => { if (!open) setDeleteSubjectTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{deleteSubjectTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the subject and all its topics. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { if (deleteSubjectTarget) { deleteSubject(deleteSubjectTarget.id); setDeleteSubjectTarget(null); } }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Subject
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
-      {/* Delete Topic Confirmation */}
-      <AlertDialog open={!!deleteTopicTarget} onOpenChange={(open) => { if (!open) setDeleteTopicTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{deleteTopicTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete this topic and its memory data. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { if (deleteTopicTarget) { deleteTopic(deleteTopicTarget.id); setDeleteTopicTarget(null); } }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Topic
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Sign Out Confirmation */}
       <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
