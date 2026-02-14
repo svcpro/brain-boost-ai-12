@@ -32,8 +32,8 @@ serve(async (req) => {
     }
 
     // Step 1: Generate dynamic voice text using Lovable AI
-    const lang = language === "hi" ? "Hindi (Hinglish style, casual)" : "English";
-    const toneDesc = tone === "energetic" ? "energetic and upbeat" : tone === "calm" ? "very calm and soothing" : "soft, sweet, and gentle";
+    const lang = language === "hi" ? "Hindi (written in Devanagari script mixed with simple English words where natural, Hinglish conversational style)" : "English (clear, natural American English)";
+    const toneDesc = tone === "energetic" ? "energetic, upbeat, and lively" : tone === "calm" ? "very calm, composed, and soothing" : "soft, warm, and gentle";
 
     const promptMap: Record<string, string> = {
       daily_reminder: `Generate a short (1-2 sentences) ${toneDesc} study reminder in ${lang}. Context: The student should study ${context?.daily_topic || "their planned topics"} for about ${context?.daily_minutes || 20} minutes today. Subject: ${context?.subject || "general"}. Be motivating, varied, and natural. Don't use generic greetings every time — vary the opening.`,
@@ -56,7 +56,14 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are ACRY, an AI Second Brain voice assistant. You speak with a sweet, calm, motivating tone. Output ONLY the spoken text — no quotes, no labels, no formatting. Keep it natural and human-like. Never repeat the same sentence twice if asked multiple times."
+            content: `You are ACRY, an AI Second Brain voice assistant. Rules:
+1. Output ONLY the spoken text — no quotes, no labels, no formatting, no asterisks.
+2. Keep it 1-2 sentences, natural and conversational.
+3. For Hindi: Write in Devanagari script. Use simple English loanwords naturally (like "focus", "topic", "minutes") but keep the sentence structure Hindi.
+4. For English: Use clear, flowing sentences. Avoid overly formal or stilted phrasing.
+5. Never start with "Hey" or "Hi" every time — vary openings naturally.
+6. Pronounce numbers as words (e.g., "twenty" not "20").
+7. Avoid abbreviations, symbols, or special characters.`
           },
           { role: "user", content: aiPrompt }
         ],
@@ -81,14 +88,14 @@ serve(async (req) => {
     const spokenText = aiData.choices?.[0]?.message?.content?.trim() || "Your ACRY brain is active.";
 
     // Step 2: Convert text to speech using ElevenLabs
-    // Laura - sweet, calm female voice (FGY2WhTYpPnrIDTdsKH5)
-    const voiceId = "FGY2WhTYpPnrIDTdsKH5";
+    // Sarah - natural, expressive, excellent multilingual support (EXAVITQu4vr4xnSDxMaL)
+    const voiceId = "EXAVITQu4vr4xnSDxMaL";
 
-    // Adjust voice settings based on tone
+    // Adjust voice settings based on tone — tuned for clearer multilingual speech
     const voiceSettings = {
-      soft: { stability: 0.6, similarity_boost: 0.8, style: 0.3, speed: 0.95 },
-      calm: { stability: 0.7, similarity_boost: 0.8, style: 0.2, speed: 0.9 },
-      energetic: { stability: 0.4, similarity_boost: 0.75, style: 0.6, speed: 1.05 },
+      soft: { stability: 0.55, similarity_boost: 0.8, style: 0.25, speed: 0.92 },
+      calm: { stability: 0.65, similarity_boost: 0.85, style: 0.15, speed: 0.88 },
+      energetic: { stability: 0.35, similarity_boost: 0.75, style: 0.55, speed: 1.0 },
     };
     const settings = voiceSettings[tone as keyof typeof voiceSettings] || voiceSettings.soft;
 
