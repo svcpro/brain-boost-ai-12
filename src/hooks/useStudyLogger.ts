@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { enqueue } from "@/lib/offlineQueue";
 
 export function useStudyLogger() {
   const { user } = useAuth();
@@ -21,6 +22,13 @@ export function useStudyLogger() {
     studyMode?: "lazy" | "focus" | "emergency" | "fix";
   }) => {
     if (!user) return;
+
+    // If offline, queue and return
+    if (!navigator.onLine) {
+      enqueue({ subjectName, topicName, durationMinutes, confidenceLevel, studyMode });
+      toast({ title: "Saved offline 📴", description: "Your session will sync when you're back online." });
+      return true;
+    }
 
     try {
       // Find or create subject
@@ -66,7 +74,6 @@ export function useStudyLogger() {
           if (topErr) throw topErr;
           topic = newTopic;
         } else {
-          // Update last revision date
           await supabase
             .from("topics")
             .update({ last_revision_date: new Date().toISOString() })
@@ -89,6 +96,12 @@ export function useStudyLogger() {
       toast({ title: "Brain Updated!", description: "Your study session has been logged." });
       return true;
     } catch (e: any) {
+      // Network error during request – queue it
+      if (!navigator.onLine || e?.message?.includes("fetch") || e?.message?.includes("network")) {
+        enqueue({ subjectName, topicName, durationMinutes, confidenceLevel, studyMode });
+        toast({ title: "Saved offline 📴", description: "Your session will sync when you're back online." });
+        return true;
+      }
       toast({ title: "Error", description: e.message, variant: "destructive" });
       return false;
     }
