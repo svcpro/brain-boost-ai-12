@@ -190,6 +190,7 @@ serve(async (req) => {
         freeze_gift: "freezeGifts",
         streak_milestone: "streakMilestones",
         study_reminder: "studyReminders",
+        brain_update_reminder: "brainUpdateReminders",
       };
       const prefKey = prefMap[notifType];
       if (prefKey) {

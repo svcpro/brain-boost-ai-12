@@ -22,7 +22,7 @@ serve(async (req) => {
     // Find users who haven't updated brain in 24h (or never)
     const { data: staleUsers, error } = await supabase
       .from("profiles")
-      .select("id, display_name, last_brain_update_at")
+      .select("id, display_name, last_brain_update_at, push_notification_prefs")
       .or(`last_brain_update_at.is.null,last_brain_update_at.lt.${cutoff}`);
 
     if (error) throw error;
@@ -35,6 +35,9 @@ serve(async (req) => {
     let sent = 0;
 
     for (const user of staleUsers) {
+      // Check opt-out preference
+      const prefs = user.push_notification_prefs as Record<string, boolean> | null;
+      if (prefs?.brainUpdateReminders === false) continue;
       // Check if user has push subscriptions
       const { data: subs } = await supabase
         .from("push_subscriptions")
