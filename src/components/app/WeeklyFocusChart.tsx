@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Crosshair, Clock, Timer, BookOpen } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Crosshair, Clock, Timer, BookOpen, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, subDays, startOfDay } from "date-fns";
@@ -12,18 +12,20 @@ interface DayData {
 }
 
 interface SubjectBreakdown {
+  id: string;
   name: string;
   minutes: number;
   color: string;
 }
 
+interface TopicDetail {
+  name: string;
+  minutes: number;
+}
+
 const SUBJECT_COLORS = [
   "bg-success", "bg-primary", "bg-warning", "bg-destructive",
   "bg-accent", "bg-secondary",
-];
-const SUBJECT_TEXT_COLORS = [
-  "text-success", "text-primary", "text-warning", "text-destructive",
-  "text-accent-foreground", "text-secondary-foreground",
 ];
 
 const WeeklyFocusChart = () => {
@@ -31,6 +33,9 @@ const WeeklyFocusChart = () => {
   const [days, setDays] = useState<DayData[]>([]);
   const [subjects, setSubjects] = useState<SubjectBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
+  const [topicDetails, setTopicDetails] = useState<Map<string, TopicDetail[]>>(new Map());
+  const [loadingTopics, setLoadingTopics] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) loadData();
@@ -44,7 +49,7 @@ const WeeklyFocusChart = () => {
 
     const { data: logs } = await supabase
       .from("study_logs")
-      .select("duration_minutes, created_at, subject_id")
+      .select("duration_minutes, created_at, subject_id, topic_id")
       .eq("user_id", user.id)
       .eq("study_mode", "focus")
       .gte("created_at", weekAgo.toISOString())
@@ -57,8 +62,10 @@ const WeeklyFocusChart = () => {
       buckets.set(format(d, "yyyy-MM-dd"), 0);
     }
 
-    // Subject minute accumulator
+    // Subject & topic minute accumulators
     const subjectMinutes = new Map<string, number>();
+    // subject_id -> topic_id -> minutes
+    const subjectTopicMinutes = new Map<string, Map<string, number>>();
 
     for (const log of logs || []) {
       const key = format(new Date(log.created_at), "yyyy-MM-dd");
@@ -67,6 +74,13 @@ const WeeklyFocusChart = () => {
       }
       if (log.subject_id) {
         subjectMinutes.set(log.subject_id, (subjectMinutes.get(log.subject_id) || 0) + log.duration_minutes);
+        if (log.topic_id) {
+          if (!subjectTopicMinutes.has(log.subject_id)) {
+            subjectTopicMinutes.set(log.subject_id, new Map());
+          }
+          const topicMap = subjectTopicMinutes.get(log.subject_id)!;
+          topicMap.set(log.topic_id, (topicMap.get(log.topic_id) || 0) + log.duration_minutes);
+        }
       }
     }
 
@@ -81,9 +95,33 @@ const WeeklyFocusChart = () => {
       subjectMap = new Map((subjectsData || []).map((s) => [s.id, s.name]));
     }
 
-    // Build subject breakdown sorted by minutes desc
+    // Fetch all topic names upfront
+    const allTopicIds = new Set<string>();
+    for (const topicMap of subjectTopicMinutes.values()) {
+      for (const tid of topicMap.keys()) allTopicIds.add(tid);
+    }
+    let topicNameMap = new Map<string, string>();
+    if (allTopicIds.size > 0) {
+      const { data: topicsData } = await supabase
+        .from("topics")
+        .select("id, name")
+        .in("id", [...allTopicIds]);
+      topicNameMap = new Map((topicsData || []).map((t) => [t.id, t.name]));
+    }
+
+    // Build pre-resolved topic details per subject
+    const resolvedTopics = new Map<string, TopicDetail[]>();
+    for (const [subjectId, topicMap] of subjectTopicMinutes.entries()) {
+      const details: TopicDetail[] = [...topicMap.entries()]
+        .map(([tid, mins]) => ({ name: topicNameMap.get(tid) || "Unknown", minutes: mins }))
+        .sort((a, b) => b.minutes - a.minutes);
+      resolvedTopics.set(subjectId, details);
+    }
+    setTopicDetails(resolvedTopics);
+
     const subjectList: SubjectBreakdown[] = [...subjectMinutes.entries()]
       .map(([id, mins], i) => ({
+        id,
         name: subjectMap.get(id) || "Unknown",
         minutes: mins,
         color: SUBJECT_COLORS[i % SUBJECT_COLORS.length],
@@ -104,6 +142,10 @@ const WeeklyFocusChart = () => {
     setDays(result);
     setSubjects(subjectList);
     setLoading(false);
+  };
+
+  const toggleSubject = (subjectId: string) => {
+    setExpandedSubject((prev) => (prev === subjectId ? null : subjectId));
   };
 
   const totalMinutes = days.reduce((s, d) => s + d.minutes, 0);
@@ -175,33 +217,85 @@ const WeeklyFocusChart = () => {
           <div className="flex items-center gap-2 mb-3">
             <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-xs font-semibold text-foreground">By Subject</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">Tap to expand</span>
           </div>
 
           {/* Stacked bar */}
           <div className="h-3 rounded-full overflow-hidden flex bg-secondary mb-3">
             {subjects.map((s, i) => (
               <motion.div
-                key={s.name}
-                className={`h-full ${s.color}`}
+                key={s.id}
+                className={`h-full ${s.color} cursor-pointer`}
                 initial={{ width: 0 }}
                 animate={{ width: `${(s.minutes / totalMinutes) * 100}%` }}
                 transition={{ duration: 0.6, delay: 0.3 + i * 0.08 }}
+                onClick={() => toggleSubject(s.id)}
               />
             ))}
           </div>
 
-          {/* Legend */}
-          <div className="space-y-1.5">
+          {/* Legend with expandable topics */}
+          <div className="space-y-1">
             {subjects.map((s, i) => {
               const pct = Math.round((s.minutes / totalMinutes) * 100);
+              const isExpanded = expandedSubject === s.id;
+              const topics = topicDetails.get(s.id) || [];
+
               return (
-                <div key={s.name} className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-sm ${s.color} shrink-0`} />
-                  <span className="text-xs text-foreground flex-1 truncate">{s.name}</span>
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    {s.minutes >= 60 ? `${Math.floor(s.minutes / 60)}h ${s.minutes % 60}m` : `${s.minutes}m`}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground w-8 text-right shrink-0">{pct}%</span>
+                <div key={s.id}>
+                  <button
+                    onClick={() => toggleSubject(s.id)}
+                    className={`w-full flex items-center gap-2 p-1.5 rounded-lg transition-colors ${
+                      isExpanded ? "bg-secondary/50" : "hover:bg-secondary/30"
+                    }`}
+                  >
+                    <div className={`w-2.5 h-2.5 rounded-sm ${s.color} shrink-0`} />
+                    <span className="text-xs text-foreground flex-1 truncate text-left">{s.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {s.minutes >= 60 ? `${Math.floor(s.minutes / 60)}h ${s.minutes % 60}m` : `${s.minutes}m`}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground w-8 text-right shrink-0">{pct}%</span>
+                    {topics.length > 0 ? (
+                      isExpanded ? <ChevronUp className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+                    ) : (
+                      <div className="w-3 shrink-0" />
+                    )}
+                  </button>
+
+                  <AnimatePresence>
+                    {isExpanded && topics.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="ml-5 pl-3 border-l-2 border-border space-y-1 py-1.5">
+                          {topics.map((t) => (
+                            <div key={t.name} className="flex items-center gap-2">
+                              <FileText className="w-2.5 h-2.5 text-muted-foreground shrink-0" />
+                              <span className="text-[11px] text-muted-foreground flex-1 truncate">{t.name}</span>
+                              <span className="text-[10px] text-muted-foreground shrink-0">
+                                {t.minutes}m
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                    {isExpanded && topics.length === 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <p className="ml-5 pl-3 border-l-2 border-border text-[10px] text-muted-foreground py-1.5">
+                          No specific topics logged
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
