@@ -29,7 +29,7 @@ const BrainUpdateHero = ({ onUpdate, isActive, overallHealth, hasTopics }: Brain
       transition={{ type: "spring", stiffness: 200, damping: 20 }}
       whileHover={!isActive ? { scale: 1.02, y: -2 } : {}}
       whileTap={!isActive ? { scale: 0.97 } : {}}
-      className="w-full relative overflow-hidden rounded-2xl p-5 text-left group focus:outline-none disabled:cursor-wait"
+      className="w-full relative overflow-hidden rounded-2xl p-6 text-left group focus:outline-none disabled:cursor-wait shadow-[0_0_20px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_35px_hsl(var(--primary)/0.3)] transition-shadow"
     >
       {/* Animated gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/10 to-accent/15 rounded-2xl" />
@@ -41,11 +41,17 @@ const BrainUpdateHero = ({ onUpdate, isActive, overallHealth, hasTopics }: Brain
       />
 
       {/* Pulsing glow border */}
-      <div className="absolute inset-0 rounded-2xl border-2 border-primary/30 group-hover:border-primary/50 transition-colors" />
+      <div className="absolute inset-0 rounded-2xl border-2 border-primary/40 group-hover:border-primary/60 transition-colors" />
       <motion.div
-        className="absolute inset-0 rounded-2xl border-2 border-primary/20"
-        animate={{ opacity: [0.3, 0.8, 0.3] }}
+        className="absolute inset-0 rounded-2xl border-2 border-primary/30"
+        animate={{ opacity: [0.2, 1, 0.2], scale: [1, 1.01, 1] }}
         transition={{ duration: 2, repeat: Infinity }}
+      />
+      {/* Outer glow pulse */}
+      <motion.div
+        className="absolute -inset-1 rounded-3xl bg-primary/10 blur-md -z-10"
+        animate={{ opacity: [0.3, 0.7, 0.3], scale: [0.98, 1.02, 0.98] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
       />
 
       {/* Floating particles */}
@@ -78,7 +84,7 @@ const BrainUpdateHero = ({ onUpdate, isActive, overallHealth, hasTopics }: Brain
           <motion.div
             animate={isActive ? { rotate: 360 } : { rotate: 0 }}
             transition={isActive ? { duration: 1.5, repeat: Infinity, ease: "linear" } : {}}
-            className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/25 to-primary/10 flex items-center justify-center"
+            className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center shadow-[0_0_15px_hsl(var(--primary)/0.2)]"
           >
             <AnimatePresence mode="wait">
               {isActive ? (
@@ -124,7 +130,7 @@ const BrainUpdateHero = ({ onUpdate, isActive, overallHealth, hasTopics }: Brain
         {/* Text */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-foreground">
+            <h2 className="text-xl font-bold text-foreground">
               {isActive ? "Updating Brain…" : done ? "Brain Updated!" : "Update My Brain"}
             </h2>
             {!isActive && !done && (
