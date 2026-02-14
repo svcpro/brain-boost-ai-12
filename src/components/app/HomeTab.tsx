@@ -374,30 +374,43 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* AI Recommendations */}
       {recommendations.length > 0 && (
         <motion.div ref={recsRef} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl p-5 neural-border">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-1">
             <Brain className="w-4 h-4 text-primary" />
             <h2 className="font-semibold text-foreground text-sm">AI Recommendations</h2>
           </div>
+          <p className="text-[10px] text-muted-foreground mb-4">Tap a card to mark it done</p>
           <div className="space-y-3">
             {recommendations.map((rec: any) => (
-              <div key={rec.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border">
-                <div className={`w-2 h-2 rounded-full ${
+              <motion.div
+                key={rec.id}
+                whileTap={{ scale: 0.96 }}
+                onClick={async () => {
+                  // Haptic feedback
+                  if (navigator.vibrate) navigator.vibrate(20);
+                  // Animate out then remove
+                  const el = document.getElementById(`rec-${rec.id}`);
+                  if (el) {
+                    el.style.transition = "all 0.4s ease";
+                    el.style.opacity = "0";
+                    el.style.transform = "translateX(60px) scale(0.95)";
+                  }
+                  await new Promise((r) => setTimeout(r, 350));
+                  await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
+                  loadRecommendations();
+                }}
+                id={`rec-${rec.id}`}
+                className="flex items-center gap-3 p-3.5 rounded-xl bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 hover:border-primary/30 active:bg-primary/10 transition-all group"
+              >
+                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                   rec.priority === "critical" ? "bg-destructive animate-pulse" :
                   rec.priority === "high" ? "bg-warning" : "bg-primary"
                 }`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground truncate">{rec.title}</p>
-                  <p className="text-[10px] text-muted-foreground">{rec.type} • {rec.priority}</p>
+                  <p className="text-sm text-foreground font-medium truncate">{rec.title}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{rec.type} • {rec.priority}</p>
                 </div>
-                <button
-                  onClick={async () => {
-                    await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
-                    loadRecommendations();
-                  }}
-                >
-                  <CheckCircle className="w-4 h-4 text-muted-foreground hover:text-success transition-colors" />
-                </button>
-              </div>
+                <CheckCircle className="w-5 h-5 text-muted-foreground/40 group-hover:text-success transition-colors shrink-0" />
+              </motion.div>
             ))}
           </div>
         </motion.div>
