@@ -42,6 +42,19 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const recsRef = useRef<HTMLDivElement>(null);
   const voiceTriggeredRef = useRef(false);
   const rankVoiceFiredRef = useRef(false);
+  const [fabVisible, setFabVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  // Hide FAB on scroll down, show on scroll up
+  useEffect(() => {
+    const handleScroll = () => {
+      const y = window.scrollY;
+      setFabVisible(y <= 10 || y < lastScrollY.current);
+      lastScrollY.current = y;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Auto-dismiss badge when recommendations section scrolls into view
   useEffect(() => {
@@ -408,7 +421,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* Floating Action Button — Quick Study Log */}
       <button
         onClick={() => setSignalModalOpen(true)}
-        className="fixed bottom-20 right-5 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+        className={`fixed bottom-20 right-5 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all duration-300 ${fabVisible ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"}`}
         aria-label="Log study session"
       >
         <Zap className="w-6 h-6" />
