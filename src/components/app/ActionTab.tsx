@@ -110,6 +110,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const audioChunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef("");
+  const extractionAbortRef = useRef<AbortController | null>(null);
 
   const startExtractionProgress = useCallback(() => {
     setExtractionProgress(0);
@@ -132,6 +133,15 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     }
   }, []);
 
+  const cancelExtraction = useCallback(() => {
+    extractionAbortRef.current?.abort();
+    extractionAbortRef.current = null;
+    stopExtractionProgress(false);
+    setExtracting(false);
+    setTranscribing(false);
+    toast({ title: "Cancelled", description: "Extraction was cancelled." });
+  }, [stopExtractionProgress, toast]);
+
   const handlePdfUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -150,6 +160,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setExtracting(true);
     setExtractionResult(null);
     startExtractionProgress();
+    const abortController = new AbortController();
+    extractionAbortRef.current = abortController;
 
     try {
       const formData = new FormData();
@@ -165,6 +177,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: formData,
+          signal: abortController.signal,
         }
       );
 
@@ -216,6 +229,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setExtracting(true);
     setExtractionResult(null);
     startExtractionProgress();
+    const abortController = new AbortController();
+    extractionAbortRef.current = abortController;
 
     try {
       const formData = new FormData();
@@ -229,6 +244,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           method: "POST",
           headers: { Authorization: `Bearer ${session?.access_token}` },
           body: formData,
+          signal: abortController.signal,
         }
       );
 
@@ -268,6 +284,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setExtractionResult(null);
     setVoiceBlob(blob);
     toast({ title: "🎙️ Transcribing...", description: "Converting your voice note to text." });
+    const abortController = new AbortController();
+    extractionAbortRef.current = abortController;
 
     try {
       const formData = new FormData();
@@ -281,6 +299,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           method: "POST",
           headers: { Authorization: `Bearer ${session?.access_token}` },
           body: formData,
+          signal: abortController.signal,
         }
       );
 
@@ -311,6 +330,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     setExtracting(true);
     setExtractionResult(null);
     startExtractionProgress();
+    const abortController = new AbortController();
+    extractionAbortRef.current = abortController;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -324,6 +345,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ transcript }),
+          signal: abortController.signal,
         }
       );
 
@@ -704,9 +726,19 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                         transition={{ duration: 0.3, ease: "easeOut" }}
                       />
                     </div>
-                    <p className="text-[10px] text-muted-foreground text-center mt-1">
-                      {extractionProgress >= 100 ? "✅ Done!" : "AI is extracting topics..."}
-                    </p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-[10px] text-muted-foreground">
+                        {extractionProgress >= 100 ? "✅ Done!" : "AI is extracting topics..."}
+                      </p>
+                      {extractionProgress < 100 && (
+                        <button
+                          onClick={cancelExtraction}
+                          className="text-[10px] text-destructive font-medium hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -780,9 +812,17 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                 </div>
 
                 {transcribing ? (
-                  <div className="flex items-center gap-2 py-3">
-                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                    <span className="text-xs text-muted-foreground">Transcribing your voice note...</span>
+                  <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                      <span className="text-xs text-muted-foreground">Transcribing your voice note...</span>
+                    </div>
+                    <button
+                      onClick={cancelExtraction}
+                      className="text-[10px] text-destructive font-medium hover:underline"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 ) : editingTranscript ? (
                   <textarea
