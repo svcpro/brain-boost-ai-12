@@ -134,12 +134,22 @@ const WeeklyReminderSummary = () => {
                 {" · "}
                 {stats.days[activeDot].dateStr}
               </span>
-              <span className={stats.days[activeDot].delivered ? "text-success" : stats.days[activeDot].past ? "text-destructive" : "text-muted-foreground"}>
-                {stats.days[activeDot].delivered
-                  ? `✓ Delivered at ${stats.scheduleLabel}`
-                  : stats.days[activeDot].past
-                    ? `✗ Missed (${stats.scheduleLabel})`
-                    : `Scheduled ${stats.scheduleLabel}`}
+              <span className={
+                stats.days[activeDot].delivered && dailyMinutes[activeDot] === 0
+                  ? "text-warning"
+                  : stats.days[activeDot].delivered
+                    ? "text-success"
+                    : stats.days[activeDot].past
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+              }>
+                {stats.days[activeDot].delivered && dailyMinutes[activeDot] === 0
+                  ? `⚠ Ignored — 0 min studied`
+                  : stats.days[activeDot].delivered
+                    ? `✓ Delivered · ${dailyMinutes[activeDot]} min studied`
+                    : stats.days[activeDot].past
+                      ? `✗ Missed (${stats.scheduleLabel})`
+                      : `Scheduled ${stats.scheduleLabel}`}
               </span>
             </div>
           </motion.div>
@@ -156,18 +166,22 @@ const WeeklyReminderSummary = () => {
                 animate={{ height: `${(dailyMinutes[i] / maxMinutes) * 100}%` }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}
                 className={`w-full rounded-t-sm min-h-[2px] ${
-                  day.delivered
-                    ? "bg-success/60"
-                    : day.past
-                      ? "bg-muted-foreground/20"
-                      : "bg-muted/40"
+                  day.delivered && dailyMinutes[i] === 0
+                    ? "bg-warning/40"
+                    : day.delivered
+                      ? "bg-success/60"
+                      : day.past
+                        ? "bg-muted-foreground/20"
+                        : "bg-muted/40"
                 }`}
               />
-              {day.delivered && (
+              {day.delivered && dailyMinutes[i] === 0 ? (
+                <div className="absolute -top-0.5 w-1.5 h-1.5 rounded-full bg-warning animate-pulse shadow-[0_0_3px_hsl(var(--warning)/0.6)]" />
+              ) : day.delivered ? (
                 <div className="absolute -top-0.5 w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_3px_hsl(var(--success)/0.6)]" />
-              )}
+              ) : null}
             </div>
-            <span className="text-[8px] text-muted-foreground leading-none">{day.label.charAt(0)}</span>
+            <span className={`text-[8px] leading-none ${day.delivered && dailyMinutes[i] === 0 ? "text-warning font-bold" : "text-muted-foreground"}`}>{day.label.charAt(0)}</span>
           </div>
         ))}
       </div>
@@ -178,6 +192,9 @@ const WeeklyReminderSummary = () => {
           </span>
           <span className="flex items-center gap-1">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-success" /> Reminder sent
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-warning" /> Ignored
           </span>
         </div>
         <span className="text-[8px] text-muted-foreground">
