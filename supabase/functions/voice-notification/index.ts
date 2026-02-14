@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { type, language, tone, context } = await req.json();
+    const { type, language, tone, voiceId: requestedVoiceId, context } = await req.json();
     // type: "daily_reminder" | "forget_risk" | "exam_countdown" | "motivation" | "test"
     // language: "en" | "hi" | "auto"
     // tone: "soft" | "energetic" | "calm"
@@ -88,8 +88,8 @@ serve(async (req) => {
     const spokenText = aiData.choices?.[0]?.message?.content?.trim() || "Your ACRY brain is active.";
 
     // Step 2: Convert text to speech using ElevenLabs
-    // Sarah - natural, expressive, excellent multilingual support (EXAVITQu4vr4xnSDxMaL)
-    const voiceId = "EXAVITQu4vr4xnSDxMaL";
+    const allowedVoices = ["EXAVITQu4vr4xnSDxMaL", "Xb7hH8MSUJpSbSDYk0k2", "nPczCjzI2devNBz1zQrb", "onwK4e9ZLuTAKqWW03F9"];
+    const voiceId = allowedVoices.includes(requestedVoiceId) ? requestedVoiceId : "EXAVITQu4vr4xnSDxMaL";
 
     // Adjust voice settings based on tone — tuned for clearer multilingual speech
     const voiceSettings = {
