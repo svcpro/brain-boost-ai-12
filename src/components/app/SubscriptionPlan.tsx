@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Crown, Check, Sparkles, Zap, Brain } from "lucide-react";
+import { Crown, Check, Sparkles, Zap, Brain, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const plans = [
   {
     id: "free",
     name: "Free Brain",
     price: "₹0",
+    priceNum: 0,
     period: "forever",
     icon: Brain,
     features: [
@@ -22,6 +25,7 @@ const plans = [
     id: "pro",
     name: "Pro Brain",
     price: "₹199",
+    priceNum: 199,
     period: "/month",
     icon: Zap,
     popular: true,
@@ -38,6 +42,7 @@ const plans = [
     id: "ultra",
     name: "Ultra Brain",
     price: "₹499",
+    priceNum: 499,
     period: "/month",
     icon: Sparkles,
     features: [
@@ -58,14 +63,81 @@ interface SubscriptionPlanProps {
 
 const SubscriptionPlan = ({ onClose }: SubscriptionPlanProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState("free");
+  const [loading, setLoading] = useState(false);
+
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) { resolve(true); return; }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   const handleSubscribe = async (planId: string) => {
-    if (planId === "free") return;
-    toast({
-      title: "Razorpay Integration Coming Soon 🚀",
-      description: "Payment gateway is being set up. You'll be able to upgrade shortly!",
-    });
+    if (planId === "free" || !user) return;
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+
+    setLoading(true);
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) throw new Error("Failed to load payment SDK");
+
+      // Create order via edge function
+      const { data, error } = await supabase.functions.invoke("razorpay-order", {
+        body: { action: "create_order", plan_id: planId, amount: plan.priceNum },
+      });
+
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+
+      const { order, key_id } = data;
+
+      // Open Razorpay checkout
+      const options = {
+        key: key_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Second Brain AI",
+        description: `${plan.name} Subscription`,
+        order_id: order.id,
+        handler: async (response: any) => {
+          // Verify payment
+          const { data: verifyData, error: verifyError } = await supabase.functions.invoke("razorpay-order", {
+            body: {
+              action: "verify_payment",
+              plan_id: planId,
+              amount: plan.priceNum,
+              order_id: response.razorpay_order_id,
+              payment_id: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            },
+          });
+
+          if (verifyError || verifyData?.error) {
+            toast({ title: "Payment verification failed", description: verifyData?.error || verifyError?.message, variant: "destructive" });
+            return;
+          }
+
+          toast({ title: "Upgrade Successful! 🎉", description: `You're now on ${plan.name}. Enjoy premium features!` });
+          onClose();
+        },
+        prefill: { email: user.email },
+        theme: { color: "#7c3aed" },
+        modal: { ondismiss: () => setLoading(false) },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (err: any) {
+      toast({ title: "Payment Error", description: err.message || "Something went wrong", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -140,9 +212,11 @@ const SubscriptionPlan = ({ onClose }: SubscriptionPlanProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onClick={() => handleSubscribe(selectedPlan)}
-            className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors active:scale-95"
+            disabled={loading}
+            className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Upgrade to {plans.find(p => p.id === selectedPlan)?.name}
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loading ? "Processing..." : `Upgrade to ${plans.find(p => p.id === selectedPlan)?.name}`}
           </motion.button>
         )}
       </motion.div>
