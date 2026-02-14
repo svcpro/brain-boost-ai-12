@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.extract-voice-topics]
 verify_jwt = false
+
+[functions.transcribe-voice]
+verify_jwt = false
