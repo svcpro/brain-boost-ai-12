@@ -154,6 +154,27 @@ const VoiceSettingsPanel = () => {
               )}
             </div>
 
+            {/* Nudge Threshold */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-medium">Motivational Nudge</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground">Show nudge after</span>
+                <select
+                  value={settings.nudgeThreshold ?? 2}
+                  onChange={(e) => update({ nudgeThreshold: Number(e.target.value) })}
+                  className="rounded-lg bg-secondary border border-border px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                >
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-muted-foreground">ignored reminder{(settings.nudgeThreshold ?? 2) !== 1 ? "s" : ""}</span>
+              </div>
+            </div>
+
             {/* Test Voice Button */}
             <button
               onClick={async () => {
