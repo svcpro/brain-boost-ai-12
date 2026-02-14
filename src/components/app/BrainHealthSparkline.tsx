@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ const BrainHealthSparkline = () => {
   const { user } = useAuth();
   const [points, setPoints] = useState<DayPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hovered, setHovered] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -138,57 +139,94 @@ const BrainHealthSparkline = () => {
         </div>
       </div>
 
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
-        style={{ height: 56 }}
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-          </linearGradient>
-        </defs>
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full"
+          style={{ height: 56 }}
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+            </linearGradient>
+          </defs>
 
-        {/* Area fill */}
-        <motion.path
-          d={areaPath}
-          fill="url(#sparkGrad)"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.4, duration: 0.6 }}
-        />
-
-        {/* Line */}
-        <motion.path
-          d={linePath}
-          fill="none"
-          stroke="hsl(var(--primary))"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ delay: 1.3, duration: 1, ease: "easeOut" }}
-        />
-
-        {/* Dots */}
-        {points.map((p, i) => (
-          <motion.circle
-            key={i}
-            cx={padX + i * xStep}
-            cy={toY(p.value)}
-            r="3"
-            fill="hsl(var(--background))"
-            stroke="hsl(var(--primary))"
-            strokeWidth="1.5"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 1.5 + i * 0.08, type: "spring", stiffness: 300 }}
+          {/* Area fill */}
+          <motion.path
+            d={areaPath}
+            fill="url(#sparkGrad)"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.4, duration: 0.6 }}
           />
-        ))}
-      </svg>
+
+          {/* Line */}
+          <motion.path
+            d={linePath}
+            fill="none"
+            stroke="hsl(var(--primary))"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ delay: 1.3, duration: 1, ease: "easeOut" }}
+          />
+
+          {/* Dots with hover areas */}
+          {points.map((p, i) => {
+            const cx = padX + i * xStep;
+            const cy = toY(p.value);
+            return (
+              <g key={i}>
+                {/* Invisible larger hit area */}
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r="12"
+                  fill="transparent"
+                  onMouseEnter={() => setHovered(i)}
+                  onMouseLeave={() => setHovered(null)}
+                  onTouchStart={() => setHovered(i)}
+                  onTouchEnd={() => setHovered(null)}
+                  style={{ cursor: "pointer" }}
+                />
+                <motion.circle
+                  cx={cx}
+                  cy={cy}
+                  r={hovered === i ? 5 : 3}
+                  fill={hovered === i ? "hsl(var(--primary))" : "hsl(var(--background))"}
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="1.5"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 1.5 + i * 0.08, type: "spring", stiffness: 300 }}
+                />
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Tooltip */}
+        {hovered !== null && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute pointer-events-none z-10 px-2.5 py-1.5 rounded-lg bg-popover border border-border shadow-lg"
+            style={{
+              left: `${((padX + hovered * xStep) / W) * 100}%`,
+              top: -6,
+              transform: `translateX(-50%) translateY(-100%)`,
+            }}
+          >
+            <p className="text-[10px] font-bold text-foreground">{points[hovered].value}%</p>
+            <p className="text-[8px] text-muted-foreground">{format(new Date(points[hovered].date), "MMM d")}</p>
+          </motion.div>
+        )}
+      </div>
 
       {/* Day labels */}
       <div className="flex justify-between mt-1 px-0.5">
