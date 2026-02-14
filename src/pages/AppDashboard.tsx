@@ -40,6 +40,7 @@ const AppDashboard = () => {
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [expiryWarning, setExpiryWarning] = useState<{ plan: string; daysLeft: number } | null>(null);
   const [dismissedWarning, setDismissedWarning] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState("free");
   const voice = useVoiceNotification();
   const { toast } = useToast();
   useStudyReminder();
@@ -137,6 +138,14 @@ const AppDashboard = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // Fetch current plan
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
+      if (data?.plan_id) setCurrentPlan(data.plan_id);
+    });
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     const checkExpiry = async () => {
@@ -202,7 +211,7 @@ const AppDashboard = () => {
           </div>
           <div className="flex items-center gap-3">
             <div className="px-3 py-1 rounded-full neural-gradient neural-border text-xs text-primary font-medium">
-              Free Brain
+              {currentPlan === "ultra" ? "Ultra Brain" : currentPlan === "pro" ? "Pro Brain" : "Free Brain"}
             </div>
           </div>
         </header>
