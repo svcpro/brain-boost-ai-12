@@ -37,6 +37,7 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
   const [sentGifts, setSentGifts] = useState<SentGift[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingSentGifts, setLoadingSentGifts] = useState(false);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     if (!user) return;
@@ -96,6 +97,27 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
   useEffect(() => {
     if (showSentGifts && sentGifts.length === 0) loadSentGifts();
   }, [showSentGifts, loadSentGifts]);
+
+  const cancelGift = async (giftId: string) => {
+    if (!user) return;
+    setCancelling(giftId);
+    try {
+      const { error } = await (supabase as any)
+        .from("freeze_gifts")
+        .delete()
+        .eq("id", giftId)
+        .eq("sender_id", user.id);
+
+      if (error) throw error;
+
+      setSentGifts((prev) => prev.filter((g) => g.id !== giftId));
+      toast({ title: "Gift cancelled", description: "The freeze is back in your inventory." });
+    } catch {
+      toast({ title: "Failed to cancel gift", variant: "destructive" });
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   const useFreeze = async () => {
     if (!user || availableFreezes <= 0 || usedToday || !canUseToday) return;
@@ -292,15 +314,24 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
                         {format(new Date(g.created_at), "MMM d, yyyy")}
                       </span>
                     </div>
-                    <span className={`text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded-full ${
-                      g.status === "accepted"
-                        ? "bg-primary/10 text-primary"
-                        : g.status === "declined"
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-warning/10 text-warning"
-                    }`}>
-                      {g.status === "accepted" ? "✓ Accepted" : g.status === "declined" ? "✗ Declined" : "⏳ Pending"}
-                    </span>
+                    {g.status === "pending" ? (
+                      <button
+                        onClick={() => cancelGift(g.id)}
+                        disabled={cancelling === g.id}
+                        className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all disabled:opacity-50"
+                        title="Cancel gift"
+                      >
+                        {cancelling === g.id ? "…" : "✗ Cancel"}
+                      </button>
+                    ) : (
+                      <span className={`text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded-full ${
+                        g.status === "accepted"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-destructive/10 text-destructive"
+                      }`}>
+                        {g.status === "accepted" ? "✓ Accepted" : "✗ Declined"}
+                      </span>
+                    )}
                   </motion.div>
                 ))}
               </div>
