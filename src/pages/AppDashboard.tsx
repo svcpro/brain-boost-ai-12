@@ -28,6 +28,7 @@ const tabs = [
 const AppDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [autoOpenVoice, setAutoOpenVoice] = useState(false);
+  const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
   const { user } = useAuth();
   const [recCount, setRecCount] = useState(0);
   const [expiryWarning, setExpiryWarning] = useState<{ plan: string; daysLeft: number } | null>(null);
@@ -77,7 +78,7 @@ const AppDashboard = () => {
       case "action": return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
       case "progress": return <ProgressTab />;
-      case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} />;
+      case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} />;
       default: return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} />;
     }
   };
@@ -94,6 +95,12 @@ const AppDashboard = () => {
               {expiryWarning.daysLeft === 0 ? " today" : ` in ${expiryWarning.daysLeft} day${expiryWarning.daysLeft > 1 ? "s" : ""}`}!
               Renew to keep your benefits.
             </span>
+            <button
+              onClick={() => { setAutoOpenSubscription(true); setActiveTab("you"); setDismissedWarning(true); }}
+              className="px-3 py-1 rounded-full bg-warning text-warning-foreground text-xs font-semibold whitespace-nowrap hover:bg-warning/90 transition-colors"
+            >
+              Renew Now
+            </button>
             <button onClick={() => setDismissedWarning(true)} className="text-muted-foreground hover:text-foreground p-0.5">
               <X className="w-3.5 h-3.5" />
             </button>
