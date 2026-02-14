@@ -254,14 +254,26 @@ serve(async (req) => {
     }
 
     if (action === "generate_recommendations") {
-      // Get topics at risk
-      const { data: topics } = await supabase
+      // Get topics – prioritise at-risk but fall back to all topics so
+      // recommendations are always generated when topics exist.
+      let { data: topics } = await supabase
         .from("topics")
         .select("*, subjects(name)")
         .eq("user_id", userId)
         .lt("memory_strength", 60)
         .order("memory_strength", { ascending: true })
         .limit(10);
+
+      // If no at-risk topics, grab all topics so AI can still give proactive tips
+      if (!topics || topics.length === 0) {
+        const { data: allTopics } = await supabase
+          .from("topics")
+          .select("*, subjects(name)")
+          .eq("user_id", userId)
+          .order("memory_strength", { ascending: true })
+          .limit(10);
+        topics = allTopics;
+      }
 
       if (!topics || topics.length === 0) {
         return new Response(JSON.stringify({ recommendations: [] }), {
