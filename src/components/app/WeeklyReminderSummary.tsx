@@ -1,9 +1,21 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Bell, CheckCircle2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { getCache } from "@/lib/offlineCache";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function getScheduleLabel(settings: ReturnType<typeof getVoiceSettings>): string {
+  const hour = settings.schedule === "custom"
+    ? (settings.customHour ?? 18)
+    : settings.schedule === "morning" ? 8 : settings.schedule === "afternoon" ? 14 : 19;
+  return `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
+}
+
 const WeeklyReminderSummary = () => {
+  const [activeDot, setActiveDot] = useState<number | null>(null);
+
   const stats = useMemo(() => {
     const settings = getVoiceSettings();
     if (!settings.enabled) return null;
@@ -18,18 +30,28 @@ const WeeklyReminderSummary = () => {
     monday.setHours(0, 0, 0, 0);
     const mondayStr = monday.toLocaleDateString("en-CA");
 
-    const thisWeek = log.filter(d => d >= mondayStr);
-    const delivered = thisWeek.length;
+    const thisWeekSet = new Set(log.filter(d => d >= mondayStr));
 
     // Days elapsed this week (1-7)
     const elapsed = Math.min(7, Math.floor((now.getTime() - monday.getTime()) / 86400000) + 1);
 
-    return { delivered, elapsed };
+    // Build per-day info
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      const dateStr = date.toLocaleDateString("en-CA");
+      const delivered = thisWeekSet.has(dateStr);
+      const past = i < elapsed;
+      return { label: DAY_LABELS[i], dateStr, delivered, past };
+    });
+
+    const delivered = days.filter(d => d.delivered).length;
+    const scheduleLabel = getScheduleLabel(settings);
+
+    return { days, delivered, elapsed, scheduleLabel };
   }, []);
 
   if (!stats) return null;
-
-  const dots = Array.from({ length: 7 }, (_, i) => i < stats.delivered);
 
   return (
     <div className="glass rounded-xl p-4 neural-border">
@@ -42,16 +64,18 @@ const WeeklyReminderSummary = () => {
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
-          {dots.map((filled, i) => (
-            <div
+          {stats.days.map((day, i) => (
+            <button
               key={i}
-              className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                filled
+              type="button"
+              onClick={() => setActiveDot(activeDot === i ? null : i)}
+              className={`w-2.5 h-2.5 rounded-full transition-all cursor-pointer hover:scale-125 ${
+                day.delivered
                   ? "bg-success shadow-[0_0_4px_hsl(var(--success)/0.5)]"
-                  : i < stats.elapsed
+                  : day.past
                     ? "bg-destructive/30"
                     : "bg-muted"
-              }`}
+              } ${activeDot === i ? "ring-1 ring-primary ring-offset-1 ring-offset-background" : ""}`}
             />
           ))}
         </div>
@@ -60,6 +84,34 @@ const WeeklyReminderSummary = () => {
           <span className="text-[10px] text-muted-foreground">/ 7</span>
         </div>
       </div>
+
+      <AnimatePresence>
+        {activeDot !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 px-2 py-1.5 rounded-lg bg-secondary/40 text-[10px] flex items-center justify-between">
+              <span className="text-muted-foreground">
+                <span className="font-medium text-foreground">{stats.days[activeDot].label}</span>
+                {" · "}
+                {stats.days[activeDot].dateStr}
+              </span>
+              <span className={stats.days[activeDot].delivered ? "text-success" : stats.days[activeDot].past ? "text-destructive" : "text-muted-foreground"}>
+                {stats.days[activeDot].delivered
+                  ? `✓ Delivered at ${stats.scheduleLabel}`
+                  : stats.days[activeDot].past
+                    ? `✗ Missed (${stats.scheduleLabel})`
+                    : `Scheduled ${stats.scheduleLabel}`}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {stats.delivered === stats.elapsed && stats.delivered > 0 && (
         <div className="flex items-center gap-1 mt-2 text-[10px] text-success">
           <CheckCircle2 className="w-3 h-3" />
