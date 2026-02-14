@@ -602,7 +602,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_freeze_gift: { Args: { gift_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

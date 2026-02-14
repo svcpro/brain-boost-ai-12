@@ -68,47 +68,18 @@ const FreezeGiftInbox = () => {
     setResolving(giftId);
     try {
       if (accept) {
-        // Get the gift to find the freeze_id
-        const { data: gift } = await (supabase as any)
-          .from("freeze_gifts")
-          .select("freeze_id, sender_id")
-          .eq("id", giftId)
-          .single();
-
-        if (!gift) throw new Error("Gift not found");
-
-        // Transfer: update freeze owner to recipient
-        const { error: transferErr } = await (supabase as any)
-          .from("streak_freezes")
-          .update({ user_id: user.id })
-          .eq("id", gift.freeze_id);
-
-        if (transferErr) throw transferErr;
-
-        // Mark gift as accepted
-        await (supabase as any)
-          .from("freeze_gifts")
-          .update({ status: "accepted", resolved_at: new Date().toISOString() })
-          .eq("id", giftId);
+        // Use security definer function for atomic transfer
+        const { error } = await (supabase as any).rpc("accept_freeze_gift", { gift_id: giftId });
+        if (error) throw error;
 
         notifyFeedback();
         toast({ title: "❄️ Freeze received!", description: "A streak freeze has been added to your inventory." });
       } else {
-        // Decline: release the freeze back (unmark it)
-        const { data: gift } = await (supabase as any)
+        // Decline: just mark as declined, freeze stays with sender
+        await (supabase as any)
           .from("freeze_gifts")
-          .select("freeze_id")
-          .eq("id", giftId)
-          .single();
-
-        if (gift) {
-          // The freeze stays with sender (it was reserved but not transferred)
-          // Just mark as declined
-          await (supabase as any)
-            .from("freeze_gifts")
-            .update({ status: "declined", resolved_at: new Date().toISOString() })
-            .eq("id", giftId);
-        }
+          .update({ status: "declined", resolved_at: new Date().toISOString() })
+          .eq("id", giftId);
 
         toast({ title: "Gift declined" });
       }
