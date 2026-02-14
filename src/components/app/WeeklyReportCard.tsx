@@ -1,8 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileText, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { FileText, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus, Share2, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
+import html2canvas from "html2canvas";
 
 interface ReportData {
   totalMinutes: number;
@@ -19,6 +21,66 @@ const WeeklyReportCard = () => {
   const { user } = useAuth();
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const captureCard = useCallback(async (): Promise<Blob | null> => {
+    if (!cardRef.current) return null;
+    const canvas = await html2canvas(cardRef.current, {
+      backgroundColor: "#0f1419",
+      scale: 2,
+      useCORS: true,
+    });
+    return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
+  }, []);
+
+  const handleDownload = useCallback(async () => {
+    setSharing(true);
+    try {
+      const blob = await captureCard();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `acry-weekly-report-${new Date().toISOString().slice(0, 10)}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "📥 Report downloaded!", description: "Your weekly report card has been saved." });
+    } catch {
+      toast({ title: "Failed to download", description: "Could not capture the report card.", variant: "destructive" });
+    } finally {
+      setSharing(false);
+    }
+  }, [captureCard]);
+
+  const handleShare = useCallback(async () => {
+    setSharing(true);
+    try {
+      const blob = await captureCard();
+      if (!blob) return;
+      const file = new File([blob], "acry-weekly-report.png", { type: "image/png" });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: "My ACRY Weekly Report",
+          text: "Check out my study progress this week! 🧠",
+          files: [file],
+        });
+      } else {
+        // Fallback: copy image to clipboard
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+        toast({ title: "📋 Copied to clipboard!", description: "Report card image copied. Paste it anywhere to share." });
+      }
+    } catch (e: any) {
+      if (e?.name !== "AbortError") {
+        toast({ title: "Could not share", description: "Try downloading instead.", variant: "destructive" });
+      }
+    } finally {
+      setSharing(false);
+    }
+  }, [captureCard]);
 
   const loadReport = useCallback(async () => {
     if (!user) return;
@@ -153,6 +215,7 @@ const WeeklyReportCard = () => {
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.15 }}
@@ -161,7 +224,29 @@ const WeeklyReportCard = () => {
       <div className="flex items-center gap-2 mb-4">
         <FileText className="w-4 h-4 text-primary" />
         <h2 className="font-semibold text-foreground text-sm">Weekly Report Card</h2>
-        <span className="ml-auto text-[10px] text-muted-foreground">Last 7 days</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          {hasActivity && (
+            <>
+              <button
+                onClick={handleDownload}
+                disabled={sharing}
+                className="p-1.5 rounded-lg neural-border hover:glow-primary transition-all disabled:opacity-50"
+                title="Download as image"
+              >
+                <Download className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+              <button
+                onClick={handleShare}
+                disabled={sharing}
+                className="p-1.5 rounded-lg neural-border hover:glow-primary transition-all disabled:opacity-50"
+                title="Share report"
+              >
+                <Share2 className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </>
+          )}
+          <span className="text-[10px] text-muted-foreground">Last 7 days</span>
+        </div>
       </div>
 
       {!hasActivity ? (
