@@ -23,10 +23,12 @@ import ConfidenceGoalTracker from "./ConfidenceGoalTracker";
 import StreakFreezeCard from "./StreakFreezeCard";
 import ConsistencyScore from "./ConsistencyScore";
 
+type DayStatus = "studied" | "frozen" | "none";
+
 interface StreakData {
   currentStreak: number;
   longestStreak: number;
-  last30Days: boolean[]; // true = studied that day
+  last30Days: DayStatus[];
   todayStudied: boolean;
   brokenStreak: number; // streak length before it was broken (0 if not broken)
   isComeback: boolean; // true if user just restarted after a 3+ day broken streak
@@ -183,12 +185,15 @@ const ProgressTab = () => {
         iterDate.setDate(iterDate.getDate() + 1);
       }
 
-      const last30Days: boolean[] = [];
+      const last30Days: DayStatus[] = [];
       for (let i = 29; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        last30Days.push(studyDays.has(key));
+        const dateOnly = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (studyDays.has(key)) last30Days.push("studied");
+        else if (frozenDays.has(dateOnly)) last30Days.push("frozen");
+        else last30Days.push("none");
       }
 
       const result = { currentStreak, longestStreak, last30Days, todayStudied, brokenStreak, isComeback };
@@ -309,22 +314,41 @@ const ProgressTab = () => {
             <div>
               <p className="text-[10px] text-muted-foreground mb-2">Last 30 days</p>
               <div className="flex gap-[3px] flex-wrap">
-                {streak.last30Days.map((studied, i) => (
+                {streak.last30Days.map((status, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, scale: 0 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.2, delay: 0.1 + i * 0.015 }}
                     className={`w-[14px] h-[14px] rounded-sm ${
-                      studied ? "bg-primary/80" : "bg-secondary"
+                      status === "studied"
+                        ? "bg-primary/80"
+                        : status === "frozen"
+                        ? "bg-sky-400/60 border border-sky-400/40"
+                        : "bg-secondary"
                     }`}
-                    title={`${29 - i} days ago${studied ? " — studied" : ""}`}
+                    title={`${29 - i} days ago${status === "studied" ? " — studied" : status === "frozen" ? " — frozen ❄️" : ""}`}
                   />
                 ))}
               </div>
               <div className="flex justify-between mt-1.5">
                 <span className="text-[9px] text-muted-foreground">30 days ago</span>
                 <span className="text-[9px] text-muted-foreground">Today</span>
+              </div>
+              {/* Legend */}
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-primary/80" />
+                  <span className="text-[9px] text-muted-foreground">Studied</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-sky-400/60 border border-sky-400/40" />
+                  <span className="text-[9px] text-muted-foreground">Frozen</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-secondary" />
+                  <span className="text-[9px] text-muted-foreground">Missed</span>
+                </div>
               </div>
             </div>
 
