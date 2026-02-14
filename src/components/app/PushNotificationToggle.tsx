@@ -4,7 +4,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
 
 const PushNotificationToggle = () => {
-  const { permission, subscribed, supported, subscribe, unsubscribe } = usePushNotifications();
+  const { permission, subscribed, supported, error, subscribe, unsubscribe } = usePushNotifications();
   const { toast } = useToast();
 
   if (!supported) return null;
@@ -19,6 +19,8 @@ const PushNotificationToggle = () => {
         toast({ title: "🔔 Push notifications enabled!", description: "You'll be notified about freeze gifts and more." });
       } else if (permission === "denied") {
         toast({ title: "Notifications blocked", description: "Please enable notifications in your browser settings.", variant: "destructive" });
+      } else if (error) {
+        toast({ title: "Could not enable notifications", description: error, variant: "destructive" });
       }
     }
   };
