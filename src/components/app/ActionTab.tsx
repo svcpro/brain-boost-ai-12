@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X, Square, CheckCircle2 } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X, Square, CheckCircle2, Loader2, Brain } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import StudyPlanGenerator from "./StudyPlanGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +50,8 @@ const ActionTab = () => {
   const [syncing, setSyncing] = useState(false);
   const [recording, setRecording] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractionResult, setExtractionResult] = useState<{ subject: string; topics: string[] }[] | null>(null);
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
   const { syncAll } = useOfflineSync();
@@ -58,17 +61,73 @@ const ActionTab = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const handlePdfUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePdfUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.type !== "application/pdf") {
       toast({ title: "Invalid file", description: "Please select a PDF file.", variant: "destructive" });
       return;
     }
+
+    // Check file size (max 10MB for AI processing)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please upload a PDF under 10MB.", variant: "destructive" });
+      return;
+    }
+
     setUploadedFile(file.name);
-    toast({ title: "📄 PDF uploaded!", description: `"${file.name}" ready for processing.` });
-    // Reset input so same file can be re-selected
-    e.target.value = "";
+    setExtracting(true);
+    setExtractionResult(null);
+    toast({ title: "📄 Processing PDF...", description: `Extracting topics from "${file.name}" with AI.` });
+
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-pdf-topics`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Processing failed" }));
+        throw new Error(err.error || `Failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.totalTopicsCreated > 0) {
+        setExtractionResult(data.results);
+        toast({
+          title: `🧠 ${data.totalTopicsCreated} topics extracted!`,
+          description: `Added to ${data.results.length} subject(s). Check your Brain tab!`,
+        });
+      } else if (data.success && data.totalTopicsCreated === 0) {
+        toast({
+          title: "No new topics found",
+          description: "All topics from this PDF are already in your library.",
+        });
+      } else {
+        throw new Error(data.error || "Extraction failed");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Extraction failed",
+        description: err?.message || "Could not extract topics from this PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setExtracting(false);
+      e.target.value = "";
+    }
   }, [toast]);
 
   const handleScanUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,10 +276,11 @@ const ActionTab = () => {
           <button
             type="button"
             onClick={() => pdfInputRef.current?.click()}
-            className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95"
+            disabled={extracting}
+            className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
           >
-            <FileText className="w-5 h-5 text-primary" />
-            <span className="text-xs text-muted-foreground">PDF</span>
+            {extracting ? <Loader2 className="w-5 h-5 text-primary animate-spin" /> : <FileText className="w-5 h-5 text-primary" />}
+            <span className="text-xs text-muted-foreground">{extracting ? "Extracting..." : "PDF"}</span>
           </button>
           <button
             type="button"
@@ -249,13 +309,50 @@ const ActionTab = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-success/10 border border-success/30"
+              className="mt-3 space-y-2"
             >
-              <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-              <span className="text-xs text-foreground truncate flex-1">{uploadedFile}</span>
-              <button onClick={() => setUploadedFile(null)} className="p-0.5 rounded hover:bg-destructive/20 transition-colors">
-                <X className="w-3 h-3 text-muted-foreground" />
-              </button>
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-success/10 border border-success/30">
+                {extracting ? (
+                  <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                )}
+                <span className="text-xs text-foreground truncate flex-1">{uploadedFile}</span>
+                <button onClick={() => { setUploadedFile(null); setExtractionResult(null); }} className="p-0.5 rounded hover:bg-destructive/20 transition-colors">
+                  <X className="w-3 h-3 text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* Extraction results */}
+              {extractionResult && extractionResult.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-3 rounded-lg bg-primary/5 border border-primary/20"
+                >
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Brain className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs font-semibold text-foreground">Topics Added to Brain</span>
+                  </div>
+                  <div className="space-y-2">
+                    {extractionResult.map((res, i) => (
+                      <div key={i}>
+                        <p className="text-[11px] font-medium text-primary">{res.subject}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {res.topics.map((t, j) => (
+                            <span key={j} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border/50">
+                              {t}
+                            </span>
+                          ))}
+                          {res.topics.length === 0 && (
+                            <span className="text-[10px] text-muted-foreground italic">All topics already existed</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
