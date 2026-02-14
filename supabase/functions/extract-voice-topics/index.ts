@@ -36,97 +36,113 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const formData = await req.formData();
-    const audioFile = formData.get("audio") as File | null;
+    // Support two modes: JSON body with pre-edited transcript, or FormData with audio
+    const contentType = req.headers.get("content-type") || "";
+    let transcription = "";
 
-    if (!audioFile) {
-      return new Response(JSON.stringify({ error: "No audio file provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (contentType.includes("application/json")) {
+      // Pre-edited transcript mode — skip transcription
+      const body = await req.json();
+      transcription = body.transcript || "";
+      if (!transcription.trim()) {
+        return new Response(JSON.stringify({ error: "Empty transcript provided" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log("Using pre-edited transcript, skipping audio transcription");
+    } else {
+      // Audio mode — transcribe first
+      const formData = await req.formData();
+      const audioFile = formData.get("audio") as File | null;
+
+      if (!audioFile) {
+        return new Response(JSON.stringify({ error: "No audio file provided" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const arrayBuffer = await audioFile.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const mimeType = audioFile.type || "audio/webm";
+
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        return new Response(JSON.stringify({ error: "AI not configured" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log("Step 1: Transcribing audio with AI...");
+
+      const transcribeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: "You are a precise audio transcription assistant. Transcribe the audio content exactly as spoken. If the audio contains study-related content, preserve all subject names, topic names, and technical terms accurately.",
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Transcribe this audio recording of study notes. Provide the full transcription text.",
+                },
+                {
+                  type: "input_audio",
+                  input_audio: {
+                    data: base64,
+                    format: mimeType.includes("webm") ? "webm" : mimeType.includes("mp3") ? "mp3" : "wav",
+                  },
+                },
+              ],
+            },
+          ],
+        }),
       });
-    }
 
-    // Convert audio to base64
-    const arrayBuffer = await audioFile.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    const mimeType = audioFile.type || "audio/webm";
+      if (!transcribeResponse.ok) {
+        if (transcribeResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (transcribeResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const errText = await transcribeResponse.text();
+        console.error("Transcription error:", transcribeResponse.status, errText);
+        return new Response(JSON.stringify({ error: "Audio transcription failed" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const transcribeData = await transcribeResponse.json();
+      transcription = transcribeData.choices?.[0]?.message?.content || "";
+
+      if (!transcription.trim()) {
+        return new Response(JSON.stringify({ error: "Could not transcribe audio. Try speaking more clearly." }), {
+          status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get existing subjects for context
-    const { data: existingSubjects } = await supabase
-      .from("subjects")
-      .select("id, name")
-      .eq("user_id", userId);
-
-    const existingSubjectNames = (existingSubjects || []).map((s: any) => s.name).join(", ");
-
-    console.log("Step 1: Transcribing audio with AI...");
-
-    // Step 1: Transcribe the audio using Gemini's multimodal capabilities
-    const transcribeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: "You are a precise audio transcription assistant. Transcribe the audio content exactly as spoken. If the audio contains study-related content, preserve all subject names, topic names, and technical terms accurately.",
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Transcribe this audio recording of study notes. Provide the full transcription text.",
-              },
-              {
-                type: "input_audio",
-                input_audio: {
-                  data: base64,
-                  format: mimeType.includes("webm") ? "webm" : mimeType.includes("mp3") ? "mp3" : "wav",
-                },
-              },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!transcribeResponse.ok) {
-      if (transcribeResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (transcribeResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errText = await transcribeResponse.text();
-      console.error("Transcription error:", transcribeResponse.status, errText);
-      return new Response(JSON.stringify({ error: "Audio transcription failed" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const transcribeData = await transcribeResponse.json();
-    const transcription = transcribeData.choices?.[0]?.message?.content || "";
-
-    if (!transcription.trim()) {
-      return new Response(JSON.stringify({ error: "Could not transcribe audio. Try speaking more clearly." }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
