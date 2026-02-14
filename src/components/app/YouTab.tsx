@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail, Trash2, BellRing } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail, Trash2, BellRing, Sparkles } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -301,104 +301,178 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     navigate("/");
   };
 
-  const menuItems = [
-    { icon: Crown, label: "Subscription Plan", value: currentPlan === "ultra" ? "Ultra Brain" : currentPlan === "pro" ? "Pro Brain" : "Free Brain", onClick: () => setShowSubscription(true) },
-    { icon: BookOpen, label: "Subjects & Topics", value: `${subjects.length || "—"}`, onClick: () => setShowSubjects(!showSubjects) },
-    { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders) },
-    { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting) },
-    { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
-    { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
-    { icon: BellRing, label: "Push Notifications", value: "", onClick: () => setShowPushPrefs(!showPushPrefs) },
-    { icon: Bell, label: "Notification History", value: "", onClick: () => setShowNotifHistory(!showNotifHistory) },
-    { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting) },
-    { icon: Trash2, label: "Trash", value: "__trash__", onClick: () => setShowTrash(!showTrash) },
-    { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup) },
-    { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy) },
+  // Grouped menu sections
+  const studySection = [
+    { icon: BookOpen, label: "Subjects & Topics", value: `${subjects.length || "—"}`, onClick: () => setShowSubjects(!showSubjects), isOpen: showSubjects },
+    { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting), isOpen: showLeaderboardSetting },
   ];
 
+  const notificationSection = [
+    { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders), isOpen: showReminders },
+    { icon: BellRing, label: "Push Notifications", value: "", onClick: () => setShowPushPrefs(!showPushPrefs), isOpen: showPushPrefs },
+    { icon: Bell, label: "Notification History", value: "", onClick: () => setShowNotifHistory(!showNotifHistory), isOpen: showNotifHistory },
+    { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting), isOpen: showEmailSetting },
+    { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting), isOpen: showFeedbackSetting },
+    { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings), isOpen: showVoiceSettings },
+  ];
+
+  const dataSection = [
+    { icon: Trash2, label: "Trash", value: "__trash__", onClick: () => setShowTrash(!showTrash), isOpen: showTrash },
+    { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup), isOpen: showDataBackup },
+    { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy), isOpen: showPrivacy },
+  ];
+
+  const MenuItem = ({ item, index }: { item: typeof studySection[0]; index: number }) => (
+    <motion.button
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.05 * index, duration: 0.3 }}
+      onClick={item.onClick}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+        item.isOpen ? "bg-primary/5 border border-primary/20" : "hover:bg-secondary/30"
+      }`}
+    >
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+        item.isOpen ? "bg-primary/15" : "bg-secondary/50"
+      }`}>
+        <item.icon className={`w-4 h-4 ${item.isOpen ? "text-primary" : "text-muted-foreground"}`} />
+      </div>
+      <span className="flex-1 text-left text-sm text-foreground font-medium">{item.label}</span>
+      {item.value === "__trash__" ? (
+        <AnimatePresence mode="wait">
+          {trashCount > 0 && (
+            <motion.span
+              key={trashCount}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 20 }}
+              className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold px-1.5"
+            >
+              {trashCount}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      ) : item.value ? (
+        <span className="text-[11px] text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-md">{item.value}</span>
+      ) : null}
+      <motion.div animate={{ rotate: item.isOpen ? 90 : 0 }} transition={{ duration: 0.2 }}>
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      </motion.div>
+    </motion.button>
+  );
+
+  const SectionHeader = ({ icon: Icon, label, delay }: { icon: any; label: string; delay: number }) => (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay }}
+      className="flex items-center gap-2 px-1 pt-2 pb-1"
+    >
+      <Icon className="w-3.5 h-3.5 text-primary" />
+      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+    </motion.div>
+  );
+
   return (
-    <div className="px-6 py-6 space-y-6">
+    <div className="px-6 py-6 space-y-5">
       {/* Profile Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl p-6 neural-border text-center"
+        className="glass rounded-2xl p-6 neural-border"
       >
-        <div className="w-20 h-20 rounded-full neural-gradient neural-border flex items-center justify-center mx-auto mb-4">
-          <User className="w-10 h-10 text-primary" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground">
-          {user?.user_metadata?.display_name || "Student"}
-        </h2>
-        <p className="text-sm text-muted-foreground">{user?.email}</p>
-
-        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full neural-gradient neural-border">
-          <Flame className="w-4 h-4 text-warning" />
-          <span className="text-sm font-semibold text-foreground">7 Day Streak</span>
-          <span className="text-xl">🔥</span>
-        </div>
-      </motion.div>
-
-      {/* Brain Level */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="glass rounded-xl p-5 neural-border"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-foreground">Brain Level</span>
-          <span className="text-xs text-primary font-medium">Level 4</span>
-        </div>
-        <div className="h-2 rounded-full bg-secondary mb-2">
+        <div className="flex items-center gap-4">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-primary to-success"
-            initial={{ width: 0 }}
-            animate={{ width: "62%" }}
-            transition={{ duration: 1 }}
-          />
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+            className="w-16 h-16 rounded-2xl neural-gradient neural-border flex items-center justify-center shrink-0"
+          >
+            <User className="w-8 h-8 text-primary" />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <motion.h2
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+              className="text-lg font-bold text-foreground truncate"
+            >
+              {user?.user_metadata?.display_name || "Student"}
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-xs text-muted-foreground truncate"
+            >
+              {user?.email}
+            </motion.p>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.25 }}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning/10 border border-warning/20"
+            >
+              <Flame className="w-3.5 h-3.5 text-warning" />
+              <span className="text-xs font-semibold text-foreground">7 Day Streak</span>
+              <span className="text-sm">🔥</span>
+            </motion.div>
+          </div>
         </div>
-        <p className="text-[10px] text-muted-foreground">620 / 1000 XP to Level 5</p>
       </motion.div>
+
+      {/* Brain Level + Plan */}
+      <div className="grid grid-cols-2 gap-3">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass rounded-xl p-4 neural-border"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-[11px] font-semibold text-muted-foreground">Brain Level</span>
+          </div>
+          <p className="text-xl font-bold text-foreground">Level 4</p>
+          <div className="h-1.5 rounded-full bg-secondary mt-2">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-primary to-success"
+              initial={{ width: 0 }}
+              animate={{ width: "62%" }}
+              transition={{ duration: 1, delay: 0.3 }}
+            />
+          </div>
+          <p className="text-[9px] text-muted-foreground mt-1.5">620 / 1000 XP</p>
+        </motion.div>
+
+        <motion.button
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setShowSubscription(true)}
+          className="glass rounded-xl p-4 neural-border text-left hover:bg-secondary/20 transition-colors"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Crown className="w-4 h-4 text-warning" />
+            <span className="text-[11px] font-semibold text-muted-foreground">Plan</span>
+          </div>
+          <p className="text-sm font-bold text-foreground">
+            {currentPlan === "ultra" ? "Ultra Brain" : currentPlan === "pro" ? "Pro Brain" : "Free Brain"}
+          </p>
+          <p className="text-[9px] text-primary mt-1">Manage →</p>
+        </motion.button>
+      </div>
 
       {/* Badge Gallery */}
       <BadgeGallery />
 
-      {/* Menu Items */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="space-y-1"
-      >
-        {menuItems.map((item, i) => (
-          <button
-            key={i}
-            onClick={item.onClick}
-            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-secondary/30 transition-all"
-          >
-            <item.icon className="w-5 h-5 text-muted-foreground" />
-            <span className="flex-1 text-left text-sm text-foreground">{item.label}</span>
-            {item.value === "__trash__" ? (
-              <AnimatePresence mode="wait">
-                {trashCount > 0 && (
-                  <motion.span
-                    key={trashCount}
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                    className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold px-1.5"
-                  >
-                    {trashCount}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            ) : item.value ? (
-              <span className="text-xs text-muted-foreground">{item.value}</span>
-            ) : null}
-            <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${item.label === "Subjects & Topics" && showSubjects ? "rotate-90" : ""}`} />
-          </button>
+      {/* Study & Learning Section */}
+      <div className="space-y-1">
+        <SectionHeader icon={BookOpen} label="Study & Learning" delay={0.2} />
+        {studySection.map((item, i) => (
+          <MenuItem key={item.label} item={item} index={i} />
         ))}
 
         {/* Subjects & Topics Panel */}
@@ -416,7 +490,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                   <p className="text-xs text-muted-foreground text-center py-4">Loading...</p>
                 ) : (
                   <>
-                    {/* Add subject */}
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -439,7 +512,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                       <p className="text-xs text-muted-foreground text-center py-2">No subjects yet.</p>
                     )}
 
-                    {/* Subject list */}
                     {subjects.map(sub => (
                       <div key={sub.id} className="rounded-lg bg-secondary/30 border border-border overflow-hidden">
                         <div className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-secondary/50 transition-all">
@@ -492,7 +564,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                               className="overflow-hidden"
                             >
                               <div className="px-3 pb-3 space-y-2">
-                                {/* Topics */}
                                 {sub.topics.map(topic => (
                                   <div key={topic.id} className="flex items-center gap-2 pl-5">
                                     <Hash className="w-3 h-3 text-muted-foreground flex-shrink-0" />
@@ -531,7 +602,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                                   </div>
                                 ))}
 
-                                {/* Add topic inline */}
                                 {addingTopicFor === sub.id ? (
                                   <div className="flex gap-1.5 pl-5">
                                     <input
@@ -570,6 +640,58 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Leaderboard Settings Panel */}
+        <AnimatePresence>
+          {showLeaderboardSetting && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Trophy className={`w-4 h-4 ${leaderboardOptIn ? "text-warning" : "text-muted-foreground"}`} />
+                    <span className="text-sm text-foreground">Show me on leaderboard</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const newVal = !leaderboardOptIn;
+                      setLeaderboardOptIn(newVal);
+                      if (user) {
+                        await supabase.from("profiles").update({ opt_in_leaderboard: newVal } as any).eq("id", user.id);
+                      }
+                      toast({ title: newVal ? "🏆 You're now on the leaderboard!" : "You've been hidden from the leaderboard" });
+                    }}
+                    className={`w-10 h-6 rounded-full transition-all relative ${leaderboardOptIn ? "bg-primary" : "bg-secondary"}`}
+                  >
+                    <motion.div
+                      className="w-4 h-4 rounded-full bg-white absolute top-1"
+                      animate={{ left: leaderboardOptIn ? 22 : 4 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {leaderboardOptIn
+                    ? "Your display name and stats are visible to other students. Only the first 2 characters of your name are shown."
+                    : "You're hidden from the leaderboard. Other students can't see your rank or stats."}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Notifications Section */}
+      <div className="space-y-1">
+        <SectionHeader icon={Bell} label="Notifications" delay={0.25} />
+        {notificationSection.map((item, i) => (
+          <MenuItem key={item.label} item={item} index={i} />
+        ))}
 
         {/* Reminders Panel */}
         <AnimatePresence>
@@ -646,50 +768,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           )}
         </AnimatePresence>
 
-        {/* Leaderboard Settings Panel */}
-        <AnimatePresence>
-          {showLeaderboardSetting && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
-            >
-              <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Trophy className={`w-4 h-4 ${leaderboardOptIn ? "text-warning" : "text-muted-foreground"}`} />
-                    <span className="text-sm text-foreground">Show me on leaderboard</span>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      const newVal = !leaderboardOptIn;
-                      setLeaderboardOptIn(newVal);
-                      if (user) {
-                        await supabase.from("profiles").update({ opt_in_leaderboard: newVal } as any).eq("id", user.id);
-                      }
-                      toast({ title: newVal ? "🏆 You're now on the leaderboard!" : "You've been hidden from the leaderboard" });
-                    }}
-                    className={`w-10 h-6 rounded-full transition-all relative ${leaderboardOptIn ? "bg-primary" : "bg-secondary"}`}
-                  >
-                    <motion.div
-                      className="w-4 h-4 rounded-full bg-white absolute top-1"
-                      animate={{ left: leaderboardOptIn ? 22 : 4 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  </button>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {leaderboardOptIn
-                    ? "Your display name and stats are visible to other students. Only the first 2 characters of your name are shown."
-                    : "You're hidden from the leaderboard. Other students can't see your rank or stats."}
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Push Notification Preferences Panel */}
         <AnimatePresence>
           {showPushPrefs && <NotificationPreferencesPanel />}
@@ -711,7 +789,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               className="overflow-hidden"
             >
               <div className="glass rounded-xl p-4 neural-border space-y-4 mt-1">
-                {/* Master toggle */}
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-foreground">All Email Notifications</span>
@@ -745,7 +822,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
                 <div className="border-t border-border" />
 
-                {/* Individual toggles */}
                 {[
                   {
                     label: "Subscription expiry alerts",
@@ -796,7 +872,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                   </div>
                 ))}
 
-                {/* Weekly report schedule picker */}
                 {emailWeeklyReports && (
                   <div className="border-t border-border pt-3 space-y-3">
                     <p className="text-xs font-medium text-foreground">📅 Delivery schedule</p>
@@ -825,7 +900,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                           onChange={async (e) => {
                             const localH = Number(e.target.value);
                             setWeeklyReportHour(localH);
-                            // Convert local hour to UTC for storage
                             const offsetMin = new Date().getTimezoneOffset();
                             const utcH = ((localH * 60 + offsetMin) / 60) % 24;
                             const normalizedUtcH = utcH < 0 ? utcH + 24 : Math.floor(utcH);
@@ -938,6 +1012,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Data & Account Section */}
+      <div className="space-y-1">
+        <SectionHeader icon={Database} label="Data & Account" delay={0.3} />
+        {dataSection.map((item, i) => (
+          <MenuItem key={item.label} item={item} index={i} />
+        ))}
 
         {/* Trash Bin Panel */}
         <AnimatePresence>
@@ -953,22 +1035,31 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         <AnimatePresence>
           {showPrivacy && <PrivacySecurity />}
         </AnimatePresence>
+      </div>
 
-        {/* Subscription Plan Modal */}
-        <AnimatePresence>
-          {showSubscription && <SubscriptionPlan onClose={() => setShowSubscription(false)} currentPlan={currentPlan} onPlanChanged={() => {
-            supabase.from("user_subscriptions").select("plan_id").eq("user_id", user!.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
-              if (data) setCurrentPlan(data.plan_id);
-            });
-          }} />}
-        </AnimatePresence>
+      {/* Subscription Plan Modal */}
+      <AnimatePresence>
+        {showSubscription && <SubscriptionPlan onClose={() => setShowSubscription(false)} currentPlan={currentPlan} onPlanChanged={() => {
+          supabase.from("user_subscriptions").select("plan_id").eq("user_id", user!.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
+            if (data) setCurrentPlan(data.plan_id);
+          });
+        }} />}
+      </AnimatePresence>
 
+      {/* Sign Out */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.35 }}
+      >
         <button
           onClick={() => setShowSignOutDialog(true)}
-          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-destructive/10 transition-all"
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-destructive/10 transition-all border border-transparent hover:border-destructive/20"
         >
-          <LogOut className="w-5 h-5 text-destructive" />
-          <span className="flex-1 text-left text-sm text-destructive">Sign Out</span>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-destructive/10 shrink-0">
+            <LogOut className="w-4 h-4 text-destructive" />
+          </div>
+          <span className="flex-1 text-left text-sm text-destructive font-medium">Sign Out</span>
         </button>
       </motion.div>
 
