@@ -569,6 +569,34 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             >
               <div className="glass rounded-xl p-4 neural-border space-y-4 mt-1">
                 {/* Master toggle */}
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">All Email Notifications</span>
+                    <button
+                      onClick={async () => {
+                        const allOn = emailNotifications && emailStudyReminders && emailWeeklyReports;
+                        const newVal = !allOn;
+                        setEmailNotifications(newVal);
+                        setEmailStudyReminders(newVal);
+                        setEmailWeeklyReports(newVal);
+                        if (user) await supabase.from("profiles").update({ email_notifications_enabled: newVal, email_study_reminders: newVal, email_weekly_reports: newVal } as any).eq("id", user.id);
+                        toast({ title: newVal ? "📧 All email notifications enabled" : "All email notifications disabled" });
+                      }}
+                      className={`w-10 h-6 rounded-full transition-all relative ${emailNotifications && emailStudyReminders && emailWeeklyReports ? "bg-primary" : "bg-secondary"}`}
+                    >
+                      <motion.div
+                        className="w-4 h-4 rounded-full bg-white absolute top-1"
+                        animate={{ left: emailNotifications && emailStudyReminders && emailWeeklyReports ? 22 : 4 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Toggle all email types on or off at once</p>
+                </div>
+
+                <div className="border-t border-border" />
+
+                {/* Individual toggles */}
                 {[
                   {
                     label: "Subscription expiry alerts",
