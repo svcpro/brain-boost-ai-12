@@ -247,7 +247,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           {avatarUrl ? (
             <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
-            <User className="w-6 h-6 text-primary" />
+            <span className="text-sm font-bold text-primary">
+              {(user?.user_metadata?.display_name || "S").slice(0, 2).toUpperCase()}
+            </span>
           )}
         </motion.button>
         <div className="flex-1 min-w-0">
