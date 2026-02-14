@@ -5,6 +5,7 @@ import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { setCache, getCache } from "@/lib/offlineCache";
 import DailyGoalTracker from "./DailyGoalTracker";
 import StreakTracker from "./StreakTracker";
 import ReviewQueue from "./ReviewQueue";
@@ -13,8 +14,8 @@ const HomeTab = () => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [examDaysLeft, setExamDaysLeft] = useState<number | null>(null);
+  const [recommendations, setRecommendations] = useState<any[]>(() => getCache("home-recommendations") || []);
+  const [examDaysLeft, setExamDaysLeft] = useState<number | null>(() => getCache("home-exam-days"));
 
   useEffect(() => {
     predict();
@@ -25,26 +26,38 @@ const HomeTab = () => {
 
   const loadRecommendations = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("ai_recommendations")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("completed", false)
-      .order("created_at", { ascending: false })
-      .limit(5);
-    setRecommendations(data || []);
+    try {
+      const { data } = await supabase
+        .from("ai_recommendations")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("completed", false)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const recs = data || [];
+      setRecommendations(recs);
+      setCache("home-recommendations", recs);
+    } catch {
+      // offline – cached data already loaded
+    }
   };
 
   const loadExamDate = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("exam_date")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (data?.exam_date) {
-      const days = Math.ceil((new Date(data.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-      setExamDaysLeft(Math.max(0, days));
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("exam_date")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (data?.exam_date) {
+        const days = Math.ceil((new Date(data.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        const val = Math.max(0, days);
+        setExamDaysLeft(val);
+        setCache("home-exam-days", val);
+      }
+    } catch {
+      // offline – cached data already loaded
     }
   };
 

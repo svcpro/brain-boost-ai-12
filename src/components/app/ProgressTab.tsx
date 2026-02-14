@@ -5,6 +5,7 @@ import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { setCache, getCache } from "@/lib/offlineCache";
 import WeeklyReportCard from "./WeeklyReportCard";
 import LeaderboardCard from "./LeaderboardCard";
 
@@ -25,75 +26,78 @@ const MILESTONES = [
 const ProgressTab = () => {
   const { user } = useAuth();
   const { data, loading, predictRank } = useRankPrediction();
-  const [streak, setStreak] = useState<StreakData | null>(null);
+  const [streak, setStreak] = useState<StreakData | null>(() => getCache("progress-streak"));
   const notifiedRef = useRef(false);
 
   const loadStreak = useCallback(async () => {
     if (!user) return;
 
-    // Fetch study logs from last 90 days to compute streaks
-    const since = new Date();
-    since.setDate(since.getDate() - 90);
+    try {
+      // Fetch study logs from last 90 days to compute streaks
+      const since = new Date();
+      since.setDate(since.getDate() - 90);
 
-    const { data: logs } = await supabase
-      .from("study_logs")
-      .select("created_at")
-      .eq("user_id", user.id)
-      .gte("created_at", since.toISOString())
-      .order("created_at", { ascending: true });
+      const { data: logs } = await supabase
+        .from("study_logs")
+        .select("created_at")
+        .eq("user_id", user.id)
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: true });
 
-    if (!logs) return;
+      if (!logs) return;
 
-    // Build a set of study dates (YYYY-MM-DD)
-    const studyDays = new Set<string>();
-    for (const log of logs) {
-      const d = new Date(log.created_at);
-      studyDays.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-    }
-
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const todayStudied = studyDays.has(todayStr);
-
-    // Current streak (consecutive days ending today or yesterday)
-    let currentStreak = 0;
-    const checkDate = new Date(today);
-    if (!todayStudied) {
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-    while (true) {
-      const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
-      if (studyDays.has(key)) {
-        currentStreak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else break;
-    }
-
-    // Longest streak in last 90 days
-    let longestStreak = 0;
-    let tempStreak = 0;
-    const iterDate = new Date(since);
-    while (iterDate <= today) {
-      const key = `${iterDate.getFullYear()}-${String(iterDate.getMonth() + 1).padStart(2, "0")}-${String(iterDate.getDate()).padStart(2, "0")}`;
-      if (studyDays.has(key)) {
-        tempStreak++;
-        longestStreak = Math.max(longestStreak, tempStreak);
-      } else {
-        tempStreak = 0;
+      // Build a set of study dates (YYYY-MM-DD)
+      const studyDays = new Set<string>();
+      for (const log of logs) {
+        const d = new Date(log.created_at);
+        studyDays.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
       }
-      iterDate.setDate(iterDate.getDate() + 1);
-    }
 
-    // Last 30 days
-    const last30Days: boolean[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      last30Days.push(studyDays.has(key));
-    }
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const todayStudied = studyDays.has(todayStr);
 
-    setStreak({ currentStreak, longestStreak, last30Days, todayStudied });
+      let currentStreak = 0;
+      const checkDate = new Date(today);
+      if (!todayStudied) {
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+      while (true) {
+        const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
+        if (studyDays.has(key)) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else break;
+      }
+
+      let longestStreak = 0;
+      let tempStreak = 0;
+      const iterDate = new Date(since);
+      while (iterDate <= today) {
+        const key = `${iterDate.getFullYear()}-${String(iterDate.getMonth() + 1).padStart(2, "0")}-${String(iterDate.getDate()).padStart(2, "0")}`;
+        if (studyDays.has(key)) {
+          tempStreak++;
+          longestStreak = Math.max(longestStreak, tempStreak);
+        } else {
+          tempStreak = 0;
+        }
+        iterDate.setDate(iterDate.getDate() + 1);
+      }
+
+      const last30Days: boolean[] = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        last30Days.push(studyDays.has(key));
+      }
+
+      const result = { currentStreak, longestStreak, last30Days, todayStudied };
+      setStreak(result);
+      setCache("progress-streak", result);
+    } catch {
+      // offline – cached data already loaded via initial state
+    }
   }, [user]);
 
   // Show toast notification for milestone achievements

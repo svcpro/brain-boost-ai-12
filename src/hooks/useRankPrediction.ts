@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { setCache, getCache } from "@/lib/offlineCache";
 
 export interface RankFactors {
   avg_strength: number;
@@ -26,8 +27,10 @@ export interface RankPredictionData {
   week_total_hours: number;
 }
 
+const CACHE_KEY = "rank-prediction";
+
 export function useRankPrediction() {
-  const [data, setData] = useState<RankPredictionData | null>(null);
+  const [data, setData] = useState<RankPredictionData | null>(() => getCache<RankPredictionData>(CACHE_KEY));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { session } = useAuth();
@@ -42,6 +45,7 @@ export function useRankPrediction() {
       });
       if (fnError) throw fnError;
       setData(result);
+      setCache(CACHE_KEY, result);
       return result;
     } catch (e: any) {
       setError(e.message);
