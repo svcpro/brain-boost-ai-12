@@ -2,6 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Snowflake, History, Gift, Check, X, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { notifyFeedback } from "@/lib/feedback";
@@ -315,14 +326,31 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
                       </span>
                     </div>
                     {g.status === "pending" ? (
-                      <button
-                        onClick={() => cancelGift(g.id)}
-                        disabled={cancelling === g.id}
-                        className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all disabled:opacity-50"
-                        title="Cancel gift"
-                      >
-                        {cancelling === g.id ? "…" : "✗ Cancel"}
-                      </button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            disabled={cancelling === g.id}
+                            className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all disabled:opacity-50"
+                            title="Cancel gift"
+                          >
+                            {cancelling === g.id ? "…" : "✗ Cancel"}
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancel this gift?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              The freeze sent to {g.recipient_name} will be returned to your inventory. This can't be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep Gift</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => cancelGift(g.id)}>
+                              Yes, Cancel
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     ) : (
                       <span className={`text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded-full ${
                         g.status === "accepted"
