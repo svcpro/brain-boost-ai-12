@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Bell, CheckCircle2 } from "lucide-react";
+import { Bell, CheckCircle2, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getCache } from "@/lib/offlineCache";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
@@ -28,6 +28,7 @@ const WeeklyReminderSummary = () => {
   const [activeDot, setActiveDot] = useState<number | null>(null);
   const { user } = useAuth();
   const [dailyMinutes, setDailyMinutes] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [lastWeekMinutes, setLastWeekMinutes] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
 
   const stats = useMemo(() => {
     const settings = getVoiceSettings();
@@ -40,6 +41,12 @@ const WeeklyReminderSummary = () => {
     const thisWeekSet = new Set(log.filter(d => d >= mondayStr));
     const elapsed = Math.min(7, Math.floor((now.getTime() - monday.getTime()) / 86400000) + 1);
 
+    // Last week delivered dates
+    const lastMonday = new Date(monday);
+    lastMonday.setDate(monday.getDate() - 7);
+    const lastMondayStr = lastMonday.toLocaleDateString("en-CA");
+    const lastWeekDeliveredDates = log.filter(d => d >= lastMondayStr && d < mondayStr);
+
     const days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
@@ -49,36 +56,53 @@ const WeeklyReminderSummary = () => {
       return { label: DAY_LABELS[i], dateStr, delivered, past };
     });
 
+    // Build last week days for ignored calculation
+    const lastWeekDays = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(lastMonday);
+      date.setDate(lastMonday.getDate() + i);
+      const dateStr = date.toLocaleDateString("en-CA");
+      const delivered = lastWeekDeliveredDates.includes(dateStr);
+      return { delivered };
+    });
+
     const delivered = days.filter(d => d.delivered).length;
     const scheduleLabel = getScheduleLabel(settings);
 
-    return { days, delivered, elapsed, scheduleLabel, mondayStr };
+    return { days, delivered, elapsed, scheduleLabel, mondayStr, lastWeekDays };
   }, []);
 
-  // Fetch daily study minutes for the week
+  // Fetch daily study minutes for this week and last week
   useEffect(() => {
     if (!user || !stats) return;
     const fetchMinutes = async () => {
       const monday = getMondayOfWeek();
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 7);
+      const lastMonday = new Date(monday);
+      lastMonday.setDate(monday.getDate() - 7);
+      const nextSunday = new Date(monday);
+      nextSunday.setDate(monday.getDate() + 7);
 
       const { data } = await supabase
         .from("study_logs")
         .select("created_at, duration_minutes")
         .eq("user_id", user.id)
-        .gte("created_at", monday.toISOString())
-        .lt("created_at", sunday.toISOString());
+        .gte("created_at", lastMonday.toISOString())
+        .lt("created_at", nextSunday.toISOString());
 
       if (!data) return;
 
-      const mins = [0, 0, 0, 0, 0, 0, 0];
+      const thisWeek = [0, 0, 0, 0, 0, 0, 0];
+      const lastWeek = [0, 0, 0, 0, 0, 0, 0];
       for (const log of data) {
         const d = new Date(log.created_at);
-        const dayIdx = (d.getDay() + 6) % 7; // Mon=0
-        mins[dayIdx] += log.duration_minutes;
+        const dayIdx = (d.getDay() + 6) % 7;
+        if (d >= monday) {
+          thisWeek[dayIdx] += log.duration_minutes;
+        } else {
+          lastWeek[dayIdx] += log.duration_minutes;
+        }
       }
-      setDailyMinutes(mins);
+      setDailyMinutes(thisWeek);
+      setLastWeekMinutes(lastWeek);
     };
     fetchMinutes();
   }, [user, stats]);
@@ -86,6 +110,17 @@ const WeeklyReminderSummary = () => {
   if (!stats) return null;
 
   const maxMinutes = Math.max(...dailyMinutes, 1);
+  const ignoredCount = stats.days.filter((d, i) => d.delivered && dailyMinutes[i] === 0).length;
+  const lastWeekIgnored = stats.lastWeekDays.filter((d, i) => d.delivered && lastWeekMinutes[i] === 0).length;
+  const diff = ignoredCount - lastWeekIgnored;
+
+  const TrendIcon = diff < 0 ? TrendingDown : diff > 0 ? TrendingUp : Minus;
+  const trendColor = diff < 0 ? "text-success" : diff > 0 ? "text-warning" : "text-muted-foreground";
+  const trendLabel = diff < 0
+    ? `${Math.abs(diff)} fewer ignored vs last week`
+    : diff > 0
+      ? `${diff} more ignored vs last week`
+      : "Same as last week";
 
   return (
     <div className="glass rounded-xl p-4 neural-border">
@@ -202,26 +237,30 @@ const WeeklyReminderSummary = () => {
         </span>
       </div>
 
-      {(() => {
-        const ignoredCount = stats.days.filter((d, i) => d.delivered && dailyMinutes[i] === 0).length;
-        if (stats.delivered === stats.elapsed && stats.delivered > 0) {
-          return (
-            <div className="flex items-center gap-1 mt-2 text-[10px] text-success">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Perfect streak so far!</span>
-            </div>
-          );
-        }
-        if (ignoredCount >= 2) {
-          return (
-            <div className="mt-2 px-2 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-[10px] text-warning flex items-center gap-1.5">
-              <Bell className="w-3 h-3 shrink-0" />
-              <span>You ignored {ignoredCount} reminders this week — try studying even 5 minutes after the next one! 💪</span>
-            </div>
-          );
-        }
-        return null;
-      })()}
+      {/* Weekly trend comparison */}
+      <div className="mt-2 flex items-center justify-between px-1">
+        <div className={`flex items-center gap-1 text-[10px] ${trendColor}`}>
+          <TrendIcon className="w-3 h-3" />
+          <span>{trendLabel}</span>
+        </div>
+        <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
+          <span>This: <span className={ignoredCount > 0 ? "text-warning font-semibold" : "text-success font-semibold"}>{ignoredCount}</span></span>
+          <span>Last: <span className="font-semibold">{lastWeekIgnored}</span></span>
+        </div>
+      </div>
+
+      {/* Motivational messages */}
+      {stats.delivered === stats.elapsed && stats.delivered > 0 ? (
+        <div className="flex items-center gap-1 mt-2 text-[10px] text-success">
+          <CheckCircle2 className="w-3 h-3" />
+          <span>Perfect streak so far!</span>
+        </div>
+      ) : ignoredCount >= 2 ? (
+        <div className="mt-2 px-2 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-[10px] text-warning flex items-center gap-1.5">
+          <Bell className="w-3 h-3 shrink-0" />
+          <span>You ignored {ignoredCount} reminders this week — try studying even 5 minutes after the next one! 💪</span>
+        </div>
+      ) : null}
     </div>
   );
 };
