@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History, Clock, Flame, Target, ChevronDown, ChevronUp, Timer, Calendar } from "lucide-react";
+import { History, Clock, Flame, Target, ChevronDown, ChevronUp, Timer, Calendar, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -12,6 +12,7 @@ interface FocusSession {
   created_at: string;
   subject: string;
   topic: string | null;
+  notes: string | null;
 }
 
 const FocusSessionHistory = () => {
@@ -19,6 +20,7 @@ const FocusSessionHistory = () => {
   const [sessions, setSessions] = useState<FocusSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -31,7 +33,7 @@ const FocusSessionHistory = () => {
 
     const { data } = await supabase
       .from("study_logs")
-      .select("id, duration_minutes, confidence_level, created_at, subject_id, topic_id")
+      .select("id, duration_minutes, confidence_level, created_at, subject_id, topic_id, notes")
       .eq("user_id", user.id)
       .eq("study_mode", "focus")
       .order("created_at", { ascending: false })
@@ -67,6 +69,7 @@ const FocusSessionHistory = () => {
         created_at: d.created_at,
         subject: subjectMap.get(d.subject_id!) || "Unknown",
         topic: d.topic_id ? topicMap.get(d.topic_id) || null : null,
+        notes: d.notes || null,
       }))
     );
     setLoading(false);
@@ -126,24 +129,52 @@ const FocusSessionHistory = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="flex items-center gap-3 p-2.5 rounded-lg bg-secondary/30 border border-border"
+              className="rounded-lg bg-secondary/30 border border-border overflow-hidden"
             >
-              <div className={`w-2 h-2 rounded-full shrink-0 ${
-                session.confidence_level === "high" ? "bg-success" :
-                session.confidence_level === "medium" ? "bg-warning" : "bg-destructive"
-              }`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {session.subject}{session.topic ? ` · ${session.topic}` : ""}
-                </p>
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="w-2.5 h-2.5" />
-                  {formatDistanceToNow(new Date(session.created_at), { addSuffix: true })}
-                </p>
+              <div
+                className={`flex items-center gap-3 p-2.5 ${session.notes ? "cursor-pointer" : ""}`}
+                onClick={() => session.notes && setExpandedNoteId((prev) => prev === session.id ? null : session.id)}
+              >
+                <div className={`w-2 h-2 rounded-full shrink-0 ${
+                  session.confidence_level === "high" ? "bg-success" :
+                  session.confidence_level === "medium" ? "bg-warning" : "bg-destructive"
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">
+                    {session.subject}{session.topic ? ` · ${session.topic}` : ""}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="w-2.5 h-2.5" />
+                    {formatDistanceToNow(new Date(session.created_at), { addSuffix: true })}
+                  </p>
+                  {session.notes && (
+                    <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1">
+                      <StickyNote className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{session.notes}</span>
+                    </p>
+                  )}
+                </div>
+                <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                  {session.duration_minutes}m
+                </span>
               </div>
-              <span className="text-xs font-semibold text-muted-foreground shrink-0">
-                {session.duration_minutes}m
-              </span>
+              <AnimatePresence>
+                {expandedNoteId === session.id && session.notes && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-3 pb-3 pt-1 border-t border-border/30">
+                      <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        {session.notes}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ))}
         </AnimatePresence>
