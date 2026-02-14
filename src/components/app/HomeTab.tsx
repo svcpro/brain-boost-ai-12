@@ -419,22 +419,28 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       />
 
       {/* Floating Action Button — Quick Study Log */}
-      <motion.button
+      <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={fabVisible ? { scale: 1, opacity: 1, y: 0 } : { scale: 1, opacity: 0, y: 80 }}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        onClick={() => setSignalModalOpen(true)}
-        className="fixed bottom-20 right-5 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95"
+        className="fixed bottom-20 right-5 z-50"
         style={{ pointerEvents: fabVisible ? "auto" : "none" }}
-        aria-label="Log study session"
       >
-        <motion.span
-          animate={{ scale: [1, 1.2, 1] }}
-          transition={{ duration: 1.5, repeat: 2, ease: "easeInOut" }}
+        <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" />
+        <span className="absolute -inset-1 rounded-full bg-primary/20 animate-pulse" />
+        <button
+          onClick={() => setSignalModalOpen(true)}
+          className="relative w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-transform"
+          aria-label="Log study session"
         >
-          <Zap className="w-6 h-6" />
-        </motion.span>
-      </motion.button>
+          <motion.span
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1.5, repeat: 2, ease: "easeInOut" }}
+          >
+            <Zap className="w-6 h-6" />
+          </motion.span>
+        </button>
+      </motion.div>
     </div>
   );
 };
