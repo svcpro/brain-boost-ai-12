@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Play, Pause, RotateCcw, CheckCircle, X, ShieldCheck, Eye, EyeOff, Plus, Minus, Volume2, VolumeX, CloudRain, Music, Radio, Timer, Coffee, SkipForward, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus as MinusIcon } from "lucide-react";
+import { Crosshair, Play, Pause, RotateCcw, CheckCircle, X, ShieldCheck, Eye, EyeOff, Plus, Minus, Volume2, VolumeX, CloudRain, Music, Radio, Timer, Coffee, SkipForward, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus as MinusIcon, Smile, Meh, Frown } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
 import { useAmbientSound, type AmbientSoundType } from "@/hooks/useAmbientSound";
@@ -52,6 +52,7 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
   const [pomodoroCycle, setPomodoroCycle] = useState(1);
   const [totalCyclesCompleted, setTotalCyclesCompleted] = useState(0);
   const [logging, setLogging] = useState(false);
+  const [confidence, setConfidence] = useState<"low" | "medium" | "high">("high");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
@@ -188,26 +189,13 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
   };
 
   const handleComplete = async () => {
-    setLogging(true);
     const elapsedMs = Date.now() - startTimeRef.current;
     const elapsed = Math.max(1, Math.round(elapsedMs / 60000));
 
     // Capture strength before logging
     const strengthBefore = await getTopicStrength(topic);
 
-    await logStudy({
-      subjectName: subject,
-      topicName: topic || undefined,
-      durationMinutes: elapsed,
-      confidenceLevel: "high",
-      studyMode: "focus",
-    });
-
-    // Capture strength after logging
-    const strengthAfter = await getTopicStrength(topic);
-
     ambient.stop();
-    setLogging(false);
 
     // Fire confetti
     confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ["#22c55e", "#6366f1", "#f59e0b"] });
@@ -217,31 +205,55 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
       subject,
       topic,
       strengthBefore,
-      strengthAfter,
+      strengthAfter: null,
       pomodoroEnabled,
       cyclesCompleted: totalCyclesCompleted,
     });
+    setConfidence("high");
     setState("summary");
   };
 
+  const logAndFinish = async (callback: () => void) => {
+    if (!summary) return;
+    setLogging(true);
+
+    await logStudy({
+      subjectName: summary.subject,
+      topicName: summary.topic || undefined,
+      durationMinutes: summary.elapsedMinutes,
+      confidenceLevel: confidence,
+      studyMode: "focus",
+    });
+
+    const strengthAfter = await getTopicStrength(summary.topic);
+    setSummary((prev) => prev ? { ...prev, strengthAfter } : prev);
+
+    setLogging(false);
+    callback();
+  };
+
   const handleCloseSummary = () => {
-    setSummary(null);
-    onClose();
+    logAndFinish(() => {
+      setSummary(null);
+      onClose();
+    });
   };
 
   const handleStartAnother = () => {
     const prevSubject = summary?.subject || "";
     const prevTopic = summary?.topic || "";
-    setSummary(null);
-    setState("setup");
-    setTotalMinutes(25);
-    setSecondsLeft(25 * 60);
-    setSubject(prevSubject);
-    setTopic(prevTopic);
-    setPomodoroEnabled(false);
-    setPomodoroPhase("work");
-    setPomodoroCycle(1);
-    setTotalCyclesCompleted(0);
+    logAndFinish(() => {
+      setSummary(null);
+      setState("setup");
+      setTotalMinutes(25);
+      setSecondsLeft(25 * 60);
+      setSubject(prevSubject);
+      setTopic(prevTopic);
+      setPomodoroEnabled(false);
+      setPomodoroPhase("work");
+      setPomodoroCycle(1);
+      setTotalCyclesCompleted(0);
+    });
   };
 
   useEffect(() => () => clearTimer(), []);
@@ -657,24 +669,56 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
                 )}
               </div>
 
+              {/* Confidence picker */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="w-full"
+              >
+                <span className="text-xs text-muted-foreground mb-2 block text-center">How confident do you feel?</span>
+                <div className="flex gap-2">
+                  {([
+                    { level: "low" as const, icon: Frown, label: "Low", color: "border-destructive/30 bg-destructive/10 text-destructive" },
+                    { level: "medium" as const, icon: Meh, label: "Medium", color: "border-warning/30 bg-warning/10 text-warning" },
+                    { level: "high" as const, icon: Smile, label: "High", color: "border-success/30 bg-success/10 text-success" },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.level}
+                      onClick={() => setConfidence(opt.level)}
+                      className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all active:scale-95 ${
+                        confidence === opt.level
+                          ? opt.color + " ring-1 ring-current"
+                          : "border-border bg-secondary/30 text-muted-foreground"
+                      }`}
+                    >
+                      <opt.icon className="w-4 h-4" />
+                      <span className="text-[10px] font-medium">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+
               <div className="w-full flex gap-2">
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.4 }}
                   onClick={handleStartAnother}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary border border-border text-foreground font-semibold transition-all hover:bg-secondary/80 active:scale-95"
+                  disabled={logging}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary border border-border text-foreground font-semibold transition-all hover:bg-secondary/80 active:scale-95 disabled:opacity-50"
                 >
-                  <RotateCcw className="w-4 h-4" /> New Session
+                  <RotateCcw className="w-4 h-4" /> {logging ? "Logging..." : "New Session"}
                 </motion.button>
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.45 }}
                   onClick={handleCloseSummary}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-success text-success-foreground font-semibold transition-all hover:brightness-110 active:scale-95"
+                  disabled={logging}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-success text-success-foreground font-semibold transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
                 >
-                  Done
+                  {logging ? "Logging..." : "Done"}
                 </motion.button>
               </div>
             </div>
