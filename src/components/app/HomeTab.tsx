@@ -32,9 +32,10 @@ interface HomeTabProps {
   onRecommendationsSeen?: () => void;
   onOpenVoiceSettings?: () => void;
   onNavigateToBrain?: () => void;
+  onNavigateToYou?: () => void;
 }
 
-const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSettings, onNavigateToBrain }: HomeTabProps) => {
+const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSettings, onNavigateToBrain, onNavigateToYou }: HomeTabProps) => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
@@ -235,10 +236,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   return (
     <div className="px-6 py-6 space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
-        <motion.div
+        <motion.button
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => onNavigateToYou?.()}
           className="w-12 h-12 rounded-2xl neural-gradient neural-border flex items-center justify-center shrink-0 overflow-hidden"
         >
           {avatarUrl ? (
@@ -246,7 +249,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           ) : (
             <User className="w-6 h-6 text-primary" />
           )}
-        </motion.div>
+        </motion.button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-foreground truncate">
             {(() => {

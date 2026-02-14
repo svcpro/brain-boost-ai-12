@@ -160,7 +160,7 @@ const AppDashboard = () => {
 
   const renderTab = () => {
     switch (activeTab) {
-      case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} onNavigateToBrain={() => setActiveTab("brain")} />;
+      case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} onNavigateToBrain={() => setActiveTab("brain")} onNavigateToYou={() => setActiveTab("you")} />;
       case "action": return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
       case "progress": return <ProgressTab />;
