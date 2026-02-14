@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import NeuralBackground from "@/components/landing/NeuralBackground";
 import HeroSection from "@/components/landing/HeroSection";
 import ForgettingCurveSection from "@/components/landing/ForgettingCurveSection";
@@ -6,6 +9,14 @@ import PricingSection from "@/components/landing/PricingSection";
 import CTASection from "@/components/landing/CTASection";
 
 const Index = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/app", { replace: true });
+    }
+  }, [user, loading, navigate]);
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden">
       <NeuralBackground />
