@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getVoiceSettings } from "@/hooks/useVoiceNotification";
+import { useVoice } from "@/pages/AppDashboard";
 
 const REMINDER_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const REMINDER_ADVANCE_MINUTES = 15; // notify 15 min before session
@@ -22,7 +24,9 @@ function getTodayDayName(): string {
 
 export function usePlanSessionReminders() {
   const { user } = useAuth();
+  const voice = useVoice();
   const notifiedRef = useRef<Set<string>>(new Set());
+  const voiceNotifiedRef = useRef<Set<string>>(new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const checkAndNotify = useCallback(async () => {
@@ -55,6 +59,19 @@ export function usePlanSessionReminders() {
 
       // Send notification for today's incomplete sessions
       notifiedRef.current.add(session.id);
+
+      // Voice alert (first session only, once per check cycle)
+      if (!voiceNotifiedRef.current.has(session.id) && voice) {
+        const settings = getVoiceSettings();
+        if (settings.enabled) {
+          voiceNotifiedRef.current.add(session.id);
+          voice.speak("daily_reminder", {
+            subject: session.subject,
+            topic: session.topic,
+            daily_minutes: session.duration_minutes,
+          });
+        }
+      }
 
       try {
         const reg = await navigator.serviceWorker?.ready;
