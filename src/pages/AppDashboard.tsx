@@ -14,6 +14,7 @@ import { useWeakQuestionReminder } from "@/hooks/useWeakQuestionReminder";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { notifyFeedback } from "@/lib/feedback";
+import { useToast } from "@/hooks/use-toast";
 
 // Export voice context so child components can trigger voice
 export const VoiceContext = createContext<ReturnType<typeof useVoiceNotification> | null>(null);
@@ -38,6 +39,7 @@ const AppDashboard = () => {
   const [expiryWarning, setExpiryWarning] = useState<{ plan: string; daysLeft: number } | null>(null);
   const [dismissedWarning, setDismissedWarning] = useState(false);
   const voice = useVoiceNotification();
+  const { toast } = useToast();
   useStudyReminder();
   useOfflineSync();
   useScheduledVoiceReminder();
@@ -87,9 +89,15 @@ const AppDashboard = () => {
           table: 'notification_history',
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
+        (payload) => {
           setUnreadNotifs((c) => c + 1);
           notifyFeedback();
+          const n = payload.new as any;
+          toast({
+            title: n.title || "🔔 New notification",
+            description: n.body || undefined,
+            duration: 5000,
+          });
         }
       )
       .on(
