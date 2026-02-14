@@ -21,6 +21,7 @@ export interface VoiceSettings {
   tone: "soft" | "energetic" | "calm";
   schedule: "morning" | "afternoon" | "evening" | "custom";
   customHour?: number;
+  nudgeThreshold?: number;
 }
 
 const VOICE_SETTINGS_KEY = "acry-voice-settings";
