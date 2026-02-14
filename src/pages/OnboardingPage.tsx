@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, GraduationCap, BookOpen, Calendar, Plus, X, ChevronRight, Sparkles } from "lucide-react";
+import { Brain, GraduationCap, BookOpen, Calendar, Plus, X, ChevronRight, Sparkles, Hash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,22 @@ const SUGGESTED_SUBJECTS: Record<string, string[]> = {
   cat: ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
 };
 
+const SUGGESTED_TOPICS: Record<string, string[]> = {
+  "Physics": ["Mechanics", "Thermodynamics", "Optics", "Electromagnetism", "Modern Physics", "Waves"],
+  "Chemistry": ["Organic Chemistry", "Inorganic Chemistry", "Physical Chemistry", "Chemical Bonding", "Electrochemistry"],
+  "Biology (Botany)": ["Plant Anatomy", "Plant Physiology", "Genetics", "Ecology", "Cell Biology"],
+  "Biology (Zoology)": ["Human Physiology", "Animal Kingdom", "Evolution", "Reproductive Biology", "Biotechnology"],
+  "Mathematics": ["Calculus", "Algebra", "Coordinate Geometry", "Trigonometry", "Probability & Statistics", "Vectors"],
+  "History": ["Ancient India", "Medieval India", "Modern India", "World History"],
+  "Geography": ["Physical Geography", "Human Geography", "Indian Geography", "Climatology"],
+  "Polity": ["Constitution", "Governance", "Panchayati Raj", "Judiciary"],
+  "Economics": ["Microeconomics", "Macroeconomics", "Indian Economy", "Banking"],
+  "Quantitative Aptitude": ["Arithmetic", "Algebra", "Geometry", "Number Systems"],
+  "Verbal Ability": ["Reading Comprehension", "Para Jumbles", "Sentence Correction", "Vocabulary"],
+  "Data Interpretation": ["Tables", "Bar Graphs", "Pie Charts", "Caselets"],
+  "Logical Reasoning": ["Arrangements", "Puzzles", "Syllogisms", "Blood Relations"],
+};
+
 const STUDY_MODES = [
   { id: "lazy", label: "Chill Mode", desc: "Light daily revision", emoji: "😴" },
   { id: "focus", label: "Focus Mode", desc: "Balanced study plan", emoji: "🎯" },
@@ -36,6 +52,9 @@ const OnboardingPage = () => {
   const [examDate, setExamDate] = useState("");
   const [subjects, setSubjects] = useState<string[]>([]);
   const [newSubject, setNewSubject] = useState("");
+  const [topicsBySubject, setTopicsBySubject] = useState<Record<string, string[]>>({});
+  const [newTopic, setNewTopic] = useState("");
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [studyMode, setStudyMode] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -43,24 +62,70 @@ const OnboardingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
     if (trimmed && !subjects.includes(trimmed)) {
       setSubjects([...subjects, trimmed]);
+      setTopicsBySubject(prev => ({ ...prev, [trimmed]: [] }));
       setNewSubject("");
     }
   };
 
-  const removeSubject = (s: string) => setSubjects(subjects.filter(x => x !== s));
+  const removeSubject = (s: string) => {
+    setSubjects(subjects.filter(x => x !== s));
+    setTopicsBySubject(prev => {
+      const copy = { ...prev };
+      delete copy[s];
+      return copy;
+    });
+    if (activeSubject === s) setActiveSubject(null);
+  };
+
+  const addTopic = (subject: string) => {
+    const trimmed = newTopic.trim();
+    if (trimmed && !(topicsBySubject[subject] || []).includes(trimmed)) {
+      setTopicsBySubject(prev => ({
+        ...prev,
+        [subject]: [...(prev[subject] || []), trimmed],
+      }));
+      setNewTopic("");
+    }
+  };
+
+  const addSuggestedTopic = (subject: string, topic: string) => {
+    if (!(topicsBySubject[subject] || []).includes(topic)) {
+      setTopicsBySubject(prev => ({
+        ...prev,
+        [subject]: [...(prev[subject] || []), topic],
+      }));
+    }
+  };
+
+  const removeTopic = (subject: string, topic: string) => {
+    setTopicsBySubject(prev => ({
+      ...prev,
+      [subject]: (prev[subject] || []).filter(t => t !== topic),
+    }));
+  };
 
   const canProceed = () => {
     if (step === 0) return examType !== "";
     if (step === 1) return examDate !== "";
     if (step === 2) return subjects.length > 0;
-    if (step === 3) return studyMode !== "";
+    if (step === 3) return true; // topics are optional
+    if (step === 4) return studyMode !== "";
     return false;
+  };
+
+  // Initialize activeSubject when entering topics step
+  const handleNext = () => {
+    if (step === 2 && subjects.length > 0 && !activeSubject) {
+      setActiveSubject(subjects[0]);
+    }
+    if (step < totalSteps - 1) setStep(step + 1);
+    else handleFinish();
   };
 
   const handleFinish = async () => {
@@ -69,7 +134,6 @@ const OnboardingPage = () => {
     try {
       const finalExam = examType === "other" ? customExam || "Custom Exam" : examType.toUpperCase();
 
-      // Update profile
       const { error: profileErr } = await supabase
         .from("profiles")
         .update({
@@ -80,12 +144,22 @@ const OnboardingPage = () => {
         .eq("id", user.id);
       if (profileErr) throw profileErr;
 
-      // Create subjects
+      // Create subjects and their topics
       for (const name of subjects) {
-        const { error: subErr } = await supabase
+        const { data: subData, error: subErr } = await supabase
           .from("subjects")
-          .insert({ name, user_id: user.id });
+          .insert({ name, user_id: user.id })
+          .select("id")
+          .single();
         if (subErr) throw subErr;
+
+        const topics = topicsBySubject[name] || [];
+        for (const topicName of topics) {
+          const { error: topicErr } = await supabase
+            .from("topics")
+            .insert({ name: topicName, subject_id: subData.id, user_id: user.id });
+          if (topicErr) throw topicErr;
+        }
       }
 
       toast({ title: "You're all set! 🧠", description: "Your AI brain is now configured." });
@@ -102,6 +176,8 @@ const OnboardingPage = () => {
     center: { x: 0, opacity: 1 },
     exit: { x: -60, opacity: 0 },
   };
+
+  const totalTopics = Object.values(topicsBySubject).reduce((s, t) => s + t.length, 0);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative">
@@ -203,9 +279,8 @@ const OnboardingPage = () => {
                 <BookOpen className="w-5 h-5 text-primary" />
                 <h1 className="text-2xl font-bold text-foreground">Add your subjects</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-6">You can add topics within each subject later.</p>
+              <p className="text-muted-foreground text-sm mb-6">You'll add topics for each subject next.</p>
 
-              {/* Suggested subjects */}
               {SUGGESTED_SUBJECTS[examType] && (
                 <div className="mb-4">
                   <p className="text-xs text-muted-foreground mb-2">Suggested for {EXAM_TYPES.find(e => e.id === examType)?.label}:</p>
@@ -215,7 +290,10 @@ const OnboardingPage = () => {
                       .map(s => (
                         <button
                           key={s}
-                          onClick={() => setSubjects(prev => [...prev, s])}
+                          onClick={() => {
+                            setSubjects(prev => [...prev, s]);
+                            setTopicsBySubject(prev => ({ ...prev, [s]: [] }));
+                          }}
                           className="px-3 py-1.5 rounded-full border border-dashed border-primary/40 text-xs text-primary hover:bg-primary/10 transition-all"
                         >
                           + {s}
@@ -268,8 +346,108 @@ const OnboardingPage = () => {
             </motion.div>
           )}
 
-          {/* Step 3: Study Preferences */}
+          {/* Step 3: Topics per Subject */}
           {step === 3 && (
+            <motion.div key="topics" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Hash className="w-5 h-5 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground">Add topics</h1>
+              </div>
+              <p className="text-muted-foreground text-sm mb-4">
+                Add key topics for each subject. {totalTopics > 0 && <span className="text-primary">{totalTopics} topics added</span>}
+              </p>
+
+              {/* Subject tabs */}
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+                {subjects.map(s => {
+                  const count = (topicsBySubject[s] || []).length;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => { setActiveSubject(s); setNewTopic(""); }}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        activeSubject === s
+                          ? "bg-primary text-primary-foreground"
+                          : "glass border border-border text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {s} {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeSubject && (
+                <div className="space-y-3">
+                  {/* Suggested topics */}
+                  {SUGGESTED_TOPICS[activeSubject] && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Suggested topics:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {SUGGESTED_TOPICS[activeSubject]
+                          .filter(t => !(topicsBySubject[activeSubject] || []).includes(t))
+                          .map(t => (
+                            <button
+                              key={t}
+                              onClick={() => addSuggestedTopic(activeSubject, t)}
+                              className="px-2.5 py-1 rounded-full border border-dashed border-primary/40 text-[11px] text-primary hover:bg-primary/10 transition-all"
+                            >
+                              + {t}
+                            </button>
+                          ))}
+                        {SUGGESTED_TOPICS[activeSubject].every(t => (topicsBySubject[activeSubject] || []).includes(t)) && (
+                          <span className="text-[11px] text-muted-foreground">All added ✓</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add custom topic */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={`Add topic to ${activeSubject}...`}
+                      value={newTopic}
+                      onChange={e => setNewTopic(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTopic(activeSubject))}
+                      className="flex-1 rounded-xl bg-secondary border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    />
+                    <button
+                      onClick={() => addTopic(activeSubject)}
+                      disabled={!newTopic.trim()}
+                      className="px-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-30 transition-all"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Added topics */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {(topicsBySubject[activeSubject] || []).map(t => (
+                      <motion.span
+                        key={t}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full neural-gradient neural-border text-xs text-foreground"
+                      >
+                        {t}
+                        <button onClick={() => removeTopic(activeSubject, t)} className="text-muted-foreground hover:text-destructive transition-colors">
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </motion.span>
+                    ))}
+                  </div>
+
+                  {(topicsBySubject[activeSubject] || []).length === 0 && (
+                    <p className="text-[11px] text-muted-foreground text-center">No topics yet — add some or skip to continue.</p>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Step 4: Study Preferences */}
+          {step === 4 && (
             <motion.div key="prefs" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5 text-primary" />
@@ -311,15 +489,12 @@ const OnboardingPage = () => {
             </button>
           )}
           <button
-            onClick={() => {
-              if (step < totalSteps - 1) setStep(step + 1);
-              else handleFinish();
-            }}
+            onClick={handleNext}
             disabled={!canProceed() || loading}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {loading ? "Setting up..." : step < totalSteps - 1 ? (
-              <>Continue <ChevronRight className="w-4 h-4" /></>
+              <>{step === 3 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-4 h-4" /></>
             ) : (
               <>Launch ACRY <Sparkles className="w-4 h-4" /></>
             )}
