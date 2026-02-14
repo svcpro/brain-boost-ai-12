@@ -46,6 +46,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const voiceTriggeredRef = useRef(false);
   const rankVoiceFiredRef = useRef(false);
   const [fabVisible, setFabVisible] = useState(true);
+  const [brainPulseDismissed, setBrainPulseDismissed] = useState(false);
   const lastScrollY = useRef(0);
 
   // Hide FAB on scroll down, show on scroll up
@@ -249,11 +250,11 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
           whileTap={{ scale: 0.96 }}
-          onClick={onNavigateToBrain}
+          onClick={() => { setBrainPulseDismissed(true); onNavigateToBrain?.(); }}
           className="w-full glass rounded-xl neural-border p-3 flex items-center gap-3 hover:bg-secondary/20 transition-colors text-left"
         >
           <div className="relative w-10 h-10 shrink-0">
-            {(prediction.at_risk?.length ?? 0) > 0 && (
+            {!brainPulseDismissed && (prediction.at_risk?.length ?? 0) > 0 && (
               <motion.div
                 className="absolute inset-0 rounded-full bg-destructive/20"
                 animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
