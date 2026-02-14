@@ -96,12 +96,14 @@ serve(async (req) => {
     );
 
     const now = new Date();
+    const currentDay = now.getUTCDay(); // 0=Sunday
+    const currentHour = now.getUTCHours();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Get all profiles that have weekly reports enabled
+    // Get all profiles that have weekly reports enabled and match current day/hour
     const { data: profiles } = await adminClient
       .from('profiles')
-      .select('id, display_name, email_weekly_reports');
+      .select('id, display_name, email_weekly_reports, weekly_report_day, weekly_report_hour');
 
     if (!profiles?.length) {
       return new Response(JSON.stringify({ success: true, emails_sent: 0 }), {
@@ -112,6 +114,10 @@ serve(async (req) => {
     let emailsSent = 0;
     for (const profile of profiles) {
       if (profile.email_weekly_reports === false) continue;
+      // Check if it's the user's preferred day and hour
+      const prefDay = profile.weekly_report_day ?? 0;
+      const prefHour = profile.weekly_report_hour ?? 7;
+      if (prefDay !== currentDay || prefHour !== currentHour) continue;
 
       // Get study logs for the past week
       const { data: logs } = await adminClient
