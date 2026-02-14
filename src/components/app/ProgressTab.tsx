@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal, HeartCrack } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal, HeartCrack, PartyPopper } from "lucide-react";
+import confetti from "canvas-confetti";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +27,7 @@ interface StreakData {
   last30Days: boolean[]; // true = studied that day
   todayStudied: boolean;
   brokenStreak: number; // streak length before it was broken (0 if not broken)
+  isComeback: boolean; // true if user just restarted after a 3+ day broken streak
 }
 
 const MILESTONES = [
@@ -87,27 +89,51 @@ const ProgressTab = () => {
         } else break;
       }
 
-      // Compute broken streak: if current streak is 0 and yesterday had no study,
-      // walk back to find the most recent streak that was 3+ days
+      // Compute broken streak and comeback status
       let brokenStreak = 0;
-      if (currentStreak === 0 && !todayStudied) {
-        // Find last studied day
+      let isComeback = false;
+
+      // Check for comeback: currentStreak is 1 (just today) and yesterday was a gap after a 3+ streak
+      if (currentStreak === 1 && todayStudied) {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+        if (!studyDays.has(yKey)) {
+          // Walk back from 2 days ago to find previous streak
+          const walkBack = new Date(today);
+          walkBack.setDate(walkBack.getDate() - 2);
+          let gapDays = 1;
+          while (gapDays < 30) {
+            const key = `${walkBack.getFullYear()}-${String(walkBack.getMonth() + 1).padStart(2, "0")}-${String(walkBack.getDate()).padStart(2, "0")}`;
+            if (studyDays.has(key)) {
+              let prevStreak = 0;
+              const countDate = new Date(walkBack);
+              while (true) {
+                const k = `${countDate.getFullYear()}-${String(countDate.getMonth() + 1).padStart(2, "0")}-${String(countDate.getDate()).padStart(2, "0")}`;
+                if (studyDays.has(k)) { prevStreak++; countDate.setDate(countDate.getDate() - 1); } else break;
+              }
+              if (prevStreak >= 3) { brokenStreak = prevStreak; isComeback = true; }
+              break;
+            }
+            walkBack.setDate(walkBack.getDate() - 1);
+            gapDays++;
+          }
+        }
+      }
+
+      // If not a comeback, check for broken streak (no study today)
+      if (!isComeback && currentStreak === 0 && !todayStudied) {
         const walkBack = new Date(today);
-        walkBack.setDate(walkBack.getDate() - 1); // already checked yesterday via currentStreak
-        // Skip gap days to find last study day
+        walkBack.setDate(walkBack.getDate() - 1);
         let gapDays = 1;
         while (gapDays < 30) {
           const key = `${walkBack.getFullYear()}-${String(walkBack.getMonth() + 1).padStart(2, "0")}-${String(walkBack.getDate()).padStart(2, "0")}`;
           if (studyDays.has(key)) {
-            // Count consecutive study days ending here
             let prevStreak = 0;
             const countDate = new Date(walkBack);
             while (true) {
               const k = `${countDate.getFullYear()}-${String(countDate.getMonth() + 1).padStart(2, "0")}-${String(countDate.getDate()).padStart(2, "0")}`;
-              if (studyDays.has(k)) {
-                prevStreak++;
-                countDate.setDate(countDate.getDate() - 1);
-              } else break;
+              if (studyDays.has(k)) { prevStreak++; countDate.setDate(countDate.getDate() - 1); } else break;
             }
             if (prevStreak >= 3) brokenStreak = prevStreak;
             break;
@@ -139,7 +165,7 @@ const ProgressTab = () => {
         last30Days.push(studyDays.has(key));
       }
 
-      const result = { currentStreak, longestStreak, last30Days, todayStudied, brokenStreak };
+      const result = { currentStreak, longestStreak, last30Days, todayStudied, brokenStreak, isComeback };
       setStreak(result);
       setCache("progress-streak", result);
     } catch {
@@ -147,10 +173,20 @@ const ProgressTab = () => {
     }
   }, [user]);
 
-  // Show toast notification for milestone achievements or streak recovery
+  // Show toast notification for milestone achievements, streak recovery, or comeback
   useEffect(() => {
     if (!streak || notifiedRef.current) return;
     notifiedRef.current = true;
+
+    // Comeback celebration
+    if (streak.isComeback) {
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      toast({
+        title: "🎉 Welcome back!",
+        description: "You're back on track — your new streak starts now!",
+      });
+      return;
+    }
 
     // Streak recovery nudge
     if (streak.brokenStreak >= 3) {
@@ -371,8 +407,45 @@ const ProgressTab = () => {
         )}
       </motion.div>
 
+      {/* Comeback Celebration */}
+      {streak && streak.isComeback && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          className="glass rounded-xl p-5 neural-border border-success/30 relative overflow-hidden"
+        >
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-br from-success/5 to-primary/5"
+            animate={{ opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+          <div className="relative flex items-start gap-3">
+            <motion.div
+              className="p-2 rounded-lg bg-success/10 shrink-0"
+              animate={{ rotate: [0, -10, 10, -10, 0] }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <PartyPopper className="w-5 h-5 text-success" />
+            </motion.div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">🎉 You're back!</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                After a break from your {streak.brokenStreak}-day streak, you've jumped right back in. That takes real discipline!
+              </p>
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-[10px] text-success font-medium px-2 py-1 rounded-full bg-success/10">
+                  🔥 New streak: Day 1
+                </span>
+                <span className="text-[10px] text-muted-foreground">Keep going to rebuild momentum</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Streak Recovery Nudge */}
-      {streak && streak.brokenStreak >= 3 && (
+      {streak && !streak.isComeback && streak.brokenStreak >= 3 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
