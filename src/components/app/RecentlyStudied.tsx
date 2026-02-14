@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History, Play, StickyNote, ChevronDown } from "lucide-react";
+import { History, Play, StickyNote, ChevronDown, Pencil, Trash2, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 import FocusModeSession from "./FocusModeSession";
 
 interface RecentTopic {
+  logId: string;
   topicName: string;
   subjectName: string;
   lastStudied: string;
@@ -16,18 +18,21 @@ interface RecentTopic {
 
 const RecentlyStudied = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [items, setItems] = useState<RecentTopic[]>([]);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
 
   const load = useCallback(async () => {
     if (!user) return;
 
     const { data: logs } = await supabase
       .from("study_logs")
-      .select("topic_id, subject_id, duration_minutes, created_at, notes")
+      .select("id, topic_id, subject_id, duration_minutes, created_at, notes")
       .eq("user_id", user.id)
       .not("topic_id", "is", null)
       .order("created_at", { ascending: false })
@@ -59,6 +64,7 @@ const RecentlyStudied = () => {
     const subjectMap = new Map((subjects || []).map((s) => [s.id, s.name]));
 
     const result: RecentTopic[] = uniqueLogs.map((l) => ({
+      logId: l.id,
       topicName: topicMap.get(l.topic_id!) || "Unknown",
       subjectName: subjectMap.get(l.subject_id!) || "",
       lastStudied: l.created_at,
@@ -83,6 +89,44 @@ const RecentlyStudied = () => {
 
   const toggleExpand = (index: number) => {
     setExpandedIndex((prev) => (prev === index ? null : index));
+    setEditingIndex(null);
+  };
+
+  const startEditing = (index: number) => {
+    setEditText(items[index].notes || "");
+    setEditingIndex(index);
+  };
+
+  const saveNote = async (index: number) => {
+    const item = items[index];
+    const trimmed = editText.trim();
+    const { error } = await supabase
+      .from("study_logs")
+      .update({ notes: trimmed || null })
+      .eq("id", item.logId);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update note", variant: "destructive" });
+      return;
+    }
+    setItems((prev) => prev.map((it, i) => i === index ? { ...it, notes: trimmed || null } : it));
+    setEditingIndex(null);
+    toast({ title: "Note updated ✏️" });
+  };
+
+  const deleteNote = async (index: number) => {
+    const item = items[index];
+    const { error } = await supabase
+      .from("study_logs")
+      .update({ notes: null })
+      .eq("id", item.logId);
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete note", variant: "destructive" });
+      return;
+    }
+    setItems((prev) => prev.map((it, i) => i === index ? { ...it, notes: null } : it));
+    setEditingIndex(null);
+    setExpandedIndex(null);
+    toast({ title: "Note deleted 🗑️" });
   };
 
   return (
@@ -152,10 +196,44 @@ const RecentlyStudied = () => {
                     transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    <div className="px-3 pb-3 pt-0.5 border-t border-border/30">
-                      <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                        {item.notes}
-                      </p>
+                    <div className="px-3 pb-3 pt-1.5 border-t border-border/30 space-y-2">
+                      {editingIndex === i ? (
+                        <div className="space-y-1.5">
+                          <textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            maxLength={500}
+                            rows={3}
+                            className="w-full text-[11px] bg-background/50 border border-border rounded-md p-2 text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                            autoFocus
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground">{editText.length}/500</span>
+                            <div className="flex gap-1">
+                              <button onClick={() => setEditingIndex(null)} className="p-1 rounded hover:bg-secondary/50 transition-colors">
+                                <X className="w-3.5 h-3.5 text-muted-foreground" />
+                              </button>
+                              <button onClick={() => saveNote(i)} className="p-1 rounded hover:bg-primary/10 transition-colors">
+                                <Check className="w-3.5 h-3.5 text-primary" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            {item.notes}
+                          </p>
+                          <div className="flex gap-1 justify-end">
+                            <button onClick={() => startEditing(i)} className="p-1 rounded hover:bg-secondary/50 transition-colors" title="Edit note">
+                              <Pencil className="w-3 h-3 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => deleteNote(i)} className="p-1 rounded hover:bg-destructive/10 transition-colors" title="Delete note">
+                              <Trash2 className="w-3 h-3 text-destructive/70" />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 )}
