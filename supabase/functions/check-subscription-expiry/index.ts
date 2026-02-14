@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function sendExpiryEmail(email: string, planName: string, daysLeft: number) {
+async function sendExpiryEmail(email: string, planName: string, daysLeft: number, userId: string) {
   const resendKey = Deno.env.get('RESEND_API_KEY');
   if (!resendKey) {
     console.warn('RESEND_API_KEY not set, skipping email');
@@ -34,7 +34,8 @@ async function sendExpiryEmail(email: string, planName: string, daysLeft: number
         </div>
       </div>
       <div style="background: #f1f5f9; padding: 20px 28px; text-align: center; border-top: 1px solid #e2e8f0;">
-        <p style="color: #94a3b8; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} ACRY · Smart Study Companion</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 0 0 8px;">© ${new Date().getFullYear()} ACRY · Smart Study Companion</p>
+        <a href="https://yvxrsujwgmzdjzsjyqfb.supabase.co/functions/v1/email-unsubscribe?uid=${userId}&type=expiry" style="color: #94a3b8; font-size: 11px; text-decoration: underline;">Unsubscribe from these emails</a>
       </div>
     </div>
   `;
@@ -104,7 +105,7 @@ serve(async (req) => {
         if (user?.email) {
           const daysLeft = Math.ceil((new Date(sub.expires_at!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
           const planName = sub.plan_id === 'ultra' ? 'Ultra Brain' : 'Pro Brain';
-          await sendExpiryEmail(user.email, planName, daysLeft);
+          await sendExpiryEmail(user.email, planName, daysLeft, sub.user_id);
           emailsSent++;
         }
       }
