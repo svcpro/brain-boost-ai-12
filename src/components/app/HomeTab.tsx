@@ -6,6 +6,7 @@ import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DailyGoalTracker from "./DailyGoalTracker";
+import StreakTracker from "./StreakTracker";
 import ReviewQueue from "./ReviewQueue";
 
 const HomeTab = () => {
@@ -73,6 +74,9 @@ const HomeTab = () => {
 
       {/* Daily Goal */}
       <DailyGoalTracker />
+
+      {/* Streak */}
+      <StreakTracker />
 
       {/* Stats row */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-3">
