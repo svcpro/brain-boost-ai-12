@@ -18,6 +18,7 @@ import WeeklyReminderSummary from "./WeeklyReminderSummary";
 import StudyInsights from "./StudyInsights";
 import FocusModeSession from "./FocusModeSession";
 import DailyStudyTip from "./DailyStudyTip";
+import WeeklySummaryNotification from "./WeeklySummaryNotification";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -177,6 +178,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
       </motion.div>
+
+      {/* Weekly Summary Notification */}
+      <WeeklySummaryNotification />
 
       {/* Daily Goal */}
       <DailyGoalTracker />
