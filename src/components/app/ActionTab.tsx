@@ -185,6 +185,51 @@ const ActionTab = () => {
     }
   }, [toast]);
 
+  const processVoiceRecording = useCallback(async (blob: Blob) => {
+    setExtracting(true);
+    setExtractionResult(null);
+    toast({ title: "🎙️ Transcribing voice note...", description: "AI is extracting topics from your recording." });
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", blob, "voice-note.webm");
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-voice-topics`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Processing failed" }));
+        throw new Error(err.error || `Failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.totalTopicsCreated > 0) {
+        setExtractionResult(data.results);
+        toast({
+          title: `🧠 ${data.totalTopicsCreated} topics extracted!`,
+          description: `Added to ${data.results.length} subject(s) from your voice note. Check your Brain tab!`,
+        });
+      } else if (data.success && data.totalTopicsCreated === 0) {
+        toast({ title: "No new topics found", description: "All topics from this recording are already in your library." });
+      } else {
+        throw new Error(data.error || "Extraction failed");
+      }
+    } catch (err: any) {
+      toast({ title: "Voice extraction failed", description: err?.message || "Could not extract topics from recording.", variant: "destructive" });
+    } finally {
+      setExtracting(false);
+    }
+  }, [toast]);
+
   const handleVoiceRecord = useCallback(async () => {
     if (recording) {
       // Stop recording
@@ -208,16 +253,17 @@ const ActionTab = () => {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
         setUploadedFile(`Voice recording (${sizeMB}MB)`);
-        toast({ title: "🎙️ Voice recorded!", description: `Recording saved (${sizeMB}MB). Ready for processing.` });
+        // Automatically process the voice recording
+        processVoiceRecording(blob);
       };
 
       mediaRecorder.start();
       setRecording(true);
-      toast({ title: "🎙️ Recording...", description: "Tap Voice again to stop recording." });
+      toast({ title: "🎙️ Recording...", description: "Tap Voice again to stop and extract topics." });
     } catch (err: any) {
       toast({ title: "Microphone access denied", description: "Please allow microphone access to record voice notes.", variant: "destructive" });
     }
-  }, [recording, toast]);
+  }, [recording, toast, processVoiceRecording]);
 
   const handleSyncNow = async () => {
     setSyncing(true);
@@ -341,11 +387,18 @@ const ActionTab = () => {
           <button
             type="button"
             onClick={handleVoiceRecord}
-            className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95 ${recording ? "ring-2 ring-destructive animate-pulse" : ""}`}
+            disabled={extracting}
+            className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 ${recording ? "ring-2 ring-destructive animate-pulse" : ""}`}
           >
-            {recording ? <Square className="w-5 h-5 text-destructive" /> : <Mic className="w-5 h-5 text-primary" />}
+            {extracting && !recording ? (
+              <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            ) : recording ? (
+              <Square className="w-5 h-5 text-destructive" />
+            ) : (
+              <Mic className="w-5 h-5 text-primary" />
+            )}
             <span className={`text-xs ${recording ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
-              {recording ? "Stop" : "Voice"}
+              {extracting && !recording ? "Extracting..." : recording ? "Stop" : "Voice"}
             </span>
           </button>
         </div>
