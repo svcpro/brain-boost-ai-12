@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
 import { notifyFeedback } from "@/lib/feedback";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface SubjectOption {
+  id: string;
+  name: string;
+  topics: { id: string; name: string }[];
+}
 
 interface QuickStudySignalModalProps {
   open: boolean;
@@ -13,17 +21,70 @@ interface QuickStudySignalModalProps {
 }
 
 const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalModalProps) => {
+  const { user } = useAuth();
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
+  const [customSubject, setCustomSubject] = useState("");
+  const [customTopic, setCustomTopic] = useState("");
   const [minutes, setMinutes] = useState("");
   const [confidence, setConfidence] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
 
+  const loadSubjects = useCallback(async () => {
+    if (!user || loaded) return;
+    const { data: subs } = await supabase
+      .from("subjects")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .order("name");
+
+    if (!subs || subs.length === 0) { setLoaded(true); return; }
+
+    const { data: topics } = await supabase
+      .from("topics")
+      .select("id, name, subject_id")
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .order("name");
+
+    setSubjects(subs.map((s) => ({
+      ...s,
+      topics: (topics || []).filter((t: any) => t.subject_id === s.id).map((t) => ({ id: t.id, name: t.name })),
+    })));
+    setLoaded(true);
+  }, [user, loaded]);
+
+  useEffect(() => {
+    if (open) {
+      setLoaded(false); // reload each time modal opens
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && !loaded) loadSubjects();
+  }, [open, loaded, loadSubjects]);
+
+  const selectedSubject = subjects.find((s) => s.id === subject);
+  const subjectName = subject === "__custom" ? customSubject : (selectedSubject?.name || "");
+  const topicName = topic === "__custom" ? customTopic : (selectedSubject?.topics.find((t) => t.id === topic)?.name || "");
+
+  const handleSubjectChange = (val: string) => {
+    setSubject(val);
+    setTopic("");
+    setCustomTopic("");
+    if (val !== "__custom") setCustomSubject("");
+  };
+
   const handleSubmit = async () => {
-    if (!subject || !minutes || !confidence) {
+    const finalSubject = subjectName;
+    const finalTopic = topicName;
+    if (!finalSubject || !minutes || !confidence) {
       toast({ title: "Missing fields", description: "Please fill subject, time, and confidence.", variant: "destructive" });
       return;
     }
@@ -39,8 +100,8 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
 
     try {
       const success = await logStudy({
-        subjectName: subject,
-        topicName: topic || undefined,
+        subjectName: finalSubject,
+        topicName: finalTopic || undefined,
         durationMinutes: parseInt(minutes),
         confidenceLevel: confidence as "low" | "medium" | "high",
         studyMode: "lazy",
@@ -55,6 +116,8 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
         setTimeout(() => {
           setSubject("");
           setTopic("");
+          setCustomSubject("");
+          setCustomTopic("");
           setMinutes("");
           setConfidence("");
           setSubmitting(false);
@@ -72,6 +135,91 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
     setSubmitProgress(0);
   };
 
+  const renderSubjectInput = () => {
+    if (subjects.length === 0) {
+      return (
+        <input
+          type="text"
+          placeholder="Subject (e.g. Physics)"
+          value={customSubject}
+          onChange={(e) => { setCustomSubject(e.target.value); setSubject("__custom"); }}
+          className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+      );
+    }
+    return (
+      <div className="space-y-2">
+        <div className="relative">
+          <select
+            value={subject}
+            onChange={(e) => handleSubjectChange(e.target.value)}
+            className="w-full appearance-none rounded-lg bg-secondary border border-border px-4 py-3 pr-8 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="">Select subject</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+            <option value="__custom">+ New subject</option>
+          </select>
+          <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+        {subject === "__custom" && (
+          <input
+            type="text"
+            placeholder="Enter new subject name"
+            value={customSubject}
+            onChange={(e) => setCustomSubject(e.target.value)}
+            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            autoFocus
+          />
+        )}
+      </div>
+    );
+  };
+
+  const renderTopicInput = () => {
+    if (subjects.length === 0 || subject === "__custom") {
+      return (
+        <input
+          type="text"
+          placeholder="Topic (optional, e.g. Electrostatics)"
+          value={customTopic}
+          onChange={(e) => { setCustomTopic(e.target.value); setTopic("__custom"); }}
+          className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+      );
+    }
+    const topicOptions = selectedSubject?.topics || [];
+    return (
+      <div className="space-y-2">
+        <div className="relative">
+          <select
+            value={topic}
+            onChange={(e) => { setTopic(e.target.value); if (e.target.value !== "__custom") setCustomTopic(""); }}
+            className="w-full appearance-none rounded-lg bg-secondary border border-border px-4 py-3 pr-8 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="">Topic (optional)</option>
+            {topicOptions.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+            <option value="__custom">+ New topic</option>
+          </select>
+          <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+        {topic === "__custom" && (
+          <input
+            type="text"
+            placeholder="Enter new topic name"
+            value={customTopic}
+            onChange={(e) => setCustomTopic(e.target.value)}
+            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            autoFocus
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="bottom" className="rounded-t-2xl px-6 pb-8 pt-4 max-h-[85vh] overflow-y-auto">
@@ -83,20 +231,9 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
         </SheetHeader>
 
         <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Subject (e.g. Physics)"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <input
-            type="text"
-            placeholder="Topic (optional, e.g. Electrostatics)"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          />
+          {renderSubjectInput()}
+          {renderTopicInput()}
+
           <div className="flex gap-3">
             <input
               type="number"
