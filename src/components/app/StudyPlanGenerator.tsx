@@ -65,26 +65,49 @@ const StudyPlanGenerator = () => {
   const { toast } = useToast();
   const { startReminders, stopReminders, requestPermission } = usePlanSessionReminders();
 
+  const CACHE_KEY = "offline-saved-plan";
+
   const loadSavedPlan = useCallback(async () => {
     if (!user) return;
-    const { data: plans } = await supabase
-      .from("study_plans")
-      .select("id, summary, created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
 
-    if (plans && plans.length > 0) {
-      const p = plans[0];
-      const { data: sessions } = await supabase
-        .from("plan_sessions")
-        .select("id, day_index, day_name, topic, subject, duration_minutes, mode, reason, completed")
-        .eq("plan_id", p.id)
-        .order("day_index", { ascending: true });
+    // Try loading from cache first for instant display
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        setSavedPlan(JSON.parse(cached));
+      } catch {}
+    }
 
-      setSavedPlan({ ...p, sessions: sessions || [] });
-    } else {
-      setSavedPlan(null);
+    try {
+      const { data: plans, error: plansErr } = await supabase
+        .from("study_plans")
+        .select("id, summary, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (plansErr) throw plansErr;
+
+      if (plans && plans.length > 0) {
+        const p = plans[0];
+        const { data: sessions, error: sessErr } = await supabase
+          .from("plan_sessions")
+          .select("id, day_index, day_name, topic, subject, duration_minutes, mode, reason, completed")
+          .eq("plan_id", p.id)
+          .order("day_index", { ascending: true });
+
+        if (sessErr) throw sessErr;
+
+        const freshPlan = { ...p, sessions: sessions || [] };
+        setSavedPlan(freshPlan);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(freshPlan));
+      } else {
+        setSavedPlan(null);
+        localStorage.removeItem(CACHE_KEY);
+      }
+    } catch {
+      // Offline – cached data (if any) is already set above
+      if (!cached) setSavedPlan(null);
     }
   }, [user]);
 
@@ -175,10 +198,12 @@ const StudyPlanGenerator = () => {
 
     setSavedPlan((prev) => {
       if (!prev) return prev;
-      return {
+      const updated = {
         ...prev,
         sessions: prev.sessions.map((s) => s.id === sessionId ? { ...s, completed: newCompleted } : s),
       };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+      return updated;
     });
   };
 
@@ -186,6 +211,7 @@ const StudyPlanGenerator = () => {
     if (!savedPlan) return;
     await supabase.from("study_plans").delete().eq("id", savedPlan.id);
     setSavedPlan(null);
+    localStorage.removeItem(CACHE_KEY);
     toast({ title: "Plan deleted" });
   };
 
