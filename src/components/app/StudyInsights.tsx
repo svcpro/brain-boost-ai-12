@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, AlertTriangle, Clock, Sparkles, TrendingUp, RefreshCw, ChevronDown, ChevronUp, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { setCache, getCache } from "@/lib/offlineCache";
 
 interface Insight {
   type: "urgent" | "optimization" | "encouragement" | "schedule";
@@ -12,6 +13,14 @@ interface Insight {
   topic?: string | null;
   priority: number;
 }
+
+interface CachedInsights {
+  insights: Insight[];
+  fetchedAt: number;
+}
+
+const CACHE_KEY = "study-insights-cache";
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const typeConfig = {
   urgent: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/20", label: "Urgent" },
@@ -32,23 +41,42 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
   const [expanded, setExpanded] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
 
-  const fetchInsights = useCallback(async () => {
+  // Load cached insights on mount, auto-fetch if stale or missing
+  useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    const cached = getCache<CachedInsights>(CACHE_KEY);
+    if (cached?.insights?.length) {
+      setInsights(cached.insights);
+      setHasLoaded(true);
+      // If cache is older than TTL, refresh in background
+      if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) {
+        fetchInsights(true);
+      }
+    } else {
+      // No cache — auto-fetch
+      fetchInsights(false);
+    }
+  }, [user]);
+
+  const fetchInsights = useCallback(async (silent = false) => {
+    if (!user) return;
+    if (!silent) setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("study-insights");
       if (error) throw error;
       if (data?.error) {
-        toast({ title: "AI Insights", description: data.error, variant: "destructive" });
+        if (!silent) toast({ title: "AI Insights", description: data.error, variant: "destructive" });
         return;
       }
-      setInsights(data?.insights || []);
+      const fetched = data?.insights || [];
+      setInsights(fetched);
       setHasLoaded(true);
+      setCache(CACHE_KEY, { insights: fetched, fetchedAt: Date.now() } as CachedInsights);
     } catch (e) {
       console.error("Failed to fetch insights:", e);
-      toast({ title: "Failed to load insights", description: "Please try again later.", variant: "destructive" });
+      if (!silent) toast({ title: "Failed to load insights", description: "Please try again later.", variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [user, toast]);
 
@@ -60,7 +88,7 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
     >
       <button
         onClick={() => {
-          if (!hasLoaded && !loading) fetchInsights();
+          if (!hasLoaded && !loading) fetchInsights(false);
           setExpanded(!expanded);
         }}
         className="w-full flex items-center justify-between p-4"
@@ -75,7 +103,7 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
         <div className="flex items-center gap-2">
           {hasLoaded && (
             <button
-              onClick={(e) => { e.stopPropagation(); fetchInsights(); }}
+              onClick={(e) => { e.stopPropagation(); fetchInsights(false); }}
               className="p-1 rounded-lg hover:bg-secondary/50 transition-colors"
               disabled={loading}
             >
@@ -105,7 +133,7 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
 
               {!loading && !hasLoaded && (
                 <button
-                  onClick={fetchInsights}
+                  onClick={() => fetchInsights(false)}
                   className="w-full py-6 rounded-xl border border-dashed border-primary/30 hover:bg-primary/5 transition-colors flex flex-col items-center gap-2"
                 >
                   <Sparkles className="w-6 h-6 text-primary" />
