@@ -1,0 +1,159 @@
+import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Brain, AlertTriangle, Clock, Sparkles, TrendingUp, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+
+interface Insight {
+  type: "urgent" | "optimization" | "encouragement" | "schedule";
+  title: string;
+  body: string;
+  topic?: string | null;
+  priority: number;
+}
+
+const typeConfig = {
+  urgent: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/20", label: "Urgent" },
+  optimization: { icon: TrendingUp, color: "text-primary", bg: "bg-primary/10", border: "border-primary/20", label: "Optimize" },
+  encouragement: { icon: Sparkles, color: "text-success", bg: "bg-success/10", border: "border-success/20", label: "Great Work" },
+  schedule: { icon: Clock, color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", label: "Schedule" },
+};
+
+const StudyInsights = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  const fetchInsights = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("study-insights");
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "AI Insights", description: data.error, variant: "destructive" });
+        return;
+      }
+      setInsights(data?.insights || []);
+      setHasLoaded(true);
+    } catch (e) {
+      console.error("Failed to fetch insights:", e);
+      toast({ title: "Failed to load insights", description: "Please try again later.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass rounded-2xl neural-border overflow-hidden"
+    >
+      <button
+        onClick={() => {
+          if (!hasLoaded && !loading) fetchInsights();
+          setExpanded(!expanded);
+        }}
+        className="w-full flex items-center justify-between p-4"
+      >
+        <div className="flex items-center gap-2">
+          <Brain className="w-5 h-5 text-primary" />
+          <span className="text-sm font-semibold text-foreground">Smart Study Insights</span>
+          {insights.some(i => i.type === "urgent") && (
+            <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {hasLoaded && (
+            <button
+              onClick={(e) => { e.stopPropagation(); fetchInsights(); }}
+              className="p-1 rounded-lg hover:bg-secondary/50 transition-colors"
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
+            </button>
+          )}
+          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-3">
+              {loading && !hasLoaded && (
+                <div className="flex flex-col items-center py-8 gap-3">
+                  <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+                  <p className="text-xs text-muted-foreground">Analyzing your study patterns…</p>
+                </div>
+              )}
+
+              {!loading && !hasLoaded && (
+                <button
+                  onClick={fetchInsights}
+                  className="w-full py-6 rounded-xl border border-dashed border-primary/30 hover:bg-primary/5 transition-colors flex flex-col items-center gap-2"
+                >
+                  <Sparkles className="w-6 h-6 text-primary" />
+                  <span className="text-sm font-medium text-foreground">Generate AI Insights</span>
+                  <span className="text-[10px] text-muted-foreground">Analyze weak topics & optimal revision times</span>
+                </button>
+              )}
+
+              {hasLoaded && insights.length === 0 && !loading && (
+                <div className="text-center py-6">
+                  <p className="text-sm text-muted-foreground">No insights available yet. Add more topics and study sessions!</p>
+                </div>
+              )}
+
+              {insights.map((insight, i) => {
+                const config = typeConfig[insight.type] || typeConfig.optimization;
+                const Icon = config.icon;
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.08 }}
+                    className={`rounded-xl border ${config.border} ${config.bg} p-3 space-y-1`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className={`w-4 h-4 ${config.color}`} />
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${config.color}`}>{config.label}</span>
+                      {insight.topic && (
+                        <span className="text-[10px] text-muted-foreground ml-auto truncate max-w-[120px]">
+                          {insight.topic}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">{insight.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{insight.body}</p>
+                  </motion.div>
+                );
+              })}
+
+              {loading && hasLoaded && (
+                <div className="flex items-center justify-center py-3">
+                  <RefreshCw className="w-4 h-4 text-primary animate-spin mr-2" />
+                  <span className="text-xs text-muted-foreground">Refreshing insights…</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+export default StudyInsights;
