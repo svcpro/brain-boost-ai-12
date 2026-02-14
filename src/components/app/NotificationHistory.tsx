@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, CheckCheck, Trash2, Loader2, Filter } from "lucide-react";
+import { Bell, BellOff, Check, CheckCheck, Trash2, Loader2, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, isToday, isYesterday } from "date-fns";
@@ -203,9 +203,32 @@ const NotificationHistory = () => {
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">
-            {notifications.length === 0 ? "No notifications yet" : "No notifications of this type"}
-          </p>
+          <div className="flex flex-col items-center py-8 gap-3">
+            <div className="w-16 h-16 rounded-full bg-secondary/40 flex items-center justify-center">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <BellOff className="w-7 h-7 text-muted-foreground/50" />
+              </motion.div>
+            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="text-center"
+            >
+              <p className="text-xs font-medium text-muted-foreground">
+                {notifications.length === 0 ? "No notifications yet" : "No notifications of this type"}
+              </p>
+              <p className="text-[10px] text-muted-foreground/60 mt-1">
+                {notifications.length === 0
+                  ? "You'll see alerts here when something happens"
+                  : "Try selecting a different filter above"}
+              </p>
+            </motion.div>
+          </div>
         ) : (
           <div className="space-y-1 max-h-64 overflow-y-auto">
             <AnimatePresence>
