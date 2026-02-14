@@ -20,8 +20,9 @@ import FocusModeSession from "./FocusModeSession";
 import DailyStudyTip from "./DailyStudyTip";
 import WeeklySummaryNotification from "./WeeklySummaryNotification";
 import QuickStartStudy from "./QuickStartStudy";
-import BrainUpdateHero from "./BrainUpdateHero";
+import BrainUpdateHero, { markBrainUpdated } from "./BrainUpdateHero";
 import RecentlyStudied from "./RecentlyStudied";
+import QuickStudySignalModal from "./QuickStudySignalModal";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -149,6 +150,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
   const [analyzing, setAnalyzing] = useState(false);
   const [insightReviewTopic, setInsightReviewTopic] = useState<string | null>(null);
+  const [signalModalOpen, setSignalModalOpen] = useState(false);
 
   const handleRefresh = async () => {
     setAnalyzing(true);
@@ -186,14 +188,23 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </button>
       </motion.div>
 
-      {/* Brain Update Hero — primary CTA */}
+      {/* Brain Update Hero — opens Quick Study Signal */}
       <BrainUpdateHero
-        onUpdate={handleRefresh}
-        isActive={analyzing}
+        onOpen={() => setSignalModalOpen(true)}
         overallHealth={overallHealth}
         hasTopics={hasTopics}
       />
 
+      {/* Quick Study Signal Modal */}
+      <QuickStudySignalModal
+        open={signalModalOpen}
+        onClose={() => setSignalModalOpen(false)}
+        onSuccess={async () => {
+          markBrainUpdated();
+          // Also run AI analysis after logging
+          await handleRefresh();
+        }}
+      />
       {/* Weekly Summary Notification */}
       <WeeklySummaryNotification />
       {/* Quick Start Study */}
