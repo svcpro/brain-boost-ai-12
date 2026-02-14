@@ -237,18 +237,21 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
           {/* Duration presets */}
           <div className="flex gap-2">
             {[10, 25, 45].map((m) => (
-              <button
+              <motion.button
                 key={m}
                 type="button"
                 onClick={() => setMinutes(String(m))}
-                className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition-all ${
+                whileTap={{ scale: 0.93 }}
+                animate={minutes === String(m) ? { scale: [1, 1.08, 1.03] } : { scale: 1 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition-colors ${
                   minutes === String(m)
-                    ? "bg-primary text-primary-foreground border-primary scale-[1.03]"
+                    ? "bg-primary text-primary-foreground border-primary shadow-[0_0_12px_hsl(var(--primary)/0.35)]"
                     : "bg-secondary/50 border-border text-muted-foreground hover:border-primary/50"
                 }`}
               >
                 {m} min
-              </button>
+              </motion.button>
             ))}
           </div>
 
@@ -271,19 +274,28 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
               { value: "medium", emoji: "😐", label: "Medium" },
               { value: "high", emoji: "😎", label: "High" },
             ] as const).map((c) => (
-              <button
+              <motion.button
                 key={c.value}
                 type="button"
                 onClick={() => setConfidence(c.value)}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border text-xs font-semibold transition-all ${
+                whileTap={{ scale: 0.93 }}
+                animate={confidence === c.value ? { scale: [1, 1.08, 1.03] } : { scale: 1 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border text-xs font-semibold transition-colors ${
                   confidence === c.value
-                    ? "bg-primary text-primary-foreground border-primary scale-[1.03]"
+                    ? "bg-primary text-primary-foreground border-primary shadow-[0_0_12px_hsl(var(--primary)/0.35)]"
                     : "bg-secondary/50 border-border text-muted-foreground hover:border-primary/50"
                 }`}
               >
-                <span className="text-lg">{c.emoji}</span>
+                <motion.span
+                  className="text-lg"
+                  animate={confidence === c.value ? { scale: [1, 1.3, 1] } : {}}
+                  transition={{ duration: 0.3 }}
+                >
+                  {c.emoji}
+                </motion.span>
                 {c.label}
-              </button>
+              </motion.button>
             ))}
           </div>
 
