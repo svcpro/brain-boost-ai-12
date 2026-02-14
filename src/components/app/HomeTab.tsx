@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
@@ -397,6 +397,18 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                   await new Promise((r) => setTimeout(r, 350));
                   await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
                   loadRecommendations();
+                  toast({
+                    title: "✅ Marked as done",
+                    description: rec.title,
+                    action: React.createElement("button", {
+                      className: "px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity",
+                      onClick: async () => {
+                        await supabase.from("ai_recommendations").update({ completed: false }).eq("id", rec.id);
+                        loadRecommendations();
+                      },
+                      altText: "Undo",
+                    }, "Undo") as any,
+                  });
                 }}
                 id={`rec-${rec.id}`}
                 className="flex items-center gap-3 p-3.5 rounded-xl bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 hover:border-primary/30 active:bg-primary/10 transition-all group"
