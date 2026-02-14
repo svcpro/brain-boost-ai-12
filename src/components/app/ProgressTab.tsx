@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal, HeartCrack } from "lucide-react";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +25,7 @@ interface StreakData {
   longestStreak: number;
   last30Days: boolean[]; // true = studied that day
   todayStudied: boolean;
+  brokenStreak: number; // streak length before it was broken (0 if not broken)
 }
 
 const MILESTONES = [
@@ -86,6 +87,36 @@ const ProgressTab = () => {
         } else break;
       }
 
+      // Compute broken streak: if current streak is 0 and yesterday had no study,
+      // walk back to find the most recent streak that was 3+ days
+      let brokenStreak = 0;
+      if (currentStreak === 0 && !todayStudied) {
+        // Find last studied day
+        const walkBack = new Date(today);
+        walkBack.setDate(walkBack.getDate() - 1); // already checked yesterday via currentStreak
+        // Skip gap days to find last study day
+        let gapDays = 1;
+        while (gapDays < 30) {
+          const key = `${walkBack.getFullYear()}-${String(walkBack.getMonth() + 1).padStart(2, "0")}-${String(walkBack.getDate()).padStart(2, "0")}`;
+          if (studyDays.has(key)) {
+            // Count consecutive study days ending here
+            let prevStreak = 0;
+            const countDate = new Date(walkBack);
+            while (true) {
+              const k = `${countDate.getFullYear()}-${String(countDate.getMonth() + 1).padStart(2, "0")}-${String(countDate.getDate()).padStart(2, "0")}`;
+              if (studyDays.has(k)) {
+                prevStreak++;
+                countDate.setDate(countDate.getDate() - 1);
+              } else break;
+            }
+            if (prevStreak >= 3) brokenStreak = prevStreak;
+            break;
+          }
+          walkBack.setDate(walkBack.getDate() - 1);
+          gapDays++;
+        }
+      }
+
       let longestStreak = 0;
       let tempStreak = 0;
       const iterDate = new Date(since);
@@ -108,7 +139,7 @@ const ProgressTab = () => {
         last30Days.push(studyDays.has(key));
       }
 
-      const result = { currentStreak, longestStreak, last30Days, todayStudied };
+      const result = { currentStreak, longestStreak, last30Days, todayStudied, brokenStreak };
       setStreak(result);
       setCache("progress-streak", result);
     } catch {
@@ -116,10 +147,20 @@ const ProgressTab = () => {
     }
   }, [user]);
 
-  // Show toast notification for milestone achievements
+  // Show toast notification for milestone achievements or streak recovery
   useEffect(() => {
     if (!streak || notifiedRef.current) return;
     notifiedRef.current = true;
+
+    // Streak recovery nudge
+    if (streak.brokenStreak >= 3) {
+      toast({
+        title: `💔 ${streak.brokenStreak}-day streak broken`,
+        description: "One session today can restart your momentum!",
+      });
+      return;
+    }
+
     const hit = MILESTONES.filter((m) => streak.currentStreak >= m.days);
     const highest = hit.length > 0 ? hit[hit.length - 1] : null;
     // Only notify if streak exactly matches a milestone (celebrate the moment)
@@ -329,6 +370,34 @@ const ProgressTab = () => {
           <p className="text-sm text-muted-foreground text-center py-4">Loading streak data…</p>
         )}
       </motion.div>
+
+      {/* Streak Recovery Nudge */}
+      {streak && streak.brokenStreak >= 3 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-xl p-5 neural-border border-warning/30"
+        >
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-warning/10 shrink-0">
+              <HeartCrack className="w-5 h-5 text-warning" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Your {streak.brokenStreak}-day streak ended
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                You were on a great run! Studies show that resuming quickly preserves most of your memory gains.
+              </p>
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-[10px] text-warning font-medium px-2 py-1 rounded-full bg-warning/10">
+                  🔥 Study today to start a new streak
+                </span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Weekly Report Card */}
       <WeeklyReportCard />
