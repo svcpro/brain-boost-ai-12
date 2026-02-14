@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Home, Zap, Brain, TrendingUp, User } from "lucide-react";
 import HomeTab from "@/components/app/HomeTab";
 import ActionTab from "@/components/app/ActionTab";
@@ -7,6 +7,8 @@ import ProgressTab from "@/components/app/ProgressTab";
 import YouTab from "@/components/app/YouTab";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const tabs = [
   { id: "home", label: "Home", icon: Home },
@@ -18,8 +20,23 @@ const tabs = [
 
 const AppDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
+  const { user } = useAuth();
+  const [recCount, setRecCount] = useState(0);
   useStudyReminder();
   useOfflineSync();
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("ai_recommendations")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("completed", false);
+      setRecCount(count ?? 0);
+    };
+    fetchCount();
+  }, [user, activeTab]);
 
   const renderTab = () => {
     switch (activeTab) {
@@ -67,7 +84,14 @@ const AppDashboard = () => {
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""}`} />
+                <div className="relative">
+                  <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""}`} />
+                  {tab.id === "home" && recCount > 0 && !active && (
+                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center px-0.5">
+                      {recCount > 9 ? "9+" : recCount}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-medium">{tab.label}</span>
                 {active && (
                   <div className="w-1 h-1 rounded-full bg-primary" />
