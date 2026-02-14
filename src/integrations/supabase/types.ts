@@ -14,6 +14,112 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_recommendations: {
+        Row: {
+          completed: boolean
+          created_at: string
+          description: string | null
+          id: string
+          priority: string
+          title: string
+          topic_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority: string
+          title: string
+          topic_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string
+          title?: string
+          topic_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_recommendations_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brain_reports: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json | null
+          report_type: string
+          summary: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          report_type: string
+          summary?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          report_type?: string
+          summary?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      memory_scores: {
+        Row: {
+          id: string
+          predicted_drop_date: string | null
+          recorded_at: string
+          score: number
+          topic_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          predicted_drop_date?: string | null
+          recorded_at?: string
+          score: number
+          topic_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          predicted_drop_date?: string | null
+          recorded_at?: string
+          score?: number
+          topic_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_scores_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -43,6 +149,152 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      rank_predictions: {
+        Row: {
+          factors: Json | null
+          id: string
+          percentile: number | null
+          predicted_rank: number
+          recorded_at: string
+          user_id: string
+        }
+        Insert: {
+          factors?: Json | null
+          id?: string
+          percentile?: number | null
+          predicted_rank: number
+          recorded_at?: string
+          user_id: string
+        }
+        Update: {
+          factors?: Json | null
+          id?: string
+          percentile?: number | null
+          predicted_rank?: number
+          recorded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_logs: {
+        Row: {
+          confidence_level: string | null
+          created_at: string
+          duration_minutes: number
+          id: string
+          notes: string | null
+          study_mode: string | null
+          subject_id: string | null
+          topic_id: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence_level?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          notes?: string | null
+          study_mode?: string | null
+          subject_id?: string | null
+          topic_id?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence_level?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          notes?: string | null
+          study_mode?: string | null
+          subject_id?: string | null
+          topic_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_logs_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_logs_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subjects: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      topics: {
+        Row: {
+          created_at: string
+          id: string
+          last_revision_date: string | null
+          marks_impact_weight: number | null
+          memory_strength: number
+          name: string
+          next_predicted_drop_date: string | null
+          subject_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_revision_date?: string | null
+          marks_impact_weight?: number | null
+          memory_strength?: number
+          name: string
+          next_predicted_drop_date?: string | null
+          subject_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_revision_date?: string | null
+          marks_impact_weight?: number | null
+          memory_strength?: number
+          name?: string
+          next_predicted_drop_date?: string | null
+          subject_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topics_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
