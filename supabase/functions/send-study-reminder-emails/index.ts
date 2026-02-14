@@ -84,6 +84,13 @@ serve(async (req) => {
     }
 
     let emailsSent = 0;
+    let pushesSent = 0;
+
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY');
+    const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY');
+    const hasPushKeys = !!VAPID_PUBLIC_KEY && !!VAPID_PRIVATE_KEY;
+
     for (const [userId, topics] of userTopics) {
       // Check preference
       const { data: profile } = await adminClient
@@ -92,17 +99,57 @@ serve(async (req) => {
         .eq('id', userId)
         .maybeSingle();
 
-      if (profile?.email_study_reminders === false) continue;
+      // Send email if enabled
+      if (profile?.email_study_reminders !== false) {
+        const { data: { user } } = await adminClient.auth.admin.getUserById(userId);
+        if (user?.email) {
+          await sendReminderEmail(user.email, profile?.display_name || '', topics.length, topics, userId);
+          emailsSent++;
+        }
+      }
 
-      const { data: { user } } = await adminClient.auth.admin.getUserById(userId);
-      if (user?.email) {
-        await sendReminderEmail(user.email, profile?.display_name || '', topics.length, topics, userId);
-        emailsSent++;
+      // Send push notification
+      if (hasPushKeys) {
+        const { data: subs } = await adminClient
+          .from('push_subscriptions')
+          .select('id, endpoint, p256dh, auth')
+          .eq('user_id', userId);
+
+        if (subs && subs.length > 0) {
+          const topicPreview = topics.slice(0, 3).join(', ');
+          const extra = topics.length > 3 ? ` +${topics.length - 3} more` : '';
+          const payload = JSON.stringify({
+            title: `📚 ${topics.length} topic${topics.length > 1 ? 's' : ''} need revision`,
+            body: topicPreview + extra,
+            data: { type: 'study_reminder' },
+          });
+
+          // Call the send-push-notification internal function via HTTP
+          try {
+            const pushRes = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!}`,
+              },
+              body: JSON.stringify({
+                recipient_id: userId,
+                title: `📚 ${topics.length} topic${topics.length > 1 ? 's' : ''} need revision`,
+                body: topicPreview + extra,
+                data: { type: 'study_reminder' },
+              }),
+            });
+            if (pushRes.ok) pushesSent++;
+            else await pushRes.text();
+          } catch (e) {
+            console.warn(`Push failed for ${userId}:`, e);
+          }
+        }
       }
     }
 
-    console.log(`Sent ${emailsSent} study reminder emails`);
-    return new Response(JSON.stringify({ success: true, emails_sent: emailsSent }), {
+    console.log(`Sent ${emailsSent} emails, ${pushesSent} push notifications`);
+    return new Response(JSON.stringify({ success: true, emails_sent: emailsSent, pushes_sent: pushesSent }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

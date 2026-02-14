@@ -69,14 +69,28 @@ export const useStudyReminder = () => {
     return result === "granted";
   }, []);
 
-  const sendNotification = useCallback(() => {
-    if (Notification.permission !== "granted") return;
-    new Notification("📚 Time to study!", {
-      body: "You haven't studied yet today. Keep your streak alive!",
-      icon: "/favicon.ico",
-      tag: "study-reminder",
-    });
-  }, []);
+  const sendNotification = useCallback(async () => {
+    // Browser notification (foreground)
+    if (Notification.permission === "granted") {
+      new Notification("📚 Time to study!", {
+        body: "You haven't studied yet today. Keep your streak alive!",
+        icon: "/favicon.ico",
+        tag: "study-reminder",
+      });
+    }
+
+    // Push notification (background/other devices)
+    if (user) {
+      supabase.functions.invoke("send-push-notification", {
+        body: {
+          recipient_id: user.id,
+          title: "📚 Time to study!",
+          body: "You haven't studied yet today. Keep your streak alive!",
+          data: { type: "study_reminder" },
+        },
+      }).catch((err) => console.warn("Study reminder push failed:", err));
+    }
+  }, [user]);
 
   const checkAndNotify = useCallback(async () => {
     const prefs = await getPrefs();
