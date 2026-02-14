@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,6 +61,8 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
   const [currentPlan, setCurrentPlan] = useState("free");
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [showEmailSetting, setShowEmailSetting] = useState(false);
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
@@ -87,8 +89,11 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     });
     // Load leaderboard opt-in & subscription
     if (user) {
-      supabase.from("profiles").select("opt_in_leaderboard").eq("id", user.id).maybeSingle().then(({ data }) => {
-        if (data) setLeaderboardOptIn(data.opt_in_leaderboard ?? false);
+      supabase.from("profiles").select("opt_in_leaderboard, email_notifications_enabled").eq("id", user.id).maybeSingle().then(({ data }) => {
+        if (data) {
+          setLeaderboardOptIn(data.opt_in_leaderboard ?? false);
+          setEmailNotifications((data as any).email_notifications_enabled ?? true);
+        }
       });
       supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
         if (data) setCurrentPlan(data.plan_id);
@@ -187,6 +192,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting) },
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting) },
     { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings) },
+    { icon: Mail, label: "Email Notifications", value: emailNotifications ? "On" : "Off", onClick: () => setShowEmailSetting(!showEmailSetting) },
     { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup) },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy) },
   ];
@@ -541,6 +547,50 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                   {leaderboardOptIn
                     ? "Your display name and stats are visible to other students. Only the first 2 characters of your name are shown."
                     : "You're hidden from the leaderboard. Other students can't see your rank or stats."}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Email Notifications Settings Panel */}
+        <AnimatePresence>
+          {showEmailSetting && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail className={`w-4 h-4 ${emailNotifications ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className="text-sm text-foreground">Email notifications</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const newVal = !emailNotifications;
+                      setEmailNotifications(newVal);
+                      if (user) {
+                        await supabase.from("profiles").update({ email_notifications_enabled: newVal } as any).eq("id", user.id);
+                      }
+                      toast({ title: newVal ? "📧 Email notifications enabled" : "Email notifications disabled" });
+                    }}
+                    className={`w-10 h-6 rounded-full transition-all relative ${emailNotifications ? "bg-primary" : "bg-secondary"}`}
+                  >
+                    <motion.div
+                      className="w-4 h-4 rounded-full bg-white absolute top-1"
+                      animate={{ left: emailNotifications ? 22 : 4 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {emailNotifications
+                    ? "You'll receive email alerts when your subscription is about to expire."
+                    : "You won't receive any email notifications from ACRY."}
                 </p>
               </div>
             </motion.div>
