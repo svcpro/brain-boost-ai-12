@@ -268,6 +268,7 @@ export type Database = {
           exam_type: string | null
           id: string
           opt_in_leaderboard: boolean
+          push_notification_prefs: Json
           study_preferences: Json | null
           updated_at: string
           weekly_focus_goal_minutes: number
@@ -285,6 +286,7 @@ export type Database = {
           exam_type?: string | null
           id: string
           opt_in_leaderboard?: boolean
+          push_notification_prefs?: Json
           study_preferences?: Json | null
           updated_at?: string
           weekly_focus_goal_minutes?: number
@@ -302,6 +304,7 @@ export type Database = {
           exam_type?: string | null
           id?: string
           opt_in_leaderboard?: boolean
+          push_notification_prefs?: Json
           study_preferences?: Json | null
           updated_at?: string
           weekly_focus_goal_minutes?: number

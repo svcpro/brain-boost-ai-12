@@ -173,6 +173,31 @@ serve(async (req) => {
       });
     }
 
+    // Check recipient's push notification preferences
+    const notifType = notifData?.type as string | undefined;
+    if (notifType) {
+      const prefMap: Record<string, string> = {
+        freeze_gift: "freezeGifts",
+        streak_milestone: "streakMilestones",
+        study_reminder: "studyReminders",
+      };
+      const prefKey = prefMap[notifType];
+      if (prefKey) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("push_notification_prefs")
+          .eq("id", recipient_id)
+          .maybeSingle();
+        const prefs = profile?.push_notification_prefs as Record<string, boolean> | null;
+        if (prefs && prefs[prefKey] === false) {
+          return new Response(JSON.stringify({ sent: 0, message: "Recipient opted out of this notification type" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
     // Get recipient's push subscriptions
     const { data: subs } = await supabase
       .from("push_subscriptions")
