@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN daily_study_goal_minutes integer NOT NULL DEFAULT 60;

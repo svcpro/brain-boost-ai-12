@@ -5,6 +5,7 @@ import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import DailyGoalTracker from "./DailyGoalTracker";
 
 const HomeTab = () => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
@@ -68,6 +69,9 @@ const HomeTab = () => {
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
       </motion.div>
+
+      {/* Daily Goal */}
+      <DailyGoalTracker />
 
       {/* Stats row */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-3">
