@@ -32,6 +32,7 @@ const AppDashboard = () => {
   const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
   const { user } = useAuth();
   const [recCount, setRecCount] = useState(0);
+  const [pendingGifts, setPendingGifts] = useState(0);
   const [expiryWarning, setExpiryWarning] = useState<{ plan: string; daysLeft: number } | null>(null);
   const [dismissedWarning, setDismissedWarning] = useState(false);
   const voice = useVoiceNotification();
@@ -50,7 +51,16 @@ const AppDashboard = () => {
         .eq("completed", false);
       setRecCount(count ?? 0);
     };
+    const fetchGifts = async () => {
+      const { count } = await (supabase as any)
+        .from("freeze_gifts")
+        .select("*", { count: "exact", head: true })
+        .eq("recipient_id", user.id)
+        .eq("status", "pending");
+      setPendingGifts(count ?? 0);
+    };
     fetchCount();
+    fetchGifts();
   }, [user, activeTab]);
 
   useEffect(() => {
@@ -149,6 +159,11 @@ const AppDashboard = () => {
                     {tab.id === "home" && recCount > 0 && (
                       <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
                         {recCount > 9 ? "9+" : recCount}
+                      </span>
+                    )}
+                    {tab.id === "progress" && pendingGifts > 0 && (
+                      <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
+                        {pendingGifts > 9 ? "9+" : pendingGifts}
                       </span>
                     )}
                   </div>
