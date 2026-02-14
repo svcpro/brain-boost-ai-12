@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Clock, Timer, BookOpen, ChevronDown, ChevronUp, FileText, Target, Pencil, Check, Download, Share2 } from "lucide-react";
+import { Crosshair, Clock, Timer, BookOpen, ChevronDown, ChevronUp, FileText, Target, Pencil, Check, Download, Share2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,6 +43,7 @@ const WeeklyFocusChart = () => {
   const [goalMinutes, setGoalMinutes] = useState(300);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
+  const [lastWeekMinutes, setLastWeekMinutes] = useState(0);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -115,7 +116,18 @@ const WeeklyFocusChart = () => {
 
     const today = startOfDay(new Date());
     const weekAgo = subDays(today, 6);
+    const twoWeeksAgo = subDays(today, 13);
 
+    // Fetch last week's logs for comparison
+    const { data: lastWeekLogs } = await supabase
+      .from("study_logs")
+      .select("duration_minutes")
+      .eq("user_id", user.id)
+      .eq("study_mode", "focus")
+      .gte("created_at", twoWeeksAgo.toISOString())
+      .lt("created_at", subDays(today, 6).toISOString());
+
+    setLastWeekMinutes((lastWeekLogs || []).reduce((s, l) => s + l.duration_minutes, 0));
     const { data: logs } = await supabase
       .from("study_logs")
       .select("duration_minutes, created_at, subject_id, topic_id")
@@ -296,6 +308,53 @@ const WeeklyFocusChart = () => {
           <p className="text-[9px] text-muted-foreground">Active Days</p>
         </div>
       </div>
+
+      {/* Week-over-Week Comparison */}
+      {(totalMinutes > 0 || lastWeekMinutes > 0) && (() => {
+        const delta = lastWeekMinutes > 0
+          ? Math.round(((totalMinutes - lastWeekMinutes) / lastWeekMinutes) * 100)
+          : totalMinutes > 0 ? 100 : 0;
+        const isUp = delta > 0;
+        const isDown = delta < 0;
+        const fmtMins = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+        return (
+          <div className="mb-4 p-3 rounded-xl border border-border bg-secondary/30">
+            <div className="flex items-center gap-2 mb-2">
+              {isUp ? <TrendingUp className="w-3.5 h-3.5 text-success" /> : isDown ? <TrendingDown className="w-3.5 h-3.5 text-destructive" /> : <Minus className="w-3.5 h-3.5 text-muted-foreground" />}
+              <span className="text-xs font-semibold text-foreground">vs Last Week</span>
+              <span className={`ml-auto text-xs font-bold ${isUp ? "text-success" : isDown ? "text-destructive" : "text-muted-foreground"}`}>
+                {isUp ? "+" : ""}{delta}%
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <p className="text-[10px] text-muted-foreground mb-1">This week</p>
+                <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-primary"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((totalMinutes / Math.max(totalMinutes, lastWeekMinutes, 1)) * 100, 100)}%` }}
+                    transition={{ duration: 0.6 }}
+                  />
+                </div>
+                <p className="text-[10px] text-foreground font-medium mt-1">{fmtMins(totalMinutes)}</p>
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] text-muted-foreground mb-1">Last week</p>
+                <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-muted-foreground/40"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((lastWeekMinutes / Math.max(totalMinutes, lastWeekMinutes, 1)) * 100, 100)}%` }}
+                    transition={{ duration: 0.6 }}
+                  />
+                </div>
+                <p className="text-[10px] text-foreground font-medium mt-1">{fmtMins(lastWeekMinutes)}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Weekly Goal Progress */}
       <div className="mb-4 p-3 rounded-xl border border-border bg-secondary/30">
