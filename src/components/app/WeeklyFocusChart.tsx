@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Crosshair, Clock, Timer } from "lucide-react";
+import { Crosshair, Clock, Timer, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, subDays, startOfDay } from "date-fns";
@@ -11,9 +11,25 @@ interface DayData {
   date: string;
 }
 
+interface SubjectBreakdown {
+  name: string;
+  minutes: number;
+  color: string;
+}
+
+const SUBJECT_COLORS = [
+  "bg-success", "bg-primary", "bg-warning", "bg-destructive",
+  "bg-accent", "bg-secondary",
+];
+const SUBJECT_TEXT_COLORS = [
+  "text-success", "text-primary", "text-warning", "text-destructive",
+  "text-accent-foreground", "text-secondary-foreground",
+];
+
 const WeeklyFocusChart = () => {
   const { user } = useAuth();
   const [days, setDays] = useState<DayData[]>([]);
+  const [subjects, setSubjects] = useState<SubjectBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,7 +44,7 @@ const WeeklyFocusChart = () => {
 
     const { data: logs } = await supabase
       .from("study_logs")
-      .select("duration_minutes, created_at")
+      .select("duration_minutes, created_at, subject_id")
       .eq("user_id", user.id)
       .eq("study_mode", "focus")
       .gte("created_at", weekAgo.toISOString())
@@ -41,12 +57,38 @@ const WeeklyFocusChart = () => {
       buckets.set(format(d, "yyyy-MM-dd"), 0);
     }
 
+    // Subject minute accumulator
+    const subjectMinutes = new Map<string, number>();
+
     for (const log of logs || []) {
       const key = format(new Date(log.created_at), "yyyy-MM-dd");
       if (buckets.has(key)) {
         buckets.set(key, (buckets.get(key) || 0) + log.duration_minutes);
       }
+      if (log.subject_id) {
+        subjectMinutes.set(log.subject_id, (subjectMinutes.get(log.subject_id) || 0) + log.duration_minutes);
+      }
     }
+
+    // Fetch subject names
+    const subjectIds = [...subjectMinutes.keys()];
+    let subjectMap = new Map<string, string>();
+    if (subjectIds.length > 0) {
+      const { data: subjectsData } = await supabase
+        .from("subjects")
+        .select("id, name")
+        .in("id", subjectIds);
+      subjectMap = new Map((subjectsData || []).map((s) => [s.id, s.name]));
+    }
+
+    // Build subject breakdown sorted by minutes desc
+    const subjectList: SubjectBreakdown[] = [...subjectMinutes.entries()]
+      .map(([id, mins], i) => ({
+        name: subjectMap.get(id) || "Unknown",
+        minutes: mins,
+        color: SUBJECT_COLORS[i % SUBJECT_COLORS.length],
+      }))
+      .sort((a, b) => b.minutes - a.minutes);
 
     const result: DayData[] = [];
     for (let i = 0; i < 7; i++) {
@@ -60,6 +102,7 @@ const WeeklyFocusChart = () => {
     }
 
     setDays(result);
+    setSubjects(subjectList);
     setLoading(false);
   };
 
@@ -125,6 +168,46 @@ const WeeklyFocusChart = () => {
           );
         })}
       </div>
+
+      {/* Subject breakdown */}
+      {subjects.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold text-foreground">By Subject</span>
+          </div>
+
+          {/* Stacked bar */}
+          <div className="h-3 rounded-full overflow-hidden flex bg-secondary mb-3">
+            {subjects.map((s, i) => (
+              <motion.div
+                key={s.name}
+                className={`h-full ${s.color}`}
+                initial={{ width: 0 }}
+                animate={{ width: `${(s.minutes / totalMinutes) * 100}%` }}
+                transition={{ duration: 0.6, delay: 0.3 + i * 0.08 }}
+              />
+            ))}
+          </div>
+
+          {/* Legend */}
+          <div className="space-y-1.5">
+            {subjects.map((s, i) => {
+              const pct = Math.round((s.minutes / totalMinutes) * 100);
+              return (
+                <div key={s.name} className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-sm ${s.color} shrink-0`} />
+                  <span className="text-xs text-foreground flex-1 truncate">{s.name}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    {s.minutes >= 60 ? `${Math.floor(s.minutes / 60)}h ${s.minutes % 60}m` : `${s.minutes}m`}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground w-8 text-right shrink-0">{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {totalMinutes === 0 && (
         <p className="text-xs text-muted-foreground text-center mt-3">
