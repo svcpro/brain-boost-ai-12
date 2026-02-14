@@ -538,7 +538,7 @@ const ActionTab = () => {
             type="button"
             onClick={handleVoiceRecord}
             disabled={extracting}
-            className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 ${recording ? "ring-2 ring-destructive animate-pulse" : ""}`}
+            className={`glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 relative ${recording ? "ring-2 ring-destructive animate-pulse" : ""}`}
           >
             {extracting && !recording ? (
               <Loader2 className="w-5 h-5 text-primary animate-spin" />
@@ -550,6 +550,11 @@ const ActionTab = () => {
             <span className={`text-xs ${recording ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
               {extracting && !recording ? "Extracting..." : recording ? "Stop" : "Voice"}
             </span>
+            {recording && (
+              <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold leading-none shadow-sm">
+                {voiceLang.split("-")[0].toUpperCase()}
+              </span>
+            )}
           </button>
         </div>
 
