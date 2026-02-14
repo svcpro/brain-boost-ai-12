@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Snowflake, History, Gift, Check, X, Clock } from "lucide-react";
+import { Snowflake, History, Gift, Check, X, Clock, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -49,7 +49,49 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingSentGifts, setLoadingSentGifts] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [giftCooldown, setGiftCooldown] = useState<string | null>(null);
 
+  // Load gift cooldown
+  useEffect(() => {
+    if (!user) return;
+    const loadCooldown = async () => {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const { data } = await (supabase as any)
+        .from("freeze_gifts")
+        .select("created_at")
+        .eq("sender_id", user.id)
+        .gte("created_at", weekAgo.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        const nextAvailable = new Date(data[0].created_at);
+        nextAvailable.setDate(nextAvailable.getDate() + 7);
+        setGiftCooldown(nextAvailable.toISOString());
+      } else {
+        setGiftCooldown(null);
+      }
+    };
+    loadCooldown();
+  }, [user, sentGifts]);
+
+  // Countdown timer
+  const [cooldownText, setCooldownText] = useState("");
+  useEffect(() => {
+    if (!giftCooldown) { setCooldownText(""); return; }
+    const update = () => {
+      const diff = new Date(giftCooldown).getTime() - Date.now();
+      if (diff <= 0) { setGiftCooldown(null); setCooldownText(""); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setCooldownText(d > 0 ? `${d}d ${h}h` : `${h}h ${m}m`);
+    };
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [giftCooldown]);
   const loadHistory = useCallback(async () => {
     if (!user) return;
     setLoadingHistory(true);
@@ -234,6 +276,20 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
       <p className="text-[9px] text-muted-foreground mt-2">
         Skip one day without breaking your streak. Earn freezes at milestones: 7d → 1, 14d → 2, 30d → 3.
       </p>
+
+      {cooldownText ? (
+        <div className="flex items-center gap-1.5 mt-2 px-2 py-1.5 rounded-lg bg-secondary/30">
+          <Timer className="w-3 h-3 text-warning" />
+          <span className="text-[10px] text-muted-foreground">
+            Next gift available in <span className="text-warning font-medium">{cooldownText}</span>
+          </span>
+        </div>
+      ) : availableFreezes > 0 ? (
+        <div className="flex items-center gap-1.5 mt-2 px-2 py-1.5 rounded-lg bg-primary/5">
+          <Gift className="w-3 h-3 text-primary" />
+          <span className="text-[10px] text-primary font-medium">Ready to gift a freeze!</span>
+        </div>
+      ) : null}
 
       {/* History panel */}
       <AnimatePresence>
