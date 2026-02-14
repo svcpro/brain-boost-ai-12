@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, AlertTriangle, Clock, Sparkles, TrendingUp, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Brain, AlertTriangle, Clock, Sparkles, TrendingUp, RefreshCw, ChevronDown, ChevronUp, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +20,11 @@ const typeConfig = {
   schedule: { icon: Clock, color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", label: "Schedule" },
 };
 
-const StudyInsights = () => {
+interface StudyInsightsProps {
+  onReviewTopic?: (topicName: string) => void;
+}
+
+const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -138,6 +142,15 @@ const StudyInsights = () => {
                     </div>
                     <p className="text-sm font-semibold text-foreground">{insight.title}</p>
                     <p className="text-xs text-muted-foreground leading-relaxed">{insight.body}</p>
+                    {(insight.type === "urgent" || insight.type === "schedule") && insight.topic && onReviewTopic && (
+                      <button
+                        onClick={() => onReviewTopic(insight.topic!)}
+                        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/20 border border-destructive/30 hover:bg-destructive/30 transition-all text-xs font-semibold text-destructive active:scale-95"
+                      >
+                        <Play className="w-3 h-3" />
+                        Review Now
+                      </button>
+                    )}
                   </motion.div>
                 );
               })}

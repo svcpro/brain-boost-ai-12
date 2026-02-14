@@ -16,6 +16,7 @@ import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import NextReminderIndicator from "./NextReminderIndicator";
 import WeeklyReminderSummary from "./WeeklyReminderSummary";
 import StudyInsights from "./StudyInsights";
+import FocusModeSession from "./FocusModeSession";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -142,6 +143,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const hasTopics = (prediction?.topics?.length ?? 0) > 0;
 
   const [analyzing, setAnalyzing] = useState(false);
+  const [insightReviewTopic, setInsightReviewTopic] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setAnalyzing(true);
@@ -185,7 +187,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <WeeklyReminderSummary />
 
       {/* Smart Study Insights */}
-      <StudyInsights />
+      <StudyInsights onReviewTopic={(topic) => setInsightReviewTopic(topic)} />
 
       {/* Exam urgency banner — ≤3 days */}
       {examDaysLeft !== null && examDaysLeft <= 3 && (
@@ -352,6 +354,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <span className="text-xs font-medium text-foreground">Fix Now</span>
         </button>
       </motion.div>
+
+      {/* Focus session from insight Review Now */}
+      <FocusModeSession
+        open={!!insightReviewTopic}
+        onClose={() => setInsightReviewTopic(null)}
+        initialTopic={insightReviewTopic || undefined}
+      />
     </div>
   );
 };
