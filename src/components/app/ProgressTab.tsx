@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { setCache, getCache } from "@/lib/offlineCache";
 import WeeklyReportCard from "./WeeklyReportCard";
 import LeaderboardCard from "./LeaderboardCard";
+import WeeklyFocusChart from "./WeeklyFocusChart";
 
 interface StreakData {
   currentStreak: number;
@@ -316,6 +317,9 @@ const ProgressTab = () => {
 
       {/* Weekly Report Card */}
       <WeeklyReportCard />
+
+      {/* Weekly Focus Chart */}
+      <WeeklyFocusChart />
 
       {/* Rank Prediction */}
       <motion.div
