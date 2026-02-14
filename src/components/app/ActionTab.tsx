@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, Upload, FileText, Mic, Camera, CloudOff, Clock, RefreshCw, X } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import StudyPlanGenerator from "./StudyPlanGenerator";
 import { useToast } from "@/hooks/use-toast";
-import { peekAll, type QueuedStudyLog } from "@/lib/offlineQueue";
+import { peekAll, removeFromQueue, type QueuedStudyLog } from "@/lib/offlineQueue";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 
 const modes = [
@@ -201,9 +201,15 @@ const ActionTab = () => {
                     {pendingEntries.map((entry) => (
                       <div key={entry.id} className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <Clock className="w-3 h-3 shrink-0" />
-                        <span className="truncate">
+                        <span className="flex-1 truncate">
                           {entry.subjectName}{entry.topicName ? ` › ${entry.topicName}` : ""} — {entry.durationMinutes}m
                         </span>
+                        <button
+                          onClick={() => { removeFromQueue(entry.id); setPendingEntries(peekAll()); }}
+                          className="p-0.5 rounded hover:bg-destructive/20 transition-colors shrink-0"
+                        >
+                          <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                        </button>
                       </div>
                     ))}
                   </div>
