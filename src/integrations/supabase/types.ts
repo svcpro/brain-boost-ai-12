@@ -90,6 +90,7 @@ export type Database = {
           created_at: string
           difficulty: string
           id: string
+          questions_data: Json | null
           score: number
           time_used_seconds: number | null
           topics: string | null
@@ -100,6 +101,7 @@ export type Database = {
           created_at?: string
           difficulty?: string
           id?: string
+          questions_data?: Json | null
           score: number
           time_used_seconds?: number | null
           topics?: string | null
@@ -110,6 +112,7 @@ export type Database = {
           created_at?: string
           difficulty?: string
           id?: string
+          questions_data?: Json | null
           score?: number
           time_used_seconds?: number | null
           topics?: string | null

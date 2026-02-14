@@ -51,6 +51,7 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
   const [allSubjects, setAllSubjects] = useState<SubjectOption[]>([]);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<string>>(new Set());
   const [subjectsLoading, setSubjectsLoading] = useState(true);
+  const answersRef = useRef<Array<{ question: string; options: string[]; correct: number; explanation: string; userAnswer: number | null }>>([]);
 
   // Load subjects on mount
   useEffect(() => {
@@ -96,6 +97,10 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
       setAnswered(true);
       setSelected(-1);
       setTotalTimeUsed(prev => prev + timePerQuestion);
+      // Track timeout as -1 answer
+      if (answersRef.current[current]) {
+        answersRef.current[current].userAnswer = -1;
+      }
     }
   }, [timeExpired, answered, timePerQuestion]);
 
@@ -106,6 +111,10 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
     setAnswered(true);
     setTotalTimeUsed(prev => prev + (timePerQuestion - timeLeft));
     if (idx === questions[current].correct) setScore(s => s + 1);
+    // Track answer for review
+    if (answersRef.current[current]) {
+      answersRef.current[current].userAnswer = idx;
+    }
   };
 
   const generateQuiz = useCallback(async () => {
@@ -159,6 +168,7 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
         toast({ title: "Could not generate quiz", description: "Try again with more topics.", variant: "destructive" });
       } else {
         setQuestions(parsed);
+        answersRef.current = parsed.map(q => ({ ...q, userAnswer: null }));
         setCurrent(0);
         setScore(0);
         setSelected(null);
@@ -215,7 +225,8 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
         difficulty,
         time_used_seconds: totalTimeUsed,
         topics: questions.map(q => q.question.slice(0, 50)).join("; "),
-      });
+        questions_data: answersRef.current,
+      } as any);
     } catch {}
   }, [user, questions, difficulty, totalTimeUsed]);
 
