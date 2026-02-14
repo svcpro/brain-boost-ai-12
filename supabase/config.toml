@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.transcribe-voice]
 verify_jwt = false
+
+[functions.razorpay-order]
+verify_jwt = false
