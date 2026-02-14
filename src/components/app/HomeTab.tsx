@@ -29,6 +29,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps)
   const [examDaysLeft, setExamDaysLeft] = useState<number | null>(() => getCache("home-exam-days"));
   const recsRef = useRef<HTMLDivElement>(null);
   const voiceTriggeredRef = useRef(false);
+  const rankVoiceFiredRef = useRef(false);
 
   // Auto-dismiss badge when recommendations section scrolls into view
   useEffect(() => {
@@ -114,6 +115,23 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen }: HomeTabProps)
       return;
     }
   }, [loading, prediction, examDaysLeft, voice]);
+
+  // Voice alert when rank improves between sessions
+  useEffect(() => {
+    if (rankVoiceFiredRef.current || rankLoading || !rankData?.predicted_rank || !voice) return;
+    const settings = getVoiceSettings();
+    if (!settings.enabled) return;
+
+    const prevRank = getCache<number>("prev-session-rank");
+    // Lower rank number = better, so improvement means new < prev
+    if (prevRank && rankData.predicted_rank < prevRank) {
+      rankVoiceFiredRef.current = true;
+      const improvement = prevRank - rankData.predicted_rank;
+      voice.speak("motivation", { rank_change: improvement });
+    }
+    // Always save current rank for next session comparison
+    setCache("prev-session-rank", rankData.predicted_rank);
+  }, [rankLoading, rankData, voice]);
 
   const atRisk = prediction?.at_risk || [];
   const overallHealth = prediction?.overall_health ?? 0;
