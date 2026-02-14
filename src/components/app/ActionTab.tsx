@@ -8,6 +8,7 @@ import { peekAll, removeFromQueue, type QueuedStudyLog } from "@/lib/offlineQueu
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import LazyModeSession from "./LazyModeSession";
+import FocusModeSession from "./FocusModeSession";
 
 const modes = [
   {
@@ -35,6 +36,7 @@ const modes = [
 
 const ActionTab = () => {
   const [lazyModeOpen, setLazyModeOpen] = useState(false);
+  const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
   const [minutes, setMinutes] = useState("");
@@ -99,6 +101,8 @@ const ActionTab = () => {
             onClick={() => {
               if (mode.title === "Lazy Mode") {
                 setLazyModeOpen(true);
+              } else if (mode.title === "Focus Mode") {
+                setFocusModeOpen(true);
               } else {
                 toast({ title: `${mode.title} activated! 🚀`, description: mode.desc });
               }
@@ -256,6 +260,7 @@ const ActionTab = () => {
         </div>
       </motion.div>
       <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} />
+      <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} />
     </div>
   );
 };
