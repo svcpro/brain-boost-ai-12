@@ -288,6 +288,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           daily_study_goal_minutes: number
           display_name: string | null
@@ -307,6 +308,7 @@ export type Database = {
           weekly_report_hour: number
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           daily_study_goal_minutes?: number
           display_name?: string | null
@@ -326,6 +328,7 @@ export type Database = {
           weekly_report_hour?: number
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           daily_study_goal_minutes?: number
           display_name?: string | null

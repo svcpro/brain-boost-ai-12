@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail, Trash2, BellRing, Sparkles } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail, Trash2, BellRing, Sparkles, Camera, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +53,8 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [showSubjects, setShowSubjects] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -128,6 +130,43 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     setTrashCount((sc ?? 0) + (tc ?? 0));
   }, [user]);
 
+  // Load avatar URL
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle().then(({ data }) => {
+      if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+    });
+  }, [user]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 2MB allowed.", variant: "destructive" });
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      const urlWithCacheBust = `${publicUrl}?t=${Date.now()}`;
+      await supabase.from("profiles").update({ avatar_url: urlWithCacheBust } as any).eq("id", user.id);
+      setAvatarUrl(urlWithCacheBust);
+      toast({ title: "✨ Avatar updated!" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   useEffect(() => {
     getPrefs().then((p) => {
       setReminderEnabled(p.enabled);
@@ -141,7 +180,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           setEmailNotifications((data as any).email_notifications_enabled ?? true);
           setEmailStudyReminders((data as any).email_study_reminders ?? true);
           setEmailWeeklyReports((data as any).email_weekly_reports ?? true);
-          // Convert stored UTC values to local for display
           const offsetMin = new Date().getTimezoneOffset();
           const storedUtcHour = (data as any).weekly_report_hour ?? 7;
           const localH = ((storedUtcHour * 60 - offsetMin) / 60) % 24;
@@ -383,14 +421,34 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         className="glass rounded-2xl p-6 neural-border"
       >
         <div className="flex items-center gap-4">
-          <motion.div
+          <motion.label
+            htmlFor="avatar-upload"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-            className="w-16 h-16 rounded-2xl neural-gradient neural-border flex items-center justify-center shrink-0"
+            className="relative w-16 h-16 rounded-2xl neural-gradient neural-border flex items-center justify-center shrink-0 cursor-pointer group overflow-hidden"
           >
-            <User className="w-8 h-8 text-primary" />
-          </motion.div>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+            ) : (
+              <User className="w-8 h-8 text-primary" />
+            )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
+              {uploadingAvatar ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Camera className="w-5 h-5 text-white" />
+              )}
+            </div>
+            <input
+              id="avatar-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+              disabled={uploadingAvatar}
+            />
+          </motion.label>
           <div className="flex-1 min-w-0">
             <motion.h2
               initial={{ opacity: 0, x: -8 }}
