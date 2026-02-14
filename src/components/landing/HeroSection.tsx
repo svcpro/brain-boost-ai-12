@@ -58,7 +58,7 @@ const HeroSection = () => {
           className="flex flex-col sm:flex-row gap-4 justify-center"
         >
           <Link
-            to="/app"
+            to="/auth"
             className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg glow-primary hover:glow-primary-strong transition-all duration-300 hover:scale-105"
           >
             <Brain className="w-5 h-5" />

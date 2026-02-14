@@ -1,7 +1,17 @@
 import { motion } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const YouTab = () => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
   const menuItems = [
     { icon: Crown, label: "Subscription Plan", value: "Free Brain" },
     { icon: Settings, label: "Settings", value: "" },
@@ -20,9 +30,11 @@ const YouTab = () => {
         <div className="w-20 h-20 rounded-full neural-gradient neural-border flex items-center justify-center mx-auto mb-4">
           <User className="w-10 h-10 text-primary" />
         </div>
-        <h2 className="text-xl font-bold text-foreground">Student</h2>
-        <p className="text-sm text-muted-foreground">JEE Main 2026</p>
-        
+        <h2 className="text-xl font-bold text-foreground">
+          {user?.user_metadata?.display_name || "Student"}
+        </h2>
+        <p className="text-sm text-muted-foreground">{user?.email}</p>
+
         {/* Streak */}
         <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full neural-gradient neural-border">
           <Flame className="w-4 h-4 text-warning" />
@@ -73,6 +85,15 @@ const YouTab = () => {
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </button>
         ))}
+
+        {/* Sign Out */}
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-destructive/10 transition-all"
+        >
+          <LogOut className="w-5 h-5 text-destructive" />
+          <span className="flex-1 text-left text-sm text-destructive">Sign Out</span>
+        </button>
       </motion.div>
     </div>
   );
