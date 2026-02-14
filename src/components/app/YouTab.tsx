@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +29,10 @@ const YouTab = () => {
   const [newSubjectName, setNewSubjectName] = useState("");
   const [newTopicName, setNewTopicName] = useState("");
   const [addingTopicFor, setAddingTopicFor] = useState<string | null>(null);
+  const [editingSubject, setEditingSubject] = useState<string | null>(null);
+  const [editSubjectName, setEditSubjectName] = useState("");
+  const [editingTopic, setEditingTopic] = useState<string | null>(null);
+  const [editTopicName, setEditTopicName] = useState("");
   const [loadingSubjects, setLoadingSubjects] = useState(false);
 
   const loadSubjects = async () => {
@@ -89,6 +93,24 @@ const YouTab = () => {
   const deleteTopic = async (id: string) => {
     const { error } = await supabase.from("topics").delete().eq("id", id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    loadSubjects();
+  };
+
+  const renameSubject = async (id: string) => {
+    const trimmed = editSubjectName.trim();
+    if (!trimmed) return;
+    const { error } = await supabase.from("subjects").update({ name: trimmed }).eq("id", id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    setEditingSubject(null);
+    loadSubjects();
+  };
+
+  const renameTopic = async (id: string) => {
+    const trimmed = editTopicName.trim();
+    if (!trimmed) return;
+    const { error } = await supabase.from("topics").update({ name: trimmed }).eq("id", id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    setEditingTopic(null);
     loadSubjects();
   };
 
@@ -213,21 +235,45 @@ const YouTab = () => {
                     {/* Subject list */}
                     {subjects.map(sub => (
                       <div key={sub.id} className="rounded-lg bg-secondary/30 border border-border overflow-hidden">
-                        <button
-                          onClick={() => setExpandedSubject(expandedSubject === sub.id ? null : sub.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-secondary/50 transition-all"
-                        >
-                          <BookOpen className="w-3.5 h-3.5 text-primary" />
-                          <span className="flex-1 text-left text-sm font-medium text-foreground">{sub.name}</span>
-                          <span className="text-[10px] text-muted-foreground">{sub.topics.length} topics</span>
-                          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expandedSubject === sub.id ? "rotate-180" : ""}`} />
+                        <div className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-secondary/50 transition-all">
+                          <BookOpen className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                          {editingSubject === sub.id ? (
+                            <form onSubmit={e => { e.preventDefault(); renameSubject(sub.id); }} className="flex-1 flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={editSubjectName}
+                                onChange={e => setEditSubjectName(e.target.value)}
+                                autoFocus
+                                onBlur={() => setEditingSubject(null)}
+                                className="flex-1 rounded-md bg-secondary border border-border px-2 py-0.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                              />
+                              <button type="submit" onMouseDown={e => e.preventDefault()} className="text-success hover:text-success/80">
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            </form>
+                          ) : (
+                            <button onClick={() => setExpandedSubject(expandedSubject === sub.id ? null : sub.id)} className="flex-1 text-left text-sm font-medium text-foreground">
+                              {sub.name}
+                            </button>
+                          )}
+                          <span className="text-[10px] text-muted-foreground flex-shrink-0">{sub.topics.length} topics</span>
+                          <button
+                            onClick={e => { e.stopPropagation(); setEditingSubject(sub.id); setEditSubjectName(sub.name); }}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <ChevronDown
+                            onClick={() => setExpandedSubject(expandedSubject === sub.id ? null : sub.id)}
+                            className={`w-3.5 h-3.5 text-muted-foreground transition-transform cursor-pointer ${expandedSubject === sub.id ? "rotate-180" : ""}`}
+                          />
                           <button
                             onClick={e => { e.stopPropagation(); deleteSubject(sub.id); }}
-                            className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
+                            className="text-muted-foreground hover:text-destructive transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
-                        </button>
+                        </div>
 
                         <AnimatePresence>
                           {expandedSubject === sub.id && (
@@ -242,11 +288,33 @@ const YouTab = () => {
                                 {/* Topics */}
                                 {sub.topics.map(topic => (
                                   <div key={topic.id} className="flex items-center gap-2 pl-5">
-                                    <Hash className="w-3 h-3 text-muted-foreground" />
-                                    <span className="flex-1 text-xs text-foreground">{topic.name}</span>
+                                    <Hash className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                    {editingTopic === topic.id ? (
+                                      <form onSubmit={e => { e.preventDefault(); renameTopic(topic.id); }} className="flex-1 flex items-center gap-1.5">
+                                        <input
+                                          type="text"
+                                          value={editTopicName}
+                                          onChange={e => setEditTopicName(e.target.value)}
+                                          autoFocus
+                                          onBlur={() => setEditingTopic(null)}
+                                          className="flex-1 rounded-md bg-secondary border border-border px-2 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                        />
+                                        <button type="submit" onMouseDown={e => e.preventDefault()} className="text-success hover:text-success/80">
+                                          <Check className="w-3 h-3" />
+                                        </button>
+                                      </form>
+                                    ) : (
+                                      <span className="flex-1 text-xs text-foreground">{topic.name}</span>
+                                    )}
                                     <span className={`text-[10px] ${topic.memory_strength > 70 ? "text-success" : topic.memory_strength > 40 ? "text-warning" : "text-destructive"}`}>
                                       {topic.memory_strength}%
                                     </span>
+                                    <button
+                                      onClick={() => { setEditingTopic(topic.id); setEditTopicName(topic.name); }}
+                                      className="text-muted-foreground hover:text-primary transition-colors"
+                                    >
+                                      <Pencil className="w-2.5 h-2.5" />
+                                    </button>
                                     <button
                                       onClick={() => deleteTopic(topic.id)}
                                       className="text-muted-foreground hover:text-destructive transition-colors"
