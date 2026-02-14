@@ -230,12 +230,14 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
   };
 
   const handleStartAnother = () => {
+    const prevSubject = summary?.subject || "";
+    const prevTopic = summary?.topic || "";
     setSummary(null);
     setState("setup");
     setTotalMinutes(25);
     setSecondsLeft(25 * 60);
-    setSubject("");
-    setTopic("");
+    setSubject(prevSubject);
+    setTopic(prevTopic);
     setPomodoroEnabled(false);
     setPomodoroPhase("work");
     setPomodoroCycle(1);
