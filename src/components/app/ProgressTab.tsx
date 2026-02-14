@@ -24,6 +24,7 @@ import StreakFreezeCard from "./StreakFreezeCard";
 import FreezeGiftInbox from "./FreezeGiftInbox";
 import ConsistencyScore from "./ConsistencyScore";
 import PushNotificationToggle from "./PushNotificationToggle";
+import BadgeGallery from "./BadgeGallery";
 
 type DayStatus = "studied" | "frozen" | "none";
 
@@ -487,6 +488,9 @@ const ProgressTab = () => {
 
       {/* Freeze Gift Inbox */}
       <FreezeGiftInbox />
+
+      {/* Badge Gallery — shareable milestone badges */}
+      <BadgeGallery />
 
       {/* Push Notification Toggle */}
       <PushNotificationToggle />

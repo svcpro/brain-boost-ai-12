@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Star, Award, Sparkles, Lock } from "lucide-react";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
-import { getCache } from "@/lib/offlineCache";
+import StreakBadge from "./StreakBadge";
 
 interface MilestoneConfig {
   days: number;
@@ -22,9 +22,13 @@ const MILESTONES: MilestoneConfig[] = [
   { days: 365, icon: Sparkles, label: "Year of Mastery", emoji: "👑", gradient: "from-yellow-500/20 to-yellow-700/10", borderColor: "border-yellow-500/40" },
 ];
 
+// Milestones that have shareable badge themes in StreakBadge
+const SHAREABLE_MILESTONES = [7, 14, 30, 100];
+
 const BadgeGallery = () => {
   const { streak, loadStreak } = useStudyStreak();
   const [longestEver, setLongestEver] = useState(0);
+  const [selectedBadge, setSelectedBadge] = useState<number | null>(null);
 
   useEffect(() => {
     loadStreak();
@@ -32,7 +36,6 @@ const BadgeGallery = () => {
 
   useEffect(() => {
     if (!streak) return;
-    // Use longest streak as the high-water mark for earned badges
     setLongestEver(streak.longestStreak);
   }, [streak]);
 
@@ -56,18 +59,19 @@ const BadgeGallery = () => {
       <div className="grid grid-cols-3 gap-3">
         {MILESTONES.map((m, i) => {
           const isEarned = longestEver >= m.days;
-          const Icon = m.icon;
+          const isShareable = isEarned && SHAREABLE_MILESTONES.includes(m.days);
           return (
             <motion.div
               key={m.days}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.05 * i }}
+              onClick={() => isShareable && setSelectedBadge(m.days)}
               className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
                 isEarned
                   ? `bg-gradient-to-b ${m.gradient} ${m.borderColor}`
                   : "bg-secondary/20 border-border/30 opacity-50"
-              }`}
+              } ${isShareable ? "cursor-pointer active:scale-95" : ""}`}
             >
               <div className="text-2xl leading-none">
                 {isEarned ? m.emoji : <Lock className="w-5 h-5 text-muted-foreground" />}
@@ -81,12 +85,29 @@ const BadgeGallery = () => {
                   <span className="text-[8px] text-success-foreground font-bold">✓</span>
                 </div>
               )}
+              {isShareable && (
+                <span className="text-[8px] text-primary font-medium">Tap to share</span>
+              )}
             </motion.div>
           );
         })}
       </div>
 
-      {nextMilestone && longestEver > 0 && (
+      {/* Shareable badge preview */}
+      <AnimatePresence>
+        {selectedBadge && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-4 overflow-hidden"
+          >
+            <StreakBadge milestone={selectedBadge} onClose={() => setSelectedBadge(null)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {nextMilestone && longestEver > 0 && !selectedBadge && (
         <div className="mt-3 flex items-center gap-2">
           <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
             <motion.div
