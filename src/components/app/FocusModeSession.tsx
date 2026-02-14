@@ -433,7 +433,7 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: Focus
           )}
 
           {/* Active / Paused / Done */}
-          {state !== "setup" && (
+          {state !== "setup" && state !== "summary" && (
             <div className="flex flex-col items-center gap-5">
               {/* Distraction blocker banner */}
               {distractionsBlocked && state === "running" && (
