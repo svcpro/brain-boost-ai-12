@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import confetti from "canvas-confetti";
 import { motion, AnimatePresence } from "framer-motion";
 import { Crosshair, Clock, Timer, BookOpen, ChevronDown, ChevronUp, FileText, Target, Pencil, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -180,6 +181,21 @@ const WeeklyFocusChart = () => {
   const activeDays = days.filter((d) => d.minutes > 0).length;
   const goalProgress = Math.min((totalMinutes / goalMinutes) * 100, 100);
   const goalHours = goalMinutes / 60;
+  const confettiFired = useRef(false);
+
+  useEffect(() => {
+    if (goalProgress >= 100 && !confettiFired.current && !loading) {
+      confettiFired.current = true;
+      const end = Date.now() + 800;
+      const fire = () => {
+        confetti({ particleCount: 30, angle: 60, spread: 55, origin: { x: 0, y: 0.7 }, colors: ["#22c55e", "#3b82f6", "#eab308"] });
+        confetti({ particleCount: 30, angle: 120, spread: 55, origin: { x: 1, y: 0.7 }, colors: ["#22c55e", "#3b82f6", "#eab308"] });
+        if (Date.now() < end) requestAnimationFrame(fire);
+      };
+      fire();
+    }
+    if (goalProgress < 100) confettiFired.current = false;
+  }, [goalProgress, loading]);
 
   if (loading) return null;
 
