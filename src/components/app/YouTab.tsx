@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +75,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [emailStudyReminders, setEmailStudyReminders] = useState(true);
   const [emailWeeklyReports, setEmailWeeklyReports] = useState(true);
   const [showEmailSetting, setShowEmailSetting] = useState(false);
+  const [showDisableAllDialog, setShowDisableAllDialog] = useState(false);
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
 
@@ -573,14 +584,20 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-foreground">All Email Notifications</span>
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                         const allOn = emailNotifications && emailStudyReminders && emailWeeklyReports;
-                        const newVal = !allOn;
-                        setEmailNotifications(newVal);
-                        setEmailStudyReminders(newVal);
-                        setEmailWeeklyReports(newVal);
-                        if (user) await supabase.from("profiles").update({ email_notifications_enabled: newVal, email_study_reminders: newVal, email_weekly_reports: newVal } as any).eq("id", user.id);
-                        toast({ title: newVal ? "📧 All email notifications enabled" : "All email notifications disabled" });
+                        if (allOn) {
+                          setShowDisableAllDialog(true);
+                        } else {
+                          const disableAll = async () => {
+                            setEmailNotifications(true);
+                            setEmailStudyReminders(true);
+                            setEmailWeeklyReports(true);
+                            if (user) await supabase.from("profiles").update({ email_notifications_enabled: true, email_study_reminders: true, email_weekly_reports: true } as any).eq("id", user.id);
+                            toast({ title: "📧 All email notifications enabled" });
+                          };
+                          disableAll();
+                        }
                       }}
                       className={`w-10 h-6 rounded-full transition-all relative ${emailNotifications && emailStudyReminders && emailWeeklyReports ? "bg-primary" : "bg-secondary"}`}
                     >
@@ -767,6 +784,33 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           <span className="flex-1 text-left text-sm text-destructive">Sign Out</span>
         </button>
       </motion.div>
+
+      {/* Disable All Notifications Confirmation */}
+      <AlertDialog open={showDisableAllDialog} onOpenChange={setShowDisableAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disable all email notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You won't receive any emails including study reminders, weekly reports, and subscription alerts. You can re-enable them anytime.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setEmailNotifications(false);
+                setEmailStudyReminders(false);
+                setEmailWeeklyReports(false);
+                if (user) await supabase.from("profiles").update({ email_notifications_enabled: false, email_study_reminders: false, email_weekly_reports: false } as any).eq("id", user.id);
+                toast({ title: "All email notifications disabled" });
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Disable All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
