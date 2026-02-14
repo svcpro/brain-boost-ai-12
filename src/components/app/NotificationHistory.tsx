@@ -231,17 +231,25 @@ const NotificationHistory = () => {
                     </p>
                     {group.items.map((n) => (
                       <div key={n.id} className="relative overflow-hidden rounded-lg mb-1">
-                        {/* Delete background revealed on swipe */}
+                        {/* Mark as read background revealed on swipe right */}
+                        {!n.read && (
+                          <div className="absolute inset-0 bg-primary flex items-center justify-start pl-4 rounded-lg">
+                            <Check className="w-4 h-4 text-primary-foreground" />
+                          </div>
+                        )}
+                        {/* Delete background revealed on swipe left */}
                         <div className="absolute inset-0 bg-destructive flex items-center justify-end pr-4 rounded-lg">
                           <Trash2 className="w-4 h-4 text-destructive-foreground" />
                         </div>
                         <motion.div
                           drag="x"
-                          dragConstraints={{ left: -120, right: 0 }}
+                          dragConstraints={{ left: -120, right: n.read ? 0 : 120 }}
                           dragElastic={0.1}
                           onDragEnd={(_, info) => {
                             if (info.offset.x < -80) {
                               deleteNotification(n.id);
+                            } else if (info.offset.x > 80 && !n.read) {
+                              markRead(n.id);
                             }
                           }}
                           initial={{ opacity: 0, x: -10 }}
