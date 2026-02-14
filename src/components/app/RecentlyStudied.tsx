@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History, Play, StickyNote, ChevronDown, Pencil, Trash2, Check, X, Plus, Search, CalendarIcon } from "lucide-react";
+import { History, Play, StickyNote, ChevronDown, Pencil, Trash2, Check, X, Plus, Search, CalendarIcon, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
@@ -28,6 +28,7 @@ const RecentlyStudied = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "longest">("newest");
   const [sessionOpen, setSessionOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
@@ -91,7 +92,15 @@ const RecentlyStudied = () => {
     
     return matchesText && matchesDate;
   });
-  const displayItems = (query || dateFrom || dateTo) ? filteredItems : filteredItems.slice(0, 5);
+
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    if (sortBy === "oldest") return new Date(a.lastStudied).getTime() - new Date(b.lastStudied).getTime();
+    if (sortBy === "longest") return b.minutes - a.minutes;
+    return new Date(b.lastStudied).getTime() - new Date(a.lastStudied).getTime();
+  });
+
+  const isFiltering = !!(query || dateFrom || dateTo);
+  const displayItems = isFiltering ? sortedItems : sortedItems.slice(0, 5);
 
   if (items.length === 0) return null;
 
@@ -207,6 +216,21 @@ const RecentlyStudied = () => {
                     Clear
                   </Button>
                 )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-2">
+                <ArrowUpDown className="w-3 h-3 text-muted-foreground shrink-0" />
+                {(["newest", "oldest", "longest"] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => setSortBy(opt)}
+                    className={cn(
+                      "px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors capitalize",
+                      sortBy === opt ? "bg-primary/20 text-primary" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                    )}
+                  >
+                    {opt === "longest" ? "Longest" : opt === "oldest" ? "Oldest" : "Newest"}
+                  </button>
+                ))}
               </div>
             </motion.div>
           )}
