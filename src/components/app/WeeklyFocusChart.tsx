@@ -264,9 +264,36 @@ const WeeklyFocusChart = () => {
             {totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` : `${totalMinutes}m`} done
           </span>
           <span className={`text-[10px] font-medium ${goalProgress >= 100 ? "text-success" : "text-muted-foreground"}`}>
-            {goalProgress >= 100 ? "✅ Goal reached!" : `${Math.round(goalProgress)}%`}
+            {goalProgress >= 100 ? "🎉 Goal reached!" : `${Math.round(goalProgress)}%`}
           </span>
         </div>
+
+        {/* Congratulations animation */}
+        <AnimatePresence>
+          {goalProgress >= 100 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, height: 0 }}
+              animate={{ opacity: 1, scale: 1, height: "auto" }}
+              exit={{ opacity: 0, scale: 0.8, height: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2 p-3 rounded-xl bg-success/10 border border-success/30 text-center">
+                <motion.div
+                  animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  className="text-2xl mb-1"
+                >
+                  🏆
+                </motion.div>
+                <p className="text-xs font-semibold text-success">Congratulations!</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  You crushed your {goalHours}h weekly focus goal!
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Bar chart */}
