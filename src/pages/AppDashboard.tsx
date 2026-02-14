@@ -5,6 +5,7 @@ import ActionTab from "@/components/app/ActionTab";
 import BrainTab from "@/components/app/BrainTab";
 import ProgressTab from "@/components/app/ProgressTab";
 import YouTab from "@/components/app/YouTab";
+import { useStudyReminder } from "@/hooks/useStudyReminder";
 
 const tabs = [
   { id: "home", label: "Home", icon: Home },
@@ -16,6 +17,7 @@ const tabs = [
 
 const AppDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
+  useStudyReminder(); // Activate notification checks
 
   const renderTab = () => {
     switch (activeTab) {
