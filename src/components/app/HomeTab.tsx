@@ -260,9 +260,10 @@ const HomeTab = ({ onNavigateToEmergency }: HomeTabProps) => {
         </button>
         <button
           onClick={async () => {
-            await generateRecommendations();
-            await loadRecommendations();
-            toast({ title: "Fix suggestions generated! 🔧" });
+          const result = await generateRecommendations();
+          await loadRecommendations();
+          const count = result?.recommendations?.length ?? 0;
+          toast({ title: count > 0 ? `${count} fix suggestions generated! 🔧` : "All topics are healthy — no fixes needed right now 🎉" });
           }}
           className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 active:scale-95"
         >
