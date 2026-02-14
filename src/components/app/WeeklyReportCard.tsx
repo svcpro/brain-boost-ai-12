@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileText, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus, Share2, Download } from "lucide-react";
+import { FileText, Clock, BookOpen, Brain, TrendingUp, TrendingDown, Minus, Share2, Download, RotateCcw, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -15,6 +15,12 @@ interface ReportData {
   avgStrengthNow: number;
   avgStrengthBefore: number;
   topSubjects: { name: string; minutes: number }[];
+  reviewSessionCount: number;
+  totalTopicsDue: number;
+  reviewCompletionRate: number;
+  dailyGoalMetDays: number;
+  dailyGoalMinutes: number;
+  memoryTrend: { day: string; avgStrength: number }[];
 }
 
 const WeeklyReportCard = () => {
@@ -95,10 +101,18 @@ const WeeklyReportCard = () => {
     // Fetch this week's study logs
     const { data: logs } = await supabase
       .from("study_logs")
-      .select("duration_minutes, created_at, topic_id, subject_id")
+      .select("duration_minutes, created_at, topic_id, subject_id, study_mode")
       .eq("user_id", user.id)
       .gte("created_at", weekAgo.toISOString())
       .order("created_at", { ascending: true });
+
+    // Fetch daily goal
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("daily_study_goal_minutes")
+      .eq("id", user.id)
+      .maybeSingle();
+    const dailyGoalMinutes = profile?.daily_study_goal_minutes ?? 60;
 
     // Fetch subjects for names
     const { data: subjects } = await supabase
@@ -111,6 +125,14 @@ const WeeklyReportCard = () => {
       .from("topics")
       .select("id, memory_strength, created_at")
       .eq("user_id", user.id);
+
+    // Fetch memory_scores from this week for daily trend
+    const { data: weekScores } = await supabase
+      .from("memory_scores")
+      .select("score, recorded_at")
+      .eq("user_id", user.id)
+      .gte("recorded_at", weekAgo.toISOString())
+      .order("recorded_at", { ascending: true });
 
     // Fetch memory_scores from a week ago for comparison
     const { data: oldScores } = await supabase
@@ -177,6 +199,39 @@ const WeeklyReportCard = () => {
       .sort((a, b) => b.minutes - a.minutes)
       .slice(0, 4);
 
+    // Review completion rate
+    const reviewSessionCount = logs.filter((l) => l.study_mode === "review").length;
+    const uniqueTopicsWithLogs = new Set(logs.filter((l) => l.topic_id).map((l) => l.topic_id)).size;
+    const totalTopicsDue = topics.filter((t) => {
+      if (!t.memory_strength) return false;
+      return Number(t.memory_strength) < 70;
+    }).length;
+    const reviewCompletionRate = totalTopicsDue > 0
+      ? Math.min(100, Math.round((reviewSessionCount / totalTopicsDue) * 100))
+      : 100;
+
+    // Daily goal met days
+    const dailyTotals: Record<string, number> = {};
+    for (const l of logs) {
+      const d = new Date(l.created_at).toLocaleDateString("en-CA");
+      dailyTotals[d] = (dailyTotals[d] || 0) + l.duration_minutes;
+    }
+    const dailyGoalMetDays = Object.values(dailyTotals).filter((m) => m >= dailyGoalMinutes).length;
+
+    // Memory trend (daily avg strength from memory_scores)
+    const memoryTrend: { day: string; avgStrength: number }[] = [];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString("en-CA");
+      const dayScores = (weekScores || []).filter((s) => s.recorded_at.startsWith(dateStr));
+      const avg = dayScores.length > 0
+        ? Math.round(dayScores.reduce((sum, s) => sum + Number(s.score), 0) / dayScores.length)
+        : -1; // -1 means no data
+      memoryTrend.push({ day: dayNames[d.getDay()], avgStrength: avg });
+    }
+
     setReport({
       totalMinutes,
       sessionCount,
@@ -186,6 +241,12 @@ const WeeklyReportCard = () => {
       avgStrengthNow,
       avgStrengthBefore,
       topSubjects,
+      reviewSessionCount,
+      totalTopicsDue,
+      reviewCompletionRate,
+      dailyGoalMetDays,
+      dailyGoalMinutes,
+      memoryTrend,
     });
     setLoading(false);
   }, [user]);
@@ -311,6 +372,64 @@ const WeeklyReportCard = () => {
               ))}
             </div>
           </div>
+
+          {/* Review Completion & Goal Achievement */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col items-center p-3 rounded-lg bg-secondary/30 border border-border/50">
+              <RotateCcw className="w-4 h-4 text-primary mb-1.5" />
+              <span className="text-lg font-bold text-foreground">{report.reviewCompletionRate}%</span>
+              <span className="text-[10px] text-muted-foreground">Review Rate</span>
+              <span className="text-[9px] mt-0.5 text-muted-foreground">
+                {report.reviewSessionCount} of {report.totalTopicsDue} due
+              </span>
+            </div>
+            <div className="flex flex-col items-center p-3 rounded-lg bg-secondary/30 border border-border/50">
+              <Target className="w-4 h-4 text-primary mb-1.5" />
+              <span className="text-lg font-bold text-foreground">{report.dailyGoalMetDays}/7</span>
+              <span className="text-[10px] text-muted-foreground">Goals Met</span>
+              <span className="text-[9px] mt-0.5 text-muted-foreground">
+                {report.dailyGoalMinutes}min daily target
+              </span>
+            </div>
+          </div>
+
+          {/* Memory Strength Trend (mini chart) */}
+          {report.memoryTrend.some((d) => d.avgStrength >= 0) && (
+            <div>
+              <p className="text-xs text-foreground mb-2">Memory Trend</p>
+              <div className="flex items-end gap-1 h-16">
+                {report.memoryTrend.map((d, i) => {
+                  const hasData = d.avgStrength >= 0;
+                  const height = hasData ? Math.max(d.avgStrength, 5) : 5;
+                  const color = hasData
+                    ? d.avgStrength >= 70 ? "bg-success/50" : d.avgStrength >= 40 ? "bg-warning/50" : "bg-destructive/50"
+                    : "bg-secondary";
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <motion.div
+                        className={`w-full rounded-t ${color}`}
+                        initial={{ height: 0 }}
+                        animate={{ height: `${height}%` }}
+                        transition={{ duration: 0.5, delay: 0.3 + i * 0.05 }}
+                      />
+                      <span className="text-[9px] text-muted-foreground">{d.day}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between mt-1">
+                <span className="text-[9px] text-muted-foreground">Avg memory %</span>
+                <span className="text-[9px] text-muted-foreground">
+                  {(() => {
+                    const valid = report.memoryTrend.filter((d) => d.avgStrength >= 0);
+                    return valid.length > 0
+                      ? `${Math.round(valid.reduce((s, d) => s + d.avgStrength, 0) / valid.length)}% avg`
+                      : "";
+                  })()}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Top Subjects */}
           {report.topSubjects.length > 0 && (
