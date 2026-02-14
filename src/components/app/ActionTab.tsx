@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import LazyModeSession from "./LazyModeSession";
 import FocusModeSession from "./FocusModeSession";
 import EmergencyRecoverySession from "./EmergencyRecoverySession";
+import FocusSessionHistory from "./FocusSessionHistory";
 
 const modes = [
   {
@@ -125,6 +126,11 @@ const ActionTab = () => {
           </motion.button>
         ))}
       </div>
+
+      {/* Focus Session History */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <FocusSessionHistory />
+      </motion.div>
 
       {/* AI Study Plan */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
