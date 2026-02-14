@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { History, Clock, Flame, Target, ChevronDown, ChevronUp, Timer, Calendar, StickyNote, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, startOfDay, startOfWeek, startOfMonth } from "date-fns";
 
 interface FocusSession {
   id: string;
@@ -24,6 +24,7 @@ const FocusSessionHistory = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [confidenceFilter, setConfidenceFilter] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<"all" | "today" | "week" | "month">("all");
 
   useEffect(() => {
     if (!user) return;
@@ -85,8 +86,15 @@ const FocusSessionHistory = () => {
   // Estimate pomodoro cycles (each 25-min block counts as a cycle)
   const estimatedCycles = Math.floor(totalMinutes / 25);
 
+  const now = new Date();
+  const dateStart = dateRange === "today" ? startOfDay(now)
+    : dateRange === "week" ? startOfWeek(now, { weekStartsOn: 1 })
+    : dateRange === "month" ? startOfMonth(now)
+    : null;
+
   const query = searchQuery.toLowerCase().trim();
   const filteredSessions = sessions.filter((s) => {
+    if (dateStart && new Date(s.created_at) < dateStart) return false;
     if (confidenceFilter && s.confidence_level !== confidenceFilter) return false;
     if (query) {
       return (
@@ -116,7 +124,7 @@ const FocusSessionHistory = () => {
           {totalSessions} session{totalSessions !== 1 ? "s" : ""}
         </span>
         <button
-          onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); setConfidenceFilter(null); }}
+          onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); setConfidenceFilter(null); setDateRange("all"); }}
           className={`p-1 rounded-md hover:bg-secondary/50 transition-colors ${showSearch ? "bg-secondary/50" : ""}`}
           title="Search sessions"
         >
@@ -152,7 +160,7 @@ const FocusSessionHistory = () => {
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-1.5 mb-3">
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
               {(["high", "medium", "low"] as const).map((level) => {
                 const active = confidenceFilter === level;
                 const colors = {
@@ -174,7 +182,28 @@ const FocusSessionHistory = () => {
                   </button>
                 );
               })}
-              {(query || confidenceFilter) && (
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              {([
+                { key: "all", label: "All Time" },
+                { key: "today", label: "Today" },
+                { key: "week", label: "This Week" },
+                { key: "month", label: "This Month" },
+              ] as const).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setDateRange(key)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-colors ${
+                    dateRange === key
+                      ? "bg-primary/15 border-primary/40 text-primary"
+                      : "border-border text-muted-foreground hover:bg-secondary/50"
+                  }`}
+                >
+                  {key !== "all" && <Calendar className="w-2.5 h-2.5" />}
+                  {label}
+                </button>
+              ))}
+              {(query || confidenceFilter || dateRange !== "all") && (
                 <span className="text-[10px] text-muted-foreground ml-auto">
                   {filteredSessions.length} result{filteredSessions.length !== 1 ? "s" : ""}
                 </span>
