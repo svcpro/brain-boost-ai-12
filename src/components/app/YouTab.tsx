@@ -569,6 +569,9 @@ const YouTab = () => {
                       onMouseUp={() => playNotificationSound()}
                       onTouchEnd={() => playNotificationSound()}
                       className="slider-glass"
+                      style={{
+                        background: `linear-gradient(90deg, hsl(175 80% 50% / 0.5) 0%, hsl(175 80% 45% / 0.35) ${volume}%, hsl(175 40% 25% / 0.15) ${volume}%, hsl(175 40% 25% / 0.08) 100%)`,
+                      }}
                     />
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>Quiet</span>
