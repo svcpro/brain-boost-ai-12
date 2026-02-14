@@ -1,14 +1,32 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Flame, Trophy } from "lucide-react";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
+import { useVoice } from "@/pages/AppDashboard";
+import { getVoiceSettings } from "@/hooks/useVoiceNotification";
+
+const STREAK_MILESTONES = [3, 7, 14, 30];
 
 const StreakTracker = () => {
   const { streak, loading, loadStreak } = useStudyStreak();
+  const voice = useVoice();
+  const streakVoiceFiredRef = useRef(false);
 
   useEffect(() => {
     loadStreak();
   }, [loadStreak]);
+
+  // Voice alert on streak milestone
+  useEffect(() => {
+    if (!streak || streakVoiceFiredRef.current || !voice) return;
+    if (!streak.todayMet) return;
+    const settings = getVoiceSettings();
+    if (!settings.enabled) return;
+    if (STREAK_MILESTONES.includes(streak.currentStreak)) {
+      streakVoiceFiredRef.current = true;
+      voice.speak("motivation", { daily_topic: `${streak.currentStreak} day streak` });
+    }
+  }, [streak, voice]);
 
   if (loading || !streak) return null;
 

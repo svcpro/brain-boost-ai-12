@@ -1,17 +1,21 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Target, Pencil, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useVoice } from "@/pages/AppDashboard";
+import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 
 const GOAL_OPTIONS = [15, 30, 45, 60, 90, 120];
 
 const DailyGoalTracker = () => {
   const { user } = useAuth();
+  const voice = useVoice();
   const [goalMinutes, setGoalMinutes] = useState(60);
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const goalVoiceFiredRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -59,6 +63,15 @@ const DailyGoalTracker = () => {
 
   const progress = goalMinutes > 0 ? Math.min((todayMinutes / goalMinutes) * 100, 100) : 0;
   const completed = todayMinutes >= goalMinutes;
+  // Voice alert when daily goal is completed
+  useEffect(() => {
+    if (!completed || goalVoiceFiredRef.current || !voice) return;
+    const settings = getVoiceSettings();
+    if (!settings.enabled) return;
+    goalVoiceFiredRef.current = true;
+    voice.speak("motivation", { daily_minutes: todayMinutes });
+  }, [completed, voice, todayMinutes]);
+
   const remaining = Math.max(goalMinutes - todayMinutes, 0);
 
   const formatTime = (mins: number) => {
