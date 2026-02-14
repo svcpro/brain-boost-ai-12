@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useStudyReminder } from "@/hooks/useStudyReminder";
 
 interface Topic {
   id: string;
@@ -34,6 +35,18 @@ const YouTab = () => {
   const [editingTopic, setEditingTopic] = useState<string | null>(null);
   const [editTopicName, setEditTopicName] = useState("");
   const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderHour, setReminderHour] = useState(18);
+  const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
+
+  // Load reminder prefs
+  useEffect(() => {
+    getPrefs().then((p) => {
+      setReminderEnabled(p.enabled);
+      setReminderHour(p.reminderHour);
+    });
+  }, [getPrefs]);
 
   const loadSubjects = async () => {
     if (!user) return;
@@ -122,7 +135,7 @@ const YouTab = () => {
   const menuItems = [
     { icon: Crown, label: "Subscription Plan", value: "Free Brain", onClick: undefined },
     { icon: BookOpen, label: "Subjects & Topics", value: `${subjects.length || "—"}`, onClick: () => setShowSubjects(!showSubjects) },
-    { icon: Settings, label: "Settings", value: "", onClick: undefined },
+    { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders) },
     { icon: Database, label: "Data Backup", value: "", onClick: undefined },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: undefined },
   ];
@@ -358,6 +371,81 @@ const YouTab = () => {
                       </div>
                     ))}
                   </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Reminders Panel */}
+        <AnimatePresence>
+          {showReminders && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="glass rounded-xl p-4 neural-border space-y-4 mt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {reminderEnabled ? (
+                      <Bell className="w-4 h-4 text-primary" />
+                    ) : (
+                      <BellOff className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm text-foreground">Daily Reminders</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!reminderEnabled) {
+                        const granted = await requestPermission();
+                        if (!granted) {
+                          toast({ title: "Notifications blocked", description: "Please enable notifications in your browser settings.", variant: "destructive" });
+                          return;
+                        }
+                      }
+                      const newVal = !reminderEnabled;
+                      setReminderEnabled(newVal);
+                      await savePrefs({ enabled: newVal, reminderHour });
+                      toast({ title: newVal ? "🔔 Reminders enabled" : "🔕 Reminders disabled" });
+                    }}
+                    className={`w-10 h-6 rounded-full transition-all relative ${reminderEnabled ? "bg-primary" : "bg-secondary"}`}
+                  >
+                    <motion.div
+                      className="w-4 h-4 rounded-full bg-white absolute top-1"
+                      animate={{ left: reminderEnabled ? 22 : 4 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  </button>
+                </div>
+
+                {reminderEnabled && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Remind me at:</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[9, 12, 15, 18, 19, 20, 21, 22].map((h) => (
+                        <button
+                          key={h}
+                          onClick={async () => {
+                            setReminderHour(h);
+                            await savePrefs({ enabled: true, reminderHour: h });
+                          }}
+                          className={`py-2 rounded-lg text-xs font-medium transition-all border ${
+                            reminderHour === h
+                              ? "border-primary bg-primary/15 text-primary"
+                              : "border-border bg-secondary/30 text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {h > 12 ? `${h - 12} PM` : h === 12 ? "12 PM" : `${h} AM`}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      You'll get a notification if you haven't studied by this time.
+                    </p>
+                  </motion.div>
                 )}
               </div>
             </motion.div>
