@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, CheckCheck, Trash2, Loader2 } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Loader2, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, isToday, isYesterday } from "date-fns";
@@ -30,6 +30,7 @@ const NotificationHistory = () => {
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const load = async () => {
     if (!user) return;
@@ -131,6 +132,16 @@ const NotificationHistory = () => {
     study_reminder: "📚",
   };
 
+  const typeLabels: Record<string, string> = {
+    freeze_gift: "Freeze Gifts",
+    streak_milestone: "Streak Milestones",
+    study_reminder: "Study Reminders",
+  };
+
+  const filtered = typeFilter === "all"
+    ? notifications
+    : notifications.filter((n) => n.type === typeFilter);
+
   return (
     <>
     <motion.div
@@ -167,13 +178,33 @@ const NotificationHistory = () => {
           </div>
         </div>
 
+        {/* Type filter */}
+        {notifications.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Filter className="w-3 h-3 text-muted-foreground" />
+            {[{ key: "all", label: "All" }, ...Object.entries(typeLabels).map(([key, label]) => ({ key, label }))].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setTypeFilter(f.key)}
+                className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${
+                  typeFilter === f.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                {f.key !== "all" && typeEmoji[f.key] ? `${typeEmoji[f.key]} ` : ""}{f.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-6">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
-        ) : notifications.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-6">
-            No notifications yet
+            {notifications.length === 0 ? "No notifications yet" : "No notifications of this type"}
           </p>
         ) : (
           <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -183,7 +214,7 @@ const NotificationHistory = () => {
                 const today: Notification[] = [];
                 const yesterday: Notification[] = [];
                 const earlier: Notification[] = [];
-                for (const n of notifications) {
+                for (const n of filtered) {
                   const d = new Date(n.created_at);
                   if (isToday(d)) today.push(n);
                   else if (isYesterday(d)) yesterday.push(n);
