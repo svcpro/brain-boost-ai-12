@@ -543,8 +543,15 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
     if (action === "exam_simulate") {
       const topicList = body.topics || "";
       const qCount = body.questionCount || 5;
+      const difficulty = body.difficulty || "medium";
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+      const difficultyPrompts: Record<string, string> = {
+        easy: "Generate EASY questions: straightforward recall and basic understanding. Use simple language, avoid tricky options, and keep explanations brief.",
+        medium: "Generate MEDIUM difficulty questions: test understanding and application of concepts. Include some analytical thinking but keep options reasonable.",
+        hard: "Generate HARD questions: test deep understanding, application, and analysis. Include tricky distractors, multi-step reasoning, and edge cases. Questions should challenge even well-prepared students.",
+      };
 
       const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -552,8 +559,8 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: "You are an exam question generator. Generate multiple-choice questions as a JSON array. Each object must have: question, options (array of 4 strings), correct (0-3 index), explanation. Output ONLY the JSON array, no markdown." },
-            { role: "user", content: `Generate ${qCount} exam questions based on these topics: ${topicList}` }
+            { role: "system", content: `You are an exam question generator. ${difficultyPrompts[difficulty] || difficultyPrompts.medium} Generate multiple-choice questions as a JSON array. Each object must have: question, options (array of 4 strings), correct (0-3 index), explanation. Output ONLY the JSON array, no markdown.` },
+            { role: "user", content: `Generate ${qCount} ${difficulty}-difficulty exam questions based on these topics: ${topicList}` }
           ],
         }),
       });

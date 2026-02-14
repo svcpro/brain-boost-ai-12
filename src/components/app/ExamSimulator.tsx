@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle } from "lucide-react";
+import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle, Zap, Flame, Skull } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +16,13 @@ interface ExamSimulatorProps {
   onClose: () => void;
 }
 
-const TIME_PER_QUESTION = 60; // seconds per question
+type Difficulty = "easy" | "medium" | "hard";
+
+const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; icon: typeof Zap; time: number; color: string; description: string }> = {
+  easy: { label: "Easy", icon: Zap, time: 90, color: "text-success", description: "Basic recall, 90s per question" },
+  medium: { label: "Medium", icon: Flame, time: 60, color: "text-warning", description: "Application & analysis, 60s per question" },
+  hard: { label: "Hard", icon: Skull, time: 35, color: "text-destructive", description: "Deep reasoning & tricky options, 35s per question" },
+};
 
 const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
   const { user } = useAuth();
@@ -29,16 +35,18 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [questionCount, setQuestionCount] = useState(5);
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [timeExpired, setTimeExpired] = useState(false);
   const [totalTimeUsed, setTotalTimeUsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Start/reset timer when a new question appears
+  const timePerQuestion = DIFFICULTY_CONFIG[difficulty].time;
+
   useEffect(() => {
     if (questions.length > 0 && !finished && !answered && timerEnabled) {
-      setTimeLeft(TIME_PER_QUESTION);
+      setTimeLeft(timePerQuestion);
       setTimeExpired(false);
       intervalRef.current = setInterval(() => {
         setTimeLeft(prev => {
@@ -54,24 +62,22 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [current, questions.length, finished, answered, timerEnabled]);
+  }, [current, questions.length, finished, answered, timerEnabled, timePerQuestion]);
 
-  // Auto-skip when time expires
   useEffect(() => {
     if (timeExpired && !answered) {
       setAnswered(true);
-      setSelected(-1); // no selection
-      // Track time used for this question
-      setTotalTimeUsed(prev => prev + TIME_PER_QUESTION);
+      setSelected(-1);
+      setTotalTimeUsed(prev => prev + timePerQuestion);
     }
-  }, [timeExpired, answered]);
+  }, [timeExpired, answered, timePerQuestion]);
 
   const answer = (idx: number) => {
     if (answered) return;
     if (intervalRef.current) clearInterval(intervalRef.current);
     setSelected(idx);
     setAnswered(true);
-    setTotalTimeUsed(prev => prev + (TIME_PER_QUESTION - timeLeft));
+    setTotalTimeUsed(prev => prev + (timePerQuestion - timeLeft));
     if (idx === questions[current].correct) setScore(s => s + 1);
   };
 
@@ -105,6 +111,7 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
           action: "exam_simulate",
           topics: topicList,
           questionCount,
+          difficulty,
         },
       });
 
@@ -129,7 +136,7 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
       toast({ title: "Quiz generation failed", description: e.message, variant: "destructive" });
     }
     setLoading(false);
-  }, [user, questionCount, toast]);
+  }, [user, questionCount, difficulty, toast]);
 
   const parseQuestions = (text: string): Question[] => {
     try {
@@ -176,9 +183,10 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
 
   const q = questions[current];
   const pct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
-  const timerPct = TIME_PER_QUESTION > 0 ? (timeLeft / TIME_PER_QUESTION) * 100 : 0;
+  const timerPct = timePerQuestion > 0 ? (timeLeft / timePerQuestion) * 100 : 0;
   const timerColor = timeLeft <= 10 ? "text-destructive" : timeLeft <= 20 ? "text-warning" : "text-primary";
   const avgTimePerQ = questions.length > 0 ? Math.round(totalTimeUsed / questions.length) : 0;
+  const diffConfig = DIFFICULTY_CONFIG[difficulty];
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -208,6 +216,36 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
             <p className="text-xs text-muted-foreground">
               AI will generate quiz questions based on your weakest topics to simulate exam conditions.
             </p>
+
+            {/* Difficulty Selector */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Difficulty:</span>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(DIFFICULTY_CONFIG) as [Difficulty, typeof DIFFICULTY_CONFIG[Difficulty]][]).map(([key, cfg]) => {
+                  const Icon = cfg.icon;
+                  const isSelected = difficulty === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setDifficulty(key)}
+                      className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                        isSelected
+                          ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                          : "border-border bg-secondary/20 hover:border-primary/30"
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 ${isSelected ? cfg.color : "text-muted-foreground"}`} />
+                      <span className={`text-xs font-semibold ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
+                        {cfg.label}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">{cfg.time}s/q</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center">{diffConfig.description}</p>
+            </div>
+
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Questions:</span>
@@ -228,7 +266,7 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
                     onChange={e => setTimerEnabled(e.target.checked)}
                     className="rounded border-border accent-primary w-3.5 h-3.5"
                   />
-                  <span className="text-xs text-muted-foreground">Timer ({TIME_PER_QUESTION}s/q)</span>
+                  <span className="text-xs text-muted-foreground">Timer</span>
                 </label>
               </div>
             </div>
@@ -245,15 +283,22 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
         {loading && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Generating questions from your topics...</p>
+            <p className="text-sm text-muted-foreground">Generating {diffConfig.label.toLowerCase()} questions...</p>
           </div>
         )}
 
         {q && !finished && !loading && (
           <div className="space-y-4">
-            {/* Progress + Timer */}
+            {/* Difficulty badge + Progress + Timer */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                  difficulty === "easy" ? "border-success/30 bg-success/10 text-success" :
+                  difficulty === "hard" ? "border-destructive/30 bg-destructive/10 text-destructive" :
+                  "border-warning/30 bg-warning/10 text-warning"
+                }`}>
+                  {diffConfig.label}
+                </span>
                 <div className="flex-1 h-1.5 rounded-full bg-secondary">
                   <motion.div
                     className="h-full rounded-full bg-primary"
@@ -287,7 +332,6 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
               )}
             </div>
 
-            {/* Time expired banner */}
             {timeExpired && (
               <motion.div
                 initial={{ opacity: 0, y: -5 }}
@@ -344,7 +388,16 @@ const ExamSimulator = ({ onClose }: ExamSimulatorProps) => {
         {finished && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 py-4">
             <p className="text-4xl font-bold gradient-text">{pct}%</p>
-            <p className="text-sm text-foreground">{score}/{questions.length} correct</p>
+            <div className="flex items-center justify-center gap-2">
+              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                difficulty === "easy" ? "border-success/30 bg-success/10 text-success" :
+                difficulty === "hard" ? "border-destructive/30 bg-destructive/10 text-destructive" :
+                "border-warning/30 bg-warning/10 text-warning"
+              }`}>
+                {diffConfig.label}
+              </span>
+              <p className="text-sm text-foreground">{score}/{questions.length} correct</p>
+            </div>
 
             {timerEnabled && (
               <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
