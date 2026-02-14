@@ -28,9 +28,11 @@ interface Subject {
 interface YouTabProps {
   autoOpenVoiceSettings?: boolean;
   onVoiceSettingsOpened?: () => void;
+  autoOpenSubscription?: boolean;
+  onSubscriptionOpened?: () => void;
 }
 
-const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) => {
+const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscription, onSubscriptionOpened }: YouTabProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -70,7 +72,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened }: YouTabProps) =
     }
   }, [autoOpenVoiceSettings, onVoiceSettingsOpened]);
 
-  // Load reminder prefs
+  // Auto-open subscription panel when navigated from expiry banner
+  useEffect(() => {
+    if (autoOpenSubscription) {
+      setShowSubscription(true);
+      onSubscriptionOpened?.();
+    }
+  }, [autoOpenSubscription, onSubscriptionOpened]);
+
   useEffect(() => {
     getPrefs().then((p) => {
       setReminderEnabled(p.enabled);
