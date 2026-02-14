@@ -164,6 +164,11 @@ const RecentlyStudied = () => {
         <div className="flex items-center gap-2 mb-3">
           <History className="w-4 h-4 text-primary" />
           <span className="text-sm font-semibold text-foreground flex-1">Recently Studied</span>
+          {showSearch && (
+            <span className="text-[10px] text-muted-foreground bg-secondary/70 px-1.5 py-0.5 rounded-full tabular-nums">
+              {displayItems.length}/{items.length}
+            </span>
+          )}
           <button
             onClick={() => { setShowSearch((v) => !v); if (showSearch) { setSearchQuery(""); setDateFrom(undefined); setDateTo(undefined); } }}
             className={`p-1.5 rounded-md transition-colors ${showSearch ? "bg-primary/20 text-primary" : "hover:bg-secondary/50 text-muted-foreground"}`}
