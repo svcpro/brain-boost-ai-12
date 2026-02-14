@@ -30,7 +30,7 @@ export function setPushNotifPrefs(prefs: PushNotifPrefs) {
 }
 
 const NotificationPreferencesPanel = () => {
-  const { permission, subscribed, supported, subscribe, unsubscribe } = usePushNotifications();
+  const { permission, subscribed, supported, error: pushError, subscribe, unsubscribe } = usePushNotifications();
   const { toast } = useToast();
   const { user } = useAuth();
   const [prefs, setPrefs] = useState<PushNotifPrefs>(defaultPrefs);
@@ -74,9 +74,8 @@ const NotificationPreferencesPanel = () => {
       const ok = await subscribe();
       if (ok) {
         toast({ title: "🔔 Push notifications enabled!" });
-      } else if (permission === "denied") {
-        toast({ title: "Notifications blocked", description: "Enable in browser settings.", variant: "destructive" });
       }
+      // Error toast is handled below via pushError state
     }
   };
 
@@ -131,9 +130,12 @@ const NotificationPreferencesPanel = () => {
             {subscribed
               ? "Receiving push notifications on this device"
               : permission === "denied"
-              ? "Blocked by browser — enable in settings"
+              ? "Blocked by browser — enable in your browser's site settings, then try again"
               : "Enable to receive alerts on this device"}
           </p>
+          {pushError && !subscribed && (
+            <p className="text-[10px] text-destructive mt-1">{pushError}</p>
+          )}
         </div>
 
         {subscribed && (
