@@ -18,15 +18,24 @@ async function sendExpiryEmail(email: string, planName: string, daysLeft: number
     : `Your ${planName} plan expires in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`;
 
   const html = `
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #0d9488;">ACRY – Subscription Expiring</h2>
-      <p>Hi there,</p>
-      <p>Your <strong>${planName}</strong> plan ${daysLeft === 0 ? 'expires <strong>today</strong>' : `will expire in <strong>${daysLeft} day${daysLeft > 1 ? 's' : ''}</strong>`}.</p>
-      <p>Renew now to keep your premium features and avoid losing access.</p>
-      <p style="margin-top: 24px;">
-        <a href="https://id-preview--d1ba6129-f715-4b5b-be21-b93a62f817dd.lovable.app/app" style="background: #0d9488; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Renew Now</a>
-      </p>
-      <p style="color: #888; font-size: 12px; margin-top: 32px;">— The ACRY Team</p>
+    <div style="font-family: 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; background: #f8fffe; border-radius: 16px; overflow: hidden; border: 1px solid #e0f2f1;">
+      <div style="background: linear-gradient(135deg, #0d9488, #065f46); padding: 32px 24px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">ACRY</h1>
+        <p style="color: #a7f3d0; margin: 6px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px;">Subscription Notice</p>
+      </div>
+      <div style="padding: 32px 28px;">
+        <div style="background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px;">
+          <p style="margin: 0; color: #92400e; font-weight: 600; font-size: 15px;">⚠️ ${daysLeft === 0 ? 'Your plan expires today!' : `Your plan expires in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`}</p>
+        </div>
+        <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 8px;">Hi there,</p>
+        <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">Your <strong style="color: #0d9488;">${planName}</strong> plan ${daysLeft === 0 ? 'expires <strong>today</strong>' : `will expire in <strong>${daysLeft} day${daysLeft > 1 ? 's' : ''}</strong>`}. Renew now to keep your premium features.</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="https://id-preview--d1ba6129-f715-4b5b-be21-b93a62f817dd.lovable.app/app" style="background: linear-gradient(135deg, #0d9488, #065f46); color: white; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(13,148,136,0.3);">Renew Now →</a>
+        </div>
+      </div>
+      <div style="background: #f1f5f9; padding: 20px 28px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} ACRY · Smart Study Companion</p>
+      </div>
     </div>
   `;
 
