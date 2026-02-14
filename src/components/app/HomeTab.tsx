@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw } from "lucide-react";
+import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
+import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const HomeTab = () => {
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
+  const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [examDaysLeft, setExamDaysLeft] = useState<number | null>(null);
 
   useEffect(() => {
     predict();
+    predictRank();
     loadRecommendations();
     loadExamDate();
   }, []);
@@ -47,7 +50,7 @@ const HomeTab = () => {
   const hasTopics = (prediction?.topics?.length ?? 0) > 0;
 
   const handleRefresh = async () => {
-    await predict();
+    await Promise.all([predict(), predictRank()]);
     await generateRecommendations();
     await loadRecommendations();
   };
@@ -67,22 +70,37 @@ const HomeTab = () => {
       </motion.div>
 
       {/* Stats row */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 gap-3">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-3">
         <div className="glass rounded-xl p-4 neural-border">
           <div className="flex items-center gap-2 mb-2">
             <Brain className="w-4 h-4 text-primary" />
-            <span className="text-xs text-muted-foreground">Brain Health</span>
+            <span className="text-[10px] text-muted-foreground">Brain</span>
           </div>
-          <p className="text-2xl font-bold gradient-text">{hasTopics ? `${overallHealth}%` : "—"}</p>
+          <p className="text-xl font-bold gradient-text">{hasTopics ? `${overallHealth}%` : "—"}</p>
+        </div>
+        <div className="glass rounded-xl p-4 neural-border">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-success" />
+            <span className="text-[10px] text-muted-foreground">Rank</span>
+          </div>
+          <p className="text-xl font-bold text-foreground">
+            {rankData?.predicted_rank ? `#${rankData.predicted_rank.toLocaleString()}` : "—"}
+          </p>
+          {rankData?.rank_change !== undefined && rankData.rank_change !== 0 && (
+            <span className={`text-[10px] flex items-center gap-0.5 ${rankData.rank_change > 0 ? "text-success" : "text-destructive"}`}>
+              <TrendingUp className={`w-2.5 h-2.5 ${rankData.rank_change < 0 ? "rotate-180" : ""}`} />
+              {rankData.rank_change > 0 ? "+" : ""}{rankData.rank_change.toLocaleString()}
+            </span>
+          )}
         </div>
         <div className="glass rounded-xl p-4 neural-border">
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-warning" />
-            <span className="text-xs text-muted-foreground">Exam Countdown</span>
+            <span className="text-[10px] text-muted-foreground">Exam</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">
+          <p className="text-xl font-bold text-foreground">
             {examDaysLeft !== null ? (
-              <>{examDaysLeft} <span className="text-sm text-muted-foreground">days</span></>
+              <>{examDaysLeft}<span className="text-[10px] text-muted-foreground ml-1">d</span></>
             ) : "—"}
           </p>
         </div>
