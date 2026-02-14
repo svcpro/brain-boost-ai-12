@@ -202,12 +202,26 @@ const WeeklyReminderSummary = () => {
         </span>
       </div>
 
-      {stats.delivered === stats.elapsed && stats.delivered > 0 && (
-        <div className="flex items-center gap-1 mt-2 text-[10px] text-success">
-          <CheckCircle2 className="w-3 h-3" />
-          <span>Perfect streak so far!</span>
-        </div>
-      )}
+      {(() => {
+        const ignoredCount = stats.days.filter((d, i) => d.delivered && dailyMinutes[i] === 0).length;
+        if (stats.delivered === stats.elapsed && stats.delivered > 0) {
+          return (
+            <div className="flex items-center gap-1 mt-2 text-[10px] text-success">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>Perfect streak so far!</span>
+            </div>
+          );
+        }
+        if (ignoredCount >= 2) {
+          return (
+            <div className="mt-2 px-2 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-[10px] text-warning flex items-center gap-1.5">
+              <Bell className="w-3 h-3 shrink-0" />
+              <span>You ignored {ignoredCount} reminders this week — try studying even 5 minutes after the next one! 💪</span>
+            </div>
+          );
+        }
+        return null;
+      })()}
     </div>
   );
 };
