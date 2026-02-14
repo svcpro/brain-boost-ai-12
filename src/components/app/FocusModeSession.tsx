@@ -14,12 +14,14 @@ const POMODORO_CYCLES_BEFORE_LONG = 4;
 interface FocusModeSessionProps {
   open: boolean;
   onClose: () => void;
+  initialSubject?: string;
+  initialTopic?: string;
 }
 
 type SessionState = "setup" | "running" | "paused" | "done";
 type PomodoroPhase = "work" | "short-break" | "long-break";
 
-const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
+const FocusModeSession = ({ open, onClose, initialSubject, initialTopic }: FocusModeSessionProps) => {
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
   const ambient = useAmbientSound();
@@ -27,8 +29,8 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
   const [state, setState] = useState<SessionState>("setup");
   const [totalMinutes, setTotalMinutes] = useState(25);
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
-  const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
+  const [subject, setSubject] = useState(initialSubject || "");
+  const [topic, setTopic] = useState(initialTopic || "");
   const [distractionsBlocked, setDistractionsBlocked] = useState(true);
   const [pomodoroEnabled, setPomodoroEnabled] = useState(false);
   const [pomodoroPhase, setPomodoroPhase] = useState<PomodoroPhase>("work");
