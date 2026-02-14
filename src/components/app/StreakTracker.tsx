@@ -8,6 +8,7 @@ import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import { getCache, setCache } from "@/lib/offlineCache";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getPushNotifPrefs } from "./NotificationPreferencesPanel";
 import confetti from "canvas-confetti";
 
 const STREAK_MILESTONES = [3, 7, 14, 30];
@@ -69,7 +70,7 @@ const StreakTracker = () => {
     fire();
 
     // Send push notification for streak milestone
-    if (user && MILESTONE_NOTIF[streak.currentStreak]) {
+    if (user && MILESTONE_NOTIF[streak.currentStreak] && getPushNotifPrefs().streakMilestones) {
       const notif = MILESTONE_NOTIF[streak.currentStreak];
       supabase.functions.invoke("send-push-notification", {
         body: { recipient_id: user.id, title: notif.title, body: notif.body, data: { type: "streak_milestone", streak: streak.currentStreak } },
