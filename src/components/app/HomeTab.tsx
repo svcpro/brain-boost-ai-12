@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { setCache, getCache } from "@/lib/offlineCache";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import DailyGoalTracker from "./DailyGoalTracker";
 import StreakTracker from "./StreakTracker";
 import ReviewQueue from "./ReviewQueue";
@@ -400,13 +401,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                   toast({
                     title: "✅ Marked as done",
                     description: rec.title,
-                    action: React.createElement("button", {
+                    action: React.createElement(ToastAction, {
+                      altText: "Undo",
                       className: "px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity",
                       onClick: async () => {
                         await supabase.from("ai_recommendations").update({ completed: false }).eq("id", rec.id);
                         loadRecommendations();
                       },
-                      altText: "Undo",
                     }, "Undo") as any,
                   });
                 }}
