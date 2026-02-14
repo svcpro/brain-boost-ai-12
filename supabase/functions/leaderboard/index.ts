@@ -55,7 +55,7 @@ serve(async (req) => {
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, display_name, daily_study_goal_minutes, opt_in_leaderboard")
+      .select("id, display_name, daily_study_goal_minutes, opt_in_leaderboard, avatar_url")
       .in("id", userIds);
 
     // Filter to only opted-in users (but always include current user)
@@ -126,6 +126,7 @@ serve(async (req) => {
       return {
         user_id: uid,
         display_name: uid === currentUserId ? (profile?.display_name || "You") : safeName,
+        avatar_url: profile?.avatar_url || null,
         is_current_user: uid === currentUserId,
         predicted_rank: rank?.predicted_rank || 99999,
         percentile: rank?.percentile || 0,
