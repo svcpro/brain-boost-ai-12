@@ -23,6 +23,7 @@ const FocusSessionHistory = () => {
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [confidenceFilter, setConfidenceFilter] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -85,14 +86,17 @@ const FocusSessionHistory = () => {
   const estimatedCycles = Math.floor(totalMinutes / 25);
 
   const query = searchQuery.toLowerCase().trim();
-  const filteredSessions = query
-    ? sessions.filter(
-        (s) =>
-          s.notes?.toLowerCase().includes(query) ||
-          s.subject.toLowerCase().includes(query) ||
-          s.topic?.toLowerCase().includes(query)
-      )
-    : sessions;
+  const filteredSessions = sessions.filter((s) => {
+    if (confidenceFilter && s.confidence_level !== confidenceFilter) return false;
+    if (query) {
+      return (
+        s.notes?.toLowerCase().includes(query) ||
+        s.subject.toLowerCase().includes(query) ||
+        s.topic?.toLowerCase().includes(query)
+      );
+    }
+    return true;
+  });
 
   const visibleSessions = expanded ? filteredSessions : filteredSessions.slice(0, 5);
 
@@ -112,8 +116,8 @@ const FocusSessionHistory = () => {
           {totalSessions} session{totalSessions !== 1 ? "s" : ""}
         </span>
         <button
-          onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); }}
-          className="p-1 rounded-md hover:bg-secondary/50 transition-colors"
+          onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); setConfidenceFilter(null); }}
+          className={`p-1 rounded-md hover:bg-secondary/50 transition-colors ${showSearch ? "bg-secondary/50" : ""}`}
           title="Search sessions"
         >
           <Search className="w-3.5 h-3.5 text-muted-foreground" />
@@ -148,11 +152,34 @@ const FocusSessionHistory = () => {
                 </button>
               )}
             </div>
-            {query && (
-              <p className="text-[10px] text-muted-foreground mb-2">
-                {filteredSessions.length} result{filteredSessions.length !== 1 ? "s" : ""} found
-              </p>
-            )}
+            <div className="flex items-center gap-1.5 mb-3">
+              {(["high", "medium", "low"] as const).map((level) => {
+                const active = confidenceFilter === level;
+                const colors = {
+                  high: { dot: "bg-success", activeBg: "bg-success/15 border-success/40 text-success", label: "High" },
+                  medium: { dot: "bg-warning", activeBg: "bg-warning/15 border-warning/40 text-warning", label: "Medium" },
+                  low: { dot: "bg-destructive", activeBg: "bg-destructive/15 border-destructive/40 text-destructive", label: "Low" },
+                };
+                const c = colors[level];
+                return (
+                  <button
+                    key={level}
+                    onClick={() => setConfidenceFilter(active ? null : level)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-colors ${
+                      active ? c.activeBg : "border-border text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                    {c.label}
+                  </button>
+                );
+              })}
+              {(query || confidenceFilter) && (
+                <span className="text-[10px] text-muted-foreground ml-auto">
+                  {filteredSessions.length} result{filteredSessions.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
