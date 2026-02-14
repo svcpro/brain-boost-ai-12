@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History, Play, StickyNote, ChevronDown, Pencil, Trash2, Check, X, Plus, Search, CalendarIcon, ArrowUpDown } from "lucide-react";
+import { History, Play, Search, CalendarIcon, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDistanceToNow, format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow, format, startOfDay, endOfDay } from "date-fns";
 import FocusModeSession from "./FocusModeSession";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -17,12 +16,11 @@ interface RecentTopic {
   subjectName: string;
   lastStudied: string;
   minutes: number;
-  notes: string | null;
 }
 
 const RecentlyStudied = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
+  
   const [items, setItems] = useState<RecentTopic[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -32,16 +30,13 @@ const RecentlyStudied = () => {
   const [sessionOpen, setSessionOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editText, setEditText] = useState("");
 
   const load = useCallback(async () => {
     if (!user) return;
 
     const { data: logs } = await supabase
       .from("study_logs")
-      .select("id, topic_id, subject_id, duration_minutes, created_at, notes")
+      .select("id, topic_id, subject_id, duration_minutes, created_at")
       .eq("user_id", user.id)
       .not("topic_id", "is", null)
       .order("created_at", { ascending: false })
@@ -68,7 +63,6 @@ const RecentlyStudied = () => {
       subjectName: subjectMap.get(l.subject_id!) || "",
       lastStudied: l.created_at,
       minutes: l.duration_minutes,
-      notes: l.notes || null,
     }));
 
     setItems(result);
@@ -82,8 +76,7 @@ const RecentlyStudied = () => {
   const filteredItems = items.filter((item) => {
     const matchesText = !query || 
       item.topicName.toLowerCase().includes(query) ||
-      item.subjectName.toLowerCase().includes(query) ||
-      (item.notes && item.notes.toLowerCase().includes(query));
+      item.subjectName.toLowerCase().includes(query);
     
     const itemDate = new Date(item.lastStudied);
     const matchesDate = 
@@ -110,49 +103,6 @@ const RecentlyStudied = () => {
     setSessionOpen(true);
   };
 
-  const toggleExpand = (index: number) => {
-    setExpandedIndex((prev) => (prev === index ? null : index));
-    setEditingIndex(null);
-  };
-
-  const startEditing = (index: number) => {
-    setEditText(items[index].notes || "");
-    setEditingIndex(index);
-    setExpandedIndex(index);
-  };
-
-  const saveNote = async (index: number) => {
-    const item = items[index];
-    const trimmed = editText.trim();
-    const { error } = await supabase
-      .from("study_logs")
-      .update({ notes: trimmed || null })
-      .eq("id", item.logId);
-    if (error) {
-      toast({ title: "Error", description: "Failed to update note", variant: "destructive" });
-      return;
-    }
-    setItems((prev) => prev.map((it, i) => i === index ? { ...it, notes: trimmed || null } : it));
-    setEditingIndex(null);
-    if (!trimmed) setExpandedIndex(null);
-    toast({ title: trimmed ? "Note updated ✏️" : "Note removed" });
-  };
-
-  const deleteNote = async (index: number) => {
-    const item = items[index];
-    const { error } = await supabase
-      .from("study_logs")
-      .update({ notes: null })
-      .eq("id", item.logId);
-    if (error) {
-      toast({ title: "Error", description: "Failed to delete note", variant: "destructive" });
-      return;
-    }
-    setItems((prev) => prev.map((it, i) => i === index ? { ...it, notes: null } : it));
-    setEditingIndex(null);
-    setExpandedIndex(null);
-    toast({ title: "Note deleted 🗑️" });
-  };
 
   return (
     <>
@@ -187,10 +137,9 @@ const RecentlyStudied = () => {
             >
               <input
                 type="text"
-                placeholder="Search by subject, topic, or notes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 autoFocus
               />
               <div className="flex gap-2 mt-2">
@@ -260,95 +209,14 @@ const RecentlyStudied = () => {
                 >
                   <Play className="w-3 h-3 text-primary" />
                 </button>
-                <button
-                  onClick={() => item.notes ? toggleExpand(i) : startEditing(i)}
-                  className="flex-1 min-w-0 text-left"
-                >
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-foreground truncate">{item.topicName}</p>
                   <p className="text-[10px] text-muted-foreground truncate">
                     {item.subjectName && `${item.subjectName} · `}
                     {item.minutes}min · {formatDistanceToNow(new Date(item.lastStudied), { addSuffix: true })}
                   </p>
-                  {item.notes && (
-                    <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1">
-                      <StickyNote className="w-2.5 h-2.5 shrink-0" />
-                      <span className="truncate">{item.notes}</span>
-                    </p>
-                  )}
-                </button>
-                {item.notes ? (
-                  <button
-                    onClick={() => toggleExpand(i)}
-                    className="p-1 rounded-md hover:bg-secondary/50 transition-colors shrink-0"
-                  >
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${
-                        expandedIndex === i ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => startEditing(i)}
-                    className="p-1 rounded-md hover:bg-primary/10 transition-colors shrink-0"
-                    title="Add note"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                )}
+                </div>
               </div>
-
-              <AnimatePresence>
-                {expandedIndex === i && (item.notes || editingIndex === i) && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-3 pb-3 pt-1.5 border-t border-border/30 space-y-2">
-                      {editingIndex === i ? (
-                        <div className="space-y-1.5">
-                          <textarea
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            maxLength={500}
-                            rows={3}
-                            className="w-full text-[11px] bg-background/50 border border-border rounded-md p-2 text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                            autoFocus
-                          />
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground">{editText.length}/500</span>
-                            <div className="flex gap-1">
-                              <button onClick={() => setEditingIndex(null)} className="p-1 rounded hover:bg-secondary/50 transition-colors">
-                                <X className="w-3.5 h-3.5 text-muted-foreground" />
-                              </button>
-                              <button onClick={() => saveNote(i)} className="p-1 rounded hover:bg-primary/10 transition-colors">
-                                <Check className="w-3.5 h-3.5 text-primary" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                            {item.notes}
-                          </p>
-                          <div className="flex gap-1 justify-end">
-                            <button onClick={() => startEditing(i)} className="p-1 rounded hover:bg-secondary/50 transition-colors" title="Edit note">
-                              <Pencil className="w-3 h-3 text-muted-foreground" />
-                            </button>
-                            <button onClick={() => deleteNote(i)} className="p-1 rounded hover:bg-destructive/10 transition-colors" title="Delete note">
-                              <Trash2 className="w-3 h-3 text-destructive/70" />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           ))}
         </div>
