@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Play, Pause, RotateCcw, CheckCircle, X, ShieldCheck, Eye, EyeOff, Plus, Minus, Volume2, VolumeX, CloudRain, Music, Radio } from "lucide-react";
+import { Crosshair, Play, Pause, RotateCcw, CheckCircle, X, ShieldCheck, Eye, EyeOff, Plus, Minus, Volume2, VolumeX, CloudRain, Music, Radio, Timer, Coffee, SkipForward } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
 import { useAmbientSound, type AmbientSoundType } from "@/hooks/useAmbientSound";
 
 const PRESETS = [15, 25, 45, 60];
+const POMODORO_WORK = 25;
+const POMODORO_SHORT_BREAK = 5;
+const POMODORO_LONG_BREAK = 15;
+const POMODORO_CYCLES_BEFORE_LONG = 4;
 
 interface FocusModeSessionProps {
   open: boolean;
@@ -13,6 +17,7 @@ interface FocusModeSessionProps {
 }
 
 type SessionState = "setup" | "running" | "paused" | "done";
+type PomodoroPhase = "work" | "short-break" | "long-break";
 
 const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
   const { logStudy } = useStudyLogger();
@@ -25,6 +30,10 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
   const [distractionsBlocked, setDistractionsBlocked] = useState(true);
+  const [pomodoroEnabled, setPomodoroEnabled] = useState(false);
+  const [pomodoroPhase, setPomodoroPhase] = useState<PomodoroPhase>("work");
+  const [pomodoroCycle, setPomodoroCycle] = useState(1);
+  const [totalCyclesCompleted, setTotalCyclesCompleted] = useState(0);
   const [logging, setLogging] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -36,6 +45,10 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
       setSecondsLeft(25 * 60);
       setSubject("");
       setTopic("");
+      setPomodoroEnabled(false);
+      setPomodoroPhase("work");
+      setPomodoroCycle(1);
+      setTotalCyclesCompleted(0);
     } else {
       clearTimer();
       ambient.stop();
@@ -54,20 +67,78 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
       toast({ title: "Enter a subject", description: "What are you studying?", variant: "destructive" });
       return;
     }
-    setSecondsLeft(totalMinutes * 60);
+    const duration = pomodoroEnabled ? POMODORO_WORK : totalMinutes;
+    setSecondsLeft(duration * 60);
+    if (pomodoroEnabled) {
+      setTotalMinutes(duration);
+      setPomodoroPhase("work");
+      setPomodoroCycle(1);
+      setTotalCyclesCompleted(0);
+    }
     startTimeRef.current = Date.now();
     setState("running");
+    startCountdown();
+  };
+
+  const startCountdown = () => {
     clearTimer();
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           clearTimer();
-          setState("done");
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+  };
+
+  // Handle timer reaching zero
+  useEffect(() => {
+    if (secondsLeft === 0 && state === "running") {
+      clearTimer();
+      if (pomodoroEnabled) {
+        handlePomodoroTransition();
+      } else {
+        setState("done");
+      }
+    }
+  }, [secondsLeft, state]);
+
+  const handlePomodoroTransition = () => {
+    if (pomodoroPhase === "work") {
+      const newCompleted = totalCyclesCompleted + 1;
+      setTotalCyclesCompleted(newCompleted);
+      if (newCompleted % POMODORO_CYCLES_BEFORE_LONG === 0) {
+        setPomodoroPhase("long-break");
+        setSecondsLeft(POMODORO_LONG_BREAK * 60);
+        setTotalMinutes(POMODORO_LONG_BREAK);
+        toast({ title: "Long break! 🎉", description: `${POMODORO_LONG_BREAK} min — you've earned it after ${POMODORO_CYCLES_BEFORE_LONG} cycles.` });
+      } else {
+        setPomodoroPhase("short-break");
+        setSecondsLeft(POMODORO_SHORT_BREAK * 60);
+        setTotalMinutes(POMODORO_SHORT_BREAK);
+        toast({ title: "Short break ☕", description: `${POMODORO_SHORT_BREAK} min — stretch & relax.` });
+      }
+      setState("running");
+      startCountdown();
+    } else {
+      // Break ended → next work phase
+      setPomodoroPhase("work");
+      setPomodoroCycle((c) => c + 1);
+      setSecondsLeft(POMODORO_WORK * 60);
+      setTotalMinutes(POMODORO_WORK);
+      toast({ title: "Back to work! 🎯", description: `Cycle ${pomodoroCycle + 1} — let's go.` });
+      setState("running");
+      startCountdown();
+    }
+  };
+
+  const skipPomodoroPhase = () => {
+    clearTimer();
+    setSecondsLeft(0);
+    // The useEffect will handle the transition
+    handlePomodoroTransition();
   };
 
   const pauseTimer = () => {
@@ -77,17 +148,7 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
 
   const resumeTimer = () => {
     setState("running");
-    clearTimer();
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearTimer();
-          setState("done");
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    startCountdown();
   };
 
   const resetTimer = () => {
@@ -173,7 +234,30 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
                 className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-success"
               />
 
-              {/* Duration presets */}
+              {/* Pomodoro toggle */}
+              <button
+                onClick={() => {
+                  setPomodoroEnabled((v) => !v);
+                  if (!pomodoroEnabled) setTotalMinutes(POMODORO_WORK);
+                }}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                  pomodoroEnabled
+                    ? "border-accent/30 bg-accent/5"
+                    : "border-border bg-secondary/30"
+                }`}
+              >
+                <Timer className={`w-4 h-4 ${pomodoroEnabled ? "text-accent-foreground" : "text-muted-foreground"}`} />
+                <div className="flex-1 text-left">
+                  <span className="text-sm text-foreground block">Pomodoro Mode</span>
+                  <span className="text-[10px] text-muted-foreground">25m work · 5m break · 15m long break</span>
+                </div>
+                <div className={`w-8 h-5 rounded-full transition-all flex items-center px-0.5 ${pomodoroEnabled ? "bg-success justify-end" : "bg-muted justify-start"}`}>
+                  <div className="w-4 h-4 rounded-full bg-background shadow-sm" />
+                </div>
+              </button>
+
+              {/* Duration presets — hidden when Pomodoro is on */}
+              {!pomodoroEnabled && (
               <div>
                 <span className="text-xs text-muted-foreground mb-2 block">Duration (minutes)</span>
                 <div className="flex items-center gap-2">
@@ -208,6 +292,7 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
                   </button>
                 </div>
               </div>
+              )}
 
               {/* Distraction blocking toggle */}
               <button
@@ -324,6 +409,39 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
                 )}
               </div>
 
+              {/* Pomodoro phase indicator */}
+              {pomodoroEnabled && (
+                <motion.div
+                  key={pomodoroPhase}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl border ${
+                    pomodoroPhase === "work"
+                      ? "border-success/20 bg-success/5"
+                      : "border-warning/20 bg-warning/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {pomodoroPhase === "work" ? (
+                      <Crosshair className="w-4 h-4 text-success" />
+                    ) : (
+                      <Coffee className="w-4 h-4 text-warning" />
+                    )}
+                    <span className={`text-xs font-semibold ${pomodoroPhase === "work" ? "text-success" : "text-warning"}`}>
+                      {pomodoroPhase === "work" ? `Work · Cycle ${pomodoroCycle}` : pomodoroPhase === "short-break" ? "Short Break" : "Long Break"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground">{totalCyclesCompleted} done</span>
+                    {pomodoroPhase !== "work" && state === "running" && (
+                      <button onClick={skipPomodoroPhase} className="p-1 rounded-md hover:bg-secondary transition-colors" title="Skip break">
+                        <SkipForward className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
               {/* Subject display */}
               <div className="text-center">
                 <p className="text-sm font-semibold text-foreground">{subject}</p>
@@ -336,7 +454,7 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
                   <circle cx="60" cy="60" r="54" fill="none" stroke="hsl(var(--secondary))" strokeWidth="8" />
                   <circle
                     cx="60" cy="60" r="54" fill="none"
-                    stroke="hsl(var(--success))"
+                    stroke={pomodoroEnabled && pomodoroPhase !== "work" ? "hsl(var(--warning))" : "hsl(var(--success))"}
                     strokeWidth="8"
                     strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * 54}`}
@@ -347,7 +465,9 @@ const FocusModeSession = ({ open, onClose }: FocusModeSessionProps) => {
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-3xl font-mono font-bold text-foreground">{mm}:{ss}</span>
                   <span className="text-[10px] text-muted-foreground mt-1">
-                    {state === "running" ? "focusing..." : state === "paused" ? "paused" : "complete!"}
+                    {state === "running"
+                      ? pomodoroEnabled && pomodoroPhase !== "work" ? "on break..." : "focusing..."
+                      : state === "paused" ? "paused" : "complete!"}
                   </span>
                 </div>
               </div>
