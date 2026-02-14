@@ -262,16 +262,29 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess }: QuickStudySignalMod
               max="480"
               className="flex-1 rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
-            <select
-              value={confidence}
-              onChange={(e) => setConfidence(e.target.value)}
-              className="flex-1 rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">Confidence</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
+          </div>
+
+          {/* Confidence quick-select */}
+          <div className="flex gap-2">
+            {([
+              { value: "low", emoji: "😟", label: "Low" },
+              { value: "medium", emoji: "😐", label: "Medium" },
+              { value: "high", emoji: "😎", label: "High" },
+            ] as const).map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setConfidence(c.value)}
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border text-xs font-semibold transition-all ${
+                  confidence === c.value
+                    ? "bg-primary text-primary-foreground border-primary scale-[1.03]"
+                    : "bg-secondary/50 border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                <span className="text-lg">{c.emoji}</span>
+                {c.label}
+              </button>
+            ))}
           </div>
 
           <div className="space-y-2">
