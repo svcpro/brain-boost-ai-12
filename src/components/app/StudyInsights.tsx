@@ -31,7 +31,7 @@ const typeConfig = {
 };
 
 interface StudyInsightsProps {
-  onReviewTopic?: (topicName: string) => void;
+  onReviewTopic?: (topicName: string, subjectName?: string) => void;
 }
 
 const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
