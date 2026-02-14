@@ -6,6 +6,7 @@ import StudyPlanGenerator from "./StudyPlanGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { peekAll, removeFromQueue, type QueuedStudyLog } from "@/lib/offlineQueue";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const modes = [
   {
@@ -204,12 +205,30 @@ const ActionTab = () => {
                         <span className="flex-1 truncate">
                           {entry.subjectName}{entry.topicName ? ` › ${entry.topicName}` : ""} — {entry.durationMinutes}m
                         </span>
-                        <button
-                          onClick={() => { removeFromQueue(entry.id); setPendingEntries(peekAll()); }}
-                          className="p-0.5 rounded hover:bg-destructive/20 transition-colors shrink-0"
-                        >
-                          <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                        </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="p-0.5 rounded hover:bg-destructive/20 transition-colors shrink-0">
+                              <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove queued session?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently discard "{entry.subjectName}{entry.topicName ? ` › ${entry.topicName}` : ""}" ({entry.durationMinutes}m). It won't be synced.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => { removeFromQueue(entry.id); setPendingEntries(peekAll()); }}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Remove
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     ))}
                   </div>
