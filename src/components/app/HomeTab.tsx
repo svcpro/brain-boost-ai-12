@@ -71,10 +71,20 @@ const HomeTab = ({ onNavigateToEmergency }: HomeTabProps) => {
   const overallHealth = prediction?.overall_health ?? 0;
   const hasTopics = (prediction?.topics?.length ?? 0) > 0;
 
+  const [analyzing, setAnalyzing] = useState(false);
+
   const handleRefresh = async () => {
-    await Promise.all([predict(), predictRank()]);
-    await generateRecommendations();
-    await loadRecommendations();
+    setAnalyzing(true);
+    try {
+      await Promise.all([predict(), predictRank()]);
+      await generateRecommendations();
+      await loadRecommendations();
+      toast({ title: "✅ AI Analysis complete!", description: "Memory predictions and recommendations updated." });
+    } catch {
+      toast({ title: "Analysis failed", variant: "destructive" });
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   return (
@@ -240,9 +250,13 @@ const HomeTab = ({ onNavigateToEmergency }: HomeTabProps) => {
 
       {/* Quick Actions */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="grid grid-cols-2 gap-3 relative z-10">
-        <button onClick={handleRefresh} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 active:scale-95">
-          <Target className="w-6 h-6 text-primary" />
-          <span className="text-xs font-medium text-foreground">Run AI Analysis</span>
+        <button onClick={handleRefresh} disabled={analyzing} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all flex flex-col items-center gap-2 active:scale-95 disabled:opacity-50">
+          {analyzing ? (
+            <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+          ) : (
+            <Target className="w-6 h-6 text-primary" />
+          )}
+          <span className="text-xs font-medium text-foreground">{analyzing ? "Analyzing…" : "Run AI Analysis"}</span>
         </button>
         <button
           onClick={async () => {
