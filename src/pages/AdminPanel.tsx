@@ -598,6 +598,7 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   const [changelog, setChangelog] = useState<any[]>([]);
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelogHasMore, setChangelogHasMore] = useState(true);
+  const [changelogFilter, setChangelogFilter] = useState<"all" | "enabled" | "disabled">("all");
   const [changelogLoading, setChangelogLoading] = useState(false);
   const CHANGELOG_PAGE_SIZE = 20;
   const nameMapRef = useRef(new Map<string, string>());
@@ -1026,13 +1027,25 @@ const SettingsSection = ({ toast }: { toast: any }) => {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden mt-2"
+              className="overflow-hidden mt-2 space-y-2"
             >
+              {/* Filter */}
+              <div className="flex items-center gap-1">
+                {(["all", "enabled", "disabled"] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setChangelogFilter(f)}
+                    className={`text-[10px] px-2 py-1 rounded-full font-medium transition-colors ${changelogFilter === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {f === "all" ? "All" : f === "enabled" ? "Enabled" : "Disabled"}
+                  </button>
+                ))}
+              </div>
               {changelog.length === 0 && !changelogLoading ? (
                 <p className="text-xs text-muted-foreground py-4 text-center">No changes recorded yet</p>
               ) : (
                 <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
-                  {changelog.map(log => {
+                  {changelog.filter(log => changelogFilter === "all" || (changelogFilter === "enabled" ? log.action === "feature_enabled" : log.action === "feature_disabled")).map(log => {
                     const isEnabled = log.action === "feature_enabled";
                     const flagLabel = (log.details as any)?.flag_key || log.target_id || "unknown";
                     const time = new Date(log.created_at);
