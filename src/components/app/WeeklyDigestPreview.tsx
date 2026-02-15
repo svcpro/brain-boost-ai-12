@@ -327,6 +327,28 @@ const DailyStudyTip = () => {
 
 const NUDGE_DISMISS_KEY = "plan-nudge-dismissed";
 
+const EXAM_QUOTES = [
+  "The secret of getting ahead is getting started.",
+  "Small daily improvements lead to stunning results.",
+  "Don't watch the clock; do what it does — keep going.",
+  "Success is the sum of small efforts repeated day in and day out.",
+  "Believe you can and you're halfway there.",
+  "It always seems impossible until it's done.",
+  "The only way to do great work is to love what you do.",
+  "Consistency beats intensity. Show up every day.",
+  "Your future self will thank you for studying today.",
+  "Progress, not perfection, is the goal.",
+  "Every expert was once a beginner.",
+  "Difficult roads often lead to beautiful destinations.",
+  "A little progress each day adds up to big results.",
+  "You don't have to be great to start, but you have to start to be great.",
+];
+
+const getDailyQuote = () => {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  return EXAM_QUOTES[dayOfYear % EXAM_QUOTES.length];
+};
+
 const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string; examType: string | null; planProgress: { completed: number; total: number } | null }) => {
   const todayKey = new Date().toDateString();
   const [nudgeDismissed, setNudgeDismissed] = useState(() => getCache(NUDGE_DISMISS_KEY) === todayKey);
@@ -361,6 +383,10 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
             until {examType || "exam"} · {new Date(examDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
           </p>
         </div>
+      </div>
+      <div className="flex items-start gap-1.5 px-1">
+        <Quote className="w-3 h-3 text-muted-foreground/60 shrink-0 mt-0.5" />
+        <p className="text-[10px] italic text-muted-foreground/80 leading-snug">{getDailyQuote()}</p>
       </div>
       {planProgress && planProgress.total > 0 && (
         <div>
