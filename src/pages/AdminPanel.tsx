@@ -186,21 +186,43 @@ const AdminPanel = () => {
 const DashboardSection = () => {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activityData, setActivityData] = useState<{ date: string; sessions: number; minutes: number }[]>([]);
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
       const today = new Date().toISOString().split("T")[0];
-      const [usersRes, subsRes, logsRes, predsRes] = await Promise.all([
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const [usersRes, subsRes, logsRes, predsRes, activityRes] = await Promise.all([
         supabase.from("profiles").select("id, created_at", { count: "exact" }),
         supabase.from("user_subscriptions").select("id, plan_id, amount, status"),
         supabase.from("study_logs").select("id, created_at").gte("created_at", today),
         supabase.from("model_predictions").select("id").gte("created_at", today),
+        supabase.from("study_logs").select("created_at, duration_minutes").gte("created_at", thirtyDaysAgo.toISOString()),
       ]);
       const totalUsers = usersRes.count || 0;
       const activeSubs = (subsRes.data || []).filter(s => s.status === "active" && s.plan_id !== "free").length;
       const revenue = (subsRes.data || []).filter(s => s.status === "active").reduce((sum, s) => sum + (s.amount || 0), 0);
       const newToday = (usersRes.data || []).filter(u => u.created_at >= today).length;
       setStats({ totalUsers, activeSubs, revenue, newToday, studySessions: logsRes.data?.length || 0, predictions: predsRes.data?.length || 0 });
+
+      // Build 30-day activity map
+      const dayMap: Record<string, { sessions: number; minutes: number }> = {};
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        dayMap[format(d, "MMM d")] = { sessions: 0, minutes: 0 };
+      }
+      for (const log of (activityRes.data || [])) {
+        const key = format(new Date(log.created_at), "MMM d");
+        if (dayMap[key]) {
+          dayMap[key].sessions++;
+          dayMap[key].minutes += log.duration_minutes || 0;
+        }
+      }
+      setActivityData(Object.entries(dayMap).map(([date, v]) => ({ date, ...v })));
       setLoading(false);
     })();
   }, []);
@@ -216,6 +238,10 @@ const DashboardSection = () => {
     { label: "AI Predictions", value: stats.predictions, icon: Zap, color: "text-accent" },
   ];
 
+  const maxMinutes = Math.max(...activityData.map(d => d.minutes), 1);
+  const chartHeight = 160;
+  const barWidth = 100 / activityData.length;
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-foreground">Dashboard</h2>
@@ -230,6 +256,70 @@ const DashboardSection = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* 30-day Platform Activity Chart */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl p-5 neural-border">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Platform Study Activity</h3>
+          </div>
+          <span className="text-[10px] text-muted-foreground">Last 30 days · Total {activityData.reduce((s, d) => s + d.sessions, 0)} sessions</span>
+        </div>
+
+        <div className="relative" style={{ height: chartHeight }}>
+          {/* Horizontal grid lines */}
+          {[0, 0.25, 0.5, 0.75, 1].map(pct => (
+            <div key={pct} className="absolute left-0 right-0 border-t border-border/30" style={{ bottom: `${pct * 100}%` }}>
+              {pct > 0 && (
+                <span className="absolute -top-2.5 -left-1 text-[8px] text-muted-foreground">{Math.round(maxMinutes * pct)}m</span>
+              )}
+            </div>
+          ))}
+
+          {/* Bars */}
+          <div className="flex items-end h-full gap-[1px] pl-6">
+            {activityData.map((d, i) => {
+              const h = (d.minutes / maxMinutes) * 100;
+              return (
+                <div
+                  key={i}
+                  className="flex-1 relative group"
+                  style={{ height: "100%" }}
+                  onMouseEnter={() => setHoveredBar(i)}
+                  onMouseLeave={() => setHoveredBar(null)}
+                >
+                  <div
+                    className="absolute bottom-0 left-[10%] right-[10%] rounded-t-sm transition-all duration-200"
+                    style={{
+                      height: `${Math.max(h, d.minutes > 0 ? 2 : 0)}%`,
+                      backgroundColor: hoveredBar === i ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.5)",
+                    }}
+                  />
+                  {/* Tooltip */}
+                  {hoveredBar === i && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 bg-popover border border-border rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap pointer-events-none">
+                      <p className="text-[10px] font-semibold text-foreground">{d.date}</p>
+                      <p className="text-[9px] text-muted-foreground">{d.sessions} sessions · {d.minutes} min</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* X-axis labels */}
+        <div className="flex pl-6 mt-1">
+          {activityData.map((d, i) => (
+            <div key={i} className="flex-1 text-center">
+              {(i % 5 === 0 || i === activityData.length - 1) && (
+                <span className="text-[7px] text-muted-foreground">{d.date.split(" ")[1]}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 };
