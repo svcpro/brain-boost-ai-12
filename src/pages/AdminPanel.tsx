@@ -616,18 +616,75 @@ const PlanFormModal = ({ plan, onClose, onSaved }: { plan: any | null; onClose: 
 
 // ─── Payment Management ───
 const PaymentManagement = () => {
+  const { toast } = useToast();
   const [subs, setSubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "expired" | "cancelled">("all");
+  const [actionTarget, setActionTarget] = useState<any | null>(null);
+  const [actionType, setActionType] = useState<"cancel" | "extend" | null>(null);
+  const [extendDays, setExtendDays] = useState("30");
+  const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("user_subscriptions").select("*").order("created_at", { ascending: false }).limit(200);
-      setSubs(data || []);
-      setLoading(false);
-    })();
+  const fetchSubs = useCallback(async () => {
+    const { data } = await supabase.from("user_subscriptions").select("*").order("created_at", { ascending: false }).limit(200);
+    setSubs(data || []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchSubs(); }, [fetchSubs]);
+
+  const handleCancel = async () => {
+    if (!actionTarget) return;
+    setActionLoading(true);
+    await supabase.from("user_subscriptions").update({ status: "cancelled" } as any).eq("id", actionTarget.id);
+    // Audit log
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (userId) {
+      await supabase.from("admin_audit_logs").insert({
+        admin_id: userId,
+        action: "subscription_cancelled",
+        target_type: "user_subscriptions",
+        target_id: actionTarget.id,
+        details: { user_id: actionTarget.user_id, plan_id: actionTarget.plan_id },
+      } as any);
+    }
+    toast({ title: "Subscription cancelled" });
+    setActionTarget(null);
+    setActionType(null);
+    setActionLoading(false);
+    fetchSubs();
+  };
+
+  const handleExtend = async () => {
+    if (!actionTarget) return;
+    setActionLoading(true);
+    const days = parseInt(extendDays) || 30;
+    const currentExpiry = actionTarget.expires_at ? new Date(actionTarget.expires_at) : new Date();
+    const base = currentExpiry > new Date() ? currentExpiry : new Date();
+    base.setDate(base.getDate() + days);
+
+    await supabase.from("user_subscriptions").update({
+      expires_at: base.toISOString(),
+      status: "active",
+    } as any).eq("id", actionTarget.id);
+
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (userId) {
+      await supabase.from("admin_audit_logs").insert({
+        admin_id: userId,
+        action: "subscription_extended",
+        target_type: "user_subscriptions",
+        target_id: actionTarget.id,
+        details: { user_id: actionTarget.user_id, plan_id: actionTarget.plan_id, days_added: days, new_expiry: base.toISOString() },
+      } as any);
+    }
+    toast({ title: `Subscription extended by ${days} days` });
+    setActionTarget(null);
+    setActionType(null);
+    setActionLoading(false);
+    fetchSubs();
+  };
 
   const filtered = subs.filter(s => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
@@ -690,11 +747,91 @@ const PaymentManagement = () => {
                   {s.expires_at && ` · Expires: ${new Date(s.expires_at).toLocaleDateString()}`}
                 </p>
               </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {s.status === "active" && (
+                  <button onClick={() => { setActionTarget(s); setActionType("cancel"); }} className="p-1.5 hover:bg-destructive/15 rounded-lg transition-colors" title="Cancel subscription">
+                    <Ban className="w-3.5 h-3.5 text-destructive" />
+                  </button>
+                )}
+                <button onClick={() => { setActionTarget(s); setActionType("extend"); setExtendDays("30"); }} className="p-1.5 hover:bg-success/15 rounded-lg transition-colors" title="Extend subscription">
+                  <Clock className="w-3.5 h-3.5 text-success" />
+                </button>
+              </div>
             </div>
           ))}
           {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No payments found</p>}
         </div>
       )}
+
+      {/* Action Modal */}
+      <AnimatePresence>
+        {actionTarget && actionType && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setActionTarget(null); setActionType(null); }}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="w-full max-w-sm glass rounded-2xl neural-border p-5 space-y-4" onClick={e => e.stopPropagation()}>
+              {actionType === "cancel" ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Ban className="w-5 h-5 text-destructive" />
+                    <h3 className="text-lg font-bold text-foreground">Cancel Subscription</h3>
+                  </div>
+                  <div className="glass rounded-lg p-3 neural-border text-sm space-y-1">
+                    <p className="text-foreground font-medium">{actionTarget.plan_id} plan</p>
+                    <p className="text-[10px] text-muted-foreground">User: {actionTarget.user_id.slice(0, 16)}...</p>
+                    {actionTarget.expires_at && <p className="text-[10px] text-muted-foreground">Expires: {new Date(actionTarget.expires_at).toLocaleDateString()}</p>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">This will immediately set the subscription status to cancelled. The user will lose access to premium features.</p>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setActionTarget(null); setActionType(null); }} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
+                    <button onClick={handleCancel} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
+                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Confirm Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-success" />
+                    <h3 className="text-lg font-bold text-foreground">Extend Subscription</h3>
+                  </div>
+                  <div className="glass rounded-lg p-3 neural-border text-sm space-y-1">
+                    <p className="text-foreground font-medium">{actionTarget.plan_id} plan</p>
+                    <p className="text-[10px] text-muted-foreground">User: {actionTarget.user_id.slice(0, 16)}...</p>
+                    <p className="text-[10px] text-muted-foreground">Current expiry: {actionTarget.expires_at ? new Date(actionTarget.expires_at).toLocaleDateString() : "None"}</p>
+                    {actionTarget.status !== "active" && <p className="text-[10px] text-success">Status will be set back to active</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Extend by (days)</label>
+                    <div className="flex gap-2">
+                      {["7", "15", "30", "90"].map(d => (
+                        <button key={d} onClick={() => setExtendDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${extendDays === d ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
+                          {d}d
+                        </button>
+                      ))}
+                      <input value={extendDays} onChange={e => setExtendDays(e.target.value)} type="number" className="w-16 px-2 py-1.5 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none text-center" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    New expiry: {(() => {
+                      const days = parseInt(extendDays) || 30;
+                      const base = actionTarget.expires_at && new Date(actionTarget.expires_at) > new Date() ? new Date(actionTarget.expires_at) : new Date();
+                      base.setDate(base.getDate() + days);
+                      return base.toLocaleDateString();
+                    })()}
+                  </p>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setActionTarget(null); setActionType(null); }} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
+                    <button onClick={handleExtend} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Extend
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
