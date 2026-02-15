@@ -49,10 +49,10 @@ interface YouTabProps {
   onNotifHistoryOpened?: () => void;
 }
 
-const soundColorMap: Record<string, { bar: string; active: string }> = {
-  "🔔 Standard": { bar: "bg-primary/40", active: "bg-primary" },
-  "✨ Insight": { bar: "bg-accent/40", active: "bg-accent" },
-  "⚠️ Nudge": { bar: "bg-destructive/40", active: "bg-destructive" },
+const soundColorMap: Record<string, { bar: string; active: string; glow: string }> = {
+  "🔔 Standard": { bar: "bg-primary/40", active: "bg-primary", glow: "shadow-[0_0_8px_2px_hsl(var(--primary)/0.4)]" },
+  "✨ Insight": { bar: "bg-accent/40", active: "bg-accent", glow: "shadow-[0_0_8px_2px_hsl(var(--accent)/0.4)]" },
+  "⚠️ Nudge": { bar: "bg-destructive/40", active: "bg-destructive", glow: "shadow-[0_0_8px_2px_hsl(var(--destructive)/0.4)]" },
 };
 
 const SoundPreviewButton = ({ label, onPlay, duration }: { label: string; onPlay: () => void; duration: number }) => {
@@ -71,7 +71,7 @@ const SoundPreviewButton = ({ label, onPlay, duration }: { label: string; onPlay
       onClick={handleClick}
       className="flex-1 flex flex-col items-center gap-1.5 py-2 px-2 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground transition-colors"
     >
-      <div className="flex items-end gap-[2px] h-4">
+      <div className={`flex items-end gap-[2px] h-4 rounded-md px-1 transition-shadow duration-300 ${playing ? colors.glow : ""}`}>
         {Array.from({ length: bars }).map((_, i) => (
           <motion.div
             key={i}
