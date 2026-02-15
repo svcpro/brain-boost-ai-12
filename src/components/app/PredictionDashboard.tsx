@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Brain, Target, Calendar, ChevronDown,
-  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check, Copy,
+  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check, Copy, Layers,
 } from "lucide-react";
+import { useHybridPrediction, HybridTopicPrediction } from "@/hooks/useHybridPrediction";
 import { BarChart, Bar } from "recharts";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,7 +53,8 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const [comparisons, setComparisons] = useState<ComparisonMetric[]>([]);
   const [globalSampleSize, setGlobalSampleSize] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy" | "global" | "share">("rank");
+  const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy" | "global" | "hybrid" | "share">("rank");
+  const { data: hybridData, loading: hybridLoading, predict: fetchHybrid } = useHybridPrediction();
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -426,6 +428,7 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const sections = [
     { key: "rank" as const, label: "Rank", icon: TrendingUp },
     { key: "memory" as const, label: "Memory", icon: Brain },
+    { key: "hybrid" as const, label: "Hybrid", icon: Layers },
     { key: "global" as const, label: "Global", icon: Globe },
     { key: "strategy" as const, label: "Strategy", icon: Target },
     { key: "share" as const, label: "Share", icon: Share2 },
@@ -672,6 +675,164 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                       <p className="text-sm text-foreground font-medium">No topics to forecast</p>
                       <p className="text-[10px] text-muted-foreground mt-1">Add topics to see memory decay predictions</p>
                     </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* === HYBRID PREDICTION COMPARISON === */}
+              {activeSection === "hybrid" && (
+                <motion.div
+                  key="hybrid"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="space-y-4"
+                >
+                  {/* Fetch button */}
+                  {!hybridData && !hybridLoading && (
+                    <div className="glass rounded-xl p-6 neural-border text-center">
+                      <Layers className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+                      <p className="text-sm text-foreground font-medium mb-2">Hybrid Prediction Engine</p>
+                      <p className="text-[10px] text-muted-foreground mb-4">Compare your personal predictions with global patterns and the AI-merged hybrid score</p>
+                      <button
+                        onClick={fetchHybrid}
+                        className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                      >
+                        Generate Hybrid Predictions
+                      </button>
+                    </div>
+                  )}
+
+                  {hybridLoading && (
+                    <div className="flex items-center justify-center py-16">
+                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+
+                  {hybridData && (
+                    <>
+                      {/* Summary cards */}
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: "Personal Weight", value: `${Math.round((hybridData.personal_weight ?? 0.7) * 100)}%`, color: "text-primary" },
+                          { label: "Global Weight", value: `${Math.round((hybridData.global_weight ?? 0.3) * 100)}%`, color: "text-accent-foreground" },
+                          { label: "Hybrid Health", value: `${Math.round(hybridData.hybrid_health ?? 0)}%`, color: "text-foreground" },
+                        ].map((m, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            className="glass rounded-xl p-3 neural-border text-center"
+                          >
+                            <p className="text-[10px] text-muted-foreground">{m.label}</p>
+                            <p className={`text-sm font-bold mt-1 ${m.color}`}>{m.value}</p>
+                          </motion.div>
+                        ))}
+                      </div>
+
+                      {/* Per-topic bar chart */}
+                      {hybridData.topic_predictions && hybridData.topic_predictions.length > 0 ? (
+                        <>
+                          <div className="glass rounded-xl p-4 neural-border">
+                            <p className="text-xs font-semibold text-foreground mb-1">Topic-Level Comparison</p>
+                            <p className="text-[10px] text-muted-foreground mb-3">Personal vs Global vs Hybrid strength</p>
+                            <div className="h-56">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                  data={hybridData.topic_predictions.slice(0, 10).map(t => ({
+                                    name: t.topic_name.length > 12 ? t.topic_name.slice(0, 12) + "…" : t.topic_name,
+                                    personal: Math.round(t.personal_strength),
+                                    global: Math.round(t.global_avg_strength),
+                                    hybrid: Math.round(t.hybrid_strength),
+                                  }))}
+                                  layout="vertical"
+                                  margin={{ left: 0, right: 10, top: 0, bottom: 0 }}
+                                >
+                                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
+                                  <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
+                                  <Tooltip
+                                    contentStyle={{
+                                      background: "hsl(var(--popover))",
+                                      border: "1px solid hsl(var(--border))",
+                                      borderRadius: "8px",
+                                      fontSize: "11px",
+                                      color: "hsl(var(--foreground))",
+                                    }}
+                                    formatter={(value: number, name: string) => [`${value}%`, name.charAt(0).toUpperCase() + name.slice(1)]}
+                                  />
+                                  <Bar dataKey="personal" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={6} />
+                                  <Bar dataKey="global" fill="hsl(var(--muted-foreground))" radius={[0, 4, 4, 0]} barSize={6} />
+                                  <Bar dataKey="hybrid" fill="hsl(var(--accent-foreground))" radius={[0, 4, 4, 0]} barSize={6} />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                            {/* Legend */}
+                            <div className="flex items-center justify-center gap-4 mt-3">
+                              {[
+                                { label: "Personal", color: "bg-primary" },
+                                { label: "Global", color: "bg-muted-foreground" },
+                                { label: "Hybrid", color: "bg-accent-foreground" },
+                              ].map(l => (
+                                <div key={l.label} className="flex items-center gap-1.5">
+                                  <div className={`w-2.5 h-2.5 rounded-sm ${l.color}`} />
+                                  <span className="text-[10px] text-muted-foreground">{l.label}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Topic detail cards */}
+                          <div>
+                            <p className="text-xs font-semibold text-foreground mb-2">Per-Topic Breakdown</p>
+                            <div className="space-y-2">
+                              {hybridData.topic_predictions.slice(0, 8).map((t, i) => {
+                                const riskColor = t.risk_level === "critical" ? "text-destructive" : t.risk_level === "high" ? "text-warning" : t.risk_level === "medium" ? "text-muted-foreground" : "text-success";
+                                return (
+                                  <motion.div
+                                    key={t.topic_id}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: i * 0.03 }}
+                                    className="glass rounded-lg p-3 neural-border"
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-xs font-medium text-foreground truncate max-w-[60%]">{t.topic_name}</p>
+                                      <span className={`text-[10px] font-semibold ${riskColor} capitalize`}>{t.risk_level}</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div className="text-center">
+                                        <p className="text-[9px] text-muted-foreground">Personal</p>
+                                        <p className="text-xs font-bold text-primary">{Math.round(t.personal_strength)}%</p>
+                                      </div>
+                                      <div className="text-center">
+                                        <p className="text-[9px] text-muted-foreground">Global</p>
+                                        <p className="text-xs font-bold text-muted-foreground">{Math.round(t.global_avg_strength)}%</p>
+                                      </div>
+                                      <div className="text-center">
+                                        <p className="text-[9px] text-muted-foreground">Hybrid</p>
+                                        <p className="text-xs font-bold text-foreground">{Math.round(t.hybrid_strength)}%</p>
+                                      </div>
+                                    </div>
+                                    {t.global_corroborated && (
+                                      <p className="text-[9px] text-primary/70 mt-1.5 flex items-center gap-1">
+                                        <Globe className="w-2.5 h-2.5" /> Global-corroborated prediction
+                                      </p>
+                                    )}
+                                  </motion.div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="glass rounded-xl p-6 neural-border text-center">
+                          <Brain className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
+                          <p className="text-xs text-muted-foreground">No topic predictions available yet</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </motion.div>
               )}
