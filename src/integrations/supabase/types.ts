@@ -1580,6 +1580,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_api_usage: {
+        Args: { p_service_name: string }
+        Returns: undefined
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {

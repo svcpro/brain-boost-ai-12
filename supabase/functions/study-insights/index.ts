@@ -162,6 +162,11 @@ Focus on: which topics to revise NOW based on forgetting curve, optimal revision
     }
 
     const aiData = await aiResp.json();
+
+    // Track API usage (fire-and-forget)
+    const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}).catch(() => {});
+
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     let insights: any[] = [];
 
