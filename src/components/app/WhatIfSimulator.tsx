@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FlaskConical, ChevronDown, Play, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { FlaskConical, ChevronDown, TrendingUp, TrendingDown, Sparkles, Crosshair } from "lucide-react";
+import FocusModeSession from "./FocusModeSession";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,14 +13,16 @@ import { toast } from "sonner";
 
 interface Props {
   topicModels: TopicCognitiveModel[];
+  subjectMap?: Record<string, string>; // topic_id -> subject_name
 }
 
-export default function WhatIfSimulator({ topicModels }: Props) {
+export default function WhatIfSimulator({ topicModels, subjectMap = {} }: Props) {
   const { simulate, loading } = useCognitiveTwin();
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
   const [daysAhead, setDaysAhead] = useState(14);
   const [simResult, setSimResult] = useState<any>(null);
   const [open, setOpen] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
 
   const selectedTopic = useMemo(
     () => topicModels.find(t => t.topic_id === selectedTopicId),
@@ -202,16 +205,27 @@ export default function WhatIfSimulator({ topicModels }: Props) {
                     </Badge>
                   </div>
 
-                  {/* Simulate server-side button */}
-                  <Button
-                    size="sm"
-                    className="w-full mt-3 gap-1"
-                    onClick={handleSimulate}
-                    disabled={loading}
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Run Deep Simulation
-                  </Button>
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      className="flex-1 gap-1"
+                      onClick={handleSimulate}
+                      disabled={loading}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Deep Simulation
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="flex-1 gap-1 bg-success hover:bg-success/90 text-success-foreground"
+                      onClick={() => setFocusOpen(true)}
+                    >
+                      <Crosshair className="w-3 h-3" />
+                      Study Now
+                    </Button>
+                  </div>
 
                   {/* Server simulation result */}
                   <AnimatePresence>
@@ -258,6 +272,14 @@ export default function WhatIfSimulator({ topicModels }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+      <FocusModeSession
+        open={focusOpen}
+        onClose={() => setFocusOpen(false)}
+        initialSubject={subjectMap[selectedTopicId] || selectedTopic?.topic_name || ""}
+        initialTopic={selectedTopic?.topic_name || ""}
+        autoStart
+        onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))}
+      />
     </Card>
   );
 }
