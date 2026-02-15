@@ -384,6 +384,7 @@ serve(async (req) => {
     }
 
     if (action === "generate_plan") {
+      const isQuick = body.quick === true;
       // Get user profile for exam date & daily goal
       const { data: profile } = await supabase
         .from("profiles")
@@ -539,7 +540,25 @@ USE THIS DATA TO OPTIMIZE:
         ? Math.ceil((new Date(examDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
         : null;
 
-      const prompt = `Create a personalized weekly study plan for a student preparing for ${examType}.
+      const prompt = isQuick
+        ? `Create a QUICK 15-minute study plan for TODAY ONLY for a student preparing for ${examType}.
+
+Context:
+- Today: ${now.toISOString().split("T")[0]} (${dayNames[now.getDay()]})
+- Total budget: 15 minutes MAXIMUM
+
+Topics by forgetting curve priority (pick the 2-3 most critical):
+${topicSummary || "No topics tracked yet — suggest general light review."}
+${rlFeedback}
+
+STRICT RULES for this quick plan:
+- Generate ONLY 1 day (today)
+- Maximum 2-3 sessions, each 5-8 minutes
+- Total must not exceed 15 minutes
+- Use only "light-review" or "review" modes
+- Focus on the most at-risk topics only
+- Keep it simple and achievable for a low-energy day`
+        : `Create a personalized weekly study plan for a student preparing for ${examType}.
 
 Context:
 - Daily study goal: ${dailyGoal} minutes

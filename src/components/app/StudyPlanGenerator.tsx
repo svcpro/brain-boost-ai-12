@@ -158,7 +158,7 @@ const StudyPlanGenerator = () => {
       });
   }, [user]);
 
-  const generatePlan = async () => {
+  const generatePlan = async (quick = false) => {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -169,7 +169,7 @@ const StudyPlanGenerator = () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ action: "generate_plan" }),
+          body: JSON.stringify({ action: "generate_plan", quick }),
         }
       );
       if (!response.ok) {
@@ -181,7 +181,7 @@ const StudyPlanGenerator = () => {
       setRlSignals(data.rl_signals || null);
       setShowSaved(false);
       setExpandedDay(0);
-      toast({ title: "Study plan generated! 🧠" });
+      toast({ title: quick ? "Quick plan ready! ⚡" : "Study plan generated! 🧠" });
     } catch (e: any) {
       toast({ title: "Failed to generate plan", description: e.message, variant: "destructive" });
     } finally {
@@ -510,7 +510,7 @@ const StudyPlanGenerator = () => {
   return (
     <div className="space-y-4">
       {/* Generate Button */}
-      <motion.button onClick={generatePlan} disabled={loading}
+      <motion.button onClick={() => generatePlan()} disabled={loading}
         className="w-full glass rounded-xl p-5 neural-border hover:glow-primary transition-all duration-300 text-left group disabled:opacity-60"
         whileTap={{ scale: 0.98 }}>
         <div className="flex items-start gap-4">
@@ -525,6 +525,29 @@ const StudyPlanGenerator = () => {
               {loading ? "Analyzing forgetting curves & exam timeline..." : "Get a personalized 7-day schedule based on your memory data."}
             </p>
           </div>
+        </div>
+      </motion.button>
+
+      {/* Quick 15-min Plan */}
+      <motion.button
+        onClick={() => generatePlan(true)}
+        disabled={loading}
+        className="w-full glass rounded-xl p-3.5 neural-border hover:border-warning/40 transition-all duration-300 text-left group disabled:opacity-60"
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-warning/10">
+            <Zap className="w-4 h-4 text-warning" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-medium text-foreground group-hover:text-warning transition-colors">
+              Quick 15-min Plan
+            </h4>
+            <p className="text-[11px] text-muted-foreground">
+              Low-energy mode — 2-3 short sessions on your most critical topics
+            </p>
+          </div>
+          <Clock className="w-4 h-4 text-muted-foreground" />
         </div>
       </motion.button>
 
