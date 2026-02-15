@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Gift, Flame, BookOpen, Brain, Sparkles } from "lucide-react";
+import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,8 +42,9 @@ const NotificationPreferencesPanel = () => {
   const { user } = useAuth();
   const [prefs, setPrefs] = useState<PushNotifPrefs>(defaultPrefs);
   const [loaded, setLoaded] = useState(false);
+  const [lastBriefingAt, setLastBriefingAt] = useState<string | null>(null);
 
-  // Load prefs from DB on mount
+  // Load prefs + last briefing timestamp from DB on mount
   useEffect(() => {
     if (!user) return;
     (supabase as any)
@@ -54,9 +56,24 @@ const NotificationPreferencesPanel = () => {
         if (data?.push_notification_prefs) {
           const dbPrefs = { ...defaultPrefs, ...data.push_notification_prefs };
           setPrefs(dbPrefs);
-          setPushNotifPrefs(dbPrefs); // sync local cache
+          setPushNotifPrefs(dbPrefs);
         }
         setLoaded(true);
+      });
+
+    // Fetch last daily briefing notification
+    (supabase as any)
+      .from("notification_history")
+      .select("created_at")
+      .eq("user_id", user.id)
+      .eq("type", "daily_briefing")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.created_at) {
+          setLastBriefingAt(data.created_at);
+        }
       });
   }, [user]);
 
@@ -121,6 +138,14 @@ const NotificationPreferencesPanel = () => {
       label: "Daily morning briefing",
       desc: "AI cognitive summary sent every morning",
       key: "dailyBriefing" as const,
+      extra: lastBriefingAt ? (
+        <div className="flex items-center gap-1 mt-1 ml-6">
+          <Clock className="w-3 h-3 text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground">
+            Last briefing {formatDistanceToNow(new Date(lastBriefingAt), { addSuffix: true })}
+          </span>
+        </div>
+      ) : null,
     },
   ];
 
@@ -189,6 +214,7 @@ const NotificationPreferencesPanel = () => {
                   </button>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1 ml-6">{item.desc}</p>
+                {"extra" in item && item.extra}
               </div>
             ))}
           </>
