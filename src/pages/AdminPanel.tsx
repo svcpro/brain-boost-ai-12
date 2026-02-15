@@ -589,6 +589,7 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   const [flags, setFlags] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedTab, setExpandedTab] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -624,12 +625,56 @@ const SettingsSection = ({ toast }: { toast: any }) => {
     toast({ title: enabled ? "✅ All sections enabled" : "🚫 All sections disabled" });
   };
 
+  const query = searchQuery.toLowerCase().trim();
+
   return (
     <div className="space-y-4 max-w-lg">
       <h2 className="text-xl font-bold text-foreground">App Section Controls</h2>
       <p className="text-sm text-muted-foreground">Enable or disable tabs and their individual sections for all users.</p>
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search flags..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="w-full rounded-xl bg-secondary border border-border pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+        />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <XCircle className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : query ? (
+        /* Flat search results */
+        <div className="space-y-2">
+          {(() => {
+            const matched = flags.filter(f =>
+              (f.label || f.flag_key).toLowerCase().includes(query) || f.flag_key.toLowerCase().includes(query)
+            );
+            if (matched.length === 0) return <p className="text-sm text-muted-foreground text-center py-8">No flags matching "{searchQuery}"</p>;
+            return matched.map(flag => (
+              <div key={flag.id} className="glass rounded-xl neural-border p-3 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-foreground">{flag.label || flag.flag_key}</p>
+                  <p className="text-[9px] text-muted-foreground">{flag.flag_key} · {flag.enabled ? "Visible" : "Hidden"}</p>
+                </div>
+                <button
+                  onClick={() => toggleFlag(flag.flag_key, !flag.enabled)}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${flag.enabled ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${flag.enabled ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+              </div>
+            ));
+          })()}
+        </div>
       ) : (
         <div className="space-y-3">
           {TAB_GROUPS.map(group => {
