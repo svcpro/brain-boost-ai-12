@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Flame, Trophy, Star, Sparkles, Award } from "lucide-react";
+import { Flame, Trophy, Star, Sparkles, Award, Snowflake } from "lucide-react";
 import StreakBadge from "./StreakBadge";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { useVoice } from "@/pages/AppDashboard";
@@ -192,6 +192,39 @@ const StreakTracker = () => {
           );
         })}
       </div>
+
+      {/* Next freeze reward countdown */}
+      {(() => {
+        const FREEZE_MILESTONES = [5, 7, 14, 30];
+        const next = FREEZE_MILESTONES.find((m) => streak.currentStreak < m);
+        if (!next) return null;
+        const daysLeft = next - streak.currentStreak;
+        const progress = (streak.currentStreak / next) * 100;
+        return (
+          <div className="mt-3 px-1">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <Snowflake className="w-3 h-3 text-primary" />
+                <span className="text-[10px] text-muted-foreground">Next freeze reward</span>
+              </div>
+              <span className="text-[10px] font-semibold text-foreground">
+                {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-primary"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
+            </div>
+            <p className="text-[9px] text-muted-foreground mt-1">
+              🛡️ {next}-day milestone → earn a streak freeze
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Milestone celebration banner */}
       <AnimatePresence>
