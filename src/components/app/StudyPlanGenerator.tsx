@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, Sparkles, Clock, BookOpen, RotateCcw, ChevronDown, ChevronUp, Lightbulb, Zap, Save, CheckCircle, Circle, Trash2, History, Bell, BellOff, Brain } from "lucide-react";
+import { CalendarDays, Sparkles, Clock, BookOpen, RotateCcw, ChevronDown, ChevronUp, Lightbulb, Zap, Save, CheckCircle, Circle, Trash2, History, Bell, BellOff, Brain, BarChart3, TrendingUp, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +62,8 @@ const StudyPlanGenerator = () => {
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
   const [showSaved, setShowSaved] = useState(true);
   const [remindersOn, setRemindersOn] = useState(false);
+  const [rlInsights, setRlInsights] = useState<Record<string, any> | null>(null);
+  const [showInsights, setShowInsights] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const { startReminders, stopReminders, requestPermission } = usePlanSessionReminders();
@@ -113,6 +115,32 @@ const StudyPlanGenerator = () => {
   }, [user]);
 
   useEffect(() => { loadSavedPlan(); }, [loadSavedPlan]);
+
+  // Load latest RL insights from plan_quality_logs
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("plan_quality_logs")
+      .select("rl_signals, overall_completion_rate, sessions_total, sessions_completed, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const latest = data[0];
+          const rates = data.map((d: any) => d.overall_completion_rate ?? 0);
+          const avgRate = rates.length > 0 ? Math.round(rates.reduce((a: number, b: number) => a + b, 0) / rates.length) : 0;
+          setRlInsights({
+            ...(latest.rl_signals as Record<string, any> || {}),
+            latest_completion_rate: latest.overall_completion_rate ?? 0,
+            avg_completion_rate: avgRate,
+            plans_tracked: data.length,
+            latest_sessions_total: latest.sessions_total,
+            latest_sessions_completed: latest.sessions_completed,
+          });
+        }
+      });
+  }, [user]);
 
   const generatePlan = async () => {
     setLoading(true);
@@ -483,6 +511,174 @@ const StudyPlanGenerator = () => {
           </div>
         </div>
       </motion.button>
+
+      {/* RL Insights Card */}
+      {rlInsights && rlInsights.sample_size > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl neural-border overflow-hidden">
+          <button
+            onClick={() => setShowInsights(!showInsights)}
+            className="w-full p-4 flex items-center gap-3 text-left"
+          >
+            <div className="p-2 rounded-lg bg-primary/10">
+              <BarChart3 className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">Learning Signals</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-medium">
+                  {rlInsights.sample_size} sessions
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Your completion patterns shape future plans
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-bold ${(rlInsights.overall_completion_rate ?? 0) >= 70 ? "text-success" : (rlInsights.overall_completion_rate ?? 0) >= 40 ? "text-warning" : "text-destructive"}`}>
+                {rlInsights.overall_completion_rate ?? 0}%
+              </span>
+              {showInsights ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </div>
+          </button>
+
+          <AnimatePresence>
+            {showInsights && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="px-4 pb-4 space-y-3">
+                  {/* By Study Mode */}
+                  {rlInsights.by_mode && Object.keys(rlInsights.by_mode).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">By Study Mode</p>
+                      <div className="space-y-1.5">
+                        {Object.entries(rlInsights.by_mode as Record<string, number>).sort(([,a], [,b]) => b - a).map(([mode, rate]) => {
+                          const config = modeConfig[mode] || modeConfig["review"];
+                          const Icon = config.icon;
+                          return (
+                            <div key={mode} className="flex items-center gap-2">
+                              <div className={`p-1 rounded ${config.bg}`}>
+                                <Icon className={`w-3 h-3 ${config.color}`} />
+                              </div>
+                              <span className="text-[11px] text-foreground w-20 truncate">{mode}</span>
+                              <div className="flex-1 h-1.5 rounded-full bg-secondary">
+                                <motion.div
+                                  className={`h-full rounded-full ${rate >= 70 ? "bg-success" : rate >= 40 ? "bg-warning" : "bg-destructive"}`}
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${rate}%` }}
+                                  transition={{ duration: 0.5, delay: 0.1 }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-medium text-foreground w-8 text-right">{rate}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* By Day */}
+                  {rlInsights.by_day && Object.keys(rlInsights.by_day).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">By Day of Week</p>
+                      <div className="flex gap-1">
+                        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => {
+                          const rate = (rlInsights.by_day as Record<string, number>)[day];
+                          if (rate === undefined) return null;
+                          return (
+                            <div key={day} className="flex-1 flex flex-col items-center gap-1">
+                              <div className="w-full relative">
+                                <div className="w-full h-12 rounded bg-secondary flex items-end overflow-hidden">
+                                  <motion.div
+                                    className={`w-full rounded ${rate >= 70 ? "bg-success/70" : rate >= 40 ? "bg-warning/70" : "bg-destructive/70"}`}
+                                    initial={{ height: 0 }}
+                                    animate={{ height: `${rate}%` }}
+                                    transition={{ duration: 0.4, delay: 0.1 }}
+                                  />
+                                </div>
+                                <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-foreground">
+                                  {rate}%
+                                </span>
+                              </div>
+                              <span className="text-[8px] text-muted-foreground">{day.slice(0, 3)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* By Duration */}
+                  {rlInsights.by_duration && Object.keys(rlInsights.by_duration).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">By Session Duration</p>
+                      <div className="space-y-1.5">
+                        {Object.entries(rlInsights.by_duration as Record<string, number>).map(([bucket, rate]) => (
+                          <div key={bucket} className="flex items-center gap-2">
+                            <Clock className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-[11px] text-foreground w-16 truncate">{bucket}</span>
+                            <div className="flex-1 h-1.5 rounded-full bg-secondary">
+                              <motion.div
+                                className={`h-full rounded-full ${rate >= 70 ? "bg-success" : rate >= 40 ? "bg-warning" : "bg-destructive"}`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${rate}%` }}
+                                transition={{ duration: 0.5, delay: 0.1 }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-medium text-foreground w-8 text-right">{rate}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Skipped / Completed topics */}
+                  <div className="flex gap-3">
+                    {rlInsights.most_skipped && (rlInsights.most_skipped as any[]).length > 0 && (
+                      <div className="flex-1">
+                        <p className="text-[10px] font-semibold text-destructive/80 uppercase tracking-wider mb-1 flex items-center gap-1">
+                          <TrendingDown className="w-3 h-3" />Often Skipped
+                        </p>
+                        {(rlInsights.most_skipped as any[]).slice(0, 3).map((t: any, i: number) => (
+                          <p key={i} className="text-[10px] text-muted-foreground truncate">
+                            {t.topic} <span className="text-destructive/60">×{t.count}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {rlInsights.most_completed && (rlInsights.most_completed as any[]).length > 0 && (
+                      <div className="flex-1">
+                        <p className="text-[10px] font-semibold text-success/80 uppercase tracking-wider mb-1 flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3" />Often Completed
+                        </p>
+                        {(rlInsights.most_completed as any[]).slice(0, 3).map((t: any, i: number) => (
+                          <p key={i} className="text-[10px] text-muted-foreground truncate">
+                            {t.topic} <span className="text-success/60">×{t.count}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Plan history summary */}
+                  <div className="pt-2 border-t border-border flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">
+                      {rlInsights.plans_tracked} plan{rlInsights.plans_tracked !== 1 ? "s" : ""} tracked • Avg: {rlInsights.avg_completion_rate}%
+                    </span>
+                    <span className="flex items-center gap-1 text-[9px] text-primary font-medium">
+                      <Brain className="w-3 h-3" />AI adapts to this
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
 
       {/* Toggle between saved and generated */}
       {plan && savedPlan && (
