@@ -34,6 +34,7 @@ import ExplainButton from "./ExplainButton";
 import RiskDigestCard from "./RiskDigestCard";
 import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
+import RLPolicyCard from "./RLPolicyCard";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -792,6 +793,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* Spaced Repetition Review Queue */}
       <ReviewQueue />
+
+      {/* RL Study Policy Card */}
+      <RLPolicyCard />
 
       {/* AI Recommendations */}
       {recommendations.length > 0 && (
