@@ -1325,21 +1325,37 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {isEnabled("you_data") && (
       <div className="space-y-1">
         <SectionHeader icon={Database} label="Data & Account" delay={0.3} />
-        {dataSection.map((item, i) => (
+        {dataSection
+          .filter(item => {
+            const flagMap: Record<string, string> = {
+              "ML Control Panel": "you_data_ml_panel",
+              "Trash": "you_data_trash",
+              "Data Backup": "you_data_backup",
+              "Privacy & Security": "you_data_privacy",
+            };
+            const flagKey = flagMap[item.label];
+            return !flagKey || isEnabled(flagKey);
+          })
+          .map((item, i) => (
           <MenuItem key={item.label} item={item} index={i} />
         ))}
 
         {/* Trash Bin Panel */}
+        {isEnabled("you_data_trash") && (
         <AnimatePresence>
           {showTrash && <TrashBin onTrashChanged={loadTrashCount} />}
         </AnimatePresence>
+        )}
 
         {/* Data Backup Panel */}
+        {isEnabled("you_data_backup") && (
         <AnimatePresence>
           {showDataBackup && <DataBackup />}
         </AnimatePresence>
+        )}
 
         {/* ML Admin Dashboard */}
+        {isEnabled("you_data_ml_panel") && (
         <AnimatePresence>
           {showMLDashboard && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -1347,10 +1363,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+        )}
+
         {/* Privacy & Security Panel */}
+        {isEnabled("you_data_privacy") && (
         <AnimatePresence>
           {showPrivacy && <PrivacySecurity />}
         </AnimatePresence>
+        )}
       </div>
       )}
 
