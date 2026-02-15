@@ -67,6 +67,33 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-warning/15 text-warning",
 };
 
+// Mini sparkline SVG component
+const MiniSparkline = ({ data }: { data: number[] }) => {
+  if (!data.length || data.every(v => v === 0)) {
+    return <div className="w-16 h-5 flex items-center"><span className="text-[8px] text-muted-foreground">No activity</span></div>;
+  }
+  const max = Math.max(...data, 1);
+  const w = 64, h = 20, padding = 1;
+  const points = data.map((v, i) => {
+    const x = padding + (i / (data.length - 1)) * (w - padding * 2);
+    const y = h - padding - (v / max) * (h - padding * 2);
+    return `${x},${y}`;
+  }).join(" ");
+  return (
+    <svg width={w} height={h} className="shrink-0">
+      <polyline
+        points={points}
+        fill="none"
+        stroke="hsl(var(--primary))"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.7}
+      />
+    </svg>
+  );
+};
+
 const UserManagement = () => {
   const { user: adminUser } = useAuth();
   const { toast } = useToast();
@@ -84,15 +111,31 @@ const UserManagement = () => {
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc" | "plan">("newest");
   const [bulkConfirm, setBulkConfirm] = useState<{ action: "ban" | "unban" } | null>(null);
 
+  const [studyActivity, setStudyActivity] = useState<Record<string, number[]>>({});
+
   const fetchData = useCallback(async () => {
-    const [usersRes, subsRes, plansRes] = await Promise.all([
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const [usersRes, subsRes, plansRes, logsRes] = await Promise.all([
       supabase.from("profiles").select("id, display_name, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes, created_at, updated_at, avatar_url, opt_in_leaderboard, email_notifications_enabled, is_banned, banned_at, ban_reason").order("created_at", { ascending: false }).limit(500),
       supabase.from("user_subscriptions").select("id, user_id, plan_id, status, amount, currency, expires_at, created_at").order("created_at", { ascending: false }),
       supabase.from("subscription_plans").select("id, plan_key, name, price, currency").order("sort_order"),
+      supabase.from("study_logs").select("user_id, duration_minutes, created_at").gte("created_at", weekAgo.toISOString()),
     ]);
     setUsers((usersRes.data as UserProfile[]) || []);
     setSubscriptions((subsRes.data as UserSubscription[]) || []);
     setPlans((plansRes.data as SubPlan[]) || []);
+
+    // Build 7-day activity map per user
+    const actMap: Record<string, number[]> = {};
+    const logs = logsRes.data || [];
+    for (const log of logs) {
+      const uid = (log as any).user_id;
+      const dayIdx = 6 - Math.min(6, Math.floor((Date.now() - new Date((log as any).created_at).getTime()) / 86400000));
+      if (!actMap[uid]) actMap[uid] = [0, 0, 0, 0, 0, 0, 0];
+      actMap[uid][dayIdx] += (log as any).duration_minutes || 0;
+    }
+    setStudyActivity(actMap);
     setLoading(false);
   }, []);
 
@@ -380,6 +423,7 @@ const UserManagement = () => {
                   </div>
                   <p className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"} · Goal: {u.daily_study_goal_minutes}min/day · Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</p>
                 </div>
+                <MiniSparkline data={studyActivity[u.id] || []} />
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
               </div>
             </motion.div>
