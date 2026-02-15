@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, Mic, Mail, Trash2, BellRing, Sparkles, Camera, Loader2 } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, VolumeX, Mic, Mail, Trash2, BellRing, Sparkles, Camera, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1112,7 +1112,29 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                 {feedbackOn && (
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Volume</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">Volume</span>
+                        <button
+                          onClick={() => {
+                            if (volume > 0) {
+                              setVolume(0);
+                              setFeedbackVolume(0);
+                            } else {
+                              setVolume(50);
+                              setFeedbackVolume(50);
+                              playNotificationSound();
+                            }
+                          }}
+                          className="p-0.5 rounded hover:bg-secondary/50 transition-colors"
+                          title={volume > 0 ? "Mute" : "Unmute"}
+                        >
+                          {volume > 0 ? (
+                            <Volume2 className="w-3.5 h-3.5 text-primary" />
+                          ) : (
+                            <VolumeX className="w-3.5 h-3.5 text-muted-foreground" />
+                          )}
+                        </button>
+                      </div>
                       <div className="flex items-center gap-1.5">
                         <div className="flex items-end gap-[1.5px] h-3">
                           {Array.from({ length: 4 }).map((_, i) => {
