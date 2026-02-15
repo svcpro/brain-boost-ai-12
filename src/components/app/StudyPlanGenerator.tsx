@@ -124,7 +124,7 @@ const StudyPlanGenerator = () => {
       .select("rl_signals, overall_completion_rate, sessions_total, sessions_completed, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(5)
+      .limit(10)
       .then(({ data }) => {
         if (data && data.length > 0) {
           const latest = data[0];
@@ -137,6 +137,10 @@ const StudyPlanGenerator = () => {
             plans_tracked: data.length,
             latest_sessions_total: latest.sessions_total,
             latest_sessions_completed: latest.sessions_completed,
+            trend: data.map((d: any) => ({
+              rate: d.overall_completion_rate ?? 0,
+              date: d.created_at,
+            })).reverse(), // oldest first for sparkline
           });
         }
       });
@@ -706,6 +710,59 @@ const StudyPlanGenerator = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Plan Quality Trend Sparkline */}
+                  {rlInsights.trend && (rlInsights.trend as any[]).length >= 2 && (() => {
+                    const trend = rlInsights.trend as { rate: number; date: string }[];
+                    const max = Math.max(...trend.map(t => t.rate), 100);
+                    const min = 0;
+                    const w = 200;
+                    const h = 40;
+                    const padding = 2;
+                    const points = trend.map((t, i) => {
+                      const x = padding + (i / (trend.length - 1)) * (w - padding * 2);
+                      const y = h - padding - ((t.rate - min) / (max - min)) * (h - padding * 2);
+                      return { x, y, rate: t.rate };
+                    });
+                    const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+                    const areaD = pathD + ` L ${points[points.length - 1].x} ${h} L ${points[0].x} ${h} Z`;
+                    const first = trend[0].rate;
+                    const last = trend[trend.length - 1].rate;
+                    const improving = last > first;
+                    const strokeColor = improving ? "var(--success)" : last === first ? "var(--primary)" : "var(--destructive)";
+
+                    return (
+                      <div className="pt-2 border-t border-border">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                            {improving ? <TrendingUp className="w-3 h-3 text-success" /> : <TrendingDown className="w-3 h-3 text-destructive" />}
+                            Completion Trend
+                          </p>
+                          <span className={`text-[10px] font-bold ${improving ? "text-success" : "text-destructive"}`}>
+                            {improving ? "+" : ""}{last - first}% over {trend.length} plans
+                          </span>
+                        </div>
+                        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-10" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={strokeColor} stopOpacity="0.2" />
+                              <stop offset="100%" stopColor={strokeColor} stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                          <path d={areaD} fill="url(#sparkFill)" />
+                          <path d={pathD} fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          {points.map((p, i) => (
+                            <circle key={i} cx={p.x} cy={p.y} r="2.5" fill="var(--background)" stroke={strokeColor} strokeWidth="1.5" />
+                          ))}
+                          {points.map((p, i) => (
+                            <text key={`t${i}`} x={p.x} y={p.y - 5} textAnchor="middle" className="text-[6px] fill-muted-foreground font-medium">
+                              {p.rate}%
+                            </text>
+                          ))}
+                        </svg>
+                      </div>
+                    );
+                  })()}
 
                   {/* Plan history summary */}
                   <div className="pt-2 border-t border-border flex items-center justify-between">
