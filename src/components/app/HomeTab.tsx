@@ -281,6 +281,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       setAnalysisProgress(82);
       setAnalysisStep("Creating brain missions…");
       await supabase.functions.invoke("brain-missions", { body: { action: "generate" } });
+      setAnalysisProgress(85);
+      setAnalysisStep("Optimizing RL study policy…");
+      await supabase.functions.invoke("rl-agent");
       setAnalysisProgress(90);
       setAnalysisStep("Finalizing insights…");
       await loadRecommendations();
