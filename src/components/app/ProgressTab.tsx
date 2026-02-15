@@ -25,6 +25,7 @@ import FreezeGiftInbox from "./FreezeGiftInbox";
 import ConsistencyScore from "./ConsistencyScore";
 import PushNotificationToggle from "./PushNotificationToggle";
 import BadgeGallery from "./BadgeGallery";
+import WeeklyDigestPreview from "./WeeklyDigestPreview";
 
 type DayStatus = "studied" | "frozen" | "none";
 
@@ -563,6 +564,9 @@ const ProgressTab = () => {
 
       {/* Weekly Report Card */}
       <WeeklyReportCard />
+
+      {/* Weekly Brain Digest Preview */}
+      <WeeklyDigestPreview />
 
       {/* Consistency Score */}
       <ConsistencyScore />
