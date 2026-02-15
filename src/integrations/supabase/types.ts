@@ -377,6 +377,47 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_quality_logs: {
+        Row: {
+          created_at: string
+          id: string
+          overall_completion_rate: number | null
+          plan_id: string | null
+          rl_signals: Json
+          sessions_completed: number | null
+          sessions_total: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          overall_completion_rate?: number | null
+          plan_id?: string | null
+          rl_signals?: Json
+          sessions_completed?: number | null
+          sessions_total?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          overall_completion_rate?: number | null
+          plan_id?: string | null
+          rl_signals?: Json
+          sessions_completed?: number | null
+          sessions_total?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_quality_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_sessions: {
         Row: {
           completed: boolean
