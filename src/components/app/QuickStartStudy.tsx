@@ -135,6 +135,7 @@ const QuickStartStudy = () => {
       <FocusModeSession
         open={sessionOpen}
         onClose={() => setSessionOpen(false)}
+        onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))}
         initialSubject={subjectName}
         initialTopic={topicName}
       />

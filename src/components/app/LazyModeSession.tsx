@@ -10,11 +10,12 @@ const TOTAL_SECONDS = 5 * 60; // 5 minutes
 interface LazyModeSessionProps {
   open: boolean;
   onClose: () => void;
+  onSessionComplete?: () => void;
 }
 
 type SessionState = "ready" | "running" | "paused" | "done";
 
-const LazyModeSession = ({ open, onClose }: LazyModeSessionProps) => {
+const LazyModeSession = ({ open, onClose, onSessionComplete }: LazyModeSessionProps) => {
   const { prediction, predict } = useMemoryEngine();
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
@@ -101,6 +102,7 @@ const LazyModeSession = ({ open, onClose }: LazyModeSessionProps) => {
     });
     toast({ title: "Lazy session logged! 🧠", description: `${elapsed} min on ${suggestedTopic.name}` });
     setLogging(false);
+    onSessionComplete?.();
     onClose();
   };
 
