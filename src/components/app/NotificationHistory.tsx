@@ -402,26 +402,26 @@ const NotificationHistory = () => {
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -200 }}
-                          className={`relative flex items-start gap-2 p-2.5 rounded-lg cursor-grab active:cursor-grabbing ${
+                          className={`relative flex items-start gap-2.5 p-3 rounded-lg cursor-grab active:cursor-grabbing ${
                             n.read
-                              ? "bg-secondary/30"
-                              : "bg-primary/8 border border-primary/25 shadow-sm"
+                              ? "bg-secondary/40"
+                              : "bg-accent/15 border border-accent/30 shadow-sm"
                           }`}
                           style={{ touchAction: "pan-y" }}
                         >
-                          <span className="text-base mt-0.5">
+                          <span className="text-base mt-0.5 shrink-0">
                             {typeEmoji[n.type || ""] || "🔔"}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-semibold ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
+                            <p className={`text-[13px] font-semibold leading-snug ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
                               {n.title}
                             </p>
                             {n.body && (
-                              <p className={`text-[11px] leading-relaxed mt-0.5 ${n.read ? "text-muted-foreground/70" : "text-foreground/80"} ${n.type === "weekly_insight" ? "whitespace-pre-line" : "line-clamp-2"}`}>
+                              <p className={`text-[11px] leading-relaxed mt-1 ${n.read ? "text-muted-foreground/80" : "text-foreground/75"} ${n.type === "weekly_insight" ? "whitespace-pre-line" : "line-clamp-2"}`}>
                                 {n.body}
                               </p>
                             )}
-                            <p className="text-[9px] text-muted-foreground/50 mt-1">
+                            <p className={`text-[10px] mt-1.5 ${n.read ? "text-muted-foreground/50" : "text-muted-foreground/70"}`}>
                               {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                             </p>
                           </div>
