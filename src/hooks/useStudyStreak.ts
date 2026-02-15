@@ -9,6 +9,8 @@ export interface StreakData {
   goalMinutes: number;
   todayMinutes: number;
   autoShieldUsed?: boolean;
+  frozenDays: Set<string>;
+  dailyTotals: Record<string, number>;
 }
 
 export function useStudyStreak() {
@@ -165,7 +167,7 @@ export function useStudyStreak() {
         }
       }
 
-      setStreak({ currentStreak, longestStreak, todayMet, goalMinutes, todayMinutes });
+      setStreak({ currentStreak, longestStreak, todayMet, goalMinutes, todayMinutes, frozenDays, dailyTotals });
     } finally {
       setLoading(false);
     }

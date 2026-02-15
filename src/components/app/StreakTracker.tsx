@@ -159,34 +159,28 @@ const StreakTracker = () => {
         {Array.from({ length: 7 }).map((_, i) => {
           const date = new Date();
           date.setDate(date.getDate() - (6 - i));
+          const dateStr = date.toLocaleDateString("en-CA");
           const dayLabel = date.toLocaleDateString("en-US", { weekday: "narrow" });
-          // We can't easily check each day here without passing dailyTotals,
-          // so we use a simple heuristic based on streak position
-          const daysAgo = 6 - i;
-          const isToday = daysAgo === 0;
+          const isToday = i === 6;
 
-          // Check if this day is within the current streak
-          let met = false;
-          if (isToday) {
-            met = streak.todayMet;
-          } else if (streak.todayMet) {
-            met = daysAgo <= streak.currentStreak - 1;
-          } else {
-            met = daysAgo >= 1 && daysAgo <= streak.currentStreak;
-          }
+          const studied = (streak.dailyTotals[dateStr] || 0) >= streak.goalMinutes;
+          const frozen = streak.frozenDays.has(dateStr);
+          const met = studied || frozen;
 
           return (
             <div key={i} className="flex flex-col items-center gap-1">
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium transition-all ${
-                  met
+                  frozen && !studied
+                    ? "bg-accent/30 text-accent-foreground border border-accent/50"
+                    : studied
                     ? "bg-primary/20 text-primary border border-primary/40"
                     : isToday
                     ? "bg-secondary border border-border text-foreground"
                     : "bg-secondary/50 text-muted-foreground"
                 }`}
               >
-                {met ? "✓" : dayLabel}
+                {frozen && !studied ? "🛡️" : studied ? "✓" : dayLabel}
               </div>
             </div>
           );
