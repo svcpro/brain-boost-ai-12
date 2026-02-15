@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, BellOff, Check, CheckCheck, Trash2, Loader2, Filter, RefreshCw } from "lucide-react";
+import { Bell, BellOff, Check, CheckCheck, Trash2, Loader2, Filter, RefreshCw, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
@@ -26,6 +27,7 @@ interface Notification {
 
 const NotificationHistory = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -35,6 +37,7 @@ const NotificationHistory = () => {
   const [pullY, setPullY] = useState(0);
   const pullYRef = useRef(0);
   const pullThreshold = 60;
+  const [generatingInsights, setGeneratingInsights] = useState(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -137,6 +140,24 @@ const NotificationHistory = () => {
     if (n && !n.read) setUnreadCount((c) => Math.max(0, c - 1));
   };
 
+  const triggerWeeklyInsights = async () => {
+    if (!user || generatingInsights) return;
+    setGeneratingInsights(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("weekly-insights-summary");
+      if (error) throw error;
+      toast({
+        title: "📋 Weekly insights generated!",
+        description: `Recommendations are ready in your notifications.`,
+      });
+      await load();
+    } catch (err: any) {
+      toast({ title: "Failed to generate insights", description: err.message || "Please try again later.", variant: "destructive" });
+    } finally {
+      setGeneratingInsights(false);
+    }
+  };
+
   const typeEmoji: Record<string, string> = {
     freeze_gift: "❄️",
     streak_milestone: "🔥",
@@ -210,6 +231,20 @@ const NotificationHistory = () => {
             ))}
           </div>
         )}
+
+        {/* Manual weekly insights trigger */}
+        <button
+          onClick={triggerWeeklyInsights}
+          disabled={generatingInsights}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-colors text-xs font-medium text-primary disabled:opacity-50"
+        >
+          {generatingInsights ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5" />
+          )}
+          {generatingInsights ? "Generating insights…" : "Generate Weekly Insights"}
+        </button>
 
         {loading ? (
           <div className="flex justify-center py-6">
