@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame } from "lucide-react";
 import html2canvas from "html2canvas";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCache, setCache } from "@/lib/offlineCache";
@@ -86,6 +87,69 @@ const GoalProgressRing = ({ current, goal }: { current: number; goal: number }) 
           </p>
         )}
       </div>
+    </div>
+  );
+};
+
+const MILESTONES = [7, 14, 21, 30, 50, 100];
+const MILESTONE_CACHE_KEY = "digest-streak-celebrated";
+
+const StreakCard = ({ streak }: { streak: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const isMilestone = MILESTONES.includes(streak);
+  const milestoneLabel = streak >= 30 ? "🏆 Legend!" : streak >= 14 ? "⭐ Amazing!" : streak >= 7 ? "🔥 On fire!" : null;
+
+  useEffect(() => {
+    if (!isMilestone || !ref.current) return;
+    const lastCelebrated = getCache(MILESTONE_CACHE_KEY);
+    if (lastCelebrated === streak) return;
+    setCache(MILESTONE_CACHE_KEY, streak);
+
+    const rect = ref.current.getBoundingClientRect();
+    const x = (rect.left + rect.width / 2) / window.innerWidth;
+    const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+    confetti({
+      particleCount: streak >= 30 ? 120 : streak >= 14 ? 80 : 50,
+      spread: streak >= 30 ? 90 : 70,
+      origin: { x, y },
+      colors: ["#f59e0b", "#ef4444", "#8b5cf6", "#10b981", "#3b82f6"],
+      scalar: 0.8,
+      gravity: 1.2,
+      ticks: 150,
+    });
+  }, [streak, isMilestone]);
+
+  return (
+    <div
+      ref={ref}
+      className={`rounded-lg border p-3 flex flex-col items-center justify-center min-w-[80px] transition-colors ${
+        isMilestone ? "border-warning/40 bg-warning/5" : "border-border/40 bg-secondary/20"
+      }`}
+    >
+      <motion.div
+        animate={isMilestone ? { scale: [1, 1.3, 1], rotate: [0, -10, 10, 0] } : {}}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <Flame className={`w-5 h-5 mb-1 ${streak >= 7 ? "text-warning" : streak >= 3 ? "text-primary" : "text-muted-foreground"}`} />
+      </motion.div>
+      <motion.span
+        className={`text-2xl font-bold ${streak >= 7 ? "text-warning" : streak >= 3 ? "text-primary" : "text-foreground"}`}
+        animate={isMilestone ? { scale: [1, 1.15, 1] } : {}}
+        transition={{ duration: 0.4, delay: 0.2 }}
+      >
+        {streak}
+      </motion.span>
+      <span className="text-[10px] text-muted-foreground font-medium">day streak</span>
+      {milestoneLabel && (
+        <motion.span
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-[9px] text-warning font-semibold mt-0.5"
+        >
+          {milestoneLabel}
+        </motion.span>
+      )}
     </div>
   );
 };
@@ -386,14 +450,7 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
               <div className="flex-1">
                 <GoalProgressRing current={data.totalMinutes} goal={data.weeklyFocusGoal} />
               </div>
-              <div className="rounded-lg border border-border/40 bg-secondary/20 p-3 flex flex-col items-center justify-center min-w-[80px]">
-                <Flame className={`w-5 h-5 mb-1 ${data.streak >= 7 ? "text-warning" : data.streak >= 3 ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={`text-2xl font-bold ${data.streak >= 7 ? "text-warning" : data.streak >= 3 ? "text-primary" : "text-foreground"}`}>
-                  {data.streak}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-medium">day streak</span>
-                {data.streak >= 7 && <span className="text-[9px] text-warning font-semibold mt-0.5">🔥 On fire!</span>}
-              </div>
+              <StreakCard streak={data.streak} />
             </div>
           )}
 
