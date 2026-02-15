@@ -47,19 +47,35 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
   // Load cached insights on mount, auto-fetch if stale or missing
   useEffect(() => {
     if (!user) return;
-    const cached = getCache<CachedInsights>(CACHE_KEY);
-    if (cached?.insights?.length) {
-      setInsights(cached.insights);
-      setLastFetchedAt(cached.fetchedAt);
-      setHasLoaded(true);
-      // If cache is older than TTL, refresh in background
-      if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) {
-        fetchInsights(true);
+
+    // Check if user has any study data before fetching insights
+    const checkAndLoad = async () => {
+      const [{ count: topicCount }, { count: logCount }] = await Promise.all([
+        supabase.from("topics").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("deleted_at", null),
+        supabase.from("study_logs").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      ]);
+
+      if ((topicCount ?? 0) === 0 && (logCount ?? 0) === 0) {
+        // New user with no data — show empty state, don't call AI
+        setHasLoaded(true);
+        setInsights([]);
+        return;
       }
-    } else {
-      // No cache — auto-fetch
-      fetchInsights(false);
-    }
+
+      const cached = getCache<CachedInsights>(CACHE_KEY);
+      if (cached?.insights?.length) {
+        setInsights(cached.insights);
+        setLastFetchedAt(cached.fetchedAt);
+        setHasLoaded(true);
+        if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) {
+          fetchInsights(true);
+        }
+      } else {
+        fetchInsights(false);
+      }
+    };
+
+    checkAndLoad();
   }, [user]);
 
   const fetchInsights = useCallback(async (silent = false) => {
