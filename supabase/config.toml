@@ -86,3 +86,12 @@ verify_jwt = false
 
 [functions.scheduled-benchmark-check]
 verify_jwt = false
+
+[functions.user-embedding]
+verify_jwt = false
+
+[functions.hybrid-prediction]
+verify_jwt = false
+
+[functions.brain-missions]
+verify_jwt = false

@@ -58,6 +58,77 @@ export type Database = {
           },
         ]
       }
+      brain_missions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_value: number | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          mission_type: string
+          priority: string
+          reasoning: string | null
+          reward_type: string | null
+          reward_value: number | null
+          status: string
+          target_metric: string | null
+          target_topic_id: string | null
+          target_value: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          mission_type?: string
+          priority?: string
+          reasoning?: string | null
+          reward_type?: string | null
+          reward_value?: number | null
+          status?: string
+          target_metric?: string | null
+          target_topic_id?: string | null
+          target_value?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          mission_type?: string
+          priority?: string
+          reasoning?: string | null
+          reward_type?: string | null
+          reward_value?: number | null
+          status?: string
+          target_metric?: string | null
+          target_topic_id?: string | null
+          target_value?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brain_missions_target_topic_id_fkey"
+            columns: ["target_topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brain_reports: {
         Row: {
           created_at: string
@@ -246,6 +317,51 @@ export type Database = {
           pattern_type?: string
           sample_size?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      hybrid_predictions: {
+        Row: {
+          computed_at: string
+          confidence: number | null
+          created_at: string
+          global_score: number | null
+          global_weight: number | null
+          hybrid_score: number | null
+          id: string
+          metadata: Json | null
+          personal_score: number | null
+          personal_weight: number | null
+          prediction_type: string
+          user_id: string
+        }
+        Insert: {
+          computed_at?: string
+          confidence?: number | null
+          created_at?: string
+          global_score?: number | null
+          global_weight?: number | null
+          hybrid_score?: number | null
+          id?: string
+          metadata?: Json | null
+          personal_score?: number | null
+          personal_weight?: number | null
+          prediction_type: string
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          confidence?: number | null
+          created_at?: string
+          global_score?: number | null
+          global_weight?: number | null
+          hybrid_score?: number | null
+          id?: string
+          metadata?: Json | null
+          personal_score?: number | null
+          personal_weight?: number | null
+          prediction_type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1009,6 +1125,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_cognitive_embeddings: {
+        Row: {
+          cluster_id: string | null
+          cognitive_fingerprint: string | null
+          computed_at: string
+          created_at: string
+          dimensions: number
+          embedding: Json
+          embedding_version: number
+          feature_labels: Json
+          id: string
+          similarity_group: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cluster_id?: string | null
+          cognitive_fingerprint?: string | null
+          computed_at?: string
+          created_at?: string
+          dimensions?: number
+          embedding?: Json
+          embedding_version?: number
+          feature_labels?: Json
+          id?: string
+          similarity_group?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cluster_id?: string | null
+          cognitive_fingerprint?: string | null
+          computed_at?: string
+          created_at?: string
+          dimensions?: number
+          embedding?: Json
+          embedding_version?: number
+          feature_labels?: Json
+          id?: string
+          similarity_group?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_features: {
         Row: {

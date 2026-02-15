@@ -32,6 +32,8 @@ import StreakRecoveryCard from "./StreakRecoveryCard";
 import ComebackCelebration from "./ComebackCelebration";
 import ExplainButton from "./ExplainButton";
 import RiskDigestCard from "./RiskDigestCard";
+import BrainMissionsCard from "./BrainMissionsCard";
+import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -261,16 +263,25 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     setAnalysisProgress(0);
     setAnalysisStep("Scanning memory patterns…");
     try {
-      setAnalysisProgress(15);
+      setAnalysisProgress(10);
       await predict();
-      setAnalysisProgress(35);
+      setAnalysisProgress(25);
+      setAnalysisStep("Computing cognitive embedding…");
+      await supabase.functions.invoke("user-embedding");
+      setAnalysisProgress(40);
       setAnalysisStep("Predicting exam rank…");
       await predictRank();
       setRadarLastUpdated(new Date());
       setAnalysisProgress(55);
+      setAnalysisStep("Running hybrid prediction engine…");
+      await supabase.functions.invoke("hybrid-prediction");
+      setAnalysisProgress(70);
       setAnalysisStep("Generating AI recommendations…");
       await generateRecommendations();
-      setAnalysisProgress(80);
+      setAnalysisProgress(82);
+      setAnalysisStep("Creating brain missions…");
+      await supabase.functions.invoke("brain-missions", { body: { action: "generate" } });
+      setAnalysisProgress(90);
       setAnalysisStep("Finalizing insights…");
       await loadRecommendations();
       setAnalysisProgress(95);
@@ -280,7 +291,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       }
       setAnalysisProgress(100);
       setAnalysisStep("Complete!");
-      toast({ title: "✅ AI Analysis complete!", description: "Memory predictions and recommendations updated." });
+      toast({ title: "✅ AI Analysis complete!", description: "Personalized predictions, missions, and recommendations updated." });
     } catch {
       toast({ title: "Analysis failed", variant: "destructive" });
     } finally {
@@ -497,6 +508,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </motion.button>
       )}
+
+      {/* Brain Missions — personalized daily missions */}
+      {hasTopics && <BrainMissionsCard />}
+
+      {/* Cognitive DNA — embedding visualization */}
+      {hasTopics && <CognitiveEmbeddingCard />}
 
       {/* Risk Digest Card */}
       <RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} />
