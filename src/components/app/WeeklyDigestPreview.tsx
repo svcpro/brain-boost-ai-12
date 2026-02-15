@@ -37,6 +37,8 @@ interface DigestData {
   examDate: string | null;
   examType: string | null;
   planProgress: { completed: number; total: number } | null;
+  dailyThisWeek: number[];
+  dailyLastWeek: number[];
 }
 
 const CACHE_KEY = "weekly-digest-preview";
@@ -461,6 +463,63 @@ const DeltaBadge = ({ current, previous, suffix = "" }: { current: number | null
   );
 };
 
+const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+
+const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; lastWeek: number[] }) => {
+  const maxVal = Math.max(...thisWeek, ...lastWeek, 1);
+  const thisTotal = thisWeek.reduce((a, b) => a + b, 0);
+  const lastTotal = lastWeek.reduce((a, b) => a + b, 0);
+  const diff = thisTotal - lastTotal;
+
+  return (
+    <div className="rounded-lg bg-secondary/30 border border-border/40 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <ArrowLeftRight className="w-3 h-3 text-primary" />
+          <span className="text-[10px] font-semibold text-foreground">Week Comparison</span>
+        </div>
+        <span className={`text-[9px] font-bold flex items-center gap-0.5 ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+          {diff > 0 ? <TrendingUp className="w-2.5 h-2.5" /> : diff < 0 ? <TrendingDown className="w-2.5 h-2.5" /> : null}
+          {diff > 0 ? "+" : ""}{diff} sessions
+        </span>
+      </div>
+      <div className="flex items-end gap-1">
+        {DAY_LABELS.map((day, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+            <div className="flex items-end gap-[2px] h-8 w-full justify-center">
+              <motion.div
+                className="w-[5px] rounded-t-sm bg-muted-foreground/25"
+                initial={{ height: 0 }}
+                animate={{ height: `${(lastWeek[i] / maxVal) * 100}%` }}
+                transition={{ duration: 0.5, delay: i * 0.05 }}
+                style={{ minHeight: lastWeek[i] > 0 ? 3 : 0 }}
+              />
+              <motion.div
+                className="w-[5px] rounded-t-sm bg-primary"
+                initial={{ height: 0 }}
+                animate={{ height: `${(thisWeek[i] / maxVal) * 100}%` }}
+                transition={{ duration: 0.5, delay: i * 0.05 + 0.1 }}
+                style={{ minHeight: thisWeek[i] > 0 ? 3 : 0 }}
+              />
+            </div>
+            <span className="text-[8px] text-muted-foreground">{day}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 justify-center">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-sm bg-muted-foreground/25" />
+          <span className="text-[8px] text-muted-foreground">Last week</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-sm bg-primary" />
+          <span className="text-[8px] text-muted-foreground">This week</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MetricCard = ({
   icon, iconColor, label, value, subValue, compare, compareValue, compareSuffix,
 }: {
@@ -538,11 +597,11 @@ const WeeklyDigestPreview = () => {
           .eq("user_id", user.id).is("deleted_at", null)
           .order("memory_strength", { ascending: true }),
         supabase.from("study_logs")
-          .select("duration_minutes")
+          .select("duration_minutes, created_at")
           .eq("user_id", user.id)
           .gte("created_at", weekAgo.toISOString()),
         supabase.from("study_logs")
-          .select("duration_minutes")
+          .select("duration_minutes, created_at")
           .eq("user_id", user.id)
           .gte("created_at", twoWeeksAgo.toISOString())
           .lt("created_at", weekAgo.toISOString()),
@@ -570,6 +629,19 @@ const WeeklyDigestPreview = () => {
 
       const totalMinutes = logsThisWeek.reduce((s, l) => s + (l.duration_minutes || 0), 0);
       const sessions = logsThisWeek.length;
+
+      // Build daily session counts (Mon-Sun) for both weeks
+      const buildDailyCounts = (logs: typeof logsThisWeek, baseDate: Date) => {
+        const counts = [0, 0, 0, 0, 0, 0, 0];
+        for (const l of logs) {
+          const d = new Date(l.created_at);
+          const dayIdx = Math.floor((d.getTime() - baseDate.getTime()) / 86400000);
+          if (dayIdx >= 0 && dayIdx < 7) counts[dayIdx]++;
+        }
+        return counts;
+      };
+      const dailyThisWeek = buildDailyCounts(logsThisWeek, weekAgo);
+      const dailyLastWeek = buildDailyCounts(logsLastWeek, twoWeeksAgo);
 
       // Calculate streak from recent logs
       const streakDays = new Set((streakLogsRes.data || []).map(l => new Date(l.created_at).toDateString()));
@@ -675,6 +747,8 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
           efficiency: lastWeekEfficiency,
           growth: lastWeekGrowth,
         },
+        dailyThisWeek,
+        dailyLastWeek,
       };
 
       setData(result);
@@ -764,7 +838,9 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
             </div>
           )}
 
-          {/* Compare column headers */}
+          {/* Weekly Streak Comparison */}
+          <WeeklyStreakComparison thisWeek={data.dailyThisWeek} lastWeek={data.dailyLastWeek} />
+
           <AnimatePresence>
             {showCompare && (
               <motion.div
