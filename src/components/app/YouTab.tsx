@@ -144,6 +144,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showLeaderboardSetting, setShowLeaderboardSetting] = useState(false);
   const [feedbackOn, setFeedbackOn] = useState(() => isFeedbackEnabled());
   const [volume, setVolume] = useState(() => getFeedbackVolume());
+  const preMuteVolumeRef = useRef(getFeedbackVolume() || 50);
   const [showFeedbackSetting, setShowFeedbackSetting] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [showDataBackup, setShowDataBackup] = useState(false);
@@ -1117,11 +1118,13 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                         <button
                           onClick={() => {
                             if (volume > 0) {
+                              preMuteVolumeRef.current = volume;
                               setVolume(0);
                               setFeedbackVolume(0);
                             } else {
-                              setVolume(50);
-                              setFeedbackVolume(50);
+                              const restore = preMuteVolumeRef.current || 50;
+                              setVolume(restore);
+                              setFeedbackVolume(restore);
                               playNotificationSound();
                             }
                           }}
