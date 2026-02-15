@@ -73,7 +73,7 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [filter, setFilter] = useState<"all" | "free" | "pro" | "ultra">("all");
+  const [filter, setFilter] = useState<"all" | "free" | "pro" | "ultra" | "banned">("all");
 
   const fetchData = useCallback(async () => {
     const [usersRes, subsRes, plansRes] = await Promise.all([
@@ -100,6 +100,7 @@ const UserManagement = () => {
     const matchSearch = !search || (u.display_name || "").toLowerCase().includes(search.toLowerCase()) || u.id.includes(search);
     if (!matchSearch) return false;
     if (filter === "all") return true;
+    if (filter === "banned") return u.is_banned;
     const { planKey } = getUserPlan(u.id);
     return planKey === filter;
   });
@@ -190,10 +191,10 @@ const UserManagement = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or ID..." className="w-full pl-10 pr-4 py-2.5 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none" />
         </div>
-        <div className="flex gap-2">
-          {(["all", "free", "pro", "ultra"] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors capitalize ${filter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-              {f === "all" ? "All" : f}
+        <div className="flex gap-2 flex-wrap">
+          {(["all", "free", "pro", "ultra", "banned"] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors capitalize ${filter === f ? (f === "banned" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary") : "text-muted-foreground hover:bg-secondary"}`}>
+              {f === "all" ? "All" : f}{f === "banned" ? ` (${users.filter(u => u.is_banned).length})` : ""}
             </button>
           ))}
         </div>
