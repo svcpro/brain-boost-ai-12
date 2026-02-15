@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame } from "lucide-react";
 import html2canvas from "html2canvas";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,7 @@ interface DigestData {
   recommendations: string;
   lastWeek: WeekStats | null;
   weeklyFocusGoal: number;
+  streak: number;
 }
 
 const CACHE_KEY = "weekly-digest-preview";
@@ -162,7 +163,9 @@ const WeeklyDigestPreview = () => {
       const weekAgo = new Date(now.getTime() - 7 * 86400000);
       const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
 
-      const [twinRes, reportsRes, topicsRes, logsThisWeekRes, logsLastWeekRes, profileRes] = await Promise.all([
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+
+      const [twinRes, reportsRes, topicsRes, logsThisWeekRes, logsLastWeekRes, profileRes, streakLogsRes] = await Promise.all([
         supabase.from("cognitive_twins")
           .select("brain_evolution_score, learning_efficiency_score, memory_growth_rate")
           .eq("user_id", user.id).maybeSingle(),
@@ -187,6 +190,11 @@ const WeeklyDigestPreview = () => {
         supabase.from("profiles")
           .select("display_name, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes")
           .eq("id", user.id).maybeSingle(),
+        supabase.from("study_logs")
+          .select("created_at")
+          .eq("user_id", user.id)
+          .gte("created_at", thirtyDaysAgo.toISOString())
+          .order("created_at", { ascending: false }),
       ]);
 
       const twin = twinRes.data;
@@ -198,6 +206,18 @@ const WeeklyDigestPreview = () => {
       const totalMinutes = logsThisWeek.reduce((s, l) => s + (l.duration_minutes || 0), 0);
       const sessions = logsThisWeek.length;
 
+      // Calculate streak from recent logs
+      const streakDays = new Set((streakLogsRes.data || []).map(l => new Date(l.created_at).toDateString()));
+      let streak = 0;
+      const checkDate = new Date(now);
+      // If no study today yet, start checking from yesterday
+      if (!streakDays.has(checkDate.toDateString())) {
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+      while (streakDays.has(checkDate.toDateString())) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
       const lastWeekMinutes = logsLastWeek.reduce((s, l) => s + (l.duration_minutes || 0), 0);
       const lastWeekSessions = logsLastWeek.length;
 
@@ -279,6 +299,7 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
         atRisk,
         recommendations,
         weeklyFocusGoal: profileRes.data?.weekly_focus_goal_minutes || 420,
+        streak,
         lastWeek: {
           totalMinutes: lastWeekMinutes,
           sessions: lastWeekSessions,
@@ -359,8 +380,22 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
         </div>
       ) : data ? (
         <div className="p-4 space-y-3">
-          {/* Weekly Goal Progress Ring */}
-          {!showCompare && <GoalProgressRing current={data.totalMinutes} goal={data.weeklyFocusGoal} />}
+          {/* Weekly Goal + Streak */}
+          {!showCompare && (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <GoalProgressRing current={data.totalMinutes} goal={data.weeklyFocusGoal} />
+              </div>
+              <div className="rounded-lg border border-border/40 bg-secondary/20 p-3 flex flex-col items-center justify-center min-w-[80px]">
+                <Flame className={`w-5 h-5 mb-1 ${data.streak >= 7 ? "text-warning" : data.streak >= 3 ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`text-2xl font-bold ${data.streak >= 7 ? "text-warning" : data.streak >= 3 ? "text-primary" : "text-foreground"}`}>
+                  {data.streak}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-medium">day streak</span>
+                {data.streak >= 7 && <span className="text-[9px] text-warning font-semibold mt-0.5">🔥 On fire!</span>}
+              </div>
+            </div>
+          )}
 
           {/* Compare column headers */}
           <AnimatePresence>
