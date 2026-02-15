@@ -58,6 +58,8 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy" | "global" | "hybrid" | "share">("rank");
   const { data: hybridData, loading: hybridLoading, predict: fetchHybrid } = useHybridPrediction();
   const [customPersonalWeight, setCustomPersonalWeight] = useState<number | null>(null);
+  const [weightHistory, setWeightHistory] = useState<{ date: string; personal: number; global: number; maturity: number }[]>([]);
+  const [weightHistoryLoaded, setWeightHistoryLoaded] = useState(false);
 
   // Derive adjusted predictions based on slider
   const activePersonalWeight = customPersonalWeight ?? (hybridData?.personal_weight ?? 0.7);
@@ -79,6 +81,30 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const [exported, setExported] = useState(false);
   const [copied, setCopied] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
+
+  // Fetch weight history when hybrid tab is opened
+  useEffect(() => {
+    if (activeSection !== "hybrid" || weightHistoryLoaded || !user) return;
+    (async () => {
+      const { data: history } = await supabase
+        .from("hybrid_predictions")
+        .select("personal_weight, global_weight, computed_at, metadata")
+        .eq("user_id", user.id)
+        .order("computed_at", { ascending: true })
+        .limit(50);
+      if (history && history.length > 0) {
+        setWeightHistory(
+          history.map(h => ({
+            date: format(new Date(h.computed_at), "MMM d"),
+            personal: Math.round(Number(h.personal_weight ?? 0.7) * 100),
+            global: Math.round(Number(h.global_weight ?? 0.3) * 100),
+            maturity: (h.metadata as any)?.data_maturity_points ?? 0,
+          }))
+        );
+      }
+      setWeightHistoryLoaded(true);
+    })();
+  }, [activeSection, weightHistoryLoaded, user]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -810,6 +836,58 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                           );
                         })()}
                       </div>
+
+                      {/* Weight ratio history */}
+                      {weightHistory.length >= 2 && (
+                        <div className="glass rounded-xl p-4 neural-border">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="w-3.5 h-3.5 text-primary" />
+                            <p className="text-xs font-semibold text-foreground">Weight Ratio History</p>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mb-3">How your personal vs global balance evolved as data maturity grew</p>
+                          <div className="h-40">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={weightHistory}>
+                                <defs>
+                                  <linearGradient id="personalGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                                <XAxis dataKey="date" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
+                                <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} width={30} tickFormatter={(v) => `${v}%`} />
+                                <Tooltip
+                                  contentStyle={{
+                                    background: "hsl(var(--popover))",
+                                    border: "1px solid hsl(var(--border))",
+                                    borderRadius: "8px",
+                                    fontSize: "11px",
+                                    color: "hsl(var(--foreground))",
+                                  }}
+                                  formatter={(value: number, name: string) => [
+                                    `${value}%`,
+                                    name === "personal" ? "Personal" : name === "global" ? "Global" : "Maturity"
+                                  ]}
+                                />
+                                <Area type="monotone" dataKey="personal" stroke="hsl(var(--primary))" fill="url(#personalGrad)" strokeWidth={2} />
+                                <Line type="monotone" dataKey="global" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="flex items-center justify-center gap-4 mt-2">
+                            {[
+                              { label: "Personal %", color: "bg-primary" },
+                              { label: "Global %", color: "bg-muted-foreground" },
+                            ].map(l => (
+                              <div key={l.label} className="flex items-center gap-1.5">
+                                <div className={`w-2.5 h-2.5 rounded-sm ${l.color}`} />
+                                <span className="text-[10px] text-muted-foreground">{l.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Summary cards */}
                       <div className="grid grid-cols-3 gap-3">
