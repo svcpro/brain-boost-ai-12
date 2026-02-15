@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.daily-self-improve]
 verify_jwt = false
+
+[functions.daily-risk-digest]
+verify_jwt = false
