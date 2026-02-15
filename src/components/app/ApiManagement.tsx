@@ -4,7 +4,7 @@ import {
   Loader2, Key, ExternalLink, ToggleLeft, ToggleRight,
   AlertTriangle, CheckCircle2, Settings, DollarSign, Activity,
   Mail, Mic, CreditCard, Bell, Brain, Save, Pencil, Eye, EyeOff,
-  Info, Hash
+  Info, Hash, Plus, X, Trash2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +55,21 @@ const STATUS_STYLES: Record<string, string> = {
   inactive: "bg-secondary text-muted-foreground",
 };
 
+const EMPTY_NEW_INTEGRATION = {
+  service_name: "",
+  display_name: "",
+  description: "",
+  category: "general",
+  api_key_masked: "",
+  monthly_cost_estimate: 0,
+  usage_limit: null as number | null,
+  notes: "",
+  docs_url: "",
+  pricing_url: "",
+  secret_name: "",
+  used_in: "",
+};
+
 const ApiManagement = () => {
   const { toast } = useToast();
   const [integrations, setIntegrations] = useState<ApiIntegration[]>([]);
@@ -62,6 +77,9 @@ const ApiManagement = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<ApiIntegration>>({});
   const [filter, setFilter] = useState<string>("all");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newIntegration, setNewIntegration] = useState({ ...EMPTY_NEW_INTEGRATION });
+  const [saving, setSaving] = useState(false);
 
   const fetchIntegrations = useCallback(async () => {
     const { data } = await supabase
@@ -112,6 +130,50 @@ const ApiManagement = () => {
     fetchIntegrations();
   };
 
+  const addIntegration = async () => {
+    if (!newIntegration.service_name || !newIntegration.display_name) {
+      toast({ title: "Service name and display name are required", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    const usedInArr = newIntegration.used_in.split(",").map(s => s.trim()).filter(Boolean);
+    const { error } = await supabase.from("api_integrations").insert({
+      service_name: newIntegration.service_name.toLowerCase().replace(/\s+/g, "_"),
+      display_name: newIntegration.display_name,
+      description: newIntegration.description || null,
+      category: newIntegration.category,
+      api_key_masked: newIntegration.api_key_masked || null,
+      monthly_cost_estimate: newIntegration.monthly_cost_estimate || 0,
+      usage_limit: newIntegration.usage_limit,
+      notes: newIntegration.notes || null,
+      config: {
+        secret_name: newIntegration.secret_name || null,
+        docs_url: newIntegration.docs_url || null,
+        pricing_url: newIntegration.pricing_url || null,
+        used_in: usedInArr,
+        custom: true,
+      },
+      is_enabled: true,
+      status: "active",
+    } as any);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Failed to add integration", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Integration added successfully" });
+    setNewIntegration({ ...EMPTY_NEW_INTEGRATION });
+    setShowAddForm(false);
+    fetchIntegrations();
+  };
+
+  const deleteIntegration = async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    await supabase.from("api_integrations").delete().eq("id", id);
+    toast({ title: `"${name}" deleted` });
+    fetchIntegrations();
+  };
+
   const categories = ["all", ...Array.from(new Set(integrations.map(i => i.category)))];
   const filtered = filter === "all" ? integrations : integrations.filter(i => i.category === filter);
 
@@ -124,7 +186,166 @@ const ApiManagement = () => {
           <h2 className="text-xl font-bold text-foreground">API & Integrations</h2>
           <p className="text-xs text-muted-foreground mt-1">{integrations.length} services configured</p>
         </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add Integration
+        </button>
       </div>
+
+      {/* Add New Integration Form */}
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl neural-border overflow-hidden"
+          >
+            <div className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-primary" /> New Custom Integration
+                </h3>
+                <button onClick={() => setShowAddForm(false)} className="p-1 hover:bg-secondary rounded-lg transition-colors">
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Display Name *</label>
+                  <input
+                    value={newIntegration.display_name}
+                    onChange={e => setNewIntegration(p => ({ ...p, display_name: e.target.value }))}
+                    placeholder="e.g. OpenAI GPT"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Service Name (unique key) *</label>
+                  <input
+                    value={newIntegration.service_name}
+                    onChange={e => setNewIntegration(p => ({ ...p, service_name: e.target.value }))}
+                    placeholder="e.g. openai_gpt"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none font-mono"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Description</label>
+                  <input
+                    value={newIntegration.description}
+                    onChange={e => setNewIntegration(p => ({ ...p, description: e.target.value }))}
+                    placeholder="Brief description of this integration"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Category</label>
+                  <select
+                    value={newIntegration.category}
+                    onChange={e => setNewIntegration(p => ({ ...p, category: e.target.value }))}
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none"
+                  >
+                    <option value="ai">AI</option>
+                    <option value="email">Email</option>
+                    <option value="voice">Voice</option>
+                    <option value="payments">Payments</option>
+                    <option value="notifications">Notifications</option>
+                    <option value="general">General</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Secret Name (env var)</label>
+                  <input
+                    value={newIntegration.secret_name}
+                    onChange={e => setNewIntegration(p => ({ ...p, secret_name: e.target.value }))}
+                    placeholder="e.g. OPENAI_API_KEY"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Masked API Key (for display)</label>
+                  <input
+                    value={newIntegration.api_key_masked}
+                    onChange={e => setNewIntegration(p => ({ ...p, api_key_masked: e.target.value }))}
+                    placeholder="e.g. sk-****abcd"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Est. Monthly Cost ($)</label>
+                  <input
+                    type="number"
+                    value={newIntegration.monthly_cost_estimate}
+                    onChange={e => setNewIntegration(p => ({ ...p, monthly_cost_estimate: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Usage Limit (optional)</label>
+                  <input
+                    type="number"
+                    value={newIntegration.usage_limit ?? ""}
+                    onChange={e => setNewIntegration(p => ({ ...p, usage_limit: e.target.value ? parseInt(e.target.value) : null }))}
+                    placeholder="No limit"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Docs URL</label>
+                  <input
+                    value={newIntegration.docs_url}
+                    onChange={e => setNewIntegration(p => ({ ...p, docs_url: e.target.value }))}
+                    placeholder="https://docs.example.com"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Pricing URL</label>
+                  <input
+                    value={newIntegration.pricing_url}
+                    onChange={e => setNewIntegration(p => ({ ...p, pricing_url: e.target.value }))}
+                    placeholder="https://example.com/pricing"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Used In (comma-separated edge function names)</label>
+                  <input
+                    value={newIntegration.used_in}
+                    onChange={e => setNewIntegration(p => ({ ...p, used_in: e.target.value }))}
+                    placeholder="e.g. my-function, another-function"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none font-mono"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Notes</label>
+                  <textarea
+                    value={newIntegration.notes}
+                    onChange={e => setNewIntegration(p => ({ ...p, notes: e.target.value }))}
+                    rows={2}
+                    placeholder="Internal notes..."
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none resize-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setShowAddForm(false)} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={addIntegration}
+                  disabled={saving}
+                  className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Add Integration
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -222,6 +443,15 @@ const ApiManagement = () => {
                   {!isEditing && (
                     <button onClick={() => startEdit(integration)} className="p-1.5 hover:bg-secondary rounded-lg transition-colors" title="Edit">
                       <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
+                  )}
+                  {(integration.config as any)?.custom && (
+                    <button
+                      onClick={() => deleteIntegration(integration.id, integration.display_name)}
+                      className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-destructive/70" />
                     </button>
                   )}
                   <button
