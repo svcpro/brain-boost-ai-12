@@ -368,6 +368,22 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
     setCache(NUDGE_DISMISS_KEY, todayKey);
   };
 
+  const handleShare = async () => {
+    const progressText = pct !== null ? ` | ${pct}% plan completed` : "";
+    const text = `📚 ${label} until my ${examType || "exam"}${progressText}! ${getDailyQuote()}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        toast.success("Shared successfully!");
+      } catch (e: any) {
+        if (e.name !== "AbortError") toast.error("Sharing failed");
+      }
+    } else {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard!");
+    }
+  };
+
   return (
     <div className={`rounded-lg border ${urgencyBg} px-3 py-2.5 space-y-2`}>
       <div className="flex items-center gap-3">
@@ -383,6 +399,14 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
             until {examType || "exam"} · {new Date(examDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={handleShare}
+          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary/60 transition-colors"
+          aria-label="Share exam countdown"
+        >
+          <Share2 className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
       </div>
       <div className="flex items-start gap-1.5 px-1">
         <Quote className="w-3 h-3 text-muted-foreground/60 shrink-0 mt-0.5" />
