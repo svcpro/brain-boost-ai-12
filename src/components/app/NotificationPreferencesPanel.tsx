@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Gift, Flame, BookOpen, Brain } from "lucide-react";
+import { Bell, Gift, Flame, BookOpen, Brain, Sparkles } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ export interface PushNotifPrefs {
   streakMilestones: boolean;
   studyReminders: boolean;
   brainUpdateReminders: boolean;
+  weeklyInsights: boolean;
 }
 
 const defaultPrefs: PushNotifPrefs = {
@@ -21,6 +22,7 @@ const defaultPrefs: PushNotifPrefs = {
   streakMilestones: true,
   studyReminders: true,
   brainUpdateReminders: true,
+  weeklyInsights: true,
 };
 
 export function getPushNotifPrefs(): PushNotifPrefs {
@@ -105,6 +107,12 @@ const NotificationPreferencesPanel = () => {
       label: "Brain update reminders",
       desc: "Nudge when you haven't updated your brain in 24h",
       key: "brainUpdateReminders" as const,
+    },
+    {
+      icon: Sparkles,
+      label: "Weekly insights",
+      desc: "AI-generated study recommendations every Monday",
+      key: "weeklyInsights" as const,
     },
   ];
 
