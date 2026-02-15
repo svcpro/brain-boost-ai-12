@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.weekly-brain-digest]
 verify_jwt = false
+
+[functions.world-model-simulation]
+verify_jwt = false
