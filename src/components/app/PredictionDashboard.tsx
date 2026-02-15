@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Brain, Target, Calendar, ChevronDown,
-  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles,
+  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users,
 } from "lucide-react";
+import { BarChart, Bar } from "recharts";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +26,14 @@ interface RankPoint {
   percentile: number;
 }
 
+interface ComparisonMetric {
+  label: string;
+  userValue: number;
+  globalValue: number;
+  unit: string;
+  higherIsBetter: boolean;
+}
+
 interface StrategyItem {
   label: string;
   description: string;
@@ -38,8 +47,10 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const [rankHistory, setRankHistory] = useState<RankPoint[]>([]);
   const [forecasts, setForecasts] = useState<MemoryForecast[]>([]);
   const [strategies, setStrategies] = useState<StrategyItem[]>([]);
+  const [comparisons, setComparisons] = useState<ComparisonMetric[]>([]);
+  const [globalSampleSize, setGlobalSampleSize] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy">("rank");
+  const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy" | "global">("rank");
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -48,7 +59,7 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
-      const [rankRes, topicsRes, subjectsRes, twinRes] = await Promise.all([
+      const [rankRes, topicsRes, subjectsRes, twinRes, globalRes, featuresRes] = await Promise.all([
         supabase.from("rank_predictions")
           .select("predicted_rank, percentile, recorded_at")
           .eq("user_id", user.id)
@@ -64,8 +75,18 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
           .eq("user_id", user.id)
           .is("deleted_at", null),
         supabase.from("cognitive_twins")
-          .select("avg_decay_rate, optimal_study_hour, optimal_session_duration")
+          .select("avg_decay_rate, optimal_study_hour, optimal_session_duration, cognitive_capacity_score, learning_efficiency_score")
           .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase.from("global_learning_patterns")
+          .select("pattern_type, pattern_key, metrics, sample_size")
+          .order("pattern_date", { ascending: false })
+          .limit(100),
+        supabase.from("user_features")
+          .select("study_consistency_score, recall_success_rate, avg_session_duration_minutes, knowledge_stability")
+          .eq("user_id", user.id)
+          .order("computed_at", { ascending: false })
+          .limit(1)
           .maybeSingle(),
       ]);
 
@@ -181,6 +202,96 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
       }
 
       setStrategies(strats);
+
+      // Build global comparison metrics
+      const gPatterns = globalRes.data || [];
+      const maxSample = Math.max(...gPatterns.map(p => p.sample_size || 0), 0);
+      setGlobalSampleSize(maxSample);
+
+      const getGlobalMetric = (type: string, key: string): number | null => {
+        const p = gPatterns.find(g => g.pattern_type === type && g.pattern_key === key);
+        if (!p || !p.metrics) return null;
+        const m = p.metrics as Record<string, any>;
+        return m.avg ?? m.mean ?? m.value ?? null;
+      };
+
+      const userFeats = featuresRes.data;
+      const compMetrics: ComparisonMetric[] = [];
+
+      // Average retention
+      const avgRetention = memForecasts.length > 0
+        ? memForecasts.reduce((s, f) => s + f.currentStrength, 0) / memForecasts.length
+        : null;
+      const globalRetention = getGlobalMetric("cognitive_benchmark", "knowledge_stability");
+      if (avgRetention !== null) {
+        compMetrics.push({
+          label: "Avg Retention",
+          userValue: Math.round(avgRetention),
+          globalValue: globalRetention !== null ? Math.round(globalRetention * 100) : 62,
+          unit: "%",
+          higherIsBetter: true,
+        });
+      }
+
+      // Study consistency
+      if (userFeats?.study_consistency_score != null) {
+        const globalConsistency = getGlobalMetric("cognitive_benchmark", "study_consistency");
+        compMetrics.push({
+          label: "Consistency",
+          userValue: Math.round(Number(userFeats.study_consistency_score) * 100),
+          globalValue: globalConsistency !== null ? Math.round(globalConsistency * 100) : 55,
+          unit: "%",
+          higherIsBetter: true,
+        });
+      }
+
+      // Session duration
+      if (userFeats?.avg_session_duration_minutes != null) {
+        const globalSession = getGlobalMetric("study_timing", "avg_session_duration");
+        compMetrics.push({
+          label: "Session Length",
+          userValue: Math.round(Number(userFeats.avg_session_duration_minutes)),
+          globalValue: globalSession !== null ? Math.round(globalSession) : 25,
+          unit: "min",
+          higherIsBetter: true,
+        });
+      }
+
+      // Recall rate
+      if (userFeats?.recall_success_rate != null) {
+        const globalRecall = getGlobalMetric("cognitive_benchmark", "recall_success_rate");
+        compMetrics.push({
+          label: "Recall Rate",
+          userValue: Math.round(Number(userFeats.recall_success_rate) * 100),
+          globalValue: globalRecall !== null ? Math.round(globalRecall * 100) : 58,
+          unit: "%",
+          higherIsBetter: true,
+        });
+      }
+
+      // Cognitive capacity from twin
+      if (twin?.cognitive_capacity_score != null) {
+        compMetrics.push({
+          label: "Cognitive Score",
+          userValue: Math.round(Number(twin.cognitive_capacity_score)),
+          globalValue: 50,
+          unit: "",
+          higherIsBetter: true,
+        });
+      }
+
+      // Learning efficiency from twin
+      if (twin?.learning_efficiency_score != null) {
+        compMetrics.push({
+          label: "Learn Efficiency",
+          userValue: Math.round(Number(twin.learning_efficiency_score)),
+          globalValue: 45,
+          unit: "",
+          higherIsBetter: true,
+        });
+      }
+
+      setComparisons(compMetrics);
     } catch (e) {
       console.error("PredictionDashboard load error:", e);
     } finally {
@@ -217,7 +328,8 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const sections = [
     { key: "rank" as const, label: "Rank Projections", icon: TrendingUp },
     { key: "memory" as const, label: "Memory Forecast", icon: Brain },
-    { key: "strategy" as const, label: "Optimal Strategy", icon: Target },
+    { key: "global" as const, label: "vs Global", icon: Globe },
+    { key: "strategy" as const, label: "Strategy", icon: Target },
   ];
 
   return (
@@ -460,6 +572,111 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                       <Brain className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
                       <p className="text-sm text-foreground font-medium">No topics to forecast</p>
                       <p className="text-[10px] text-muted-foreground mt-1">Add topics to see memory decay predictions</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* === GLOBAL COMPARISON === */}
+              {activeSection === "global" && (
+                <motion.div
+                  key="global"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="space-y-4"
+                >
+                  {/* Header badge */}
+                  <div className="flex items-center gap-2 rounded-lg bg-accent/10 border border-accent/20 px-3 py-2">
+                    <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+                      <Users className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Compared against <span className="text-foreground font-semibold">{globalSampleSize > 0 ? `${globalSampleSize.toLocaleString()}+` : "community"}</span> learners
+                    </p>
+                  </div>
+
+                  {comparisons.length > 0 ? (
+                    <>
+                      {/* Bar comparison chart */}
+                      <div className="glass rounded-xl p-4 neural-border">
+                        <p className="text-xs font-semibold text-foreground mb-3">You vs Global Average</p>
+                        <div className="h-52">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={comparisons.map(c => ({
+                                name: c.label,
+                                You: c.userValue,
+                                Global: c.globalValue,
+                              }))}
+                              barGap={2}
+                              barCategoryGap="20%"
+                            >
+                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                              <XAxis dataKey="name" tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} />
+                              <YAxis tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} width={30} />
+                              <Tooltip
+                                contentStyle={{
+                                  background: "hsl(var(--popover))",
+                                  border: "1px solid hsl(var(--border))",
+                                  borderRadius: "8px",
+                                  fontSize: "11px",
+                                  color: "hsl(var(--foreground))",
+                                }}
+                              />
+                              <Bar dataKey="You" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="Global" fill="hsl(var(--muted-foreground))" opacity={0.4} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      {/* Detailed metric cards */}
+                      <div className="space-y-2">
+                        {comparisons.map((c, i) => {
+                          const diff = c.userValue - c.globalValue;
+                          const isAhead = c.higherIsBetter ? diff > 0 : diff < 0;
+                          const absDiff = Math.abs(diff);
+
+                          return (
+                            <motion.div
+                              key={c.label}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: i * 0.05 }}
+                              className="glass rounded-lg p-3 neural-border flex items-center gap-3"
+                            >
+                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isAhead ? "bg-success/10" : "bg-destructive/10"}`}>
+                                {isAhead
+                                  ? <TrendingUp className="w-4 h-4 text-success" />
+                                  : <TrendingDown className="w-4 h-4 text-destructive" />
+                                }
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground">{c.label}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] font-semibold text-foreground">{c.userValue}{c.unit}</span>
+                                  <span className="text-[9px] text-muted-foreground">vs {c.globalValue}{c.unit} avg</span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className={`text-[10px] font-bold ${isAhead ? "text-success" : "text-destructive"}`}>
+                                  {isAhead ? "+" : "-"}{absDiff}{c.unit}
+                                </p>
+                                <p className={`text-[9px] ${isAhead ? "text-success" : "text-destructive"}`}>
+                                  {isAhead ? "Above avg" : "Below avg"}
+                                </p>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="glass rounded-xl p-8 neural-border text-center">
+                      <Globe className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+                      <p className="text-sm text-foreground font-medium">Not enough data yet</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Study more to generate comparison metrics against the community</p>
                     </div>
                   )}
                 </motion.div>
