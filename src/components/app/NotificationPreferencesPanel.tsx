@@ -301,7 +301,7 @@ const NotificationPreferencesPanel = () => {
                         key={tier.label}
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className={`flex flex-col gap-1 rounded-full px-2 py-0.5 cursor-default ${tier.bg} ${tier.ring ? `ring-1 ${tier.ring}` : ""}`}
+                        className={`flex flex-col gap-1 rounded-xl px-2.5 py-1 cursor-default ${tier.bg} ${tier.ring ? `ring-1 ${tier.ring}` : ""}`}
                       >
                         <div className="flex items-center gap-1.5">
                           <TierIcon className={`w-3 h-3 ${tier.text}`} />
