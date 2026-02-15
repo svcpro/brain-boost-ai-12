@@ -8,7 +8,7 @@ import { useHybridPrediction, HybridTopicPrediction } from "@/hooks/useHybridPre
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BarChart, Bar } from "recharts";
-import { LineChart, Line, AreaChart, Area, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, AreaChart, Area, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, Label } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addDays, differenceInDays, isPast } from "date-fns";
@@ -874,6 +874,32 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                                 <Area yAxisId="weight" type="monotone" dataKey="personal" stroke="hsl(var(--primary))" fill="url(#personalGrad)" strokeWidth={2} />
                                 <Line yAxisId="weight" type="monotone" dataKey="global" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
                                 <Line yAxisId="maturity" type="monotone" dataKey="maturity" stroke="hsl(var(--accent-foreground))" strokeWidth={2} dot={{ r: 2.5, fill: "hsl(var(--accent-foreground))" }} />
+                                {/* Maturity milestone reference lines */}
+                                {[25, 50, 75].map(threshold => {
+                                  const maxMaturity = Math.max(...weightHistory.map(h => h.maturity));
+                                  if (maxMaturity < threshold * 0.8) return null;
+                                  const crossIdx = weightHistory.findIndex(h => h.maturity >= threshold);
+                                  if (crossIdx < 0) return null;
+                                  return (
+                                    <ReferenceLine
+                                      key={threshold}
+                                      yAxisId="maturity"
+                                      y={threshold}
+                                      stroke="hsl(var(--accent-foreground))"
+                                      strokeDasharray="2 4"
+                                      strokeOpacity={0.5}
+                                    >
+                                      <Label
+                                        value={`${threshold}pt`}
+                                        position="insideTopLeft"
+                                        fill="hsl(var(--accent-foreground))"
+                                        fontSize={8}
+                                        fontWeight={600}
+                                        offset={4}
+                                      />
+                                    </ReferenceLine>
+                                  );
+                                })}
                               </ComposedChart>
                             </ResponsiveContainer>
                           </div>
@@ -889,6 +915,23 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                               </div>
                             ))}
                           </div>
+                          {/* Milestone badges */}
+                          {(() => {
+                            const milestones = [25, 50, 75].map(t => {
+                              const entry = weightHistory.find(h => h.maturity >= t);
+                              return entry ? { threshold: t, date: entry.date } : null;
+                            }).filter(Boolean) as { threshold: number; date: string }[];
+                            if (milestones.length === 0) return null;
+                            return (
+                              <div className="flex items-center gap-2 flex-wrap mt-2">
+                                {milestones.map(m => (
+                                  <span key={m.threshold} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/15 text-[9px] font-semibold text-accent-foreground">
+                                    🏆 {m.threshold}pt reached {m.date}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
 
