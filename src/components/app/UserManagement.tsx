@@ -5,7 +5,8 @@ import {
   Pencil, Save, X, Trash2, CreditCard, Activity, Clock,
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
   CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download,
-  CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown
+  CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown,
+  Target, Award
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -561,6 +562,8 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   const [showBanForm, setShowBanForm] = useState(false);
   const [banning, setBanning] = useState(false);
   const [isBanned, setIsBanned] = useState(user.is_banned);
+  const [examHistory, setExamHistory] = useState<any[]>([]);
+  const [studyTrend, setStudyTrend] = useState<{ date: string; minutes: number }[]>([]);
 
   const logAudit = async (action: string, details: Record<string, any>) => {
     if (!adminUser) return;
@@ -579,10 +582,14 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
 
   useEffect(() => {
     (async () => {
-      const [logsRes, subjectsRes, topicsRes] = await Promise.all([
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      const [logsRes, subjectsRes, topicsRes, examsRes, trendRes] = await Promise.all([
         supabase.from("study_logs").select("duration_minutes").eq("user_id", user.id),
         supabase.from("subjects").select("id").eq("user_id", user.id).is("deleted_at", null),
         supabase.from("topics").select("id").eq("user_id", user.id).is("deleted_at", null),
+        supabase.from("exam_results").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
+        supabase.from("study_logs").select("duration_minutes, created_at").eq("user_id", user.id).gte("created_at", fourteenDaysAgo.toISOString()),
       ]);
       const logs = logsRes.data || [];
       setStats({
@@ -591,6 +598,20 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         subjectsCount: subjectsRes.data?.length || 0,
         topicsCount: topicsRes.data?.length || 0,
       });
+      setExamHistory((examsRes.data as any[]) || []);
+
+      // Build 14-day trend
+      const trendMap: Record<string, number> = {};
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        trendMap[format(d, "MMM d")] = 0;
+      }
+      for (const log of (trendRes.data || [])) {
+        const key = format(new Date((log as any).created_at), "MMM d");
+        if (trendMap[key] !== undefined) trendMap[key] += (log as any).duration_minutes || 0;
+      }
+      setStudyTrend(Object.entries(trendMap).map(([date, minutes]) => ({ date, minutes })));
       setStatsLoading(false);
     })();
   }, [user.id]);
@@ -830,6 +851,76 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
               })}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* 14-Day Study Trend */}
+      <div className="glass rounded-xl neural-border p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-primary" /> 14-Day Study Trend
+        </h3>
+        {studyTrend.length > 0 ? (() => {
+          const max = Math.max(...studyTrend.map(d => d.minutes), 1);
+          return (
+            <div className="flex items-end gap-1 h-24">
+              {studyTrend.map((d, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-foreground text-background text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                    {d.date}: {d.minutes}min
+                  </div>
+                  <div
+                    className="w-full rounded-t bg-primary/60 hover:bg-primary transition-colors min-h-[2px]"
+                    style={{ height: `${Math.max(2, (d.minutes / max) * 100)}%` }}
+                  />
+                </div>
+              ))}
+            </div>
+          );
+        })() : (
+          <p className="text-xs text-muted-foreground text-center py-4">No study data</p>
+        )}
+        <div className="flex justify-between text-[8px] text-muted-foreground">
+          <span>{studyTrend[0]?.date}</span>
+          <span>{studyTrend[studyTrend.length - 1]?.date}</span>
+        </div>
+      </div>
+
+      {/* Exam History */}
+      <div className="glass rounded-xl neural-border p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Award className="w-4 h-4 text-accent" /> Exam History
+        </h3>
+        {examHistory.length > 0 ? (
+          <div className="space-y-2">
+            {examHistory.map((exam: any) => {
+              const pct = Math.round((exam.score / exam.total_questions) * 100);
+              const color = pct >= 80 ? "text-success" : pct >= 50 ? "text-warning" : "text-destructive";
+              return (
+                <div key={exam.id} className="flex items-center gap-3 p-2.5 bg-secondary/50 rounded-lg">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${pct >= 80 ? "bg-success/15" : pct >= 50 ? "bg-warning/15" : "bg-destructive/15"}`}>
+                    <span className={`text-sm font-bold ${color}`}>{pct}%</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-medium text-foreground truncate">{exam.topics || "General"}</p>
+                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground capitalize">{exam.difficulty}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {exam.score}/{exam.total_questions} correct
+                      {exam.time_used_seconds ? ` · ${Math.round(exam.time_used_seconds / 60)}min` : ""}
+                      {" · "}{formatDistanceToNow(new Date(exam.created_at), { addSuffix: true })}
+                    </p>
+                  </div>
+                  {/* Mini progress bar */}
+                  <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden shrink-0">
+                    <div className={`h-full rounded-full ${pct >= 80 ? "bg-success" : pct >= 50 ? "bg-warning" : "bg-destructive"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground text-center py-4">No exams taken</p>
         )}
       </div>
 
