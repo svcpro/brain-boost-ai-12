@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldAlert, Zap, ChevronDown, ChevronUp, Clock, BookOpen, RefreshCw } from "lucide-react";
+import { ShieldAlert, Zap, ChevronDown, ChevronUp, Clock, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCache, setCache } from "@/lib/offlineCache";
@@ -18,6 +18,51 @@ interface AtRiskTopic {
   subject_name?: string;
 }
 
+interface SparklineProps {
+  data: number[];
+  width?: number;
+  height?: number;
+  color?: string;
+}
+
+const Sparkline = ({ data, width = 48, height = 18, color }: SparklineProps) => {
+  if (data.length < 2) return null;
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const padding = 1;
+
+  const points = data.map((v, i) => {
+    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+    const y = padding + (1 - (v - min) / range) * (height - padding * 2);
+    return `${x},${y}`;
+  }).join(" ");
+
+  // Trend: compare last vs first
+  const trend = data[data.length - 1] - data[0];
+  const strokeColor = color || (trend > 0 ? "hsl(var(--success))" : trend < 0 ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))");
+
+  return (
+    <svg width={width} height={height} className="shrink-0" viewBox={`0 0 ${width} ${height}`}>
+      <polyline
+        points={points}
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Dot on last point */}
+      {(() => {
+        const lastX = padding + ((data.length - 1) / (data.length - 1)) * (width - padding * 2);
+        const lastY = padding + (1 - (data[data.length - 1] - min) / range) * (height - padding * 2);
+        return <circle cx={lastX} cy={lastY} r="2" fill={strokeColor} />;
+      })()}
+    </svg>
+  );
+};
+
 const RiskDigestCard = ({ onStudyTopic }: RiskDigestCardProps) => {
   const { user } = useAuth();
   const [atRiskTopics, setAtRiskTopics] = useState<AtRiskTopic[]>(() => getCache("risk-digest-topics") || []);
@@ -25,6 +70,7 @@ const RiskDigestCard = ({ onStudyTopic }: RiskDigestCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [digestTime, setDigestTime] = useState<string | null>(null);
+  const [trendData, setTrendData] = useState<Record<string, number[]>>(() => getCache("risk-digest-trends") || {});
 
   const loadDigest = async () => {
     if (!user) return;
@@ -60,13 +106,39 @@ const RiskDigestCard = ({ onStudyTopic }: RiskDigestCardProps) => {
         .limit(6);
 
       if (topics && topics.length > 0) {
-        // Fetch subject names
+        // Fetch subject names + 7-day memory scores in parallel
         const subjectIds = [...new Set(topics.map(t => t.subject_id).filter(Boolean))];
-        const { data: subjects } = subjectIds.length > 0
-          ? await supabase.from("subjects").select("id, name").in("id", subjectIds)
-          : { data: [] };
+        const topicIds = topics.map(t => t.id);
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        const [subjectsRes, scoresRes] = await Promise.all([
+          subjectIds.length > 0
+            ? supabase.from("subjects").select("id, name").in("id", subjectIds)
+            : Promise.resolve({ data: [] }),
+          supabase
+            .from("memory_scores")
+            .select("topic_id, score, recorded_at")
+            .in("topic_id", topicIds)
+            .gte("recorded_at", weekAgo)
+            .order("recorded_at", { ascending: true }),
+        ]);
+
         const subjectMap: Record<string, string> = {};
-        for (const s of subjects || []) subjectMap[s.id] = s.name;
+        for (const s of subjectsRes.data || []) subjectMap[s.id] = s.name;
+
+        // Group scores by topic_id
+        const trends: Record<string, number[]> = {};
+        for (const score of scoresRes.data || []) {
+          if (!trends[score.topic_id]) trends[score.topic_id] = [];
+          trends[score.topic_id].push(Math.round(score.score));
+        }
+        // Append current strength as latest point
+        for (const t of topics) {
+          if (!trends[t.id]) trends[t.id] = [];
+          trends[t.id].push(Math.round(t.memory_strength));
+        }
+        setTrendData(trends);
+        setCache("risk-digest-trends", trends);
 
         const enriched = topics.map(t => ({
           ...t,
@@ -76,7 +148,9 @@ const RiskDigestCard = ({ onStudyTopic }: RiskDigestCardProps) => {
         setCache("risk-digest-topics", enriched);
       } else {
         setAtRiskTopics([]);
+        setTrendData({});
         setCache("risk-digest-topics", []);
+        setCache("risk-digest-trends", {});
       }
     } catch {
       // offline — cached data already loaded
@@ -161,6 +235,7 @@ const RiskDigestCard = ({ onStudyTopic }: RiskDigestCardProps) => {
             {visibleTopics.map((topic, i) => {
               const daysLeft = getDaysUntilDrop(topic.next_predicted_drop_date);
               const strength = Math.round(topic.memory_strength);
+              const sparkData = trendData[topic.id];
 
               return (
                 <motion.div
@@ -195,6 +270,11 @@ const RiskDigestCard = ({ onStudyTopic }: RiskDigestCardProps) => {
                         <div className={`h-full rounded-full ${getBarColor(strength)} transition-all`} style={{ width: `${strength}%` }} />
                       </div>
                     </div>
+
+                    {/* 7-day sparkline */}
+                    {sparkData && sparkData.length >= 2 && (
+                      <Sparkline data={sparkData} />
+                    )}
 
                     {/* One-tap study button */}
                     <button
