@@ -283,14 +283,26 @@ const DAILY_TIPS = [
   { tip: "Break complex topics into smaller chunks — master one before moving on.", category: "Strategy" },
 ];
 
+const TIP_DISMISS_KEY = "daily-tip-dismissed";
+
 const DailyStudyTip = () => {
   const dayIndex = Math.floor(Date.now() / 86400000) % DAILY_TIPS.length;
+  const todayKey = new Date().toDateString();
+  const [dismissed, setDismissed] = useState(() => getCache(TIP_DISMISS_KEY) === todayKey);
   const { tip, category } = DAILY_TIPS[dayIndex];
+
+  if (dismissed) return null;
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    setCache(TIP_DISMISS_KEY, todayKey);
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, height: 0 }}
       transition={{ delay: 0.4 }}
       className="rounded-lg border border-accent/20 bg-accent/5 p-3"
     >
@@ -299,7 +311,13 @@ const DailyStudyTip = () => {
         <span className="text-xs font-semibold text-foreground">Daily Study Tip</span>
         <span className="text-[9px] bg-accent/15 text-accent-foreground px-1.5 py-0.5 rounded-full font-medium ml-auto">{category}</span>
       </div>
-      <p className="text-[11px] text-foreground/80 leading-relaxed">{tip}</p>
+      <p className="text-[11px] text-foreground/80 leading-relaxed mb-2">{tip}</p>
+      <button
+        onClick={handleDismiss}
+        className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors"
+      >
+        ✓ Got it
+      </button>
     </motion.div>
   );
 };
