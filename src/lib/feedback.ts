@@ -107,3 +107,47 @@ export function nudgeFeedback() {
   playWarningSound();
   triggerHaptic([40, 30, 60]);
 }
+
+/** Play a sparkly insight chime — ascending arpeggio with shimmer */
+export function playInsightSound() {
+  if (!isFeedbackEnabled()) return;
+  try {
+    const vol = getFeedbackVolume() / 100;
+    if (vol === 0) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+
+    // Three-note ascending arpeggio (C6 → E6 → G6) with a shimmer tail
+    const notes = [1047, 1319, 1568];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + i * 0.1);
+      gain.gain.setValueAtTime(0.13 * vol, now + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.25);
+      osc.start(now + i * 0.1);
+      osc.stop(now + i * 0.1 + 0.25);
+    });
+
+    // Shimmer overtone
+    const shimmer = ctx.createOscillator();
+    const sGain = ctx.createGain();
+    shimmer.connect(sGain);
+    sGain.connect(ctx.destination);
+    shimmer.type = "triangle";
+    shimmer.frequency.setValueAtTime(2093, now + 0.25);
+    sGain.gain.setValueAtTime(0.06 * vol, now + 0.25);
+    sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    shimmer.start(now + 0.25);
+    shimmer.stop(now + 0.6);
+  } catch {}
+}
+
+/** Combined feedback for weekly insight notifications */
+export function insightFeedback() {
+  playInsightSound();
+  triggerHaptic([20, 40, 20, 40, 20]);
+}
