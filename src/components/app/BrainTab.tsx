@@ -14,6 +14,7 @@ import PassiveLearning from "./PassiveLearning";
 import FocusModeSession from "./FocusModeSession";
 import AIBrainAgent from "./AIBrainAgent";
 import GlobalIntelligenceCard from "./GlobalIntelligenceCard";
+import AIPerformanceCard from "./AIPerformanceCard";
 import CognitiveTwinDashboard from "./CognitiveTwinDashboard";
 import { formatDistanceToNow, isPast, isToday } from "date-fns";
 
@@ -417,6 +418,7 @@ const BrainTab = () => {
 
       {/* Global Collective Intelligence */}
       <GlobalIntelligenceCard />
+      <AIPerformanceCard />
 
       <div>
         <motion.div
