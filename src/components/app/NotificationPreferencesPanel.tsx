@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getCache, setCache } from "@/lib/offlineCache";
+import confetti from "canvas-confetti";
 
 const PREF_KEY = "push-notif-prefs";
 
@@ -103,8 +104,21 @@ const NotificationPreferencesPanel = () => {
       const text = data?.briefing;
       if (text) {
         setBriefingText(text);
-        setLastBriefingAt(new Date().toISOString());
+        const now = new Date();
+        const todayKey = `briefing-${now.toISOString().slice(0, 10)}`;
+        const alreadyToday = getCache<boolean>(todayKey);
+        setLastBriefingAt(now.toISOString());
         toast({ title: "🧠 Brain briefing generated!" });
+
+        if (!alreadyToday) {
+          setCache(todayKey, true);
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.7 },
+            colors: ["hsl(var(--primary))", "hsl(var(--accent))", "#fbbf24", "#60a5fa"],
+          });
+        }
       } else {
         toast({ title: "Could not generate briefing", variant: "destructive" });
       }
