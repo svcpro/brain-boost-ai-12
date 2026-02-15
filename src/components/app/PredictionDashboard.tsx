@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Brain, Target, Calendar, ChevronDown,
-  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check,
+  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check, Copy,
 } from "lucide-react";
 import { BarChart, Bar } from "recharts";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -54,6 +54,7 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy" | "global" | "share">("rank");
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
+  const [copied, setCopied] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
@@ -384,6 +385,36 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
       }, "image/png");
     } catch (e) {
       console.error("Share error:", e);
+      setExporting(false);
+    }
+  }, [exporting, generateCanvas]);
+
+  const copyToClipboard = useCallback(async () => {
+    if (!shareCardRef.current || exporting) return;
+    setExporting(true);
+    try {
+      const canvas = await generateCanvas();
+      if (!canvas) return;
+      canvas.toBlob(async (blob) => {
+        if (!blob) { setExporting(false); return; }
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": blob }),
+          ]);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          // Fallback: download if clipboard not supported
+          const link = document.createElement("a");
+          link.download = `prediction-summary-${format(new Date(), "yyyy-MM-dd")}.png`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }
+        setExporting(false);
+      }, "image/png");
+    } catch (e) {
+      console.error("Copy error:", e);
       setExporting(false);
     }
   }, [exporting, generateCanvas]);
@@ -931,7 +962,7 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                   </div>
 
                   {/* Action buttons */}
-                  <div className={`grid gap-3 ${canShare ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <div className="grid grid-cols-3 gap-3">
                     {canShare && (
                       <button
                         onClick={shareCard}
@@ -941,12 +972,23 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                         {exported ? (
                           <><Check className="w-4 h-4" /> Shared!</>
                         ) : exporting ? (
-                          <><Share2 className="w-4 h-4 animate-pulse" /> Sharing...</>
+                          <><Share2 className="w-4 h-4 animate-pulse" /></>
                         ) : (
                           <><Share2 className="w-4 h-4" /> Share</>
                         )}
                       </button>
                     )}
+                    <button
+                      onClick={copyToClipboard}
+                      disabled={exporting}
+                      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/80 transition-colors disabled:opacity-50"
+                    >
+                      {copied ? (
+                        <><Check className="w-4 h-4" /> Copied!</>
+                      ) : (
+                        <><Copy className="w-4 h-4" /> Copy</>
+                      )}
+                    </button>
                     <button
                       onClick={exportAsImage}
                       disabled={exporting}
@@ -955,9 +997,9 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                       {exported ? (
                         <><Check className="w-4 h-4" /> Saved!</>
                       ) : exporting ? (
-                        <><Download className="w-4 h-4 animate-bounce" /> Exporting...</>
+                        <><Download className="w-4 h-4 animate-bounce" /></>
                       ) : (
-                        <><Download className="w-4 h-4" /> Download</>
+                        <><Download className="w-4 h-4" /> Save</>
                       )}
                     </button>
                   </div>
