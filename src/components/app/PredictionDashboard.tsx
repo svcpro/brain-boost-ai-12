@@ -8,7 +8,7 @@ import { useHybridPrediction, HybridTopicPrediction } from "@/hooks/useHybridPre
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BarChart, Bar } from "recharts";
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, AreaChart, Area, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addDays, differenceInDays, isPast } from "date-fns";
@@ -845,9 +845,9 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                             <p className="text-xs font-semibold text-foreground">Weight Ratio History</p>
                           </div>
                           <p className="text-[10px] text-muted-foreground mb-3">How your personal vs global balance evolved as data maturity grew</p>
-                          <div className="h-40">
+                          <div className="h-48">
                             <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={weightHistory}>
+                              <ComposedChart data={weightHistory}>
                                 <defs>
                                   <linearGradient id="personalGrad" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -856,7 +856,8 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                                 <XAxis dataKey="date" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
-                                <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} width={30} tickFormatter={(v) => `${v}%`} />
+                                <YAxis yAxisId="weight" domain={[0, 100]} tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} width={30} tickFormatter={(v) => `${v}%`} />
+                                <YAxis yAxisId="maturity" orientation="right" domain={[0, "auto"]} tick={{ fontSize: 9, fill: "hsl(var(--chart-4, var(--accent-foreground)))" }} width={35} tickFormatter={(v) => `${v}pt`} />
                                 <Tooltip
                                   contentStyle={{
                                     background: "hsl(var(--popover))",
@@ -866,19 +867,21 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                                     color: "hsl(var(--foreground))",
                                   }}
                                   formatter={(value: number, name: string) => [
-                                    `${value}%`,
-                                    name === "personal" ? "Personal" : name === "global" ? "Global" : "Maturity"
+                                    name === "maturity" ? `${value} pts` : `${value}%`,
+                                    name === "personal" ? "Personal" : name === "global" ? "Global" : "Data Maturity"
                                   ]}
                                 />
-                                <Area type="monotone" dataKey="personal" stroke="hsl(var(--primary))" fill="url(#personalGrad)" strokeWidth={2} />
-                                <Line type="monotone" dataKey="global" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
-                              </AreaChart>
+                                <Area yAxisId="weight" type="monotone" dataKey="personal" stroke="hsl(var(--primary))" fill="url(#personalGrad)" strokeWidth={2} />
+                                <Line yAxisId="weight" type="monotone" dataKey="global" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
+                                <Line yAxisId="maturity" type="monotone" dataKey="maturity" stroke="hsl(var(--accent-foreground))" strokeWidth={2} dot={{ r: 2.5, fill: "hsl(var(--accent-foreground))" }} />
+                              </ComposedChart>
                             </ResponsiveContainer>
                           </div>
                           <div className="flex items-center justify-center gap-4 mt-2">
                             {[
                               { label: "Personal %", color: "bg-primary" },
                               { label: "Global %", color: "bg-muted-foreground" },
+                              { label: "Data Maturity", color: "bg-accent-foreground" },
                             ].map(l => (
                               <div key={l.label} className="flex items-center gap-1.5">
                                 <div className={`w-2.5 h-2.5 rounded-sm ${l.color}`} />
