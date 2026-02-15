@@ -318,6 +318,11 @@ const NotificationPreferencesPanel = () => {
                             transition={{ duration: 0.6, ease: "easeOut" }}
                           />
                         </div>
+                        {nextTier && (
+                          <span className="text-[8px] text-muted-foreground font-medium">
+                            Next: {nextTier.name}
+                          </span>
+                        )}
                       </motion.div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">
