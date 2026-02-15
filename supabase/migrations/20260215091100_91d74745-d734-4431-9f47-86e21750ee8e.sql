@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN auto_use_streak_freeze boolean NOT NULL DEFAULT false;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Snowflake, History, Gift, Check, X, Clock, Timer } from "lucide-react";
+import { Snowflake, History, Gift, Check, X, Clock, Timer, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -50,6 +50,36 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
   const [loadingSentGifts, setLoadingSentGifts] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [giftCooldown, setGiftCooldown] = useState<string | null>(null);
+  const [autoUse, setAutoUse] = useState(false);
+  const [autoUseLoading, setAutoUseLoading] = useState(false);
+
+  // Load auto-use preference
+  useEffect(() => {
+    if (!user) return;
+    (supabase as any)
+      .from("profiles")
+      .select("auto_use_streak_freeze")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) setAutoUse(!!data.auto_use_streak_freeze);
+      });
+  }, [user]);
+
+  const toggleAutoUse = async () => {
+    if (!user) return;
+    setAutoUseLoading(true);
+    const newVal = !autoUse;
+    const { error } = await (supabase as any)
+      .from("profiles")
+      .update({ auto_use_streak_freeze: newVal })
+      .eq("id", user.id);
+    if (!error) {
+      setAutoUse(newVal);
+      toast({ title: newVal ? "🛡️ Auto-shield enabled" : "Auto-shield disabled", description: newVal ? "A freeze will be used automatically if you miss a day." : "You'll need to manually activate freezes." });
+    }
+    setAutoUseLoading(false);
+  };
 
   // Load gift cooldown
   useEffect(() => {
@@ -276,6 +306,28 @@ const StreakFreezeCard = ({ availableFreezes, usedToday, canUseToday, onFreezeUs
       <p className="text-[9px] text-muted-foreground mt-2">
         Skip one day without breaking your streak. Earn freezes at milestones: 7d → 1, 14d → 2, 30d → 3.
       </p>
+
+      {/* Auto-use toggle */}
+      <button
+        onClick={toggleAutoUse}
+        disabled={autoUseLoading}
+        className="mt-2 w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border hover:bg-secondary/30 transition-all disabled:opacity-50"
+      >
+        <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${autoUse ? "text-success" : "text-muted-foreground"}`} />
+        <span className="text-[10px] text-foreground font-medium flex-1 text-left">Auto-shield</span>
+        <div className={`w-8 h-4.5 rounded-full relative transition-colors ${autoUse ? "bg-success" : "bg-secondary"}`}>
+          <motion.div
+            className="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow-sm"
+            animate={{ left: autoUse ? 16 : 2 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          />
+        </div>
+      </button>
+      {autoUse && (
+        <p className="text-[9px] text-success mt-1 px-1">
+          🛡️ A freeze will activate automatically if you miss a day
+        </p>
+      )}
 
       {cooldownText ? (
         <div className="flex items-center gap-1.5 mt-2 px-2 py-1.5 rounded-lg bg-secondary/30">

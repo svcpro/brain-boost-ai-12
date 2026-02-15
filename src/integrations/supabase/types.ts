@@ -482,6 +482,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auto_use_streak_freeze: boolean
           avatar_url: string | null
           created_at: string
           daily_study_goal_minutes: number
@@ -502,6 +503,7 @@ export type Database = {
           weekly_report_hour: number
         }
         Insert: {
+          auto_use_streak_freeze?: boolean
           avatar_url?: string | null
           created_at?: string
           daily_study_goal_minutes?: number
@@ -522,6 +524,7 @@ export type Database = {
           weekly_report_hour?: number
         }
         Update: {
+          auto_use_streak_freeze?: boolean
           avatar_url?: string | null
           created_at?: string
           daily_study_goal_minutes?: number
