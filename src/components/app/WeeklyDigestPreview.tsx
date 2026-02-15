@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame, Quote, Copy, Check } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame, Quote, Copy, Check, Lightbulb } from "lucide-react";
 import html2canvas from "html2canvas";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -262,6 +262,44 @@ const QuoteBanner = ({ quote, streak }: { quote: string; streak: number }) => {
           </button>
         )}
       </div>
+    </motion.div>
+  );
+};
+
+const DAILY_TIPS = [
+  { tip: "Review your weakest topic first thing in the morning when your brain is freshest.", category: "Timing" },
+  { tip: "Use the Pomodoro technique: 25 min focused study, then 5 min break.", category: "Focus" },
+  { tip: "Teach what you learned to someone else — it's the fastest way to find gaps.", category: "Recall" },
+  { tip: "Space your reviews: study today, revisit tomorrow, then in 3 days, then a week.", category: "Memory" },
+  { tip: "Before studying, write down 3 things you already know about the topic.", category: "Priming" },
+  { tip: "Mix different subjects in one session to strengthen neural connections.", category: "Variety" },
+  { tip: "Take handwritten notes — the act of writing boosts retention by 30%.", category: "Notes" },
+  { tip: "End each session by summarizing the key points in your own words.", category: "Recall" },
+  { tip: "Study in different locations to create diverse memory cues.", category: "Environment" },
+  { tip: "Sleep is your secret weapon — your brain consolidates memories while you rest.", category: "Recovery" },
+  { tip: "Use active recall: close the book and try to remember before checking.", category: "Memory" },
+  { tip: "Set a specific goal before each session: 'I will master X by the end.'", category: "Goals" },
+  { tip: "Hydrate! Even mild dehydration reduces cognitive performance by up to 25%.", category: "Health" },
+  { tip: "Break complex topics into smaller chunks — master one before moving on.", category: "Strategy" },
+];
+
+const DailyStudyTip = () => {
+  const dayIndex = Math.floor(Date.now() / 86400000) % DAILY_TIPS.length;
+  const { tip, category } = DAILY_TIPS[dayIndex];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.4 }}
+      className="rounded-lg border border-accent/20 bg-accent/5 p-3"
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Lightbulb className="w-3 h-3 text-accent-foreground" />
+        <span className="text-xs font-semibold text-foreground">Daily Study Tip</span>
+        <span className="text-[9px] bg-accent/15 text-accent-foreground px-1.5 py-0.5 rounded-full font-medium ml-auto">{category}</span>
+      </div>
+      <p className="text-[11px] text-foreground/80 leading-relaxed">{tip}</p>
     </motion.div>
   );
 };
@@ -699,6 +737,9 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
               {data.recommendations}
             </p>
           </div>
+
+          {/* Daily Study Tip */}
+          <DailyStudyTip />
         </div>
       ) : null}
     </motion.div>
