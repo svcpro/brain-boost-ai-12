@@ -629,7 +629,19 @@ const SettingsSection = ({ toast }: { toast: any }) => {
 
   return (
     <div className="space-y-4 max-w-lg">
-      <h2 className="text-xl font-bold text-foreground">App Section Controls</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-foreground">App Section Controls</h2>
+        {!loading && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2.5 py-1 font-medium">
+              {flags.filter(f => f.enabled).length} enabled
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-2.5 py-1 font-medium">
+              {flags.filter(f => !f.enabled).length} disabled
+            </span>
+          </div>
+        )}
+      </div>
       <p className="text-sm text-muted-foreground">Enable or disable tabs and their individual sections for all users.</p>
 
       {/* Search bar */}
