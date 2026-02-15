@@ -15,6 +15,7 @@ export interface PushNotifPrefs {
   studyReminders: boolean;
   brainUpdateReminders: boolean;
   weeklyInsights: boolean;
+  dailyBriefing: boolean;
 }
 
 const defaultPrefs: PushNotifPrefs = {
@@ -23,6 +24,7 @@ const defaultPrefs: PushNotifPrefs = {
   studyReminders: true,
   brainUpdateReminders: true,
   weeklyInsights: true,
+  dailyBriefing: true,
 };
 
 export function getPushNotifPrefs(): PushNotifPrefs {
@@ -113,6 +115,12 @@ const NotificationPreferencesPanel = () => {
       label: "Weekly insights",
       desc: "AI-generated study recommendations every Monday",
       key: "weeklyInsights" as const,
+    },
+    {
+      icon: Brain,
+      label: "Daily morning briefing",
+      desc: "AI cognitive summary sent every morning",
+      key: "dailyBriefing" as const,
     },
   ];
 

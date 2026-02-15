@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.continual-learning]
 verify_jwt = false
+
+[functions.daily-brain-briefing]
+verify_jwt = false
