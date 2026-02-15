@@ -216,6 +216,39 @@ export type Database = {
           },
         ]
       }
+      global_learning_patterns: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json
+          pattern_date: string
+          pattern_key: string
+          pattern_type: string
+          sample_size: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+          pattern_date?: string
+          pattern_key: string
+          pattern_type: string
+          sample_size?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+          pattern_date?: string
+          pattern_key?: string
+          pattern_type?: string
+          sample_size?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       learning_simulations: {
         Row: {
           confidence: number | null

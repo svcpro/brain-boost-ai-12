@@ -13,6 +13,7 @@ import MultiSourceSync from "./MultiSourceSync";
 import PassiveLearning from "./PassiveLearning";
 import FocusModeSession from "./FocusModeSession";
 import AIBrainAgent from "./AIBrainAgent";
+import GlobalIntelligenceCard from "./GlobalIntelligenceCard";
 import CognitiveTwinDashboard from "./CognitiveTwinDashboard";
 import { formatDistanceToNow, isPast, isToday } from "date-fns";
 
@@ -413,6 +414,9 @@ const BrainTab = () => {
 
       {/* AI Brain Agent */}
       <AIBrainAgent />
+
+      {/* Global Collective Intelligence */}
+      <GlobalIntelligenceCard />
 
       <div>
         <motion.div

@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.world-model-simulation]
 verify_jwt = false
+
+[functions.collective-intelligence]
+verify_jwt = false
