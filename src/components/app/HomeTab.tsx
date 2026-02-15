@@ -26,6 +26,7 @@ import BrainUpdateHero, { markBrainUpdated } from "./BrainUpdateHero";
 import RecentlyStudied from "./RecentlyStudied";
 import QuickStudySignalModal from "./QuickStudySignalModal";
 import DailyQuote from "./DailyQuote";
+import { useStudyStreak } from "@/hooks/useStudyStreak";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -42,6 +43,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const { toast } = useToast();
   const voice = useVoice();
   const [burnoutData, setBurnoutData] = useState<{ burnout_score: number; risk_level: string; recommendations: string[] } | null>(null);
+  const { streak: streakData, loadStreak } = useStudyStreak();
+  const [latestCompletionRate, setLatestCompletionRate] = useState<number>(50);
   const [recommendations, setRecommendations] = useState<any[]>(() => getCache("home-recommendations") || []);
   const [examDaysLeft, setExamDaysLeft] = useState<number | null>(() => getCache("home-exam-days"));
   const recsRef = useRef<HTMLDivElement>(null);
@@ -86,6 +89,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       if (data) setBurnoutData(data);
     }).catch(() => {});
     loadExamDate();
+    loadStreak();
+    // Load latest plan completion rate
+    if (user) {
+      supabase.from("plan_quality_logs").select("overall_completion_rate").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).then(({ data }) => {
+        if (data?.[0]?.overall_completion_rate != null) setLatestCompletionRate(data[0].overall_completion_rate * 100);
+      });
+    }
     // Load avatar
     if (user) {
       supabase.from("profiles").select("avatar_url, display_name").eq("id", user.id).maybeSingle().then(({ data }) => {
@@ -417,7 +427,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       </AnimatePresence>
 
       {/* Daily Motivational Quote */}
-      <DailyQuote />
+      <DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} />
 
       {/* Brain Update Hero — opens Quick Study Signal */}
       <BrainUpdateHero
