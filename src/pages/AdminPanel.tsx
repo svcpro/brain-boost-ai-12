@@ -186,21 +186,25 @@ const AdminPanel = () => {
 const DashboardSection = () => {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activityData, setActivityData] = useState<{ date: string; sessions: number; minutes: number }[]>([]);
+  const [activityData, setActivityData] = useState<{ date: string; sessions: number; minutes: number; uniqueUsers: number }[]>([]);
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+  const [chartMode, setChartMode] = useState<"minutes" | "sessions" | "users">("minutes");
+  const [engagementData, setEngagementData] = useState<{ avgSessionMin: number; dau: number; wau: number; mau: number; retentionPct: number; peakHour: number; totalHours: number; avgDailyHours: number }>({ avgSessionMin: 0, dau: 0, wau: 0, mau: 0, retentionPct: 0, peakHour: 0, totalHours: 0, avgDailyHours: 0 });
 
   useEffect(() => {
     (async () => {
       const today = new Date().toISOString().split("T")[0];
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
       const [usersRes, subsRes, logsRes, predsRes, activityRes] = await Promise.all([
         supabase.from("profiles").select("id, created_at", { count: "exact" }),
         supabase.from("user_subscriptions").select("id, plan_id, amount, status"),
         supabase.from("study_logs").select("id, created_at").gte("created_at", today),
         supabase.from("model_predictions").select("id").gte("created_at", today),
-        supabase.from("study_logs").select("created_at, duration_minutes").gte("created_at", thirtyDaysAgo.toISOString()),
+        supabase.from("study_logs").select("user_id, created_at, duration_minutes").gte("created_at", thirtyDaysAgo.toISOString()),
       ]);
       const totalUsers = usersRes.count || 0;
       const activeSubs = (subsRes.data || []).filter(s => s.status === "active" && s.plan_id !== "free").length;
@@ -208,21 +212,51 @@ const DashboardSection = () => {
       const newToday = (usersRes.data || []).filter(u => u.created_at >= today).length;
       setStats({ totalUsers, activeSubs, revenue, newToday, studySessions: logsRes.data?.length || 0, predictions: predsRes.data?.length || 0 });
 
-      // Build 30-day activity map
-      const dayMap: Record<string, { sessions: number; minutes: number }> = {};
+      const allLogs = activityRes.data || [];
+
+      // Build 30-day activity map with unique users
+      const dayMap: Record<string, { sessions: number; minutes: number; users: Set<string> }> = {};
       for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        dayMap[format(d, "MMM d")] = { sessions: 0, minutes: 0 };
+        dayMap[format(d, "MMM d")] = { sessions: 0, minutes: 0, users: new Set() };
       }
-      for (const log of (activityRes.data || [])) {
+      for (const log of allLogs) {
         const key = format(new Date(log.created_at), "MMM d");
         if (dayMap[key]) {
           dayMap[key].sessions++;
           dayMap[key].minutes += log.duration_minutes || 0;
+          dayMap[key].users.add(log.user_id);
         }
       }
-      setActivityData(Object.entries(dayMap).map(([date, v]) => ({ date, ...v })));
+      setActivityData(Object.entries(dayMap).map(([date, v]) => ({ date, sessions: v.sessions, minutes: v.minutes, uniqueUsers: v.users.size })));
+
+      // Engagement metrics
+      const totalMinutes = allLogs.reduce((s, l) => s + (l.duration_minutes || 0), 0);
+      const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+      const avgDailyHours = Math.round(totalHours / 30 * 10) / 10;
+      const avgSessionMin = allLogs.length > 0 ? Math.round(totalMinutes / allLogs.length) : 0;
+
+      // DAU (today), WAU (7d), MAU (30d)
+      const todayUsers = new Set(allLogs.filter(l => l.created_at >= today).map(l => l.user_id));
+      const weekUsers = new Set(allLogs.filter(l => l.created_at >= sevenDaysAgo.toISOString()).map(l => l.user_id));
+      const monthUsers = new Set(allLogs.map(l => l.user_id));
+
+      // Retention: users active in both first 15 days and last 15 days
+      const mid = new Date();
+      mid.setDate(mid.getDate() - 15);
+      const midStr = mid.toISOString();
+      const firstHalf = new Set(allLogs.filter(l => l.created_at < midStr).map(l => l.user_id));
+      const secondHalf = new Set(allLogs.filter(l => l.created_at >= midStr).map(l => l.user_id));
+      const retained = [...firstHalf].filter(u => secondHalf.has(u)).length;
+      const retentionPct = firstHalf.size > 0 ? Math.round((retained / firstHalf.size) * 100) : 0;
+
+      // Peak study hour
+      const hourCounts = new Array(24).fill(0);
+      for (const l of allLogs) hourCounts[new Date(l.created_at).getHours()]++;
+      const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+
+      setEngagementData({ avgSessionMin, dau: todayUsers.size, wau: weekUsers.size, mau: monthUsers.size, retentionPct, peakHour, totalHours, avgDailyHours });
       setLoading(false);
     })();
   }, []);
@@ -238,13 +272,27 @@ const DashboardSection = () => {
     { label: "AI Predictions", value: stats.predictions, icon: Zap, color: "text-accent" },
   ];
 
-  const maxMinutes = Math.max(...activityData.map(d => d.minutes), 1);
+  const chartData = activityData.map(d => chartMode === "minutes" ? d.minutes : chartMode === "sessions" ? d.sessions : d.uniqueUsers);
+  const maxVal = Math.max(...chartData, 1);
   const chartHeight = 160;
-  const barWidth = 100 / activityData.length;
+  const chartLabel = chartMode === "minutes" ? "min" : chartMode === "sessions" ? "sess" : "users";
+
+  const engagementCards = [
+    { label: "Total Study Hours", value: engagementData.totalHours.toLocaleString(), sub: `${engagementData.avgDailyHours}h/day avg`, icon: Clock, color: "text-primary" },
+    { label: "Daily Active Users", value: engagementData.dau, sub: `of ${stats.totalUsers} total`, icon: Users, color: "text-success" },
+    { label: "Weekly Active", value: engagementData.wau, sub: `${stats.totalUsers > 0 ? Math.round((engagementData.wau / stats.totalUsers) * 100) : 0}% of users`, icon: Activity, color: "text-accent" },
+    { label: "Monthly Active", value: engagementData.mau, sub: `${stats.totalUsers > 0 ? Math.round((engagementData.mau / stats.totalUsers) * 100) : 0}% of users`, icon: TrendingUp, color: "text-warning" },
+    { label: "Avg Session", value: `${engagementData.avgSessionMin}m`, sub: "per study session", icon: Clock, color: "text-primary" },
+    { label: "Retention Rate", value: `${engagementData.retentionPct}%`, sub: "15-day cohort", icon: Shield, color: engagementData.retentionPct >= 50 ? "text-success" : "text-warning" },
+    { label: "Peak Hour", value: `${engagementData.peakHour}:00`, sub: "most study activity", icon: Zap, color: "text-accent" },
+    { label: "Today's Sessions", value: stats.studySessions, sub: `${engagementData.dau} active users`, icon: BarChart3, color: "text-primary" },
+  ];
 
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-foreground">Dashboard</h2>
+
+      {/* Quick stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {cards.map((c, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="glass rounded-xl p-4 neural-border">
@@ -257,14 +305,41 @@ const DashboardSection = () => {
         ))}
       </div>
 
+      {/* Engagement metrics */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Engagement Overview</h3>
+          <span className="text-[10px] text-muted-foreground ml-auto">Last 30 days</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {engagementCards.map((c, i) => (
+            <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.25 + i * 0.03 }} className="glass rounded-xl p-3.5 neural-border">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <c.icon className={`w-3.5 h-3.5 ${c.color}`} />
+                <span className="text-[10px] text-muted-foreground">{c.label}</span>
+              </div>
+              <p className="text-lg font-bold text-foreground">{c.value}</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">{c.sub}</p>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+
       {/* 30-day Platform Activity Chart */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl p-5 neural-border">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">Platform Study Activity</h3>
           </div>
-          <span className="text-[10px] text-muted-foreground">Last 30 days · Total {activityData.reduce((s, d) => s + d.sessions, 0)} sessions</span>
+          <div className="flex items-center gap-2">
+            {(["minutes", "sessions", "users"] as const).map(m => (
+              <button key={m} onClick={() => setChartMode(m)} className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors capitalize ${chartMode === m ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+                {m === "minutes" ? "Study Time" : m === "sessions" ? "Sessions" : "Active Users"}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="relative" style={{ height: chartHeight }}>
@@ -272,7 +347,7 @@ const DashboardSection = () => {
           {[0, 0.25, 0.5, 0.75, 1].map(pct => (
             <div key={pct} className="absolute left-0 right-0 border-t border-border/30" style={{ bottom: `${pct * 100}%` }}>
               {pct > 0 && (
-                <span className="absolute -top-2.5 -left-1 text-[8px] text-muted-foreground">{Math.round(maxMinutes * pct)}m</span>
+                <span className="absolute -top-2.5 -left-1 text-[8px] text-muted-foreground">{Math.round(maxVal * pct)}{chartMode === "minutes" ? "m" : ""}</span>
               )}
             </div>
           ))}
@@ -280,7 +355,8 @@ const DashboardSection = () => {
           {/* Bars */}
           <div className="flex items-end h-full gap-[1px] pl-6">
             {activityData.map((d, i) => {
-              const h = (d.minutes / maxMinutes) * 100;
+              const val = chartData[i];
+              const h = (val / maxVal) * 100;
               return (
                 <div
                   key={i}
@@ -292,15 +368,14 @@ const DashboardSection = () => {
                   <div
                     className="absolute bottom-0 left-[10%] right-[10%] rounded-t-sm transition-all duration-200"
                     style={{
-                      height: `${Math.max(h, d.minutes > 0 ? 2 : 0)}%`,
+                      height: `${Math.max(h, val > 0 ? 2 : 0)}%`,
                       backgroundColor: hoveredBar === i ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.5)",
                     }}
                   />
-                  {/* Tooltip */}
                   {hoveredBar === i && (
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 bg-popover border border-border rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap pointer-events-none">
                       <p className="text-[10px] font-semibold text-foreground">{d.date}</p>
-                      <p className="text-[9px] text-muted-foreground">{d.sessions} sessions · {d.minutes} min</p>
+                      <p className="text-[9px] text-muted-foreground">{d.minutes} min · {d.sessions} sessions · {d.uniqueUsers} users</p>
                     </div>
                   )}
                 </div>
@@ -318,6 +393,16 @@ const DashboardSection = () => {
               )}
             </div>
           ))}
+        </div>
+
+        {/* Summary strip */}
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
+          <span className="text-[10px] text-muted-foreground">
+            30-day total: <span className="font-semibold text-foreground">{activityData.reduce((s, d) => s + d.minutes, 0).toLocaleString()} min</span> across <span className="font-semibold text-foreground">{activityData.reduce((s, d) => s + d.sessions, 0).toLocaleString()} sessions</span>
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            Avg: <span className="font-semibold text-foreground">{Math.round(activityData.reduce((s, d) => s + d.uniqueUsers, 0) / 30)} users/day</span>
+          </span>
         </div>
       </motion.div>
     </div>
