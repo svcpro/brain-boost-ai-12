@@ -55,6 +55,7 @@ const modeConfig: Record<string, { icon: typeof BookOpen; color: string; bg: str
 
 const StudyPlanGenerator = () => {
   const [plan, setPlan] = useState<StudyPlan | null>(null);
+  const [rlSignals, setRlSignals] = useState<Record<string, any> | null>(null);
   const [savedPlan, setSavedPlan] = useState<SavedPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -133,6 +134,7 @@ const StudyPlanGenerator = () => {
       }
       const data = await response.json();
       setPlan(data.plan);
+      setRlSignals(data.rl_signals || null);
       setShowSaved(false);
       setExpandedDay(0);
       toast({ title: "Study plan generated! 🧠" });
@@ -178,8 +180,20 @@ const StudyPlanGenerator = () => {
       const { error: sessErr } = await supabase.from("plan_sessions").insert(sessionRows);
       if (sessErr) throw sessErr;
 
+      // Save RL quality log for this plan
+      const totalSessions = sessionRows.length;
+      await supabase.from("plan_quality_logs").insert({
+        user_id: user.id,
+        plan_id: newPlan.id,
+        rl_signals: rlSignals || {},
+        sessions_total: totalSessions,
+        sessions_completed: 0,
+        overall_completion_rate: 0,
+      });
+
       toast({ title: "Plan saved! ✅" });
       setPlan(null);
+      setRlSignals(null);
       setShowSaved(true);
       await loadSavedPlan();
     } catch (e: any) {
@@ -203,6 +217,17 @@ const StudyPlanGenerator = () => {
         sessions: prev.sessions.map((s) => s.id === sessionId ? { ...s, completed: newCompleted } : s),
       };
       localStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+
+      // Update plan quality log with latest completion rate
+      const completedCount = updated.sessions.filter((s) => s.completed).length;
+      const totalCount = updated.sessions.length;
+      const rate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+      supabase
+        .from("plan_quality_logs")
+        .update({ sessions_completed: completedCount, overall_completion_rate: rate })
+        .eq("plan_id", prev.id)
+        .then(() => {});
+
       return updated;
     });
   };

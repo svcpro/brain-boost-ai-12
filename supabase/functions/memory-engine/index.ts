@@ -415,6 +415,7 @@ serve(async (req) => {
 
       // Compute RL signals from historical sessions
       let rlFeedback = "";
+      let rlSignals: Record<string, any> = {};
       if (pastSessions && pastSessions.length > 0) {
         const total = pastSessions.length;
         const completed = pastSessions.filter((s: any) => s.completed).length;
@@ -487,6 +488,30 @@ USE THIS DATA TO OPTIMIZE:
 - Reduce load on days with low completion rates
 - For frequently skipped topics, try shorter/lighter sessions instead
 - For frequently completed topics, you can safely assign longer/deeper sessions`;
+
+        // Build structured RL signals for storage
+        const modeRates: Record<string, number> = {};
+        for (const [m, s] of Object.entries(modeStats)) {
+          modeRates[m] = Math.round((s.done / s.total) * 100);
+        }
+        const dayRates: Record<string, number> = {};
+        for (const [d, s] of Object.entries(dayStats)) {
+          dayRates[d] = Math.round((s.done / s.total) * 100);
+        }
+        const durationRates: Record<string, number> = {};
+        for (const [b, s] of Object.entries(durationBuckets)) {
+          if (s.total > 0) durationRates[b] = Math.round((s.done / s.total) * 100);
+        }
+
+        rlSignals = {
+          sample_size: total,
+          overall_completion_rate: completionRate,
+          by_mode: modeRates,
+          by_day: dayRates,
+          by_duration: durationRates,
+          most_skipped: Object.entries(topicSkips).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t, n]) => ({ topic: t, count: n })),
+          most_completed: Object.entries(topicCompletions).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t, n]) => ({ topic: t, count: n })),
+        };
       }
       // ── End RL feedback ──
 
@@ -622,7 +647,7 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
         plan = JSON.parse(toolCall.function.arguments);
       }
 
-      return new Response(JSON.stringify({ plan }), {
+      return new Response(JSON.stringify({ plan, rl_signals: rlSignals }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
