@@ -59,3 +59,9 @@ verify_jwt = false
 
 [functions.on-demand-briefing]
 verify_jwt = false
+
+[functions.cognitive-twin]
+verify_jwt = false
+
+[functions.meta-learning]
+verify_jwt = false
