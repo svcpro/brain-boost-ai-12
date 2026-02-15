@@ -29,6 +29,7 @@ import DailyQuote from "./DailyQuote";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import StreakMilestoneCelebration from "./StreakMilestoneCelebration";
 import StreakRecoveryCard from "./StreakRecoveryCard";
+import ComebackCelebration from "./ComebackCelebration";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -57,6 +58,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [recoverySessionOpen, setRecoverySessionOpen] = useState(false);
+  const [showComeback, setShowComeback] = useState(false);
   const lastScrollY = useRef(0);
 
   // Hide FAB on scroll down, show on scroll up
@@ -512,9 +514,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <FocusModeSession
         open={recoverySessionOpen}
         onClose={() => setRecoverySessionOpen(false)}
-        onSessionComplete={() => { setRecoverySessionOpen(false); loadStreak(); }}
+        onSessionComplete={() => { setRecoverySessionOpen(false); setShowComeback(true); loadStreak(); }}
         autoStart
       />
+
+      {/* Comeback Celebration */}
+      <ComebackCelebration show={showComeback} onDismiss={() => setShowComeback(false)} />
 
       {/* Daily Study Tip */}
       <DailyStudyTip />
