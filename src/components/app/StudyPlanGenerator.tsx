@@ -536,15 +536,23 @@ const StudyPlanGenerator = () => {
         whileTap={{ scale: 0.98 }}
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-warning/10">
+          <motion.div
+            className="p-2 rounded-lg bg-warning/10"
+            {...(rlInsights && (rlInsights.latest_completion_rate ?? 100) < 50 ? {
+              animate: { scale: [1, 1.2, 1], opacity: [1, 0.7, 1] },
+              transition: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
+            } : {})}
+          >
             <Zap className="w-4 h-4 text-warning" />
-          </div>
+          </motion.div>
           <div className="flex-1">
             <h4 className="text-sm font-medium text-foreground group-hover:text-warning transition-colors">
               Quick 15-min Plan
             </h4>
             <p className="text-[11px] text-muted-foreground">
-              Low-energy mode — 2-3 short sessions on your most critical topics
+              {rlInsights && (rlInsights.latest_completion_rate ?? 100) < 50
+                ? "Recommended for you — short wins build momentum ✨"
+                : "Low-energy mode — 2-3 short sessions on your most critical topics"}
             </p>
           </div>
           <Clock className="w-4 h-4 text-muted-foreground" />
