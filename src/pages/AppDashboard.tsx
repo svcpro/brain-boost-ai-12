@@ -1,5 +1,7 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Bell } from "lucide-react";
+import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Bell, Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import HomeTab from "@/components/app/HomeTab";
 import ActionTab from "@/components/app/ActionTab";
 import BrainTab from "@/components/app/BrainTab";
@@ -35,6 +37,8 @@ const AppDashboard = () => {
   const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
   const [autoOpenNotifHistory, setAutoOpenNotifHistory] = useState(false);
   const { user } = useAuth();
+  const { isAdmin } = useAdminRole();
+  const navigate = useNavigate();
   const [recCount, setRecCount] = useState(0);
   const [pendingGifts, setPendingGifts] = useState(0);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
@@ -209,7 +213,12 @@ const AppDashboard = () => {
             </div>
             <span className="font-display font-bold text-lg text-foreground">ACRY</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button onClick={() => navigate("/admin")} className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Admin Panel">
+                <Shield className="w-4 h-4 text-primary" />
+              </button>
+            )}
             <div className="px-3 py-1 rounded-full neural-gradient neural-border text-xs text-primary font-medium">
               {currentPlan === "ultra" ? "Ultra Brain" : currentPlan === "pro" ? "Pro Brain" : "Free Brain"}
             </div>
