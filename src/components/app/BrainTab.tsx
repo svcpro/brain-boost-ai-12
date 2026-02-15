@@ -13,6 +13,7 @@ import MultiSourceSync from "./MultiSourceSync";
 import PassiveLearning from "./PassiveLearning";
 import FocusModeSession from "./FocusModeSession";
 import AIBrainAgent from "./AIBrainAgent";
+import CognitiveTwinDashboard from "./CognitiveTwinDashboard";
 import { formatDistanceToNow, isPast, isToday } from "date-fns";
 
 interface TopicInfo {
@@ -407,7 +408,9 @@ const BrainTab = () => {
         </motion.div>
       )}
 
-      {/* Tools Grid */}
+      {/* Cognitive Digital Twin & Meta-Learning */}
+      <CognitiveTwinDashboard />
+
       {/* AI Brain Agent */}
       <AIBrainAgent />
 

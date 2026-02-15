@@ -85,6 +85,63 @@ export type Database = {
         }
         Relationships: []
       }
+      cognitive_twins: {
+        Row: {
+          avg_decay_rate: number | null
+          avg_learning_speed: number | null
+          brain_evolution_score: number | null
+          cognitive_capacity_score: number | null
+          computed_at: string
+          created_at: string
+          fatigue_threshold_minutes: number | null
+          id: string
+          learning_efficiency_score: number | null
+          memory_growth_rate: number | null
+          optimal_session_duration: number | null
+          optimal_study_hour: number | null
+          recall_pattern_type: string | null
+          topic_models: Json
+          twin_version: number | null
+          user_id: string
+        }
+        Insert: {
+          avg_decay_rate?: number | null
+          avg_learning_speed?: number | null
+          brain_evolution_score?: number | null
+          cognitive_capacity_score?: number | null
+          computed_at?: string
+          created_at?: string
+          fatigue_threshold_minutes?: number | null
+          id?: string
+          learning_efficiency_score?: number | null
+          memory_growth_rate?: number | null
+          optimal_session_duration?: number | null
+          optimal_study_hour?: number | null
+          recall_pattern_type?: string | null
+          topic_models?: Json
+          twin_version?: number | null
+          user_id: string
+        }
+        Update: {
+          avg_decay_rate?: number | null
+          avg_learning_speed?: number | null
+          brain_evolution_score?: number | null
+          cognitive_capacity_score?: number | null
+          computed_at?: string
+          created_at?: string
+          fatigue_threshold_minutes?: number | null
+          id?: string
+          learning_efficiency_score?: number | null
+          memory_growth_rate?: number | null
+          optimal_session_duration?: number | null
+          optimal_study_hour?: number | null
+          recall_pattern_type?: string | null
+          topic_models?: Json
+          twin_version?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       exam_results: {
         Row: {
           created_at: string
@@ -159,6 +216,42 @@ export type Database = {
           },
         ]
       }
+      learning_simulations: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          input_params: Json
+          predicted_rank_change: number | null
+          predicted_retention: number | null
+          scenario_type: string
+          simulation_result: Json
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          input_params?: Json
+          predicted_rank_change?: number | null
+          predicted_retention?: number | null
+          scenario_type?: string
+          simulation_result?: Json
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          input_params?: Json
+          predicted_rank_change?: number | null
+          predicted_retention?: number | null
+          scenario_type?: string
+          simulation_result?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       memory_scores: {
         Row: {
           id: string
@@ -193,6 +286,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meta_learning_strategies: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          iteration: number | null
+          performance_score: number | null
+          strategy_params: Json
+          strategy_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          iteration?: number | null
+          performance_score?: number | null
+          strategy_params?: Json
+          strategy_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          iteration?: number | null
+          performance_score?: number | null
+          strategy_params?: Json
+          strategy_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       ml_events: {
         Row: {
@@ -344,6 +473,39 @@ export type Database = {
           prediction?: Json
           user_id?: string
           validated_at?: string | null
+        }
+        Relationships: []
+      }
+      model_selections: {
+        Row: {
+          active_model: string
+          candidate_models: Json
+          created_at: string
+          id: string
+          last_evaluated_at: string | null
+          model_domain: string
+          performance_history: Json
+          user_id: string
+        }
+        Insert: {
+          active_model: string
+          candidate_models?: Json
+          created_at?: string
+          id?: string
+          last_evaluated_at?: string | null
+          model_domain: string
+          performance_history?: Json
+          user_id: string
+        }
+        Update: {
+          active_model?: string
+          candidate_models?: Json
+          created_at?: string
+          id?: string
+          last_evaluated_at?: string | null
+          model_domain?: string
+          performance_history?: Json
+          user_id?: string
         }
         Relationships: []
       }
