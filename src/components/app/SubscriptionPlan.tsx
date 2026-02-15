@@ -1,61 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Crown, Check, Sparkles, Zap, Brain, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-const plans = [
-  {
-    id: "free",
-    name: "Free Brain",
-    price: "₹0",
-    priceNum: 0,
-    period: "forever",
-    icon: Brain,
-    features: [
-      "5 subjects & 20 topics",
-      "Basic memory tracking",
-      "Daily study reminders",
-      "Community leaderboard",
-    ],
-    current: false,
-  },
-  {
-    id: "pro",
-    name: "Pro Brain",
-    price: "₹199",
-    priceNum: 199,
-    period: "/month",
-    icon: Zap,
-    popular: true,
-    features: [
-      "Unlimited subjects & topics",
-      "AI exam simulator",
-      "Advanced analytics",
-      "Voice notifications",
-      "Priority support",
-      "Weekly AI reports",
-    ],
-  },
-  {
-    id: "ultra",
-    name: "Ultra Brain",
-    price: "₹499",
-    priceNum: 499,
-    period: "/month",
-    icon: Sparkles,
-    features: [
-      "Everything in Pro",
-      "AI study coach (1-on-1)",
-      "Custom study plans",
-      "Peer competition insights",
-      "Offline mode",
-      "Data export & backup",
-      "Early access to features",
-    ],
-  },
-];
+const ICON_MAP: Record<string, any> = { free: Brain, pro: Zap, ultra: Sparkles };
 
 interface SubscriptionPlanProps {
   onClose: () => void;
@@ -68,6 +18,16 @@ const SubscriptionPlan = ({ onClose, currentPlan = "free", onPlanChanged }: Subs
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState(currentPlan);
   const [loading, setLoading] = useState(false);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("subscription_plans").select("*").eq("is_active", true).order("sort_order");
+      setPlans(data || []);
+      setPlansLoading(false);
+    })();
+  }, []);
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -80,9 +40,9 @@ const SubscriptionPlan = ({ onClose, currentPlan = "free", onPlanChanged }: Subs
     });
   };
 
-  const handleSubscribe = async (planId: string) => {
-    if (planId === "free" || !user) return;
-    const plan = plans.find((p) => p.id === planId);
+  const handleSubscribe = async (planKey: string) => {
+    if (planKey === "free" || !user) return;
+    const plan = plans.find((p) => p.plan_key === planKey);
     if (!plan) return;
 
     setLoading(true);
@@ -90,16 +50,14 @@ const SubscriptionPlan = ({ onClose, currentPlan = "free", onPlanChanged }: Subs
       const loaded = await loadRazorpayScript();
       if (!loaded) throw new Error("Failed to load payment SDK");
 
-      // Create order via edge function
       const { data, error } = await supabase.functions.invoke("razorpay-order", {
-        body: { action: "create_order", plan_id: planId, amount: plan.priceNum },
+        body: { action: "create_order", plan_id: planKey, amount: plan.price },
       });
 
       if (error || data?.error) throw new Error(data?.error || error?.message);
 
       const { order, key_id } = data;
 
-      // Open Razorpay checkout
       const options = {
         key: key_id,
         amount: order.amount,
@@ -108,12 +66,11 @@ const SubscriptionPlan = ({ onClose, currentPlan = "free", onPlanChanged }: Subs
         description: `${plan.name} Subscription`,
         order_id: order.id,
         handler: async (response: any) => {
-          // Verify payment
           const { data: verifyData, error: verifyError } = await supabase.functions.invoke("razorpay-order", {
             body: {
               action: "verify_payment",
-              plan_id: planId,
-              amount: plan.priceNum,
+              plan_id: planKey,
+              amount: plan.price,
               order_id: response.razorpay_order_id,
               payment_id: response.razorpay_payment_id,
               signature: response.razorpay_signature,
@@ -162,53 +119,60 @@ const SubscriptionPlan = ({ onClose, currentPlan = "free", onPlanChanged }: Subs
 
         <p className="text-xs text-muted-foreground">Upgrade your brain to unlock premium AI features.</p>
 
-        <div className="space-y-3">
-          {plans.map((plan) => (
-            <motion.button
-              key={plan.id}
-              onClick={() => setSelectedPlan(plan.id)}
-              className={`w-full text-left p-4 rounded-xl transition-all border relative ${
-                selectedPlan === plan.id
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-secondary/20 hover:border-primary/50"
-              }`}
-              whileTap={{ scale: 0.98 }}
-            >
-              {plan.popular && (
-                <span className="absolute -top-2 right-3 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold">
-                  POPULAR
-                </span>
-              )}
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  plan.id === currentPlan ? "bg-secondary" : "neural-gradient neural-border"
-                }`}>
-                  <plan.icon className={`w-5 h-5 ${plan.id === currentPlan ? "text-muted-foreground" : "text-primary"}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{plan.name}</p>
-                  <p className="text-xs">
-                    <span className="text-foreground font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period}</span>
-                  </p>
-                </div>
-                {plan.id === currentPlan && (
-                  <span className="ml-auto px-2 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-medium">
-                    Current
-                  </span>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                {plan.features.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Check className={`w-3 h-3 ${plan.id === currentPlan ? "text-muted-foreground" : "text-success"}`} />
-                    <span className="text-[11px] text-muted-foreground">{f}</span>
+        {plansLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+        ) : (
+          <div className="space-y-3">
+            {plans.map((plan) => {
+              const IconComp = ICON_MAP[plan.plan_key] || Zap;
+              return (
+                <motion.button
+                  key={plan.id}
+                  onClick={() => setSelectedPlan(plan.plan_key)}
+                  className={`w-full text-left p-4 rounded-xl transition-all border relative ${
+                    selectedPlan === plan.plan_key
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-secondary/20 hover:border-primary/50"
+                  }`}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {plan.is_popular && (
+                    <span className="absolute -top-2 right-3 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold">
+                      POPULAR
+                    </span>
+                  )}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      plan.plan_key === currentPlan ? "bg-secondary" : "neural-gradient neural-border"
+                    }`}>
+                      <IconComp className={`w-5 h-5 ${plan.plan_key === currentPlan ? "text-muted-foreground" : "text-primary"}`} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{plan.name}</p>
+                      <p className="text-xs">
+                        <span className="text-foreground font-bold">₹{plan.price}</span>
+                        <span className="text-muted-foreground">/{plan.billing_period}</span>
+                      </p>
+                    </div>
+                    {plan.plan_key === currentPlan && (
+                      <span className="ml-auto px-2 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-medium">
+                        Current
+                      </span>
+                    )}
                   </div>
-                ))}
-              </div>
-            </motion.button>
-          ))}
-        </div>
+                  <div className="space-y-1.5">
+                    {(plan.features as string[])?.map((f: string, i: number) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Check className={`w-3 h-3 ${plan.plan_key === currentPlan ? "text-muted-foreground" : "text-success"}`} />
+                        <span className="text-[11px] text-muted-foreground">{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
 
         {selectedPlan !== "free" && selectedPlan !== currentPlan && (
           <motion.button
@@ -219,7 +183,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "free", onPlanChanged }: Subs
             className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? "Processing..." : `Upgrade to ${plans.find(p => p.id === selectedPlan)?.name}`}
+            {loading ? "Processing..." : `Upgrade to ${plans.find(p => p.plan_key === selectedPlan)?.name}`}
           </motion.button>
         )}
       </motion.div>
