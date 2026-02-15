@@ -13,6 +13,7 @@ export interface VoiceContext {
   rank_change?: number;
   daily_minutes?: number;
   daily_topic?: string;
+  userName?: string;
 }
 
 export interface VoiceSettings {
@@ -66,13 +67,28 @@ export function useVoiceNotification() {
     stop();
 
     try {
+      // Resolve user's display name for personalized voice
+      let userName: string | undefined;
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        userName = profile?.display_name
+          || session.user.user_metadata?.full_name
+          || session.user.user_metadata?.name
+          || session.user.user_metadata?.display_name
+          || session.user.email?.split("@")[0];
+      }
+
       const { data, error } = await supabase.functions.invoke("voice-notification", {
         body: {
           type,
           language: settings.language,
           tone: settings.tone,
           voiceId: settings.voiceId || "EXAVITQu4vr4xnSDxMaL",
-          context: context || {},
+          context: { ...context, userName },
         },
       });
 
