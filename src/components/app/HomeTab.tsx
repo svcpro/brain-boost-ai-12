@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight, User, BookOpen, Plus, Sparkles, Flame, X } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
@@ -14,6 +14,7 @@ import StreakTracker from "./StreakTracker";
 import ReviewQueue from "./ReviewQueue";
 import { notifyFeedback } from "@/lib/feedback";
 import { useVoice } from "@/pages/AppDashboard";
+import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import NextReminderIndicator from "./NextReminderIndicator";
 import WeeklyReminderSummary from "./WeeklyReminderSummary";
@@ -45,6 +46,7 @@ interface HomeTabProps {
 }
 
 const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSettings, onNavigateToBrain, onNavigateToYou }: HomeTabProps) => {
+  const { isEnabled } = useFeatureFlagContext();
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
   const { user } = useAuth();
@@ -462,7 +464,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       )}
 
       {/* Mini Brain Health Badge */}
-      {hasTopics && prediction && (
+      {isEnabled('home_brain_health') && hasTopics && prediction && (
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -514,13 +516,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       )}
 
       {/* Brain Missions — personalized daily missions */}
-      {hasTopics && <BrainMissionsCard />}
+      {isEnabled('home_brain_missions') && hasTopics && <BrainMissionsCard />}
 
       {/* Cognitive DNA — embedding visualization */}
-      {hasTopics && <CognitiveEmbeddingCard />}
+      {isEnabled('home_cognitive_embedding') && hasTopics && <CognitiveEmbeddingCard />}
 
       {/* Risk Digest Card */}
-      <RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} />
+      {isEnabled('home_risk_digest') && <RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} />}
 
       <AnimatePresence>
         {analyzing && (
@@ -557,14 +559,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       </AnimatePresence>
 
       {/* Daily Motivational Quote */}
-      <DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} />
+      {isEnabled('home_daily_quote') && <DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} />}
 
       {/* Brain Update Hero — opens Quick Study Signal */}
-      <BrainUpdateHero
+      {isEnabled('home_brain_update') && <BrainUpdateHero
         onOpen={() => openSignalWithPrefill()}
         overallHealth={overallHealth}
         hasTopics={hasTopics}
-      />
+      />}
 
       {/* Quick Study Signal Modal */}
       <QuickStudySignalModal
@@ -581,15 +583,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         }}
       />
       {/* Weekly Summary Notification */}
-      <WeeklySummaryNotification />
-      {/* Quick Start Study */}
-      <QuickStartStudy />
+      {isEnabled('home_quick_start') && <WeeklySummaryNotification />}
+      {isEnabled('home_quick_start') && <QuickStartStudy />}
 
       {/* Recently Studied */}
-      <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />
+      {isEnabled('home_recently_studied') && <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />}
 
       {/* Burnout Warning */}
-      {burnoutData && burnoutData.burnout_score >= 40 && (
+      {isEnabled('home_burnout_warning') && burnoutData && burnoutData.burnout_score >= 40 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -619,21 +620,20 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       )}
 
       {/* Daily Goal */}
-      <DailyGoalTracker />
+      {isEnabled('home_daily_goal') && <DailyGoalTracker />}
 
-      {/* Streak */}
-      <StreakTracker />
+      {isEnabled('home_streak') && <StreakTracker />}
 
       {/* Streak Milestone Celebration */}
-      <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />
+      {isEnabled('home_streak_milestone') && <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />}
 
       {/* Streak Recovery Encouragement */}
-      <StreakRecoveryCard
+      {isEnabled('home_streak_recovery') && <StreakRecoveryCard
         currentStreak={streakData?.currentStreak ?? 0}
         longestStreak={streakData?.longestStreak ?? 0}
         todayMet={streakData?.todayMet ?? false}
         onStartRecovery={() => setRecoverySessionOpen(true)}
-      />
+      />}
 
       {/* Recovery Focus Session — auto-start */}
       <FocusModeSession
@@ -647,16 +647,15 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <ComebackCelebration show={showComeback} onDismiss={() => setShowComeback(false)} />
 
       {/* Daily Study Tip */}
-      <DailyStudyTip />
+      {isEnabled('home_daily_tip') && <DailyStudyTip />}
 
-      {/* Weekly Voice Reminder Summary */}
-      <WeeklyReminderSummary />
+      {isEnabled('home_weekly_reminder') && <WeeklyReminderSummary />}
 
       {/* Smart Study Insights */}
-      <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => {
+      {isEnabled('home_study_insights') && <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => {
         setInsightReviewSubject(subject);
         setInsightReviewTopic(topic);
-      }} />
+      }} />}
 
       {/* Exam urgency banner — ≤3 days */}
       {examDaysLeft !== null && examDaysLeft <= 3 && (
@@ -689,7 +688,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       )}
 
       {/* Stats row */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-3">
+      {isEnabled('home_stats') && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-3">
         <div className="glass rounded-xl p-4 neural-border">
           <div className="flex items-center gap-2 mb-2">
             <Brain className="w-4 h-4 text-primary" />
@@ -737,10 +736,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             ) : "—"}
           </p>
         </div>
-      </motion.div>
+      </motion.div>}
 
       {/* Forget Risk Radar */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl p-5 neural-border">
+      {isEnabled('home_forget_risk') && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl p-5 neural-border">
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-4 h-4 text-destructive" />
           <h2 className="font-semibold text-foreground text-sm">Forget Risk Radar</h2>
@@ -789,16 +788,15 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             {hasTopics ? "All topics are healthy! 🧠" : "No topics tracked yet. Log a study session to start."}
           </p>
         )}
-      </motion.div>
+      </motion.div>}
 
       {/* Spaced Repetition Review Queue */}
-      <ReviewQueue />
+      {isEnabled('home_review_queue') && <ReviewQueue />}
 
-      {/* RL Study Policy Card */}
-      <RLPolicyCard />
+      {isEnabled('home_rl_policy') && <RLPolicyCard />}
 
       {/* AI Recommendations */}
-      {recommendations.length > 0 && (
+      {isEnabled('home_recommendations') && recommendations.length > 0 && (
         <motion.div ref={recsRef} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl p-5 neural-border">
           <div className="flex items-center gap-2 mb-1">
             <Brain className="w-4 h-4 text-primary" />

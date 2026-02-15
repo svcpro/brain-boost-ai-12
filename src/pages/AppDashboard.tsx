@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Bell, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
 import HomeTab from "@/components/app/HomeTab";
 import ActionTab from "@/components/app/ActionTab";
 import BrainTab from "@/components/app/BrainTab";
@@ -194,6 +194,7 @@ const AppDashboard = () => {
   };
 
   return (
+    <FeatureFlagContext.Provider value={{ isEnabled: isTabEnabled }}>
     <VoiceContext.Provider value={voice}>
       <div className="min-h-screen bg-background flex flex-col">
         {/* Expiry Warning Banner */}
@@ -286,6 +287,7 @@ const AppDashboard = () => {
         </nav>
       </div>
     </VoiceContext.Provider>
+    </FeatureFlagContext.Provider>
   );
 };
 

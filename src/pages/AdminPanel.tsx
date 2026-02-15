@@ -6,7 +6,7 @@ import {
   Loader2, AlertTriangle, Search, MoreVertical, Eye,
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
-  CheckCircle2, XCircle, ArrowLeft
+  CheckCircle2, XCircle, ArrowLeft, Home, User
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -577,9 +577,18 @@ const AuditSection = () => {
 };
 
 // ─── Settings (Feature Flags) ───
+const TAB_GROUPS = [
+  { key: "tab_home", label: "Home Tab", icon: Home, prefix: "home_" },
+  { key: "tab_action", label: "Action Tab", icon: Zap, prefix: "action_" },
+  { key: "tab_brain", label: "Brain Tab", icon: Brain, prefix: "brain_" },
+  { key: "tab_progress", label: "Progress Tab", icon: TrendingUp, prefix: "progress_" },
+  { key: "tab_you", label: "You Tab", icon: User, prefix: "you_" },
+];
+
 const SettingsSection = ({ toast }: { toast: any }) => {
   const [flags, setFlags] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedTab, setExpandedTab] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -602,33 +611,111 @@ const SettingsSection = ({ toast }: { toast: any }) => {
       target_id: key,
       details: { flag_key: key, enabled },
     } as any);
-    toast({ title: enabled ? "✅ Enabled" : "🚫 Disabled", description: key.replace("tab_", "").replace("_", " ") + " tab" });
+    toast({ title: enabled ? "✅ Enabled" : "🚫 Disabled", description: (flags.find(f => f.flag_key === key)?.label || key) });
+  };
+
+  // Bulk toggle all section flags under a tab
+  const toggleAllSections = async (prefix: string, enabled: boolean) => {
+    const sectionFlags = flags.filter(f => f.flag_key.startsWith(prefix));
+    for (const f of sectionFlags) {
+      await supabase.from("feature_flags").update({ enabled, updated_at: new Date().toISOString() } as any).eq("flag_key", f.flag_key);
+    }
+    setFlags(prev => prev.map(f => f.flag_key.startsWith(prefix) ? { ...f, enabled } : f));
+    toast({ title: enabled ? "✅ All sections enabled" : "🚫 All sections disabled" });
   };
 
   return (
     <div className="space-y-4 max-w-lg">
       <h2 className="text-xl font-bold text-foreground">App Section Controls</h2>
-      <p className="text-sm text-muted-foreground">Enable or disable app tab sections for all users.</p>
+      <p className="text-sm text-muted-foreground">Enable or disable tabs and their individual sections for all users.</p>
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
       ) : (
-        <div className="space-y-2">
-          {flags.filter(f => f.flag_key.startsWith("tab_")).map(flag => (
-            <div key={flag.id} className="glass rounded-xl p-4 neural-border flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">{flag.label || flag.flag_key}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {flag.enabled ? "Visible to all users" : "Hidden from all users"}
-                </p>
+        <div className="space-y-3">
+          {TAB_GROUPS.map(group => {
+            const tabFlag = flags.find(f => f.flag_key === group.key);
+            const sectionFlags = flags.filter(f => f.flag_key.startsWith(group.prefix));
+            const isExpanded = expandedTab === group.key;
+            const enabledCount = sectionFlags.filter(f => f.enabled).length;
+
+            return (
+              <div key={group.key} className="glass rounded-xl neural-border overflow-hidden">
+                {/* Tab-level toggle */}
+                <div className="p-4 flex items-center gap-3">
+                  <group.icon className="w-4 h-4 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {tabFlag?.enabled ? `${enabledCount}/${sectionFlags.length} sections active` : "Tab disabled"}
+                    </p>
+                  </div>
+                  {tabFlag && (
+                    <button
+                      onClick={() => toggleFlag(tabFlag.flag_key, !tabFlag.enabled)}
+                      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${tabFlag.enabled ? "bg-primary" : "bg-muted"}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${tabFlag.enabled ? "translate-x-5" : "translate-x-0"}`} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setExpandedTab(isExpanded ? null : group.key)}
+                    className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                  >
+                    <motion.div animate={{ rotate: isExpanded ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+                  </button>
+                </div>
+
+                {/* Section-level toggles */}
+                <AnimatePresence>
+                  {isExpanded && sectionFlags.length > 0 && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="border-t border-border px-4 pb-3 pt-2 space-y-2">
+                        {/* Bulk actions */}
+                        <div className="flex gap-2 mb-2">
+                          <button
+                            onClick={() => toggleAllSections(group.prefix, true)}
+                            className="text-[10px] text-primary font-medium px-2 py-1 rounded-md hover:bg-primary/10 transition-colors"
+                          >
+                            Enable All
+                          </button>
+                          <button
+                            onClick={() => toggleAllSections(group.prefix, false)}
+                            className="text-[10px] text-destructive font-medium px-2 py-1 rounded-md hover:bg-destructive/10 transition-colors"
+                          >
+                            Disable All
+                          </button>
+                        </div>
+                        {sectionFlags.map(flag => (
+                          <div key={flag.id} className="flex items-center justify-between py-1.5">
+                            <div>
+                              <p className="text-xs font-medium text-foreground">{flag.label || flag.flag_key}</p>
+                              <p className="text-[9px] text-muted-foreground">
+                                {flag.enabled ? "Visible" : "Hidden"}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => toggleFlag(flag.flag_key, !flag.enabled)}
+                              className={`relative w-9 h-5 rounded-full transition-colors ${flag.enabled ? "bg-primary" : "bg-muted"}`}
+                            >
+                              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${flag.enabled ? "translate-x-4" : "translate-x-0"}`} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <button
-                onClick={() => toggleFlag(flag.flag_key, !flag.enabled)}
-                className={`relative w-11 h-6 rounded-full transition-colors ${flag.enabled ? "bg-primary" : "bg-muted"}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${flag.enabled ? "translate-x-5" : "translate-x-0"}`} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

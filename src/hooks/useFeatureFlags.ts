@@ -1,5 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+// Context to share feature flags across components without extra DB queries
+export const FeatureFlagContext = createContext<{ isEnabled: (key: string) => boolean }>({
+  isEnabled: () => true,
+});
+
+export const useFeatureFlagContext = () => useContext(FeatureFlagContext);
 
 export interface FeatureFlag {
   id: string;
