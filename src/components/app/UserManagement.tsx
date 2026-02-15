@@ -82,6 +82,7 @@ const UserManagement = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc" | "plan">("newest");
+  const [bulkConfirm, setBulkConfirm] = useState<{ action: "ban" | "unban" } | null>(null);
 
   const fetchData = useCallback(async () => {
     const [usersRes, subsRes, plansRes] = await Promise.all([
@@ -305,18 +306,18 @@ const UserManagement = () => {
             <span className="text-xs font-medium text-foreground">{selectedIds.size} user(s) selected</span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => bulkBan(true)}
+                onClick={() => setBulkConfirm({ action: "ban" })}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-destructive/15 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
-                {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Ban className="w-3 h-3" />} Ban Selected
+                <Ban className="w-3 h-3" /> Ban Selected
               </button>
               <button
-                onClick={() => bulkBan(false)}
+                onClick={() => setBulkConfirm({ action: "unban" })}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-success/15 text-success rounded-lg text-xs font-medium hover:bg-success/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
-                {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} Unban Selected
+                <CheckCircle2 className="w-3 h-3" /> Unban Selected
               </button>
               <button
                 onClick={() => setSelectedIds(new Set())}
@@ -431,6 +432,63 @@ const UserManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk confirmation dialog */}
+      <AnimatePresence>
+        {bulkConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => !bulkProcessing && setBulkConfirm(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+              className="glass rounded-2xl p-6 neural-border max-w-sm w-full mx-4 space-y-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${bulkConfirm.action === "ban" ? "bg-destructive/15" : "bg-success/15"}`}>
+                  {bulkConfirm.action === "ban" ? <Ban className="w-5 h-5 text-destructive" /> : <CheckCircle2 className="w-5 h-5 text-success" />}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {bulkConfirm.action === "ban" ? "Ban" : "Unban"} {selectedIds.size} user(s)?
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">This action will be logged in the audit trail.</p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setBulkConfirm(null)}
+                  disabled={bulkProcessing}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await bulkBan(bulkConfirm.action === "ban");
+                    setBulkConfirm(null);
+                  }}
+                  disabled={bulkProcessing}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                    bulkConfirm.action === "ban"
+                      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      : "bg-success text-success-foreground hover:bg-success/90"
+                  }`}
+                >
+                  {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  {bulkConfirm.action === "ban" ? "Confirm Ban" : "Confirm Unban"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
