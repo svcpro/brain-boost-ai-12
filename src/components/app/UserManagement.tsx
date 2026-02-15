@@ -75,6 +75,8 @@ const UserManagement = () => {
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [filter, setFilter] = useState<"all" | "free" | "pro" | "ultra" | "banned">("all");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const fetchData = useCallback(async () => {
     const [usersRes, subsRes, plansRes] = await Promise.all([
@@ -105,6 +107,12 @@ const UserManagement = () => {
     const { planKey } = getUserPlan(u.id);
     return planKey === filter;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedUsers = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [search, filter]);
 
   // Summary stats
   const totalUsers = users.length;
@@ -203,7 +211,7 @@ const UserManagement = () => {
 
       {/* User list */}
       <div className="space-y-2">
-        {filtered.map((u, i) => {
+        {paginatedUsers.map((u, i) => {
           const { planKey, planName } = getUserPlan(u.id);
           return (
             <motion.div
@@ -232,6 +240,51 @@ const UserManagement = () => {
         })}
         {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No users found</p>}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-muted-foreground">
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, idx) =>
+                p === "..." ? (
+                  <span key={`e${idx}`} className="px-1 text-xs text-muted-foreground">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${page === p ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
