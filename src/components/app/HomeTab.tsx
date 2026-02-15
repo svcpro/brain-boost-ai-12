@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight, User, BookOpen, Plus, Sparkles, Flame } from "lucide-react";
+import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight, User, BookOpen, Plus, Sparkles, Flame, X } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +55,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const voiceTriggeredRef = useRef(false);
   const rankVoiceFiredRef = useRef(false);
   const [fabVisible, setFabVisible] = useState(true);
+  const [showWelcomeCard, setShowWelcomeCard] = useState(() => !localStorage.getItem("acry-welcome-card-seen"));
   const [brainPulseDismissed, setBrainPulseDismissed] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
@@ -333,6 +334,57 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
       </motion.div>
+
+      {/* First-visit welcome card */}
+      <AnimatePresence>
+        {showWelcomeCard && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            transition={{ delay: 0.5, duration: 0.5, ease: "easeOut" }}
+            className="rounded-2xl neural-border overflow-hidden bg-gradient-to-br from-primary/15 via-background to-accent/10 p-5"
+          >
+            <div className="flex items-center gap-3">
+              <motion.div
+                initial={{ rotate: -20, scale: 0 }}
+                animate={{ rotate: 0, scale: 1 }}
+                transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
+                className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center shrink-0"
+              >
+                <Brain className="w-6 h-6 text-primary" />
+              </motion.div>
+              <div className="flex-1 min-w-0">
+                <motion.p
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.9, duration: 0.4 }}
+                  className="text-sm font-bold text-foreground"
+                >
+                  Welcome to ACRY, <span className="text-primary">{displayName || user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"}</span>!
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1.1, duration: 0.4 }}
+                  className="text-xs text-muted-foreground mt-0.5"
+                >
+                  Your AI brain is ready. Let's make every study session count. 🧠✨
+                </motion.p>
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.setItem("acry-welcome-card-seen", "1");
+                  setShowWelcomeCard(false);
+                }}
+                className="p-1.5 rounded-lg hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Welcome Onboarding Card for new users */}
       {!hasTopics && (
