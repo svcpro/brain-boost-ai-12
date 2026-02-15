@@ -38,3 +38,12 @@ verify_jwt = false
 
 [functions.study-insights]
 verify_jwt = false
+
+[functions.ml-feature-engine]
+verify_jwt = false
+
+[functions.burnout-detection]
+verify_jwt = false
+
+[functions.adaptive-difficulty]
+verify_jwt = false

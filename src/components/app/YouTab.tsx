@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, VolumeX, Mic, Mail, Trash2, BellRing, Sparkles, Camera, Loader2 } from "lucide-react";
+import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, VolumeX, Mic, Mail, Trash2, BellRing, Sparkles, Camera, Loader2, Cpu } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,7 @@ import SubscriptionPlan from "./SubscriptionPlan";
 import NotificationPreferencesPanel from "./NotificationPreferencesPanel";
 import NotificationHistory from "./NotificationHistory";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
+import MLAdminDashboard from "./MLAdminDashboard";
 
 interface Topic {
   id: string;
@@ -164,6 +165,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: "subject" | "topic"; id: string; name: string } | null>(null);
   const [showPushPrefs, setShowPushPrefs] = useState(false);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
+  const [showMLDashboard, setShowMLDashboard] = useState(false);
 
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
@@ -431,6 +433,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   ];
 
   const dataSection = [
+    { icon: Cpu, label: "ML Control Panel", value: "", onClick: () => setShowMLDashboard(true), isOpen: false },
     { icon: Trash2, label: "Trash", value: "__trash__", onClick: () => setShowTrash(!showTrash), isOpen: showTrash },
     { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup), isOpen: showDataBackup },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy), isOpen: showPrivacy },
@@ -1233,6 +1236,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           {showDataBackup && <DataBackup />}
         </AnimatePresence>
 
+        {/* ML Admin Dashboard */}
+        <AnimatePresence>
+          {showMLDashboard && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <MLAdminDashboard onBack={() => setShowMLDashboard(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Privacy & Security Panel */}
         <AnimatePresence>
           {showPrivacy && <PrivacySecurity />}

@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle, Zap, Flame, Skull, BookOpen, Filter } from "lucide-react";
+import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle, Zap, Flame, Skull, BookOpen, Filter, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useAdaptiveDifficulty } from "@/hooks/useAdaptiveDifficulty";
 
 interface Question {
   question: string;
@@ -60,6 +61,17 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerEnabled, setTimerEnabled] = useState(true);
+  const { data: adaptiveData, predict: predictDifficulty } = useAdaptiveDifficulty();
+
+  // Auto-set difficulty from adaptive model on mount
+  useEffect(() => {
+    predictDifficulty().then((result) => {
+      if (result?.recommended_difficulty) {
+        setDifficulty(result.recommended_difficulty);
+        setQuestionCount(result.recommended_question_count || 5);
+      }
+    });
+  }, []);
   const [timeExpired, setTimeExpired] = useState(false);
   const [totalTimeUsed, setTotalTimeUsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -357,6 +369,14 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
                 })}
               </div>
               <p className="text-[10px] text-muted-foreground text-center">{diffConfig.description}</p>
+              {adaptiveData && (
+                <div className="flex items-center justify-center gap-1.5 mt-1">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] text-primary font-medium">
+                    AI recommends: {adaptiveData.recommended_difficulty} ({adaptiveData.recommended_question_count} Qs)
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Subject Filter */}

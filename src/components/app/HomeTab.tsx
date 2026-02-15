@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight, User, BookOpen, Plus, Sparkles } from "lucide-react";
+import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight, User, BookOpen, Plus, Sparkles, Flame } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +41,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const { user } = useAuth();
   const { toast } = useToast();
   const voice = useVoice();
+  const [burnoutData, setBurnoutData] = useState<{ burnout_score: number; risk_level: string; recommendations: string[] } | null>(null);
   const [recommendations, setRecommendations] = useState<any[]>(() => getCache("home-recommendations") || []);
   const [examDaysLeft, setExamDaysLeft] = useState<number | null>(() => getCache("home-exam-days"));
   const recsRef = useRef<HTMLDivElement>(null);
@@ -80,6 +81,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     predict().then(() => setRadarLastUpdated(new Date()));
     predictRank();
     loadRecommendations();
+    // Burnout detection
+    supabase.functions.invoke("burnout-detection").then(({ data }) => {
+      if (data) setBurnoutData(data);
+    }).catch(() => {});
     loadExamDate();
     // Load avatar
     if (user) {
@@ -442,6 +447,36 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* Recently Studied */}
       <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />
+
+      {/* Burnout Warning */}
+      {burnoutData && burnoutData.burnout_score >= 40 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`glass rounded-xl p-4 neural-border space-y-2 ${
+            burnoutData.risk_level === "high" ? "border-destructive/30 bg-destructive/5" : "border-warning/30 bg-warning/5"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Flame className={`w-4 h-4 ${burnoutData.risk_level === "high" ? "text-destructive" : "text-warning"}`} />
+            <span className="text-sm font-semibold text-foreground">
+              {burnoutData.risk_level === "high" ? "⚠️ High Burnout Risk" : "Moderate Fatigue Detected"}
+            </span>
+            <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${
+              burnoutData.risk_level === "high" ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
+            }`}>
+              {burnoutData.burnout_score}/100
+            </span>
+          </div>
+          {burnoutData.recommendations.length > 0 && (
+            <div className="space-y-1">
+              {burnoutData.recommendations.slice(0, 2).map((tip, i) => (
+                <p key={i} className="text-xs text-foreground/70 leading-relaxed">• {tip}</p>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Daily Goal */}
       <DailyGoalTracker />

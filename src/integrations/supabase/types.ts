@@ -194,6 +194,159 @@ export type Database = {
           },
         ]
       }
+      ml_events: {
+        Row: {
+          created_at: string
+          event_category: string
+          event_type: string
+          id: string
+          payload: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_category: string
+          event_type: string
+          id?: string
+          payload?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_category?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ml_training_logs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          metrics: Json | null
+          model_name: string
+          model_version: string
+          started_at: string
+          status: string
+          training_data_size: number | null
+          training_type: string
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          metrics?: Json | null
+          model_name: string
+          model_version: string
+          started_at?: string
+          status?: string
+          training_data_size?: number | null
+          training_type?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          metrics?: Json | null
+          model_name?: string
+          model_version?: string
+          started_at?: string
+          status?: string
+          training_data_size?: number | null
+          training_type?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      model_metrics: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          metric_type: string
+          metric_value: number
+          model_name: string
+          model_version: string
+          period_end: string
+          period_start: string
+          sample_size: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          metric_type: string
+          metric_value: number
+          model_name: string
+          model_version?: string
+          period_end: string
+          period_start: string
+          sample_size?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          metric_type?: string
+          metric_value?: number
+          model_name?: string
+          model_version?: string
+          period_end?: string
+          period_start?: string
+          sample_size?: number
+        }
+        Relationships: []
+      }
+      model_predictions: {
+        Row: {
+          actual_outcome: Json | null
+          confidence: number | null
+          created_at: string
+          id: string
+          input_features: Json | null
+          is_correct: boolean | null
+          latency_ms: number | null
+          model_name: string
+          model_version: string
+          prediction: Json
+          user_id: string
+          validated_at: string | null
+        }
+        Insert: {
+          actual_outcome?: Json | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          input_features?: Json | null
+          is_correct?: boolean | null
+          latency_ms?: number | null
+          model_name: string
+          model_version?: string
+          prediction: Json
+          user_id: string
+          validated_at?: string | null
+        }
+        Update: {
+          actual_outcome?: Json | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          input_features?: Json | null
+          is_correct?: boolean | null
+          latency_ms?: number | null
+          model_name?: string
+          model_version?: string
+          prediction?: Json
+          user_id?: string
+          validated_at?: string | null
+        }
+        Relationships: []
+      }
       notification_history: {
         Row: {
           body: string | null
@@ -617,6 +770,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_features: {
+        Row: {
+          app_open_frequency: number | null
+          avg_revision_frequency: number | null
+          avg_session_duration_minutes: number | null
+          avg_time_since_revision_hours: number | null
+          burnout_risk_score: number | null
+          computed_at: string
+          consecutive_long_sessions: number | null
+          created_at: string
+          engagement_score: number | null
+          fatigue_indicator: number | null
+          hours_studied_last_24h: number | null
+          hours_studied_last_7d: number | null
+          id: string
+          knowledge_stability: number | null
+          learning_velocity: number | null
+          memory_decay_slope: number | null
+          rank_trajectory_slope: number | null
+          recall_success_rate: number | null
+          response_latency_score: number | null
+          study_consistency_score: number | null
+          subject_strength_score: number | null
+          user_id: string
+        }
+        Insert: {
+          app_open_frequency?: number | null
+          avg_revision_frequency?: number | null
+          avg_session_duration_minutes?: number | null
+          avg_time_since_revision_hours?: number | null
+          burnout_risk_score?: number | null
+          computed_at?: string
+          consecutive_long_sessions?: number | null
+          created_at?: string
+          engagement_score?: number | null
+          fatigue_indicator?: number | null
+          hours_studied_last_24h?: number | null
+          hours_studied_last_7d?: number | null
+          id?: string
+          knowledge_stability?: number | null
+          learning_velocity?: number | null
+          memory_decay_slope?: number | null
+          rank_trajectory_slope?: number | null
+          recall_success_rate?: number | null
+          response_latency_score?: number | null
+          study_consistency_score?: number | null
+          subject_strength_score?: number | null
+          user_id: string
+        }
+        Update: {
+          app_open_frequency?: number | null
+          avg_revision_frequency?: number | null
+          avg_session_duration_minutes?: number | null
+          avg_time_since_revision_hours?: number | null
+          burnout_risk_score?: number | null
+          computed_at?: string
+          consecutive_long_sessions?: number | null
+          created_at?: string
+          engagement_score?: number | null
+          fatigue_indicator?: number | null
+          hours_studied_last_24h?: number | null
+          hours_studied_last_7d?: number | null
+          id?: string
+          knowledge_stability?: number | null
+          learning_velocity?: number | null
+          memory_decay_slope?: number | null
+          rank_trajectory_slope?: number | null
+          recall_success_rate?: number | null
+          response_latency_score?: number | null
+          study_consistency_score?: number | null
+          subject_strength_score?: number | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_subscriptions: {
         Row: {
