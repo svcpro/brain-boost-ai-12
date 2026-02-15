@@ -325,7 +325,12 @@ const DailyStudyTip = () => {
   );
 };
 
+const NUDGE_DISMISS_KEY = "plan-nudge-dismissed";
+
 const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string; examType: string | null; planProgress: { completed: number; total: number } | null }) => {
+  const todayKey = new Date().toDateString();
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => getCache(NUDGE_DISMISS_KEY) === todayKey);
+
   const days = Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000);
   if (days < 0) return null;
 
@@ -334,6 +339,12 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
   const barColor = days <= 7 ? "bg-destructive" : days <= 30 ? "bg-warning" : "bg-primary";
   const label = days === 0 ? "Today!" : days === 1 ? "Tomorrow!" : `${days} days`;
   const pct = planProgress ? Math.round((planProgress.completed / planProgress.total) * 100) : null;
+  const showNudge = pct !== null && pct < 50 && !nudgeDismissed;
+
+  const handleDismissNudge = () => {
+    setNudgeDismissed(true);
+    setCache(NUDGE_DISMISS_KEY, todayKey);
+  };
 
   return (
     <div className={`rounded-lg border ${urgencyBg} px-3 py-2.5 space-y-2`}>
@@ -368,12 +379,19 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
           <p className="text-[9px] text-muted-foreground mt-1">
             {planProgress.completed}/{planProgress.total} sessions completed
           </p>
-          {pct !== null && pct < 50 && (
+          {showNudge && (
             <div className="mt-2 flex items-center gap-1.5 rounded-md bg-warning/10 border border-warning/20 px-2 py-1.5">
               <AlertTriangle className="w-3 h-3 text-warning shrink-0" />
-              <span className="text-[10px] text-warning">
+              <span className="text-[10px] text-warning flex-1">
                 You're behind on your plan — try completing {Math.min(3, planProgress.total - planProgress.completed)} sessions today to catch up! 💪
               </span>
+              <button
+                type="button"
+                onClick={handleDismissNudge}
+                className="shrink-0 text-[9px] font-medium text-warning hover:text-warning/80 bg-warning/10 hover:bg-warning/20 px-1.5 py-0.5 rounded transition-colors"
+              >
+                ✓ Got it
+              </button>
             </div>
           )}
         </div>
@@ -381,7 +399,6 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
     </div>
   );
 };
-
 const DeltaBadge = ({ current, previous, suffix = "" }: { current: number | null; previous: number | null; suffix?: string }) => {
   if (current == null || previous == null) return null;
   const diff = Math.round(current - previous);
