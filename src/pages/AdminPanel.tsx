@@ -6,7 +6,7 @@ import {
   Loader2, AlertTriangle, Search, MoreVertical, Eye,
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
-  CheckCircle2, XCircle, ArrowLeft, Home, User
+  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -681,6 +681,52 @@ const SettingsSection = ({ toast }: { toast: any }) => {
     });
   };
 
+  const exportFlags = () => {
+    const config = flags.map(f => ({ flag_key: f.flag_key, enabled: f.enabled }));
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feature-flags-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "📦 Flags exported" });
+  };
+
+  const importFlags = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported: { flag_key: string; enabled: boolean }[] = JSON.parse(text);
+        if (!Array.isArray(imported) || !imported.every(f => typeof f.flag_key === "string" && typeof f.enabled === "boolean")) {
+          toast({ title: "❌ Invalid file format", description: "Expected an array of { flag_key, enabled }" });
+          return;
+        }
+        let updated = 0;
+        for (const item of imported) {
+          const exists = flags.find(f => f.flag_key === item.flag_key);
+          if (exists && exists.enabled !== item.enabled) {
+            await supabase.from("feature_flags").update({ enabled: item.enabled, updated_at: new Date().toISOString() } as any).eq("flag_key", item.flag_key);
+            updated++;
+          }
+        }
+        setFlags(prev => prev.map(f => {
+          const match = imported.find(i => i.flag_key === f.flag_key);
+          return match ? { ...f, enabled: match.enabled } : f;
+        }));
+        toast({ title: "📥 Flags imported", description: `${updated} flag(s) updated` });
+      } catch {
+        toast({ title: "❌ Failed to parse file" });
+      }
+    };
+    input.click();
+  };
+
   const query = searchQuery.toLowerCase().trim();
 
   return (
@@ -736,7 +782,20 @@ const SettingsSection = ({ toast }: { toast: any }) => {
           </button>
         )}
       </div>
-      <p className="text-[10px] text-muted-foreground/60">{"💡 Press "}<kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">Ctrl+Z</kbd>{" to undo last toggle"}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-muted-foreground/60">{"💡 Press "}<kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">Ctrl+Z</kbd>{" to undo last toggle"}</p>
+        {!loading && (
+          <div className="flex items-center gap-1.5">
+            <button onClick={exportFlags} className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+              <Download className="w-3 h-3" /> Export
+            </button>
+            <span className="text-muted-foreground/40">|</span>
+            <button onClick={importFlags} className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+              <Upload className="w-3 h-3" /> Import
+            </button>
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
