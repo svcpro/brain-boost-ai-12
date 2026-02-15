@@ -10,6 +10,7 @@ import LazyModeSession from "./LazyModeSession";
 import FocusModeSession from "./FocusModeSession";
 import EmergencyRecoverySession from "./EmergencyRecoverySession";
 import FocusSessionHistory from "./FocusSessionHistory";
+import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 
 const modes = [
   {
@@ -40,6 +41,7 @@ interface ActionTabProps {
 }
 
 const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
+  const { isEnabled } = useFeatureFlagContext();
   const [lazyModeOpen, setLazyModeOpen] = useState(false);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
@@ -542,6 +544,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       </motion.div>
 
       {/* Study Modes */}
+      {isEnabled("action_study_modes") && (
       <div className="space-y-3">
         {modes.map((mode, i) => (
           <motion.button
@@ -574,19 +577,25 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           </motion.button>
         ))}
       </div>
+      )}
 
       {/* Focus Session History */}
+      {isEnabled("action_focus_history") && (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
         <FocusSessionHistory />
       </motion.div>
+      )}
 
       {/* AI Study Plan */}
+      {isEnabled("action_study_planner") && (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
         <h2 className="font-semibold text-foreground text-sm mb-3">AI Study Planner</h2>
         <StudyPlanGenerator />
       </motion.div>
+      )}
 
       {/* Upload Content */}
+      {isEnabled("action_upload") && (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="relative z-10">
         <h2 className="font-semibold text-foreground text-sm mb-3">Upload Content</h2>
 
@@ -851,6 +860,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           )}
         </AnimatePresence>
       </motion.div>
+      )}
 
       <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
