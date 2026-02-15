@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldAlert, Zap, ChevronDown, ChevronUp, Clock, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCache, setCache } from "@/lib/offlineCache";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RiskDigestCardProps {
   onStudyTopic?: (subject?: string, topic?: string, minutes?: number) => void;
@@ -33,33 +34,41 @@ const Sparkline = ({ data, width = 48, height = 18, color }: SparklineProps) => 
   const range = max - min || 1;
   const padding = 1;
 
-  const points = data.map((v, i) => {
-    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-    const y = padding + (1 - (v - min) / range) * (height - padding * 2);
-    return `${x},${y}`;
-  }).join(" ");
+  const coords = data.map((v, i) => ({
+    x: padding + (i / (data.length - 1)) * (width - padding * 2),
+    y: padding + (1 - (v - min) / range) * (height - padding * 2),
+    value: v,
+  }));
 
-  // Trend: compare last vs first
+  const points = coords.map(c => `${c.x},${c.y}`).join(" ");
   const trend = data[data.length - 1] - data[0];
   const strokeColor = color || (trend > 0 ? "hsl(var(--success))" : trend < 0 ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))");
+  const trendLabel = trend > 0 ? `+${trend}%` : trend < 0 ? `${trend}%` : "no change";
+
+  const tooltipText = `${data.map(v => `${v}%`).join(" → ")}\n7-day trend: ${trendLabel}`;
 
   return (
-    <svg width={width} height={height} className="shrink-0" viewBox={`0 0 ${width} ${height}`}>
-      <polyline
-        points={points}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Dot on last point */}
-      {(() => {
-        const lastX = padding + ((data.length - 1) / (data.length - 1)) * (width - padding * 2);
-        const lastY = padding + (1 - (data[data.length - 1] - min) / range) * (height - padding * 2);
-        return <circle cx={lastX} cy={lastY} r="2" fill={strokeColor} />;
-      })()}
-    </svg>
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <svg width={width} height={height} className="shrink-0 cursor-pointer" viewBox={`0 0 ${width} ${height}`}>
+            <polyline
+              points={points}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Dot on last point */}
+            <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="2" fill={strokeColor} />
+          </svg>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-[10px] max-w-[180px] whitespace-pre-line z-50">
+          {tooltipText}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
