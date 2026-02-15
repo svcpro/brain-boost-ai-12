@@ -915,6 +915,8 @@ export type Database = {
         Row: {
           auto_use_streak_freeze: boolean
           avatar_url: string | null
+          ban_reason: string | null
+          banned_at: string | null
           created_at: string
           daily_study_goal_minutes: number
           display_name: string | null
@@ -924,6 +926,7 @@ export type Database = {
           exam_date: string | null
           exam_type: string | null
           id: string
+          is_banned: boolean
           last_brain_update_at: string | null
           opt_in_leaderboard: boolean
           push_notification_prefs: Json
@@ -936,6 +939,8 @@ export type Database = {
         Insert: {
           auto_use_streak_freeze?: boolean
           avatar_url?: string | null
+          ban_reason?: string | null
+          banned_at?: string | null
           created_at?: string
           daily_study_goal_minutes?: number
           display_name?: string | null
@@ -945,6 +950,7 @@ export type Database = {
           exam_date?: string | null
           exam_type?: string | null
           id: string
+          is_banned?: boolean
           last_brain_update_at?: string | null
           opt_in_leaderboard?: boolean
           push_notification_prefs?: Json
@@ -957,6 +963,8 @@ export type Database = {
         Update: {
           auto_use_streak_freeze?: boolean
           avatar_url?: string | null
+          ban_reason?: string | null
+          banned_at?: string | null
           created_at?: string
           daily_study_goal_minutes?: number
           display_name?: string | null
@@ -966,6 +974,7 @@ export type Database = {
           exam_date?: string | null
           exam_type?: string | null
           id?: string
+          is_banned?: boolean
           last_brain_update_at?: string | null
           opt_in_leaderboard?: boolean
           push_notification_prefs?: Json
