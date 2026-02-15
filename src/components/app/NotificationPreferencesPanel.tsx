@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check } from "lucide-react";
+import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check, CalendarCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,7 @@ const NotificationPreferencesPanel = () => {
   const [briefingText, setBriefingText] = useState<string | null>(null);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [briefingStreak, setBriefingStreak] = useState(0);
 
   // Load prefs + last briefing timestamp from DB on mount
   useEffect(() => {
@@ -65,19 +66,50 @@ const NotificationPreferencesPanel = () => {
         setLoaded(true);
       });
 
-    // Fetch last daily briefing notification
+    // Fetch briefing history for streak + last timestamp
     (supabase as any)
       .from("notification_history")
       .select("created_at")
       .eq("user_id", user.id)
       .eq("type", "daily_briefing")
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      .limit(90)
       .then(({ data }: any) => {
-        if (data?.created_at) {
-          setLastBriefingAt(data.created_at);
+        if (!data || data.length === 0) return;
+        setLastBriefingAt(data[0].created_at);
+
+        // Compute consecutive day streak
+        const uniqueDays = [...new Set(
+          data.map((r: any) => new Date(r.created_at).toISOString().slice(0, 10))
+        )] as string[];
+        uniqueDays.sort((a: string, b: string) => b.localeCompare(a)); // newest first
+
+        let streak = 0;
+        const today = new Date();
+        // Check if today or yesterday is the most recent day (allow current day to count)
+        const mostRecent = new Date(uniqueDays[0] + "T12:00:00");
+        const diffMs = today.getTime() - mostRecent.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        if (diffDays > 1) {
+          setBriefingStreak(0);
+          return;
         }
+
+        let expectedDate = new Date(today);
+        if (diffDays === 1) {
+          expectedDate = mostRecent;
+        }
+
+        for (const dayStr of uniqueDays) {
+          const expected = expectedDate.toISOString().slice(0, 10);
+          if (dayStr === expected) {
+            streak++;
+            expectedDate.setDate(expectedDate.getDate() - 1);
+          } else if (dayStr < expected) {
+            break;
+          }
+        }
+        setBriefingStreak(streak);
       });
   }, [user]);
 
@@ -112,6 +144,7 @@ const NotificationPreferencesPanel = () => {
 
         if (!alreadyToday) {
           setCache(todayKey, true);
+          setBriefingStreak(prev => prev + 1);
           confetti({
             particleCount: 80,
             spread: 70,
@@ -181,14 +214,24 @@ const NotificationPreferencesPanel = () => {
       key: "dailyBriefing" as const,
       extra: (
         <div className="mt-2 ml-6 space-y-2">
-          {lastBriefingAt && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground">
-                Last briefing {formatDistanceToNow(new Date(lastBriefingAt), { addSuffix: true })}
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            {lastBriefingAt && (
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground">
+                  Last briefing {formatDistanceToNow(new Date(lastBriefingAt), { addSuffix: true })}
+                </span>
+              </div>
+            )}
+            {briefingStreak > 0 && (
+              <div className="flex items-center gap-1 bg-primary/10 rounded-full px-2 py-0.5">
+                <CalendarCheck className="w-3 h-3 text-primary" />
+                <span className="text-[10px] font-semibold text-primary">
+                  {briefingStreak} day{briefingStreak !== 1 ? "s" : ""} streak
+                </span>
+              </div>
+            )}
+          </div>
           <button
             onClick={handleTriggerBriefing}
             disabled={briefingLoading}
