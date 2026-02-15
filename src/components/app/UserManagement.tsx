@@ -6,7 +6,7 @@ import {
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
   CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download,
   CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown,
-  Target, Award, Bell, Send
+  Target, Award, Bell, Send, Sparkles
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1016,6 +1016,7 @@ const SendNotificationSection = ({ userId, userName, toast, logAudit }: {
   const [type, setType] = useState<string>("general");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const sendNotification = async () => {
     if (!title.trim()) {
@@ -1044,6 +1045,22 @@ const SendNotificationSection = ({ userId, userName, toast, logAudit }: {
     setTimeout(() => setSent(false), 3000);
   };
 
+  const generateWithAI = async () => {
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-notification", {
+        body: { userId, type },
+      });
+      if (error) throw error;
+      if (data?.title) setTitle(data.title);
+      if (data?.body) setBody(data.body);
+      toast({ title: "AI generated notification content ✨" });
+    } catch (e: any) {
+      toast({ title: "AI generation failed", description: e?.message || "Try again", variant: "destructive" });
+    }
+    setGenerating(false);
+  };
+
   const NOTIFICATION_TYPES = [
     { value: "general", label: "General" },
     { value: "reminder", label: "Reminder" },
@@ -1068,6 +1085,14 @@ const SendNotificationSection = ({ userId, userName, toast, logAudit }: {
               {t.label}
             </button>
           ))}
+          <button
+            onClick={generateWithAI}
+            disabled={generating}
+            className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors bg-accent/15 text-accent hover:bg-accent/25 flex items-center gap-1 disabled:opacity-50"
+          >
+            {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            {generating ? "Generating…" : "AI Write"}
+          </button>
         </div>
         <div>
           <label className="text-[10px] text-muted-foreground mb-1 block">Title *</label>

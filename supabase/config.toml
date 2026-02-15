@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.razorpay-webhook]
 verify_jwt = false
+
+[functions.generate-notification]
+verify_jwt = false
