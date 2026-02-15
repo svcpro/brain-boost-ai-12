@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addDays, differenceInDays, isPast } from "date-fns";
 import html2canvas from "html2canvas";
+import { toast } from "@/hooks/use-toast";
 
 interface MemoryForecast {
   id: string;
@@ -403,8 +404,9 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
           ]);
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
+          toast({ title: "📋 Copied to clipboard", description: "Paste it into any chat or document." });
         } catch {
-          // Fallback: download if clipboard not supported
+          toast({ title: "❌ Copy failed", description: "Your browser doesn't support image clipboard. Downloading instead.", variant: "destructive" });
           const link = document.createElement("a");
           link.download = `prediction-summary-${format(new Date(), "yyyy-MM-dd")}.png`;
           link.href = URL.createObjectURL(blob);
