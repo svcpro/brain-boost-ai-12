@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarDays, Sparkles, Clock, BookOpen, RotateCcw, ChevronDown, ChevronUp, Lightbulb, Zap, Save, CheckCircle, Circle, Trash2, History, Bell, BellOff, Brain, BarChart3, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanSessionReminders } from "@/hooks/usePlanSessionReminders";
+import confetti from "canvas-confetti";
 
 interface Session {
   topic: string;
@@ -575,12 +576,33 @@ const StudyPlanGenerator = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
+          onAnimationComplete={() => {
+            const streak = rlInsights.improvement_streak ?? 0;
+            if (streak >= 5) {
+              // Big celebration
+              const end = Date.now() + 800;
+              const frame = () => {
+                confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0, y: 0.7 }, colors: ["#10b981", "#34d399", "#6ee7b7"] });
+                confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1, y: 0.7 }, colors: ["#10b981", "#34d399", "#6ee7b7"] });
+                if (Date.now() < end) requestAnimationFrame(frame);
+              };
+              frame();
+            } else if (streak >= 3) {
+              confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 }, colors: ["#10b981", "#34d399", "#a78bfa"] });
+            } else {
+              confetti({ particleCount: 30, spread: 50, origin: { y: 0.75 }, colors: ["#10b981", "#34d399"] });
+            }
+          }}
           className="rounded-xl border border-success/30 bg-success/5 p-3.5 flex items-start gap-3"
         >
           <div className="p-1.5 rounded-lg bg-success/15 shrink-0 mt-0.5">
-            <span className="text-base">
+            <motion.span
+              className="text-base block"
+              animate={{ rotate: [0, -10, 10, -10, 0] }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
               {(rlInsights.improvement_streak ?? 0) >= 5 ? "🔥" : (rlInsights.improvement_streak ?? 0) >= 3 ? "🚀" : "🎯"}
-            </span>
+            </motion.span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-foreground mb-0.5 flex items-center gap-1.5">
