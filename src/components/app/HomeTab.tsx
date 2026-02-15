@@ -115,6 +115,16 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     return () => clearInterval(interval);
   }, []);
 
+  // Show toast when auto-shield saved the streak
+  useEffect(() => {
+    if (streakData?.autoShieldUsed) {
+      toast({
+        title: "🛡️ Your streak was saved!",
+        description: "Auto-shield activated yesterday — your streak is safe.",
+      });
+    }
+  }, [streakData?.autoShieldUsed]);
+
   const loadRecommendations = async () => {
     if (!user) return;
     try {

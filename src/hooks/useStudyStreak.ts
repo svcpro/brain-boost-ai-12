@@ -8,6 +8,7 @@ export interface StreakData {
   todayMet: boolean;
   goalMinutes: number;
   todayMinutes: number;
+  autoShieldUsed?: boolean;
 }
 
 export function useStudyStreak() {
@@ -140,8 +141,25 @@ export function useStudyStreak() {
               .update({ used_date: yesterdayStr })
               .eq("id", available[0].id);
 
+            // Record in-app notification
+            await supabase.from("notification_history").insert({
+              user_id: user.id,
+              title: "🛡️ Your streak was saved!",
+              body: `Auto-shield activated for ${yesterdayStr} — your streak is safe.`,
+              type: "streak_shield",
+            } as any);
+
             // Re-run to get updated streak with the newly used freeze
             setLoading(false);
+            // Set flag so UI can show toast on first load
+            const LOCAL_KEY = `auto-shield-notified-${yesterdayStr}`;
+            if (!localStorage.getItem(LOCAL_KEY)) {
+              localStorage.setItem(LOCAL_KEY, "1");
+              // Will be picked up after re-run
+              return loadStreak().then(() => {
+                setStreak(prev => prev ? { ...prev, autoShieldUsed: true } : prev);
+              });
+            }
             return loadStreak();
           }
         }
