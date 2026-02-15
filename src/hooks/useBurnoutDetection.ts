@@ -11,6 +11,9 @@ export interface BurnoutData {
     duration_decline: number;
     consecutive_long: number;
     late_night_sessions: number;
+    focus_fragmentation: number;
+    mode_monotony: number;
+    schedule_irregularity: number;
   };
   recommendations: string[];
   confidence: number;

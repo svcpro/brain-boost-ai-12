@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMLFeatures, type UserFeatures } from "@/hooks/useMLFeatures";
 import { useBurnoutDetection, type BurnoutData } from "@/hooks/useBurnoutDetection";
 import { useAdaptiveDifficulty, type AdaptiveDifficultyData } from "@/hooks/useAdaptiveDifficulty";
+import ContinualLearningMonitor from "./ContinualLearningMonitor";
 
 interface ModelMetric {
   model_name: string;
@@ -380,6 +381,9 @@ const MLAdminDashboard = ({ onBack }: { onBack: () => void }) => {
           </div>
         </motion.div>
       )}
+
+      {/* Continual Learning Monitor */}
+      <ContinualLearningMonitor />
     </div>
   );
 };

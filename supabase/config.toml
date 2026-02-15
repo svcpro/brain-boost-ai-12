@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.adaptive-difficulty]
 verify_jwt = false
+
+[functions.ai-brain-agent]
+verify_jwt = false
+
+[functions.continual-learning]
+verify_jwt = false
