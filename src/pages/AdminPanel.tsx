@@ -590,6 +590,7 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   const [loading, setLoading] = useState(true);
   const [expandedTab, setExpandedTab] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -658,12 +659,22 @@ const SettingsSection = ({ toast }: { toast: any }) => {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Enable or disable tabs and their individual sections for all users.</p>
         {!loading && flags.some(f => !f.enabled) && (
-          <button
-            onClick={resetAllFlags}
-            className="shrink-0 text-xs font-medium text-primary hover:text-primary/80 transition-colors underline underline-offset-2"
-          >
-            Reset all
-          </button>
+          <AnimatePresence mode="wait">
+            {confirmReset ? (
+              <motion.div key="confirm" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex items-center gap-2">
+                <span className="text-xs text-destructive font-medium">Reset all?</span>
+                <button onClick={() => { resetAllFlags(); setConfirmReset(false); }} className="text-xs font-semibold text-destructive hover:text-destructive/80 transition-colors">Yes</button>
+                <button onClick={() => setConfirmReset(false)} className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+              </motion.div>
+            ) : (
+              <motion.button key="trigger" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setConfirmReset(true)}
+                className="shrink-0 text-xs font-medium text-primary hover:text-primary/80 transition-colors underline underline-offset-2"
+              >
+                Reset all
+              </motion.button>
+            )}
+          </AnimatePresence>
         )}
       </div>
 
