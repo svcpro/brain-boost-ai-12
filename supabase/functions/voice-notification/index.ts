@@ -32,15 +32,17 @@ serve(async (req) => {
     }
 
     // Step 1: Generate dynamic voice text using Lovable AI
+    const userName = context?.userName || "";
+    const nameClause = userName ? ` The student's name is "${userName}" — address them by name naturally (use first name only).` : "";
     const lang = language === "hi" ? "Hindi (written in Devanagari script mixed with simple English words where natural, Hinglish conversational style)" : "English (clear, natural American English)";
     const toneDesc = tone === "energetic" ? "energetic, upbeat, and lively" : tone === "calm" ? "very calm, composed, and soothing" : "soft, warm, and gentle";
 
     const promptMap: Record<string, string> = {
-      daily_reminder: `Generate a short (1-2 sentences) ${toneDesc} study reminder in ${lang}. Context: The student should study ${context?.daily_topic || "their planned topics"} for about ${context?.daily_minutes || 20} minutes today. Subject: ${context?.subject || "general"}. Be motivating, varied, and natural. Don't use generic greetings every time — vary the opening.`,
-      forget_risk: `Generate a short (1-2 sentences) ${toneDesc} memory risk alert in ${lang}. Context: The topic "${context?.topic || "a topic"}" in ${context?.subject || "a subject"} has a memory score of ${context?.memory_score ?? 40}%. It may drop soon. Recommend a quick review. Sound slightly urgent but caring.`,
-      exam_countdown: `Generate a short (1-2 sentences) ${toneDesc} exam countdown alert in ${lang}. Context: The student has ${context?.exam_days ?? 7} days until their exam. Be focused and confident. Suggest activating Focus Mode if exam is close.`,
-      motivation: `Generate a short (1-2 sentences) ${toneDesc} motivational notification in ${lang}. Context: ${context?.rank_change ? `Their predicted rank improved by ${context.rank_change} positions.` : "They've been consistent with their studies."} Be encouraging and warm.`,
-      test: `Generate a short (1 sentence) ${toneDesc} test notification in ${lang}. Say something like "Your ACRY voice notifications are working perfectly." Make it sound premium and intelligent.`,
+      daily_reminder: `Generate a short (1-2 sentences) ${toneDesc} study reminder in ${lang}.${nameClause} Context: The student should study ${context?.daily_topic || "their planned topics"} for about ${context?.daily_minutes || 20} minutes today. Subject: ${context?.subject || "general"}. Be motivating, varied, and natural. Don't use generic greetings every time — vary the opening.`,
+      forget_risk: `Generate a short (1-2 sentences) ${toneDesc} memory risk alert in ${lang}.${nameClause} Context: The topic "${context?.topic || "a topic"}" in ${context?.subject || "a subject"} has a memory score of ${context?.memory_score ?? 40}%. It may drop soon. Recommend a quick review. Sound slightly urgent but caring.`,
+      exam_countdown: `Generate a short (1-2 sentences) ${toneDesc} exam countdown alert in ${lang}.${nameClause} Context: The student has ${context?.exam_days ?? 7} days until their exam. Be focused and confident. Suggest activating Focus Mode if exam is close.`,
+      motivation: `Generate a short (1-2 sentences) ${toneDesc} motivational notification in ${lang}.${nameClause} Context: ${context?.rank_change ? `Their predicted rank improved by ${context.rank_change} positions.` : "They've been consistent with their studies."} Be encouraging and warm.`,
+      test: `Generate a short (1 sentence) ${toneDesc} test notification in ${lang}.${nameClause} Say something like "Your ACRY voice notifications are working perfectly." Make it sound premium and intelligent.`,
     };
 
     const aiPrompt = promptMap[type] || promptMap.test;
