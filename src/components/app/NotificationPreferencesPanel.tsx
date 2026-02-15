@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2 } from "lucide-react";
+import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,7 @@ const NotificationPreferencesPanel = () => {
   const [lastBriefingAt, setLastBriefingAt] = useState<string | null>(null);
   const [briefingText, setBriefingText] = useState<string | null>(null);
   const [briefingLoading, setBriefingLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Load prefs + last briefing timestamp from DB on mount
   useEffect(() => {
@@ -190,9 +191,37 @@ const NotificationPreferencesPanel = () => {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
-              className="rounded-lg bg-accent/50 p-2.5 text-[11px] text-foreground leading-relaxed"
+              className="rounded-lg bg-accent/50 p-2.5 space-y-2"
             >
-              {briefingText}
+              <p className="text-[11px] text-foreground leading-relaxed">{briefingText}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(briefingText);
+                    setCopied(true);
+                    toast({ title: "Copied to clipboard!" });
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+                {typeof navigator.share === "function" && (
+                  <button
+                    onClick={() => {
+                      navigator.share({
+                        title: "🧠 My Brain Briefing",
+                        text: briefingText,
+                      }).catch(() => {});
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Share2 className="w-3 h-3" />
+                    Share
+                  </button>
+                )}
+              </div>
             </motion.div>
           )}
         </div>
