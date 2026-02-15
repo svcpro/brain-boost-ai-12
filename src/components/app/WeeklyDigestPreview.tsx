@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame, Quote } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame, Quote, Copy, Check } from "lucide-react";
 import html2canvas from "html2canvas";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -196,6 +196,46 @@ const StreakCard = ({ streak }: { streak: number }) => {
         </motion.span>
       )}
     </div>
+  );
+};
+
+const QuoteBanner = ({ quote, streak }: { quote: string; streak: number }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    const text = `"${quote}" — ${streak}-day study streak 🔥`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success("Quote copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy");
+    }
+  }, [quote, streak]);
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      onClick={handleCopy}
+      className="w-full rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 flex items-start gap-2 text-left hover:bg-primary/10 active:scale-[0.98] transition-all cursor-pointer group"
+    >
+      <Quote className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+      <p className="text-[11px] text-foreground/80 leading-relaxed italic flex-1">{quote}</p>
+      <AnimatePresence mode="wait">
+        {copied ? (
+          <motion.div key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+            <Check className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
+          </motion.div>
+        ) : (
+          <motion.div key="copy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <Copy className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 };
 
@@ -498,17 +538,7 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
                 </div>
                 <StreakCard streak={data.streak} />
               </div>
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 flex items-start gap-2"
-              >
-                <Quote className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                <p className="text-[11px] text-foreground/80 leading-relaxed italic">
-                  {getStreakQuote(data.streak)}
-                </p>
-              </motion.div>
+              <QuoteBanner quote={getStreakQuote(data.streak)} streak={data.streak} />
             </div>
           )}
 
