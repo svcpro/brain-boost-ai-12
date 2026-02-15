@@ -130,6 +130,16 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     return () => clearTimeout(timer);
   }, []);
 
+  // Auto-dismiss welcome card after 10 seconds
+  useEffect(() => {
+    if (!showWelcomeCard) return;
+    const timer = setTimeout(() => {
+      localStorage.setItem("acry-welcome-card-seen", "1");
+      setShowWelcomeCard(false);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [showWelcomeCard]);
+
   // Show toast when auto-shield saved the streak
   useEffect(() => {
     if (streakData?.autoShieldUsed) {
