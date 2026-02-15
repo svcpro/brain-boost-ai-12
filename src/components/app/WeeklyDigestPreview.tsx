@@ -467,10 +467,12 @@ const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
 const PB_KEY = "weekly-sessions-pb";
 
-const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; lastWeek: number[] }) => {
-  const maxVal = Math.max(...thisWeek, ...lastWeek, 1);
-  const thisTotal = thisWeek.reduce((a, b) => a + b, 0);
-  const lastTotal = lastWeek.reduce((a, b) => a + b, 0);
+const WeeklyStreakComparison = ({ thisWeek = [], lastWeek = [] }: { thisWeek?: number[]; lastWeek?: number[] }) => {
+  const safeThis = Array.isArray(thisWeek) ? thisWeek : [];
+  const safeLast = Array.isArray(lastWeek) ? lastWeek : [];
+  const maxVal = Math.max(...safeThis, ...safeLast, 1);
+  const thisTotal = safeThis.reduce((a, b) => a + b, 0);
+  const lastTotal = safeLast.reduce((a, b) => a + b, 0);
   const diff = thisTotal - lastTotal;
   const [activeDay, setActiveDay] = useState<number | null>(null);
   const confettiFired = useRef(false);
@@ -535,9 +537,9 @@ const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; la
                   exit={{ opacity: 0, y: 4, scale: 0.9 }}
                   className="absolute -top-7 bg-popover border border-border rounded-md px-1.5 py-0.5 shadow-md z-10 whitespace-nowrap"
                 >
-                  <span className="text-[8px] text-muted-foreground">{lastWeek[i]}</span>
+                  <span className="text-[8px] text-muted-foreground">{safeLast[i]}</span>
                   <span className="text-[8px] text-muted-foreground/40 mx-0.5">→</span>
-                  <span className="text-[8px] text-primary font-semibold">{thisWeek[i]}</span>
+                  <span className="text-[8px] text-primary font-semibold">{safeThis[i]}</span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -545,16 +547,16 @@ const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; la
               <motion.div
                 className="w-[5px] rounded-t-sm bg-muted-foreground/25"
                 initial={{ height: 0 }}
-                animate={{ height: `${(lastWeek[i] / maxVal) * 100}%` }}
+                animate={{ height: `${((safeLast[i] || 0) / maxVal) * 100}%` }}
                 transition={{ duration: 0.5, delay: i * 0.05 }}
-                style={{ minHeight: lastWeek[i] > 0 ? 3 : 0 }}
+                style={{ minHeight: (safeLast[i] || 0) > 0 ? 3 : 0 }}
               />
               <motion.div
                 className="w-[5px] rounded-t-sm bg-primary"
                 initial={{ height: 0 }}
-                animate={{ height: `${(thisWeek[i] / maxVal) * 100}%` }}
+                animate={{ height: `${((safeThis[i] || 0) / maxVal) * 100}%` }}
                 transition={{ duration: 0.5, delay: i * 0.05 + 0.1 }}
-                style={{ minHeight: thisWeek[i] > 0 ? 3 : 0 }}
+                style={{ minHeight: (safeThis[i] || 0) > 0 ? 3 : 0 }}
               />
             </div>
             <span className={`text-[8px] ${activeDay === i ? "text-primary font-semibold" : "text-muted-foreground"}`}>{day}</span>
