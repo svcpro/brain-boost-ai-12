@@ -1113,7 +1113,24 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Volume</span>
-                      <span className="text-xs text-foreground font-medium">{volume}%</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-end gap-[1.5px] h-3">
+                          {Array.from({ length: 4 }).map((_, i) => {
+                            const threshold = (i + 1) * 25;
+                            const active = volume >= threshold;
+                            const scaled = Math.min(1, volume / 100);
+                            return (
+                              <motion.div
+                                key={i}
+                                className={`w-[2.5px] rounded-full ${active ? "bg-primary" : "bg-muted-foreground/20"}`}
+                                animate={{ height: active ? 4 + i * 2.5 * scaled : 3 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                              />
+                            );
+                          })}
+                        </div>
+                        <span className="text-xs text-foreground font-medium">{volume}%</span>
+                      </div>
                     </div>
                     <input
                       type="range"
