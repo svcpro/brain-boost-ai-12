@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Brain, Target, Calendar, ChevronDown,
-  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check, Copy, Layers, SlidersHorizontal,
+  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check, Copy, Layers, SlidersHorizontal, Info,
 } from "lucide-react";
 import { useHybridPrediction, HybridTopicPrediction } from "@/hooks/useHybridPrediction";
 import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BarChart, Bar } from "recharts";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
@@ -735,6 +736,33 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                         <div className="flex items-center gap-2 mb-1">
                           <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
                           <p className="text-xs font-semibold text-foreground">Adjust Weight Balance</p>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="p-0.5 rounded-full hover:bg-secondary/50 transition-colors">
+                                <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent side="top" align="start" className="w-72 text-xs space-y-2">
+                              <p className="font-semibold text-foreground">Why this weight ratio?</p>
+                              <p className="text-muted-foreground leading-relaxed">
+                                The AI set <span className="text-primary font-medium">{Math.round((hybridData.personal_weight ?? 0.7) * 100)}% personal</span> / <span className="text-accent-foreground font-medium">{Math.round((hybridData.global_weight ?? 0.3) * 100)}% global</span> based on:
+                              </p>
+                              <ul className="space-y-1.5 text-muted-foreground">
+                                <li className="flex items-start gap-1.5">
+                                  <span className="text-primary mt-0.5">•</span>
+                                  <span><span className="text-foreground font-medium">Data maturity:</span> {hybridData.data_maturity_points ?? 0} points — {(hybridData.data_maturity_points ?? 0) >= 50 ? "strong personal history, so your data is weighted higher" : "limited personal data, so global patterns help fill gaps"}</span>
+                                </li>
+                                <li className="flex items-start gap-1.5">
+                                  <span className="text-primary mt-0.5">•</span>
+                                  <span><span className="text-foreground font-medium">Cognitive cluster:</span> {hybridData.embedding_cluster ? `"${hybridData.embedding_cluster.replace(/_/g, " ")}"` : "not yet classified"} — the model tunes weights for your learning archetype</span>
+                                </li>
+                                <li className="flex items-start gap-1.5">
+                                  <span className="text-primary mt-0.5">•</span>
+                                  <span>More study sessions and reviews increase data maturity, shifting weight toward your personal model</span>
+                                </li>
+                              </ul>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                           <span>Global-heavy</span>
