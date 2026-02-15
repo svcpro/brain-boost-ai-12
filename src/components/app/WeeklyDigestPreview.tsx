@@ -471,6 +471,14 @@ const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; la
   const lastTotal = lastWeek.reduce((a, b) => a + b, 0);
   const diff = thisTotal - lastTotal;
   const [activeDay, setActiveDay] = useState<number | null>(null);
+  const confettiFired = useRef(false);
+
+  useEffect(() => {
+    if (diff > 0 && !confettiFired.current) {
+      confettiFired.current = true;
+      confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#6366f1", "#f59e0b", "#10b981"] });
+    }
+  }, [diff]);
 
   return (
     <div className="rounded-lg bg-secondary/30 border border-border/40 p-3 space-y-2">
