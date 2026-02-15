@@ -102,6 +102,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [totalXp, setTotalXp] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [levelUpCelebration, setLevelUpCelebration] = useState<number | null>(null);
+  const [profileDisplayName, setProfileDisplayName] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const prevLevelRef = useRef<number | null>(null);
 
   const LEVEL_THRESHOLDS = useMemo(() => [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000], []);
@@ -206,8 +210,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   // Load avatar URL and XP
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle().then(({ data }) => {
+    supabase.from("profiles").select("avatar_url, display_name").eq("id", user.id).maybeSingle().then(({ data }) => {
       if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+      setProfileDisplayName(data?.display_name || null);
     });
     // Sum all study minutes as XP
     supabase.from("study_logs").select("duration_minutes").eq("user_id", user.id).then(({ data }) => {
@@ -511,7 +516,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
             ) : (
               <span className="text-lg font-bold text-primary">
-                {(user?.user_metadata?.display_name || "S").slice(0, 2).toUpperCase()}
+                {(profileDisplayName || user?.user_metadata?.display_name || "S").slice(0, 2).toUpperCase()}
               </span>
             )}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
@@ -531,14 +536,76 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             />
           </motion.label>
           <div className="flex-1 min-w-0">
-            <motion.h2
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.15 }}
-              className="text-lg font-bold text-foreground truncate"
-            >
-              {user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"}
-            </motion.h2>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const trimmed = editNameValue.trim();
+                      if (!trimmed || !user) return;
+                      setSavingName(true);
+                      supabase.from("profiles").update({ display_name: trimmed } as any).eq("id", user.id).then(({ error }) => {
+                        setSavingName(false);
+                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                        setProfileDisplayName(trimmed);
+                        setEditingName(false);
+                        toast({ title: "✨ Name updated!" });
+                      });
+                    }
+                    if (e.key === "Escape") setEditingName(false);
+                  }}
+                  autoFocus
+                  className="flex-1 min-w-0 rounded-lg bg-secondary border border-border px-2.5 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder="Your name"
+                  disabled={savingName}
+                />
+                <button
+                  onClick={() => {
+                    const trimmed = editNameValue.trim();
+                    if (!trimmed || !user) return;
+                    setSavingName(true);
+                    supabase.from("profiles").update({ display_name: trimmed } as any).eq("id", user.id).then(({ error }) => {
+                      setSavingName(false);
+                      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                      setProfileDisplayName(trimmed);
+                      setEditingName(false);
+                      toast({ title: "✨ Name updated!" });
+                    });
+                  }}
+                  disabled={savingName}
+                  className="p-1 rounded-md hover:bg-secondary text-primary"
+                >
+                  {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                </button>
+                <button onClick={() => setEditingName(false)} className="p-1 rounded-md hover:bg-secondary text-muted-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 }}
+                className="flex items-center gap-2"
+              >
+                <h2 className="text-lg font-bold text-foreground truncate">
+                  {profileDisplayName || user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"}
+                </h2>
+                <button
+                  onClick={() => {
+                    setEditNameValue(profileDisplayName || user?.user_metadata?.display_name || user?.email?.split("@")[0] || "");
+                    setEditingName(true);
+                  }}
+                  className="p-1 rounded-md hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors"
+                  title="Edit name"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </motion.div>
+            )}
             <motion.p
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
