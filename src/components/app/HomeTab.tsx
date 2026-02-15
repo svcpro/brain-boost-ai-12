@@ -31,6 +31,7 @@ import StreakMilestoneCelebration from "./StreakMilestoneCelebration";
 import StreakRecoveryCard from "./StreakRecoveryCard";
 import ComebackCelebration from "./ComebackCelebration";
 import ExplainButton from "./ExplainButton";
+import RiskDigestCard from "./RiskDigestCard";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -496,6 +497,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </motion.button>
       )}
+
+      {/* Risk Digest Card */}
+      <RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} />
 
       <AnimatePresence>
         {analyzing && (
