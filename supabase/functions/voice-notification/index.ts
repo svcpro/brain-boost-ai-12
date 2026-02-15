@@ -89,6 +89,11 @@ serve(async (req) => {
     const aiData = await aiResponse.json();
     const spokenText = aiData.choices?.[0]?.message?.content?.trim() || "Your ACRY brain is active.";
 
+    // Track Lovable AI usage (fire-and-forget)
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+    const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}).catch(() => {});
+
     // Step 2: Convert text to speech using ElevenLabs
     const allowedVoices = ["EXAVITQu4vr4xnSDxMaL", "Xb7hH8MSUJpSbSDYk0k2", "nPczCjzI2devNBz1zQrb", "onwK4e9ZLuTAKqWW03F9"];
     const voiceId = allowedVoices.includes(requestedVoiceId) ? requestedVoiceId : "EXAVITQu4vr4xnSDxMaL";
@@ -128,6 +133,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Track ElevenLabs usage (fire-and-forget)
+    adminClient.rpc("increment_api_usage", { p_service_name: "elevenlabs" }).then(() => {}).catch(() => {});
 
     const audioBuffer = await ttsResponse.arrayBuffer();
 

@@ -94,6 +94,10 @@ ${ranks.length > 0 ? `Current rank: ${ranks[0].predicted_rank} (${ranks[0].perce
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    // Helper: track API usage after successful AI calls
+    const adminTracker = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const trackAI = () => adminTracker.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}).catch(() => {});
+
     if (action === "analyze") {
       // Autonomous analysis: generate a comprehensive brain briefing
       const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -144,6 +148,7 @@ ${ranks.length > 0 ? `Current rank: ${ranks[0].predicted_rank} (${ranks[0].perce
       }
 
       const aiData = await aiResp.json();
+      trackAI();
       const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
       let briefing = {};
       if (toolCall?.function?.arguments) {
@@ -184,6 +189,7 @@ ${cognitiveContext}`
       }
 
       const aiData = await aiResp.json();
+      trackAI();
       const reply = aiData.choices?.[0]?.message?.content || "I couldn't process that. Please try again.";
 
       return new Response(JSON.stringify({ reply }), {
@@ -218,6 +224,7 @@ ${cognitiveContext}`
 
       if (!aiResp.ok) throw new Error("AI gateway error");
       const aiData = await aiResp.json();
+      trackAI();
       const explanation = aiData.choices?.[0]?.message?.content || "";
 
       return new Response(JSON.stringify({ explanation }), {

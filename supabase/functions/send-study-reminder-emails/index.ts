@@ -49,6 +49,9 @@ async function sendReminderEmail(email: string, displayName: string, topicsCount
   } else {
     await res.text();
     console.log(`Study reminder sent to ${email}`);
+    // Track Resend usage (fire-and-forget)
+    const trackClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    trackClient.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}).catch(() => {});
   }
 }
 

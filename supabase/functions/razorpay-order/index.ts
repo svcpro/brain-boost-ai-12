@@ -79,6 +79,9 @@ serve(async (req) => {
         throw new Error(`Razorpay order creation failed: ${JSON.stringify(orderData)}`);
       }
 
+      // Track Razorpay usage (fire-and-forget)
+      adminClient.rpc("increment_api_usage", { p_service_name: "razorpay" }).then(() => {}).catch(() => {});
+
       return new Response(JSON.stringify({ order: orderData, key_id: RAZORPAY_KEY_ID, mode }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
