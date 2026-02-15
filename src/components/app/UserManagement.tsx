@@ -6,7 +6,7 @@ import {
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
   CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download,
   CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown,
-  Target, Award
+  Target, Award, Bell, Send
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -924,6 +924,9 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         )}
       </div>
 
+      {/* Send Notification */}
+      <SendNotificationSection userId={user.id} userName={user.display_name || "Anonymous"} toast={toast} logAudit={logAudit} />
+
       {/* Ban / Unban Section */}
       <div className={`glass rounded-xl neural-border p-4 space-y-3 ${isBanned ? 'border-destructive/30' : ''}`}>
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -996,6 +999,108 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Send Notification ───
+const SendNotificationSection = ({ userId, userName, toast, logAudit }: {
+  userId: string;
+  userName: string;
+  toast: any;
+  logAudit: (action: string, details: Record<string, any>) => Promise<void>;
+}) => {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [type, setType] = useState<string>("general");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const sendNotification = async () => {
+    if (!title.trim()) {
+      toast({ title: "Title is required", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    const { error } = await supabase.from("notification_history").insert({
+      user_id: userId,
+      title: title.trim(),
+      body: body.trim() || null,
+      type,
+      read: false,
+    });
+    if (error) {
+      toast({ title: "Failed to send notification", variant: "destructive" });
+      setSending(false);
+      return;
+    }
+    await logAudit("notification_sent", { title: title.trim(), type, to: userId });
+    toast({ title: `Notification sent to ${userName}` });
+    setSending(false);
+    setSent(true);
+    setTitle("");
+    setBody("");
+    setTimeout(() => setSent(false), 3000);
+  };
+
+  const NOTIFICATION_TYPES = [
+    { value: "general", label: "General" },
+    { value: "reminder", label: "Reminder" },
+    { value: "achievement", label: "Achievement" },
+    { value: "warning", label: "Warning" },
+    { value: "system", label: "System" },
+  ];
+
+  return (
+    <div className="glass rounded-xl neural-border p-4 space-y-3">
+      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+        <Bell className="w-4 h-4 text-accent" /> Send Notification
+      </h3>
+      <div className="space-y-3">
+        <div className="flex gap-2 flex-wrap">
+          {NOTIFICATION_TYPES.map(t => (
+            <button
+              key={t.value}
+              onClick={() => setType(t.value)}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${type === t.value ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground mb-1 block">Title *</label>
+          <input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="e.g. Great progress this week!"
+            maxLength={120}
+            className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground mb-1 block">Body (optional)</label>
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            placeholder="Add more details..."
+            rows={3}
+            maxLength={500}
+            className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none resize-none"
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <p className="text-[9px] text-muted-foreground">{title.length}/120 · {body.length}/500</p>
+          <button
+            onClick={sendNotification}
+            disabled={sending || !title.trim()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : sent ? <CheckCircle2 className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+            {sent ? "Sent!" : "Send Notification"}
+          </button>
+        </div>
       </div>
     </div>
   );
