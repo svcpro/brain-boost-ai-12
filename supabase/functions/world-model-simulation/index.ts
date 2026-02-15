@@ -249,10 +249,22 @@ Always select a recommended scenario and explain why, referencing global pattern
     const aiData = await aiResp.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     
-    let result = { scenarios: [], recommended_scenario: "", recommendation_reason: "", overall_outlook: "" };
+    let result: any = { scenarios: [], recommended_scenario: "", recommendation_reason: "", overall_outlook: "" };
     if (toolCall?.function?.arguments) {
       result = JSON.parse(toolCall.function.arguments);
     }
+
+    // Compute global calibration metadata
+    const patternTypes = [...new Set(globalPatterns.map(p => p.pattern_type))];
+    const totalLearners = Math.max(
+      ...globalPatterns.map(p => p.sample_size || 0),
+      0
+    );
+    result.global_calibration = {
+      total_learners: totalLearners,
+      patterns_used: globalPatterns.length,
+      pattern_types: patternTypes,
+    };
 
     // Store simulation in learning_simulations table
     const bestScenario = result.scenarios.find((s: any) => s.name === result.recommended_scenario) || result.scenarios[0];

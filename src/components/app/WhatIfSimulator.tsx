@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FlaskConical, ChevronDown, TrendingUp, TrendingDown, Sparkles, Crosshair, Zap, Shield, AlertTriangle, Trophy, Brain, Clock, Target } from "lucide-react";
+import { FlaskConical, ChevronDown, TrendingUp, TrendingDown, Sparkles, Crosshair, Zap, Shield, AlertTriangle, Trophy, Brain, Clock, Target, Globe, Users } from "lucide-react";
 import FocusModeSession from "./FocusModeSession";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,6 +44,11 @@ interface SimulationOutput {
   recommended_scenario: string;
   recommendation_reason: string;
   overall_outlook: string;
+  global_calibration?: {
+    total_learners: number;
+    patterns_used: number;
+    pattern_types: string[];
+  };
 }
 
 const PRESET_SCENARIOS: ScenarioInput[] = [
@@ -274,6 +279,36 @@ export default function WhatIfSimulator({ topicModels, subjectMap = {} }: Props)
                         exit={{ opacity: 0 }}
                         className="space-y-3"
                       >
+                        {/* Global Calibration Indicator */}
+                        {worldModelResult.global_calibration && worldModelResult.global_calibration.total_learners > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="rounded-lg bg-accent/10 border border-accent/20 px-3 py-2 flex items-center gap-2"
+                          >
+                            <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+                              <Globe className="w-3.5 h-3.5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-semibold text-foreground">
+                                Calibrated with collective intelligence
+                              </p>
+                              <p className="text-[9px] text-muted-foreground">
+                                <span className="text-foreground font-medium">{worldModelResult.global_calibration.patterns_used} patterns</span> from{" "}
+                                <span className="text-foreground font-medium">{worldModelResult.global_calibration.total_learners}+ learners</span>
+                                {" · "}
+                                {worldModelResult.global_calibration.pattern_types.map((t, i) => (
+                                  <span key={t}>
+                                    {i > 0 && ", "}
+                                    {t.replace("_", " ")}
+                                  </span>
+                                ))}
+                              </p>
+                            </div>
+                            <Users className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          </motion.div>
+                        )}
+
                         {/* Overall Outlook */}
                         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
                           <div className="flex items-center gap-1.5 mb-1">
