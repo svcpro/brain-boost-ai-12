@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, Brain, BookOpen, CreditCard,
@@ -597,23 +597,33 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   const [lastToggle, setLastToggle] = useState<{ key: string; previousEnabled: boolean } | null>(null);
   const [changelog, setChangelog] = useState<any[]>([]);
   const [showChangelog, setShowChangelog] = useState(false);
+  const [changelogHasMore, setChangelogHasMore] = useState(true);
+  const [changelogLoading, setChangelogLoading] = useState(false);
+  const CHANGELOG_PAGE_SIZE = 20;
+  const nameMapRef = useRef(new Map<string, string>());
 
-  const fetchChangelog = useCallback(async () => {
+  const fetchChangelog = useCallback(async (offset = 0, append = false) => {
+    setChangelogLoading(true);
     const { data } = await supabase
       .from("admin_audit_logs")
       .select("*")
       .eq("target_type", "feature_flags")
       .order("created_at", { ascending: false })
-      .limit(50);
-    if (!data) return;
-    // Fetch admin display names
-    const adminIds = [...new Set(data.map(d => d.admin_id))];
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, display_name")
-      .in("id", adminIds);
-    const nameMap = new Map((profiles || []).map(p => [p.id, p.display_name || "Admin"]));
-    setChangelog(data.map(d => ({ ...d, admin_name: nameMap.get(d.admin_id) || "Unknown" })));
+      .range(offset, offset + CHANGELOG_PAGE_SIZE - 1);
+    if (!data) { setChangelogLoading(false); return; }
+    // Fetch any new admin names
+    const newIds = data.map(d => d.admin_id).filter(id => !nameMapRef.current.has(id));
+    if (newIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", [...new Set(newIds)]);
+      (profiles || []).forEach(p => nameMapRef.current.set(p.id, p.display_name || "Admin"));
+    }
+    const mapped = data.map(d => ({ ...d, admin_name: nameMapRef.current.get(d.admin_id) || "Unknown" }));
+    setChangelog(prev => append ? [...prev, ...mapped] : mapped);
+    setChangelogHasMore(data.length === CHANGELOG_PAGE_SIZE);
+    setChangelogLoading(false);
   }, []);
 
   useEffect(() => {
@@ -1018,10 +1028,10 @@ const SettingsSection = ({ toast }: { toast: any }) => {
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden mt-2"
             >
-              {changelog.length === 0 ? (
+              {changelog.length === 0 && !changelogLoading ? (
                 <p className="text-xs text-muted-foreground py-4 text-center">No changes recorded yet</p>
               ) : (
-                <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+                <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
                   {changelog.map(log => {
                     const isEnabled = log.action === "feature_enabled";
                     const flagLabel = (log.details as any)?.flag_key || log.target_id || "unknown";
@@ -1045,6 +1055,19 @@ const SettingsSection = ({ toast }: { toast: any }) => {
                       </div>
                     );
                   })}
+                  {changelogLoading && (
+                    <div className="flex justify-center py-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {!changelogLoading && changelogHasMore && changelog.length > 0 && (
+                    <button
+                      onClick={() => fetchChangelog(changelog.length, true)}
+                      className="w-full text-center text-[11px] text-primary hover:text-primary/80 py-2 transition-colors"
+                    >
+                      Load more
+                    </button>
+                  )}
                 </div>
               )}
             </motion.div>
