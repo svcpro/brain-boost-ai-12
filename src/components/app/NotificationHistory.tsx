@@ -421,7 +421,7 @@ const NotificationHistory = () => {
                                 {n.body}
                               </p>
                             )}
-                            <p className={`text-[10px] mt-1.5 ${n.read ? "text-muted-foreground/50" : "text-muted-foreground/70"}`}>
+                            <p className="text-[11px] font-medium mt-1.5 text-muted-foreground">
                               {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                             </p>
                           </div>
