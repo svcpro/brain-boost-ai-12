@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import SubscriptionAnalytics from "@/components/app/SubscriptionAnalytics";
 
 type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "notifications" | "admins" | "audit" | "settings";
 
@@ -372,7 +373,7 @@ const KnowledgeSection = () => {
 // ─── Subscriptions & Plans ───
 const SubscriptionsSection = () => {
   const { toast } = useToast();
-  const [tab, setTab] = useState<"plans" | "payments" | "webhooks" | "gateway">("plans");
+  const [tab, setTab] = useState<"plans" | "payments" | "analytics" | "webhooks" | "gateway">("plans");
 
   return (
     <div className="space-y-4">
@@ -381,6 +382,7 @@ const SubscriptionsSection = () => {
         {([
           { key: "plans" as const, label: "Plan Management" },
           { key: "payments" as const, label: "Payment History" },
+          { key: "analytics" as const, label: "Analytics" },
           { key: "webhooks" as const, label: "Webhook Events" },
           { key: "gateway" as const, label: "Gateway Config" },
         ]).map(t => (
@@ -389,7 +391,7 @@ const SubscriptionsSection = () => {
           </button>
         ))}
       </div>
-      {tab === "plans" ? <PlanManagement toast={toast} /> : tab === "payments" ? <PaymentManagement /> : tab === "webhooks" ? <WebhookEvents /> : <GatewayConfig />}
+      {tab === "plans" ? <PlanManagement toast={toast} /> : tab === "payments" ? <PaymentManagement /> : tab === "analytics" ? <SubscriptionAnalytics /> : tab === "webhooks" ? <WebhookEvents /> : <GatewayConfig />}
     </div>
   );
 };
