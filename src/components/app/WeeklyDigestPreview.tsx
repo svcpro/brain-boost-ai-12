@@ -470,6 +470,7 @@ const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; la
   const thisTotal = thisWeek.reduce((a, b) => a + b, 0);
   const lastTotal = lastWeek.reduce((a, b) => a + b, 0);
   const diff = thisTotal - lastTotal;
+  const [activeDay, setActiveDay] = useState<number | null>(null);
 
   return (
     <div className="rounded-lg bg-secondary/30 border border-border/40 p-3 space-y-2">
@@ -483,9 +484,27 @@ const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; la
           {diff > 0 ? "+" : ""}{diff} sessions
         </span>
       </div>
-      <div className="flex items-end gap-1">
+      <div className="relative flex items-end gap-1">
         {DAY_LABELS.map((day, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+          <div
+            key={i}
+            className="flex-1 flex flex-col items-center gap-0.5 cursor-pointer"
+            onClick={() => setActiveDay(activeDay === i ? null : i)}
+          >
+            <AnimatePresence>
+              {activeDay === i && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.9 }}
+                  className="absolute -top-7 bg-popover border border-border rounded-md px-1.5 py-0.5 shadow-md z-10 whitespace-nowrap"
+                >
+                  <span className="text-[8px] text-muted-foreground">{lastWeek[i]}</span>
+                  <span className="text-[8px] text-muted-foreground/40 mx-0.5">→</span>
+                  <span className="text-[8px] text-primary font-semibold">{thisWeek[i]}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="flex items-end gap-[2px] h-8 w-full justify-center">
               <motion.div
                 className="w-[5px] rounded-t-sm bg-muted-foreground/25"
@@ -502,7 +521,7 @@ const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; la
                 style={{ minHeight: thisWeek[i] > 0 ? 3 : 0 }}
               />
             </div>
-            <span className="text-[8px] text-muted-foreground">{day}</span>
+            <span className={`text-[8px] ${activeDay === i ? "text-primary font-semibold" : "text-muted-foreground"}`}>{day}</span>
           </div>
         ))}
       </div>
