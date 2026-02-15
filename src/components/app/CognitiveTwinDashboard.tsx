@@ -7,15 +7,20 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useCognitiveTwin } from "@/hooks/useCognitiveTwin";
 import { useMetaLearning } from "@/hooks/useMetaLearning";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import WhatIfSimulator from "./WhatIfSimulator";
 import TopicImpactRanking from "./TopicImpactRanking";
+import BrainEvolutionTimeline from "./BrainEvolutionTimeline";
 import { toast } from "sonner";
 
 export default function CognitiveTwinDashboard() {
   const { twin, simulation, loading: twinLoading, computeTwin, getTwin, simulate } = useCognitiveTwin();
   const { status, improveResult, loading: metaLoading, getStatus, selfImprove } = useMetaLearning();
+  const { user } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [simDays, setSimDays] = useState(7);
+  const [timelineKey, setTimelineKey] = useState(0);
 
   const loading = twinLoading || metaLoading;
 
@@ -26,8 +31,25 @@ export default function CognitiveTwinDashboard() {
 
   const handleComputeTwin = async () => {
     toast.loading("Building your Digital Twin...", { id: "twin" });
-    await computeTwin();
+    const result = await computeTwin();
     toast.success("Digital Twin updated!", { id: "twin" });
+
+    // Save a cognitive snapshot for timeline history
+    if (result && user) {
+      await supabase.from("brain_reports").insert({
+        user_id: user.id,
+        report_type: "cognitive_snapshot",
+        summary: `Evolution: ${Math.round(result.brain_evolution_score)}/100`,
+        metrics: {
+          brain_evolution_score: result.brain_evolution_score,
+          learning_efficiency_score: result.learning_efficiency_score,
+          cognitive_capacity_score: result.cognitive_capacity_score,
+          memory_growth_rate: result.memory_growth_rate,
+          avg_decay_rate: result.avg_decay_rate,
+        },
+      });
+      setTimelineKey(k => k + 1);
+    }
   };
 
   const handleSelfImprove = async () => {
@@ -95,6 +117,13 @@ export default function CognitiveTwinDashboard() {
               <span>Decay rate: {twin.avg_decay_rate.toFixed(4)}/hr</span>
             </div>
           </Card>
+        </motion.div>
+      )}
+
+      {/* Brain Evolution Timeline */}
+      {twin && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.105 }}>
+          <BrainEvolutionTimeline key={timelineKey} />
         </motion.div>
       )}
 
