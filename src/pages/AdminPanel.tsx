@@ -372,19 +372,23 @@ const KnowledgeSection = () => {
 // ─── Subscriptions & Plans ───
 const SubscriptionsSection = () => {
   const { toast } = useToast();
-  const [tab, setTab] = useState<"plans" | "payments">("plans");
+  const [tab, setTab] = useState<"plans" | "payments" | "webhooks">("plans");
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-foreground">Subscription Management</h2>
       <div className="flex gap-2">
-        {(["plans", "payments"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-            {t === "plans" ? "Plan Management" : "Payment History"}
+        {([
+          { key: "plans" as const, label: "Plan Management" },
+          { key: "payments" as const, label: "Payment History" },
+          { key: "webhooks" as const, label: "Webhook Events" },
+        ]).map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+            {t.label}
           </button>
         ))}
       </div>
-      {tab === "plans" ? <PlanManagement toast={toast} /> : <PaymentManagement />}
+      {tab === "plans" ? <PlanManagement toast={toast} /> : tab === "payments" ? <PaymentManagement /> : <WebhookEvents />}
     </div>
   );
 };
@@ -611,6 +615,90 @@ const PlanFormModal = ({ plan, onClose, onSaved }: { plan: any | null; onClose: 
         </div>
       </motion.div>
     </motion.div>
+  );
+};
+// ─── Webhook Events ───
+const WebhookEvents = () => {
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data } = await supabase.from("razorpay_webhook_events").select("*").order("created_at", { ascending: false }).limit(100);
+      setEvents(data || []);
+      setLoading(false);
+    };
+    fetch();
+  }, []);
+
+  const webhookUrl = `https://yvxrsujwgmzdjzsjyqfb.supabase.co/functions/v1/razorpay-webhook`;
+
+  const eventColor = (type: string) => {
+    if (type.includes("captured") || type.includes("activated") || type.includes("charged")) return "text-success bg-success/15";
+    if (type.includes("failed") || type.includes("halted")) return "text-destructive bg-destructive/15";
+    if (type.includes("refund")) return "text-warning bg-warning/15";
+    return "text-muted-foreground bg-muted";
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="glass rounded-xl p-4 neural-border space-y-2">
+        <h3 className="text-sm font-semibold text-foreground">Razorpay Webhook Setup</h3>
+        <p className="text-xs text-muted-foreground">Add this URL in your Razorpay Dashboard → Settings → Webhooks:</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 text-xs bg-secondary rounded-lg px-3 py-2 text-foreground break-all select-all">{webhookUrl}</code>
+          <button onClick={() => { navigator.clipboard.writeText(webhookUrl); }} className="px-3 py-2 bg-primary/15 text-primary rounded-lg text-xs font-medium hover:bg-primary/25 transition-colors shrink-0">
+            Copy
+          </button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">Events to enable: payment.captured, payment.failed, payment.authorized, refund.created, refund.processed, subscription.activated, subscription.charged, subscription.cancelled, subscription.halted, subscription.paused</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="glass rounded-xl p-3 neural-border">
+          <p className="text-[10px] text-muted-foreground">Total Events</p>
+          <p className="text-lg font-bold text-foreground">{events.length}</p>
+        </div>
+        <div className="glass rounded-xl p-3 neural-border">
+          <p className="text-[10px] text-muted-foreground">Processed</p>
+          <p className="text-lg font-bold text-success">{events.filter(e => e.processed).length}</p>
+        </div>
+        <div className="glass rounded-xl p-3 neural-border">
+          <p className="text-[10px] text-muted-foreground">Failed</p>
+          <p className="text-lg font-bold text-destructive">{events.filter(e => e.error_message).length}</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : events.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">No webhook events received yet</p>
+      ) : (
+        <div className="space-y-2">
+          {events.map(e => (
+            <div key={e.id} className="glass rounded-xl p-3 neural-border">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${eventColor(e.event_type)}`}>{e.event_type}</span>
+                {e.processed ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                ) : e.error_message ? (
+                  <XCircle className="w-3.5 h-3.5 text-destructive" />
+                ) : (
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                )}
+                <span className="text-[10px] text-muted-foreground ml-auto">{new Date(e.created_at).toLocaleString()}</span>
+              </div>
+              <div className="mt-1 text-[10px] text-muted-foreground space-x-3">
+                {e.payment_id && <span>Pay: {e.payment_id}</span>}
+                {e.order_id && <span>Order: {e.order_id}</span>}
+                {e.amount && <span>₹{e.amount}</span>}
+              </div>
+              {e.error_message && <p className="text-[10px] text-destructive mt-1">{e.error_message}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
