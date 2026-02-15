@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame, Quote } from "lucide-react";
 import html2canvas from "html2canvas";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -93,6 +93,51 @@ const GoalProgressRing = ({ current, goal }: { current: number; goal: number }) 
 
 const MILESTONES = [7, 14, 21, 30, 50, 100];
 const MILESTONE_CACHE_KEY = "digest-streak-celebrated";
+
+const STREAK_QUOTES: Record<string, string[]> = {
+  zero: [
+    "Every expert was once a beginner. Start today! 💪",
+    "The best time to start is now. One session is all it takes.",
+    "Your brain is ready — just show up for 5 minutes.",
+  ],
+  building: [
+    "Small steps lead to big results. Keep going! 🌱",
+    "You're building momentum — don't stop now.",
+    "Consistency beats intensity. You're proving it.",
+  ],
+  week: [
+    "A full week! Your brain is rewiring itself. 🔥",
+    "7 days strong — habits are forming. Feel the difference?",
+    "One week down — you're officially in the zone!",
+  ],
+  twoWeeks: [
+    "Two weeks of focus! You're unstoppable. ⭐",
+    "14 days — this isn't luck, it's discipline.",
+    "Your future self is thanking you right now.",
+  ],
+  month: [
+    "A whole month! You're in the top 1% of learners. 🏆",
+    "30 days of dedication — mastery is within reach.",
+    "Legendary consistency. This is what champions do.",
+  ],
+  epic: [
+    "You're redefining what's possible. Absolute legend! 👑",
+    "Most people dream about this level of commitment. You live it.",
+    "Your dedication is extraordinary. Keep blazing the trail!",
+  ],
+};
+
+const getStreakQuote = (streak: number): string => {
+  const tier = streak === 0 ? "zero"
+    : streak < 7 ? "building"
+    : streak < 14 ? "week"
+    : streak < 30 ? "twoWeeks"
+    : streak < 50 ? "month"
+    : "epic";
+  const quotes = STREAK_QUOTES[tier];
+  // Deterministic pick based on streak number
+  return quotes[streak % quotes.length];
+};
 
 const StreakCard = ({ streak }: { streak: number }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -446,11 +491,24 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
         <div className="p-4 space-y-3">
           {/* Weekly Goal + Streak */}
           {!showCompare && (
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <GoalProgressRing current={data.totalMinutes} goal={data.weeklyFocusGoal} />
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <GoalProgressRing current={data.totalMinutes} goal={data.weeklyFocusGoal} />
+                </div>
+                <StreakCard streak={data.streak} />
               </div>
-              <StreakCard streak={data.streak} />
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 flex items-start gap-2"
+              >
+                <Quote className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                <p className="text-[11px] text-foreground/80 leading-relaxed italic">
+                  {getStreakQuote(data.streak)}
+                </p>
+              </motion.div>
             </div>
           )}
 
