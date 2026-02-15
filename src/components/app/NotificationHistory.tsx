@@ -38,6 +38,8 @@ const NotificationHistory = () => {
   const pullYRef = useRef(0);
   const pullThreshold = 60;
   const [generatingInsights, setGeneratingInsights] = useState(false);
+  const [lastInsightTime, setLastInsightTime] = useState<Date | null>(null);
+  const COOLDOWN_HOURS = 24;
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -58,6 +60,9 @@ const NotificationHistory = () => {
     const items = (data || []) as Notification[];
     setNotifications(items);
     setUnreadCount(items.filter((n) => !n.read).length);
+    // Track last weekly insight time
+    const lastInsight = items.find((n) => n.type === "weekly_insight");
+    setLastInsightTime(lastInsight ? new Date(lastInsight.created_at) : null);
     setLoading(false);
   };
 
@@ -140,8 +145,14 @@ const NotificationHistory = () => {
     if (n && !n.read) setUnreadCount((c) => Math.max(0, c - 1));
   };
 
+  const cooldownRemaining = lastInsightTime
+    ? Math.max(0, COOLDOWN_HOURS * 60 * 60 * 1000 - (Date.now() - lastInsightTime.getTime()))
+    : 0;
+  const isCoolingDown = cooldownRemaining > 0;
+  const cooldownHoursLeft = Math.ceil(cooldownRemaining / (1000 * 60 * 60));
+
   const triggerWeeklyInsights = async () => {
-    if (!user || generatingInsights) return;
+    if (!user || generatingInsights || isCoolingDown) return;
     setGeneratingInsights(true);
     try {
       const { data, error } = await supabase.functions.invoke("weekly-insights-summary");
@@ -235,15 +246,19 @@ const NotificationHistory = () => {
         {/* Manual weekly insights trigger */}
         <button
           onClick={triggerWeeklyInsights}
-          disabled={generatingInsights}
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-colors text-xs font-medium text-primary disabled:opacity-50"
+          disabled={generatingInsights || isCoolingDown}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-colors text-xs font-medium text-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {generatingInsights ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
             <Sparkles className="w-3.5 h-3.5" />
           )}
-          {generatingInsights ? "Generating insights…" : "Generate Weekly Insights"}
+          {generatingInsights
+            ? "Generating insights…"
+            : isCoolingDown
+              ? `Available in ~${cooldownHoursLeft}h`
+              : "Generate Weekly Insights"}
         </button>
 
         {loading ? (
