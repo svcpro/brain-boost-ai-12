@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.daily-brain-briefing]
 verify_jwt = false
+
+[functions.on-demand-briefing]
+verify_jwt = false

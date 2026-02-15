@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock } from "lucide-react";
+import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +43,8 @@ const NotificationPreferencesPanel = () => {
   const [prefs, setPrefs] = useState<PushNotifPrefs>(defaultPrefs);
   const [loaded, setLoaded] = useState(false);
   const [lastBriefingAt, setLastBriefingAt] = useState<string | null>(null);
+  const [briefingText, setBriefingText] = useState<string | null>(null);
+  const [briefingLoading, setBriefingLoading] = useState(false);
 
   // Load prefs + last briefing timestamp from DB on mount
   useEffect(() => {
@@ -88,6 +90,30 @@ const NotificationPreferencesPanel = () => {
         .eq("id", user.id);
     }
   }, [user]);
+
+  // On-demand briefing trigger
+  const handleTriggerBriefing = useCallback(async () => {
+    if (briefingLoading || !user) return;
+    setBriefingLoading(true);
+    setBriefingText(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("on-demand-briefing");
+      if (error) throw error;
+      const text = data?.briefing;
+      if (text) {
+        setBriefingText(text);
+        setLastBriefingAt(new Date().toISOString());
+        toast({ title: "🧠 Brain briefing generated!" });
+      } else {
+        toast({ title: "Could not generate briefing", variant: "destructive" });
+      }
+    } catch (err: any) {
+      console.error("Briefing error:", err);
+      toast({ title: "Briefing failed", description: err?.message || "Try again later", variant: "destructive" });
+    } finally {
+      setBriefingLoading(false);
+    }
+  }, [user, briefingLoading, toast]);
 
   const handleMasterToggle = async () => {
     if (subscribed) {
@@ -138,14 +164,39 @@ const NotificationPreferencesPanel = () => {
       label: "Daily morning briefing",
       desc: "AI cognitive summary sent every morning",
       key: "dailyBriefing" as const,
-      extra: lastBriefingAt ? (
-        <div className="flex items-center gap-1 mt-1 ml-6">
-          <Clock className="w-3 h-3 text-muted-foreground" />
-          <span className="text-[10px] text-muted-foreground">
-            Last briefing {formatDistanceToNow(new Date(lastBriefingAt), { addSuffix: true })}
-          </span>
+      extra: (
+        <div className="mt-2 ml-6 space-y-2">
+          {lastBriefingAt && (
+            <div className="flex items-center gap-1">
+              <Clock className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">
+                Last briefing {formatDistanceToNow(new Date(lastBriefingAt), { addSuffix: true })}
+              </span>
+            </div>
+          )}
+          <button
+            onClick={handleTriggerBriefing}
+            disabled={briefingLoading}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+          >
+            {briefingLoading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Zap className="w-3 h-3" />
+            )}
+            {briefingLoading ? "Generating…" : "Get briefing now"}
+          </button>
+          {briefingText && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="rounded-lg bg-accent/50 p-2.5 text-[11px] text-foreground leading-relaxed"
+            >
+              {briefingText}
+            </motion.div>
+          )}
         </div>
-      ) : null,
+      ),
     },
   ];
 
