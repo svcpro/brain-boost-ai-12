@@ -248,12 +248,20 @@ const StudyInsights = ({ onReviewTopic, refreshKey }: StudyInsightsProps) => {
                 );
               })}
 
-              {loading && hasLoaded && (
-                <div className="flex items-center justify-center py-3">
-                  <RefreshCw className="w-4 h-4 text-primary animate-spin mr-2" />
-                  <span className="text-xs text-muted-foreground">Refreshing insights…</span>
-                </div>
-              )}
+              <AnimatePresence>
+                {loading && hasLoaded && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center justify-center py-2 gap-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
+                    <span className="text-[11px] text-muted-foreground">Refreshing insights…</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
