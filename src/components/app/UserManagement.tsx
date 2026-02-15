@@ -5,7 +5,7 @@ import {
   Pencil, Save, X, Trash2, CreditCard, Activity, Clock,
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
   CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download,
-  CheckSquare, Square, MinusSquare
+  CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,6 +81,7 @@ const UserManagement = () => {
   const PAGE_SIZE = 20;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc" | "plan">("newest");
 
   const fetchData = useCallback(async () => {
     const [usersRes, subsRes, plansRes] = await Promise.all([
@@ -112,11 +113,27 @@ const UserManagement = () => {
     return planKey === filter;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginatedUsers = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const planOrder: Record<string, number> = { free: 0, pro: 1, ultra: 2 };
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sortBy) {
+      case "newest": return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case "oldest": return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "name_asc": return (a.display_name || "").localeCompare(b.display_name || "");
+      case "name_desc": return (b.display_name || "").localeCompare(a.display_name || "");
+      case "plan": {
+        const pa = planOrder[getUserPlan(a.id).planKey] ?? 0;
+        const pb = planOrder[getUserPlan(b.id).planKey] ?? 0;
+        return pb - pa;
+      }
+      default: return 0;
+    }
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const paginatedUsers = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset page & selection when filters change
-  useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [search, filter]);
+  useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [search, filter, sortBy]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -247,18 +264,32 @@ const UserManagement = () => {
         ))}
       </div>
 
-      {/* Search & filter */}
+      {/* Search, filter & sort */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or ID..." className="w-full pl-10 pr-4 py-2.5 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none" />
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {(["all", "free", "pro", "ultra", "banned"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)} className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors capitalize ${filter === f ? (f === "banned" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary") : "text-muted-foreground hover:bg-secondary"}`}>
               {f === "all" ? "All" : f}{f === "banned" ? ` (${users.filter(u => u.is_banned).length})` : ""}
             </button>
           ))}
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as any)}
+              className="appearance-none pl-7 pr-3 py-2 bg-secondary rounded-lg text-xs font-medium text-foreground border border-border focus:border-primary outline-none cursor-pointer"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name_asc">Name A–Z</option>
+              <option value="name_desc">Name Z–A</option>
+              <option value="plan">Plan (highest)</option>
+            </select>
+            <ArrowUpDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -360,7 +391,7 @@ const UserManagement = () => {
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-xs text-muted-foreground">
-            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
           </p>
           <div className="flex items-center gap-1">
             <button
