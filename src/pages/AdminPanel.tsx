@@ -6,7 +6,8 @@ import {
   Loader2, AlertTriangle, Search, MoreVertical, Eye,
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
-  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon
+  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon,
+  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -368,36 +369,330 @@ const KnowledgeSection = () => {
   );
 };
 
-// ─── Subscriptions ───
+// ─── Subscriptions & Plans ───
 const SubscriptionsSection = () => {
+  const { toast } = useToast();
+  const [tab, setTab] = useState<"plans" | "payments">("plans");
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold text-foreground">Subscription Management</h2>
+      <div className="flex gap-2">
+        {(["plans", "payments"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+            {t === "plans" ? "Plan Management" : "Payment History"}
+          </button>
+        ))}
+      </div>
+      {tab === "plans" ? <PlanManagement toast={toast} /> : <PaymentManagement />}
+    </div>
+  );
+};
+
+// ─── Plan Management ───
+const PlanManagement = ({ toast }: { toast: any }) => {
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const fetchPlans = useCallback(async () => {
+    const { data } = await supabase.from("subscription_plans").select("*").order("sort_order");
+    setPlans(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchPlans(); }, [fetchPlans]);
+
+  const deletePlan = async (id: string, key: string) => {
+    if (key === "free") { toast({ title: "Cannot delete the free plan", variant: "destructive" }); return; }
+    await supabase.from("subscription_plans").delete().eq("id", id);
+    toast({ title: "Plan deleted" });
+    fetchPlans();
+  };
+
+  const toggleActive = async (id: string, current: boolean) => {
+    await supabase.from("subscription_plans").update({ is_active: !current } as any).eq("id", id);
+    toast({ title: !current ? "Plan activated" : "Plan deactivated" });
+    fetchPlans();
+  };
+
+  const togglePopular = async (id: string, current: boolean) => {
+    if (!current) {
+      await supabase.from("subscription_plans").update({ is_popular: false } as any).neq("id", id);
+    }
+    await supabase.from("subscription_plans").update({ is_popular: !current } as any).eq("id", id);
+    fetchPlans();
+  };
+
+  const openEdit = (plan: any) => { setEditing(plan); setShowForm(true); };
+  const openCreate = () => { setEditing(null); setShowForm(true); };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{plans.length} plan(s)</p>
+        <button onClick={openCreate} className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+          <Plus className="w-4 h-4" /> Add Plan
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {plans.map(plan => (
+          <div key={plan.id} className="glass rounded-xl p-4 neural-border space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-foreground">{plan.name}</p>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">{plan.plan_key}</span>
+                  {plan.is_popular && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">POPULAR</span>}
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${plan.is_active ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
+                    {plan.is_active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ₹{plan.price} / {plan.billing_period} · {(plan.features as string[])?.length || 0} features
+                </p>
+                {plan.razorpay_plan_id && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Razorpay ID: {plan.razorpay_plan_id}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => togglePopular(plan.id, plan.is_popular)} className="p-1.5 hover:bg-primary/10 rounded-lg transition-colors" title="Toggle popular">
+                  <Star className={`w-3.5 h-3.5 ${plan.is_popular ? "text-primary fill-primary" : "text-muted-foreground"}`} />
+                </button>
+                <button onClick={() => toggleActive(plan.id, plan.is_active)} className="p-1.5 hover:bg-secondary rounded-lg transition-colors" title="Toggle active">
+                  {plan.is_active ? <ToggleRight className="w-4 h-4 text-success" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
+                </button>
+                <button onClick={() => openEdit(plan)} className="p-1.5 hover:bg-secondary rounded-lg transition-colors">
+                  <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+                {plan.plan_key !== "free" && (
+                  <button onClick={() => deletePlan(plan.id, plan.plan_key)} className="p-1.5 hover:bg-destructive/15 rounded-lg transition-colors">
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {(plan.features as string[])?.map((f: string, i: number) => (
+                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">{f}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <PlanFormModal plan={editing} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); fetchPlans(); toast({ title: editing ? "Plan updated" : "Plan created" }); }} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ─── Plan Form Modal ───
+const PlanFormModal = ({ plan, onClose, onSaved }: { plan: any | null; onClose: () => void; onSaved: () => void }) => {
+  const isEdit = !!plan;
+  const [name, setName] = useState(plan?.name || "");
+  const [planKey, setPlanKey] = useState(plan?.plan_key || "");
+  const [description, setDescription] = useState(plan?.description || "");
+  const [price, setPrice] = useState(plan?.price?.toString() || "0");
+  const [billingPeriod, setBillingPeriod] = useState(plan?.billing_period || "monthly");
+  const [features, setFeatures] = useState<string[]>(plan?.features || []);
+  const [newFeature, setNewFeature] = useState("");
+  const [razorpayPlanId, setRazorpayPlanId] = useState(plan?.razorpay_plan_id || "");
+  const [sortOrder, setSortOrder] = useState(plan?.sort_order?.toString() || "0");
+  const [saving, setSaving] = useState(false);
+
+  const addFeature = () => {
+    if (newFeature.trim()) { setFeatures(prev => [...prev, newFeature.trim()]); setNewFeature(""); }
+  };
+
+  const removeFeature = (idx: number) => setFeatures(prev => prev.filter((_, i) => i !== idx));
+
+  const save = async () => {
+    if (!name.trim() || !planKey.trim()) return;
+    setSaving(true);
+    const payload = {
+      name: name.trim(),
+      plan_key: planKey.trim(),
+      description: description.trim() || null,
+      price: parseInt(price) || 0,
+      billing_period: billingPeriod,
+      features,
+      razorpay_plan_id: razorpayPlanId.trim() || null,
+      sort_order: parseInt(sortOrder) || 0,
+    };
+
+    if (isEdit) {
+      await supabase.from("subscription_plans").update(payload as any).eq("id", plan.id);
+    } else {
+      await supabase.from("subscription_plans").insert(payload as any);
+    }
+    setSaving(false);
+    onSaved();
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="w-full max-w-md glass rounded-2xl neural-border p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-foreground">{isEdit ? "Edit Plan" : "Create Plan"}</h3>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Plan Name *</label>
+              <input value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none" placeholder="Pro Brain" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Plan Key *</label>
+              <input value={planKey} onChange={e => setPlanKey(e.target.value)} disabled={isEdit} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none disabled:opacity-50" placeholder="pro" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Description</label>
+            <input value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none" placeholder="Short description..." />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Price (₹)</label>
+              <input value={price} onChange={e => setPrice(e.target.value)} type="number" className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Billing</label>
+              <select value={billingPeriod} onChange={e => setBillingPeriod(e.target.value)} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none">
+                <option value="forever">Forever</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Sort Order</label>
+              <input value={sortOrder} onChange={e => setSortOrder(e.target.value)} type="number" className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Razorpay Plan ID (optional)</label>
+            <input value={razorpayPlanId} onChange={e => setRazorpayPlanId(e.target.value)} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none" placeholder="plan_xxxxx" />
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Features</label>
+            <div className="space-y-1.5 mb-2">
+              {features.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="flex-1 text-foreground bg-secondary px-2 py-1 rounded">{f}</span>
+                  <button onClick={() => removeFeature(i)} className="text-destructive hover:text-destructive/80"><XCircle className="w-3.5 h-3.5" /></button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input value={newFeature} onChange={e => setNewFeature(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addFeature())} className="flex-1 px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none" placeholder="Add feature..." />
+              <button onClick={addFeature} className="px-3 py-2 bg-secondary rounded-lg text-sm text-foreground hover:bg-secondary/80 border border-border">
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+          <button onClick={save} disabled={!name.trim() || !planKey.trim() || saving} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isEdit ? "Save Changes" : "Create Plan"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ─── Payment Management ───
+const PaymentManagement = () => {
   const [subs, setSubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "expired" | "cancelled">("all");
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("user_subscriptions").select("*").order("created_at", { ascending: false }).limit(100);
+      const { data } = await supabase.from("user_subscriptions").select("*").order("created_at", { ascending: false }).limit(200);
       setSubs(data || []);
       setLoading(false);
     })();
   }, []);
 
+  const filtered = subs.filter(s => {
+    if (statusFilter !== "all" && s.status !== statusFilter) return false;
+    if (search && !s.user_id.includes(search) && !(s.razorpay_order_id || "").includes(search) && !(s.razorpay_payment_id || "").includes(search)) return false;
+    return true;
+  });
+
+  const totalRevenue = subs.filter(s => s.status === "active").reduce((sum, s) => sum + (s.amount || 0), 0);
+  const activeCount = subs.filter(s => s.status === "active" && s.plan_id !== "free").length;
+
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-foreground">Subscription Management</h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="glass rounded-xl p-3 neural-border">
+          <p className="text-[10px] text-muted-foreground">Total Revenue</p>
+          <p className="text-lg font-bold text-foreground">₹{totalRevenue.toLocaleString()}</p>
+        </div>
+        <div className="glass rounded-xl p-3 neural-border">
+          <p className="text-[10px] text-muted-foreground">Active Paid Subs</p>
+          <p className="text-lg font-bold text-foreground">{activeCount}</p>
+        </div>
+        <div className="glass rounded-xl p-3 neural-border">
+          <p className="text-[10px] text-muted-foreground">Total Transactions</p>
+          <p className="text-lg font-bold text-foreground">{subs.length}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by user ID, order ID, payment ID..." className="w-full pl-10 pr-4 py-2.5 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none" />
+        </div>
+        <div className="flex gap-1.5">
+          {(["all", "active", "expired", "cancelled"] as const).map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors capitalize ${statusFilter === s ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
       ) : (
         <div className="space-y-2">
-          {subs.map(s => (
+          {filtered.map(s => (
             <div key={s.id} className="glass rounded-xl p-3 neural-border flex items-center gap-3">
-              <CreditCard className={`w-4 h-4 ${s.status === "active" ? "text-success" : "text-muted-foreground"}`} />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{s.plan_id} <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${s.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{s.status}</span></p>
-                <p className="text-[10px] text-muted-foreground">{s.amount ? `₹${(s.amount / 100).toFixed(0)}` : "Free"} · {s.expires_at ? `Expires: ${new Date(s.expires_at).toLocaleDateString()}` : "No expiry"}</p>
+              <CreditCard className={`w-4 h-4 shrink-0 ${s.status === "active" ? "text-success" : s.status === "expired" ? "text-warning" : "text-muted-foreground"}`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-medium text-foreground">{s.plan_id}</p>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${s.status === "active" ? "bg-success/15 text-success" : s.status === "expired" ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"}`}>{s.status}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  ₹{s.amount || 0} · User: {s.user_id.slice(0, 8)}...
+                  {s.razorpay_payment_id && ` · Pay: ${s.razorpay_payment_id.slice(0, 12)}...`}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {new Date(s.created_at).toLocaleString()}
+                  {s.expires_at && ` · Expires: ${new Date(s.expires_at).toLocaleDateString()}`}
+                </p>
               </div>
             </div>
           ))}
-          {subs.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No subscriptions found</p>}
+          {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No payments found</p>}
         </div>
       )}
     </div>
