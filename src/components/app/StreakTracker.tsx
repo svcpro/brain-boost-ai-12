@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Flame, Trophy, Star, Sparkles, Award, Snowflake } from "lucide-react";
+import { Flame, Trophy, Star, Sparkles, Award, Snowflake, Shield } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import StreakBadge from "./StreakBadge";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { useVoice } from "@/pages/AppDashboard";
@@ -167,21 +168,45 @@ const StreakTracker = () => {
           const frozen = streak.frozenDays.has(dateStr);
           const met = studied || frozen;
 
+          const freezeRecord = frozen && !studied
+            ? streak.freezeRecords.find(f => f.used_date === dateStr)
+            : null;
+
+          const dot = (
+            <div
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium transition-all ${
+                frozen && !studied
+                  ? "bg-accent/30 text-accent-foreground border border-accent/50 cursor-pointer"
+                  : studied
+                  ? "bg-primary/20 text-primary border border-primary/40"
+                  : isToday
+                  ? "bg-secondary border border-border text-foreground"
+                  : "bg-secondary/50 text-muted-foreground"
+              }`}
+            >
+              {frozen && !studied ? "🛡️" : studied ? "✓" : dayLabel}
+            </div>
+          );
+
           return (
             <div key={i} className="flex flex-col items-center gap-1">
-              <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium transition-all ${
-                  frozen && !studied
-                    ? "bg-accent/30 text-accent-foreground border border-accent/50"
-                    : studied
-                    ? "bg-primary/20 text-primary border border-primary/40"
-                    : isToday
-                    ? "bg-secondary border border-border text-foreground"
-                    : "bg-secondary/50 text-muted-foreground"
-                }`}
-              >
-                {frozen && !studied ? "🛡️" : studied ? "✓" : dayLabel}
-              </div>
+              {freezeRecord ? (
+                <Popover>
+                  <PopoverTrigger asChild>{dot}</PopoverTrigger>
+                  <PopoverContent className="w-48 p-3" side="top" align="center">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Shield className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-semibold text-foreground">Streak Shield</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Used on {new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Earned {new Date(freezeRecord.earned_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </p>
+                  </PopoverContent>
+                </Popover>
+              ) : dot}
             </div>
           );
         })}

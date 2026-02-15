@@ -2,6 +2,12 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+export interface FreezeRecord {
+  id: string;
+  earned_at: string;
+  used_date: string;
+}
+
 export interface StreakData {
   currentStreak: number;
   longestStreak: number;
@@ -11,6 +17,7 @@ export interface StreakData {
   autoShieldUsed?: boolean;
   frozenDays: Set<string>;
   dailyTotals: Record<string, number>;
+  freezeRecords: FreezeRecord[];
 }
 
 export function useStudyStreak() {
@@ -45,13 +52,17 @@ export function useStudyStreak() {
       // Get used freeze dates
       const { data: freezes } = await (supabase as any)
         .from("streak_freezes")
-        .select("used_date")
+        .select("id, earned_at, used_date")
         .eq("user_id", user.id)
         .not("used_date", "is", null);
 
       const frozenDays = new Set<string>();
+      const freezeRecords: FreezeRecord[] = [];
       (freezes || []).forEach((f: any) => {
-        if (f.used_date) frozenDays.add(f.used_date);
+        if (f.used_date) {
+          frozenDays.add(f.used_date);
+          freezeRecords.push({ id: f.id, earned_at: f.earned_at, used_date: f.used_date });
+        }
       });
 
       // Group by local date
@@ -167,7 +178,7 @@ export function useStudyStreak() {
         }
       }
 
-      setStreak({ currentStreak, longestStreak, todayMet, goalMinutes, todayMinutes, frozenDays, dailyTotals });
+      setStreak({ currentStreak, longestStreak, todayMet, goalMinutes, todayMinutes, frozenDays, dailyTotals, freezeRecords });
     } finally {
       setLoading(false);
     }
