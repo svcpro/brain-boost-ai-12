@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal, HeartCrack, PartyPopper, Snowflake } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal, HeartCrack, PartyPopper, Snowflake, Globe, AlertTriangle } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +59,7 @@ const ProgressTab = () => {
   const [showPredictions, setShowPredictions] = useState(false);
   const notifiedRef = useRef(false);
   const [freezeData, setFreezeData] = useState<{ available: number; usedToday: boolean }>({ available: 0, usedToday: false });
+  const [checkingBenchmark, setCheckingBenchmark] = useState(false);
 
   const loadStreak = useCallback(async () => {
     if (!user) return;
@@ -264,6 +265,35 @@ const ProgressTab = () => {
       }
     }
   }, [streak]);
+
+  const runBenchmarkCheck = useCallback(async () => {
+    if (!user || checkingBenchmark) return;
+    setCheckingBenchmark(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("benchmark-deviation-check", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      const result = res.data;
+      if (result?.alerts?.length > 0) {
+        const negCount = result.alerts.filter((a: any) => a.severity === "negative").length;
+        const posCount = result.alerts.filter((a: any) => a.severity === "positive").length;
+        toast({
+          title: `📊 Benchmark Analysis Complete`,
+          description: `${negCount > 0 ? `${negCount} area${negCount > 1 ? "s" : ""} need attention` : ""}${negCount > 0 && posCount > 0 ? " · " : ""}${posCount > 0 ? `${posCount} area${posCount > 1 ? "s" : ""} above average` : ""}. Check notifications for details.`,
+        });
+      } else {
+        toast({
+          title: "✅ On Track",
+          description: result?.message || "No significant deviations from global benchmarks.",
+        });
+      }
+    } catch (e) {
+      toast({ title: "Error", description: "Could not run benchmark check." });
+    } finally {
+      setCheckingBenchmark(false);
+    }
+  }, [user, checkingBenchmark]);
 
   useEffect(() => {
     predictRank();
@@ -752,6 +782,11 @@ const ProgressTab = () => {
           <BarChart3 className="w-5 h-5 text-primary mb-2" />
           <p className="text-sm font-medium text-foreground">Weekly Report</p>
           <p className="text-[10px] text-muted-foreground">AI analysis</p>
+        </button>
+        <button onClick={runBenchmarkCheck} disabled={checkingBenchmark} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer disabled:opacity-50">
+          <Globe className={`w-5 h-5 text-primary mb-2 ${checkingBenchmark ? "animate-pulse" : ""}`} />
+          <p className="text-sm font-medium text-foreground">Benchmark Check</p>
+          <p className="text-[10px] text-muted-foreground">{checkingBenchmark ? "Analyzing..." : "vs global averages"}</p>
         </button>
       </motion.div>
 
