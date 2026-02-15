@@ -370,8 +370,14 @@ const NotificationHistory = () => {
                         {group.items.length}
                       </span>
                     </motion.div>
-                    {group.items.map((n) => (
-                      <div key={n.id} className="relative overflow-hidden rounded-lg mb-1">
+                    {group.items.map((n, idx) => (
+                      <motion.div
+                        key={n.id}
+                        initial={{ opacity: 0, x: -20, y: 5 }}
+                        animate={{ opacity: 1, x: 0, y: 0 }}
+                        transition={{ delay: idx * 0.04, duration: 0.3, ease: "easeOut" }}
+                        className="relative overflow-hidden rounded-lg mb-1"
+                      >
                         {/* Mark as read background revealed on swipe right */}
                         {!n.read && (
                           <div className="absolute inset-0 bg-primary flex items-center justify-start pl-4 rounded-lg">
@@ -438,7 +444,7 @@ const NotificationHistory = () => {
                             </button>
                           </div>
                         </motion.div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 ));
