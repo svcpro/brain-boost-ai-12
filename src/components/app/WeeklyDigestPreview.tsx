@@ -201,41 +201,68 @@ const StreakCard = ({ streak }: { streak: number }) => {
 
 const QuoteBanner = ({ quote, streak }: { quote: string; streak: number }) => {
   const [copied, setCopied] = useState(false);
+  const shareText = `"${quote}" — ${streak}-day study streak 🔥`;
+  const canNativeShare = typeof navigator.share === "function";
 
-  const handleCopy = useCallback(async () => {
-    const text = `"${quote}" — ${streak}-day study streak 🔥`;
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(shareText);
       setCopied(true);
       toast.success("Quote copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy");
     }
-  }, [quote, streak]);
+  }, [shareText]);
+
+  const handleShare = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.share({ text: shareText });
+    } catch (err: any) {
+      if (err?.name !== "AbortError") toast.error("Failed to share");
+    }
+  }, [shareText]);
 
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
-      onClick={handleCopy}
-      className="w-full rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 flex items-start gap-2 text-left hover:bg-primary/10 active:scale-[0.98] transition-all cursor-pointer group"
+      className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 flex items-start gap-2 group"
     >
       <Quote className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
       <p className="text-[11px] text-foreground/80 leading-relaxed italic flex-1">{quote}</p>
-      <AnimatePresence mode="wait">
-        {copied ? (
-          <motion.div key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-            <Check className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
-          </motion.div>
-        ) : (
-          <motion.div key="copy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Copy className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-          </motion.div>
+      <div className="flex items-center gap-1 shrink-0 mt-0.5">
+        <button
+          onClick={handleCopy}
+          className="p-1 rounded-md hover:bg-primary/10 transition-colors"
+          title="Copy quote"
+        >
+          <AnimatePresence mode="wait">
+            {copied ? (
+              <motion.div key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                <Check className="w-3 h-3 text-success" />
+              </motion.div>
+            ) : (
+              <motion.div key="copy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <Copy className="w-3 h-3 text-muted-foreground" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </button>
+        {canNativeShare && (
+          <button
+            onClick={handleShare}
+            className="p-1 rounded-md hover:bg-primary/10 transition-colors"
+            title="Share quote"
+          >
+            <Share2 className="w-3 h-3 text-muted-foreground" />
+          </button>
         )}
-      </AnimatePresence>
-    </motion.button>
+      </div>
+    </motion.div>
   );
 };
 
