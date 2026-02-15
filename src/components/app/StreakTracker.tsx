@@ -187,6 +187,17 @@ const StreakTracker = () => {
         })}
       </div>
 
+      {/* Legend */}
+      <div className="flex items-center gap-3 mt-2 px-1">
+        <div className="flex items-center gap-1">
+          <span className="text-[9px]">✓</span>
+          <span className="text-[9px] text-muted-foreground">Studied</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px]">🛡️</span>
+          <span className="text-[9px] text-muted-foreground">Auto-shield</span>
+        </div>
+      </div>
       {/* Next freeze reward countdown */}
       {(() => {
         const FREEZE_MILESTONES = [5, 7, 14, 30];
