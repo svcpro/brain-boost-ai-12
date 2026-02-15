@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, isToday, isYesterday } from "date-fns";
+import { insightFeedback, notifyFeedback } from "@/lib/feedback";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,6 +86,12 @@ const NotificationHistory = () => {
           const newNotif = payload.new as Notification;
           setNotifications((prev) => [newNotif, ...prev].slice(0, 50));
           setUnreadCount((c) => c + 1);
+          // Play distinct sound based on type
+          if (newNotif.type === "weekly_insight") {
+            insightFeedback();
+          } else {
+            notifyFeedback();
+          }
         }
       )
       .on(
