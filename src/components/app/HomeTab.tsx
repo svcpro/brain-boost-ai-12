@@ -645,21 +645,28 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         {atRisk.length > 0 ? (
           <div className="space-y-3">
             {atRisk.slice(0, 5).map((topic: TopicPrediction) => (
-              <div key={topic.id} className="flex items-center gap-3">
-                <div className="flex-1">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-xs text-foreground">{topic.name}</span>
-                    <span className={`text-[10px] ${topic.risk_level === "critical" ? "text-destructive" : "text-warning"}`}>
-                      {Math.round(100 - topic.memory_strength)}% risk
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-warning to-destructive transition-all"
-                      style={{ width: `${100 - topic.memory_strength}%` }}
-                    />
+              <div key={topic.id} className="space-y-0.5">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-xs text-foreground">{topic.name}</span>
+                      <span className={`text-[10px] ${topic.risk_level === "critical" ? "text-destructive" : "text-warning"}`}>
+                        {Math.round(100 - topic.memory_strength)}% risk
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-warning to-destructive transition-all"
+                        style={{ width: `${100 - topic.memory_strength}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
+                <ExplainButton
+                  predictionType="forget_risk"
+                  predictionData={{ topic_name: topic.name, memory_strength: topic.memory_strength, risk_level: topic.risk_level, hours_until_drop: topic.hours_until_drop, subject: topic.subject_name }}
+                  label="Why at risk?"
+                />
               </div>
             ))}
           </div>
