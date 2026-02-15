@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { Clock, CalendarDays, Battery, Zap, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import { useRLAgent, RLAgentData } from "@/hooks/useRLAgent";
@@ -118,6 +119,37 @@ const RLPolicyCard = () => {
               )}
             </div>
           </div>
+
+          {/* Priority Topics */}
+          {policy.sequence.priority_topics?.length > 0 && (
+            <div className="rounded-lg bg-secondary/30 p-3">
+              <p className="text-[10px] text-muted-foreground mb-2 font-medium uppercase tracking-wider">Priority Topics</p>
+              <div className="space-y-2">
+                {policy.sequence.priority_topics.slice(0, 3).map((t, i) => (
+                  <div key={t.topic_id} className="flex items-center gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{t.topic_name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[9px] text-muted-foreground">Strength {t.memory_strength}%</span>
+                        <span className="text-[9px] text-muted-foreground">•</span>
+                        <span className="text-[9px] text-muted-foreground">{t.staleness_days}d stale</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[10px] font-semibold text-accent">{t.recommended_duration}m</p>
+                      <p className="text-[8px] text-muted-foreground">suggested</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[9px] text-muted-foreground mt-2 italic">
+                Strategy: <span className="text-foreground font-medium capitalize">{policy.sequence.strategy.replace("_", " ")}</span>
+              </p>
+            </div>
+          )}
 
           {/* Intensity */}
           <div className="rounded-lg bg-secondary/30 p-3">
