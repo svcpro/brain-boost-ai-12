@@ -82,6 +82,19 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
     if (!user) return;
     if (!silent) setLoading(true);
     try {
+      // Re-check if user has study data (in case they just logged their first session)
+      const { count: logCount } = await supabase
+        .from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      if ((logCount ?? 0) === 0) {
+        setHasLoaded(true);
+        setInsights([]);
+        if (!silent) setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("study-insights");
       if (error) throw error;
       if (data?.error) {
