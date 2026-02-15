@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame, Quote, Copy, Check, Lightbulb } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target, Flame, Quote, Copy, Check, Lightbulb, CalendarClock } from "lucide-react";
 import html2canvas from "html2canvas";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -34,6 +34,8 @@ interface DigestData {
   lastWeek: WeekStats | null;
   weeklyFocusGoal: number;
   streak: number;
+  examDate: string | null;
+  examType: string | null;
 }
 
 const CACHE_KEY = "weekly-digest-preview";
@@ -322,6 +324,33 @@ const DailyStudyTip = () => {
   );
 };
 
+const ExamCountdown = ({ examDate, examType }: { examDate: string; examType: string | null }) => {
+  const days = Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000);
+  if (days < 0) return null;
+
+  const urgency = days <= 7 ? "destructive" : days <= 30 ? "warning" : "primary";
+  const urgencyBg = days <= 7 ? "bg-destructive/10 border-destructive/25" : days <= 30 ? "bg-warning/10 border-warning/25" : "bg-primary/10 border-primary/20";
+  const urgencyText = days <= 7 ? "text-destructive" : days <= 30 ? "text-warning" : "text-primary";
+  const label = days === 0 ? "Today!" : days === 1 ? "Tomorrow!" : `${days} days`;
+
+  return (
+    <div className={`rounded-lg border ${urgencyBg} px-3 py-2.5 flex items-center gap-3`}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${days <= 7 ? "bg-destructive/15" : days <= 30 ? "bg-warning/15" : "bg-primary/15"}`}>
+        <CalendarClock className={`w-4.5 h-4.5 ${urgencyText}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`text-lg font-bold ${urgencyText}`}>{label}</span>
+          {days <= 7 && <span className="text-[9px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded-full font-bold animate-pulse">URGENT</span>}
+        </div>
+        <p className="text-[10px] text-muted-foreground truncate">
+          until {examType || "exam"} · {new Date(examDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const DeltaBadge = ({ current, previous, suffix = "" }: { current: number | null; previous: number | null; suffix?: string }) => {
   if (current == null || previous == null) return null;
   const diff = Math.round(current - previous);
@@ -532,6 +561,8 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
         recommendations,
         weeklyFocusGoal: profileRes.data?.weekly_focus_goal_minutes || 420,
         streak,
+        examDate: profileRes.data?.exam_date || null,
+        examType: profileRes.data?.exam_type || null,
         lastWeek: {
           totalMinutes: lastWeekMinutes,
           sessions: lastWeekSessions,
@@ -612,6 +643,9 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
         </div>
       ) : data ? (
         <div className="p-4 space-y-3">
+          {/* Exam Countdown */}
+          {data.examDate && <ExamCountdown examDate={data.examDate} examType={data.examType} />}
+
           {/* Weekly Goal + Streak */}
           {!showCompare && (
             <div className="space-y-2">
