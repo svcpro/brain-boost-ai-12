@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.collective-intelligence]
 verify_jwt = false
+
+[functions.ai-self-evaluate]
+verify_jwt = false
