@@ -710,9 +710,11 @@ const PaymentManagement = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "expired" | "cancelled">("all");
   const [actionTarget, setActionTarget] = useState<any | null>(null);
-  const [actionType, setActionType] = useState<"cancel" | "extend" | null>(null);
+  const [actionType, setActionType] = useState<"cancel" | "extend" | "change_plan" | null>(null);
   const [extendDays, setExtendDays] = useState("30");
   const [actionLoading, setActionLoading] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
 
   const fetchSubs = useCallback(async () => {
     const { data } = await supabase.from("user_subscriptions").select("*").order("created_at", { ascending: false }).limit(200);
@@ -721,6 +723,14 @@ const PaymentManagement = () => {
   }, []);
 
   useEffect(() => { fetchSubs(); }, [fetchSubs]);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      const { data } = await supabase.from("subscription_plans").select("*").eq("is_active", true).order("sort_order");
+      setAvailablePlans(data || []);
+    };
+    fetchPlans();
+  }, []);
 
   const handleCancel = async () => {
     if (!actionTarget) return;
@@ -770,6 +780,39 @@ const PaymentManagement = () => {
     toast({ title: `Subscription extended by ${days} days` });
     setActionTarget(null);
     setActionType(null);
+    setActionLoading(false);
+    fetchSubs();
+  };
+
+  const handleChangePlan = async () => {
+    if (!actionTarget || !selectedPlanId) return;
+    setActionLoading(true);
+    const oldPlanId = actionTarget.plan_id;
+    await supabase.from("user_subscriptions").update({
+      plan_id: selectedPlanId,
+      status: "active",
+    } as any).eq("id", actionTarget.id);
+
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (userId) {
+      await supabase.from("admin_audit_logs").insert({
+        admin_id: userId,
+        action: "subscription_plan_changed",
+        target_type: "user_subscriptions",
+        target_id: actionTarget.id,
+        details: { user_id: actionTarget.user_id, old_plan_id: oldPlanId, new_plan_id: selectedPlanId },
+      } as any);
+    }
+    await supabase.from("notification_history").insert({
+      user_id: actionTarget.user_id,
+      title: "Plan Changed",
+      body: `Your subscription has been changed to ${selectedPlanId}.`,
+      type: "plan_change",
+    } as any);
+    toast({ title: `Plan changed to ${selectedPlanId}` });
+    setActionTarget(null);
+    setActionType(null);
+    setSelectedPlanId("");
     setActionLoading(false);
     fetchSubs();
   };
@@ -844,6 +887,9 @@ const PaymentManagement = () => {
                 <button onClick={() => { setActionTarget(s); setActionType("extend"); setExtendDays("30"); }} className="p-1.5 hover:bg-success/15 rounded-lg transition-colors" title="Extend subscription">
                   <Clock className="w-3.5 h-3.5 text-success" />
                 </button>
+                <button onClick={() => { setActionTarget(s); setActionType("change_plan"); setSelectedPlanId(""); }} className="p-1.5 hover:bg-primary/15 rounded-lg transition-colors" title="Change plan">
+                  <RefreshCw className="w-3.5 h-3.5 text-primary" />
+                </button>
               </div>
             </div>
           ))}
@@ -876,7 +922,7 @@ const PaymentManagement = () => {
                     </button>
                   </div>
                 </>
-              ) : (
+              ) : actionType === "extend" ? (
                 <>
                   <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-success" />
@@ -912,6 +958,43 @@ const PaymentManagement = () => {
                     <button onClick={handleExtend} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
                       {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                       Extend
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-bold text-foreground">Change Plan</h3>
+                  </div>
+                  <div className="glass rounded-lg p-3 neural-border text-sm space-y-1">
+                    <p className="text-foreground font-medium">Current: {actionTarget.plan_id}</p>
+                    <p className="text-[10px] text-muted-foreground">User: {actionTarget.user_id.slice(0, 16)}...</p>
+                    {actionTarget.expires_at && <p className="text-[10px] text-muted-foreground">Expires: {new Date(actionTarget.expires_at).toLocaleDateString()}</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Select new plan</label>
+                    <div className="space-y-1.5">
+                      {availablePlans.filter(p => p.plan_key !== actionTarget.plan_id).map(p => (
+                        <button key={p.id} onClick={() => setSelectedPlanId(p.plan_key)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm border transition-colors ${selectedPlanId === p.plan_key ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground hover:bg-secondary"}`}>
+                          <div className="text-left">
+                            <p className="font-medium">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground">₹{p.price}/{p.billing_period}</p>
+                          </div>
+                          {selectedPlanId === p.plan_key && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                        </button>
+                      ))}
+                      {availablePlans.filter(p => p.plan_key !== actionTarget.plan_id).length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-2">No other plans available</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">The user's subscription will be updated to the new plan. Expiry date remains unchanged.</p>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setActionTarget(null); setActionType(null); }} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
+                    <button onClick={handleChangePlan} disabled={actionLoading || !selectedPlanId} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Change Plan
                     </button>
                   </div>
                 </>
