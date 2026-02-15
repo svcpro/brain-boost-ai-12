@@ -116,6 +116,19 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     return () => clearInterval(interval);
   }, []);
 
+  // First-time welcome confetti after onboarding
+  useEffect(() => {
+    const key = "acry-first-visit-confetti";
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, "1");
+    const timer = setTimeout(() => {
+      import("canvas-confetti").then(({ default: confetti }) => {
+        confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 }, colors: ["hsl(var(--primary))", "#FFD700", "#FF6B6B", "#4ECDC4", "#A855F7"] });
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Show toast when auto-shield saved the streak
   useEffect(() => {
     if (streakData?.autoShieldUsed) {
