@@ -6,18 +6,37 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+async function getRazorpayKeys(adminClient: any) {
+  const { data: config } = await adminClient
+    .from('razorpay_config')
+    .select('*')
+    .limit(1)
+    .maybeSingle();
+
+  if (config) {
+    const mode = config.mode || 'test';
+    const keyId = mode === 'live' ? config.live_key_id : config.test_key_id;
+    const keySecret = mode === 'live' ? config.live_key_secret : config.test_key_secret;
+    if (keyId && keySecret) {
+      return { keyId, keySecret, mode };
+    }
+  }
+
+  // Fallback to env vars
+  const keyId = Deno.env.get('RAZORPAY_KEY_ID');
+  const keySecret = Deno.env.get('RAZORPAY_KEY_SECRET');
+  if (!keyId || !keySecret) {
+    throw new Error('Razorpay keys not configured');
+  }
+  return { keyId, keySecret, mode: 'env' };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID');
-    const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET');
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-      throw new Error('Razorpay keys not configured');
-    }
-
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('No authorization header');
 
@@ -30,10 +49,16 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { keyId: RAZORPAY_KEY_ID, keySecret: RAZORPAY_KEY_SECRET, mode } = await getRazorpayKeys(adminClient);
+
     const { action, plan_id, amount, order_id, payment_id, signature } = await req.json();
 
     if (action === 'create_order') {
-      // Create Razorpay order
       const credentials = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
       const orderRes = await fetch('https://api.razorpay.com/v1/orders', {
         method: 'POST',
@@ -42,7 +67,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: amount * 100, // Razorpay expects paise
+          amount: amount * 100,
           currency: 'INR',
           receipt: `sub_${user.id.slice(0, 8)}_${Date.now()}`,
           notes: { plan_id, user_id: user.id },
@@ -54,13 +79,12 @@ serve(async (req) => {
         throw new Error(`Razorpay order creation failed: ${JSON.stringify(orderData)}`);
       }
 
-      return new Response(JSON.stringify({ order: orderData, key_id: RAZORPAY_KEY_ID }), {
+      return new Response(JSON.stringify({ order: orderData, key_id: RAZORPAY_KEY_ID, mode }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (action === 'verify_payment') {
-      // Verify signature using Web Crypto API
       const encoder = new TextEncoder();
       const key = await crypto.subtle.importKey(
         'raw',
@@ -78,12 +102,6 @@ serve(async (req) => {
       if (generatedSignature !== signature) {
         throw new Error('Payment signature verification failed');
       }
-
-      // Save subscription using service role
-      const adminClient = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      );
 
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + 1);

@@ -372,23 +372,24 @@ const KnowledgeSection = () => {
 // ─── Subscriptions & Plans ───
 const SubscriptionsSection = () => {
   const { toast } = useToast();
-  const [tab, setTab] = useState<"plans" | "payments" | "webhooks">("plans");
+  const [tab, setTab] = useState<"plans" | "payments" | "webhooks" | "gateway">("plans");
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-foreground">Subscription Management</h2>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {([
           { key: "plans" as const, label: "Plan Management" },
           { key: "payments" as const, label: "Payment History" },
           { key: "webhooks" as const, label: "Webhook Events" },
+          { key: "gateway" as const, label: "Gateway Config" },
         ]).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
             {t.label}
           </button>
         ))}
       </div>
-      {tab === "plans" ? <PlanManagement toast={toast} /> : tab === "payments" ? <PaymentManagement /> : <WebhookEvents />}
+      {tab === "plans" ? <PlanManagement toast={toast} /> : tab === "payments" ? <PaymentManagement /> : tab === "webhooks" ? <WebhookEvents /> : <GatewayConfig />}
     </div>
   );
 };
@@ -617,6 +618,171 @@ const PlanFormModal = ({ plan, onClose, onSaved }: { plan: any | null; onClose: 
     </motion.div>
   );
 };
+// ─── Gateway Config ───
+const GatewayConfig = () => {
+  const { toast } = useToast();
+  const [config, setConfig] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const [form, setForm] = useState({
+    mode: "test",
+    test_key_id: "",
+    test_key_secret: "",
+    live_key_id: "",
+    live_key_secret: "",
+    webhook_secret: "",
+  });
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("razorpay_config").select("*").limit(1).maybeSingle();
+      if (data) {
+        setConfig(data);
+        setForm({
+          mode: (data as any).mode || "test",
+          test_key_id: (data as any).test_key_id || "",
+          test_key_secret: (data as any).test_key_secret || "",
+          live_key_id: (data as any).live_key_id || "",
+          live_key_secret: (data as any).live_key_secret || "",
+          webhook_secret: (data as any).webhook_secret || "",
+        });
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const updateData = { ...form, updated_at: new Date().toISOString(), updated_by: userId };
+
+    if (config?.id) {
+      await supabase.from("razorpay_config").update(updateData as any).eq("id", config.id);
+    } else {
+      await supabase.from("razorpay_config").insert(updateData as any);
+    }
+
+    if (userId) {
+      await supabase.from("admin_audit_logs").insert({
+        admin_id: userId,
+        action: "razorpay_config_updated",
+        target_type: "razorpay_config",
+        target_id: config?.id || "new",
+        details: { mode: form.mode, keys_updated: true },
+      } as any);
+    }
+
+    toast({ title: `Razorpay config saved (${form.mode} mode)` });
+    setSaving(false);
+  };
+
+  const toggleSecret = (key: string) => setShowSecrets(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const KeyField = ({ label, field, placeholder }: { label: string; field: keyof typeof form; placeholder: string }) => (
+    <div>
+      <label className="text-xs text-muted-foreground mb-1 block">{label}</label>
+      <div className="relative">
+        <input
+          type={showSecrets[field] ? "text" : "password"}
+          value={form[field]}
+          onChange={e => setForm(prev => ({ ...prev, [field]: e.target.value }))}
+          placeholder={placeholder}
+          className="w-full px-3 py-2.5 pr-16 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none font-mono"
+        />
+        <button onClick={() => toggleSecret(field)} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-primary font-medium px-2 py-1 rounded hover:bg-primary/10 transition-colors">
+          {showSecrets[field] ? "Hide" : "Show"}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-4">
+      {/* Mode Toggle */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">Payment Gateway Mode</h3>
+        <div className="flex gap-2">
+          {(["test", "live"] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => setForm(prev => ({ ...prev, mode: m }))}
+              className={`flex-1 px-4 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                form.mode === m
+                  ? m === "live"
+                    ? "border-success bg-success/10 text-success"
+                    : "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:border-muted-foreground/50"
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${form.mode === m ? (m === "live" ? "bg-success animate-pulse" : "bg-primary") : "bg-muted-foreground/30"}`} />
+                {m === "test" ? "Test Mode" : "Live Mode"}
+              </div>
+              <p className="text-[10px] mt-1 opacity-70">
+                {m === "test" ? "No real charges" : "Real transactions"}
+              </p>
+            </button>
+          ))}
+        </div>
+        {form.mode === "live" && (
+          <div className="flex items-start gap-2 bg-warning/10 rounded-lg p-2.5">
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+            <p className="text-[10px] text-warning">Live mode will process real payments. Ensure your keys are correct before enabling.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Test Keys */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${form.mode === "test" ? "bg-primary animate-pulse" : "bg-muted-foreground/30"}`} />
+          <h3 className="text-sm font-semibold text-foreground">Test Keys</h3>
+          {form.mode === "test" && <span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-medium">Active</span>}
+        </div>
+        <KeyField label="Test Key ID" field="test_key_id" placeholder="rzp_test_..." />
+        <KeyField label="Test Key Secret" field="test_key_secret" placeholder="Enter test secret key" />
+      </div>
+
+      {/* Live Keys */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${form.mode === "live" ? "bg-success animate-pulse" : "bg-muted-foreground/30"}`} />
+          <h3 className="text-sm font-semibold text-foreground">Live Keys</h3>
+          {form.mode === "live" && <span className="text-[10px] bg-success/15 text-success px-2 py-0.5 rounded-full font-medium">Active</span>}
+        </div>
+        <KeyField label="Live Key ID" field="live_key_id" placeholder="rzp_live_..." />
+        <KeyField label="Live Key Secret" field="live_key_secret" placeholder="Enter live secret key" />
+      </div>
+
+      {/* Webhook Secret */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">Webhook Secret</h3>
+        <p className="text-[10px] text-muted-foreground">Optional. Used to verify webhook signatures from Razorpay Dashboard.</p>
+        <KeyField label="Webhook Secret" field="webhook_secret" placeholder="Enter webhook secret" />
+      </div>
+
+      {/* Save */}
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+      >
+        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+        Save Gateway Configuration
+      </button>
+
+      {config?.updated_at && (
+        <p className="text-[10px] text-muted-foreground text-center">
+          Last updated: {new Date(config.updated_at).toLocaleString()}
+        </p>
+      )}
+    </div>
+  );
+};
+
 // ─── Webhook Events ───
 const WebhookEvents = () => {
   const [events, setEvents] = useState<any[]>([]);
