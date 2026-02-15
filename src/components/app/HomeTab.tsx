@@ -282,7 +282,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
             <span className="text-sm font-bold text-primary">
-              {(user?.user_metadata?.display_name || "S").slice(0, 2).toUpperCase()}
+              {(displayName || user?.user_metadata?.display_name || "S").slice(0, 2).toUpperCase()}
             </span>
           )}
         </motion.button>
@@ -292,7 +292,21 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               const h = new Date().getHours();
               const greeting = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
               const name = displayName || user?.user_metadata?.display_name || user?.email?.split("@")[0];
-              return name ? `${greeting}, ${name}` : greeting;
+              return name ? `${greeting}, ` : greeting;
+            })()}
+            {(() => {
+              const name = displayName || user?.user_metadata?.display_name || user?.email?.split("@")[0];
+              return name ? (
+                <motion.span
+                  key={name}
+                  initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
+                  className="inline-block text-primary"
+                >
+                  {name}
+                </motion.span>
+              ) : null;
             })()}
           </h1>
           <p className="text-muted-foreground text-xs mt-0.5">
