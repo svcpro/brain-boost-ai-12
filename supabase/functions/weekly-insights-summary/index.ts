@@ -19,7 +19,7 @@ serve(async (req) => {
     // Get all users with study data
     const { data: profiles } = await adminClient
       .from("profiles")
-      .select("id, display_name, daily_study_goal_minutes, exam_date, exam_type");
+      .select("id, display_name, daily_study_goal_minutes, exam_date, exam_type, push_notification_prefs");
 
     if (!profiles?.length) {
       return new Response(JSON.stringify({ success: true, users_notified: 0 }), {
@@ -34,6 +34,10 @@ serve(async (req) => {
 
     for (const profile of profiles) {
       try {
+        // Check if user has opted out of weekly insights
+        const prefs = (profile as any).push_notification_prefs;
+        if (prefs && typeof prefs === "object" && prefs.weeklyInsights === false) continue;
+
         // Fetch topics sorted by weakest
         const { data: topics } = await adminClient
           .from("topics")
