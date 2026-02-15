@@ -592,6 +592,8 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   const [expandedTab, setExpandedTab] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [importDiff, setImportDiff] = useState<{ flag_key: string; label: string; from: boolean; to: boolean }[] | null>(null);
+  const [pendingImport, setPendingImport] = useState<{ flag_key: string; enabled: boolean }[] | null>(null);
   const [lastToggle, setLastToggle] = useState<{ key: string; previousEnabled: boolean } | null>(null);
 
   useEffect(() => {
@@ -707,24 +709,45 @@ const SettingsSection = ({ toast }: { toast: any }) => {
           toast({ title: "❌ Invalid file format", description: "Expected an array of { flag_key, enabled }" });
           return;
         }
-        let updated = 0;
-        for (const item of imported) {
-          const exists = flags.find(f => f.flag_key === item.flag_key);
-          if (exists && exists.enabled !== item.enabled) {
-            await supabase.from("feature_flags").update({ enabled: item.enabled, updated_at: new Date().toISOString() } as any).eq("flag_key", item.flag_key);
-            updated++;
-          }
+        const changes = imported
+          .map(item => {
+            const existing = flags.find(f => f.flag_key === item.flag_key);
+            if (existing && existing.enabled !== item.enabled) {
+              return { flag_key: item.flag_key, label: existing.label || item.flag_key, from: existing.enabled, to: item.enabled };
+            }
+            return null;
+          })
+          .filter(Boolean) as { flag_key: string; label: string; from: boolean; to: boolean }[];
+        if (changes.length === 0) {
+          toast({ title: "No changes", description: "All flags already match the imported file" });
+          return;
         }
-        setFlags(prev => prev.map(f => {
-          const match = imported.find(i => i.flag_key === f.flag_key);
-          return match ? { ...f, enabled: match.enabled } : f;
-        }));
-        toast({ title: "📥 Flags imported", description: `${updated} flag(s) updated` });
+        setImportDiff(changes);
+        setPendingImport(imported);
       } catch {
         toast({ title: "❌ Failed to parse file" });
       }
     };
     input.click();
+  };
+
+  const applyImport = async () => {
+    if (!pendingImport || !importDiff) return;
+    for (const change of importDiff) {
+      await supabase.from("feature_flags").update({ enabled: change.to, updated_at: new Date().toISOString() } as any).eq("flag_key", change.flag_key);
+    }
+    setFlags(prev => prev.map(f => {
+      const match = pendingImport.find(i => i.flag_key === f.flag_key);
+      return match ? { ...f, enabled: match.enabled } : f;
+    }));
+    toast({ title: "📥 Flags imported", description: `${importDiff.length} flag(s) updated` });
+    setImportDiff(null);
+    setPendingImport(null);
+  };
+
+  const cancelImport = () => {
+    setImportDiff(null);
+    setPendingImport(null);
   };
 
   const query = searchQuery.toLowerCase().trim();
@@ -796,6 +819,44 @@ const SettingsSection = ({ toast }: { toast: any }) => {
           </div>
         )}
       </div>
+
+      {/* Import diff preview */}
+      <AnimatePresence>
+        {importDiff && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="glass rounded-xl neural-border p-4 space-y-3 overflow-hidden"
+          >
+            <p className="text-sm font-semibold text-foreground">Review changes ({importDiff.length})</p>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {importDiff.map(d => (
+                <div key={d.flag_key} className="flex items-center justify-between text-xs py-1">
+                  <span className="text-foreground truncate mr-2">{d.label}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`px-1.5 py-0.5 rounded-full font-medium ${d.from ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {d.from ? "ON" : "OFF"}
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className={`px-1.5 py-0.5 rounded-full font-medium ${d.to ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {d.to ? "ON" : "OFF"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button onClick={applyImport} className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
+                Apply {importDiff.length} change{importDiff.length > 1 ? "s" : ""}
+              </button>
+              <button onClick={cancelImport} className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
