@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2 } from "lucide-react";
+import html2canvas from "html2canvas";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCache, setCache } from "@/lib/offlineCache";
@@ -29,6 +31,44 @@ const WeeklyDigestPreview = () => {
   const [data, setData] = useState<DigestData | null>(() => getCache(CACHE_KEY));
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleShare = useCallback(async () => {
+    if (!cardRef.current || sharing) return;
+    setSharing(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+      });
+      const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, "image/png"));
+      if (!blob) throw new Error("Failed to generate image");
+
+      if (navigator.share && navigator.canShare?.({ files: [new File([blob], "brain-digest.png", { type: "image/png" })] })) {
+        await navigator.share({
+          title: "My Weekly Brain Digest",
+          text: `Brain Evolution: ${data?.twin?.brain_evolution_score != null ? Math.round(data.twin.brain_evolution_score) : "N/A"}/100 | Study: ${Math.floor((data?.totalMinutes || 0) / 60)}h ${(data?.totalMinutes || 0) % 60}m`,
+          files: [new File([blob], "brain-digest.png", { type: "image/png" })],
+        });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "brain-digest.png";
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("Digest image downloaded!");
+      }
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        toast.error("Failed to share digest");
+      }
+    } finally {
+      setSharing(false);
+    }
+  }, [data, sharing]);
 
   const loadDigest = useCallback(async () => {
     if (!user || loading) return;
@@ -171,6 +211,7 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-xl neural-border overflow-hidden"
@@ -184,6 +225,13 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
           <h3 className="text-sm font-bold text-foreground">Weekly Brain Digest</h3>
           <p className="text-[10px] text-muted-foreground">Live preview — same as your email report</p>
         </div>
+        <button
+          onClick={handleShare}
+          disabled={sharing || !data}
+          className="p-1.5 rounded-lg hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Share2 className={`w-3.5 h-3.5 ${sharing ? "animate-pulse" : ""}`} />
+        </button>
         <button
           onClick={loadDigest}
           disabled={loading}
