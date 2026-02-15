@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Bell, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import HomeTab from "@/components/app/HomeTab";
 import ActionTab from "@/components/app/ActionTab";
 import BrainTab from "@/components/app/BrainTab";
@@ -39,6 +40,7 @@ const AppDashboard = () => {
   const { user } = useAuth();
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
+  const { isEnabled: isTabEnabled, loading: flagsLoading } = useFeatureFlags();
   const [recCount, setRecCount] = useState(0);
   const [pendingGifts, setPendingGifts] = useState(0);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
@@ -172,13 +174,22 @@ const AppDashboard = () => {
   }, [user]);
 
   const renderTab = () => {
+    if (!isTabEnabled(`tab_${activeTab}`)) {
+      // Fallback to first enabled tab
+      const firstEnabled = tabs.find(t => isTabEnabled(`tab_${t.id}`));
+      if (firstEnabled && firstEnabled.id !== activeTab) {
+        setActiveTab(firstEnabled.id);
+        return null;
+      }
+      return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">This section is currently disabled.</div>;
+    }
     switch (activeTab) {
       case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} onNavigateToBrain={() => setActiveTab("brain")} onNavigateToYou={() => setActiveTab("you")} />;
       case "action": return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
       case "progress": return <ProgressTab />;
       case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
-      default: return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} />;
+      default: return null;
     }
   };
 
@@ -236,7 +247,7 @@ const AppDashboard = () => {
         {/* Bottom Nav */}
         <nav className="fixed bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
           <div className="flex items-center justify-around py-2 max-w-lg mx-auto">
-            {tabs.map((tab) => {
+            {tabs.filter(tab => isTabEnabled(`tab_${tab.id}`)).map((tab) => {
               const active = activeTab === tab.id;
               return (
                 <button

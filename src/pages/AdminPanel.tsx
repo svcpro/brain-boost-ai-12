@@ -163,7 +163,7 @@ const AdminPanel = () => {
             {section === "notifications" && <NotificationsSection toast={toast} />}
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
             {section === "audit" && <AuditSection />}
-            {section === "settings" && <SettingsSection />}
+            {section === "settings" && <SettingsSection toast={toast} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -576,14 +576,63 @@ const AuditSection = () => {
   );
 };
 
-// ─── Settings ───
-const SettingsSection = () => (
-  <div className="space-y-4">
-    <h2 className="text-xl font-bold text-foreground">System Settings</h2>
-    <div className="glass rounded-xl p-4 neural-border">
-      <p className="text-sm text-muted-foreground">System settings and configuration options will be available here.</p>
+// ─── Settings (Feature Flags) ───
+const SettingsSection = ({ toast }: { toast: any }) => {
+  const [flags, setFlags] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("feature_flags").select("*").order("flag_key");
+      setFlags((data as any[]) || []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const toggleFlag = async (key: string, enabled: boolean) => {
+    await supabase
+      .from("feature_flags")
+      .update({ enabled, updated_at: new Date().toISOString() } as any)
+      .eq("flag_key", key);
+    setFlags(prev => prev.map(f => f.flag_key === key ? { ...f, enabled } : f));
+    await supabase.from("admin_audit_logs").insert({
+      admin_id: (await supabase.auth.getUser()).data.user?.id,
+      action: enabled ? "feature_enabled" : "feature_disabled",
+      target_type: "feature_flags",
+      target_id: key,
+      details: { flag_key: key, enabled },
+    } as any);
+    toast({ title: enabled ? "✅ Enabled" : "🚫 Disabled", description: key.replace("tab_", "").replace("_", " ") + " tab" });
+  };
+
+  return (
+    <div className="space-y-4 max-w-lg">
+      <h2 className="text-xl font-bold text-foreground">App Section Controls</h2>
+      <p className="text-sm text-muted-foreground">Enable or disable app tab sections for all users.</p>
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : (
+        <div className="space-y-2">
+          {flags.filter(f => f.flag_key.startsWith("tab_")).map(flag => (
+            <div key={flag.id} className="glass rounded-xl p-4 neural-border flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">{flag.label || flag.flag_key}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {flag.enabled ? "Visible to all users" : "Hidden from all users"}
+                </p>
+              </div>
+              <button
+                onClick={() => toggleFlag(flag.flag_key, !flag.enabled)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${flag.enabled ? "bg-primary" : "bg-muted"}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${flag.enabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 export default AdminPanel;
