@@ -55,8 +55,8 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
         supabase.from("study_logs").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
 
-      if ((topicCount ?? 0) === 0 && (logCount ?? 0) === 0) {
-        // New user with no data — show empty state, don't call AI
+      if ((logCount ?? 0) === 0) {
+        // User has no study sessions yet — show empty state, don't call AI
         setHasLoaded(true);
         setInsights([]);
         return;
