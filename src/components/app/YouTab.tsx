@@ -915,11 +915,25 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {isEnabled("you_notifications") && (
       <div className="space-y-1">
         <SectionHeader icon={Bell} label="Notifications" delay={0.25} />
-        {notificationSection.map((item, i) => (
+        {notificationSection
+          .filter(item => {
+            const flagMap: Record<string, string> = {
+              "Study Reminders": "you_notif_study_reminders",
+              "Push Notifications": "you_notif_push",
+              "Notification History": "you_notif_history",
+              "Email Notifications": "you_notif_email",
+              "Sound & Haptics": "you_notif_sound",
+              "Voice Notifications": "you_notif_voice",
+            };
+            const flagKey = flagMap[item.label];
+            return !flagKey || isEnabled(flagKey);
+          })
+          .map((item, i) => (
           <MenuItem key={item.label} item={item} index={i} />
         ))}
 
         {/* Reminders Panel */}
+        {isEnabled("you_notif_study_reminders") && (
         <AnimatePresence>
           {showReminders && (
             <motion.div
@@ -993,18 +1007,24 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+        )}
 
         {/* Push Notification Preferences Panel */}
+        {isEnabled("you_notif_push") && (
         <AnimatePresence>
           {showPushPrefs && <NotificationPreferencesPanel />}
         </AnimatePresence>
+        )}
 
         {/* Notification History Panel */}
+        {isEnabled("you_notif_history") && (
         <AnimatePresence>
           {showNotifHistory && <NotificationHistory />}
         </AnimatePresence>
+        )}
 
         {/* Email Notifications Settings Panel */}
+        {isEnabled("you_notif_email") && (
         <AnimatePresence>
           {showEmailSetting && (
             <motion.div
@@ -1149,8 +1169,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+        )}
 
         {/* Sound & Haptics Settings Panel */}
+        {isEnabled("you_notif_sound") && (
         <AnimatePresence>
           {showFeedbackSetting && (
             <motion.div
@@ -1278,8 +1300,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+        )}
 
         {/* Voice Notification Settings Panel */}
+        {isEnabled("you_notif_voice") && (
         <AnimatePresence>
           {showVoiceSettings && (
             <motion.div
@@ -1293,6 +1317,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+        )}
       </div>
       )}
 
