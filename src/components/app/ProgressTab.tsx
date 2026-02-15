@@ -26,6 +26,7 @@ import ConsistencyScore from "./ConsistencyScore";
 import PushNotificationToggle from "./PushNotificationToggle";
 import BadgeGallery from "./BadgeGallery";
 import WeeklyDigestPreview from "./WeeklyDigestPreview";
+import PredictionDashboard from "./PredictionDashboard";
 
 type DayStatus = "studied" | "frozen" | "none";
 
@@ -55,6 +56,7 @@ const ProgressTab = () => {
   const [showExamSim, setShowExamSim] = useState(false);
   const [retryQuestions, setRetryQuestions] = useState<any[] | undefined>(undefined);
   const [showWeeklyAI, setShowWeeklyAI] = useState(false);
+  const [showPredictions, setShowPredictions] = useState(false);
   const notifiedRef = useRef(false);
   const [freezeData, setFreezeData] = useState<{ available: number; usedToday: boolean }>({ available: 0, usedToday: false });
 
@@ -736,6 +738,11 @@ const ProgressTab = () => {
           <p className="text-sm font-medium text-foreground">Competition Intel</p>
           <p className="text-[10px] text-muted-foreground">Peer comparison</p>
         </button>
+        <button onClick={() => setShowPredictions(true)} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
+          <TrendingUp className="w-5 h-5 text-primary mb-2" />
+          <p className="text-sm font-medium text-foreground">Predictions</p>
+          <p className="text-[10px] text-muted-foreground">Forecasts & strategy</p>
+        </button>
         <button onClick={() => setShowExamSim(true)} className="glass rounded-xl p-4 neural-border hover:glow-primary transition-all text-left cursor-pointer">
           <SlidersHorizontal className="w-5 h-5 text-primary mb-2" />
           <p className="text-sm font-medium text-foreground">Exam Simulator</p>
@@ -762,6 +769,7 @@ const ProgressTab = () => {
       {showCompIntel && <CompetitionIntel onClose={() => setShowCompIntel(false)} />}
       {showExamSim && <ExamSimulator onClose={() => { setShowExamSim(false); setRetryQuestions(undefined); }} retryQuestions={retryQuestions} />}
       {showWeeklyAI && <WeeklyReportAI onClose={() => setShowWeeklyAI(false)} />}
+      {showPredictions && <PredictionDashboard onClose={() => setShowPredictions(false)} />}
     </div>
   );
 };
