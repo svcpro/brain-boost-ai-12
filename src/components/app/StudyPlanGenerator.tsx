@@ -130,6 +130,16 @@ const StudyPlanGenerator = () => {
           const latest = data[0];
           const rates = data.map((d: any) => d.overall_completion_rate ?? 0);
           const avgRate = rates.length > 0 ? Math.round(rates.reduce((a: number, b: number) => a + b, 0) / rates.length) : 0;
+          const chronological = [...data].reverse(); // oldest first
+          // Compute consecutive improvement streak (from most recent backwards)
+          let improvementStreak = 0;
+          for (let i = chronological.length - 1; i >= 1; i--) {
+            if ((chronological[i].overall_completion_rate ?? 0) > (chronological[i - 1].overall_completion_rate ?? 0)) {
+              improvementStreak++;
+            } else {
+              break;
+            }
+          }
           setRlInsights({
             ...(latest.rl_signals as Record<string, any> || {}),
             latest_completion_rate: latest.overall_completion_rate ?? 0,
@@ -137,10 +147,11 @@ const StudyPlanGenerator = () => {
             plans_tracked: data.length,
             latest_sessions_total: latest.sessions_total,
             latest_sessions_completed: latest.sessions_completed,
-            trend: data.map((d: any) => ({
+            improvement_streak: improvementStreak,
+            trend: chronological.map((d: any) => ({
               rate: d.overall_completion_rate ?? 0,
               date: d.created_at,
-            })).reverse(), // oldest first for sparkline
+            })),
           });
         }
       });
@@ -555,6 +566,56 @@ const StudyPlanGenerator = () => {
                 </p>
               ) : null;
             })()}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Improvement Streak Celebration */}
+      {rlInsights && (rlInsights.improvement_streak ?? 0) >= 2 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-xl border border-success/30 bg-success/5 p-3.5 flex items-start gap-3"
+        >
+          <div className="p-1.5 rounded-lg bg-success/15 shrink-0 mt-0.5">
+            <span className="text-base">
+              {(rlInsights.improvement_streak ?? 0) >= 5 ? "🔥" : (rlInsights.improvement_streak ?? 0) >= 3 ? "🚀" : "🎯"}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-foreground mb-0.5 flex items-center gap-1.5">
+              {(rlInsights.improvement_streak ?? 0) >= 5
+                ? "Unstoppable! 5+ plan streak"
+                : (rlInsights.improvement_streak ?? 0) >= 3
+                  ? "On fire! 3+ plan improvement streak"
+                  : "Improving! 2 plans in a row"
+              }
+              <TrendingUp className="w-3.5 h-3.5 text-success" />
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {(rlInsights.improvement_streak ?? 0) >= 5
+                ? `You've improved your completion rate across ${rlInsights.improvement_streak} consecutive plans. Your consistency is building powerful study habits!`
+                : (rlInsights.improvement_streak ?? 0) >= 3
+                  ? `${rlInsights.improvement_streak} plans with increasing completion — the RL engine is dialing in your ideal routine.`
+                  : "Your completion rate improved from the previous plan. Keep it up and the AI will continue optimizing for you!"
+              }
+            </p>
+            <div className="flex items-center gap-1 mt-1.5">
+              {Array.from({ length: Math.min(rlInsights.improvement_streak ?? 0, 7) }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: i * 0.08, type: "spring", stiffness: 300 }}
+                  className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center"
+                >
+                  <CheckCircle className="w-3 h-3 text-success" />
+                </motion.div>
+              ))}
+              <span className="text-[9px] text-success font-bold ml-1">
+                ×{rlInsights.improvement_streak}
+              </span>
+            </div>
           </div>
         </motion.div>
       )}
