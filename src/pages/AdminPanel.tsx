@@ -6,7 +6,7 @@ import {
   Loader2, AlertTriangle, Search, MoreVertical, Eye,
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
-  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload
+  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,10 @@ import { useAdminRole, type AppRole } from "@/hooks/useAdminRole";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "notifications" | "admins" | "audit" | "settings";
 
@@ -599,6 +603,8 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelogHasMore, setChangelogHasMore] = useState(true);
   const [changelogFilter, setChangelogFilter] = useState<"all" | "enabled" | "disabled">("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [changelogLoading, setChangelogLoading] = useState(false);
   const CHANGELOG_PAGE_SIZE = 20;
   const nameMapRef = useRef(new Map<string, string>());
@@ -1030,7 +1036,7 @@ const SettingsSection = ({ toast }: { toast: any }) => {
               className="overflow-hidden mt-2 space-y-2"
             >
               {/* Filter */}
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {(["all", "enabled", "disabled"] as const).map(f => (
                   <button
                     key={f}
@@ -1040,12 +1046,49 @@ const SettingsSection = ({ toast }: { toast: any }) => {
                     {f === "all" ? "All" : f === "enabled" ? "Enabled" : "Disabled"}
                   </button>
                 ))}
+                <span className="text-muted-foreground/30">|</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={cn("inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-medium transition-colors", dateFrom ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground hover:text-foreground")}>
+                      <CalendarIcon className="w-3 h-3" />
+                      {dateFrom ? format(dateFrom, "MMM d") : "From"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={cn("inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-medium transition-colors", dateTo ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground hover:text-foreground")}>
+                      <CalendarIcon className="w-3 h-3" />
+                      {dateTo ? format(dateTo, "MMM d") : "To"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+                {(dateFrom || dateTo) && (
+                  <button onClick={() => { setDateFrom(undefined); setDateTo(undefined); }} className="text-[10px] text-muted-foreground hover:text-foreground">
+                    <XCircle className="w-3 h-3" />
+                  </button>
+                )}
               </div>
               {changelog.length === 0 && !changelogLoading ? (
                 <p className="text-xs text-muted-foreground py-4 text-center">No changes recorded yet</p>
               ) : (
                 <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
-                  {changelog.filter(log => changelogFilter === "all" || (changelogFilter === "enabled" ? log.action === "feature_enabled" : log.action === "feature_disabled")).map(log => {
+                  {changelog.filter(log => {
+                    if (changelogFilter !== "all") {
+                      if (changelogFilter === "enabled" && log.action !== "feature_enabled") return false;
+                      if (changelogFilter === "disabled" && log.action !== "feature_disabled") return false;
+                    }
+                    const logDate = new Date(log.created_at);
+                    if (dateFrom) { const start = new Date(dateFrom); start.setHours(0,0,0,0); if (logDate < start) return false; }
+                    if (dateTo) { const end = new Date(dateTo); end.setHours(23,59,59,999); if (logDate > end) return false; }
+                    return true;
+                  }).map(log => {
                     const isEnabled = log.action === "feature_enabled";
                     const flagLabel = (log.details as any)?.flag_key || log.target_id || "unknown";
                     const time = new Date(log.created_at);
