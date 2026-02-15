@@ -12,6 +12,7 @@ import AuthPage from "./pages/AuthPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import AppDashboard from "./pages/AppDashboard";
 import NotFound from "./pages/NotFound";
+import AdminPanel from "./pages/AdminPanel";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,11 @@ const App = () => (
             <Route path="/app" element={
               <ProtectedRoute>
                 <AppDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminPanel />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
