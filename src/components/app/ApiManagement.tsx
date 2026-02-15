@@ -4,11 +4,11 @@ import {
   Loader2, Key, ExternalLink, ToggleLeft, ToggleRight,
   AlertTriangle, CheckCircle2, Settings, DollarSign, Activity,
   Mail, Mic, CreditCard, Bell, Brain, Save, Pencil, Eye, EyeOff,
-  Info, Hash, Plus, X, Trash2
+  Info, Hash, Plus, X, Trash2, Clock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, formatDistanceToNow, startOfMonth, addMonths } from "date-fns";
 
 interface ApiIntegration {
   id: string;
@@ -348,7 +348,7 @@ const ApiManagement = () => {
       </AnimatePresence>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-4 neural-border">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle2 className="w-4 h-4 text-success" />
@@ -380,6 +380,21 @@ const ApiManagement = () => {
           <p className="text-xl font-bold text-foreground">
             {integrations.reduce((s, i) => s + (i.monthly_usage_count || 0), 0).toLocaleString()}
           </p>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl p-4 neural-border">
+          <div className="flex items-center gap-2 mb-1">
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Next Reset</span>
+          </div>
+          {(() => {
+            const nextReset = startOfMonth(addMonths(new Date(), 1));
+            return (
+              <>
+                <p className="text-lg font-bold text-foreground">{format(nextReset, "MMM d")}</p>
+                <p className="text-[10px] text-muted-foreground">{formatDistanceToNow(nextReset, { addSuffix: true })}</p>
+              </>
+            );
+          })()}
         </motion.div>
       </div>
 
