@@ -405,6 +405,91 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(50);
 
+      // ── Reinforcement Learning: analyze past plan completion patterns ──
+      const { data: pastSessions } = await supabase
+        .from("plan_sessions")
+        .select("topic, subject, duration_minutes, mode, day_name, completed, completed_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      // Compute RL signals from historical sessions
+      let rlFeedback = "";
+      if (pastSessions && pastSessions.length > 0) {
+        const total = pastSessions.length;
+        const completed = pastSessions.filter((s: any) => s.completed).length;
+        const skipped = total - completed;
+        const completionRate = Math.round((completed / total) * 100);
+
+        // Completion rate by mode
+        const modeStats: Record<string, { done: number; total: number }> = {};
+        for (const s of pastSessions) {
+          if (!modeStats[s.mode]) modeStats[s.mode] = { done: 0, total: 0 };
+          modeStats[s.mode].total++;
+          if (s.completed) modeStats[s.mode].done++;
+        }
+
+        // Completion rate by day of week
+        const dayStats: Record<string, { done: number; total: number }> = {};
+        for (const s of pastSessions) {
+          if (!dayStats[s.day_name]) dayStats[s.day_name] = { done: 0, total: 0 };
+          dayStats[s.day_name].total++;
+          if (s.completed) dayStats[s.day_name].done++;
+        }
+
+        // Completion rate by duration bucket
+        const durationBuckets: Record<string, { done: number; total: number }> = {
+          "≤15min": { done: 0, total: 0 },
+          "16-30min": { done: 0, total: 0 },
+          "31-45min": { done: 0, total: 0 },
+          "46-60min": { done: 0, total: 0 },
+          ">60min": { done: 0, total: 0 },
+        };
+        for (const s of pastSessions) {
+          const d = s.duration_minutes;
+          const bucket = d <= 15 ? "≤15min" : d <= 30 ? "16-30min" : d <= 45 ? "31-45min" : d <= 60 ? "46-60min" : ">60min";
+          durationBuckets[bucket].total++;
+          if (s.completed) durationBuckets[bucket].done++;
+        }
+
+        // Topics most often skipped
+        const topicSkips: Record<string, number> = {};
+        const topicCompletions: Record<string, number> = {};
+        for (const s of pastSessions) {
+          if (s.completed) {
+            topicCompletions[s.topic] = (topicCompletions[s.topic] || 0) + 1;
+          } else {
+            topicSkips[s.topic] = (topicSkips[s.topic] || 0) + 1;
+          }
+        }
+        const mostSkipped = Object.entries(topicSkips)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([t, n]) => `${t} (skipped ${n}x)`);
+
+        const mostCompleted = Object.entries(topicCompletions)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([t, n]) => `${t} (completed ${n}x)`);
+
+        rlFeedback = `
+REINFORCEMENT LEARNING FEEDBACK (from ${total} past plan sessions):
+- Overall completion rate: ${completionRate}% (${completed} completed, ${skipped} skipped)
+- Completion by study mode: ${Object.entries(modeStats).map(([m, s]) => `${m}: ${Math.round((s.done / s.total) * 100)}%`).join(", ")}
+- Completion by day: ${Object.entries(dayStats).map(([d, s]) => `${d}: ${Math.round((s.done / s.total) * 100)}%`).join(", ")}
+- Completion by duration: ${Object.entries(durationBuckets).filter(([, s]) => s.total > 0).map(([b, s]) => `${b}: ${Math.round((s.done / s.total) * 100)}%`).join(", ")}
+- Most skipped topics: ${mostSkipped.join(", ") || "none"}
+- Most completed topics: ${mostCompleted.join(", ") || "none"}
+
+USE THIS DATA TO OPTIMIZE:
+- Schedule MORE of the study modes with higher completion rates
+- Prefer session durations the student actually completes
+- Reduce load on days with low completion rates
+- For frequently skipped topics, try shorter/lighter sessions instead
+- For frequently completed topics, you can safely assign longer/deeper sessions`;
+      }
+      // ── End RL feedback ──
+
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -442,13 +527,15 @@ ${topicSummary || "No topics tracked yet — suggest general study structure."}
 
 Recent study pattern (minutes by day):
 ${dayNames.map(d => `${d}: ${Math.round(dayTotals[d] || 0)} min`).join("\n")}
+${rlFeedback}
 
 Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.getDay() + 6) % 7]}) that:
 1. Prioritizes topics closest to memory drop threshold
 2. Spaces reviews using spaced repetition principles
 3. Respects the daily study goal
 4. Includes rest/light days if needed
-5. Front-loads critical topics if exam is near`;
+5. Front-loads critical topics if exam is near
+6. ADAPTS based on the reinforcement learning feedback above — favor modes, durations, and days that the student historically completes`;
 
       const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
