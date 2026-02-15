@@ -91,6 +91,66 @@ export type Database = {
           },
         ]
       }
+      api_integrations: {
+        Row: {
+          api_key_masked: string | null
+          category: string
+          config: Json
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_enabled: boolean
+          key_last_updated_at: string | null
+          monthly_cost_estimate: number | null
+          monthly_usage_count: number | null
+          notes: string | null
+          service_name: string
+          status: string
+          updated_at: string
+          usage_limit: number | null
+          usage_reset_at: string | null
+        }
+        Insert: {
+          api_key_masked?: string | null
+          category?: string
+          config?: Json
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_enabled?: boolean
+          key_last_updated_at?: string | null
+          monthly_cost_estimate?: number | null
+          monthly_usage_count?: number | null
+          notes?: string | null
+          service_name: string
+          status?: string
+          updated_at?: string
+          usage_limit?: number | null
+          usage_reset_at?: string | null
+        }
+        Update: {
+          api_key_masked?: string | null
+          category?: string
+          config?: Json
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_enabled?: boolean
+          key_last_updated_at?: string | null
+          monthly_cost_estimate?: number | null
+          monthly_usage_count?: number | null
+          notes?: string | null
+          service_name?: string
+          status?: string
+          updated_at?: string
+          usage_limit?: number | null
+          usage_reset_at?: string | null
+        }
+        Relationships: []
+      }
       brain_missions: {
         Row: {
           completed_at: string | null
