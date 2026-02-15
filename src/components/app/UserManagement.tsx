@@ -7,6 +7,7 @@ import {
   CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -243,6 +244,7 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   onBack: () => void;
   toast: any;
 }) => {
+  const { user: adminUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     display_name: user.display_name || "",
@@ -258,6 +260,17 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   const [showBanForm, setShowBanForm] = useState(false);
   const [banning, setBanning] = useState(false);
   const [isBanned, setIsBanned] = useState(user.is_banned);
+
+  const logAudit = async (action: string, details: Record<string, any>) => {
+    if (!adminUser) return;
+    await supabase.from("admin_audit_logs").insert({
+      admin_id: adminUser.id,
+      action,
+      target_type: "user",
+      target_id: user.id,
+      details: details as any,
+    });
+  };
 
   const userSubs = subscriptions.filter(s => s.user_id === user.id);
   const activeSub = userSubs.find(s => s.status === "active");
@@ -294,6 +307,7 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
       toast({ title: "Failed to update profile", variant: "destructive" });
       return;
     }
+    await logAudit("profile_updated", { changes: editForm });
     toast({ title: "Profile updated" });
     setEditing(false);
   };
@@ -322,9 +336,10 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
       } as any);
     }
 
+    await logAudit("plan_changed", { from: activePlan?.plan_key || "free", to: newPlan.plan_key, amount: newPlan.price });
     toast({ title: `Plan changed to ${newPlan.name}` });
     setChangingPlan(false);
-    onBack(); // Refresh data
+    onBack();
   };
 
   const totalHours = stats ? Math.round(stats.totalStudyMinutes / 60) : 0;
@@ -345,6 +360,7 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
     setIsBanned(ban);
     setShowBanForm(false);
     setBanReason("");
+    await logAudit(ban ? "user_banned" : "user_unbanned", { reason: banReason || null });
     toast({ title: ban ? "User banned" : "User unbanned" });
   };
 
