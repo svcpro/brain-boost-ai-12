@@ -17,7 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
-import { isFeedbackEnabled, setFeedbackEnabled, getFeedbackVolume, setFeedbackVolume, notifyFeedback, playNotificationSound } from "@/lib/feedback";
+import { isFeedbackEnabled, setFeedbackEnabled, getFeedbackVolume, setFeedbackVolume, notifyFeedback, playNotificationSound, playInsightSound, playWarningSound } from "@/lib/feedback";
 import VoiceSettingsPanel from "./VoiceSettingsPanel";
 import DataBackup from "./DataBackup";
 import PrivacySecurity from "./PrivacySecurity";
@@ -1092,6 +1092,26 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>Quiet</span>
                       <span>Loud</span>
+                    </div>
+
+                    {/* Sound previews */}
+                    <div className="pt-2 border-t border-border space-y-1.5">
+                      <span className="text-xs text-muted-foreground font-medium">Preview sounds</span>
+                      <div className="flex gap-2">
+                        {[
+                          { label: "🔔 Standard", fn: playNotificationSound },
+                          { label: "✨ Insight", fn: playInsightSound },
+                          { label: "⚠️ Nudge", fn: playWarningSound },
+                        ].map((s) => (
+                          <button
+                            key={s.label}
+                            onClick={s.fn}
+                            className="flex-1 text-[10px] py-1.5 px-2 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground transition-colors"
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
