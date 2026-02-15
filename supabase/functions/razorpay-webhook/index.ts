@@ -34,12 +34,21 @@ serve(async (req) => {
   let eventPayload: any;
 
   try {
-    // Verify signature
-    const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET');
-    if (!RAZORPAY_KEY_SECRET) throw new Error('RAZORPAY_KEY_SECRET not configured');
+    // Get webhook secret - try config table first, then env
+    let webhookSecret: string | null = null;
+    const { data: config } = await adminClient.from('razorpay_config').select('webhook_secret, mode, test_key_secret, live_key_secret').limit(1).maybeSingle();
+    if (config?.webhook_secret) {
+      webhookSecret = config.webhook_secret;
+    } else if (config) {
+      webhookSecret = config.mode === 'live' ? config.live_key_secret : config.test_key_secret;
+    }
+    if (!webhookSecret) {
+      webhookSecret = Deno.env.get('RAZORPAY_KEY_SECRET') || null;
+    }
+    if (!webhookSecret) throw new Error('Razorpay webhook secret not configured');
 
     const signature = req.headers.get('x-razorpay-signature') || '';
-    const isValid = await verifyWebhookSignature(rawBody, signature, RAZORPAY_KEY_SECRET);
+    const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
     if (!isValid) {
       console.error('Invalid webhook signature');
       return new Response(JSON.stringify({ error: 'Invalid signature' }), {
