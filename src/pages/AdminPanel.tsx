@@ -632,11 +632,33 @@ const SettingsSection = ({ toast }: { toast: any }) => {
       toast({ title: "All flags are already enabled" });
       return;
     }
+    const previousStates = disabledFlags.map(f => ({ key: f.flag_key, enabled: f.enabled }));
     for (const f of disabledFlags) {
       await supabase.from("feature_flags").update({ enabled: true, updated_at: new Date().toISOString() } as any).eq("flag_key", f.flag_key);
     }
     setFlags(prev => prev.map(f => ({ ...f, enabled: true })));
-    toast({ title: "✅ All flags reset to enabled" });
+
+    const undoReset = async () => {
+      for (const s of previousStates) {
+        await supabase.from("feature_flags").update({ enabled: s.enabled, updated_at: new Date().toISOString() } as any).eq("flag_key", s.key);
+      }
+      setFlags(prev => prev.map(f => {
+        const prev_state = previousStates.find(s => s.key === f.flag_key);
+        return prev_state ? { ...f, enabled: prev_state.enabled } : f;
+      }));
+      toast({ title: "↩️ Reset undone" });
+    };
+
+    toast({
+      title: "✅ All flags reset to enabled",
+      description: `${disabledFlags.length} flag(s) were enabled`,
+      action: (
+        <button onClick={undoReset} className="text-xs font-semibold text-primary hover:text-primary/80 underline underline-offset-2">
+          Undo
+        </button>
+      ),
+      duration: 6000,
+    });
   };
 
   const query = searchQuery.toLowerCase().trim();
