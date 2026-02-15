@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCognitiveTwin } from "@/hooks/useCognitiveTwin";
 import { useMetaLearning } from "@/hooks/useMetaLearning";
 import WhatIfSimulator from "./WhatIfSimulator";
+import TopicImpactRanking from "./TopicImpactRanking";
 import { toast } from "sonner";
 
 export default function CognitiveTwinDashboard() {
@@ -97,9 +98,16 @@ export default function CognitiveTwinDashboard() {
         </motion.div>
       )}
 
+      {/* Most Impactful Topics */}
+      {twin && twin.topic_models && twin.topic_models.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.11 }}>
+          <TopicImpactRanking topicModels={twin.topic_models} />
+        </motion.div>
+      )}
+
       {/* What-If Simulator */}
       {twin && twin.topic_models && twin.topic_models.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}>
           <WhatIfSimulator topicModels={twin.topic_models} />
         </motion.div>
       )}
