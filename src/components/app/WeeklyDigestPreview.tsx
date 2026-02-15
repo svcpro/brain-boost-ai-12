@@ -36,6 +36,7 @@ interface DigestData {
   streak: number;
   examDate: string | null;
   examType: string | null;
+  planProgress: { completed: number; total: number } | null;
 }
 
 const CACHE_KEY = "weekly-digest-preview";
@@ -324,29 +325,51 @@ const DailyStudyTip = () => {
   );
 };
 
-const ExamCountdown = ({ examDate, examType }: { examDate: string; examType: string | null }) => {
+const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string; examType: string | null; planProgress: { completed: number; total: number } | null }) => {
   const days = Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000);
   if (days < 0) return null;
 
-  const urgency = days <= 7 ? "destructive" : days <= 30 ? "warning" : "primary";
   const urgencyBg = days <= 7 ? "bg-destructive/10 border-destructive/25" : days <= 30 ? "bg-warning/10 border-warning/25" : "bg-primary/10 border-primary/20";
   const urgencyText = days <= 7 ? "text-destructive" : days <= 30 ? "text-warning" : "text-primary";
+  const barColor = days <= 7 ? "bg-destructive" : days <= 30 ? "bg-warning" : "bg-primary";
   const label = days === 0 ? "Today!" : days === 1 ? "Tomorrow!" : `${days} days`;
+  const pct = planProgress ? Math.round((planProgress.completed / planProgress.total) * 100) : null;
 
   return (
-    <div className={`rounded-lg border ${urgencyBg} px-3 py-2.5 flex items-center gap-3`}>
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${days <= 7 ? "bg-destructive/15" : days <= 30 ? "bg-warning/15" : "bg-primary/15"}`}>
-        <CalendarClock className={`w-4.5 h-4.5 ${urgencyText}`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className={`text-lg font-bold ${urgencyText}`}>{label}</span>
-          {days <= 7 && <span className="text-[9px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded-full font-bold animate-pulse">URGENT</span>}
+    <div className={`rounded-lg border ${urgencyBg} px-3 py-2.5 space-y-2`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${days <= 7 ? "bg-destructive/15" : days <= 30 ? "bg-warning/15" : "bg-primary/15"}`}>
+          <CalendarClock className={`w-4.5 h-4.5 ${urgencyText}`} />
         </div>
-        <p className="text-[10px] text-muted-foreground truncate">
-          until {examType || "exam"} · {new Date(examDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-        </p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={`text-lg font-bold ${urgencyText}`}>{label}</span>
+            {days <= 7 && <span className="text-[9px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded-full font-bold animate-pulse">URGENT</span>}
+          </div>
+          <p className="text-[10px] text-muted-foreground truncate">
+            until {examType || "exam"} · {new Date(examDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+          </p>
+        </div>
       </div>
+      {planProgress && planProgress.total > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-muted-foreground font-medium">Study plan progress</span>
+            <span className={`text-[10px] font-bold ${urgencyText}`}>{pct}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-secondary">
+            <motion.div
+              className={`h-full rounded-full ${barColor}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </div>
+          <p className="text-[9px] text-muted-foreground mt-1">
+            {planProgress.completed}/{planProgress.total} sessions completed
+          </p>
+        </div>
+      )}
     </div>
   );
 };
@@ -426,7 +449,7 @@ const WeeklyDigestPreview = () => {
 
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
 
-      const [twinRes, reportsRes, topicsRes, logsThisWeekRes, logsLastWeekRes, profileRes, streakLogsRes] = await Promise.all([
+      const [twinRes, reportsRes, topicsRes, logsThisWeekRes, logsLastWeekRes, profileRes, streakLogsRes, planSessionsRes] = await Promise.all([
         supabase.from("cognitive_twins")
           .select("brain_evolution_score, learning_efficiency_score, memory_growth_rate")
           .eq("user_id", user.id).maybeSingle(),
@@ -456,6 +479,9 @@ const WeeklyDigestPreview = () => {
           .eq("user_id", user.id)
           .gte("created_at", thirtyDaysAgo.toISOString())
           .order("created_at", { ascending: false }),
+        supabase.from("plan_sessions")
+          .select("completed")
+          .eq("user_id", user.id),
       ]);
 
       const twin = twinRes.data;
@@ -463,6 +489,9 @@ const WeeklyDigestPreview = () => {
       const topics = topicsRes.data || [];
       const logsThisWeek = logsThisWeekRes.data || [];
       const logsLastWeek = logsLastWeekRes.data || [];
+      const planSessions = planSessionsRes.data || [];
+      const planTotal = planSessions.length;
+      const planCompleted = planSessions.filter((s: any) => s.completed).length;
 
       const totalMinutes = logsThisWeek.reduce((s, l) => s + (l.duration_minutes || 0), 0);
       const sessions = logsThisWeek.length;
@@ -563,6 +592,7 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
         streak,
         examDate: profileRes.data?.exam_date || null,
         examType: profileRes.data?.exam_type || null,
+        planProgress: planTotal > 0 ? { completed: planCompleted, total: planTotal } : null,
         lastWeek: {
           totalMinutes: lastWeekMinutes,
           sessions: lastWeekSessions,
@@ -644,7 +674,7 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
       ) : data ? (
         <div className="p-4 space-y-3">
           {/* Exam Countdown */}
-          {data.examDate && <ExamCountdown examDate={data.examDate} examType={data.examType} />}
+          {data.examDate && <ExamCountdown examDate={data.examDate} examType={data.examType} planProgress={data.planProgress} />}
 
           {/* Weekly Goal + Streak */}
           {!showCompare && (
