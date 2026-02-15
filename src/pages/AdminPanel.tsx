@@ -684,7 +684,13 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   };
 
   const exportFlags = () => {
-    const config = flags.map(f => ({ flag_key: f.flag_key, enabled: f.enabled }));
+    const config = {
+      exported_at: new Date().toISOString(),
+      total: flags.length,
+      enabled: flags.filter(f => f.enabled).length,
+      disabled: flags.filter(f => !f.enabled).length,
+      flags: flags.map(f => ({ flag_key: f.flag_key, enabled: f.enabled })),
+    };
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -704,9 +710,10 @@ const SettingsSection = ({ toast }: { toast: any }) => {
       if (!file) return;
       try {
         const text = await file.text();
-        const imported: { flag_key: string; enabled: boolean }[] = JSON.parse(text);
+        const parsed = JSON.parse(text);
+        const imported: { flag_key: string; enabled: boolean }[] = Array.isArray(parsed) ? parsed : parsed?.flags;
         if (!Array.isArray(imported) || !imported.every(f => typeof f.flag_key === "string" && typeof f.enabled === "boolean")) {
-          toast({ title: "❌ Invalid file format", description: "Expected an array of { flag_key, enabled }" });
+          toast({ title: "❌ Invalid file format", description: "Expected { flags: [...] } or an array of { flag_key, enabled }" });
           return;
         }
         const changes = imported
