@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check, CalendarCheck } from "lucide-react";
+import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check, CalendarCheck, Shield, Crown, Award } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
@@ -262,14 +262,30 @@ const NotificationPreferencesPanel = () => {
                 </span>
               </div>
             )}
-            {briefingStreak > 0 && (
-              <div className="flex items-center gap-1 bg-primary/10 rounded-full px-2 py-0.5">
-                <CalendarCheck className="w-3 h-3 text-primary" />
-                <span className="text-[10px] font-semibold text-primary">
-                  {briefingStreak} day{briefingStreak !== 1 ? "s" : ""} streak
-                </span>
-              </div>
-            )}
+            {briefingStreak > 0 && (() => {
+              const tier = briefingStreak >= 30
+                ? { icon: Crown, label: "Legendary", bg: "bg-yellow-500/15", text: "text-yellow-600 dark:text-yellow-400", ring: "ring-yellow-500/30" }
+                : briefingStreak >= 14
+                ? { icon: Award, label: "Dedicated", bg: "bg-purple-500/15", text: "text-purple-600 dark:text-purple-400", ring: "ring-purple-500/30" }
+                : briefingStreak >= 7
+                ? { icon: Shield, label: "Committed", bg: "bg-blue-500/15", text: "text-blue-600 dark:text-blue-400", ring: "ring-blue-500/30" }
+                : { icon: CalendarCheck, label: "", bg: "bg-primary/10", text: "text-primary", ring: "" };
+              const TierIcon = tier.icon;
+              return (
+                <motion.div
+                  key={tier.label}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 ${tier.bg} ${tier.ring ? `ring-1 ${tier.ring}` : ""}`}
+                >
+                  <TierIcon className={`w-3 h-3 ${tier.text}`} />
+                  <span className={`text-[10px] font-semibold ${tier.text}`}>
+                    {briefingStreak} day{briefingStreak !== 1 ? "s" : ""}
+                    {tier.label ? ` · ${tier.label}` : " streak"}
+                  </span>
+                </motion.div>
+              );
+            })()}
           </div>
           <button
             onClick={handleTriggerBriefing}
