@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.daily-risk-digest]
 verify_jwt = false
+
+[functions.weekly-brain-digest]
+verify_jwt = false
