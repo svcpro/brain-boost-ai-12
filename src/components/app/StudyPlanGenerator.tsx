@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, Sparkles, Clock, BookOpen, RotateCcw, ChevronDown, ChevronUp, Lightbulb, Zap, Save, CheckCircle, Circle, Trash2, History, Bell, BellOff, Brain, BarChart3, TrendingUp, TrendingDown } from "lucide-react";
+import { CalendarDays, Sparkles, Clock, BookOpen, RotateCcw, ChevronDown, ChevronUp, Lightbulb, Zap, Save, CheckCircle, Circle, Trash2, History, Bell, BellOff, Brain, BarChart3, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -511,6 +511,49 @@ const StudyPlanGenerator = () => {
           </div>
         </div>
       </motion.button>
+
+      {/* Smart Nudge: low completion warning */}
+      {rlInsights && rlInsights.latest_completion_rate !== undefined && rlInsights.latest_completion_rate < 50 && rlInsights.latest_sessions_total > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-warning/30 bg-warning/5 p-3.5 flex items-start gap-3"
+        >
+          <div className="p-1.5 rounded-lg bg-warning/15 shrink-0 mt-0.5">
+            <AlertTriangle className="w-4 h-4 text-warning" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-foreground mb-0.5">
+              Your last plan had {rlInsights.latest_completion_rate}% completion
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {rlInsights.latest_completion_rate < 25
+                ? "Consider much shorter sessions (10-15 min) and fewer topics per day. The AI will auto-adjust, but starting small builds momentum."
+                : "Try shorter sessions or lighter study modes. The AI has learned from this and will optimize your next plan accordingly."}
+            </p>
+            {rlInsights.by_duration && (() => {
+              const best = Object.entries(rlInsights.by_duration as Record<string, number>)
+                .sort(([,a], [,b]) => b - a)[0];
+              return best && best[1] > 50 ? (
+                <p className="text-[10px] text-primary mt-1.5 font-medium flex items-center gap-1">
+                  <Lightbulb className="w-3 h-3" />
+                  Tip: You complete {best[1]}% of {best[0]} sessions — the AI will favor this duration
+                </p>
+              ) : null;
+            })()}
+            {rlInsights.by_mode && (() => {
+              const best = Object.entries(rlInsights.by_mode as Record<string, number>)
+                .sort(([,a], [,b]) => b - a)[0];
+              return best && best[1] > 50 ? (
+                <p className="text-[10px] text-primary mt-0.5 font-medium flex items-center gap-1">
+                  <Lightbulb className="w-3 h-3" />
+                  Tip: "{best[0]}" mode works best for you ({best[1]}% completion)
+                </p>
+              ) : null;
+            })()}
+          </div>
+        </motion.div>
+      )}
 
       {/* RL Insights Card */}
       {rlInsights && rlInsights.sample_size > 0 && (
