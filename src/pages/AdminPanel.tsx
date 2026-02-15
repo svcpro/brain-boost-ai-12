@@ -881,6 +881,10 @@ const PaymentManagement = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"cancel" | "extend" | "change_plan" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const fetchSubs = useCallback(async () => {
     const { data } = await supabase.from("user_subscriptions").select("*").order("created_at", { ascending: false }).limit(200);
@@ -898,25 +902,42 @@ const PaymentManagement = () => {
     fetchPlans();
   }, []);
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const filtered = subs.filter(s => {
+    if (statusFilter !== "all" && s.status !== statusFilter) return false;
+    if (search && !s.user_id.includes(search) && !(s.razorpay_order_id || "").includes(search) && !(s.razorpay_payment_id || "").includes(search)) return false;
+    return true;
+  });
+
+  const selectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(s => s.id)));
+    }
+  };
+
+  // Single actions (existing)
   const handleCancel = async () => {
     if (!actionTarget) return;
     setActionLoading(true);
     await supabase.from("user_subscriptions").update({ status: "cancelled" } as any).eq("id", actionTarget.id);
-    // Audit log
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (userId) {
       await supabase.from("admin_audit_logs").insert({
-        admin_id: userId,
-        action: "subscription_cancelled",
-        target_type: "user_subscriptions",
-        target_id: actionTarget.id,
-        details: { user_id: actionTarget.user_id, plan_id: actionTarget.plan_id },
+        admin_id: userId, action: "subscription_cancelled", target_type: "user_subscriptions",
+        target_id: actionTarget.id, details: { user_id: actionTarget.user_id, plan_id: actionTarget.plan_id },
       } as any);
     }
     toast({ title: "Subscription cancelled" });
-    setActionTarget(null);
-    setActionType(null);
-    setActionLoading(false);
+    setActionTarget(null); setActionType(null); setActionLoading(false);
     fetchSubs();
   };
 
@@ -927,26 +948,16 @@ const PaymentManagement = () => {
     const currentExpiry = actionTarget.expires_at ? new Date(actionTarget.expires_at) : new Date();
     const base = currentExpiry > new Date() ? currentExpiry : new Date();
     base.setDate(base.getDate() + days);
-
-    await supabase.from("user_subscriptions").update({
-      expires_at: base.toISOString(),
-      status: "active",
-    } as any).eq("id", actionTarget.id);
-
+    await supabase.from("user_subscriptions").update({ expires_at: base.toISOString(), status: "active" } as any).eq("id", actionTarget.id);
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (userId) {
       await supabase.from("admin_audit_logs").insert({
-        admin_id: userId,
-        action: "subscription_extended",
-        target_type: "user_subscriptions",
-        target_id: actionTarget.id,
-        details: { user_id: actionTarget.user_id, plan_id: actionTarget.plan_id, days_added: days, new_expiry: base.toISOString() },
+        admin_id: userId, action: "subscription_extended", target_type: "user_subscriptions",
+        target_id: actionTarget.id, details: { user_id: actionTarget.user_id, plan_id: actionTarget.plan_id, days_added: days, new_expiry: base.toISOString() },
       } as any);
     }
     toast({ title: `Subscription extended by ${days} days` });
-    setActionTarget(null);
-    setActionType(null);
-    setActionLoading(false);
+    setActionTarget(null); setActionType(null); setActionLoading(false);
     fetchSubs();
   };
 
@@ -954,40 +965,79 @@ const PaymentManagement = () => {
     if (!actionTarget || !selectedPlanId) return;
     setActionLoading(true);
     const oldPlanId = actionTarget.plan_id;
-    await supabase.from("user_subscriptions").update({
-      plan_id: selectedPlanId,
-      status: "active",
-    } as any).eq("id", actionTarget.id);
-
+    await supabase.from("user_subscriptions").update({ plan_id: selectedPlanId, status: "active" } as any).eq("id", actionTarget.id);
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (userId) {
       await supabase.from("admin_audit_logs").insert({
-        admin_id: userId,
-        action: "subscription_plan_changed",
-        target_type: "user_subscriptions",
-        target_id: actionTarget.id,
-        details: { user_id: actionTarget.user_id, old_plan_id: oldPlanId, new_plan_id: selectedPlanId },
+        admin_id: userId, action: "subscription_plan_changed", target_type: "user_subscriptions",
+        target_id: actionTarget.id, details: { user_id: actionTarget.user_id, old_plan_id: oldPlanId, new_plan_id: selectedPlanId },
       } as any);
     }
     await supabase.from("notification_history").insert({
-      user_id: actionTarget.user_id,
-      title: "Plan Changed",
-      body: `Your subscription has been changed to ${selectedPlanId}.`,
-      type: "plan_change",
+      user_id: actionTarget.user_id, title: "Plan Changed",
+      body: `Your subscription has been changed to ${selectedPlanId}.`, type: "plan_change",
     } as any);
     toast({ title: `Plan changed to ${selectedPlanId}` });
-    setActionTarget(null);
-    setActionType(null);
-    setSelectedPlanId("");
-    setActionLoading(false);
+    setActionTarget(null); setActionType(null); setSelectedPlanId(""); setActionLoading(false);
     fetchSubs();
   };
 
-  const filtered = subs.filter(s => {
-    if (statusFilter !== "all" && s.status !== statusFilter) return false;
-    if (search && !s.user_id.includes(search) && !(s.razorpay_order_id || "").includes(search) && !(s.razorpay_payment_id || "").includes(search)) return false;
-    return true;
-  });
+  // Bulk actions
+  const handleBulkAction = async () => {
+    if (selectedIds.size === 0 || !bulkAction) return;
+    setBulkLoading(true);
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const targets = subs.filter(s => selectedIds.has(s.id));
+    let successCount = 0;
+
+    for (const target of targets) {
+      try {
+        if (bulkAction === "cancel") {
+          await supabase.from("user_subscriptions").update({ status: "cancelled" } as any).eq("id", target.id);
+          if (userId) {
+            await supabase.from("admin_audit_logs").insert({
+              admin_id: userId, action: "bulk_subscription_cancelled", target_type: "user_subscriptions",
+              target_id: target.id, details: { user_id: target.user_id, plan_id: target.plan_id, bulk_count: targets.length },
+            } as any);
+          }
+        } else if (bulkAction === "extend") {
+          const days = parseInt(extendDays) || 30;
+          const currentExpiry = target.expires_at ? new Date(target.expires_at) : new Date();
+          const base = currentExpiry > new Date() ? currentExpiry : new Date();
+          base.setDate(base.getDate() + days);
+          await supabase.from("user_subscriptions").update({ expires_at: base.toISOString(), status: "active" } as any).eq("id", target.id);
+          if (userId) {
+            await supabase.from("admin_audit_logs").insert({
+              admin_id: userId, action: "bulk_subscription_extended", target_type: "user_subscriptions",
+              target_id: target.id, details: { user_id: target.user_id, days_added: days, new_expiry: base.toISOString(), bulk_count: targets.length },
+            } as any);
+          }
+        } else if (bulkAction === "change_plan" && selectedPlanId) {
+          await supabase.from("user_subscriptions").update({ plan_id: selectedPlanId, status: "active" } as any).eq("id", target.id);
+          if (userId) {
+            await supabase.from("admin_audit_logs").insert({
+              admin_id: userId, action: "bulk_plan_changed", target_type: "user_subscriptions",
+              target_id: target.id, details: { user_id: target.user_id, old_plan_id: target.plan_id, new_plan_id: selectedPlanId, bulk_count: targets.length },
+            } as any);
+          }
+          await supabase.from("notification_history").insert({
+            user_id: target.user_id, title: "Plan Changed",
+            body: `Your subscription has been changed to ${selectedPlanId}.`, type: "plan_change",
+          } as any);
+        }
+        successCount++;
+      } catch (e) {
+        console.error("Bulk action failed for", target.id, e);
+      }
+    }
+
+    toast({ title: `Bulk ${bulkAction === "cancel" ? "cancellation" : bulkAction === "extend" ? "extension" : "plan change"} complete`, description: `${successCount}/${targets.length} subscriptions updated` });
+    setSelectedIds(new Set());
+    setBulkAction(null);
+    setSelectedPlanId("");
+    setBulkLoading(false);
+    fetchSubs();
+  };
 
   const totalRevenue = subs.filter(s => s.status === "active").reduce((sum, s) => sum + (s.amount || 0), 0);
   const activeCount = subs.filter(s => s.status === "active" && s.plan_id !== "free").length;
@@ -1023,12 +1073,50 @@ const PaymentManagement = () => {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <div className="glass rounded-xl p-3 neural-border flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <p className="text-sm font-medium text-foreground shrink-0">
+                <span className="bg-primary/15 text-primary px-2 py-0.5 rounded-full text-xs font-bold mr-2">{selectedIds.size}</span>
+                selected
+              </p>
+              <div className="flex gap-1.5 flex-wrap flex-1">
+                <button onClick={() => setBulkAction("cancel")} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1">
+                  <Ban className="w-3 h-3" /> Cancel All
+                </button>
+                <button onClick={() => { setBulkAction("extend"); setExtendDays("30"); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-success/10 text-success hover:bg-success/20 transition-colors flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Extend All
+                </button>
+                <button onClick={() => { setBulkAction("change_plan"); setSelectedPlanId(""); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3" /> Change Plan
+                </button>
+              </div>
+              <button onClick={() => setSelectedIds(new Set())} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">Clear</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
       ) : (
         <div className="space-y-2">
+          {/* Select all header */}
+          {filtered.length > 0 && (
+            <div className="flex items-center gap-2 px-1">
+              <button onClick={selectAll} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.size === filtered.length && filtered.length > 0 ? "bg-primary border-primary" : "border-border hover:border-muted-foreground"}`}>
+                {selectedIds.size === filtered.length && filtered.length > 0 && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
+              </button>
+              <p className="text-[10px] text-muted-foreground">Select all ({filtered.length})</p>
+            </div>
+          )}
           {filtered.map(s => (
-            <div key={s.id} className="glass rounded-xl p-3 neural-border flex items-center gap-3">
+            <div key={s.id} className={`glass rounded-xl p-3 neural-border flex items-center gap-3 transition-colors ${selectedIds.has(s.id) ? "ring-1 ring-primary/50 bg-primary/5" : ""}`}>
+              <button onClick={() => toggleSelect(s.id)} className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${selectedIds.has(s.id) ? "bg-primary border-primary" : "border-border hover:border-muted-foreground"}`}>
+                {selectedIds.has(s.id) && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
+              </button>
               <CreditCard className={`w-4 h-4 shrink-0 ${s.status === "active" ? "text-success" : s.status === "expired" ? "text-warning" : "text-muted-foreground"}`} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1063,37 +1151,30 @@ const PaymentManagement = () => {
         </div>
       )}
 
-      {/* Action Modal */}
+      {/* Single Action Modal */}
       <AnimatePresence>
         {actionTarget && actionType && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setActionTarget(null); setActionType(null); }}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="w-full max-w-sm glass rounded-2xl neural-border p-5 space-y-4" onClick={e => e.stopPropagation()}>
               {actionType === "cancel" ? (
                 <>
-                  <div className="flex items-center gap-2">
-                    <Ban className="w-5 h-5 text-destructive" />
-                    <h3 className="text-lg font-bold text-foreground">Cancel Subscription</h3>
-                  </div>
+                  <div className="flex items-center gap-2"><Ban className="w-5 h-5 text-destructive" /><h3 className="text-lg font-bold text-foreground">Cancel Subscription</h3></div>
                   <div className="glass rounded-lg p-3 neural-border text-sm space-y-1">
                     <p className="text-foreground font-medium">{actionTarget.plan_id} plan</p>
                     <p className="text-[10px] text-muted-foreground">User: {actionTarget.user_id.slice(0, 16)}...</p>
                     {actionTarget.expires_at && <p className="text-[10px] text-muted-foreground">Expires: {new Date(actionTarget.expires_at).toLocaleDateString()}</p>}
                   </div>
-                  <p className="text-xs text-muted-foreground">This will immediately set the subscription status to cancelled. The user will lose access to premium features.</p>
+                  <p className="text-xs text-muted-foreground">This will immediately set the subscription status to cancelled.</p>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setActionTarget(null); setActionType(null); }} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
                     <button onClick={handleCancel} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
-                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      Confirm Cancel
+                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />} Confirm Cancel
                     </button>
                   </div>
                 </>
               ) : actionType === "extend" ? (
                 <>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-success" />
-                    <h3 className="text-lg font-bold text-foreground">Extend Subscription</h3>
-                  </div>
+                  <div className="flex items-center gap-2"><Clock className="w-5 h-5 text-success" /><h3 className="text-lg font-bold text-foreground">Extend Subscription</h3></div>
                   <div className="glass rounded-lg p-3 neural-border text-sm space-y-1">
                     <p className="text-foreground font-medium">{actionTarget.plan_id} plan</p>
                     <p className="text-[10px] text-muted-foreground">User: {actionTarget.user_id.slice(0, 16)}...</p>
@@ -1104,35 +1185,24 @@ const PaymentManagement = () => {
                     <label className="text-xs text-muted-foreground mb-1 block">Extend by (days)</label>
                     <div className="flex gap-2">
                       {["7", "15", "30", "90"].map(d => (
-                        <button key={d} onClick={() => setExtendDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${extendDays === d ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
-                          {d}d
-                        </button>
+                        <button key={d} onClick={() => setExtendDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${extendDays === d ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>{d}d</button>
                       ))}
                       <input value={extendDays} onChange={e => setExtendDays(e.target.value)} type="number" className="w-16 px-2 py-1.5 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none text-center" />
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    New expiry: {(() => {
-                      const days = parseInt(extendDays) || 30;
-                      const base = actionTarget.expires_at && new Date(actionTarget.expires_at) > new Date() ? new Date(actionTarget.expires_at) : new Date();
-                      base.setDate(base.getDate() + days);
-                      return base.toLocaleDateString();
-                    })()}
+                    New expiry: {(() => { const days = parseInt(extendDays) || 30; const base = actionTarget.expires_at && new Date(actionTarget.expires_at) > new Date() ? new Date(actionTarget.expires_at) : new Date(); base.setDate(base.getDate() + days); return base.toLocaleDateString(); })()}
                   </p>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setActionTarget(null); setActionType(null); }} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
                     <button onClick={handleExtend} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
-                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      Extend
+                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />} Extend
                     </button>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="w-5 h-5 text-primary" />
-                    <h3 className="text-lg font-bold text-foreground">Change Plan</h3>
-                  </div>
+                  <div className="flex items-center gap-2"><RefreshCw className="w-5 h-5 text-primary" /><h3 className="text-lg font-bold text-foreground">Change Plan</h3></div>
                   <div className="glass rounded-lg p-3 neural-border text-sm space-y-1">
                     <p className="text-foreground font-medium">Current: {actionTarget.plan_id}</p>
                     <p className="text-[10px] text-muted-foreground">User: {actionTarget.user_id.slice(0, 16)}...</p>
@@ -1143,24 +1213,89 @@ const PaymentManagement = () => {
                     <div className="space-y-1.5">
                       {availablePlans.filter(p => p.plan_key !== actionTarget.plan_id).map(p => (
                         <button key={p.id} onClick={() => setSelectedPlanId(p.plan_key)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm border transition-colors ${selectedPlanId === p.plan_key ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground hover:bg-secondary"}`}>
-                          <div className="text-left">
-                            <p className="font-medium">{p.name}</p>
-                            <p className="text-[10px] text-muted-foreground">₹{p.price}/{p.billing_period}</p>
-                          </div>
+                          <div className="text-left"><p className="font-medium">{p.name}</p><p className="text-[10px] text-muted-foreground">₹{p.price}/{p.billing_period}</p></div>
                           {selectedPlanId === p.plan_key && <CheckCircle2 className="w-4 h-4 text-primary" />}
                         </button>
                       ))}
-                      {availablePlans.filter(p => p.plan_key !== actionTarget.plan_id).length === 0 && (
-                        <p className="text-xs text-muted-foreground text-center py-2">No other plans available</p>
-                      )}
+                      {availablePlans.filter(p => p.plan_key !== actionTarget.plan_id).length === 0 && <p className="text-xs text-muted-foreground text-center py-2">No other plans available</p>}
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">The user's subscription will be updated to the new plan. Expiry date remains unchanged.</p>
+                  <p className="text-xs text-muted-foreground">Expiry date remains unchanged.</p>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setActionTarget(null); setActionType(null); }} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
                     <button onClick={handleChangePlan} disabled={actionLoading || !selectedPlanId} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
-                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      Change Plan
+                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />} Change Plan
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Action Modal */}
+      <AnimatePresence>
+        {bulkAction && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setBulkAction(null)}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="w-full max-w-sm glass rounded-2xl neural-border p-5 space-y-4" onClick={e => e.stopPropagation()}>
+              {bulkAction === "cancel" ? (
+                <>
+                  <div className="flex items-center gap-2"><Ban className="w-5 h-5 text-destructive" /><h3 className="text-lg font-bold text-foreground">Bulk Cancel</h3></div>
+                  <div className="glass rounded-lg p-3 neural-border">
+                    <p className="text-sm text-foreground font-medium">{selectedIds.size} subscription{selectedIds.size > 1 ? "s" : ""} will be cancelled</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">This will immediately cancel all selected subscriptions. Users will lose access to premium features.</p>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setBulkAction(null)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
+                    <button onClick={handleBulkAction} disabled={bulkLoading} className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
+                      {bulkLoading && <Loader2 className="w-4 h-4 animate-spin" />} Cancel {selectedIds.size} Subs
+                    </button>
+                  </div>
+                </>
+              ) : bulkAction === "extend" ? (
+                <>
+                  <div className="flex items-center gap-2"><Clock className="w-5 h-5 text-success" /><h3 className="text-lg font-bold text-foreground">Bulk Extend</h3></div>
+                  <div className="glass rounded-lg p-3 neural-border">
+                    <p className="text-sm text-foreground font-medium">{selectedIds.size} subscription{selectedIds.size > 1 ? "s" : ""} will be extended</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Extend each by (days)</label>
+                    <div className="flex gap-2">
+                      {["7", "15", "30", "90"].map(d => (
+                        <button key={d} onClick={() => setExtendDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${extendDays === d ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>{d}d</button>
+                      ))}
+                      <input value={extendDays} onChange={e => setExtendDays(e.target.value)} type="number" className="w-16 px-2 py-1.5 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none text-center" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setBulkAction(null)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
+                    <button onClick={handleBulkAction} disabled={bulkLoading} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                      {bulkLoading && <Loader2 className="w-4 h-4 animate-spin" />} Extend {selectedIds.size} Subs
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2"><RefreshCw className="w-5 h-5 text-primary" /><h3 className="text-lg font-bold text-foreground">Bulk Change Plan</h3></div>
+                  <div className="glass rounded-lg p-3 neural-border">
+                    <p className="text-sm text-foreground font-medium">{selectedIds.size} subscription{selectedIds.size > 1 ? "s" : ""} will be changed</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Select new plan for all</label>
+                    <div className="space-y-1.5">
+                      {availablePlans.map(p => (
+                        <button key={p.id} onClick={() => setSelectedPlanId(p.plan_key)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm border transition-colors ${selectedPlanId === p.plan_key ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground hover:bg-secondary"}`}>
+                          <div className="text-left"><p className="font-medium">{p.name}</p><p className="text-[10px] text-muted-foreground">₹{p.price}/{p.billing_period}</p></div>
+                          {selectedPlanId === p.plan_key && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setBulkAction(null)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Back</button>
+                    <button onClick={handleBulkAction} disabled={bulkLoading || !selectedPlanId} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                      {bulkLoading && <Loader2 className="w-4 h-4 animate-spin" />} Change {selectedIds.size} Subs
                     </button>
                   </div>
                 </>
