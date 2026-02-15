@@ -4,7 +4,7 @@ import {
   Search, Loader2, Users, UserPlus, ChevronRight, ArrowLeft,
   Pencil, Save, X, Trash2, CreditCard, Activity, Clock,
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
-  CheckCircle2, XCircle, Eye, Crown, Star, BarChart3
+  CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -114,6 +114,37 @@ const UserManagement = () => {
     return d >= weekAgo;
   }).length;
 
+  const exportCSV = () => {
+    const headers = ["ID", "Display Name", "Exam Type", "Exam Date", "Daily Goal (min)", "Weekly Goal (min)", "Plan", "Plan Status", "Amount", "Banned", "Ban Reason", "Joined", "Last Updated"];
+    const rows = filtered.map(u => {
+      const { planName, sub } = getUserPlan(u.id);
+      return [
+        u.id,
+        u.display_name || "",
+        u.exam_type || "",
+        u.exam_date || "",
+        u.daily_study_goal_minutes,
+        u.weekly_focus_goal_minutes,
+        planName,
+        sub?.status || "free",
+        sub?.amount || 0,
+        u.is_banned ? "Yes" : "No",
+        u.ban_reason || "",
+        u.created_at,
+        u.updated_at,
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `users-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: `Exported ${filtered.length} users` });
+  };
+
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
   if (selectedUser) {
@@ -127,6 +158,12 @@ const UserManagement = () => {
           <h2 className="text-xl font-bold text-foreground">User Management</h2>
           <p className="text-xs text-muted-foreground mt-1">{totalUsers} total users</p>
         </div>
+        <button
+          onClick={exportCSV}
+          className="px-4 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors flex items-center gap-1.5"
+        >
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </button>
       </div>
 
       {/* Summary cards */}
