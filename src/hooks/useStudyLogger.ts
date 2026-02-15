@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { enqueue } from "@/lib/offlineQueue";
+import { trackMLEvent } from "@/lib/mlEventTracker";
 
 export function useStudyLogger() {
   const { user } = useAuth();
@@ -97,6 +98,16 @@ export function useStudyLogger() {
       if (logErr) throw logErr;
 
       toast({ title: "Brain Updated!", description: "Your study session has been logged." });
+
+      // Track ML event (non-blocking)
+      trackMLEvent(user.id, "study_session", "study", {
+        subject: subjectName,
+        topic: topicName,
+        duration_minutes: durationMinutes,
+        confidence_level: confidenceLevel,
+        study_mode: studyMode,
+      });
+
       return true;
     } catch (e: any) {
       // Network error during request – queue it
