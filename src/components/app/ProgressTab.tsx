@@ -39,6 +39,7 @@ interface StreakData {
 
 const MILESTONES = [
   { days: 3, label: "3-Day Starter", icon: Zap, emoji: "⚡", color: "text-primary", ring: "border-primary/60", glow: "glow-primary" },
+  { days: 5, label: "5-Day Shield", icon: Award, emoji: "🛡️", color: "text-warning", ring: "border-warning/60", glow: "" },
   { days: 7, label: "7-Day Streak", icon: Award, emoji: "🔥", color: "text-warning", ring: "border-warning/60", glow: "" },
   { days: 14, label: "14-Day Warrior", icon: Star, emoji: "⭐", color: "text-primary", ring: "border-primary/60", glow: "" },
   { days: 30, label: "30-Day Legend", icon: Trophy, emoji: "🏆", color: "text-success", ring: "border-success/60", glow: "" },
@@ -242,7 +243,7 @@ const ProgressTab = () => {
       });
       // Award scaled streak freezes at milestones
       if (user) {
-        const freezeRewards: Record<number, number> = { 3: 0, 7: 1, 14: 2, 30: 3 };
+        const freezeRewards: Record<number, number> = { 3: 0, 5: 1, 7: 1, 14: 2, 30: 3 };
         const reward = freezeRewards[exact.days];
         if (reward && reward > 0) {
           const inserts = Array.from({ length: reward }, () => ({ user_id: user.id }));
@@ -374,7 +375,7 @@ const ProgressTab = () => {
                   {MILESTONES.filter((m) => streak.longestStreak >= m.days).length}/{MILESTONES.length} earned
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 {MILESTONES.map((m, idx) => {
                   const earned = streak.longestStreak >= m.days;
                   const active = streak.currentStreak >= m.days;
