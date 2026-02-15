@@ -12,6 +12,7 @@ import StudyPlanGenerator from "./StudyPlanGenerator";
 import MultiSourceSync from "./MultiSourceSync";
 import PassiveLearning from "./PassiveLearning";
 import FocusModeSession from "./FocusModeSession";
+import AIBrainAgent from "./AIBrainAgent";
 import { formatDistanceToNow, isPast, isToday } from "date-fns";
 
 interface TopicInfo {
@@ -407,6 +408,9 @@ const BrainTab = () => {
       )}
 
       {/* Tools Grid */}
+      {/* AI Brain Agent */}
+      <AIBrainAgent />
+
       <div>
         <motion.div
           initial={{ opacity: 0 }}

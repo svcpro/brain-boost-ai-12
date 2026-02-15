@@ -88,14 +88,40 @@ serve(async (req) => {
       return hour >= 23 || hour <= 4;
     }).length;
 
-    // === COMPUTE BURNOUT RISK ===
+    // Signal 6: Focus fragmentation - short sessions indicate inability to focus
+    const shortSessions = logs.filter(l => (l.duration_minutes || 0) < 10).length;
+    const focusFragmentation = logs.length > 0 ? shortSessions / logs.length : 0;
+
+    // Signal 7: Mode monotony - studying same mode repeatedly can cause fatigue
+    const modeCounts: Record<string, number> = {};
+    for (const l of logs.slice(0, 10)) {
+      const mode = l.study_mode || "default";
+      modeCounts[mode] = (modeCounts[mode] || 0) + 1;
+    }
+    const maxModeRatio = logs.length > 0 ? Math.max(...Object.values(modeCounts)) / Math.min(10, logs.length) : 0;
+
+    // Signal 8: Session gap irregularity (high variance in gaps between sessions)
+    let gapVariance = 0;
+    if (logs.length >= 3) {
+      const gaps: number[] = [];
+      for (let i = 0; i < Math.min(logs.length - 1, 10); i++) {
+        gaps.push((new Date(logs[i].created_at).getTime() - new Date(logs[i + 1].created_at).getTime()) / (1000 * 60 * 60));
+      }
+      const avgGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+      gapVariance = Math.sqrt(gaps.reduce((s, g) => s + (g - avgGap) ** 2, 0) / gaps.length) / Math.max(avgGap, 1);
+    }
+
+    // === COMPUTE BURNOUT RISK (Enhanced) ===
     const burnoutScore = Math.min(100, Math.round(
       (hours24h > 5 ? 25 : hours24h > 3 ? 15 : hours24h > 1.5 ? 5 : 0) +
       (confidenceDecline > 0.5 ? 20 : confidenceDecline > 0.2 ? 10 : 0) +
       (durationDecline > 0.3 ? 15 : durationDecline > 0.1 ? 7 : 0) +
       (consecutiveLong >= 4 ? 20 : consecutiveLong >= 2 ? 10 : 0) +
       (lateNightSessions >= 2 ? 15 : lateNightSessions >= 1 ? 7 : 0) +
-      (features?.fatigue_indicator ? features.fatigue_indicator * 0.05 : 0)
+      (focusFragmentation > 0.4 ? 10 : focusFragmentation > 0.2 ? 5 : 0) +
+      (maxModeRatio > 0.8 ? 5 : 0) +
+      (gapVariance > 2 ? 5 : 0) +
+      (features?.fatigue_indicator ? features.fatigue_indicator * 0.03 : 0)
     ));
 
     const riskLevel = burnoutScore >= 70 ? "high" : burnoutScore >= 40 ? "moderate" : "low";
@@ -159,6 +185,9 @@ serve(async (req) => {
         duration_decline: Math.round(durationDecline * 100) / 100,
         consecutive_long: consecutiveLong,
         late_night_sessions: lateNightSessions,
+        focus_fragmentation: Math.round(focusFragmentation * 100) / 100,
+        mode_monotony: Math.round(maxModeRatio * 100) / 100,
+        schedule_irregularity: Math.round(gapVariance * 100) / 100,
       },
     };
 
