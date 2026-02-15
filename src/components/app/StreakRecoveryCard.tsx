@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { HeartCrack, X, Sparkles, RotateCcw } from "lucide-react";
+import { HeartCrack, X, Sparkles, RotateCcw, Play } from "lucide-react";
 
 interface StreakRecoveryProps {
   currentStreak: number;
   longestStreak: number;
   todayMet: boolean;
+  onStartRecovery?: () => void;
 }
 
 const DISMISSED_KEY = "streak-recovery-dismissed";
@@ -28,7 +29,7 @@ const MESSAGES = [
   { text: "A break doesn't erase your progress — your brain remembers more than you think.", tip: "Pick one topic and do a light refresh." },
 ];
 
-const StreakRecoveryCard = ({ currentStreak, longestStreak, todayMet }: StreakRecoveryProps) => {
+const StreakRecoveryCard = ({ currentStreak, longestStreak, todayMet, onStartRecovery }: StreakRecoveryProps) => {
   const [visible, setVisible] = useState(false);
   const [msgIndex, setMsgIndex] = useState(0);
 
@@ -100,6 +101,18 @@ const StreakRecoveryCard = ({ currentStreak, longestStreak, todayMet }: StreakRe
                 <p className="text-[10px] text-muted-foreground mt-2">
                   Your best was <span className="font-semibold text-foreground">{longestStreak} days</span> — you can beat that! 💪
                 </p>
+              )}
+
+              {onStartRecovery && (
+                <motion.button
+                  onClick={() => { onStartRecovery(); handleDismiss(); }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-colors hover:bg-primary/90"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Start Recovery Session
+                </motion.button>
               )}
             </div>
           </div>
