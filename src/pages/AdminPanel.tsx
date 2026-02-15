@@ -21,6 +21,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import SubscriptionAnalytics from "@/components/app/SubscriptionAnalytics";
 import ApiManagement from "@/components/app/ApiManagement";
+import UserManagement from "@/components/app/UserManagement";
 
 type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "apis" | "notifications" | "admins" | "audit" | "settings";
 
@@ -165,7 +166,7 @@ const AdminPanel = () => {
         <AnimatePresence mode="wait">
           <motion.div key={section} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             {section === "dashboard" && <DashboardSection />}
-            {section === "users" && <UsersSection />}
+            {section === "users" && <UserManagement />}
             {section === "ai" && <AISection />}
             {section === "knowledge" && <KnowledgeSection />}
             {section === "subscriptions" && <SubscriptionsSection />}
@@ -233,51 +234,7 @@ const DashboardSection = () => {
   );
 };
 
-// ─── Users ───
-const UsersSection = () => {
-  const [users, setUsers] = useState<any[]>([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("profiles").select("id, display_name, exam_type, created_at, daily_study_goal_minutes").order("created_at", { ascending: false }).limit(100);
-      setUsers(data || []);
-      setLoading(false);
-    })();
-  }, []);
-
-  const filtered = users.filter(u => (u.display_name || "").toLowerCase().includes(search.toLowerCase()) || u.id.includes(search));
-
-  return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-foreground">User Management</h2>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users..." className="w-full pl-10 pr-4 py-2.5 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none" />
-      </div>
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(u => (
-            <div key={u.id} className="glass rounded-xl p-3 neural-border flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
-                <span className="text-xs font-bold text-primary">{(u.display_name || "?")[0].toUpperCase()}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{u.display_name || "Anonymous"}</p>
-                <p className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"} · Goal: {u.daily_study_goal_minutes}min</p>
-              </div>
-              <span className="text-[10px] text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</span>
-            </div>
-          ))}
-          {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No users found</p>}
-        </div>
-      )}
-    </div>
-  );
-};
+// UsersSection replaced by UserManagement component
 
 // ─── AI Models ───
 const AISection = () => {
