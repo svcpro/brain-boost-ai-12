@@ -625,6 +625,19 @@ const SettingsSection = ({ toast }: { toast: any }) => {
     toast({ title: enabled ? "✅ All sections enabled" : "🚫 All sections disabled" });
   };
 
+  const resetAllFlags = async () => {
+    const disabledFlags = flags.filter(f => !f.enabled);
+    if (disabledFlags.length === 0) {
+      toast({ title: "All flags are already enabled" });
+      return;
+    }
+    for (const f of disabledFlags) {
+      await supabase.from("feature_flags").update({ enabled: true, updated_at: new Date().toISOString() } as any).eq("flag_key", f.flag_key);
+    }
+    setFlags(prev => prev.map(f => ({ ...f, enabled: true })));
+    toast({ title: "✅ All flags reset to enabled" });
+  };
+
   const query = searchQuery.toLowerCase().trim();
 
   return (
@@ -642,7 +655,17 @@ const SettingsSection = ({ toast }: { toast: any }) => {
           </div>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">Enable or disable tabs and their individual sections for all users.</p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Enable or disable tabs and their individual sections for all users.</p>
+        {!loading && flags.some(f => !f.enabled) && (
+          <button
+            onClick={resetAllFlags}
+            className="shrink-0 text-xs font-medium text-primary hover:text-primary/80 transition-colors underline underline-offset-2"
+          >
+            Reset all
+          </button>
+        )}
+      </div>
 
       {/* Search bar */}
       <div className="relative">
