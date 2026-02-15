@@ -465,6 +465,8 @@ const DeltaBadge = ({ current, previous, suffix = "" }: { current: number | null
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
+const PB_KEY = "weekly-sessions-pb";
+
 const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; lastWeek: number[] }) => {
   const maxVal = Math.max(...thisWeek, ...lastWeek, 1);
   const thisTotal = thisWeek.reduce((a, b) => a + b, 0);
@@ -473,12 +475,28 @@ const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; la
   const [activeDay, setActiveDay] = useState<number | null>(null);
   const confettiFired = useRef(false);
 
+  const storedPB = Number(getCache(PB_KEY) || 0);
+  const isPersonalBest = thisTotal > 1 && thisTotal >= storedPB;
+  const pbFired = useRef(false);
+
+  useEffect(() => {
+    if (isPersonalBest && thisTotal > storedPB) {
+      setCache(PB_KEY, String(thisTotal));
+    }
+  }, [isPersonalBest, thisTotal, storedPB]);
+
   useEffect(() => {
     if (diff > 0 && !confettiFired.current) {
       confettiFired.current = true;
       confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#6366f1", "#f59e0b", "#10b981"] });
     }
-  }, [diff]);
+    if (isPersonalBest && !pbFired.current) {
+      pbFired.current = true;
+      setTimeout(() => {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ["#FFD700", "#FFA500", "#FF6347"] });
+      }, 600);
+    }
+  }, [diff, isPersonalBest]);
 
   return (
     <div className="rounded-lg bg-secondary/30 border border-border/40 p-3 space-y-2">
@@ -486,6 +504,16 @@ const WeeklyStreakComparison = ({ thisWeek, lastWeek }: { thisWeek: number[]; la
         <div className="flex items-center gap-1.5">
           <ArrowLeftRight className="w-3 h-3 text-primary" />
           <span className="text-[10px] font-semibold text-foreground">Week Comparison</span>
+          {isPersonalBest && (
+            <motion.span
+              initial={{ scale: 0, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 15, delay: 0.3 }}
+              className="text-[8px] font-bold bg-gradient-to-r from-amber-400 to-orange-500 text-white px-1.5 py-0.5 rounded-full shadow-sm"
+            >
+              🏆 Personal Best!
+            </motion.span>
+          )}
         </div>
         <span className={`text-[9px] font-bold flex items-center gap-0.5 ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
           {diff > 0 ? <TrendingUp className="w-2.5 h-2.5" /> : diff < 0 ? <TrendingDown className="w-2.5 h-2.5" /> : null}
