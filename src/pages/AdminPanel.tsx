@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminRole, type AppRole } from "@/hooks/useAdminRole";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useNavigate } from "react-router-dom";
 
 type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "notifications" | "admins" | "audit" | "settings";
@@ -672,9 +673,9 @@ const SettingsSection = ({ toast }: { toast: any }) => {
       title: "✅ All flags reset to enabled",
       description: `${disabledFlags.length} flag(s) were enabled`,
       action: (
-        <button onClick={undoReset} className="text-xs font-semibold text-primary hover:text-primary/80 underline underline-offset-2">
+        <ToastAction altText="Undo reset" onClick={undoReset} className="text-xs font-semibold text-primary hover:text-primary/80 underline underline-offset-2 border-0">
           Undo
-        </button>
+        </ToastAction>
       ),
       duration: 6000,
     });
@@ -735,6 +736,7 @@ const SettingsSection = ({ toast }: { toast: any }) => {
           </button>
         )}
       </div>
+      <p className="text-[10px] text-muted-foreground/60">{"💡 Press "}<kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">Ctrl+Z</kbd>{" to undo last toggle"}</p>
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
