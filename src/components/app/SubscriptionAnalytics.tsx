@@ -80,7 +80,7 @@ const SubscriptionAnalytics = () => {
         return created <= monthEnd && (!expired || expired >= monthStart) && s.plan_id !== "free" && s.amount;
       });
 
-      const mrr = activeSubs.reduce((sum, s) => sum + (s.amount || 0), 0) / 100;
+      const mrr = activeSubs.reduce((sum, s) => sum + (s.amount || 0), 0);
       months.push({ label: format(date, "MMM yy"), mrr: Math.round(mrr) });
     }
     return months;
@@ -128,7 +128,7 @@ const SubscriptionAnalytics = () => {
   // Summary stats
   const stats = useMemo(() => {
     const activePaid = subs.filter(s => s.status === "active" && s.plan_id !== "free");
-    const currentMrr = activePaid.reduce((sum, s) => sum + (s.amount || 0), 0) / 100;
+    const currentMrr = activePaid.reduce((sum, s) => sum + (s.amount || 0), 0);
     const totalActive = subs.filter(s => s.status === "active").length;
     const paidPct = totalActive > 0 ? Math.round((activePaid.length / totalActive) * 100) : 0;
     const prevMrr = mrrData.length >= 2 ? mrrData[mrrData.length - 2].mrr : 0;

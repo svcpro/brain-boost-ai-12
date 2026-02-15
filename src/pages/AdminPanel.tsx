@@ -207,7 +207,7 @@ const DashboardSection = () => {
     { label: "Total Users", value: stats.totalUsers, icon: Users, color: "text-primary" },
     { label: "New Today", value: stats.newToday, icon: UserPlus, color: "text-success" },
     { label: "Active Subs", value: stats.activeSubs, icon: CreditCard, color: "text-accent" },
-    { label: "Revenue", value: `₹${(stats.revenue / 100).toLocaleString()}`, icon: TrendingUp, color: "text-warning" },
+    { label: "Revenue", value: `₹${stats.revenue.toLocaleString()}`, icon: TrendingUp, color: "text-warning" },
     { label: "Study Sessions", value: stats.studySessions, icon: Activity, color: "text-primary" },
     { label: "AI Predictions", value: stats.predictions, icon: Zap, color: "text-accent" },
   ];
