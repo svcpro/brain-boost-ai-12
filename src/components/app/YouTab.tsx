@@ -49,6 +49,43 @@ interface YouTabProps {
   onNotifHistoryOpened?: () => void;
 }
 
+const SoundPreviewButton = ({ label, onPlay, duration }: { label: string; onPlay: () => void; duration: number }) => {
+  const [playing, setPlaying] = useState(false);
+  const bars = 5;
+
+  const handleClick = () => {
+    onPlay();
+    setPlaying(true);
+    setTimeout(() => setPlaying(false), duration + 200);
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className="flex-1 flex flex-col items-center gap-1.5 py-2 px-2 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground transition-colors"
+    >
+      <div className="flex items-end gap-[2px] h-4">
+        {Array.from({ length: bars }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="w-[3px] rounded-full bg-primary"
+            animate={playing ? {
+              height: [4, 12 + Math.random() * 4, 6, 14 + Math.random() * 2, 4],
+            } : { height: 4 }}
+            transition={playing ? {
+              duration: 0.4,
+              repeat: Math.ceil(duration / 400),
+              delay: i * 0.05,
+              ease: "easeInOut",
+            } : { duration: 0.2 }}
+          />
+        ))}
+      </div>
+      <span className="text-[10px]">{label}</span>
+    </button>
+  );
+};
+
 const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscription, onSubscriptionOpened, autoOpenNotifHistory, onNotifHistoryOpened }: YouTabProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -1099,17 +1136,11 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                       <span className="text-xs text-muted-foreground font-medium">Preview sounds</span>
                       <div className="flex gap-2">
                         {[
-                          { label: "🔔 Standard", fn: playNotificationSound },
-                          { label: "✨ Insight", fn: playInsightSound },
-                          { label: "⚠️ Nudge", fn: playWarningSound },
+                          { label: "🔔 Standard", fn: playNotificationSound, duration: 300 },
+                          { label: "✨ Insight", fn: playInsightSound, duration: 600 },
+                          { label: "⚠️ Nudge", fn: playWarningSound, duration: 350 },
                         ].map((s) => (
-                          <button
-                            key={s.label}
-                            onClick={s.fn}
-                            className="flex-1 text-[10px] py-1.5 px-2 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground transition-colors"
-                          >
-                            {s.label}
-                          </button>
+                          <SoundPreviewButton key={s.label} label={s.label} onPlay={s.fn} duration={s.duration} />
                         ))}
                       </div>
                     </div>
