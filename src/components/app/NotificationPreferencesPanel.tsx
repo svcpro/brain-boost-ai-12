@@ -6,6 +6,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getCache, setCache } from "@/lib/offlineCache";
 import confetti from "canvas-confetti";
 
@@ -271,19 +272,38 @@ const NotificationPreferencesPanel = () => {
                 ? { icon: Shield, label: "Committed", bg: "bg-blue-500/15", text: "text-blue-600 dark:text-blue-400", ring: "ring-blue-500/30" }
                 : { icon: CalendarCheck, label: "", bg: "bg-primary/10", text: "text-primary", ring: "" };
               const TierIcon = tier.icon;
+              const nextTier = briefingStreak >= 30
+                ? null
+                : briefingStreak >= 14
+                ? { name: "Legendary 👑", daysLeft: 30 - briefingStreak }
+                : briefingStreak >= 7
+                ? { name: "Dedicated 🏅", daysLeft: 14 - briefingStreak }
+                : { name: "Committed 🛡️", daysLeft: 7 - briefingStreak };
+              const tooltipText = nextTier
+                ? `${nextTier.daysLeft} more day${nextTier.daysLeft !== 1 ? "s" : ""} to ${nextTier.name}`
+                : "🎉 Max tier reached!";
               return (
-                <motion.div
-                  key={tier.label}
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 ${tier.bg} ${tier.ring ? `ring-1 ${tier.ring}` : ""}`}
-                >
-                  <TierIcon className={`w-3 h-3 ${tier.text}`} />
-                  <span className={`text-[10px] font-semibold ${tier.text}`}>
-                    {briefingStreak} day{briefingStreak !== 1 ? "s" : ""}
-                    {tier.label ? ` · ${tier.label}` : " streak"}
-                  </span>
-                </motion.div>
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <motion.div
+                        key={tier.label}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 cursor-default ${tier.bg} ${tier.ring ? `ring-1 ${tier.ring}` : ""}`}
+                      >
+                        <TierIcon className={`w-3 h-3 ${tier.text}`} />
+                        <span className={`text-[10px] font-semibold ${tier.text}`}>
+                          {briefingStreak} day{briefingStreak !== 1 ? "s" : ""}
+                          {tier.label ? ` · ${tier.label}` : " streak"}
+                        </span>
+                      </motion.div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      {tooltipText}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               );
             })()}
           </div>
