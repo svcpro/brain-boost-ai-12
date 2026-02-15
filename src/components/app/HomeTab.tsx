@@ -30,6 +30,7 @@ import { useStudyStreak } from "@/hooks/useStudyStreak";
 import StreakMilestoneCelebration from "./StreakMilestoneCelebration";
 import StreakRecoveryCard from "./StreakRecoveryCard";
 import ComebackCelebration from "./ComebackCelebration";
+import ExplainButton from "./ExplainButton";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -581,6 +582,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             <span className="text-[10px] text-muted-foreground">Brain</span>
           </div>
           <p className="text-xl font-bold gradient-text">{hasTopics ? `${overallHealth}%` : "—"}</p>
+          {hasTopics && (
+            <ExplainButton
+              predictionType="memory_health"
+              predictionData={{ overall_health: overallHealth, at_risk_count: atRisk.length, top_risk: atRisk[0]?.name }}
+              label="Explain"
+            />
+          )}
         </div>
         <div className="glass rounded-xl p-4 neural-border">
           <div className="flex items-center gap-2 mb-2">
@@ -595,6 +603,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               <TrendingUp className={`w-2.5 h-2.5 ${rankData.rank_change < 0 ? "rotate-180" : ""}`} />
               {rankData.rank_change > 0 ? "+" : ""}{rankData.rank_change.toLocaleString()}
             </span>
+          )}
+          {rankData?.predicted_rank && (
+            <ExplainButton
+              predictionType="rank_prediction"
+              predictionData={{ predicted_rank: rankData.predicted_rank, percentile: rankData.percentile, rank_change: rankData.rank_change, factors: rankData.factors }}
+              label="Explain"
+            />
           )}
         </div>
         <div className="glass rounded-xl p-4 neural-border">
