@@ -1,14 +1,15 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Brain, Target, Calendar, ChevronDown,
-  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users,
+  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check,
 } from "lucide-react";
 import { BarChart, Bar } from "recharts";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addDays, differenceInDays, isPast } from "date-fns";
+import html2canvas from "html2canvas";
 
 interface MemoryForecast {
   id: string;
@@ -50,7 +51,10 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const [comparisons, setComparisons] = useState<ComparisonMetric[]>([]);
   const [globalSampleSize, setGlobalSampleSize] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy" | "global">("rank");
+  const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy" | "global" | "share">("rank");
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+  const shareCardRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -325,11 +329,34 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
     return points;
   })();
 
+  const exportAsImage = useCallback(async () => {
+    if (!shareCardRef.current || exporting) return;
+    setExporting(true);
+    try {
+      const canvas = await html2canvas(shareCardRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+      });
+      const link = document.createElement("a");
+      link.download = `prediction-summary-${format(new Date(), "yyyy-MM-dd")}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      setExported(true);
+      setTimeout(() => setExported(false), 2000);
+    } catch (e) {
+      console.error("Export error:", e);
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting]);
+
   const sections = [
-    { key: "rank" as const, label: "Rank Projections", icon: TrendingUp },
-    { key: "memory" as const, label: "Memory Forecast", icon: Brain },
-    { key: "global" as const, label: "vs Global", icon: Globe },
+    { key: "rank" as const, label: "Rank", icon: TrendingUp },
+    { key: "memory" as const, label: "Memory", icon: Brain },
+    { key: "global" as const, label: "Global", icon: Globe },
     { key: "strategy" as const, label: "Strategy", icon: Target },
+    { key: "share" as const, label: "Share", icon: Share2 },
   ];
 
   return (
@@ -720,6 +747,173 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                       </div>
                     </motion.div>
                   ))}
+                </motion.div>
+              )}
+
+              {/* === SHAREABLE CARD === */}
+              {activeSection === "share" && (
+                <motion.div
+                  key="share"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="space-y-4"
+                >
+                  <p className="text-xs text-muted-foreground">Preview your shareable summary card, then export as an image.</p>
+
+                  {/* The card to export */}
+                  <div
+                    ref={shareCardRef}
+                    className="rounded-2xl p-5 space-y-4"
+                    style={{
+                      background: "linear-gradient(145deg, hsl(var(--background)), hsl(var(--card)))",
+                      border: "1px solid hsl(var(--border))",
+                    }}
+                  >
+                    {/* Card header */}
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-primary/15">
+                        <BarChart3 className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-foreground">My Learning Predictions</h3>
+                        <p className="text-[10px] text-muted-foreground">{format(new Date(), "MMMM d, yyyy")}</p>
+                      </div>
+                    </div>
+
+                    {/* Rank summary */}
+                    {rankHistory.length > 0 && (
+                      <div className="rounded-xl p-4" style={{ background: "hsl(var(--secondary) / 0.5)" }}>
+                        <p className="text-[10px] font-medium text-muted-foreground mb-2">RANK TRAJECTORY</p>
+                        <div className="flex items-end gap-3">
+                          <span className="text-3xl font-bold text-foreground">
+                            #{rankHistory[rankHistory.length - 1].rank.toLocaleString()}
+                          </span>
+                          {rankHistory.length >= 2 && (() => {
+                            const change = rankHistory[0].rank - rankHistory[rankHistory.length - 1].rank;
+                            return (
+                              <span className={`text-xs font-semibold mb-1 flex items-center gap-0.5 ${change > 0 ? "text-success" : change < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                                {change > 0 ? <TrendingUp className="w-3 h-3" /> : change < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                                {change > 0 ? "+" : ""}{change.toLocaleString()} in 30d
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Top {rankHistory[rankHistory.length - 1].percentile ? (100 - rankHistory[rankHistory.length - 1].percentile).toFixed(1) : "—"}% percentile
+                        </p>
+                        {/* Mini sparkline */}
+                        <div className="flex items-end gap-[2px] h-8 mt-3">
+                          {rankHistory.slice(-14).map((r, i, arr) => {
+                            const maxR = Math.max(...arr.map(a => a.rank));
+                            const minR = Math.min(...arr.map(a => a.rank));
+                            const range = maxR - minR || 1;
+                            const height = ((maxR - r.rank) / range) * 100;
+                            return (
+                              <div
+                                key={i}
+                                className="flex-1 rounded-t-sm bg-primary/60"
+                                style={{ height: `${Math.max(height, 8)}%` }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Memory overview */}
+                    {forecasts.length > 0 && (
+                      <div className="rounded-xl p-4" style={{ background: "hsl(var(--secondary) / 0.5)" }}>
+                        <p className="text-[10px] font-medium text-muted-foreground mb-2">MEMORY OVERVIEW</p>
+                        <div className="flex items-center gap-4">
+                          <div>
+                            <span className="text-2xl font-bold text-foreground">
+                              {Math.round(forecasts.reduce((s, f) => s + f.currentStrength, 0) / forecasts.length)}%
+                            </span>
+                            <p className="text-[10px] text-muted-foreground">Avg retention</p>
+                          </div>
+                          <div>
+                            <span className="text-2xl font-bold text-foreground">{forecasts.length}</span>
+                            <p className="text-[10px] text-muted-foreground">Topics tracked</p>
+                          </div>
+                          <div>
+                            <span className="text-2xl font-bold text-foreground">
+                              {forecasts.filter(f => f.daysUntilDrop !== null && f.daysUntilDrop <= 3).length}
+                            </span>
+                            <p className="text-[10px] text-muted-foreground">At risk</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Global comparison bars */}
+                    {comparisons.length > 0 && (
+                      <div className="rounded-xl p-4" style={{ background: "hsl(var(--secondary) / 0.5)" }}>
+                        <p className="text-[10px] font-medium text-muted-foreground mb-3">VS GLOBAL BENCHMARKS</p>
+                        <div className="space-y-2.5">
+                          {comparisons.slice(0, 4).map(c => {
+                            const diff = c.userValue - c.globalValue;
+                            const isAhead = c.higherIsBetter ? diff > 0 : diff < 0;
+                            return (
+                              <div key={c.label}>
+                                <div className="flex justify-between mb-1">
+                                  <span className="text-[10px] text-foreground font-medium">{c.label}</span>
+                                  <span className={`text-[10px] font-bold ${isAhead ? "text-success" : "text-destructive"}`}>
+                                    {c.userValue}{c.unit} {isAhead ? "▲" : "▼"}
+                                  </span>
+                                </div>
+                                <div className="h-1.5 rounded-full" style={{ background: "hsl(var(--border))" }}>
+                                  <div
+                                    className={`h-full rounded-full transition-all ${isAhead ? "bg-success" : "bg-destructive"}`}
+                                    style={{ width: `${Math.min((c.userValue / Math.max(c.globalValue * 1.5, 1)) * 100, 100)}%` }}
+                                  />
+                                </div>
+                                <p className="text-[9px] text-muted-foreground mt-0.5">Global avg: {c.globalValue}{c.unit}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {globalSampleSize > 0 && (
+                          <p className="text-[9px] text-muted-foreground mt-3 flex items-center gap-1">
+                            <Users className="w-3 h-3" /> Based on {globalSampleSize.toLocaleString()}+ learners
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Branding */}
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-1.5">
+                        <Brain className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-[10px] font-semibold text-foreground">AI Prediction Dashboard</span>
+                      </div>
+                      <span className="text-[9px] text-muted-foreground">{format(new Date(), "MMM d, yyyy · h:mm a")}</span>
+                    </div>
+                  </div>
+
+                  {/* Export button */}
+                  <button
+                    onClick={exportAsImage}
+                    disabled={exporting}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {exported ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Saved!
+                      </>
+                    ) : exporting ? (
+                      <>
+                        <Download className="w-4 h-4 animate-bounce" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Export as Image
+                      </>
+                    )}
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
