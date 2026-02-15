@@ -7,7 +7,7 @@ import {
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon,
-  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical
+  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,8 +20,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import SubscriptionAnalytics from "@/components/app/SubscriptionAnalytics";
+import ApiManagement from "@/components/app/ApiManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "notifications" | "admins" | "audit" | "settings";
+type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "apis" | "notifications" | "admins" | "audit" | "settings";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -45,6 +46,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "ai", label: "AI Models", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
   { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
+  { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
   { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
@@ -167,6 +169,7 @@ const AdminPanel = () => {
             {section === "ai" && <AISection />}
             {section === "knowledge" && <KnowledgeSection />}
             {section === "subscriptions" && <SubscriptionsSection />}
+            {section === "apis" && <ApiManagement />}
             {section === "notifications" && <NotificationsSection toast={toast} />}
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
             {section === "audit" && <AuditSection />}
