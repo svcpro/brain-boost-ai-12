@@ -49,9 +49,16 @@ interface YouTabProps {
   onNotifHistoryOpened?: () => void;
 }
 
+const soundColorMap: Record<string, { bar: string; active: string }> = {
+  "🔔 Standard": { bar: "bg-primary/40", active: "bg-primary" },
+  "✨ Insight": { bar: "bg-accent/40", active: "bg-accent" },
+  "⚠️ Nudge": { bar: "bg-destructive/40", active: "bg-destructive" },
+};
+
 const SoundPreviewButton = ({ label, onPlay, duration }: { label: string; onPlay: () => void; duration: number }) => {
   const [playing, setPlaying] = useState(false);
   const bars = 5;
+  const colors = soundColorMap[label] || soundColorMap["🔔 Standard"];
 
   const handleClick = () => {
     onPlay();
@@ -68,7 +75,7 @@ const SoundPreviewButton = ({ label, onPlay, duration }: { label: string; onPlay
         {Array.from({ length: bars }).map((_, i) => (
           <motion.div
             key={i}
-            className="w-[3px] rounded-full bg-primary"
+            className={`w-[3px] rounded-full ${playing ? colors.active : colors.bar}`}
             animate={playing ? {
               height: [4, 12 + Math.random() * 4, 6, 14 + Math.random() * 2, 4],
             } : { height: 4 }}
