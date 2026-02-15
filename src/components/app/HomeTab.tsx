@@ -188,6 +188,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const [insightReviewTopic, setInsightReviewTopic] = useState<string | null>(null);
   const [insightReviewSubject, setInsightReviewSubject] = useState<string | undefined>();
   const [signalModalOpen, setSignalModalOpen] = useState(false);
+  const [insightsRefreshKey, setInsightsRefreshKey] = useState(0);
   const [prefillSubject, setPrefillSubject] = useState<string | undefined>();
   const [prefillTopic, setPrefillTopic] = useState<string | undefined>();
   const [prefillMinutes, setPrefillMinutes] = useState<number | undefined>();
@@ -429,6 +430,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         initialMinutes={prefillMinutes}
         onSuccess={async () => {
           markBrainUpdated();
+          setInsightsRefreshKey(k => k + 1);
           // Also run AI analysis after logging
           await handleRefresh();
         }}
@@ -454,7 +456,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <WeeklyReminderSummary />
 
       {/* Smart Study Insights */}
-      <StudyInsights onReviewTopic={(topic, subject) => {
+      <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => {
         setInsightReviewSubject(subject);
         setInsightReviewTopic(topic);
       }} />

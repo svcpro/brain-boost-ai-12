@@ -33,9 +33,10 @@ const typeConfig = {
 
 interface StudyInsightsProps {
   onReviewTopic?: (topicName: string, subjectName?: string) => void;
+  refreshKey?: number;
 }
 
-const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
+const StudyInsights = ({ onReviewTopic, refreshKey }: StudyInsightsProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -77,6 +78,12 @@ const StudyInsights = ({ onReviewTopic }: StudyInsightsProps) => {
 
     checkAndLoad();
   }, [user]);
+
+  // Auto-refresh when refreshKey changes (e.g. after logging a study session)
+  useEffect(() => {
+    if (!user || !refreshKey) return;
+    fetchInsights(true);
+  }, [refreshKey]);
 
   const fetchInsights = useCallback(async (silent = false) => {
     if (!user) return;
