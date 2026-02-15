@@ -329,15 +329,17 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
     return points;
   })();
 
+  const generateCanvas = useCallback(async () => {
+    if (!shareCardRef.current) return null;
+    return html2canvas(shareCardRef.current, { backgroundColor: null, scale: 2, useCORS: true });
+  }, []);
+
   const exportAsImage = useCallback(async () => {
     if (!shareCardRef.current || exporting) return;
     setExporting(true);
     try {
-      const canvas = await html2canvas(shareCardRef.current, {
-        backgroundColor: null,
-        scale: 2,
-        useCORS: true,
-      });
+      const canvas = await generateCanvas();
+      if (!canvas) return;
       const link = document.createElement("a");
       link.download = `prediction-summary-${format(new Date(), "yyyy-MM-dd")}.png`;
       link.href = canvas.toDataURL("image/png");
@@ -349,7 +351,44 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
     } finally {
       setExporting(false);
     }
-  }, [exporting]);
+  }, [exporting, generateCanvas]);
+
+  const shareCard = useCallback(async () => {
+    if (!shareCardRef.current || exporting) return;
+    setExporting(true);
+    try {
+      const canvas = await generateCanvas();
+      if (!canvas) return;
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `prediction-summary-${format(new Date(), "yyyy-MM-dd")}.png`, { type: "image/png" });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            title: "My Learning Predictions",
+            text: "Check out my AI-powered learning prediction summary!",
+            files: [file],
+          });
+          setExported(true);
+          setTimeout(() => setExported(false), 2000);
+        } else {
+          // Fallback: download
+          const link = document.createElement("a");
+          link.download = file.name;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          URL.revokeObjectURL(link.href);
+          setExported(true);
+          setTimeout(() => setExported(false), 2000);
+        }
+        setExporting(false);
+      }, "image/png");
+    } catch (e) {
+      console.error("Share error:", e);
+      setExporting(false);
+    }
+  }, [exporting, generateCanvas]);
+
+  const canShare = typeof navigator !== "undefined" && !!navigator.share;
 
   const sections = [
     { key: "rank" as const, label: "Rank", icon: TrendingUp },
@@ -891,29 +930,37 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                     </div>
                   </div>
 
-                  {/* Export button */}
-                  <button
-                    onClick={exportAsImage}
-                    disabled={exporting}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
-                  >
-                    {exported ? (
-                      <>
-                        <Check className="w-4 h-4" />
-                        Saved!
-                      </>
-                    ) : exporting ? (
-                      <>
-                        <Download className="w-4 h-4 animate-bounce" />
-                        Exporting...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" />
-                        Export as Image
-                      </>
+                  {/* Action buttons */}
+                  <div className={`grid gap-3 ${canShare ? "grid-cols-2" : "grid-cols-1"}`}>
+                    {canShare && (
+                      <button
+                        onClick={shareCard}
+                        disabled={exporting}
+                        className="flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      >
+                        {exported ? (
+                          <><Check className="w-4 h-4" /> Shared!</>
+                        ) : exporting ? (
+                          <><Share2 className="w-4 h-4 animate-pulse" /> Sharing...</>
+                        ) : (
+                          <><Share2 className="w-4 h-4" /> Share</>
+                        )}
+                      </button>
                     )}
-                  </button>
+                    <button
+                      onClick={exportAsImage}
+                      disabled={exporting}
+                      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary text-foreground font-medium text-sm hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                    >
+                      {exported ? (
+                        <><Check className="w-4 h-4" /> Saved!</>
+                      ) : exporting ? (
+                        <><Download className="w-4 h-4 animate-bounce" /> Exporting...</>
+                      ) : (
+                        <><Download className="w-4 h-4" /> Download</>
+                      )}
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
