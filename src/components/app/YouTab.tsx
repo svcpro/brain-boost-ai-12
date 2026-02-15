@@ -695,11 +695,21 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {isEnabled("you_study_learning") && (
       <div className="space-y-1">
         <SectionHeader icon={BookOpen} label="Study & Learning" delay={0.2} />
-        {studySection.map((item, i) => (
+        {studySection
+          .filter(item => {
+            const flagMap: Record<string, string> = {
+              "Subjects & Topics": "you_study_subjects",
+              "Leaderboard": "you_study_leaderboard",
+            };
+            const flagKey = flagMap[item.label];
+            return !flagKey || isEnabled(flagKey);
+          })
+          .map((item, i) => (
           <MenuItem key={item.label} item={item} index={i} />
         ))}
 
         {/* Subjects & Topics Panel */}
+        {isEnabled("you_study_subjects") && (
         <AnimatePresence>
           {showSubjects && (
             <motion.div
@@ -864,8 +874,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+        )}
 
         {/* Leaderboard Settings Panel */}
+        {isEnabled("you_study_leaderboard") && (
         <AnimatePresence>
           {showLeaderboardSetting && (
             <motion.div
@@ -908,6 +920,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
             </motion.div>
           )}
         </AnimatePresence>
+        )}
       </div>
       )}
 
