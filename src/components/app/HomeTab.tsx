@@ -56,6 +56,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const [brainPulseDismissed, setBrainPulseDismissed] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [recoverySessionOpen, setRecoverySessionOpen] = useState(false);
   const lastScrollY = useRef(0);
 
   // Hide FAB on scroll down, show on scroll up
@@ -504,6 +505,15 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         currentStreak={streakData?.currentStreak ?? 0}
         longestStreak={streakData?.longestStreak ?? 0}
         todayMet={streakData?.todayMet ?? false}
+        onStartRecovery={() => setRecoverySessionOpen(true)}
+      />
+
+      {/* Recovery Focus Session — auto-start */}
+      <FocusModeSession
+        open={recoverySessionOpen}
+        onClose={() => setRecoverySessionOpen(false)}
+        onSessionComplete={() => { setRecoverySessionOpen(false); loadStreak(); }}
+        autoStart
       />
 
       {/* Daily Study Tip */}
