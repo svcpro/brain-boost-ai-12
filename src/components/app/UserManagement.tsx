@@ -4,7 +4,8 @@ import {
   Search, Loader2, Users, UserPlus, ChevronRight, ArrowLeft,
   Pencil, Save, X, Trash2, CreditCard, Activity, Clock,
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
-  CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download
+  CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download,
+  CheckSquare, Square, MinusSquare
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,6 +68,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const UserManagement = () => {
+  const { user: adminUser } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [subscriptions, setSubscriptions] = useState<UserSubscription[]>([]);
@@ -77,6 +79,8 @@ const UserManagement = () => {
   const [filter, setFilter] = useState<"all" | "free" | "pro" | "ultra" | "banned">("all");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const fetchData = useCallback(async () => {
     const [usersRes, subsRes, plansRes] = await Promise.all([
@@ -111,8 +115,57 @@ const UserManagement = () => {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginatedUsers = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [search, filter]);
+  // Reset page & selection when filters change
+  useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [search, filter]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedUsers.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedUsers.map(u => u.id)));
+    }
+  };
+
+  const bulkLogAudit = async (action: string, targetIds: string[], details: Record<string, any>) => {
+    if (!adminUser) return;
+    const entries = targetIds.map(tid => ({
+      admin_id: adminUser.id,
+      action,
+      target_type: "user",
+      target_id: tid,
+      details: details as any,
+    }));
+    await supabase.from("admin_audit_logs").insert(entries);
+  };
+
+  const bulkBan = async (ban: boolean) => {
+    if (selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+    const updateData: any = {
+      is_banned: ban,
+      banned_at: ban ? new Date().toISOString() : null,
+      ban_reason: ban ? "Bulk action by admin" : null,
+    };
+    const { error } = await supabase.from("profiles").update(updateData).in("id", ids);
+    if (error) {
+      toast({ title: `Failed to ${ban ? "ban" : "unban"} users`, variant: "destructive" });
+    } else {
+      await bulkLogAudit(ban ? "bulk_user_banned" : "bulk_user_unbanned", ids, { count: ids.length });
+      toast({ title: `${ids.length} user(s) ${ban ? "banned" : "unbanned"}` });
+      setSelectedIds(new Set());
+      await fetchData();
+    }
+    setBulkProcessing(false);
+  };
 
   // Summary stats
   const totalUsers = users.length;
@@ -209,32 +262,94 @@ const UserManagement = () => {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="glass rounded-xl p-3 neural-border flex items-center justify-between flex-wrap gap-2"
+          >
+            <span className="text-xs font-medium text-foreground">{selectedIds.size} user(s) selected</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => bulkBan(true)}
+                disabled={bulkProcessing}
+                className="px-3 py-1.5 bg-destructive/15 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Ban className="w-3 h-3" />} Ban Selected
+              </button>
+              <button
+                onClick={() => bulkBan(false)}
+                disabled={bulkProcessing}
+                className="px-3 py-1.5 bg-success/15 text-success rounded-lg text-xs font-medium hover:bg-success/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} Unban Selected
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 text-muted-foreground hover:text-foreground rounded-lg text-xs font-medium transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* User list */}
       <div className="space-y-2">
+        {/* Select all header */}
+        <div className="flex items-center gap-3 px-3 py-1.5">
+          <button onClick={toggleSelectAll} className="text-muted-foreground hover:text-foreground transition-colors">
+            {selectedIds.size === paginatedUsers.length && paginatedUsers.length > 0 ? (
+              <CheckSquare className="w-4 h-4 text-primary" />
+            ) : selectedIds.size > 0 ? (
+              <MinusSquare className="w-4 h-4 text-primary" />
+            ) : (
+              <Square className="w-4 h-4" />
+            )}
+          </button>
+          <span className="text-[10px] text-muted-foreground">
+            {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+          </span>
+        </div>
         {paginatedUsers.map((u, i) => {
           const { planKey, planName } = getUserPlan(u.id);
+          const isSelected = selectedIds.has(u.id);
           return (
             <motion.div
               key={u.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.02, 0.3) }}
-              onClick={() => setSelectedUser(u)}
-              className="glass rounded-xl p-3 neural-border flex items-center gap-3 cursor-pointer hover:bg-secondary/50 transition-colors group"
+              className={`glass rounded-xl p-3 neural-border flex items-center gap-3 cursor-pointer hover:bg-secondary/50 transition-colors group ${isSelected ? "ring-1 ring-primary/30 bg-primary/5" : ""}`}
             >
-              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 relative ${u.is_banned ? 'bg-destructive/15' : 'bg-primary/15'}">
-                <span className={`text-sm font-bold ${u.is_banned ? 'text-destructive' : 'text-primary'}`}>{(u.display_name || "?")[0].toUpperCase()}</span>
-                {u.is_banned && <Ban className="w-3 h-3 text-destructive absolute -bottom-0.5 -right-0.5" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground truncate">{u.display_name || "Anonymous"}</p>
-                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${PLAN_COLORS[planKey] || PLAN_COLORS.free}`}>{planName}</span>
-                  {u.is_banned && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">Banned</span>}
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleSelect(u.id); }}
+                className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                {isSelected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
+              </button>
+              <div
+                className="flex items-center gap-3 flex-1 min-w-0"
+                onClick={() => setSelectedUser(u)}
+              >
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 relative ${u.is_banned ? 'bg-destructive/15' : 'bg-primary/15'}`}>
+                  <span className={`text-sm font-bold ${u.is_banned ? 'text-destructive' : 'text-primary'}`}>{(u.display_name || "?")[0].toUpperCase()}</span>
+                  {u.is_banned && <Ban className="w-3 h-3 text-destructive absolute -bottom-0.5 -right-0.5" />}
                 </div>
-                <p className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"} · Goal: {u.daily_study_goal_minutes}min/day · Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground truncate">{u.display_name || "Anonymous"}</p>
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${PLAN_COLORS[planKey] || PLAN_COLORS.free}`}>{planName}</span>
+                    {u.is_banned && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">Banned</span>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"} · Goal: {u.daily_study_goal_minutes}min/day · Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
               </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
             </motion.div>
           );
         })}
