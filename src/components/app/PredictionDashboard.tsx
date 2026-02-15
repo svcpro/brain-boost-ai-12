@@ -752,14 +752,35 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                           <span className="text-[10px] text-muted-foreground">Personal: <span className="text-primary font-bold">{Math.round(activePersonalWeight * 100)}%</span></span>
                           <span className="text-[10px] text-muted-foreground">Global: <span className="text-accent-foreground font-bold">{Math.round(activeGlobalWeight * 100)}%</span></span>
                         </div>
-                        {customPersonalWeight !== null && (
-                          <button
-                            onClick={() => setCustomPersonalWeight(null)}
-                            className="text-[10px] text-primary hover:underline"
-                          >
-                            Reset to AI-recommended ({Math.round((hybridData.personal_weight ?? 0.7) * 100)}% / {Math.round((hybridData.global_weight ?? 0.3) * 100)}%)
-                          </button>
-                        )}
+                        {customPersonalWeight !== null && (() => {
+                          const aiWeight = hybridData.personal_weight ?? 0.7;
+                          const deviation = Math.round(Math.abs(customPersonalWeight - aiWeight) * 100);
+                          const deviationLabel = deviation === 0 ? "At AI optimal" : `${deviation}pp from AI optimal`;
+                          const deviationColor = deviation === 0 ? "bg-success/15 text-success" : deviation <= 15 ? "bg-warning/15 text-warning" : "bg-destructive/15 text-destructive";
+                          const healthDiff = Math.round(adjustedHealth - (hybridData.hybrid_health ?? 0));
+                          const healthLabel = healthDiff === 0 ? "No change" : healthDiff > 0 ? `+${healthDiff}% health` : `${healthDiff}% health`;
+                          const healthColor = healthDiff >= 0 ? "text-success" : "text-destructive";
+
+                          return (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${deviationColor}`}>
+                                  <AlertTriangle className="w-2.5 h-2.5" />
+                                  {deviationLabel}
+                                </span>
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary/50 ${healthColor}`}>
+                                  {healthLabel}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => setCustomPersonalWeight(null)}
+                                className="text-[10px] text-primary hover:underline"
+                              >
+                                Reset to AI-recommended ({Math.round(aiWeight * 100)}% / {Math.round((1 - aiWeight) * 100)}%)
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Summary cards */}
