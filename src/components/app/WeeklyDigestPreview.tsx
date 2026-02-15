@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Zap, Share2, ArrowLeftRight, Target } from "lucide-react";
 import html2canvas from "html2canvas";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +31,7 @@ interface DigestData {
   }>;
   recommendations: string;
   lastWeek: WeekStats | null;
+  weeklyFocusGoal: number;
 }
 
 const CACHE_KEY = "weekly-digest-preview";
@@ -39,6 +40,53 @@ const formatTime = (mins: number) => {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
+const GoalProgressRing = ({ current, goal }: { current: number; goal: number }) => {
+  const pct = Math.min(Math.round((current / goal) * 100), 100);
+  const radius = 28;
+  const stroke = 5;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+  const color = pct >= 100 ? "text-success" : pct >= 60 ? "text-primary" : "text-warning";
+
+  return (
+    <div className="rounded-lg border border-border/40 bg-secondary/20 p-3 flex items-center gap-4">
+      <div className="relative shrink-0">
+        <svg width="66" height="66" viewBox="0 0 66 66" className="-rotate-90">
+          <circle cx="33" cy="33" r={radius} fill="none" strokeWidth={stroke} className="stroke-secondary" />
+          <motion.circle
+            cx="33" cy="33" r={radius} fill="none" strokeWidth={stroke}
+            strokeLinecap="round"
+            className={`${color} stroke-current`}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            strokeDasharray={circumference}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className={`text-sm font-bold ${color}`}>{pct}%</span>
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <Target className={`w-3 h-3 ${color}`} />
+          <span className="text-xs font-semibold text-foreground">Weekly Focus Goal</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {formatTime(current)} / {formatTime(goal)}
+        </p>
+        {pct >= 100 ? (
+          <p className="text-[10px] text-success font-medium mt-0.5">🎉 Goal reached!</p>
+        ) : (
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {formatTime(goal - current)} remaining
+          </p>
+        )}
+      </div>
+    </div>
+  );
 };
 
 const DeltaBadge = ({ current, previous, suffix = "" }: { current: number | null; previous: number | null; suffix?: string }) => {
@@ -137,7 +185,7 @@ const WeeklyDigestPreview = () => {
           .gte("created_at", twoWeeksAgo.toISOString())
           .lt("created_at", weekAgo.toISOString()),
         supabase.from("profiles")
-          .select("display_name, exam_type, exam_date, daily_study_goal_minutes")
+          .select("display_name, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes")
           .eq("id", user.id).maybeSingle(),
       ]);
 
@@ -230,6 +278,7 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
         sessions,
         atRisk,
         recommendations,
+        weeklyFocusGoal: profileRes.data?.weekly_focus_goal_minutes || 420,
         lastWeek: {
           totalMinutes: lastWeekMinutes,
           sessions: lastWeekSessions,
@@ -310,6 +359,9 @@ At-risk topics: ${atRisk.length > 0 ? atRisk.slice(0, 4).map(t => `${t.name} (${
         </div>
       ) : data ? (
         <div className="p-4 space-y-3">
+          {/* Weekly Goal Progress Ring */}
+          {!showCompare && <GoalProgressRing current={data.totalMinutes} goal={data.weeklyFocusGoal} />}
+
           {/* Compare column headers */}
           <AnimatePresence>
             {showCompare && (
