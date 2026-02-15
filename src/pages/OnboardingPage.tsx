@@ -47,6 +47,7 @@ const STUDY_MODES = [
 
 const OnboardingPage = () => {
   const [step, setStep] = useState(0);
+  const [displayName, setDisplayName] = useState("");
   const [examType, setExamType] = useState("");
   const [customExam, setCustomExam] = useState("");
   const [examDate, setExamDate] = useState("");
@@ -62,7 +63,14 @@ const OnboardingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const totalSteps = 5;
+  // Prefill name from auth metadata (Google/Apple provide full_name or name)
+  useState(() => {
+    const meta = user?.user_metadata;
+    const name = meta?.full_name || meta?.name || meta?.display_name || "";
+    if (name) setDisplayName(name);
+  });
+
+  const totalSteps = 6;
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
@@ -111,17 +119,18 @@ const OnboardingPage = () => {
   };
 
   const canProceed = () => {
-    if (step === 0) return examType !== "";
-    if (step === 1) return examDate !== "";
-    if (step === 2) return subjects.length > 0;
-    if (step === 3) return true; // topics are optional
-    if (step === 4) return studyMode !== "";
+    if (step === 0) return displayName.trim().length >= 2;
+    if (step === 1) return examType !== "";
+    if (step === 2) return examDate !== "";
+    if (step === 3) return subjects.length > 0;
+    if (step === 4) return true; // topics are optional
+    if (step === 5) return studyMode !== "";
     return false;
   };
 
   // Initialize activeSubject when entering topics step
   const handleNext = () => {
-    if (step === 2 && subjects.length > 0 && !activeSubject) {
+    if (step === 3 && subjects.length > 0 && !activeSubject) {
       setActiveSubject(subjects[0]);
     }
     if (step < totalSteps - 1) setStep(step + 1);
@@ -137,6 +146,7 @@ const OnboardingPage = () => {
       const { error: profileErr } = await supabase
         .from("profiles")
         .update({
+          display_name: displayName.trim(),
           exam_type: finalExam,
           exam_date: examDate,
           study_preferences: { mode: studyMode, onboarded: true },
@@ -207,8 +217,36 @@ const OnboardingPage = () => {
         </div>
 
         <AnimatePresence mode="wait">
-          {/* Step 0: Exam Type */}
+          {/* Step 0: Your Name */}
           {step === 0 && (
+            <motion.div key="name" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground">What should we call you?</h1>
+              </div>
+              <p className="text-muted-foreground text-sm mb-6">ACRY will use your name across the app — greetings, voice alerts, and more.</p>
+
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && canProceed()) handleNext(); }}
+                autoFocus
+                maxLength={50}
+                className="w-full rounded-xl bg-secondary border border-border px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              />
+
+              {displayName.trim().length >= 2 && (
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-muted-foreground">
+                  Welcome, <span className="text-primary font-semibold">{displayName.trim()}</span> 👋
+                </motion.p>
+              )}
+            </motion.div>
+          )}
+
+          {/* Step 1: Exam Type */}
+          {step === 1 && (
             <motion.div key="exam" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <GraduationCap className="w-5 h-5 text-primary" />
@@ -245,8 +283,8 @@ const OnboardingPage = () => {
             </motion.div>
           )}
 
-          {/* Step 1: Exam Date */}
-          {step === 1 && (
+          {/* Step 2: Exam Date */}
+          {step === 2 && (
             <motion.div key="date" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-5 h-5 text-primary" />
@@ -272,8 +310,8 @@ const OnboardingPage = () => {
             </motion.div>
           )}
 
-          {/* Step 2: Subjects */}
-          {step === 2 && (
+          {/* Step 3: Subjects */}
+          {step === 3 && (
             <motion.div key="subjects" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <BookOpen className="w-5 h-5 text-primary" />
@@ -346,8 +384,8 @@ const OnboardingPage = () => {
             </motion.div>
           )}
 
-          {/* Step 3: Topics per Subject */}
-          {step === 3 && (
+          {/* Step 4: Topics per Subject */}
+          {step === 4 && (
             <motion.div key="topics" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <Hash className="w-5 h-5 text-primary" />
@@ -446,8 +484,8 @@ const OnboardingPage = () => {
             </motion.div>
           )}
 
-          {/* Step 4: Study Preferences */}
-          {step === 4 && (
+          {/* Step 5: Study Preferences */}
+          {step === 5 && (
             <motion.div key="prefs" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5 text-primary" />
@@ -494,7 +532,7 @@ const OnboardingPage = () => {
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {loading ? "Setting up..." : step < totalSteps - 1 ? (
-              <>{step === 3 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-4 h-4" /></>
+              <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-4 h-4" /></>
             ) : (
               <>Launch ACRY <Sparkles className="w-4 h-4" /></>
             )}
