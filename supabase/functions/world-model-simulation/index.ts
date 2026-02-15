@@ -31,8 +31,14 @@ serve(async (req) => {
 
     const userId = user.id;
 
-    // Gather user context
-    const [topicsRes, profileRes, logsRes, rankRes, examsRes, featuresRes] = await Promise.all([
+    // Use service role client for global patterns (cross-user data)
+    const serviceSupabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Gather user context + global intelligence in parallel
+    const [topicsRes, profileRes, logsRes, rankRes, examsRes, featuresRes, globalPatternsRes] = await Promise.all([
       supabase.from("topics").select("name, memory_strength, next_predicted_drop_date, subject_id, last_revision_date")
         .eq("user_id", userId).is("deleted_at", null).order("memory_strength", { ascending: true }).limit(30),
       supabase.from("profiles").select("daily_study_goal_minutes, exam_date, exam_type, display_name")
@@ -44,6 +50,10 @@ serve(async (req) => {
       supabase.from("exam_results").select("score, total_questions, difficulty, created_at")
         .eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
       supabase.from("user_features").select("*").eq("user_id", userId).maybeSingle(),
+      serviceSupabase.from("global_learning_patterns")
+        .select("pattern_type, pattern_key, sample_size, metrics")
+        .order("pattern_date", { ascending: false })
+        .limit(50),
     ]);
 
     const topics = topicsRes.data || [];
@@ -52,6 +62,7 @@ serve(async (req) => {
     const ranks = rankRes.data || [];
     const exams = examsRes.data || [];
     const features = featuresRes.data;
+    const globalPatterns = globalPatternsRes.data || [];
 
     const now = new Date();
     const daysToExam = profile?.exam_date
@@ -64,6 +75,63 @@ serve(async (req) => {
 
     const criticalTopics = topics.filter(t => Number(t.memory_strength) < 40);
     const weakTopics = topics.filter(t => Number(t.memory_strength) >= 40 && Number(t.memory_strength) < 60);
+
+    // Build global intelligence section
+    const buildGlobalSection = () => {
+      if (globalPatterns.length === 0) return "No global intelligence data available yet.";
+
+      const sections: string[] = [];
+
+      // Topic difficulty
+      const topicDiffs = globalPatterns.filter(p => p.pattern_type === "topic_difficulty");
+      if (topicDiffs.length > 0) {
+        const hardest = topicDiffs
+          .sort((a, b) => (a.metrics as any).avg_strength - (b.metrics as any).avg_strength)
+          .slice(0, 5);
+        sections.push(`### Globally Hardest Topics (across all learners)\n${hardest.map(t =>
+          `- "${t.pattern_key}": avg ${(t.metrics as any).avg_strength}% retention, ${(t.metrics as any).pct_struggling}% of ${t.sample_size} learners struggling`
+        ).join("\n")}`);
+      }
+
+      // Study timing
+      const timings = globalPatterns.filter(p => p.pattern_type === "study_timing");
+      if (timings.length > 0) {
+        const best = timings
+          .sort((a, b) => (b.metrics as any).high_confidence_pct - (a.metrics as any).high_confidence_pct)
+          .slice(0, 3);
+        sections.push(`### Best Global Study Hours\n${best.map(t => {
+          const hour = parseInt(t.pattern_key.replace("hour_", ""));
+          const period = hour >= 12 ? "PM" : "AM";
+          const display = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+          return `- ${display}:00 ${period}: ${(t.metrics as any).high_confidence_pct}% high-confidence sessions (n=${t.sample_size})`;
+        }).join("\n")}`);
+      }
+
+      // Decay patterns
+      const decay = globalPatterns.find(p => p.pattern_type === "decay_patterns");
+      if (decay) {
+        const m = decay.metrics as any;
+        sections.push(`### Global Cognitive Benchmarks (n=${decay.sample_size})\n- Avg knowledge stability: ${m.avg_knowledge_stability}%\n- Avg learning velocity: ${m.avg_learning_velocity}\n- Avg burnout risk: ${m.avg_burnout_risk}% (${m.high_burnout_pct}% of learners at high risk)`);
+      }
+
+      // Revision effectiveness
+      const revisions = globalPatterns.filter(p => p.pattern_type === "revision_effectiveness");
+      if (revisions.length > 0) {
+        sections.push(`### Global Revision Effectiveness\n${revisions.map(r =>
+          `- Revised ${r.pattern_key.replace("within_", "within ").replace("over_", "over ").replace("d", " days")}: avg ${(r.metrics as any).avg_retention}% retention (n=${(r.metrics as any).topic_count})`
+        ).join("\n")}`);
+      }
+
+      // Exam trends
+      const examTrends = globalPatterns.filter(p => p.pattern_type === "exam_trends");
+      if (examTrends.length > 0) {
+        sections.push(`### Global Exam Performance\n${examTrends.map(e =>
+          `- ${e.pattern_key} difficulty: avg ${(e.metrics as any).avg_score_pct}% score (n=${(e.metrics as any).exam_count})`
+        ).join("\n")}`);
+      }
+
+      return sections.join("\n\n");
+    };
 
     const contextStr = `
 ## STUDENT STATE
@@ -84,6 +152,9 @@ ${features ? `- Consistency: ${features.study_consistency_score}% | Engagement: 
 
 ## EXAM HISTORY
 ${exams.length > 0 ? exams.slice(0, 3).map(e => `- ${e.score}/${e.total_questions} (${e.difficulty}) on ${new Date(e.created_at).toLocaleDateString()}`).join("\n") : "No exams yet."}
+
+## GLOBAL COLLECTIVE INTELLIGENCE (anonymized data from all learners)
+${buildGlobalSection()}
 
 ## SCENARIOS TO SIMULATE
 ${scenarios.map((s: any, i: number) => `
@@ -109,18 +180,20 @@ ${scenarios.map((s: any, i: number) => `
         messages: [
           {
             role: "system",
-            content: `You are ACRY's World Model Simulation Engine. Given a student's current cognitive state and study scenarios, you simulate future learning outcomes using principles of the Ebbinghaus forgetting curve, spaced repetition science, and competitive exam preparation modeling.
+            content: `You are ACRY's World Model Simulation Engine. Given a student's current cognitive state, collective intelligence from all learners, and study scenarios, you simulate future learning outcomes using principles of the Ebbinghaus forgetting curve, spaced repetition science, and competitive exam preparation modeling.
+
+IMPORTANT: Use the GLOBAL COLLECTIVE INTELLIGENCE data to calibrate your predictions. Compare this student's metrics against global averages to contextualize their performance. Use global revision effectiveness data to model retention curves more accurately. Factor in global exam performance benchmarks when predicting score ranges. If global data shows certain topics are universally difficult, weight that into your risk assessments.
 
 Your simulations must be grounded in the actual data provided. Be realistic — don't give overly optimistic projections. Consider burnout risk, diminishing returns from over-study, and the student's historical patterns.
 
 For each scenario, predict:
-1. Predicted rank range (min-max) based on current trajectory modified by the scenario
-2. Predicted average memory retention after 30 days
-3. Predicted exam score range (percentage)
-4. Risk assessment (burnout, knowledge gaps, time constraints)
-5. A brief strategy recommendation
+1. Predicted rank range (min-max) based on current trajectory modified by the scenario, calibrated against global benchmarks
+2. Predicted average memory retention after 30 days, using global revision effectiveness patterns
+3. Predicted exam score range (percentage), informed by global exam trends
+4. Risk assessment (burnout, knowledge gaps, time constraints), compared to global burnout rates
+5. A brief strategy recommendation that leverages collective intelligence insights (e.g. optimal study times, revision frequency)
 
-Always select a recommended scenario and explain why.`
+Always select a recommended scenario and explain why, referencing global patterns where relevant.`
           },
           { role: "user", content: contextStr }
         ],
