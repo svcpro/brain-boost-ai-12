@@ -141,12 +141,14 @@ const NotificationHistory = () => {
     freeze_gift: "❄️",
     streak_milestone: "🔥",
     study_reminder: "📚",
+    weekly_insight: "📋",
   };
 
   const typeLabels: Record<string, string> = {
     freeze_gift: "Freeze Gifts",
     streak_milestone: "Streak Milestones",
     study_reminder: "Study Reminders",
+    weekly_insight: "Weekly Insights",
   };
 
   const filtered = typeFilter === "all"
@@ -340,7 +342,7 @@ const NotificationHistory = () => {
                               {n.title}
                             </p>
                             {n.body && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                              <p className={`text-[10px] text-muted-foreground mt-0.5 ${n.type === "weekly_insight" ? "whitespace-pre-line" : "line-clamp-2"}`}>
                                 {n.body}
                               </p>
                             )}
