@@ -1016,6 +1016,51 @@ export type Database = {
         }
         Relationships: []
       }
+      razorpay_webhook_events: {
+        Row: {
+          amount: number | null
+          created_at: string
+          currency: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          order_id: string | null
+          payload: Json | null
+          payment_id: string | null
+          processed: boolean | null
+          status: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          order_id?: string | null
+          payload?: Json | null
+          payment_id?: string | null
+          processed?: boolean | null
+          status?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          order_id?: string | null
+          payload?: Json | null
+          payment_id?: string | null
+          processed?: boolean | null
+          status?: string | null
+          subscription_id?: string | null
+        }
+        Relationships: []
+      }
       streak_freezes: {
         Row: {
           created_at: string
