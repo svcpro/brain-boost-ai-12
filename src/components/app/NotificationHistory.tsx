@@ -357,9 +357,19 @@ const NotificationHistory = () => {
 
                 return groups.map((group) => (
                   <div key={group.label}>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 pt-2 pb-1">
-                      {group.label}
-                    </p>
+                    <motion.div
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-center gap-2 px-1 pt-3 pb-1.5"
+                    >
+                      <span className="text-[11px] font-bold text-foreground tracking-wide uppercase">
+                        {group.label}
+                      </span>
+                      <div className="flex-1 h-px bg-border/60" />
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        {group.items.length}
+                      </span>
+                    </motion.div>
                     {group.items.map((n) => (
                       <div key={n.id} className="relative overflow-hidden rounded-lg mb-1">
                         {/* Mark as read background revealed on swipe right */}
@@ -387,7 +397,9 @@ const NotificationHistory = () => {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -200 }}
                           className={`relative flex items-start gap-2 p-2.5 rounded-lg cursor-grab active:cursor-grabbing ${
-                            n.read ? "bg-secondary/20" : "bg-primary/10 border border-primary/20"
+                            n.read
+                              ? "bg-secondary/30"
+                              : "bg-primary/8 border border-primary/25 shadow-sm"
                           }`}
                           style={{ touchAction: "pan-y" }}
                         >
@@ -395,15 +407,15 @@ const NotificationHistory = () => {
                             {typeEmoji[n.type || ""] || "🔔"}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-medium ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
+                            <p className={`text-xs font-semibold ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
                               {n.title}
                             </p>
                             {n.body && (
-                              <p className={`text-[10px] text-muted-foreground mt-0.5 ${n.type === "weekly_insight" ? "whitespace-pre-line" : "line-clamp-2"}`}>
+                              <p className={`text-[11px] leading-relaxed mt-0.5 ${n.read ? "text-muted-foreground/70" : "text-foreground/80"} ${n.type === "weekly_insight" ? "whitespace-pre-line" : "line-clamp-2"}`}>
                                 {n.body}
                               </p>
                             )}
-                            <p className="text-[9px] text-muted-foreground/60 mt-1">
+                            <p className="text-[9px] text-muted-foreground/50 mt-1">
                               {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                             </p>
                           </div>
