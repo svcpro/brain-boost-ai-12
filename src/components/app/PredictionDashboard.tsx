@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Brain, Target, Calendar, ChevronDown,
-  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check, Copy, Layers,
+  BarChart3, Clock, Zap, Shield, AlertTriangle, ArrowUpRight, Sparkles, Globe, Users, Share2, Download, Check, Copy, Layers, SlidersHorizontal,
 } from "lucide-react";
 import { useHybridPrediction, HybridTopicPrediction } from "@/hooks/useHybridPrediction";
+import { Slider } from "@/components/ui/slider";
 import { BarChart, Bar } from "recharts";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +56,24 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<"rank" | "memory" | "strategy" | "global" | "hybrid" | "share">("rank");
   const { data: hybridData, loading: hybridLoading, predict: fetchHybrid } = useHybridPrediction();
+  const [customPersonalWeight, setCustomPersonalWeight] = useState<number | null>(null);
+
+  // Derive adjusted predictions based on slider
+  const activePersonalWeight = customPersonalWeight ?? (hybridData?.personal_weight ?? 0.7);
+  const activeGlobalWeight = 1 - activePersonalWeight;
+
+  const adjustedTopics = useMemo(() => {
+    if (!hybridData?.topic_predictions) return [];
+    return hybridData.topic_predictions.map(t => {
+      const adjusted = t.personal_strength * activePersonalWeight + t.global_avg_strength * activeGlobalWeight;
+      return { ...t, hybrid_strength: adjusted };
+    });
+  }, [hybridData, activePersonalWeight, activeGlobalWeight]);
+
+  const adjustedHealth = useMemo(() => {
+    if (adjustedTopics.length === 0) return hybridData?.hybrid_health ?? 0;
+    return adjustedTopics.reduce((s, t) => s + t.hybrid_strength, 0) / adjustedTopics.length;
+  }, [adjustedTopics, hybridData]);
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -711,12 +730,44 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
 
                   {hybridData && (
                     <>
+                      {/* Weight slider */}
+                      <div className="glass rounded-xl p-4 neural-border space-y-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+                          <p className="text-xs font-semibold text-foreground">Adjust Weight Balance</p>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>Global-heavy</span>
+                          <span>Personal-heavy</span>
+                        </div>
+                        <Slider
+                          value={[activePersonalWeight * 100]}
+                          onValueChange={([v]) => setCustomPersonalWeight(v / 100)}
+                          min={10}
+                          max={95}
+                          step={5}
+                          className="w-full"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground">Personal: <span className="text-primary font-bold">{Math.round(activePersonalWeight * 100)}%</span></span>
+                          <span className="text-[10px] text-muted-foreground">Global: <span className="text-accent-foreground font-bold">{Math.round(activeGlobalWeight * 100)}%</span></span>
+                        </div>
+                        {customPersonalWeight !== null && (
+                          <button
+                            onClick={() => setCustomPersonalWeight(null)}
+                            className="text-[10px] text-primary hover:underline"
+                          >
+                            Reset to AI-recommended ({Math.round((hybridData.personal_weight ?? 0.7) * 100)}% / {Math.round((hybridData.global_weight ?? 0.3) * 100)}%)
+                          </button>
+                        )}
+                      </div>
+
                       {/* Summary cards */}
                       <div className="grid grid-cols-3 gap-3">
                         {[
-                          { label: "Personal Weight", value: `${Math.round((hybridData.personal_weight ?? 0.7) * 100)}%`, color: "text-primary" },
-                          { label: "Global Weight", value: `${Math.round((hybridData.global_weight ?? 0.3) * 100)}%`, color: "text-accent-foreground" },
-                          { label: "Hybrid Health", value: `${Math.round(hybridData.hybrid_health ?? 0)}%`, color: "text-foreground" },
+                          { label: "Personal Weight", value: `${Math.round(activePersonalWeight * 100)}%`, color: "text-primary" },
+                          { label: "Global Weight", value: `${Math.round(activeGlobalWeight * 100)}%`, color: "text-accent-foreground" },
+                          { label: "Hybrid Health", value: `${Math.round(adjustedHealth)}%`, color: "text-foreground" },
                         ].map((m, i) => (
                           <motion.div
                             key={i}
@@ -732,7 +783,7 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                       </div>
 
                       {/* Per-topic bar chart */}
-                      {hybridData.topic_predictions && hybridData.topic_predictions.length > 0 ? (
+                      {adjustedTopics.length > 0 ? (
                         <>
                           <div className="glass rounded-xl p-4 neural-border">
                             <p className="text-xs font-semibold text-foreground mb-1">Topic-Level Comparison</p>
@@ -740,7 +791,7 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                             <div className="h-56">
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
-                                  data={hybridData.topic_predictions.slice(0, 10).map(t => ({
+                                  data={adjustedTopics.slice(0, 10).map(t => ({
                                     name: t.topic_name.length > 12 ? t.topic_name.slice(0, 12) + "…" : t.topic_name,
                                     personal: Math.round(t.personal_strength),
                                     global: Math.round(t.global_avg_strength),
@@ -787,7 +838,7 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
                           <div>
                             <p className="text-xs font-semibold text-foreground mb-2">Per-Topic Breakdown</p>
                             <div className="space-y-2">
-                              {hybridData.topic_predictions.slice(0, 8).map((t, i) => {
+                              {adjustedTopics.slice(0, 8).map((t, i) => {
                                 const riskColor = t.risk_level === "critical" ? "text-destructive" : t.risk_level === "high" ? "text-warning" : t.risk_level === "medium" ? "text-muted-foreground" : "text-success";
                                 return (
                                   <motion.div
