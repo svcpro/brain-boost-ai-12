@@ -126,10 +126,14 @@ const StudyInsights = ({ onReviewTopic, refreshKey }: StudyInsightsProps) => {
       }
       const fetched = data?.insights || [];
       const now = Date.now();
+      const wasAutoRefresh = silent && hasLoaded;
       setInsights(fetched);
       setLastFetchedAt(now);
       setHasLoaded(true);
       setCache(CACHE_KEY, { insights: fetched, fetchedAt: now } as CachedInsights);
+      if (wasAutoRefresh && fetched.length > 0) {
+        toast({ title: "✨ Insights updated", description: `${fetched.length} new recommendation${fetched.length > 1 ? "s" : ""} based on your latest session.` });
+      }
     } catch (e) {
       console.error("Failed to fetch insights:", e);
       if (!silent) toast({ title: "Failed to load insights", description: "Please try again later.", variant: "destructive" });
