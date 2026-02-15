@@ -27,6 +27,7 @@ import RecentlyStudied from "./RecentlyStudied";
 import QuickStudySignalModal from "./QuickStudySignalModal";
 import DailyQuote from "./DailyQuote";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
+import StreakMilestoneCelebration from "./StreakMilestoneCelebration";
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -493,6 +494,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* Streak */}
       <StreakTracker />
+
+      {/* Streak Milestone Celebration */}
+      <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />
 
       {/* Daily Study Tip */}
       <DailyStudyTip />
