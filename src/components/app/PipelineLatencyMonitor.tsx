@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Timer, Play, CheckCircle, XCircle, Loader2, History, ChevronDown, ChevronUp } from "lucide-react";
+import { Timer, Play, CheckCircle, XCircle, Loader2, History, ChevronDown, ChevronUp, AlertTriangle, Settings2 } from "lucide-react";
 import { useInferencePipeline, PipelineResult } from "@/hooks/useInferencePipeline";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 const STAGE_LABELS: Record<string, string> = {
   "1_profile": "Load Profile",
@@ -75,13 +76,31 @@ const LatencySparkline = ({ history }: { history: HistoryEntry[] }) => {
   );
 };
 
+const DEFAULT_THRESHOLD = 3000;
+const THRESHOLD_KEY = "acry-pipeline-latency-threshold";
+
 const PipelineLatencyMonitor = () => {
   const { data, loading, error, run } = useInferencePipeline();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [hasRun, setHasRun] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [threshold, setThreshold] = useState<number>(() => {
+    const saved = localStorage.getItem(THRESHOLD_KEY);
+    return saved ? Number(saved) : DEFAULT_THRESHOLD;
+  });
+  const [showThresholdEditor, setShowThresholdEditor] = useState(false);
+  const [thresholdInput, setThresholdInput] = useState(String(threshold));
+
+  const saveThreshold = () => {
+    const val = Math.max(500, Math.min(30000, Number(thresholdInput) || DEFAULT_THRESHOLD));
+    setThreshold(val);
+    setThresholdInput(String(val));
+    localStorage.setItem(THRESHOLD_KEY, String(val));
+    setShowThresholdEditor(false);
+  };
 
   const loadHistory = useCallback(async () => {
     if (!user) return;
@@ -100,11 +119,21 @@ const PipelineLatencyMonitor = () => {
     }
   }, [user]);
 
-  // Load history on mount
   useEffect(() => { loadHistory(); }, [loadHistory]);
-
-  // Reload history after a new run
   useEffect(() => { if (data) loadHistory(); }, [data, loadHistory]);
+
+  // Alert when latency exceeds threshold after a run
+  useEffect(() => {
+    if (!data) return;
+    const total = data.total_latency_ms;
+    if (total > threshold) {
+      toast({
+        title: "⚠️ Pipeline latency exceeded threshold",
+        description: `${total}ms > ${threshold}ms limit. Check slow stages.`,
+        variant: "destructive",
+      });
+    }
+  }, [data, threshold]);
 
   const handleRun = async () => {
     setHasRun(true);
@@ -123,6 +152,10 @@ const PipelineLatencyMonitor = () => {
   const lastLatency = history.length > 0 ? history[history.length - 1].latency_ms : null;
   const prevLatency = history.length > 1 ? history[history.length - 2].latency_ms : null;
   const trend = lastLatency && prevLatency ? lastLatency - prevLatency : null;
+  const exceeded = data ? data.total_latency_ms > threshold : false;
+  const slowStages = stages
+    ? Object.entries(stages).filter(([, s]) => s.latency_ms > threshold * 0.4).map(([k]) => STAGE_LABELS[k] || k)
+    : [];
 
   return (
     <motion.div
@@ -132,8 +165,8 @@ const PipelineLatencyMonitor = () => {
     >
       {/* Header */}
       <div className="p-4 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-          <Timer className="w-5 h-5 text-primary" />
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${exceeded ? "bg-destructive/15" : "bg-primary/15"}`}>
+          {exceeded ? <AlertTriangle className="w-5 h-5 text-destructive" /> : <Timer className="w-5 h-5 text-primary" />}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold text-foreground">Pipeline Latency</h3>
@@ -141,6 +174,13 @@ const PipelineLatencyMonitor = () => {
             {data ? `${data.total_latency_ms}ms total • v${data.pipeline_version}` : "Run the inference pipeline to see stage timings"}
           </p>
         </div>
+        <button
+          onClick={() => { setThresholdInput(String(threshold)); setShowThresholdEditor(v => !v); }}
+          className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          title="Configure alert threshold"
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+        </button>
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={handleRun}
@@ -155,6 +195,60 @@ const PipelineLatencyMonitor = () => {
           {loading ? "Running…" : "Run"}
         </motion.button>
       </div>
+
+      {/* Threshold editor */}
+      <AnimatePresence>
+        {showThresholdEditor && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-3 flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground shrink-0">Alert when &gt;</span>
+              <input
+                type="number"
+                value={thresholdInput}
+                onChange={e => setThresholdInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && saveThreshold()}
+                className="w-20 px-2 py-1 rounded-md bg-secondary/50 border border-border text-xs text-foreground tabular-nums text-center"
+                min={500}
+                max={30000}
+                step={500}
+              />
+              <span className="text-[10px] text-muted-foreground shrink-0">ms</span>
+              <button
+                onClick={saveThreshold}
+                className="px-2 py-1 rounded-md bg-primary/15 text-primary text-[10px] font-semibold hover:bg-primary/25 transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Threshold exceeded alert */}
+      {exceeded && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 mb-3 p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-2"
+        >
+          <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[11px] font-medium text-destructive">
+              Latency exceeded {threshold}ms threshold
+            </p>
+            {slowStages.length > 0 && (
+              <p className="text-[10px] text-destructive/80 mt-0.5">
+                Bottleneck: {slowStages.join(", ")}
+              </p>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Stage breakdown */}
       {stages && (
