@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check, CalendarCheck, Shield, Crown, Award } from "lucide-react";
+import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check, CalendarCheck, Shield, Crown, Award, ShieldAlert } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,7 @@ export interface PushNotifPrefs {
   brainUpdateReminders: boolean;
   weeklyInsights: boolean;
   dailyBriefing: boolean;
+  riskDigest: boolean;
 }
 
 const defaultPrefs: PushNotifPrefs = {
@@ -28,6 +29,7 @@ const defaultPrefs: PushNotifPrefs = {
   brainUpdateReminders: true,
   weeklyInsights: true,
   dailyBriefing: true,
+  riskDigest: true,
 };
 
 export function getPushNotifPrefs(): PushNotifPrefs {
@@ -246,6 +248,12 @@ const NotificationPreferencesPanel = () => {
       label: "Weekly insights",
       desc: "AI-generated study recommendations every Monday",
       key: "weeklyInsights" as const,
+    },
+    {
+      icon: ShieldAlert,
+      label: "Daily risk digest",
+      desc: "At-risk topics and quick study plan every morning",
+      key: "riskDigest" as const,
     },
     {
       icon: Brain,
