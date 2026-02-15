@@ -144,13 +144,52 @@ const NotificationPreferencesPanel = () => {
 
         if (!alreadyToday) {
           setCache(todayKey, true);
-          setBriefingStreak(prev => prev + 1);
-          confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.7 },
-            colors: ["hsl(var(--primary))", "hsl(var(--accent))", "#fbbf24", "#60a5fa"],
-          });
+          const newStreak = briefingStreak + 1;
+          setBriefingStreak(newStreak);
+
+          const milestones = [7, 14, 30];
+          const isMilestone = milestones.includes(newStreak);
+
+          if (isMilestone) {
+            // Big celebration for milestones
+            const duration = 2500;
+            const end = Date.now() + duration;
+            const milestoneColors = newStreak >= 30
+              ? ["#fbbf24", "#f59e0b", "#eab308", "#facc15", "#fef08a"]
+              : newStreak >= 14
+              ? ["#a78bfa", "#8b5cf6", "#7c3aed", "#c084fc", "#e9d5ff"]
+              : ["#60a5fa", "#3b82f6", "#2563eb", "#93c5fd", "#bfdbfe"];
+
+            const frame = () => {
+              confetti({
+                particleCount: 3,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 },
+                colors: milestoneColors,
+              });
+              confetti({
+                particleCount: 3,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 },
+                colors: milestoneColors,
+              });
+              if (Date.now() < end) requestAnimationFrame(frame);
+            };
+            frame();
+
+            const emoji = newStreak >= 30 ? "👑" : newStreak >= 14 ? "⚡" : "🔥";
+            toast({ title: `${emoji} ${newStreak}-day briefing streak!`, description: "You're on fire! Keep that brain sharp." });
+          } else {
+            // Normal confetti
+            confetti({
+              particleCount: 80,
+              spread: 70,
+              origin: { y: 0.7 },
+              colors: ["hsl(var(--primary))", "hsl(var(--accent))", "#fbbf24", "#60a5fa"],
+            });
+          }
         }
       } else {
         toast({ title: "Could not generate briefing", variant: "destructive" });
