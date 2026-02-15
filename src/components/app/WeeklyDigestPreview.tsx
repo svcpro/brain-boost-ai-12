@@ -368,6 +368,14 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
           <p className="text-[9px] text-muted-foreground mt-1">
             {planProgress.completed}/{planProgress.total} sessions completed
           </p>
+          {pct !== null && pct < 50 && (
+            <div className="mt-2 flex items-center gap-1.5 rounded-md bg-warning/10 border border-warning/20 px-2 py-1.5">
+              <AlertTriangle className="w-3 h-3 text-warning shrink-0" />
+              <span className="text-[10px] text-warning">
+                You're behind on your plan — try completing {Math.min(3, planProgress.total - planProgress.completed)} sessions today to catch up! 💪
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
