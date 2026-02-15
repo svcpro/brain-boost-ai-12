@@ -595,6 +595,26 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   const [importDiff, setImportDiff] = useState<{ flag_key: string; label: string; from: boolean; to: boolean }[] | null>(null);
   const [pendingImport, setPendingImport] = useState<{ flag_key: string; enabled: boolean }[] | null>(null);
   const [lastToggle, setLastToggle] = useState<{ key: string; previousEnabled: boolean } | null>(null);
+  const [changelog, setChangelog] = useState<any[]>([]);
+  const [showChangelog, setShowChangelog] = useState(false);
+
+  const fetchChangelog = useCallback(async () => {
+    const { data } = await supabase
+      .from("admin_audit_logs")
+      .select("*")
+      .eq("target_type", "feature_flags")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (!data) return;
+    // Fetch admin display names
+    const adminIds = [...new Set(data.map(d => d.admin_id))];
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", adminIds);
+    const nameMap = new Map((profiles || []).map(p => [p.id, p.display_name || "Admin"]));
+    setChangelog(data.map(d => ({ ...d, admin_name: nameMap.get(d.admin_id) || "Unknown" })));
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -636,6 +656,7 @@ const SettingsSection = ({ toast }: { toast: any }) => {
       details: { flag_key: key, enabled },
     } as any);
     if (!isUndo) toast({ title: enabled ? "✅ Enabled" : "🚫 Disabled", description: (flags.find(f => f.flag_key === key)?.label || key) });
+    if (showChangelog) fetchChangelog();
   };
 
   // Bulk toggle all section flags under a tab
@@ -979,6 +1000,57 @@ const SettingsSection = ({ toast }: { toast: any }) => {
           })}
         </div>
       )}
+
+      {/* Changelog */}
+      <div className="pt-2">
+        <button
+          onClick={() => { setShowChangelog(!showChangelog); if (!showChangelog && changelog.length === 0) fetchChangelog(); }}
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ScrollText className="w-3.5 h-3.5" />
+          {showChangelog ? "Hide changelog" : "Show changelog"}
+        </button>
+        <AnimatePresence>
+          {showChangelog && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden mt-2"
+            >
+              {changelog.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">No changes recorded yet</p>
+              ) : (
+                <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+                  {changelog.map(log => {
+                    const isEnabled = log.action === "feature_enabled";
+                    const flagLabel = (log.details as any)?.flag_key || log.target_id || "unknown";
+                    const time = new Date(log.created_at);
+                    const timeStr = time.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                    return (
+                      <div key={log.id} className="flex items-start gap-2 py-1.5 border-b border-border/50 last:border-0">
+                        <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${isEnabled ? "bg-primary" : "bg-muted-foreground"}`} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] text-foreground">
+                            <span className="font-medium">{log.admin_name}</span>
+                            {" "}
+                            <span className={isEnabled ? "text-primary" : "text-muted-foreground"}>
+                              {isEnabled ? "enabled" : "disabled"}
+                            </span>
+                            {" "}
+                            <span className="font-mono text-muted-foreground">{flagLabel}</span>
+                          </p>
+                          <p className="text-[9px] text-muted-foreground">{timeStr}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
