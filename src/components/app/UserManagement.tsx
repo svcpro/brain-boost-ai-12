@@ -22,6 +22,9 @@ interface UserProfile {
   avatar_url: string | null;
   opt_in_leaderboard: boolean;
   email_notifications_enabled: boolean;
+  is_banned: boolean;
+  banned_at: string | null;
+  ban_reason: string | null;
 }
 
 interface UserSubscription {
@@ -74,7 +77,7 @@ const UserManagement = () => {
 
   const fetchData = useCallback(async () => {
     const [usersRes, subsRes, plansRes] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes, created_at, updated_at, avatar_url, opt_in_leaderboard, email_notifications_enabled").order("created_at", { ascending: false }).limit(500),
+      supabase.from("profiles").select("id, display_name, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes, created_at, updated_at, avatar_url, opt_in_leaderboard, email_notifications_enabled, is_banned, banned_at, ban_reason").order("created_at", { ascending: false }).limit(500),
       supabase.from("user_subscriptions").select("id, user_id, plan_id, status, amount, currency, expires_at, created_at").order("created_at", { ascending: false }),
       supabase.from("subscription_plans").select("id, plan_key, name, price, currency").order("sort_order"),
     ]);
@@ -172,13 +175,15 @@ const UserManagement = () => {
               onClick={() => setSelectedUser(u)}
               className="glass rounded-xl p-3 neural-border flex items-center gap-3 cursor-pointer hover:bg-secondary/50 transition-colors group"
             >
-              <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold text-primary">{(u.display_name || "?")[0].toUpperCase()}</span>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 relative ${u.is_banned ? 'bg-destructive/15' : 'bg-primary/15'}">
+                <span className={`text-sm font-bold ${u.is_banned ? 'text-destructive' : 'text-primary'}`}>{(u.display_name || "?")[0].toUpperCase()}</span>
+                {u.is_banned && <Ban className="w-3 h-3 text-destructive absolute -bottom-0.5 -right-0.5" />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-foreground truncate">{u.display_name || "Anonymous"}</p>
                   <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${PLAN_COLORS[planKey] || PLAN_COLORS.free}`}>{planName}</span>
+                  {u.is_banned && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">Banned</span>}
                 </div>
                 <p className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"} · Goal: {u.daily_study_goal_minutes}min/day · Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</p>
               </div>
@@ -211,6 +216,10 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   const [statsLoading, setStatsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
+  const [banReason, setBanReason] = useState("");
+  const [showBanForm, setShowBanForm] = useState(false);
+  const [banning, setBanning] = useState(false);
+  const [isBanned, setIsBanned] = useState(user.is_banned);
 
   const userSubs = subscriptions.filter(s => s.user_id === user.id);
   const activeSub = userSubs.find(s => s.status === "active");
@@ -282,6 +291,25 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
 
   const totalHours = stats ? Math.round(stats.totalStudyMinutes / 60) : 0;
 
+  const toggleBan = async (ban: boolean) => {
+    setBanning(true);
+    const updateData: any = {
+      is_banned: ban,
+      banned_at: ban ? new Date().toISOString() : null,
+      ban_reason: ban ? (banReason || "Banned by admin") : null,
+    };
+    const { error } = await supabase.from("profiles").update(updateData).eq("id", user.id);
+    setBanning(false);
+    if (error) {
+      toast({ title: `Failed to ${ban ? "ban" : "unban"} user`, variant: "destructive" });
+      return;
+    }
+    setIsBanned(ban);
+    setShowBanForm(false);
+    setBanReason("");
+    toast({ title: ban ? "User banned" : "User unbanned" });
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -290,7 +318,10 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
           <ArrowLeft className="w-4 h-4 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-foreground">{user.display_name || "Anonymous"}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-foreground">{user.display_name || "Anonymous"}</h2>
+            {isBanned && <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-destructive/15 text-destructive">BANNED</span>}
+          </div>
           <p className="text-[10px] text-muted-foreground font-mono">{user.id}</p>
         </div>
         {!editing ? (
@@ -443,6 +474,80 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
                 );
               })}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Ban / Unban Section */}
+      <div className={`glass rounded-xl neural-border p-4 space-y-3 ${isBanned ? 'border-destructive/30' : ''}`}>
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Ban className="w-4 h-4 text-destructive" /> Account Status
+        </h3>
+
+        {isBanned ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 bg-destructive/10 rounded-lg">
+              <XCircle className="w-5 h-5 text-destructive shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-destructive">User is Banned</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {user.ban_reason && `Reason: ${user.ban_reason} · `}
+                  {user.banned_at && `Banned ${formatDistanceToNow(new Date(user.banned_at), { addSuffix: true })}`}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => toggleBan(false)}
+              disabled={banning}
+              className="px-4 py-2 bg-success/15 text-success rounded-lg text-xs font-medium hover:bg-success/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {banning ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Unban User
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 bg-success/10 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-success">Account Active</p>
+                <p className="text-[10px] text-muted-foreground">This user can access the app normally.</p>
+              </div>
+            </div>
+
+            {!showBanForm ? (
+              <button
+                onClick={() => setShowBanForm(true)}
+                className="px-4 py-2 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors flex items-center gap-1.5"
+              >
+                <Ban className="w-3.5 h-3.5" /> Ban User
+              </button>
+            ) : (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Ban Reason</label>
+                  <input
+                    value={banReason}
+                    onChange={e => setBanReason(e.target.value)}
+                    placeholder="e.g. Violation of terms of service"
+                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-destructive outline-none"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setShowBanForm(false); setBanReason(""); }} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to ban "${user.display_name || "this user"}"?`)) {
+                        toggleBan(true);
+                      }
+                    }}
+                    disabled={banning}
+                    className="px-4 py-1.5 bg-destructive text-destructive-foreground rounded-lg text-xs font-medium flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {banning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Ban className="w-3 h-3" />} Confirm Ban
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </div>
         )}
       </div>
