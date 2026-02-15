@@ -591,6 +591,7 @@ const SettingsSection = ({ toast }: { toast: any }) => {
   const [expandedTab, setExpandedTab] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [lastToggle, setLastToggle] = useState<{ key: string; previousEnabled: boolean } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -600,7 +601,25 @@ const SettingsSection = ({ toast }: { toast: any }) => {
     })();
   }, []);
 
-  const toggleFlag = async (key: string, enabled: boolean) => {
+  // Ctrl+Z undo last toggle
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && lastToggle) {
+        e.preventDefault();
+        toggleFlag(lastToggle.key, lastToggle.previousEnabled, true);
+        setLastToggle(null);
+        toast({ title: "↩️ Last toggle undone" });
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lastToggle]);
+
+  const toggleFlag = async (key: string, enabled: boolean, isUndo = false) => {
+    if (!isUndo) {
+      const prev = flags.find(f => f.flag_key === key);
+      if (prev) setLastToggle({ key, previousEnabled: prev.enabled });
+    }
     await supabase
       .from("feature_flags")
       .update({ enabled, updated_at: new Date().toISOString() } as any)
@@ -613,7 +632,7 @@ const SettingsSection = ({ toast }: { toast: any }) => {
       target_id: key,
       details: { flag_key: key, enabled },
     } as any);
-    toast({ title: enabled ? "✅ Enabled" : "🚫 Disabled", description: (flags.find(f => f.flag_key === key)?.label || key) });
+    if (!isUndo) toast({ title: enabled ? "✅ Enabled" : "🚫 Disabled", description: (flags.find(f => f.flag_key === key)?.label || key) });
   };
 
   // Bulk toggle all section flags under a tab
