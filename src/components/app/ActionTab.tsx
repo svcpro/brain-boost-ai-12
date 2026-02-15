@@ -852,8 +852,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
         </AnimatePresence>
       </motion.div>
 
-      <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} />
-      <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} />
+      <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
+      <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} />
     </div>
   );

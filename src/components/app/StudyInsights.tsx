@@ -79,11 +79,27 @@ const StudyInsights = ({ onReviewTopic, refreshKey }: StudyInsightsProps) => {
     checkAndLoad();
   }, [user]);
 
-  // Auto-refresh when refreshKey changes (e.g. after logging a study session)
+  // Auto-refresh when refreshKey changes (e.g. after logging a study session from HomeTab)
   useEffect(() => {
     if (!user || !refreshKey) return;
     fetchInsights(true);
   }, [refreshKey]);
+
+  // Listen for cross-tab/cross-component session-complete events
+  useEffect(() => {
+    const handler = () => {
+      const ts = localStorage.getItem("insights-refresh-signal");
+      if (ts) fetchInsights(true);
+    };
+    window.addEventListener("storage", handler);
+    // Also listen for same-tab custom event
+    const customHandler = () => fetchInsights(true);
+    window.addEventListener("insights-refresh", customHandler);
+    return () => {
+      window.removeEventListener("storage", handler);
+      window.removeEventListener("insights-refresh", customHandler);
+    };
+  }, [user]);
 
   const fetchInsights = useCallback(async (silent = false) => {
     if (!user) return;

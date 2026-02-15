@@ -17,6 +17,7 @@ const POMODORO_CYCLES_BEFORE_LONG = 4;
 interface FocusModeSessionProps {
   open: boolean;
   onClose: () => void;
+  onSessionComplete?: () => void;
   initialSubject?: string;
   initialTopic?: string;
   autoStart?: boolean;
@@ -35,7 +36,7 @@ interface SessionSummary {
   cyclesCompleted: number;
 }
 
-const FocusModeSession = ({ open, onClose, initialSubject, initialTopic, autoStart }: FocusModeSessionProps) => {
+const FocusModeSession = ({ open, onClose, onSessionComplete, initialSubject, initialTopic, autoStart }: FocusModeSessionProps) => {
   const { logStudy } = useStudyLogger();
   const { toast } = useToast();
   const ambient = useAmbientSound();
@@ -253,6 +254,7 @@ const FocusModeSession = ({ open, onClose, initialSubject, initialTopic, autoSta
     setSummary((prev) => prev ? { ...prev, strengthAfter } : prev);
 
     setLogging(false);
+    onSessionComplete?.();
     callback();
   };
 

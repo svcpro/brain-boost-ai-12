@@ -695,6 +695,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <FocusModeSession
         open={!!insightReviewTopic}
         onClose={() => { setInsightReviewTopic(null); setInsightReviewSubject(undefined); }}
+        onSessionComplete={() => setInsightsRefreshKey(k => k + 1)}
         initialSubject={insightReviewSubject}
         initialTopic={insightReviewTopic || undefined}
         autoStart

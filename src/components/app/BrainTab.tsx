@@ -449,6 +449,7 @@ const BrainTab = () => {
       <FocusModeSession
         open={!!reviewSession}
         onClose={() => { setReviewSession(null); refreshAll(); }}
+        onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))}
         initialSubject={reviewSession?.subject}
         initialTopic={reviewSession?.topic}
       />
