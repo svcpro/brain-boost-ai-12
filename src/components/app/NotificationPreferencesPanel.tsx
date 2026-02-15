@@ -189,38 +189,57 @@ const NotificationPreferencesPanel = () => {
           </button>
           {briefingText && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="rounded-lg bg-accent/50 p-2.5 space-y-2"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="rounded-xl overflow-hidden border border-border shadow-lg"
             >
-              <p className="text-[11px] text-foreground leading-relaxed">{briefingText}</p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(briefingText);
-                    setCopied(true);
-                    toast({ title: "Copied to clipboard!" });
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                  className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                  {copied ? "Copied" : "Copy"}
-                </button>
-                {typeof navigator.share === "function" && (
+              {/* Gradient header */}
+              <div className="bg-gradient-to-r from-primary via-primary/80 to-accent px-3 py-2 flex items-center gap-2">
+                <Brain className="w-4 h-4 text-primary-foreground" />
+                <span className="text-[11px] font-semibold text-primary-foreground tracking-wide">
+                  Brain Briefing
+                </span>
+                <span className="ml-auto text-[9px] text-primary-foreground/70">
+                  {new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+
+              {/* Body */}
+              <div className="bg-card p-3 space-y-2.5">
+                <p className="text-[11px] text-foreground leading-relaxed whitespace-pre-wrap">
+                  {briefingText}
+                </p>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 pt-1 border-t border-border">
                   <button
-                    onClick={() => {
-                      navigator.share({
-                        title: "🧠 My Brain Briefing",
-                        text: briefingText,
-                      }).catch(() => {});
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(`🧠 Brain Briefing\n\n${briefingText}`);
+                      setCopied(true);
+                      toast({ title: "Copied to clipboard!" });
+                      setTimeout(() => setCopied(false), 2000);
                     }}
                     className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Share2 className="w-3 h-3" />
-                    Share
+                    {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3" />}
+                    {copied ? "Copied!" : "Copy"}
                   </button>
-                )}
+                  {typeof navigator.share === "function" && (
+                    <button
+                      onClick={() => {
+                        navigator.share({
+                          title: "🧠 My Brain Briefing",
+                          text: `🧠 Brain Briefing\n\n${briefingText}`,
+                        }).catch(() => {});
+                      }}
+                      className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Share2 className="w-3 h-3" />
+                      Share
+                    </button>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}
