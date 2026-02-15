@@ -272,6 +272,10 @@ const NotificationPreferencesPanel = () => {
                 ? { icon: Shield, label: "Committed", bg: "bg-blue-500/15", text: "text-blue-600 dark:text-blue-400", ring: "ring-blue-500/30" }
                 : { icon: CalendarCheck, label: "", bg: "bg-primary/10", text: "text-primary", ring: "" };
               const TierIcon = tier.icon;
+              const tierThresholds = [0, 7, 14, 30];
+              const currentFloor = briefingStreak >= 30 ? 30 : briefingStreak >= 14 ? 14 : briefingStreak >= 7 ? 7 : 0;
+              const nextCeiling = briefingStreak >= 30 ? 30 : briefingStreak >= 14 ? 30 : briefingStreak >= 7 ? 14 : 7;
+              const progress = briefingStreak >= 30 ? 100 : ((briefingStreak - currentFloor) / (nextCeiling - currentFloor)) * 100;
               const nextTier = briefingStreak >= 30
                 ? null
                 : briefingStreak >= 14
@@ -282,6 +286,13 @@ const NotificationPreferencesPanel = () => {
               const tooltipText = nextTier
                 ? `${nextTier.daysLeft} more day${nextTier.daysLeft !== 1 ? "s" : ""} to ${nextTier.name}`
                 : "🎉 Max tier reached!";
+              const barColor = briefingStreak >= 30
+                ? "bg-yellow-500"
+                : briefingStreak >= 14
+                ? "bg-purple-500"
+                : briefingStreak >= 7
+                ? "bg-blue-500"
+                : "bg-primary";
               return (
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
@@ -290,13 +301,23 @@ const NotificationPreferencesPanel = () => {
                         key={tier.label}
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 cursor-default ${tier.bg} ${tier.ring ? `ring-1 ${tier.ring}` : ""}`}
+                        className={`flex flex-col gap-1 rounded-full px-2 py-0.5 cursor-default ${tier.bg} ${tier.ring ? `ring-1 ${tier.ring}` : ""}`}
                       >
-                        <TierIcon className={`w-3 h-3 ${tier.text}`} />
-                        <span className={`text-[10px] font-semibold ${tier.text}`}>
-                          {briefingStreak} day{briefingStreak !== 1 ? "s" : ""}
-                          {tier.label ? ` · ${tier.label}` : " streak"}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <TierIcon className={`w-3 h-3 ${tier.text}`} />
+                          <span className={`text-[10px] font-semibold ${tier.text}`}>
+                            {briefingStreak} day{briefingStreak !== 1 ? "s" : ""}
+                            {tier.label ? ` · ${tier.label}` : " streak"}
+                          </span>
+                        </div>
+                        <div className="w-full h-1 rounded-full bg-foreground/10 overflow-hidden">
+                          <motion.div
+                            className={`h-full rounded-full ${barColor}`}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ duration: 0.6, ease: "easeOut" }}
+                          />
+                        </div>
                       </motion.div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">
