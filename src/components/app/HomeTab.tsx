@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // force rebuild
-import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight, User } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Brain, AlertTriangle, Target, Calendar, CheckCircle, Wrench, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronRight, User, BookOpen, Plus, Sparkles } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -274,6 +274,55 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
       </motion.div>
+
+      {/* Welcome Onboarding Card for new users */}
+      {!hasTopics && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-2xl neural-border overflow-hidden bg-gradient-to-br from-primary/10 via-background to-primary/5"
+        >
+          <div className="p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Welcome to Your AI Study Brain!</h3>
+                <p className="text-[10px] text-muted-foreground">3 quick steps to get started</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { step: 1, icon: BookOpen, title: "Add your first subject", desc: "e.g. Physics, Chemistry, Biology" },
+                { step: 2, icon: Plus, title: "Add topics under it", desc: "e.g. Thermodynamics, Organic Chemistry" },
+                { step: 3, icon: Zap, title: "Log a study session", desc: "Tap the ⚡ button to start tracking" },
+              ].map((item) => (
+                <div key={item.step} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
+                  <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold text-primary">{item.step}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-foreground">{item.title}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <item.icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => onNavigateToBrain?.()}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Your First Subject
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Mini Brain Health Badge */}
       {hasTopics && prediction && (
