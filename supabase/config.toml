@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.ai-self-evaluate]
 verify_jwt = false
+
+[functions.scheduled-benchmark-check]
+verify_jwt = false
