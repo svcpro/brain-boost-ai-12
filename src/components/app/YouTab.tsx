@@ -28,6 +28,7 @@ import NotificationPreferencesPanel from "./NotificationPreferencesPanel";
 import NotificationHistory from "./NotificationHistory";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import MLAdminDashboard from "./MLAdminDashboard";
+import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 
 interface Topic {
   id: string;
@@ -95,6 +96,7 @@ const SoundPreviewButton = ({ label, onPlay, duration }: { label: string; onPlay
 };
 
 const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscription, onSubscriptionOpened, autoOpenNotifHistory, onNotifHistoryOpened }: YouTabProps) => {
+  const { isEnabled } = useFeatureFlagContext();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -499,6 +501,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   return (
     <div className="px-6 py-6 space-y-5">
       {/* Profile Card */}
+      {isEnabled("you_profile") && (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -627,8 +630,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           </div>
         </div>
       </motion.div>
+      )}
 
       {/* Brain Level + Plan */}
+      {isEnabled("you_level_plan") && (
       <div className="grid grid-cols-2 gap-3">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -681,11 +686,13 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           <p className="text-[9px] text-primary mt-1">Manage →</p>
         </motion.button>
       </div>
+      )}
 
       {/* Badge Gallery */}
-      <BadgeGallery />
+      {isEnabled("you_badges") && <BadgeGallery />}
 
       {/* Study & Learning Section */}
+      {isEnabled("you_study_learning") && (
       <div className="space-y-1">
         <SectionHeader icon={BookOpen} label="Study & Learning" delay={0.2} />
         {studySection.map((item, i) => (
@@ -902,8 +909,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           )}
         </AnimatePresence>
       </div>
+      )}
 
       {/* Notifications Section */}
+      {isEnabled("you_notifications") && (
       <div className="space-y-1">
         <SectionHeader icon={Bell} label="Notifications" delay={0.25} />
         {notificationSection.map((item, i) => (
@@ -1285,8 +1294,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           )}
         </AnimatePresence>
       </div>
+      )}
 
       {/* Data & Account Section */}
+      {isEnabled("you_data") && (
       <div className="space-y-1">
         <SectionHeader icon={Database} label="Data & Account" delay={0.3} />
         {dataSection.map((item, i) => (
@@ -1316,6 +1327,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           {showPrivacy && <PrivacySecurity />}
         </AnimatePresence>
       </div>
+      )}
 
       {/* Subscription Plan Modal */}
       <AnimatePresence>

@@ -18,6 +18,7 @@ import AIPerformanceCard from "./AIPerformanceCard";
 import PipelineLatencyMonitor from "./PipelineLatencyMonitor";
 import CognitiveTwinDashboard from "./CognitiveTwinDashboard";
 import { formatDistanceToNow, isPast, isToday } from "date-fns";
+import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 
 interface TopicInfo {
   id: string;
@@ -227,6 +228,7 @@ const FeatureCard = ({ icon: Icon, label, desc, active, onClick, delay }: { icon
 
 // --- Main component ---
 const BrainTab = () => {
+  const { isEnabled } = useFeatureFlagContext();
   const { toast } = useToast();
   const { user } = useAuth();
   const { prediction, loading, predict } = useMemoryEngine();
@@ -322,6 +324,7 @@ const BrainTab = () => {
       </motion.div>
 
       {/* Score Card */}
+      {isEnabled("brain_health_score") && (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -371,9 +374,10 @@ const BrainTab = () => {
         {/* 7-Day Sparkline */}
         {hasData && <BrainHealthSparkline />}
       </motion.div>
+      )}
 
       {/* Section: Subjects */}
-      {hasData && (
+      {isEnabled("brain_subjects") && hasData && (
         <div>
           <motion.div
             initial={{ opacity: 0 }}
@@ -412,18 +416,19 @@ const BrainTab = () => {
       )}
 
       {/* Cognitive Digital Twin & Meta-Learning */}
-      <CognitiveTwinDashboard />
+      {isEnabled("brain_cognitive_twin") && <CognitiveTwinDashboard />}
 
       {/* AI Brain Agent */}
-      <AIBrainAgent />
+      {isEnabled("brain_ai_agent") && <AIBrainAgent />}
 
       {/* Global Collective Intelligence */}
-      <GlobalIntelligenceCard />
-      <AIPerformanceCard />
+      {isEnabled("brain_global_intel") && <GlobalIntelligenceCard />}
+      {isEnabled("brain_ai_performance") && <AIPerformanceCard />}
 
       {/* Pipeline Latency Monitor */}
-      <PipelineLatencyMonitor />
+      {isEnabled("brain_pipeline") && <PipelineLatencyMonitor />}
 
+      {isEnabled("brain_tools") && (
       <div>
         <motion.div
           initial={{ opacity: 0 }}
@@ -441,6 +446,7 @@ const BrainTab = () => {
           <FeatureCard icon={Clock} label="Passive Learning" desc="Auto detection" active={showPassiveLearning} onClick={() => setShowPassiveLearning(true)} delay={0.45} />
         </div>
       </div>
+      )}
 
       {/* Modals & Panels */}
       {showGraph && <KnowledgeGraph onClose={() => setShowGraph(false)} />}
