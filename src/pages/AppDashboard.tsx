@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Bell, Shield } from "lucide-react";
+import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Bell, Shield, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
@@ -30,6 +30,7 @@ const tabs = [
   { id: "home", label: "Home", icon: Home },
   { id: "action", label: "Action", icon: Zap },
   { id: "brain", label: "Brain", icon: Brain },
+  { id: "community", label: "Community", icon: Users },
   { id: "progress", label: "Progress", icon: TrendingUp },
   { id: "you", label: "You", icon: User },
 ];
@@ -190,6 +191,7 @@ const AppDashboard = () => {
       case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} onNavigateToBrain={() => setActiveTab("brain")} onNavigateToYou={() => setActiveTab("you")} />;
       case "action": return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
+      case "community": { navigate("/community"); return null; }
       case "progress": return <ProgressTab />;
       case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
       default: return null;
@@ -266,7 +268,7 @@ const AppDashboard = () => {
                   }`}
                 >
                   <div className="relative">
-                    <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""}`} />
+                    <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""} ${tab.id === "community" ? "animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
                     {tab.id === "home" && recCount > 0 && (
                       <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
                         {recCount > 9 ? "9+" : recCount}
