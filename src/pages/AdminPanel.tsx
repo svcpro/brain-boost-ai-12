@@ -7,7 +7,7 @@ import {
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check,
-  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare
+  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare, Globe
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,8 +32,9 @@ import AIModelManagement from "@/components/admin/AIModelManagement";
 import SystemMonitor from "@/components/admin/SystemMonitor";
 import AdminProfile from "@/components/admin/AdminProfile";
 import ChatManagement from "@/components/admin/ChatManagement";
+import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -63,6 +64,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
+  { key: "services", label: "3rd Party Services", icon: Globe, roles: ["super_admin", "admin", "api_admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
   { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
@@ -198,6 +200,7 @@ const AdminPanel = () => {
             {section === "subscriptions" && <SubscriptionsSection />}
             {section === "plan_gating" && <PlanGatingManagement />}
             {section === "apis" && <ApiManagement />}
+            {section === "services" && <ThirdPartyServices />}
             {section === "notifications" && <AdminNotificationCenter />}
             {section === "campaigns" && <CampaignManager />}
             {section === "monitoring" && <SystemMonitor />}
