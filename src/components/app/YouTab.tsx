@@ -29,6 +29,17 @@ import NotificationHistory from "./NotificationHistory";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import MLAdminDashboard from "./MLAdminDashboard";
 import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
+import PlanGateWrapper from "./PlanGateWrapper";
+import { usePlanGatingContext } from "@/hooks/usePlanGating";
+
+interface MenuItemData {
+  icon: any;
+  label: string;
+  value: string;
+  onClick: () => void;
+  isOpen: boolean;
+  gateKey?: string;
+}
 
 interface Topic {
   id: string;
@@ -436,55 +447,65 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     { icon: Bell, label: "Notification History", value: "", onClick: () => setShowNotifHistory(!showNotifHistory), isOpen: showNotifHistory },
     { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting), isOpen: showEmailSetting },
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting), isOpen: showFeedbackSetting },
-    { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings), isOpen: showVoiceSettings },
+    { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings), isOpen: showVoiceSettings, gateKey: "voice_notifications" },
   ];
 
   const dataSection = [
-    { icon: Cpu, label: "ML Control Panel", value: "", onClick: () => setShowMLDashboard(true), isOpen: false },
+    { icon: Cpu, label: "ML Control Panel", value: "", onClick: () => setShowMLDashboard(true), isOpen: false, gateKey: "ml_dashboard" },
     { icon: Trash2, label: "Trash", value: "__trash__", onClick: () => setShowTrash(!showTrash), isOpen: showTrash },
-    { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup), isOpen: showDataBackup },
+    { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup), isOpen: showDataBackup, gateKey: "data_backup" },
     { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy), isOpen: showPrivacy },
   ];
 
-  const MenuItem = ({ item, index }: { item: typeof studySection[0]; index: number }) => (
-    <motion.button
-      initial={{ opacity: 0, x: -12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.05 * index, duration: 0.3 }}
-      onClick={item.onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-        item.isOpen ? "bg-primary/5 border border-primary/20" : "hover:bg-secondary/30"
-      }`}
-    >
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-        item.isOpen ? "bg-primary/15" : "bg-secondary/50"
-      }`}>
-        <item.icon className={`w-4 h-4 ${item.isOpen ? "text-primary" : "text-muted-foreground"}`} />
-      </div>
-      <span className="flex-1 text-left text-sm text-foreground font-medium">{item.label}</span>
-      {item.value === "__trash__" ? (
-        <AnimatePresence mode="wait">
-          {trashCount > 0 && (
-            <motion.span
-              key={trashCount}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.5, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 500, damping: 20 }}
-              className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold px-1.5"
-            >
-              {trashCount}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      ) : item.value ? (
-        <span className="text-[11px] text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-md">{item.value}</span>
-      ) : null}
-      <motion.div animate={{ rotate: item.isOpen ? 90 : 0 }} transition={{ duration: 0.2 }}>
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-      </motion.div>
-    </motion.button>
-  );
+  const MenuItem = ({ item, index }: { item: MenuItemData; index: number }) => {
+    const { canAccess, getRequiredPlan } = usePlanGatingContext();
+    const gated = item.gateKey ? !canAccess(item.gateKey) : false;
+    const requiredPlan = item.gateKey ? getRequiredPlan(item.gateKey) : null;
+    
+    return (
+      <motion.button
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.05 * index, duration: 0.3 }}
+        onClick={gated ? () => setShowSubscription(true) : item.onClick}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+          gated ? "opacity-60" : item.isOpen ? "bg-primary/5 border border-primary/20" : "hover:bg-secondary/30"
+        }`}
+      >
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+          item.isOpen ? "bg-primary/15" : "bg-secondary/50"
+        }`}>
+          <item.icon className={`w-4 h-4 ${item.isOpen ? "text-primary" : "text-muted-foreground"}`} />
+        </div>
+        <span className="flex-1 text-left text-sm text-foreground font-medium">{item.label}</span>
+        {gated ? (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+            {requiredPlan === "ultra" ? "Ultra" : "Pro"}
+          </span>
+        ) : item.value === "__trash__" ? (
+          <AnimatePresence mode="wait">
+            {trashCount > 0 && (
+              <motion.span
+                key={trashCount}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold px-1.5"
+              >
+                {trashCount}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        ) : item.value ? (
+          <span className="text-[11px] text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-md">{item.value}</span>
+        ) : null}
+        <motion.div animate={{ rotate: item.isOpen ? 90 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        </motion.div>
+      </motion.button>
+    );
+  };
 
   const SectionHeader = ({ icon: Icon, label, delay }: { icon: any; label: string; delay: number }) => (
     <motion.div

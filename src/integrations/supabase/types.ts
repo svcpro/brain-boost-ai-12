@@ -1089,6 +1089,45 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_feature_gates: {
+        Row: {
+          created_at: string
+          feature_category: string
+          feature_key: string
+          feature_label: string
+          free_enabled: boolean
+          id: string
+          pro_enabled: boolean
+          sort_order: number
+          ultra_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          feature_category?: string
+          feature_key: string
+          feature_label: string
+          free_enabled?: boolean
+          id?: string
+          pro_enabled?: boolean
+          sort_order?: number
+          ultra_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          feature_category?: string
+          feature_key?: string
+          feature_label?: string
+          free_enabled?: boolean
+          id?: string
+          pro_enabled?: boolean
+          sort_order?: number
+          ultra_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       plan_quality_logs: {
         Row: {
           created_at: string

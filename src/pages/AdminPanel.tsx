@@ -26,8 +26,9 @@ import UserManagement from "@/components/app/UserManagement";
 import AdminNotificationCenter from "@/components/app/AdminNotificationCenter";
 import CampaignManager from "@/components/app/CampaignManager";
 import LeaderboardManagement from "@/components/app/LeaderboardManagement";
+import PlanGatingManagement from "@/components/app/PlanGatingManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "apis" | "notifications" | "campaigns" | "admins" | "audit" | "settings";
+type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "admins" | "audit" | "settings";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -52,6 +53,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
   { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
+  { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
@@ -177,6 +179,7 @@ const AdminPanel = () => {
             {section === "knowledge" && <KnowledgeSection />}
             {section === "leaderboard" && <LeaderboardManagement />}
             {section === "subscriptions" && <SubscriptionsSection />}
+            {section === "plan_gating" && <PlanGatingManagement />}
             {section === "apis" && <ApiManagement />}
             {section === "notifications" && <AdminNotificationCenter />}
             {section === "campaigns" && <CampaignManager />}
