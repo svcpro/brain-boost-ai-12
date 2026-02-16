@@ -149,6 +149,55 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
 
+  // ─── Real-time campaign updates ───
+  const [liveUpdates, setLiveUpdates] = useState<{ id: string; field: string; value: any; at: Date }[]>([]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('campaign-live-tracking')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'campaigns' }, (payload) => {
+        const updated = payload.new as any;
+        setCampaigns(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+        setLiveUpdates(prev => [
+          { id: updated.id, field: 'status', value: updated.status, at: new Date() },
+          ...prev.slice(0, 19),
+        ]);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'campaigns' }, (payload) => {
+        const newCamp = payload.new as any;
+        setCampaigns(prev => [newCamp, ...prev]);
+        setLiveUpdates(prev => [
+          { id: newCamp.id, field: 'created', value: newCamp.name, at: new Date() },
+          ...prev.slice(0, 19),
+        ]);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'campaign_recipients' }, (payload) => {
+        const rec = payload.new as any;
+        // Increment delivered count live
+        setCampaigns(prev => prev.map(c => {
+          if (c.id === rec.campaign_id && rec.status === 'delivered') {
+            return { ...c, delivered_count: (c.delivered_count || 0) + 1 };
+          }
+          return c;
+        }));
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'campaign_recipients' }, (payload) => {
+        const rec = payload.new as any;
+        setCampaigns(prev => prev.map(c => {
+          if (c.id === rec.campaign_id) {
+            const updates: any = {};
+            if (rec.opened_at && !payload.old?.opened_at) updates.opened_count = (c.opened_count || 0) + 1;
+            if (rec.clicked_at && !payload.old?.clicked_at) updates.clicked_count = (c.clicked_count || 0) + 1;
+            return Object.keys(updates).length > 0 ? { ...c, ...updates } : c;
+          }
+          return c;
+        }));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const createAICampaign = async (triggerKey: string, channel: CampaignChannel) => {
     setCreating(`${triggerKey}-${channel}`);
     try {
@@ -298,9 +347,37 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         </div>
       </div>
 
+      {/* Live Activity Feed */}
+      {liveUpdates.length > 0 && (
+        <div className="glass rounded-xl p-3 neural-border space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <h4 className="text-xs font-semibold text-foreground">Live Activity</h4>
+            <span className="text-[10px] text-muted-foreground">Real-time updates</span>
+            <button onClick={() => setLiveUpdates([])} className="ml-auto text-[10px] text-muted-foreground hover:text-foreground">Clear</button>
+          </div>
+          <div className="max-h-[120px] overflow-y-auto space-y-1">
+            {liveUpdates.map((u, i) => (
+              <motion.div key={`${u.id}-${i}`} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-2 text-[10px] py-1 px-2 rounded-lg bg-secondary/50">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                <span className="text-muted-foreground">
+                  {u.field === 'created' ? '🆕 New campaign:' : u.field === 'status' ? `📊 Status →` : `📬`}
+                </span>
+                <span className="text-foreground font-medium truncate">{u.value}</span>
+                <span className="text-[9px] text-muted-foreground ml-auto shrink-0">{format(u.at, "HH:mm:ss")}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Campaign history with status filter */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h3 className="text-sm font-semibold text-foreground">Campaign History</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">Campaign History</h3>
+          <div className="w-2 h-2 rounded-full bg-success animate-pulse" title="Live updates active" />
+        </div>
         <div className="flex gap-2 flex-wrap">
           <div className="flex gap-1">
             {(["all", "email", "voice", "push"] as const).map(ch => (
@@ -741,7 +818,7 @@ const LeadsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
       {/* Auto-sync indicator */}
       <div className="flex items-center justify-between glass rounded-xl p-3 neural-border">
         <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${autoSyncEnabled ? "bg-green-500 animate-pulse" : "bg-muted"}`} />
+          <div className={`w-2 h-2 rounded-full ${autoSyncEnabled ? "bg-success animate-pulse" : "bg-muted"}`} />
           <div>
             <p className="text-xs font-semibold text-foreground">Auto Lead Sync</p>
             <p className="text-[10px] text-muted-foreground">
