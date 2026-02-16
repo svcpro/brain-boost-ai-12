@@ -1,28 +1,20 @@
-import { useRef, useState, useEffect } from "react";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 import { Brain } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const useInView = (ref: React.RefObject<HTMLElement>) => {
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } }, { rootMargin: "-100px" });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [ref]);
-  return inView;
-};
-
 const CTASection = () => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref);
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
     <section ref={ref} className="relative py-32 px-6">
       <div className="max-w-3xl mx-auto text-center">
-        <div
-          className={`glass rounded-3xl p-12 md:p-16 neural-border relative overflow-hidden transition-all duration-700 ${isInView ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={isInView ? { opacity: 1, scale: 1 } : {}}
+          transition={{ duration: 0.8 }}
+          className="glass rounded-3xl p-12 md:p-16 neural-border relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
           <div className="relative z-10">
@@ -41,7 +33,7 @@ const CTASection = () => {
               Get Started Now
             </Link>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
