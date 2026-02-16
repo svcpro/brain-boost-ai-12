@@ -5,7 +5,7 @@ import {
   Loader2, Brain, Trash2, Sparkles, TrendingUp,
   BookOpen, Target, Zap, AlertTriangle, BarChart3,
   Clock, Copy, Check, RefreshCw, ChevronDown, Search, X,
-  Bookmark, BookmarkCheck, Filter, Download
+  Bookmark, BookmarkCheck, Filter, Download, Share2, Mail
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -657,7 +657,7 @@ const AIChatPage = () => {
                   <BookmarkCheck className="w-4 h-4 text-primary" />
                   <span className="text-xs font-semibold text-foreground">{displayMessages.length} bookmarked</span>
                 </div>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 flex-wrap">
                   <button
                     onClick={() => exportBookmarks("txt")}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-secondary border border-border text-[10px] font-semibold text-foreground hover:bg-secondary/80 transition-colors"
@@ -666,9 +666,30 @@ const AIChatPage = () => {
                   </button>
                   <button
                     onClick={() => exportBookmarks("pdf")}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-secondary border border-border text-[10px] font-semibold text-foreground hover:bg-secondary/80 transition-colors"
                   >
                     <Download className="w-3 h-3" /> PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      const bookmarked = messages.filter(m => m.bookmarked);
+                      const text = bookmarked.map((m, i) => `${i + 1}. [${m.role === "user" ? "You" : "ACRY"}] ${m.content}`).join("\n\n");
+                      const encoded = encodeURIComponent(`⭐ My ACRY Bookmarks:\n\n${text}`);
+                      window.open(`https://wa.me/?text=${encoded}`, "_blank");
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-accent-foreground text-[10px] font-semibold hover:bg-accent/80 transition-colors"
+                  >
+                    <Share2 className="w-3 h-3" /> WhatsApp
+                  </button>
+                  <button
+                    onClick={() => {
+                      const bookmarked = messages.filter(m => m.bookmarked);
+                      const body = bookmarked.map((m, i) => `${i + 1}. [${m.role === "user" ? "You" : "ACRY"}] ${m.content}`).join("\n\n");
+                      window.open(`mailto:?subject=${encodeURIComponent("My ACRY Bookmarked Responses")}&body=${encodeURIComponent(`⭐ Bookmarked Responses:\n\n${body}`)}`, "_self");
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    <Mail className="w-3 h-3" /> Email
                   </button>
                 </div>
               </motion.div>
