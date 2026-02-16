@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import PWAInstallBanner from "@/components/app/PWAInstallBanner";
 import OfflineBanner from "@/components/app/OfflineBanner";
 import Index from "./pages/Index";
@@ -13,6 +14,7 @@ import OnboardingPage from "./pages/OnboardingPage";
 import AppDashboard from "./pages/AppDashboard";
 import NotFound from "./pages/NotFound";
 import AdminPanel from "./pages/AdminPanel";
+import AdminLogin from "./pages/AdminLogin";
 
 const queryClient = new QueryClient();
 
@@ -32,10 +34,11 @@ const App = () => (
                 <AppDashboard />
               </ProtectedRoute>
             } />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={
-              <ProtectedRoute>
+              <AdminProtectedRoute>
                 <AdminPanel />
-              </ProtectedRoute>
+              </AdminProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
