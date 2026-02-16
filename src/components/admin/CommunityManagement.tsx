@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
-  Users, MessageSquare, BarChart3, MessageCircle, Shield, AlertTriangle, Settings
+  Users, MessageSquare, BarChart3, MessageCircle, Shield, AlertTriangle, Settings,
+  Activity, FileText, TrendingUp
 } from "lucide-react";
 import CommunityOverviewDashboard from "./community/CommunityOverviewDashboard";
 import CommunityListManager from "./community/CommunityListManager";
@@ -9,6 +10,9 @@ import CommentManager from "./community/CommentManager";
 import AbuseDetectionPanel from "./community/AbuseDetectionPanel";
 import UserModerationPanel from "./community/UserModerationPanel";
 import ModerationRulesPanel from "./community/ModerationRulesPanel";
+import CommunityAnalytics from "./community/CommunityAnalytics";
+import ModerationAuditLog from "./community/ModerationAuditLog";
+import ModerationActivityStream from "./community/ModerationActivityStream";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
@@ -18,6 +22,9 @@ const tabs = [
   { id: "abuse", label: "AI Abuse Detection", icon: AlertTriangle },
   { id: "moderation", label: "User Moderation", icon: Shield },
   { id: "rules", label: "Moderation Rules", icon: Settings },
+  { id: "analytics", label: "Analytics", icon: TrendingUp },
+  { id: "audit", label: "Audit Log", icon: FileText },
+  { id: "activity", label: "Live Activity", icon: Activity },
 ] as const;
 
 type TabId = typeof tabs[number]["id"];
@@ -55,6 +62,9 @@ const CommunityManagement = () => {
       {tab === "abuse" && <AbuseDetectionPanel />}
       {tab === "moderation" && <UserModerationPanel />}
       {tab === "rules" && <ModerationRulesPanel />}
+      {tab === "analytics" && <CommunityAnalytics />}
+      {tab === "audit" && <ModerationAuditLog />}
+      {tab === "activity" && <ModerationActivityStream />}
     </div>
   );
 };
