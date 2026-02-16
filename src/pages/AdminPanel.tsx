@@ -7,7 +7,7 @@ import {
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon,
-  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key
+  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,8 +23,9 @@ import SubscriptionAnalytics from "@/components/app/SubscriptionAnalytics";
 import ApiManagement from "@/components/app/ApiManagement";
 import UserManagement from "@/components/app/UserManagement";
 import AdminNotificationCenter from "@/components/app/AdminNotificationCenter";
+import CampaignManager from "@/components/app/CampaignManager";
 
-type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "apis" | "notifications" | "admins" | "audit" | "settings";
+type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "apis" | "notifications" | "campaigns" | "admins" | "audit" | "settings";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -50,6 +51,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
+  { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
   { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
   { key: "settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
@@ -173,6 +175,7 @@ const AdminPanel = () => {
             {section === "subscriptions" && <SubscriptionsSection />}
             {section === "apis" && <ApiManagement />}
             {section === "notifications" && <AdminNotificationCenter />}
+            {section === "campaigns" && <CampaignManager />}
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
             {section === "audit" && <AuditSection />}
             {section === "settings" && <SettingsSection toast={toast} />}

@@ -249,6 +249,152 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_recipients: {
+        Row: {
+          ab_variant: string | null
+          campaign_id: string
+          clicked_at: string | null
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          opened_at: string | null
+          sent_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          ab_variant?: string | null
+          campaign_id: string
+          clicked_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          ab_variant?: string | null
+          campaign_id?: string
+          clicked_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          ab_variants: Json | null
+          ab_winner_metric: string | null
+          audience_filters: Json | null
+          audience_type: string
+          audience_user_ids: string[] | null
+          body: string | null
+          channel: string
+          clicked_count: number | null
+          created_at: string
+          created_by: string
+          delivered_count: number | null
+          drip_delay_hours: number | null
+          drip_sequence_id: string | null
+          drip_step_index: number | null
+          failed_count: number | null
+          html_template: string | null
+          id: string
+          is_ab_test: boolean | null
+          is_drip: boolean | null
+          name: string
+          opened_count: number | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string
+          subject: string | null
+          title: string | null
+          total_recipients: number | null
+          updated_at: string
+          voice_settings: Json | null
+        }
+        Insert: {
+          ab_variants?: Json | null
+          ab_winner_metric?: string | null
+          audience_filters?: Json | null
+          audience_type?: string
+          audience_user_ids?: string[] | null
+          body?: string | null
+          channel: string
+          clicked_count?: number | null
+          created_at?: string
+          created_by: string
+          delivered_count?: number | null
+          drip_delay_hours?: number | null
+          drip_sequence_id?: string | null
+          drip_step_index?: number | null
+          failed_count?: number | null
+          html_template?: string | null
+          id?: string
+          is_ab_test?: boolean | null
+          is_drip?: boolean | null
+          name: string
+          opened_count?: number | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          title?: string | null
+          total_recipients?: number | null
+          updated_at?: string
+          voice_settings?: Json | null
+        }
+        Update: {
+          ab_variants?: Json | null
+          ab_winner_metric?: string | null
+          audience_filters?: Json | null
+          audience_type?: string
+          audience_user_ids?: string[] | null
+          body?: string | null
+          channel?: string
+          clicked_count?: number | null
+          created_at?: string
+          created_by?: string
+          delivered_count?: number | null
+          drip_delay_hours?: number | null
+          drip_sequence_id?: string | null
+          drip_step_index?: number | null
+          failed_count?: number | null
+          html_template?: string | null
+          id?: string
+          is_ab_test?: boolean | null
+          is_drip?: boolean | null
+          name?: string
+          opened_count?: number | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          title?: string | null
+          total_recipients?: number | null
+          updated_at?: string
+          voice_settings?: Json | null
+        }
+        Relationships: []
+      }
       cognitive_twins: {
         Row: {
           avg_decay_rate: number | null
@@ -303,6 +449,87 @@ export type Database = {
           topic_models?: Json
           twin_version?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      drip_sequences: {
+        Row: {
+          channel: string
+          completed_count: number | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          status: string
+          steps: Json
+          total_enrolled: number | null
+          trigger_event: string
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          completed_count?: number | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          status?: string
+          steps?: Json
+          total_enrolled?: number | null
+          trigger_event?: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          completed_count?: number | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          status?: string
+          steps?: Json
+          total_enrolled?: number | null
+          trigger_event?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string
+          html_body: string
+          id: string
+          is_active: boolean | null
+          name: string
+          subject: string
+          updated_at: string
+          variables: string[] | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by: string
+          html_body: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          subject: string
+          updated_at?: string
+          variables?: string[] | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          html_body?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          subject?: string
+          updated_at?: string
+          variables?: string[] | null
         }
         Relationships: []
       }
@@ -481,6 +708,60 @@ export type Database = {
           personal_score?: number | null
           personal_weight?: number | null
           prediction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          exam_count: number | null
+          follow_up_at: string | null
+          id: string
+          last_active_at: string | null
+          notes: Json | null
+          score: number
+          stage: string
+          streak_days: number | null
+          study_hours_7d: number | null
+          subscription_plan: string | null
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          exam_count?: number | null
+          follow_up_at?: string | null
+          id?: string
+          last_active_at?: string | null
+          notes?: Json | null
+          score?: number
+          stage?: string
+          streak_days?: number | null
+          study_hours_7d?: number | null
+          subscription_plan?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          exam_count?: number | null
+          follow_up_at?: string | null
+          id?: string
+          last_active_at?: string | null
+          notes?: Json | null
+          score?: number
+          stage?: string
+          streak_days?: number | null
+          study_hours_7d?: number | null
+          subscription_plan?: string | null
+          tags?: string[] | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
