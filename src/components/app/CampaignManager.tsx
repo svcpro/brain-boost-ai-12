@@ -137,6 +137,117 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("09:00");
 
+  // A/B Test Creation State
+  const [showABCreator, setShowABCreator] = useState(false);
+  const [abTrigger, setAbTrigger] = useState<string>("");
+  const [abChannel, setAbChannel] = useState<CampaignChannel>("email");
+  const [abVariantCount, setAbVariantCount] = useState(2);
+  const [abVariants, setAbVariants] = useState<{ subject: string; body: string }[]>([]);
+  const [abGenerating, setAbGenerating] = useState(false);
+  const [abSending, setAbSending] = useState(false);
+  const [abSplitRatio, setAbSplitRatio] = useState(50);
+  const [abWinnerMetric, setAbWinnerMetric] = useState<"open_rate" | "click_rate">("open_rate");
+
+  const generateABVariants = async () => {
+    if (!abTrigger) return;
+    setAbGenerating(true);
+    try {
+      const variants: { subject: string; body: string }[] = [];
+      for (let i = 0; i < abVariantCount; i++) {
+        const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
+          body: {
+            action: "generate_single",
+            trigger_key: abTrigger,
+            channel: abChannel,
+            custom_context: `Generate variant ${String.fromCharCode(65 + i)} — use a ${i === 0 ? "direct and urgent" : i === 1 ? "friendly and casual" : "data-driven and analytical"} tone. Make the subject line distinctly different from other variants.`,
+          },
+        });
+        if (error) throw error;
+        variants.push({ subject: data.subject || `Variant ${String.fromCharCode(65 + i)}`, body: data.html_body || "" });
+      }
+      setAbVariants(variants);
+      toast({ title: `🧪 ${variants.length} AI variants generated!` });
+    } catch (e: any) {
+      toast({ title: "Variant generation failed", description: e?.message, variant: "destructive" });
+    }
+    setAbGenerating(false);
+  };
+
+  const sendABCampaign = async () => {
+    if (abVariants.length < 2 || !adminId) return;
+    setAbSending(true);
+    try {
+      const { data: profiles } = await supabase.from("profiles").select("id");
+      const allIds = (profiles || []).map((p: any) => p.id);
+      // Shuffle and split audience
+      const shuffled = [...allIds].sort(() => Math.random() - 0.5);
+      const splitIdx = Math.floor(shuffled.length * (abSplitRatio / 100));
+      const variantGroups: string[][] = [];
+      if (abVariantCount === 2) {
+        variantGroups.push(shuffled.slice(0, splitIdx), shuffled.slice(splitIdx));
+      } else {
+        const third = Math.floor(shuffled.length / 3);
+        variantGroups.push(shuffled.slice(0, third), shuffled.slice(third, third * 2), shuffled.slice(third * 2));
+      }
+
+      const triggerInfo = AI_CAMPAIGN_TRIGGERS.find(t => t.key === abTrigger);
+      const { data: campaign, error: campErr } = await (supabase as any).from("campaigns").insert({
+        name: `[AI A/B] ${triggerInfo?.label || abTrigger} — ${abChannel.toUpperCase()}`,
+        channel: abChannel,
+        status: "sent",
+        subject: abVariants[0].subject,
+        title: abVariants[0].subject,
+        body: abVariants[0].body,
+        audience_type: "all",
+        audience_filters: {},
+        total_recipients: allIds.length,
+        sent_at: new Date().toISOString(),
+        created_by: adminId,
+        is_ab_test: true,
+        ab_variants: abVariants.map((v, i) => ({
+          variant: String.fromCharCode(65 + i),
+          subject: v.subject,
+          body: v.body,
+          audience_size: variantGroups[i]?.length || 0,
+        })),
+        ab_winner_metric: abWinnerMetric,
+      }).select().single();
+      if (campErr) throw campErr;
+
+      // Insert recipients with variant labels
+      for (let vi = 0; vi < variantGroups.length; vi++) {
+        const recipients = variantGroups[vi].map((uid: string) => ({
+          campaign_id: campaign.id,
+          user_id: uid,
+          status: "delivered",
+          delivered_at: new Date().toISOString(),
+          ab_variant: String.fromCharCode(65 + vi),
+        }));
+        for (let i = 0; i < recipients.length; i += 50) {
+          await (supabase as any).from("campaign_recipients").insert(recipients.slice(i, i + 50));
+        }
+      }
+
+      await (supabase as any).from("campaigns").update({ delivered_count: allIds.length }).eq("id", campaign.id);
+
+      if (adminId) {
+        await supabase.from("admin_audit_logs").insert({
+          admin_id: adminId, action: "ab_campaign_sent", target_type: "campaign",
+          target_id: campaign.id, details: { trigger: abTrigger, channel: abChannel, variants: abVariantCount, total: allIds.length } as any,
+        });
+      }
+
+      toast({ title: `🧪 A/B campaign sent to ${allIds.length} users (${abVariantCount} variants)!` });
+      setShowABCreator(false);
+      setAbVariants([]);
+      setAbTrigger("");
+      fetchCampaigns();
+    } catch (e: any) {
+      toast({ title: "A/B campaign failed", description: e?.message, variant: "destructive" });
+    }
+    setAbSending(false);
+  };
+
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
     let q = supabase.from("campaigns").select("*").order("created_at", { ascending: false }).limit(50);
@@ -345,6 +456,151 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* A/B Test Creator */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-accent" />
+            <h3 className="text-sm font-semibold text-foreground">A/B Test Creator</h3>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/15 text-accent font-medium">AI Variants</span>
+          </div>
+          <button onClick={() => setShowABCreator(!showABCreator)}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              showABCreator ? "bg-accent/15 text-accent" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+            }`}>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showABCreator ? "rotate-180" : ""}`} />
+            {showABCreator ? "Collapse" : "Create A/B Test"}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showABCreator && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-3 overflow-hidden">
+              <p className="text-[11px] text-muted-foreground">AI generates distinct variant content → audience auto-splits → track winner by opens or clicks.</p>
+
+              {/* Step 1: Select trigger & channel */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Trigger</label>
+                  <select value={abTrigger} onChange={e => { setAbTrigger(e.target.value); setAbVariants([]); }}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs text-foreground">
+                    <option value="">Select trigger...</option>
+                    {AI_CAMPAIGN_TRIGGERS.map(t => (
+                      <option key={t.key} value={t.key}>{t.icon} {t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Channel</label>
+                  <select value={abChannel} onChange={e => { setAbChannel(e.target.value as CampaignChannel); setAbVariants([]); }}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs text-foreground">
+                    <option value="email">📧 Email</option>
+                    <option value="push">🔔 Push</option>
+                    <option value="voice">🔊 Voice</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Variants</label>
+                  <div className="flex gap-2">
+                    {[2, 3].map(n => (
+                      <button key={n} onClick={() => { setAbVariantCount(n); setAbVariants([]); }}
+                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                          abVariantCount === n ? "bg-accent/15 text-accent border border-accent/30" : "bg-secondary text-muted-foreground border border-border"
+                        }`}>
+                        {n} Variants
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: Config */}
+              <div className="flex items-center gap-4 p-3 rounded-lg bg-secondary/50 border border-border">
+                <div className="flex items-center gap-2 flex-1">
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-[10px] font-medium text-muted-foreground">Split:</span>
+                  {abVariantCount === 2 ? (
+                    <div className="flex items-center gap-2">
+                      <input type="range" min={20} max={80} value={abSplitRatio}
+                        onChange={e => setAbSplitRatio(Number(e.target.value))}
+                        className="w-24 h-1.5 accent-accent" />
+                      <span className="text-[10px] font-semibold text-foreground">{abSplitRatio}% / {100 - abSplitRatio}%</span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-foreground">33% / 33% / 34%</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Award className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-[10px] font-medium text-muted-foreground">Winner by:</span>
+                  <div className="flex gap-1">
+                    {(["open_rate", "click_rate"] as const).map(m => (
+                      <button key={m} onClick={() => setAbWinnerMetric(m)}
+                        className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+                          abWinnerMetric === m ? "bg-accent/15 text-accent" : "text-muted-foreground hover:bg-secondary"
+                        }`}>
+                        {m === "open_rate" ? "Opens" : "Clicks"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Generate button */}
+              <button onClick={generateABVariants} disabled={!abTrigger || abGenerating}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-50 transition-colors">
+                {abGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                {abGenerating ? `Generating ${abVariantCount} variants...` : `Generate ${abVariantCount} AI Variants`}
+              </button>
+
+              {/* Variant preview */}
+              {abVariants.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-accent" /> Generated Variants
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {abVariants.map((v, i) => (
+                      <div key={i} className="rounded-lg border border-border p-3 bg-secondary/30 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-accent/15 text-accent flex items-center justify-center text-[10px] font-bold">
+                            {String.fromCharCode(65 + i)}
+                          </span>
+                          <span className="text-[10px] font-semibold text-foreground">Variant {String.fromCharCode(65 + i)}</span>
+                          {abVariantCount === 2 && (
+                            <span className="text-[9px] text-muted-foreground ml-auto">
+                              {i === 0 ? abSplitRatio : 100 - abSplitRatio}% audience
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-medium text-foreground">
+                            <span className="text-muted-foreground">Subject: </span>{v.subject}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground line-clamp-3">
+                            {v.body.replace(/<[^>]+>/g, "").slice(0, 150)}...
+                          </p>
+                        </div>
+                        <input type="text" value={v.subject}
+                          onChange={e => setAbVariants(prev => prev.map((vr, vi) => vi === i ? { ...vr, subject: e.target.value } : vr))}
+                          className="w-full px-2 py-1.5 rounded bg-background border border-border text-[10px] text-foreground"
+                          placeholder="Edit subject line..." />
+                      </div>
+                    ))}
+                  </div>
+
+                  <button onClick={sendABCampaign} disabled={abSending}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                    {abSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {abSending ? "Sending A/B Campaign..." : `Send A/B Test to All Users (${abVariantCount} variants)`}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Live Activity Feed */}
