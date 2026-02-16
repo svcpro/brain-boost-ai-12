@@ -1,7 +1,8 @@
 import { ReactNode, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Crown, Sparkles, Zap } from "lucide-react";
+import { motion } from "framer-motion";
+import { Lock, Sparkles, Zap } from "lucide-react";
 import { usePlanGatingContext } from "@/hooks/usePlanGating";
+import SubscriptionPlan from "@/components/app/SubscriptionPlan";
 
 interface PlanGateWrapperProps {
   featureKey: string;
@@ -15,8 +16,8 @@ const PLAN_ICONS: Record<string, typeof Zap> = { pro: Zap, ultra: Sparkles };
 const PLAN_LABELS: Record<string, string> = { pro: "Pro Brain", ultra: "Ultra Brain" };
 
 const PlanGateWrapper = ({ featureKey, children, showPreview = true, onUpgrade }: PlanGateWrapperProps) => {
-  const { canAccess, getRequiredPlan, loading } = usePlanGatingContext();
-  const [showTooltip, setShowTooltip] = useState(false);
+  const { canAccess, getRequiredPlan, loading, currentPlan, refetch } = usePlanGatingContext();
+  const [showPlanModal, setShowPlanModal] = useState(false);
 
   if (loading) return <>{children}</>;
   
@@ -40,14 +41,21 @@ const PlanGateWrapper = ({ featureKey, children, showPreview = true, onUpgrade }
         className="absolute inset-0 flex items-center justify-center z-10"
       >
         <button
-          onClick={() => { setShowTooltip(!showTooltip); onUpgrade?.(); }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/90 text-primary-foreground text-xs font-semibold shadow-lg hover:bg-primary transition-colors backdrop-blur-sm"
+          onClick={() => { setShowPlanModal(true); onUpgrade?.(); }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/90 text-primary-foreground text-xs font-semibold shadow-lg hover:bg-primary transition-colors backdrop-blur-sm cursor-pointer"
         >
           <Lock className="w-3.5 h-3.5" />
           <span>Upgrade to {planLabel}</span>
           <PlanIcon className="w-3.5 h-3.5" />
         </button>
       </motion.div>
+      {showPlanModal && (
+        <SubscriptionPlan
+          currentPlan={currentPlan}
+          onClose={() => setShowPlanModal(false)}
+          onPlanChanged={() => { refetch(); setShowPlanModal(false); }}
+        />
+      )}
     </div>
   );
 };
