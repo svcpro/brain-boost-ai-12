@@ -37,8 +37,9 @@ import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
 import FinanceManagement from "@/components/admin/FinanceManagement";
 import CommunityManagement from "@/components/admin/CommunityManagement";
 import SEOManagement from "@/components/admin/SEOManagement";
+import WhatsAppManagement from "@/components/admin/WhatsAppManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -74,6 +75,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "finance", label: "Finance", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
+  { key: "whatsapp", label: "WhatsApp", icon: MessageSquare, roles: ["super_admin", "admin"] },
   { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
   { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
@@ -213,6 +215,7 @@ const AdminPanel = () => {
             {section === "finance" && <FinanceManagement />}
             {section === "notifications" && <AdminNotificationCenter />}
             {section === "campaigns" && <CampaignManager />}
+            {section === "whatsapp" && <WhatsAppManagement />}
             {section === "monitoring" && <SystemMonitor />}
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
             {section === "audit" && <AuditSection />}

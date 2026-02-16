@@ -2113,6 +2113,8 @@ export type Database = {
           weekly_focus_goal_minutes: number
           weekly_report_day: number
           weekly_report_hour: number
+          whatsapp_number: string | null
+          whatsapp_opted_in: boolean | null
         }
         Insert: {
           auto_use_streak_freeze?: boolean
@@ -2137,6 +2139,8 @@ export type Database = {
           weekly_focus_goal_minutes?: number
           weekly_report_day?: number
           weekly_report_hour?: number
+          whatsapp_number?: string | null
+          whatsapp_opted_in?: boolean | null
         }
         Update: {
           auto_use_streak_freeze?: boolean
@@ -2161,6 +2165,8 @@ export type Database = {
           weekly_focus_goal_minutes?: number
           weekly_report_day?: number
           weekly_report_hour?: number
+          whatsapp_number?: string | null
+          whatsapp_opted_in?: boolean | null
         }
         Relationships: []
       }
@@ -3128,6 +3134,116 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          category: string | null
+          content: string | null
+          created_at: string
+          delivered_at: string | null
+          direction: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          media_url: string | null
+          message_type: string
+          read_at: string | null
+          status: string
+          template_name: string | null
+          template_params: Json | null
+          to_number: string
+          twilio_sid: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          direction?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          message_type?: string
+          read_at?: string | null
+          status?: string
+          template_name?: string | null
+          template_params?: Json | null
+          to_number: string
+          twilio_sid?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          direction?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          message_type?: string
+          read_at?: string | null
+          status?: string
+          template_name?: string | null
+          template_params?: Json | null
+          to_number?: string
+          twilio_sid?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_templates: {
+        Row: {
+          body_template: string
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string
+          variables: string[] | null
+        }
+        Insert: {
+          body_template: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string
+          variables?: string[] | null
+        }
+        Update: {
+          body_template?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string
+          variables?: string[] | null
         }
         Relationships: []
       }
