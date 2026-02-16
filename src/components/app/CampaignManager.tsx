@@ -136,6 +136,7 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
   const [scheduleMode, setScheduleMode] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [targetPlan, setTargetPlan] = useState<"all" | "free" | "pro" | "ultra">("all");
 
   // A/B Test Creation State
   const [showABCreator, setShowABCreator] = useState(false);
@@ -317,21 +318,45 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
       });
       if (aiErr) throw aiErr;
 
+      // Fetch audience filtered by target plan
+      let profilesQuery = supabase.from("profiles").select("id, subscription_plan:study_preferences");
       const { data: profiles } = await supabase.from("profiles").select("id");
-      const recipientIds = (profiles || []).map((p: any) => p.id);
+      let allProfiles = profiles || [];
+
+      if (targetPlan !== "all") {
+        // Filter by subscription plan from user_subscriptions or leads table
+        const { data: leads } = await supabase.from("leads").select("user_id, subscription_plan");
+        const planUsers = new Set((leads || []).filter((l: any) => {
+          const plan = (l.subscription_plan || "free").toLowerCase();
+          return plan === targetPlan;
+        }).map((l: any) => l.user_id));
+        
+        if (targetPlan === "free") {
+          // Free = users NOT in leads with pro/ultra, OR explicitly free
+          const paidUsers = new Set((leads || []).filter((l: any) => {
+            const plan = (l.subscription_plan || "").toLowerCase();
+            return plan === "pro" || plan === "ultra";
+          }).map((l: any) => l.user_id));
+          allProfiles = allProfiles.filter((p: any) => !paidUsers.has(p.id));
+        } else {
+          allProfiles = allProfiles.filter((p: any) => planUsers.has(p.id));
+        }
+      }
+
+      const recipientIds = allProfiles.map((p: any) => p.id);
 
       const isScheduled = scheduleMode && scheduleDate;
       const scheduledAt = isScheduled ? new Date(`${scheduleDate}T${scheduleTime}`).toISOString() : null;
 
       const { data: campaign, error: campErr } = await (supabase as any).from("campaigns").insert({
-        name: `[AI] ${aiContent.subject || triggerKey} — ${channel.toUpperCase()}`,
+        name: `[AI] ${aiContent.subject || triggerKey} — ${channel.toUpperCase()}${targetPlan !== "all" ? ` (${targetPlan})` : ""}`,
         channel,
         status: isScheduled ? "scheduled" : "sent",
         subject: aiContent.subject || "",
         title: aiContent.subject || "",
         body: aiContent.html_body || "",
-        audience_type: "all",
-        audience_filters: {},
+        audience_type: targetPlan === "all" ? "all" : "filtered",
+        audience_filters: targetPlan !== "all" ? { plan: targetPlan } : {},
         total_recipients: recipientIds.length,
         scheduled_at: scheduledAt,
         sent_at: isScheduled ? null : new Date().toISOString(),
@@ -421,6 +446,29 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
                 className="px-2 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground" />
             </div>
           )}
+        </div>
+
+        {/* Target Plan Selector */}
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border border-border">
+          <div className="flex items-center gap-1.5">
+            <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-[10px] font-medium text-muted-foreground">Target Plan:</span>
+          </div>
+          <div className="flex gap-1">
+            {(["all", "free", "pro", "ultra"] as const).map(plan => (
+              <button key={plan} onClick={() => setTargetPlan(plan)}
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
+                  targetPlan === plan
+                    ? plan === "all" ? "bg-primary/15 text-primary border border-primary/30"
+                      : plan === "free" ? "bg-muted text-foreground border border-border"
+                      : plan === "pro" ? "bg-accent/15 text-accent border border-accent/30"
+                      : "bg-warning/15 text-warning border border-warning/30"
+                    : "text-muted-foreground hover:bg-secondary border border-transparent"
+                }`}>
+                {plan === "all" ? "👥 All Users" : plan === "free" ? "Free" : plan === "pro" ? "⭐ Pro" : "💎 Ultra"}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[320px] overflow-y-auto pr-1">
