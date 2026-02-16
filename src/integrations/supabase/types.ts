@@ -49,6 +49,7 @@ export type Database = {
       }
       ai_chat_messages: {
         Row: {
+          bookmarked: boolean
           content: string
           created_at: string
           id: string
@@ -58,6 +59,7 @@ export type Database = {
           voice_used: boolean | null
         }
         Insert: {
+          bookmarked?: boolean
           content: string
           created_at?: string
           id?: string
@@ -67,6 +69,7 @@ export type Database = {
           voice_used?: boolean | null
         }
         Update: {
+          bookmarked?: boolean
           content?: string
           created_at?: string
           id?: string

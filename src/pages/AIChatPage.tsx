@@ -4,7 +4,8 @@ import {
   ArrowLeft, Send, Mic, MicOff, Volume2, VolumeX,
   Loader2, Brain, Trash2, Sparkles, TrendingUp,
   BookOpen, Target, Zap, AlertTriangle, BarChart3,
-  Clock, Copy, Check, RefreshCw, ChevronDown, Search, X
+  Clock, Copy, Check, RefreshCw, ChevronDown, Search, X,
+  Bookmark, BookmarkCheck, Filter
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +19,7 @@ interface Message {
   content: string;
   created_at: string;
   voice_used?: boolean;
+  bookmarked?: boolean;
 }
 
 interface QuickAction {
@@ -63,6 +65,7 @@ const AIChatPage = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchIndex, setSearchIndex] = useState(0);
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -120,6 +123,19 @@ const AIChatPage = () => {
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  // Bookmark toggle
+  const toggleBookmark = async (msgId: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg) return;
+    const newVal = !msg.bookmarked;
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, bookmarked: newVal } : m));
+    await supabase.from("ai_chat_messages").update({ bookmarked: newVal } as any).eq("id", msgId);
+    toast({ title: newVal ? "Bookmarked ⭐" : "Bookmark removed" });
+  };
+
+  const displayMessages = showBookmarksOnly ? messages.filter(m => m.bookmarked) : messages;
+  const bookmarkCount = messages.filter(m => m.bookmarked).length;
 
   // Stream chat
   const sendMessage = async (text: string, isVoice = false) => {
@@ -392,6 +408,18 @@ const AIChatPage = () => {
           <Trash2 className="w-4 h-4" />
         </button>
         <button
+          onClick={() => setShowBookmarksOnly(b => !b)}
+          className={`p-2 rounded-lg transition-colors relative ${showBookmarksOnly ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          title="Show bookmarks"
+        >
+          {showBookmarksOnly ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+          {bookmarkCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center">
+              {bookmarkCount}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => { setSearchOpen(o => !o); setSearchQuery(""); }}
           className={`p-2 rounded-lg transition-colors ${searchOpen ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}
         >
@@ -447,6 +475,15 @@ const AIChatPage = () => {
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
             <p className="text-xs text-muted-foreground">Loading your conversation...</p>
+          </div>
+        ) : showBookmarksOnly && displayMessages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <Bookmark className="w-10 h-10 text-muted-foreground/40" />
+            <h3 className="text-sm font-semibold text-foreground">No bookmarks yet</h3>
+            <p className="text-xs text-muted-foreground max-w-xs">Tap the bookmark icon on any AI response to save it for quick reference later.</p>
+            <button onClick={() => setShowBookmarksOnly(false)} className="text-xs text-primary font-medium mt-2">
+              ← Back to all messages
+            </button>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center pt-8 pb-4 px-2">
@@ -542,7 +579,7 @@ const AIChatPage = () => {
           </div>
         ) : (
           <>
-            {messages.map((msg, idx) => (
+            {displayMessages.map((msg, idx) => (
               <motion.div
                 id={`msg-${msg.id}`}
                 key={msg.id}
@@ -591,16 +628,32 @@ const AIChatPage = () => {
                       <span className="text-[9px] text-muted-foreground">{formatTime(msg.created_at)}</span>
                       {msg.voice_used && <span className="text-[9px] text-muted-foreground">🎤</span>}
                       {msg.role === "assistant" && msg.content && (
-                        <button
-                          onClick={() => copyMessage(msg.id, msg.content)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
-                        >
-                          {copiedId === msg.id ? (
-                            <Check className="w-3 h-3 text-green-500" />
-                          ) : (
-                            <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                          )}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => toggleBookmark(msg.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                            title={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
+                          >
+                            {msg.bookmarked ? (
+                              <BookmarkCheck className="w-3 h-3 text-primary" />
+                            ) : (
+                              <Bookmark className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => copyMessage(msg.id, msg.content)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                          >
+                            {copiedId === msg.id ? (
+                              <Check className="w-3 h-3 text-green-500" />
+                            ) : (
+                              <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                            )}
+                          </button>
+                        </>
+                      )}
+                      {msg.bookmarked && (
+                        <span className="text-[9px] text-primary">⭐</span>
                       )}
                     </div>
                   </div>
