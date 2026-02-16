@@ -1,12 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import NeuralBackground from "@/components/landing/NeuralBackground";
 import HeroSection from "@/components/landing/HeroSection";
-import ForgettingCurveSection from "@/components/landing/ForgettingCurveSection";
-import RankSection from "@/components/landing/RankSection";
-import PricingSection from "@/components/landing/PricingSection";
-import CTASection from "@/components/landing/CTASection";
+
+// Lazy load below-fold sections
+const ForgettingCurveSection = lazy(() => import("@/components/landing/ForgettingCurveSection"));
+const RankSection = lazy(() => import("@/components/landing/RankSection"));
+const PricingSection = lazy(() => import("@/components/landing/PricingSection"));
+const CTASection = lazy(() => import("@/components/landing/CTASection"));
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -17,6 +19,7 @@ const Index = () => {
       navigate("/app", { replace: true });
     }
   }, [user, loading, navigate]);
+
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden">
       <NeuralBackground />
@@ -40,10 +43,12 @@ const Index = () => {
       </nav>
 
       <HeroSection />
-      <ForgettingCurveSection />
-      <RankSection />
-      <PricingSection />
-      <CTASection />
+      <Suspense fallback={<div className="h-96" />}>
+        <ForgettingCurveSection />
+        <RankSection />
+        <PricingSection />
+        <CTASection />
+      </Suspense>
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-border py-12 px-6">
