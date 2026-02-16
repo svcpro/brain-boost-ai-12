@@ -13,11 +13,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, subDays, startOfDay } from "date-fns";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
 
 type CampaignChannel = "email" | "voice" | "push";
 type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "paused" | "cancelled";
-type ManagerTab = "campaigns" | "templates" | "leads" | "drip";
+type ManagerTab = "campaigns" | "templates" | "leads" | "drip" | "analytics";
 type LeadStage = "new" | "engaged" | "active" | "power_user" | "at_risk" | "churned" | "converted";
 
 const CHANNEL_ICONS: Record<CampaignChannel, any> = { email: Mail, voice: Volume2, push: Bell };
@@ -82,6 +83,7 @@ const CampaignManager = () => {
     { key: "templates", label: "AI Templates", icon: Wand2 },
     { key: "leads", label: "Lead Management", icon: Target },
     { key: "drip", label: "AI Drip Sequences", icon: Zap },
+    { key: "analytics", label: "Analytics", icon: BarChart3 },
   ];
 
   return (
@@ -114,6 +116,7 @@ const CampaignManager = () => {
           {tab === "templates" && <AITemplatesTab toast={toast} adminId={adminUser?.id} />}
           {tab === "leads" && <LeadsTab toast={toast} adminId={adminUser?.id} />}
           {tab === "drip" && <AIDripTab toast={toast} adminId={adminUser?.id} />}
+          {tab === "analytics" && <CampaignAnalyticsTab />}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -1101,6 +1104,234 @@ const AIDripTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
           })}
         </div>
       )}
+    </div>
+  );
+};
+
+// ─── Campaign Analytics Tab ───
+const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--warning))"];
+const CHANNEL_PIE_COLORS = ["hsl(var(--accent))", "hsl(var(--warning))", "hsl(var(--primary))"];
+
+const CampaignAnalyticsTab = () => {
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState<7 | 14 | 30>(14);
+
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true);
+      const since = subDays(new Date(), range).toISOString();
+      const { data } = await supabase.from("campaigns")
+        .select("*")
+        .gte("created_at", since)
+        .order("created_at", { ascending: true });
+      setCampaigns(data || []);
+      setLoading(false);
+    };
+    fetch();
+  }, [range]);
+
+  // Aggregate daily metrics
+  const dailyData = (() => {
+    const map = new Map<string, { date: string; sent: number; delivered: number; opened: number; clicked: number }>();
+    for (let i = range - 1; i >= 0; i--) {
+      const d = format(subDays(new Date(), i), "MMM dd");
+      map.set(d, { date: d, sent: 0, delivered: 0, opened: 0, clicked: 0 });
+    }
+    campaigns.forEach(c => {
+      const d = format(new Date(c.created_at), "MMM dd");
+      const entry = map.get(d);
+      if (entry) {
+        entry.sent += c.total_recipients || 0;
+        entry.delivered += c.delivered_count || 0;
+        entry.opened += c.opened_count || 0;
+        entry.clicked += c.clicked_count || 0;
+      }
+    });
+    return Array.from(map.values());
+  })();
+
+  // Rate data (percentages)
+  const rateData = dailyData.map(d => ({
+    date: d.date,
+    deliveryRate: d.sent > 0 ? Math.round((d.delivered / d.sent) * 100) : 0,
+    openRate: d.delivered > 0 ? Math.round((d.opened / d.delivered) * 100) : 0,
+    clickRate: d.opened > 0 ? Math.round((d.clicked / d.opened) * 100) : 0,
+  }));
+
+  // Channel distribution
+  const channelDist = (() => {
+    const counts: Record<string, number> = { email: 0, voice: 0, push: 0 };
+    campaigns.forEach(c => { counts[c.channel] = (counts[c.channel] || 0) + 1; });
+    return Object.entries(counts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
+  })();
+
+  // Top performing campaigns
+  const topCampaigns = [...campaigns]
+    .filter(c => (c.total_recipients || 0) > 0)
+    .map(c => ({
+      ...c,
+      deliveryRate: Math.round(((c.delivered_count || 0) / (c.total_recipients || 1)) * 100),
+      openRate: Math.round(((c.opened_count || 0) / Math.max(c.delivered_count || 1, 1)) * 100),
+    }))
+    .sort((a, b) => b.openRate - a.openRate)
+    .slice(0, 5);
+
+  // Summary stats
+  const totalSent = campaigns.reduce((s, c) => s + (c.total_recipients || 0), 0);
+  const totalDelivered = campaigns.reduce((s, c) => s + (c.delivered_count || 0), 0);
+  const totalOpened = campaigns.reduce((s, c) => s + (c.opened_count || 0), 0);
+  const totalClicked = campaigns.reduce((s, c) => s + (c.clicked_count || 0), 0);
+  const avgDelivery = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
+  const avgOpen = totalDelivered > 0 ? Math.round((totalOpened / totalDelivered) * 100) : 0;
+  const avgClick = totalOpened > 0 ? Math.round((totalClicked / totalOpened) * 100) : 0;
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-5">
+      {/* Range selector */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-primary" /> Campaign Analytics
+        </h3>
+        <div className="flex gap-1">
+          {([7, 14, 30] as const).map(r => (
+            <button key={r} onClick={() => setRange(r)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors ${range === r ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+              {r}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Total Sent", value: totalSent.toLocaleString(), icon: Send, color: "text-foreground" },
+          { label: "Delivery Rate", value: `${avgDelivery}%`, icon: CheckCircle2, color: "text-success" },
+          { label: "Open Rate", value: `${avgOpen}%`, icon: Eye, color: "text-accent" },
+          { label: "Click Rate", value: `${avgClick}%`, icon: TrendingUp, color: "text-primary" },
+        ].map(stat => (
+          <div key={stat.label} className="glass rounded-xl p-4 neural-border text-center">
+            <stat.icon className={`w-5 h-5 mx-auto mb-2 ${stat.color}`} />
+            <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Volume over time - Area chart */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <h4 className="text-xs font-semibold text-foreground">Campaign Volume Over Time</h4>
+        <div className="h-[220px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={dailyData}>
+              <defs>
+                <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="deliveredGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Area type="monotone" dataKey="sent" stroke="hsl(var(--primary))" fill="url(#sentGrad)" strokeWidth={2} name="Sent" />
+              <Area type="monotone" dataKey="delivered" stroke="hsl(var(--accent))" fill="url(#deliveredGrad)" strokeWidth={2} name="Delivered" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Rates over time - Line chart */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <h4 className="text-xs font-semibold text-foreground">Delivery / Open / Click Rates Over Time</h4>
+        <div className="h-[220px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={rateData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} unit="%" />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} formatter={(v: any) => `${v}%`} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Line type="monotone" dataKey="deliveryRate" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} name="Delivery %" />
+              <Line type="monotone" dataKey="openRate" stroke={CHART_COLORS[1]} strokeWidth={2} dot={false} name="Open %" />
+              <Line type="monotone" dataKey="clickRate" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} name="Click %" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Channel distribution */}
+        <div className="glass rounded-xl p-4 neural-border space-y-3">
+          <h4 className="text-xs font-semibold text-foreground">Channel Distribution</h4>
+          {channelDist.length > 0 ? (
+            <div className="h-[180px] flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={channelDist} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={4} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                    {channelDist.map((_, i) => <Cell key={i} fill={CHANNEL_PIE_COLORS[i % CHANNEL_PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-8">No campaign data</p>
+          )}
+        </div>
+
+        {/* Top campaigns */}
+        <div className="glass rounded-xl p-4 neural-border space-y-3">
+          <h4 className="text-xs font-semibold text-foreground">Top Performing Campaigns</h4>
+          {topCampaigns.length > 0 ? (
+            <div className="space-y-2">
+              {topCampaigns.map((c, i) => {
+                const Icon = CHANNEL_ICONS[c.channel as CampaignChannel] || Bell;
+                return (
+                  <div key={c.id} className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2">
+                    <span className="text-[10px] font-bold text-muted-foreground w-4">#{i + 1}</span>
+                    <Icon className={`w-3.5 h-3.5 ${CHANNEL_COLORS[c.channel as CampaignChannel]}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-foreground truncate">{c.name}</p>
+                      <div className="flex gap-3 text-[9px] text-muted-foreground">
+                        <span>📨 {c.deliveryRate}% del</span>
+                        <span>👁 {c.openRate}% open</span>
+                        <span>📤 {c.total_recipients} sent</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-8">No campaigns with recipients</p>
+          )}
+        </div>
+      </div>
+
+      {/* Campaign count by status */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <h4 className="text-xs font-semibold text-foreground">Campaigns by Status</h4>
+        <div className="flex gap-3 flex-wrap">
+          {(["sent", "scheduled", "draft", "cancelled", "paused"] as CampaignStatus[]).map(s => {
+            const count = campaigns.filter(c => c.status === s).length;
+            return (
+              <div key={s} className={`px-3 py-2 rounded-xl text-center min-w-[80px] ${STATUS_COLORS[s]}`}>
+                <p className="text-lg font-bold">{count}</p>
+                <p className="text-[10px] capitalize">{s}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };
