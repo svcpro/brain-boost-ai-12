@@ -990,7 +990,12 @@ const PlanFormModal = ({ plan, onClose, onSaved }: { plan: any | null; onClose: 
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Plan Key *</label>
-              <input value={planKey} onChange={e => setPlanKey(e.target.value)} disabled={isEdit} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none disabled:opacity-50" placeholder="pro" />
+              <select value={planKey} onChange={e => setPlanKey(e.target.value)} disabled={isEdit} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none disabled:opacity-50">
+                <option value="">Select plan key</option>
+                <option value="free">free</option>
+                <option value="pro">pro</option>
+                <option value="ultra">ultra</option>
+              </select>
             </div>
           </div>
 
