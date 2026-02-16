@@ -5,13 +5,14 @@ import { Shield, Loader2, Check, X, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { AppRole } from "@/hooks/useAdminRole";
 
-const ROLE_ORDER: AppRole[] = ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"];
+const ROLE_ORDER: AppRole[] = ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin", "api_admin"];
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
   admin: "Admin",
   ai_admin: "AI Admin",
   support_admin: "Support Admin",
   finance_admin: "Finance Admin",
+  api_admin: "API Admin",
 };
 
 const CATEGORIES = [

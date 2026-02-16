@@ -41,6 +41,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
   ai_admin: "AI Admin",
   support_admin: "Support",
   finance_admin: "Finance",
+  api_admin: "API Admin",
 };
 
 const ROLE_COLORS: Record<AppRole, string> = {
@@ -49,10 +50,11 @@ const ROLE_COLORS: Record<AppRole, string> = {
   ai_admin: "bg-accent/15 text-accent",
   support_admin: "bg-warning/15 text-warning",
   finance_admin: "bg-success/15 text-success",
+  api_admin: "bg-blue-500/15 text-blue-400",
 };
 
 const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[] }[] = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin", "api_admin"] },
   { key: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
   { key: "ai", label: "AI Models", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
   { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
@@ -60,14 +62,14 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
-  { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin"] },
+  { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
   { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
   { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
   { key: "settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
-  { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
+  { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin", "api_admin"] },
 ];
 
 const AdminPanel = () => {
