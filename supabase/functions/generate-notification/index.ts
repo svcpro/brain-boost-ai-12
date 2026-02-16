@@ -14,27 +14,31 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const { userId, type } = await req.json();
-    if (!userId) throw new Error("userId is required");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch user context for personalized notification
-    const [profileRes, logsRes, topicsRes] = await Promise.all([
-      supabase.from("profiles").select("display_name, exam_type, daily_study_goal_minutes").eq("id", userId).maybeSingle(),
-      supabase.from("study_logs").select("duration_minutes, confidence_level, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(7),
-      supabase.from("topics").select("name, memory_strength").eq("user_id", userId).is("deleted_at", null).order("memory_strength", { ascending: true }).limit(5),
-    ]);
+    // Fetch user context for personalized notification (optional userId)
+    let profile: any = null;
+    let recentLogs: any[] = [];
+    let weakTopics: any[] = [];
 
-    const profile = profileRes.data;
-    const recentLogs = logsRes.data || [];
-    const weakTopics = topicsRes.data || [];
+    if (userId) {
+      const [profileRes, logsRes, topicsRes] = await Promise.all([
+        supabase.from("profiles").select("display_name, exam_type, daily_study_goal_minutes").eq("id", userId).maybeSingle(),
+        supabase.from("study_logs").select("duration_minutes, confidence_level, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(7),
+        supabase.from("topics").select("name, memory_strength").eq("user_id", userId).is("deleted_at", null).order("memory_strength", { ascending: true }).limit(5),
+      ]);
+      profile = profileRes.data;
+      recentLogs = logsRes.data || [];
+      weakTopics = topicsRes.data || [];
+    }
 
-    const totalMinutes = recentLogs.reduce((s, l) => s + (l.duration_minutes || 0), 0);
+    const totalMinutes = recentLogs.reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
     const sessionsCount = recentLogs.length;
-    const weakTopicNames = weakTopics.map(t => `${t.name} (${t.memory_strength}%)`).join(", ");
+    const weakTopicNames = weakTopics.map((t: any) => `${t.name} (${t.memory_strength}%)`).join(", ");
 
     const notificationType = type || "general";
     const typeInstructions: Record<string, string> = {
