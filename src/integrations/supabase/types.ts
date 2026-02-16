@@ -1486,6 +1486,36 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          category: string
+          enabled: boolean
+          id: string
+          permission_key: string
+          permission_label: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          enabled?: boolean
+          id?: string
+          permission_key: string
+          permission_label: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          enabled?: boolean
+          id?: string
+          permission_key?: string
+          permission_label?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       streak_freezes: {
         Row: {
           created_at: string
@@ -1902,6 +1932,10 @@ export type Database = {
     }
     Functions: {
       accept_freeze_gift: { Args: { gift_id: string }; Returns: undefined }
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
