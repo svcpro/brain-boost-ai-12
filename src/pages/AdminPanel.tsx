@@ -7,7 +7,8 @@ import {
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check,
-  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare, Globe
+  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare, Globe,
+  Search as SearchIcon
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,8 +36,9 @@ import ChatManagement from "@/components/admin/ChatManagement";
 import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
 import FinanceManagement from "@/components/admin/FinanceManagement";
 import CommunityManagement from "@/components/admin/CommunityManagement";
+import SEOManagement from "@/components/admin/SEOManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -64,6 +66,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
   { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
   { key: "community", label: "Community", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
+  { key: "seo", label: "SEO", icon: SearchIcon, roles: ["super_admin", "admin"] },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
@@ -202,6 +205,7 @@ const AdminPanel = () => {
             {section === "knowledge" && <KnowledgeSection />}
             {section === "leaderboard" && <LeaderboardManagement />}
             {section === "community" && <CommunityManagement />}
+            {section === "seo" && <SEOManagement />}
             {section === "subscriptions" && <SubscriptionsSection />}
             {section === "plan_gating" && <PlanGatingManagement />}
             {section === "apis" && <ApiManagement />}

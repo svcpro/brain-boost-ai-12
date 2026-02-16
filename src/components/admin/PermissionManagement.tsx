@@ -23,6 +23,7 @@ const CATEGORIES = [
   "Admin Management",
   "API Management",
   "Community Management",
+  "SEO Management",
 ];
 
 interface Permission {
