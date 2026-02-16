@@ -355,7 +355,7 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         subject: aiContent.subject || "",
         title: aiContent.subject || "",
         body: aiContent.html_body || "",
-        audience_type: targetPlan === "all" ? "all" : "filtered",
+        audience_type: targetPlan === "all" ? "all" : "segment",
         audience_filters: targetPlan !== "all" ? { plan: targetPlan } : {},
         total_recipients: recipientIds.length,
         scheduled_at: scheduledAt,
