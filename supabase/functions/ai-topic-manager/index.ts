@@ -24,6 +24,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const { action, target_user_id, exam_type, custom_exam, subjects: bodySubjects } = body;
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
