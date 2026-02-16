@@ -809,9 +809,12 @@ export type Database = {
           member_count: number
           name: string
           post_count: number
+          rules: Json | null
           slug: string
           subject: string | null
+          trending_score: number | null
           updated_at: string
+          weekly_active_users: number | null
         }
         Insert: {
           banner_url?: string | null
@@ -827,9 +830,12 @@ export type Database = {
           member_count?: number
           name: string
           post_count?: number
+          rules?: Json | null
           slug: string
           subject?: string | null
+          trending_score?: number | null
           updated_at?: string
+          weekly_active_users?: number | null
         }
         Update: {
           banner_url?: string | null
@@ -845,9 +851,12 @@ export type Database = {
           member_count?: number
           name?: string
           post_count?: number
+          rules?: Json | null
           slug?: string
           subject?: string | null
+          trending_score?: number | null
           updated_at?: string
+          weekly_active_users?: number | null
         }
         Relationships: []
       }
@@ -890,19 +899,25 @@ export type Database = {
           ai_detailed_summary: string | null
           ai_key_insights: Json | null
           ai_key_points: Json | null
+          ai_quality_score: number | null
           ai_summary: string | null
           ai_tags: string[] | null
+          bookmark_count: number | null
           comment_count: number
           community_id: string
           content: string
           created_at: string
+          hot_score: number | null
           id: string
           image_urls: string[] | null
           importance_level: string | null
           importance_score: number | null
+          is_best_answer: boolean | null
           is_deleted: boolean
           is_pinned: boolean
           post_type: string
+          reaction_counts: Json | null
+          share_count: number | null
           summary_updated_at: string | null
           title: string
           updated_at: string
@@ -916,19 +931,25 @@ export type Database = {
           ai_detailed_summary?: string | null
           ai_key_insights?: Json | null
           ai_key_points?: Json | null
+          ai_quality_score?: number | null
           ai_summary?: string | null
           ai_tags?: string[] | null
+          bookmark_count?: number | null
           comment_count?: number
           community_id: string
           content: string
           created_at?: string
+          hot_score?: number | null
           id?: string
           image_urls?: string[] | null
           importance_level?: string | null
           importance_score?: number | null
+          is_best_answer?: boolean | null
           is_deleted?: boolean
           is_pinned?: boolean
           post_type?: string
+          reaction_counts?: Json | null
+          share_count?: number | null
           summary_updated_at?: string | null
           title: string
           updated_at?: string
@@ -942,19 +963,25 @@ export type Database = {
           ai_detailed_summary?: string | null
           ai_key_insights?: Json | null
           ai_key_points?: Json | null
+          ai_quality_score?: number | null
           ai_summary?: string | null
           ai_tags?: string[] | null
+          bookmark_count?: number | null
           comment_count?: number
           community_id?: string
           content?: string
           created_at?: string
+          hot_score?: number | null
           id?: string
           image_urls?: string[] | null
           importance_level?: string | null
           importance_score?: number | null
+          is_best_answer?: boolean | null
           is_deleted?: boolean
           is_pinned?: boolean
           post_type?: string
+          reaction_counts?: Json | null
+          share_count?: number | null
           summary_updated_at?: string | null
           title?: string
           updated_at?: string
@@ -1789,6 +1816,35 @@ export type Database = {
           },
         ]
       }
+      post_bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_bookmarks_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_comments: {
         Row: {
           content: string
@@ -1836,6 +1892,38 @@ export type Database = {
           },
           {
             foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          reaction_type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_reactions_post_id_fkey"
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "community_posts"
