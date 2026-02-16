@@ -794,6 +794,160 @@ export type Database = {
         }
         Relationships: []
       }
+      communities: {
+        Row: {
+          banner_url: string | null
+          category: string
+          created_at: string
+          created_by: string
+          description: string | null
+          exam_type: string | null
+          icon_url: string | null
+          id: string
+          is_active: boolean
+          is_approved: boolean
+          member_count: number
+          name: string
+          post_count: number
+          slug: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          banner_url?: string | null
+          category?: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          exam_type?: string | null
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean
+          is_approved?: boolean
+          member_count?: number
+          name: string
+          post_count?: number
+          slug: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          banner_url?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          exam_type?: string | null
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean
+          is_approved?: boolean
+          member_count?: number
+          name?: string
+          post_count?: number
+          slug?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      community_members: {
+        Row: {
+          community_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_members_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_posts: {
+        Row: {
+          ai_answer: string | null
+          ai_answered_at: string | null
+          comment_count: number
+          community_id: string
+          content: string
+          created_at: string
+          id: string
+          image_urls: string[] | null
+          is_deleted: boolean
+          is_pinned: boolean
+          post_type: string
+          title: string
+          updated_at: string
+          upvote_count: number
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          ai_answer?: string | null
+          ai_answered_at?: string | null
+          comment_count?: number
+          community_id: string
+          content: string
+          created_at?: string
+          id?: string
+          image_urls?: string[] | null
+          is_deleted?: boolean
+          is_pinned?: boolean
+          post_type?: string
+          title: string
+          updated_at?: string
+          upvote_count?: number
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          ai_answer?: string | null
+          ai_answered_at?: string | null
+          comment_count?: number
+          community_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          image_urls?: string[] | null
+          is_deleted?: boolean
+          is_pinned?: boolean
+          post_type?: string
+          title?: string
+          updated_at?: string
+          upvote_count?: number
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_posts_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drip_sequences: {
         Row: {
           channel: string
@@ -1573,6 +1727,87 @@ export type Database = {
           },
         ]
       }
+      post_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_ai_answer: boolean
+          is_deleted: boolean
+          parent_id: string | null
+          post_id: string
+          updated_at: string
+          upvote_count: number
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_ai_answer?: boolean
+          is_deleted?: boolean
+          parent_id?: string | null
+          post_id: string
+          updated_at?: string
+          upvote_count?: number
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_ai_answer?: boolean
+          is_deleted?: boolean
+          parent_id?: string | null
+          post_id?: string
+          updated_at?: string
+          upvote_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "post_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_votes: {
+        Row: {
+          created_at: string
+          id: string
+          target_id: string
+          target_type: string
+          user_id: string
+          vote_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          target_id: string
+          target_type?: string
+          user_id: string
+          vote_type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          target_id?: string
+          target_type?: string
+          user_id?: string
+          vote_type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           auto_use_streak_freeze: boolean
@@ -2243,6 +2478,51 @@ export type Database = {
           response_latency_score?: number | null
           study_consistency_score?: number | null
           subject_strength_score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_reputation: {
+        Row: {
+          answer_score: number
+          answers_count: number
+          best_answers_count: number
+          created_at: string
+          id: string
+          level: string
+          post_score: number
+          posts_count: number
+          total_score: number
+          updated_at: string
+          upvote_score: number
+          user_id: string
+        }
+        Insert: {
+          answer_score?: number
+          answers_count?: number
+          best_answers_count?: number
+          created_at?: string
+          id?: string
+          level?: string
+          post_score?: number
+          posts_count?: number
+          total_score?: number
+          updated_at?: string
+          upvote_score?: number
+          user_id: string
+        }
+        Update: {
+          answer_score?: number
+          answers_count?: number
+          best_answers_count?: number
+          created_at?: string
+          id?: string
+          level?: string
+          post_score?: number
+          posts_count?: number
+          total_score?: number
+          updated_at?: string
+          upvote_score?: number
           user_id?: string
         }
         Relationships: []

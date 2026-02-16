@@ -18,6 +18,8 @@ import AdminLogin from "./pages/AdminLogin";
 import UserProfilePage from "./pages/UserProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AIChatPage from "./pages/AIChatPage";
+import CommunityPage from "./pages/CommunityPage";
+import CommunityDetailPage from "./pages/CommunityDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +48,16 @@ const App = () => (
             <Route path="/chat" element={
               <ProtectedRoute>
                 <AIChatPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/community" element={
+              <ProtectedRoute>
+                <CommunityPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/community/:slug" element={
+              <ProtectedRoute>
+                <CommunityDetailPage />
               </ProtectedRoute>
             } />
             <Route path="/admin/login" element={<AdminLogin />} />
