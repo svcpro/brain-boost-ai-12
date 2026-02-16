@@ -17,6 +17,7 @@ import AdminPanel from "./pages/AdminPanel";
 import AdminLogin from "./pages/AdminLogin";
 import UserProfilePage from "./pages/UserProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import AIChatPage from "./pages/AIChatPage";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,11 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/chat" element={
+              <ProtectedRoute>
+                <AIChatPage />
+              </ProtectedRoute>
+            } />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={
               <AdminProtectedRoute>
