@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Activity, Server, Zap, Database, RefreshCw, Loader2,
   CheckCircle2, AlertTriangle, XCircle, Clock, TrendingUp,
-  Cpu, HardDrive, Wifi
+  Cpu, HardDrive, Wifi, DollarSign, BarChart3, Shield,
+  Table2, ArrowUpRight, ArrowDownRight, Gauge
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 interface EdgeFunctionStatus {
   name: string;
@@ -24,6 +25,20 @@ interface ApiUsageRow {
   status: string;
   is_enabled: boolean;
   usage_reset_at: string | null;
+  monthly_cost_estimate: number;
+  category: string;
+}
+
+interface DbTableInfo {
+  table_name: string;
+  row_count: number;
+}
+
+interface CostSummary {
+  totalMonthlyCost: number;
+  costByCategory: Record<string, number>;
+  costPerCall: number;
+  topCostService: string;
 }
 
 interface InferenceStats {
@@ -44,6 +59,8 @@ const SystemMonitor = () => {
   });
   const [edgeFunctions, setEdgeFunctions] = useState<EdgeFunctionStatus[]>([]);
   const [recentErrors, setRecentErrors] = useState<{ id: string; model_name: string; error_message: string; started_at: string }[]>([]);
+  const [dbTables, setDbTables] = useState<DbTableInfo[]>([]);
+  const [costSummary, setCostSummary] = useState<CostSummary>({ totalMonthlyCost: 0, costByCategory: {}, costPerCall: 0, topCostService: "" });
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
   const fetchData = useCallback(async () => {
@@ -52,14 +69,15 @@ const SystemMonitor = () => {
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const [apiRes, predictions24hRes, predictionsWeekRes, trainingErrorsRes, trainingLogsRes] = await Promise.all([
-      supabase.from("api_integrations").select("service_name, display_name, monthly_usage_count, usage_limit, status, is_enabled, usage_reset_at"),
+      supabase.from("api_integrations").select("service_name, display_name, monthly_usage_count, usage_limit, status, is_enabled, usage_reset_at, monthly_cost_estimate, category"),
       supabase.from("model_predictions").select("model_name, latency_ms, is_correct, confidence, created_at").gte("created_at", twentyFourHoursAgo.toISOString()),
       supabase.from("model_predictions").select("model_name, latency_ms, is_correct, created_at").gte("created_at", sevenDaysAgo.toISOString()),
       supabase.from("ml_training_logs").select("id, model_name, error_message, started_at").eq("status", "failed").order("started_at", { ascending: false }).limit(5),
       supabase.from("ml_training_logs").select("model_name, status, started_at, completed_at, metrics").order("started_at", { ascending: false }).limit(50),
     ]);
 
-    setApiUsage(apiRes.data || []);
+    const apiData = (apiRes.data || []) as ApiUsageRow[];
+    setApiUsage(apiData);
     setRecentErrors((trainingErrorsRes.data || []).map(e => ({ ...e, error_message: e.error_message || "Unknown error" })));
 
     // Inference stats
@@ -114,6 +132,32 @@ const SystemMonitor = () => {
       };
     });
     setEdgeFunctions(efStatuses);
+
+    // Cost summary
+    const totalMonthlyCost = apiData.reduce((s, a) => s + (a.monthly_cost_estimate || 0), 0);
+    const totalCalls = apiData.reduce((s, a) => s + (a.monthly_usage_count || 0), 0);
+    const costByCategory: Record<string, number> = {};
+    apiData.forEach(a => {
+      costByCategory[a.category] = (costByCategory[a.category] || 0) + (a.monthly_cost_estimate || 0);
+    });
+    const topCostService = apiData.length > 0
+      ? [...apiData].sort((a, b) => (b.monthly_cost_estimate || 0) - (a.monthly_cost_estimate || 0))[0].display_name
+      : "";
+    setCostSummary({
+      totalMonthlyCost,
+      costByCategory,
+      costPerCall: totalCalls > 0 ? totalMonthlyCost / totalCalls : 0,
+      topCostService,
+    });
+
+    // DB table row counts
+    const tableNames = ["profiles", "topics", "study_sessions", "memory_scores", "exam_results", "ai_chat_messages", "model_predictions", "ml_events", "notification_history", "study_plans"];
+    const tablePromises = tableNames.map(async (t) => {
+      const { count } = await supabase.from(t as any).select("*", { count: "exact", head: true });
+      return { table_name: t, row_count: count || 0 };
+    });
+    const tableResults = await Promise.all(tablePromises);
+    setDbTables(tableResults.sort((a, b) => b.row_count - a.row_count));
 
     // System health checks
     const dbOk = !!(apiRes.data);
@@ -221,8 +265,8 @@ const SystemMonitor = () => {
         {[
           { label: "AI Inferences (24h)", value: inferenceStats.total24h, icon: Zap, color: "text-primary", sub: `${inferenceStats.totalWeek} this week` },
           { label: "Avg Latency", value: `${inferenceStats.avgLatency}ms`, icon: Clock, color: "text-accent", sub: inferenceStats.avgLatency < 200 ? "Within target" : "Above target" },
-          { label: "Accuracy Rate", value: `${inferenceStats.accuracyRate}%`, icon: TrendingUp, color: "text-emerald-500", sub: `${inferenceStats.modelBreakdown.length} active models` },
-          { label: "API Services", value: apiUsage.filter(a => a.is_enabled).length, icon: Wifi, color: "text-amber-500", sub: `${apiUsage.length} total configured` },
+          { label: "Accuracy Rate", value: `${inferenceStats.accuracyRate}%`, icon: TrendingUp, color: "text-success", sub: `${inferenceStats.modelBreakdown.length} active models` },
+          { label: "Monthly Cost", value: `$${costSummary.totalMonthlyCost.toFixed(2)}`, icon: DollarSign, color: "text-warning", sub: costSummary.topCostService ? `Top: ${costSummary.topCostService}` : "No cost data" },
         ].map(c => (
           <div key={c.label} className="glass rounded-xl p-4 neural-border">
             <div className="flex items-center gap-2 mb-2">
@@ -233,6 +277,78 @@ const SystemMonitor = () => {
             <p className="text-[10px] text-muted-foreground mt-0.5">{c.sub}</p>
           </div>
         ))}
+      </div>
+
+      {/* Cost & Usage Monitor */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Cost Breakdown by Service */}
+        <div className="glass rounded-2xl p-5 neural-border">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+            <DollarSign className="w-4 h-4 text-warning" />
+            Cost & Usage per Service
+          </h3>
+          <div className="space-y-2.5">
+            {apiUsage.map(api => {
+              const costPerCallService = api.monthly_usage_count > 0 ? api.monthly_cost_estimate / api.monthly_usage_count : 0;
+              return (
+                <div key={api.service_name} className="p-3 rounded-xl bg-secondary/50">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${api.is_enabled ? "bg-success" : "bg-muted-foreground"}`} />
+                      <span className="text-xs font-medium text-foreground">{api.display_name}</span>
+                    </div>
+                    <span className="text-xs font-bold text-foreground">${(api.monthly_cost_estimate || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>{(api.monthly_usage_count || 0).toLocaleString()} calls</span>
+                    <span>${costPerCallService.toFixed(5)}/call</span>
+                    <span className="capitalize">{api.category}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Avg Cost / Call</span>
+            <span className="text-sm font-bold text-foreground">${costSummary.costPerCall.toFixed(5)}</span>
+          </div>
+        </div>
+
+        {/* Database Health Monitor */}
+        <div className="glass rounded-2xl p-5 neural-border">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+            <Database className="w-4 h-4 text-primary" />
+            Database Health Monitor
+          </h3>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between px-2 py-1.5 text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+              <span>Table</span>
+              <span>Rows</span>
+            </div>
+            {dbTables.map((t, i) => {
+              const maxRows = Math.max(...dbTables.map(x => x.row_count), 1);
+              const pct = (t.row_count / maxRows) * 100;
+              return (
+                <div key={t.table_name} className="p-2.5 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <Table2 className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-xs font-mono text-foreground">{t.table_name}</span>
+                    </div>
+                    <span className="text-xs font-bold text-foreground">{t.row_count.toLocaleString()}</span>
+                  </div>
+                  <div className="h-1 bg-border rounded-full overflow-hidden">
+                    <div className="h-full bg-primary/50 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Total Records</span>
+            <span className="text-sm font-bold text-foreground">{dbTables.reduce((s, t) => s + t.row_count, 0).toLocaleString()}</span>
+          </div>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
