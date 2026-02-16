@@ -201,6 +201,9 @@ const DashboardSection = () => {
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
   const [chartMode, setChartMode] = useState<"minutes" | "sessions" | "users">("minutes");
   const [engagementData, setEngagementData] = useState<{ avgSessionMin: number; dau: number; wau: number; mau: number; retentionPct: number; peakHour: number; totalHours: number; avgDailyHours: number }>({ avgSessionMin: 0, dau: 0, wau: 0, mau: 0, retentionPct: 0, peakHour: 0, totalHours: 0, avgDailyHours: 0 });
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [recentLogs, setRecentLogs] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -210,18 +213,24 @@ const DashboardSection = () => {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const [usersRes, subsRes, logsRes, predsRes, activityRes] = await Promise.all([
+      const [usersRes, subsRes, logsRes, predsRes, activityRes, txRes, studyActivityRes, auditRes] = await Promise.all([
         supabase.from("profiles").select("id, created_at", { count: "exact" }),
         supabase.from("user_subscriptions").select("id, plan_id, amount, status"),
         supabase.from("study_logs").select("id, created_at").gte("created_at", today),
         supabase.from("model_predictions").select("id").gte("created_at", today),
         supabase.from("study_logs").select("user_id, created_at, duration_minutes").gte("created_at", thirtyDaysAgo.toISOString()),
+        supabase.from("user_subscriptions").select("*").order("created_at", { ascending: false }).limit(8),
+        supabase.from("study_logs").select("id, user_id, created_at, duration_minutes, study_mode, confidence_level").order("created_at", { ascending: false }).limit(10),
+        supabase.from("admin_audit_logs").select("*").order("created_at", { ascending: false }).limit(8),
       ]);
       const totalUsers = usersRes.count || 0;
       const activeSubs = (subsRes.data || []).filter(s => s.status === "active" && s.plan_id !== "free").length;
       const revenue = (subsRes.data || []).filter(s => s.status === "active").reduce((sum, s) => sum + (s.amount || 0), 0);
       const newToday = (usersRes.data || []).filter(u => u.created_at >= today).length;
       setStats({ totalUsers, activeSubs, revenue, newToday, studySessions: logsRes.data?.length || 0, predictions: predsRes.data?.length || 0 });
+      setRecentTransactions(txRes.data || []);
+      setRecentActivity(studyActivityRes.data || []);
+      setRecentLogs(auditRes.data || []);
 
       const allLogs = activityRes.data || [];
 
@@ -272,6 +281,30 @@ const DashboardSection = () => {
     })();
   }, []);
 
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  };
+
+  const auditActionMeta: Record<string, { label: string; color: string; icon: any }> = {
+    subscription_cancelled: { label: "Sub Cancelled", color: "text-destructive", icon: Ban },
+    subscription_extended: { label: "Sub Extended", color: "text-success", icon: Clock },
+    subscription_plan_changed: { label: "Plan Changed", color: "text-primary", icon: RefreshCw },
+    bulk_subscription_cancelled: { label: "Bulk Cancel", color: "text-destructive", icon: Ban },
+    bulk_subscription_extended: { label: "Bulk Extend", color: "text-success", icon: Clock },
+    bulk_plan_changed: { label: "Bulk Plan Change", color: "text-primary", icon: RefreshCw },
+    user_banned: { label: "User Banned", color: "text-destructive", icon: Ban },
+    user_unbanned: { label: "User Unbanned", color: "text-success", icon: CheckCircle2 },
+    feature_flag_toggled: { label: "Feature Flag", color: "text-accent", icon: Settings },
+    plan_gate_updated: { label: "Plan Gate", color: "text-accent", icon: Shield },
+  };
+
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
   const cards = [
@@ -286,7 +319,6 @@ const DashboardSection = () => {
   const chartData = activityData.map(d => chartMode === "minutes" ? d.minutes : chartMode === "sessions" ? d.sessions : d.uniqueUsers);
   const maxVal = Math.max(...chartData, 1);
   const chartHeight = 160;
-  const chartLabel = chartMode === "minutes" ? "min" : chartMode === "sessions" ? "sess" : "users";
 
   const engagementCards = [
     { label: "Total Study Hours", value: engagementData.totalHours.toLocaleString(), sub: `${engagementData.avgDailyHours}h/day avg`, icon: Clock, color: "text-primary" },
@@ -416,6 +448,98 @@ const DashboardSection = () => {
           </span>
         </div>
       </motion.div>
+
+      {/* Recent Panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Recent Transactions */}
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass rounded-xl neural-border overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+            <CreditCard className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Recent Transactions</h3>
+            <span className="ml-auto text-[10px] text-muted-foreground">{recentTransactions.length} latest</span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {recentTransactions.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No transactions yet</p>}
+            {recentTransactions.map(tx => (
+              <div key={tx.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-secondary/30 transition-colors">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${tx.status === "active" ? "bg-success/15" : tx.status === "expired" ? "bg-warning/15" : "bg-muted"}`}>
+                  <CreditCard className={`w-3.5 h-3.5 ${tx.status === "active" ? "text-success" : tx.status === "expired" ? "text-warning" : "text-muted-foreground"}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-medium text-foreground capitalize">{tx.plan_id}</p>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${tx.status === "active" ? "bg-success/15 text-success" : tx.status === "expired" ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"}`}>{tx.status}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground truncate">₹{tx.amount || 0} · {tx.user_id?.slice(0, 8)}...</p>
+                </div>
+                <span className="text-[9px] text-muted-foreground shrink-0">{timeAgo(tx.created_at)}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Recent Study Activity */}
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass rounded-xl neural-border overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+            <Activity className="w-4 h-4 text-success" />
+            <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
+            <span className="ml-auto text-[10px] text-muted-foreground">{recentActivity.length} latest</span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {recentActivity.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No study activity yet</p>}
+            {recentActivity.map(a => {
+              const modeColors: Record<string, string> = { focus: "bg-primary/15 text-primary", lazy: "bg-accent/15 text-accent", passive: "bg-warning/15 text-warning" };
+              const modeClass = modeColors[a.study_mode || ""] || "bg-secondary text-muted-foreground";
+              return (
+                <div key={a.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-secondary/30 transition-colors">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${modeClass.split(" ")[0]}`}>
+                    <Zap className={`w-3.5 h-3.5 ${modeClass.split(" ")[1]}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-medium text-foreground">{a.duration_minutes}m session</p>
+                      {a.study_mode && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium capitalize ${modeClass}`}>{a.study_mode}</span>}
+                      {a.confidence_level && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">{a.confidence_level}</span>}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground truncate">User: {a.user_id?.slice(0, 8)}...</p>
+                  </div>
+                  <span className="text-[9px] text-muted-foreground shrink-0">{timeAgo(a.created_at)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Recent Audit Logs */}
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="glass rounded-xl neural-border overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+            <ScrollText className="w-4 h-4 text-accent" />
+            <h3 className="text-sm font-semibold text-foreground">Recent Audit Logs</h3>
+            <span className="ml-auto text-[10px] text-muted-foreground">{recentLogs.length} latest</span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {recentLogs.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No audit logs yet</p>}
+            {recentLogs.map(log => {
+              const meta = auditActionMeta[log.action] || { label: log.action.replace(/_/g, " "), color: "text-muted-foreground", icon: ScrollText };
+              const IconComp = meta.icon;
+              return (
+                <div key={log.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-secondary/30 transition-colors">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-secondary">
+                    <IconComp className={`w-3.5 h-3.5 ${meta.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground capitalize">{meta.label}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {log.target_type}{log.target_id ? ` · ${log.target_id.slice(0, 8)}...` : ""} · by {log.admin_id?.slice(0, 8)}...
+                    </p>
+                  </div>
+                  <span className="text-[9px] text-muted-foreground shrink-0">{timeAgo(log.created_at)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };
