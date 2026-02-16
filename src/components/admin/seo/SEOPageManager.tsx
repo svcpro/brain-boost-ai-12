@@ -310,7 +310,7 @@ const SEOPageManager = () => {
           </div>
           <div className="bg-background rounded-lg p-3 border border-border">
             <p className="text-blue-400 text-base font-medium truncate">{page.meta_title || "Page Title — ACRY"}</p>
-            <p className="text-green-500 text-xs mt-0.5">brain-boost-ai-12.lovable.app{page.page_url}</p>
+            <p className="text-green-500 text-xs mt-0.5"><p className="text-green-500 text-xs mt-0.5">acry.ai{page.page_url}</p></p>
             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{page.meta_description || "Add a meta description..."}</p>
           </div>
         </div>
