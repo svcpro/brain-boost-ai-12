@@ -5,7 +5,7 @@ import {
   Loader2, Brain, Trash2, Sparkles, TrendingUp,
   BookOpen, Target, Zap, AlertTriangle, BarChart3,
   Clock, Copy, Check, RefreshCw, ChevronDown, Search, X,
-  Bookmark, BookmarkCheck, Filter
+  Bookmark, BookmarkCheck, Filter, Download
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -136,6 +136,73 @@ const AIChatPage = () => {
 
   const displayMessages = showBookmarksOnly ? messages.filter(m => m.bookmarked) : messages;
   const bookmarkCount = messages.filter(m => m.bookmarked).length;
+
+  const exportBookmarks = (format: "txt" | "pdf") => {
+    const bookmarked = messages.filter(m => m.bookmarked);
+    if (bookmarked.length === 0) {
+      toast({ title: "No bookmarks to export", variant: "destructive" });
+      return;
+    }
+
+    const formatDate = (d: string) => new Date(d).toLocaleString();
+
+    if (format === "txt") {
+      const text = [
+        "═══════════════════════════════════",
+        "  ACRY Intelligence — Bookmarked Responses",
+        `  Exported: ${new Date().toLocaleString()}`,
+        "═══════════════════════════════════\n",
+        ...bookmarked.map((m, i) => [
+          `── ${i + 1}. ${m.role === "user" ? "You" : "ACRY"} (${formatDate(m.created_at)}) ──`,
+          m.content,
+          "",
+        ].join("\n")),
+      ].join("\n");
+
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `acry-bookmarks-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Exported as TXT ✅" });
+    } else {
+      // Generate a printable HTML and trigger print-to-PDF
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>ACRY Bookmarks</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 700px; margin: 0 auto; padding: 40px 20px; color: #1a1a2e; }
+          h1 { font-size: 20px; color: #6c47ff; border-bottom: 2px solid #6c47ff; padding-bottom: 8px; }
+          .meta { font-size: 11px; color: #888; margin-bottom: 24px; }
+          .msg { margin-bottom: 24px; page-break-inside: avoid; }
+          .msg-header { font-size: 11px; font-weight: 600; color: #6c47ff; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .msg-content { font-size: 13px; line-height: 1.7; white-space: pre-wrap; background: #f8f8fc; padding: 12px 16px; border-radius: 8px; border-left: 3px solid #6c47ff; }
+          .msg-content.user { border-left-color: #22c55e; background: #f0fdf4; }
+          .divider { border: none; border-top: 1px dashed #e0e0e0; margin: 16px 0; }
+          @media print { body { padding: 20px; } }
+        </style></head><body>
+        <h1>⭐ ACRY Bookmarked Responses</h1>
+        <p class="meta">Exported on ${new Date().toLocaleString()} • ${bookmarked.length} bookmarked messages</p>
+        ${bookmarked.map((m, i) => `
+          <div class="msg">
+            <div class="msg-header">${m.role === "user" ? "📝 You" : "🧠 ACRY"} — ${formatDate(m.created_at)}</div>
+            <div class="msg-content ${m.role === "user" ? "user" : ""}">${m.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+          </div>
+          ${i < bookmarked.length - 1 ? '<hr class="divider"/>' : ""}
+        `).join("")}
+        </body></html>`;
+
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        setTimeout(() => { printWindow.print(); }, 500);
+        toast({ title: "PDF print dialog opened ✅" });
+      } else {
+        toast({ title: "Pop-up blocked. Please allow pop-ups.", variant: "destructive" });
+      }
+    }
+  };
 
   // Stream chat
   const sendMessage = async (text: string, isVoice = false) => {
@@ -579,6 +646,33 @@ const AIChatPage = () => {
           </div>
         ) : (
           <>
+            {/* Bookmarks mode banner with export */}
+            {showBookmarksOnly && displayMessages.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 mb-2"
+              >
+                <div className="flex items-center gap-2">
+                  <BookmarkCheck className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-semibold text-foreground">{displayMessages.length} bookmarked</span>
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => exportBookmarks("txt")}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-secondary border border-border text-[10px] font-semibold text-foreground hover:bg-secondary/80 transition-colors"
+                  >
+                    <Download className="w-3 h-3" /> TXT
+                  </button>
+                  <button
+                    onClick={() => exportBookmarks("pdf")}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    <Download className="w-3 h-3" /> PDF
+                  </button>
+                </div>
+              </motion.div>
+            )}
             {displayMessages.map((msg, idx) => (
               <motion.div
                 id={`msg-${msg.id}`}
