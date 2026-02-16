@@ -124,6 +124,66 @@ export type Database = {
           },
         ]
       }
+      api_endpoints: {
+        Row: {
+          avg_latency_ms: number | null
+          category: string
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_enabled: boolean | null
+          method: string
+          path: string
+          rate_limit_per_minute: number | null
+          request_schema: Json | null
+          requires_auth: boolean | null
+          response_schema: Json | null
+          total_errors: number | null
+          total_requests: number | null
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          avg_latency_ms?: number | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_enabled?: boolean | null
+          method?: string
+          path: string
+          rate_limit_per_minute?: number | null
+          request_schema?: Json | null
+          requires_auth?: boolean | null
+          response_schema?: Json | null
+          total_errors?: number | null
+          total_requests?: number | null
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          avg_latency_ms?: number | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_enabled?: boolean | null
+          method?: string
+          path?: string
+          rate_limit_per_minute?: number | null
+          request_schema?: Json | null
+          requires_auth?: boolean | null
+          response_schema?: Json | null
+          total_errors?: number | null
+          total_requests?: number | null
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
       api_integrations: {
         Row: {
           api_key_masked: string | null
@@ -183,6 +243,171 @@ export type Database = {
           usage_reset_at?: string | null
         }
         Relationships: []
+      }
+      api_keys: {
+        Row: {
+          created_at: string
+          created_by: string
+          environment: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          key_hash: string
+          key_prefix: string
+          key_type: string
+          last_used_at: string | null
+          name: string
+          notes: string | null
+          permissions: string[]
+          rate_limit_per_minute: number | null
+          updated_at: string
+          usage_count: number | null
+          usage_limit: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          environment?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash: string
+          key_prefix: string
+          key_type?: string
+          last_used_at?: string | null
+          name: string
+          notes?: string | null
+          permissions?: string[]
+          rate_limit_per_minute?: number | null
+          updated_at?: string
+          usage_count?: number | null
+          usage_limit?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          environment?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          key_prefix?: string
+          key_type?: string
+          last_used_at?: string | null
+          name?: string
+          notes?: string | null
+          permissions?: string[]
+          rate_limit_per_minute?: number | null
+          updated_at?: string
+          usage_count?: number | null
+          usage_limit?: number | null
+        }
+        Relationships: []
+      }
+      api_rate_limits: {
+        Row: {
+          burst_limit: number | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          requests_per_day: number | null
+          requests_per_hour: number | null
+          requests_per_minute: number
+          target_id: string | null
+          target_type: string
+          updated_at: string
+        }
+        Insert: {
+          burst_limit?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          requests_per_day?: number | null
+          requests_per_hour?: number | null
+          requests_per_minute?: number
+          target_id?: string | null
+          target_type: string
+          updated_at?: string
+        }
+        Update: {
+          burst_limit?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          requests_per_day?: number | null
+          requests_per_hour?: number | null
+          requests_per_minute?: number
+          target_id?: string | null
+          target_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      api_request_logs: {
+        Row: {
+          api_key_id: string | null
+          created_at: string
+          endpoint_id: string | null
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          latency_ms: number | null
+          method: string
+          path: string
+          request_size_bytes: number | null
+          response_size_bytes: number | null
+          status_code: number
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          api_key_id?: string | null
+          created_at?: string
+          endpoint_id?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          latency_ms?: number | null
+          method: string
+          path: string
+          request_size_bytes?: number | null
+          response_size_bytes?: number | null
+          status_code: number
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          api_key_id?: string | null
+          created_at?: string
+          endpoint_id?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          latency_ms?: number | null
+          method?: string
+          path?: string
+          request_size_bytes?: number | null
+          response_size_bytes?: number | null
+          status_code?: number
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_request_logs_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_request_logs_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "api_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       brain_missions: {
         Row: {
