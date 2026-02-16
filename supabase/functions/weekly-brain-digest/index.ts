@@ -226,7 +226,7 @@ Total topics: ${topics.length}`;
     </div>
 
     <div style="text-align:center;margin:24px 0;">
-      <a href="https://id-preview--d1ba6129-f715-4b5b-be21-b93a62f817dd.lovable.app/app" style="background:linear-gradient(135deg,#0d9488,#065f46);color:white;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;box-shadow:0 4px 14px rgba(13,148,136,0.3);">Open ACRY →</a>
+      <a href="https://acry.ai/app" style="background:linear-gradient(135deg,#0d9488,#065f46);color:white;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;box-shadow:0 4px 14px rgba(13,148,136,0.3);">Open ACRY →</a>
     </div>
   </div>
 
