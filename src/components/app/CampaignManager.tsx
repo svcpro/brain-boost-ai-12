@@ -318,34 +318,38 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
       });
       if (aiErr) throw aiErr;
 
-      // Fetch all profiles
+      // Fetch ALL profiles (admin has access via RLS)
       const { data: profiles } = await supabase.from("profiles").select("id");
-      let allProfiles = profiles || [];
+      const { data: leads } = await supabase.from("leads").select("user_id, subscription_plan");
+      
+      let allProfileIds = (profiles || []).map((p: any) => p.id);
 
-      if (targetPlan !== "all") {
-        // Filter by subscription plan from user_subscriptions or leads table
-        const { data: leads } = await supabase.from("leads").select("user_id, subscription_plan");
-        const planUsers = new Set((leads || []).filter((l: any) => {
-          const plan = (l.subscription_plan || "free").toLowerCase();
-          return plan === targetPlan;
-        }).map((l: any) => l.user_id));
-        
-        if (targetPlan === "free") {
-          // Free = users NOT in leads with pro/ultra, OR explicitly free
-          const paidUsers = new Set((leads || []).filter((l: any) => {
-            const plan = (l.subscription_plan || "").toLowerCase();
-            return plan === "pro" || plan === "ultra";
-          }).map((l: any) => l.user_id));
-          allProfiles = allProfiles.filter((p: any) => !paidUsers.has(p.id));
-        } else {
-          allProfiles = allProfiles.filter((p: any) => planUsers.has(p.id));
-        }
+      // If no profiles found via RLS, fall back to leads table user_ids
+      if (allProfileIds.length === 0 && leads && leads.length > 0) {
+        allProfileIds = leads.map((l: any) => l.user_id);
       }
 
-      const recipientIds = allProfiles.map((p: any) => p.id);
+      if (targetPlan !== "all" && targetPlan !== "free") {
+        // Pro or Ultra: only users explicitly marked with that plan
+        const planUsers = new Set((leads || []).filter((l: any) => {
+          const plan = (l.subscription_plan || "").toLowerCase();
+          return plan === targetPlan;
+        }).map((l: any) => l.user_id));
+        allProfileIds = allProfileIds.filter((id: string) => planUsers.has(id));
+      } else if (targetPlan === "free") {
+        // Free = users NOT marked as pro/ultra
+        const paidUsers = new Set((leads || []).filter((l: any) => {
+          const plan = (l.subscription_plan || "").toLowerCase();
+          return plan === "pro" || plan === "ultra";
+        }).map((l: any) => l.user_id));
+        allProfileIds = allProfileIds.filter((id: string) => !paidUsers.has(id));
+      }
+      // targetPlan === "all" → keep all profiles
+
+      const recipientIds = allProfileIds;
 
       if (recipientIds.length === 0) {
-        toast({ title: "No users found", description: `No users match the "${targetPlan}" plan filter. Try "All Users" instead.`, variant: "destructive" });
+        toast({ title: "No users found", description: `No users match the "${targetPlan}" plan filter. Currently all users are on "Free" plan. Try "All Users" or "Free" instead.`, variant: "destructive" });
         setCreating(null);
         return;
       }
