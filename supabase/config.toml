@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.generate-notification]
 verify_jwt = false
+
+[functions.generate-campaign-templates]
+verify_jwt = false
