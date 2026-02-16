@@ -33,8 +33,9 @@ import SystemMonitor from "@/components/admin/SystemMonitor";
 import AdminProfile from "@/components/admin/AdminProfile";
 import ChatManagement from "@/components/admin/ChatManagement";
 import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
+import FinanceManagement from "@/components/admin/FinanceManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -65,6 +66,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
   { key: "services", label: "3rd Party Services", icon: Globe, roles: ["super_admin", "admin", "api_admin"] },
+  { key: "finance", label: "Finance", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
   { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
@@ -201,6 +203,7 @@ const AdminPanel = () => {
             {section === "plan_gating" && <PlanGatingManagement />}
             {section === "apis" && <ApiManagement />}
             {section === "services" && <ThirdPartyServices />}
+            {section === "finance" && <FinanceManagement />}
             {section === "notifications" && <AdminNotificationCenter />}
             {section === "campaigns" && <CampaignManager />}
             {section === "monitoring" && <SystemMonitor />}
