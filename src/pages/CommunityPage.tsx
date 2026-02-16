@@ -9,19 +9,20 @@ import {
   GraduationCap, Atom, Globe2, MessageSquare, TrendingUp,
   Sparkles, Star, Brain, Tag, Zap, Flame, Clock,
   Award, Crown, Shield, ChevronRight, Bookmark, Eye,
-  BarChart3, Filter, ArrowUpRight, Hash
+  BarChart3, Filter, ArrowUpRight, Hash, Wand2, RefreshCw,
+  Target, Lightbulb, CheckCircle2, X, FileText,
+  Compass, Layers, Activity
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<string, any> = {
   exam: GraduationCap, subject: Atom, topic: BookOpen, general: Globe2,
 };
 
-const REPUTATION_BADGES: Record<string, { label: string; icon: any; cls: string }> = {
-  legend: { label: "Legend", icon: Crown, cls: "text-warning" },
-  expert: { label: "Expert", icon: Award, cls: "text-primary" },
-  contributor: { label: "Contributor", icon: Star, cls: "text-accent" },
-  active: { label: "Active", icon: Zap, cls: "text-success" },
-  newbie: { label: "Newbie", icon: Users, cls: "text-muted-foreground" },
+const CATEGORY_GRADIENTS: Record<string, string> = {
+  exam: "from-primary/30 via-accent/20 to-primary/10",
+  subject: "from-accent/30 via-primary/20 to-accent/10",
+  topic: "from-warning/30 via-warning/10 to-warning/5",
+  general: "from-secondary via-secondary/50 to-secondary/30",
 };
 
 const CommunityPage = () => {
@@ -56,7 +57,6 @@ const CommunityPage = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Fetch karma
   useEffect(() => {
     if (!user) return;
     (supabase as any).from("user_reputation").select("karma_points").eq("user_id", user.id).maybeSingle().then(({ data }: any) => {
@@ -64,7 +64,6 @@ const CommunityPage = () => {
     });
   }, [user]);
 
-  // Fetch trending feed
   const fetchFeed = useCallback(async () => {
     if (activeView !== "feed") return;
     setLoadingAI(true);
@@ -138,131 +137,164 @@ const CommunityPage = () => {
   const PostCard = ({ post, index, showCommunity = false }: { post: any; index: number; showCommunity?: boolean }) => {
     const impCls = post.importance_level === "high" ? "border-l-destructive" : post.importance_level === "medium" ? "border-l-warning" : "border-l-transparent";
     return (
-      <motion.div key={post.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.03 }}
-        className={`glass rounded-xl p-4 neural-border hover:border-primary/40 transition-all cursor-pointer border-l-[3px] ${impCls}`}
+      <motion.div key={post.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.03, type: "spring", stiffness: 300, damping: 30 }}
+        className={`group relative rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-all duration-300 cursor-pointer border-l-[3px] ${impCls} overflow-hidden`}
         onClick={() => {
           const slug = post.communities?.slug;
           if (slug) navigate(`/community/${slug}`);
         }}>
-        <div className="flex items-start gap-3">
-          <div className="flex flex-col items-center gap-1 shrink-0 min-w-[32px]">
-            <button className="text-primary hover:text-primary/80"><TrendingUp className="w-4 h-4" /></button>
-            <span className="text-xs font-bold text-foreground">{post.upvote_count || 0}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            {showCommunity && post.communities && (
-              <div className="flex items-center gap-1.5 mb-1">
-                <Hash className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[10px] text-primary font-medium">{post.communities.name}</span>
+        {/* Hover glow effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        <div className="relative p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex flex-col items-center gap-1 shrink-0 min-w-[36px]">
+              <div className={`w-9 h-9 rounded-xl flex flex-col items-center justify-center ${
+                (post.upvote_count || 0) > 10 ? "bg-primary/15 text-primary" : "bg-secondary/80 text-muted-foreground"
+              }`}>
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-bold leading-none mt-0.5">{post.upvote_count || 0}</span>
               </div>
-            )}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">{post.post_type}</span>
-              {post.importance_level === "high" && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive font-medium">🔥 Hot</span>}
-              {post.is_pinned && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-warning/15 text-warning font-medium">📌</span>}
-              {post.ai_summary && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">🤖 AI</span>}
             </div>
-            <h3 className="text-sm font-semibold text-foreground mt-1 line-clamp-2">{post.title}</h3>
-            {post.ai_summary && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{post.ai_summary}</p>}
-            {post.ai_tags?.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {post.ai_tags.slice(0, 3).map((tag: string) => (
-                  <span key={tag} className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tag}</span>
-                ))}
+            <div className="flex-1 min-w-0">
+              {showCommunity && post.communities && (
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className="w-4 h-4 rounded-md bg-primary/15 flex items-center justify-center">
+                    <Hash className="w-2.5 h-2.5 text-primary" />
+                  </div>
+                  <span className="text-[10px] text-primary font-semibold">{post.communities.name}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold uppercase tracking-wide">{post.post_type}</span>
+                {post.importance_level === "high" && (
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-destructive/20 to-warning/20 text-destructive font-semibold flex items-center gap-0.5">
+                    <Flame className="w-2.5 h-2.5" /> Trending
+                  </span>
+                )}
+                {post.is_pinned && <span className="text-[9px] px-2 py-0.5 rounded-full bg-warning/15 text-warning font-semibold">📌 Pinned</span>}
+                {post.ai_summary && (
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-primary/15 to-accent/15 text-primary font-semibold flex items-center gap-0.5">
+                    <Sparkles className="w-2.5 h-2.5" /> AI
+                  </span>
+                )}
               </div>
-            )}
-            <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{post.comment_count || 0}</span>
-              <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{post.view_count || 0}</span>
-              {post.importance_score > 0 && <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />{post.importance_score}</span>}
+              <h3 className="text-sm font-bold text-foreground mt-1.5 line-clamp-2 group-hover:text-primary transition-colors">{post.title}</h3>
+              {post.ai_summary && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{post.ai_summary}</p>}
+              {post.ai_tags?.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {post.ai_tags.slice(0, 3).map((tag: string) => (
+                    <span key={tag} className="text-[8px] px-2 py-0.5 rounded-full bg-primary/8 text-primary/80 font-medium border border-primary/10">{tag}</span>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-3 mt-2.5 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{post.comment_count || 0}</span>
+                <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{post.view_count || 0}</span>
+                {post.importance_score > 0 && (
+                  <span className="flex items-center gap-1 text-primary/70"><Activity className="w-3 h-3" />{post.importance_score}</span>
+                )}
+              </div>
             </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0 mt-3 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
           </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-2" />
         </div>
       </motion.div>
     );
   };
 
   const views = [
-    { id: "feed" as const, label: "Feed", icon: Flame },
-    { id: "communities" as const, label: "Browse", icon: Users },
-    { id: "recommended" as const, label: "For You", icon: Brain },
-    { id: "important" as const, label: "Top", icon: Star },
+    { id: "feed" as const, label: "Feed", icon: Flame, glow: true },
+    { id: "communities" as const, label: "Explore", icon: Compass },
+    { id: "recommended" as const, label: "For You", icon: Brain, ai: true },
+    { id: "important" as const, label: "Top", icon: Crown },
     { id: "saved" as const, label: "Saved", icon: Bookmark },
   ];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b border-border">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate("/app")} className="p-2 hover:bg-secondary rounded-lg"><ArrowLeft className="w-5 h-5 text-foreground" /></button>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Users className="w-4 h-4 text-primary-foreground" />
-              </div>
-              Community
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {myKarma > 0 && (
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20">
-                <Award className="w-3 h-3 text-warning" />
-                <span className="text-[10px] font-bold text-warning">{myKarma}</span>
-              </div>
-            )}
-            <button onClick={() => setShowCreate(true)} className="p-2.5 bg-primary text-primary-foreground rounded-xl">
-              <Plus className="w-4 h-4" />
+      {/* Premium Header */}
+      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="max-w-3xl mx-auto px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate("/app")} className="p-2 hover:bg-secondary/80 rounded-xl transition-colors">
+              <ArrowLeft className="w-5 h-5 text-foreground" />
             </button>
+            <div className="flex-1">
+              <h1 className="text-lg font-bold text-foreground flex items-center gap-2.5">
+                <div className="relative">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+                    <Users className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-background" />
+                </div>
+                Community
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-primary/15 to-accent/15 text-primary font-semibold flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5" /> AI
+                </span>
+              </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              {myKarma > 0 && (
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-warning/15 to-warning/5 border border-warning/20">
+                  <Award className="w-3.5 h-3.5 text-warning" />
+                  <span className="text-[10px] font-bold text-warning">{myKarma}</span>
+                </motion.div>
+              )}
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                onClick={() => setShowCreate(true)} className="p-2.5 bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
+                <Plus className="w-4 h-4" />
+              </motion.button>
+            </div>
           </div>
         </div>
 
-        {/* Tab Bar */}
-        <div className="max-w-3xl mx-auto px-4 pb-2">
-          <div className="flex gap-1 overflow-x-auto no-scrollbar">
+        {/* Premium Tab Bar */}
+        <div className="max-w-3xl mx-auto px-4 pb-2.5">
+          <div className="flex gap-1 overflow-x-auto no-scrollbar p-1 bg-secondary/30 rounded-2xl">
             {views.map(tab => (
               <button key={tab.id} onClick={() => setActiveView(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
+                className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all duration-300 ${
                   activeView === tab.id
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                 }`}>
-                <tab.icon className={`w-3.5 h-3.5 ${activeView === tab.id && tab.id === "feed" ? "animate-pulse" : ""}`} />
+                <tab.icon className={`w-3.5 h-3.5 ${activeView === tab.id && tab.glow ? "animate-pulse" : ""}`} />
                 {tab.label}
+                {tab.ai && (
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeView === tab.id ? "bg-primary-foreground" : "bg-primary"} animate-pulse`} />
+                )}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-3">
+      <div className="max-w-3xl mx-auto px-4 py-4 space-y-3 pb-24">
         {/* FEED VIEW */}
         {activeView === "feed" && (
           <>
-            {/* Sort Tabs */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 p-1 bg-secondary/20 rounded-xl">
               {([
-                { id: "hot" as const, label: "Hot", icon: Flame },
-                { id: "new" as const, label: "New", icon: Clock },
-                { id: "top" as const, label: "Top", icon: TrendingUp },
+                { id: "hot" as const, label: "Hot", icon: Flame, color: "text-destructive" },
+                { id: "new" as const, label: "New", icon: Clock, color: "text-success" },
+                { id: "top" as const, label: "Top", icon: TrendingUp, color: "text-primary" },
               ]).map(s => (
                 <button key={s.id} onClick={() => setSortMode(s.id)}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
-                    sortMode === s.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                    sortMode === s.id ? `bg-card border border-border/50 ${s.color} shadow-sm` : "text-muted-foreground hover:text-foreground"
                   }`}>
                   <s.icon className="w-3.5 h-3.5" /> {s.label}
                 </button>
               ))}
             </div>
 
-            {loadingAI ? (
-              <LoadingState text="Loading feed..." />
-            ) : trendingPosts.length === 0 ? (
-              <EmptyState icon={Flame} text="No posts yet. Be the first to start a discussion!" />
-            ) : (
-              trendingPosts.map((post, i) => <PostCard key={post.id} post={post} index={i} showCommunity />)
-            )}
+            {loadingAI ? <LoadingState text="Loading feed..." /> :
+              trendingPosts.length === 0 ? <EmptyState icon={Flame} text="No posts yet. Be the first to start a discussion!" /> :
+              <div className="space-y-2.5">
+                {trendingPosts.map((post, i) => <PostCard key={post.id} post={post} index={i} showCommunity />)}
+              </div>
+            }
           </>
         )}
 
@@ -273,10 +305,10 @@ const CommunityPage = () => {
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search communities..."
-                  className="w-full pl-9 pr-3 py-2.5 bg-secondary/50 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  className="w-full pl-9 pr-3 py-2.5 bg-card border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all" />
               </div>
               <select value={filter} onChange={e => setFilter(e.target.value)}
-                className="px-3 py-2 bg-secondary/50 border border-border rounded-xl text-xs text-foreground focus:outline-none">
+                className="px-3 py-2 bg-card border border-border/50 rounded-xl text-xs text-foreground focus:outline-none">
                 <option value="all">All</option>
                 <option value="exam">Exam</option>
                 <option value="subject">Subject</option>
@@ -290,36 +322,62 @@ const CommunityPage = () => {
               <div className="space-y-3">
                 {filtered.map((c, i) => {
                   const Icon = CATEGORY_ICONS[c.category] || Globe2;
+                  const gradient = CATEGORY_GRADIENTS[c.category] || CATEGORY_GRADIENTS.general;
                   const isMember = myMemberships.has(c.id);
                   return (
-                    <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                      className="glass rounded-xl p-4 neural-border hover:border-primary/40 transition-all cursor-pointer"
+                    <motion.div key={c.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04, type: "spring", stiffness: 300, damping: 30 }}
+                      className="group relative rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-all duration-300 cursor-pointer overflow-hidden"
                       onClick={() => navigate(`/community/${c.slug}`)}>
-                      <div className="flex items-start gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center shrink-0">
-                          <Icon className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-semibold text-foreground truncate">{c.name}</h3>
-                            {c.exam_type && <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 text-primary rounded-full font-medium">{c.exam_type}</span>}
+                      {/* Background gradient strip */}
+                      <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradient}`} />
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-lg group-hover:shadow-primary/10 transition-shadow`}>
+                            <Icon className="w-5 h-5 text-primary" />
                           </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{c.description || "A learning community"}</p>
-                          <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
-                            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{c.member_count}</span>
-                            <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{c.post_count}</span>
-                            {(c.weekly_active_users || 0) > 0 && <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-success" />{c.weekly_active_users} active</span>}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">{c.name}</h3>
+                              {c.exam_type && (
+                                <span className="text-[8px] px-2 py-0.5 bg-gradient-to-r from-primary/15 to-primary/5 text-primary rounded-full font-bold uppercase tracking-wider">{c.exam_type}</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{c.description || "A learning community"}</p>
+                            <div className="flex items-center gap-3 mt-2.5">
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <div className="w-4 h-4 rounded-md bg-secondary flex items-center justify-center"><Users className="w-2.5 h-2.5" /></div>
+                                {c.member_count}
+                              </span>
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <div className="w-4 h-4 rounded-md bg-secondary flex items-center justify-center"><MessageSquare className="w-2.5 h-2.5" /></div>
+                                {c.post_count}
+                              </span>
+                              {(c.weekly_active_users || 0) > 0 && (
+                                <span className="flex items-center gap-1 text-[10px] text-success font-medium">
+                                  <Zap className="w-3 h-3" />{c.weekly_active_users} active
+                                </span>
+                              )}
+                              {(c.trending_score || 0) > 50 && (
+                                <span className="flex items-center gap-1 text-[10px] text-destructive font-medium">
+                                  <Flame className="w-3 h-3" /> Trending
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="shrink-0">
-                          {isMember ? (
-                            <span className="text-[10px] px-2.5 py-1 bg-success/15 text-success rounded-full font-medium">Joined</span>
-                          ) : (
-                            <button onClick={e => { e.stopPropagation(); joinCommunity(c.id); }}
-                              className="text-[10px] px-2.5 py-1 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90">
-                              Join
-                            </button>
-                          )}
+                          <div className="shrink-0">
+                            {isMember ? (
+                              <div className="flex items-center gap-1 px-3 py-1.5 bg-success/10 border border-success/20 text-success rounded-xl">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span className="text-[10px] font-semibold">Joined</span>
+                              </div>
+                            ) : (
+                              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                onClick={e => { e.stopPropagation(); joinCommunity(c.id); }}
+                                className="px-4 py-1.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl text-[10px] font-bold shadow-lg shadow-primary/15 hover:shadow-primary/30 transition-shadow">
+                                Join
+                              </motion.button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -333,41 +391,56 @@ const CommunityPage = () => {
         {/* RECOMMENDED VIEW */}
         {activeView === "recommended" && (
           <div className="space-y-3">
-            {weakTopics.length > 0 && (
-              <div className="glass rounded-xl p-3 neural-border">
-                <p className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1"><Brain className="w-3 h-3 text-primary" /> Personalized based on your weak topics:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {weakTopics.slice(0, 8).map(t => (
-                    <span key={t} className="text-[9px] px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium">{t}</span>
-                  ))}
+            {/* AI Brain Banner */}
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+              className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 border border-primary/20 p-4">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
+              <div className="relative flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+                  <Brain className="w-5 h-5 text-primary-foreground animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">AI Personalized Feed</p>
+                  <p className="text-[10px] text-muted-foreground">Curated based on your brain profile & weak topics</p>
                 </div>
               </div>
-            )}
+              {weakTopics.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {weakTopics.slice(0, 6).map(t => (
+                    <span key={t} className="text-[9px] px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-semibold border border-destructive/15">{t}</span>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
             {loadingAI ? <LoadingState text="AI finding discussions for you..." /> :
               recommendations.length === 0 ? <EmptyState icon={Brain} text="Study more topics to unlock personalized recommendations!" /> :
               recommendations.map((post, i) => (
                 <motion.div key={post.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                  className="glass rounded-xl p-4 neural-border hover:border-primary/40 transition-all cursor-pointer border-l-[3px] border-l-primary"
+                  className="group relative rounded-2xl bg-card/80 backdrop-blur-sm border border-primary/20 hover:border-primary/40 transition-all duration-300 cursor-pointer overflow-hidden"
                   onClick={() => navigate(`/community/${post.community_id}`)}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-5 h-5 text-primary animate-pulse" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
-                          {post.relevance_score}% match
-                        </span>
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary" />
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center shrink-0">
+                        <Target className="w-5 h-5 text-primary" />
                       </div>
-                      <h3 className="text-sm font-semibold text-foreground mt-1">{post.title}</h3>
-                      {post.ai_summary && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{post.ai_summary}</p>}
-                      {post.ai_tags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {post.ai_tags.slice(0, 4).map((tag: string) => (
-                            <span key={tag} className="text-[8px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">{tag}</span>
-                          ))}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 text-primary font-bold">
+                            {post.relevance_score}% match
+                          </span>
                         </div>
-                      )}
+                        <h3 className="text-sm font-bold text-foreground mt-1 group-hover:text-primary transition-colors">{post.title}</h3>
+                        {post.ai_summary && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{post.ai_summary}</p>}
+                        {post.ai_tags?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {post.ai_tags.slice(0, 4).map((tag: string) => (
+                              <span key={tag} className="text-[8px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium border border-accent/15">{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -379,15 +452,19 @@ const CommunityPage = () => {
         {/* IMPORTANT VIEW */}
         {activeView === "important" && (
           loadingAI ? <LoadingState text="Loading top discussions..." /> :
-          importantPosts.length === 0 ? <EmptyState icon={Star} text="No important discussions identified yet." /> :
-          importantPosts.map((post, i) => <PostCard key={post.id} post={post} index={i} />)
+          importantPosts.length === 0 ? <EmptyState icon={Crown} text="No important discussions identified yet." /> :
+          <div className="space-y-2.5">
+            {importantPosts.map((post, i) => <PostCard key={post.id} post={post} index={i} />)}
+          </div>
         )}
 
         {/* SAVED VIEW */}
         {activeView === "saved" && (
           loadingAI ? <LoadingState /> :
           savedPosts.length === 0 ? <EmptyState icon={Bookmark} text="No saved posts yet. Bookmark discussions to find them here!" /> :
-          savedPosts.map((post, i) => <PostCard key={post.id} post={post} index={i} showCommunity />)
+          <div className="space-y-2.5">
+            {savedPosts.map((post, i) => <PostCard key={post.id} post={post} index={i} showCommunity />)}
+          </div>
         )}
       </div>
 
@@ -399,17 +476,24 @@ const CommunityPage = () => {
 };
 
 const LoadingState = ({ text = "Loading..." }: { text?: string }) => (
-  <div className="flex flex-col items-center justify-center py-12 gap-2">
-    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-    <p className="text-xs text-muted-foreground">{text}</p>
+  <div className="flex flex-col items-center justify-center py-16 gap-3">
+    <div className="relative">
+      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+      <div className="absolute inset-0 rounded-2xl bg-primary/10 animate-ping" />
+    </div>
+    <p className="text-xs text-muted-foreground font-medium">{text}</p>
   </div>
 );
 
 const EmptyState = ({ icon: Icon, text }: { icon: any; text: string }) => (
-  <div className="text-center py-12">
-    <Icon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-    <p className="text-sm text-muted-foreground">{text}</p>
-  </div>
+  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16">
+    <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center mx-auto mb-4">
+      <Icon className="w-7 h-7 text-muted-foreground" />
+    </div>
+    <p className="text-sm text-muted-foreground font-medium">{text}</p>
+  </motion.div>
 );
 
 const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) => {
@@ -421,54 +505,198 @@ const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onC
   const [examType, setExamType] = useState("");
   const [subject, setSubject] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [step, setStep] = useState(1);
+  const [aiSuggestions, setAiSuggestions] = useState<{ description?: string; rules?: string[] } | null>(null);
+
+  const generateAIDescription = async () => {
+    if (!name.trim()) { toast({ title: "Enter a name first" }); return; }
+    setAiGenerating(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "suggest_community", name: name.trim(), category, exam_type: examType, subject }
+      });
+      if (res.data?.description) {
+        setDescription(res.data.description);
+        setAiSuggestions({ description: res.data.description, rules: res.data.rules || [] });
+      }
+    } catch {
+      // Fallback: generate locally
+      const desc = `A community for ${category === "exam" ? examType || "exam" : category === "subject" ? subject || "subject" : category} enthusiasts. Discuss strategies, share resources, and learn together.`;
+      setDescription(desc);
+    }
+    setAiGenerating(false);
+  };
 
   const handleCreate = async () => {
     if (!name.trim() || !user) return;
     setLoading(true);
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString(36);
+    const rules = aiSuggestions?.rules?.length ? aiSuggestions.rules.map((r, i) => ({ order: i + 1, text: r })) : null;
     const { error } = await supabase.from("communities").insert({
       name: name.trim(), description: description.trim(), slug, category,
       exam_type: examType || null, subject: subject || null, created_by: user.id, is_approved: false,
+      rules: rules ? JSON.parse(JSON.stringify(rules)) : null,
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); setLoading(false); return; }
     toast({ title: "Community Created! 🎉", description: "Pending admin approval." });
     onCreated();
   };
 
+  const categories = [
+    { value: "exam", label: "Exam", icon: GraduationCap, desc: "JEE, NEET, UPSC..." },
+    { value: "subject", label: "Subject", icon: Atom, desc: "Physics, Chemistry..." },
+    { value: "topic", label: "Topic", icon: BookOpen, desc: "Specific topic" },
+    { value: "general", label: "General", icon: Globe2, desc: "Open discussion" },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-md glass rounded-2xl neural-border p-5 space-y-4" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-bold text-foreground">Create Community</h2>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Community name"
-          className="w-full px-3 py-2.5 bg-secondary/50 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional)" rows={3}
-          className="w-full px-3 py-2.5 bg-secondary/50 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
-        <select value={category} onChange={e => setCategory(e.target.value)}
-          className="w-full px-3 py-2.5 bg-secondary/50 border border-border rounded-xl text-sm text-foreground focus:outline-none">
-          <option value="exam">Exam-based</option>
-          <option value="subject">Subject-based</option>
-          <option value="topic">Topic-based</option>
-          <option value="general">General</option>
-        </select>
-        {category === "exam" && (
-          <select value={examType} onChange={e => setExamType(e.target.value)}
-            className="w-full px-3 py-2.5 bg-secondary/50 border border-border rounded-xl text-sm text-foreground focus:outline-none">
-            <option value="">Select exam</option>
-            <option value="JEE">JEE</option><option value="NEET">NEET</option><option value="UPSC">UPSC</option>
-            <option value="SSC">SSC</option><option value="GATE">GATE</option><option value="CAT">CAT</option>
-          </select>
-        )}
-        {category === "subject" && (
-          <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject name (e.g. Physics)"
-            className="w-full px-3 py-2.5 bg-secondary/50 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-        )}
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:bg-secondary">Cancel</button>
-          <button onClick={handleCreate} disabled={!name.trim() || loading}
-            className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />} Create
-          </button>
+    <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-md flex items-end sm:items-center justify-center" onClick={onClose}>
+      <motion.div initial={{ opacity: 0, y: 40, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.97 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="w-full max-w-lg bg-card border border-border/50 rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-primary/5"
+        onClick={e => e.stopPropagation()}>
+        
+        {/* Header */}
+        <div className="sticky top-0 bg-card/95 backdrop-blur-sm border-b border-border/30 px-5 py-4 flex items-center gap-3 z-10">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <Plus className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-bold text-foreground">Create Community</h2>
+            <p className="text-[10px] text-muted-foreground">Step {step} of 2 — {step === 1 ? "Basic Info" : "Details & AI Setup"}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-xl transition-colors"><X className="w-5 h-5 text-muted-foreground" /></button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          <AnimatePresence mode="wait">
+            {step === 1 && (
+              <motion.div key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                {/* Name */}
+                <div>
+                  <label className="text-xs font-semibold text-foreground mb-1.5 block">Community Name</label>
+                  <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. JEE Physics Champions"
+                    className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all" />
+                </div>
+
+                {/* Category Selector */}
+                <div>
+                  <label className="text-xs font-semibold text-foreground mb-2 block">Category</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {categories.map(cat => (
+                      <button key={cat.value} onClick={() => setCategory(cat.value)}
+                        className={`p-3 rounded-xl border text-left transition-all duration-200 ${
+                          category === cat.value
+                            ? "border-primary/50 bg-primary/10 shadow-md shadow-primary/5"
+                            : "border-border/50 bg-secondary/20 hover:bg-secondary/40 hover:border-border"
+                        }`}>
+                        <div className="flex items-center gap-2">
+                          <cat.icon className={`w-4 h-4 ${category === cat.value ? "text-primary" : "text-muted-foreground"}`} />
+                          <span className={`text-xs font-semibold ${category === cat.value ? "text-primary" : "text-foreground"}`}>{cat.label}</span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground mt-1">{cat.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Conditional fields */}
+                {category === "exam" && (
+                  <div>
+                    <label className="text-xs font-semibold text-foreground mb-1.5 block">Exam Type</label>
+                    <div className="flex flex-wrap gap-2">
+                      {["JEE", "NEET", "UPSC", "SSC", "GATE", "CAT"].map(ex => (
+                        <button key={ex} onClick={() => setExamType(ex)}
+                          className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                            examType === ex ? "bg-primary text-primary-foreground shadow-md shadow-primary/15" : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          }`}>
+                          {ex}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {category === "subject" && (
+                  <div>
+                    <label className="text-xs font-semibold text-foreground mb-1.5 block">Subject</label>
+                    <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Physics, Chemistry"
+                      className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all" />
+                  </div>
+                )}
+
+                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                  onClick={() => setStep(2)} disabled={!name.trim()}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-primary-foreground text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/15">
+                  Continue <ChevronRight className="w-4 h-4" />
+                </motion.button>
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-4">
+                <button onClick={() => setStep(1)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                  <ArrowLeft className="w-3 h-3" /> Back
+                </button>
+
+                {/* Description with AI */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-foreground">Description</label>
+                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      onClick={generateAIDescription} disabled={aiGenerating}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary/15 to-accent/15 text-primary text-[10px] font-semibold hover:from-primary/25 hover:to-accent/25 transition-all disabled:opacity-50">
+                      {aiGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                      AI Generate
+                    </motion.button>
+                  </div>
+                  <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe your community..." rows={3}
+                    className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none" />
+                </div>
+
+                {/* AI Suggested Rules */}
+                {aiSuggestions?.rules && aiSuggestions.rules.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/15 p-3.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[10px] font-bold text-primary">AI Suggested Rules</span>
+                    </div>
+                    {aiSuggestions.rules.map((rule, i) => (
+                      <div key={i} className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                        <span className="text-primary font-bold mt-0.5">{i + 1}.</span>
+                        <span>{rule}</span>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* Preview */}
+                <div className="rounded-xl bg-card border border-border/50 p-4">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold mb-2">Preview</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center">
+                      {(() => { const I = CATEGORY_ICONS[category] || Globe2; return <I className="w-5 h-5 text-primary" />; })()}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">{name || "Community Name"}</h4>
+                      <p className="text-[10px] text-muted-foreground">{description || "Description will appear here"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-border/50 text-sm text-muted-foreground hover:bg-secondary transition-colors font-medium">Cancel</button>
+                  <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                    onClick={handleCreate} disabled={!name.trim() || loading}
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-primary-foreground text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    Create Community
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>

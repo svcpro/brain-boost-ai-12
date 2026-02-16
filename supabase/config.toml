@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.discussion-intelligence]
 verify_jwt = false
+
+[functions.ai-community-assist]
+verify_jwt = false
