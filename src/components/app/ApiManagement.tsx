@@ -1116,36 +1116,106 @@ const ApiDocsTab = () => {
     })();
   }, []);
 
+  const { toast } = useToast();
+  const [versionFilter, setVersionFilter] = useState("all");
+
+  const filtered = versionFilter === "all" ? endpoints : endpoints.filter(ep => (ep.version || "v1") === versionFilter);
+
+  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
+  const buildEndpointDoc = (ep: ApiEndpoint) => ({
+    name: ep.display_name,
+    path: `/${ep.path}`,
+    method: ep.method,
+    category: ep.category,
+    version: ep.version || "v1",
+    description: ep.description || "",
+    requires_auth: ep.requires_auth,
+    rate_limit_per_minute: ep.rate_limit_per_minute,
+    enabled: ep.is_enabled,
+    request_schema: ep.request_schema || { type: "object", properties: {} },
+    response_schema: ep.response_schema || { type: "object", properties: { success: { type: "boolean" }, data: { type: "object" } } },
+  });
+
   const exportJSON = () => {
     const doc = {
-      info: { title: "ACRY API Documentation", version: "1.0.0", description: "AI Second Brain for All Exams" },
-      base_url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`,
-      endpoints: endpoints.map(ep => ({
-        name: ep.display_name,
-        path: `/${ep.path}`,
-        method: ep.method,
-        category: ep.category,
-        version: ep.version,
-        requires_auth: ep.requires_auth,
-        rate_limit: ep.rate_limit_per_minute,
-        enabled: ep.is_enabled,
-      })),
+      info: { title: "ACRY API Documentation", version: "1.0.0", description: "AI Second Brain for All Exams — Flutter Developer Guide", generated_at: new Date().toISOString() },
+      base_url: baseUrl,
+      authentication: {
+        type: "Bearer JWT",
+        header: "Authorization",
+        description: "Include 'Bearer <user_jwt>' for authenticated endpoints. Always include 'apikey: <anon_key>' header.",
+      },
+      endpoints: filtered.map(buildEndpointDoc),
     };
     const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "acry-api-docs.json";
-    a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "acry-api-docs.json"; a.click();
     URL.revokeObjectURL(url);
+    toast({ title: "JSON documentation exported" });
+  };
+
+  const exportSwagger = () => {
+    const paths: Record<string, any> = {};
+    filtered.forEach(ep => {
+      const pathKey = `/${ep.path}`;
+      if (!paths[pathKey]) paths[pathKey] = {};
+      paths[pathKey][ep.method.toLowerCase()] = {
+        summary: ep.display_name,
+        description: ep.description || "",
+        tags: [ep.category],
+        operationId: ep.path.replace(/[^a-zA-Z0-9]/g, "_"),
+        security: ep.requires_auth ? [{ bearerAuth: [] }] : [],
+        parameters: [
+          { name: "apikey", in: "header", required: true, schema: { type: "string" }, description: "Supabase anon key" },
+        ],
+        ...(ep.method === "POST" || ep.method === "PUT" ? {
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: ep.request_schema || { type: "object" } } },
+          },
+        } : {}),
+        responses: {
+          "200": {
+            description: "Successful response",
+            content: { "application/json": { schema: ep.response_schema || { type: "object", properties: { success: { type: "boolean" }, data: { type: "object" } } } } },
+          },
+          "401": { description: "Unauthorized — invalid or missing JWT" },
+          "429": { description: `Rate limited — max ${ep.rate_limit_per_minute} req/min` },
+          "500": { description: "Internal server error" },
+        },
+      };
+    });
+
+    const swagger = {
+      openapi: "3.0.3",
+      info: { title: "ACRY API", version: "1.0.0", description: "AI Second Brain for All Exams — Auto-generated OpenAPI spec for Flutter developers" },
+      servers: [{ url: baseUrl, description: "Production" }],
+      paths,
+      components: {
+        securitySchemes: {
+          bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+          apiKey: { type: "apiKey", in: "header", name: "apikey" },
+        },
+      },
+    };
+    const blob = new Blob([JSON.stringify(swagger, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "acry-api-swagger.json"; a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Swagger/OpenAPI spec exported" });
   };
 
   const exportPostman = () => {
-    const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
     const collection = {
-      info: { name: "ACRY API", schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+      info: { name: "ACRY API", schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json", description: "Auto-generated for Flutter developers" },
+      variable: [
+        { key: "base_url", value: baseUrl },
+        { key: "anon_key", value: "" },
+        { key: "token", value: "" },
+      ],
       item: Object.entries(
-        endpoints.reduce((acc, ep) => {
+        filtered.reduce((acc, ep) => {
           if (!acc[ep.category]) acc[ep.category] = [];
           acc[ep.category].push(ep);
           return acc;
@@ -1153,32 +1223,45 @@ const ApiDocsTab = () => {
       ).map(([cat, eps]) => ({
         name: cat.charAt(0).toUpperCase() + cat.slice(1),
         item: eps.map(ep => ({
-          name: ep.display_name,
+          name: `${ep.display_name} (${ep.version || "v1"})`,
           request: {
             method: ep.method,
             header: [
               { key: "Content-Type", value: "application/json" },
-              ...(ep.requires_auth ? [{ key: "Authorization", value: "Bearer {{token}}" }] : []),
               { key: "apikey", value: "{{anon_key}}" },
+              ...(ep.requires_auth ? [{ key: "Authorization", value: "Bearer {{token}}" }] : []),
             ],
-            url: { raw: `${baseUrl}/${ep.path}`, host: [baseUrl], path: [ep.path] },
-            body: ep.method === "POST" ? { mode: "raw", raw: JSON.stringify({}, null, 2) } : undefined,
+            url: { raw: `{{base_url}}/${ep.path}`, host: ["{{base_url}}"], path: [ep.path] },
+            description: `${ep.description || ep.display_name}\n\nVersion: ${ep.version || "v1"}\nRate Limit: ${ep.rate_limit_per_minute} req/min\nAuth: ${ep.requires_auth ? "JWT Required" : "Public"}`,
+            body: ep.method === "POST" || ep.method === "PUT" ? {
+              mode: "raw",
+              raw: JSON.stringify(ep.request_schema?.properties
+                ? Object.fromEntries(Object.entries(ep.request_schema.properties).map(([k, v]: any) => [k, v.example || v.default || ""]))
+                : {}, null, 2),
+              options: { raw: { language: "json" } },
+            } : undefined,
           },
+          response: [{
+            name: "Success",
+            status: "OK",
+            code: 200,
+            body: JSON.stringify(ep.response_schema?.properties
+              ? Object.fromEntries(Object.entries(ep.response_schema.properties).map(([k, v]: any) => [k, v.example || v.default || null]))
+              : { success: true, data: {} }, null, 2),
+          }],
         })),
       })),
     };
     const blob = new Blob([JSON.stringify(collection, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "acry-api-postman.json";
-    a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "acry-api-postman.json"; a.click();
     URL.revokeObjectURL(url);
+    toast({ title: "Postman collection exported" });
   };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
 
-  const grouped = endpoints.reduce((acc, ep) => {
+  const grouped = filtered.reduce((acc, ep) => {
     if (!acc[ep.category]) acc[ep.category] = [];
     acc[ep.category].push(ep);
     return acc;
@@ -1189,11 +1272,21 @@ const ApiDocsTab = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Auto-Generated API Documentation</h3>
-          <p className="text-[10px] text-muted-foreground">{endpoints.length} endpoints documented</p>
+          <p className="text-[10px] text-muted-foreground">{filtered.length} endpoints documented • For Flutter developers</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <select value={versionFilter} onChange={e => setVersionFilter(e.target.value)}
+            className="px-3 py-1.5 bg-secondary rounded-lg text-xs text-foreground border border-border outline-none">
+            <option value="all">All Versions</option>
+            <option value="v1">v1 Only</option>
+            <option value="v2">v2 Only</option>
+            <option value="v3">v3 Only</option>
+          </select>
           <button onClick={exportJSON} className="px-3 py-1.5 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 flex items-center gap-1">
-            <FileJson className="w-3 h-3" /> Export JSON
+            <FileJson className="w-3 h-3" /> JSON
+          </button>
+          <button onClick={exportSwagger} className="px-3 py-1.5 bg-accent/15 text-accent rounded-lg text-xs font-medium hover:bg-accent/25 flex items-center gap-1">
+            <Code className="w-3 h-3" /> Swagger
           </button>
           <button onClick={exportPostman} className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
             <Download className="w-3 h-3" /> Postman
@@ -1201,18 +1294,34 @@ const ApiDocsTab = () => {
         </div>
       </div>
 
-      <div className="glass rounded-xl p-3 neural-border">
-        <p className="text-[10px] text-muted-foreground mb-1">Base URL</p>
-        <div className="flex items-center gap-2">
-          <code className="text-xs font-mono text-foreground bg-secondary px-2 py-1 rounded flex-1">
-            {import.meta.env.VITE_SUPABASE_URL}/functions/v1
-          </code>
-          <button onClick={() => navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1`)} className="p-1 hover:bg-secondary rounded">
-            <Copy className="w-3.5 h-3.5 text-primary" />
-          </button>
+      {/* Base URL + Quick Start */}
+      <div className="glass rounded-xl p-3 neural-border space-y-3">
+        <div>
+          <p className="text-[10px] text-muted-foreground mb-1">Base URL</p>
+          <div className="flex items-center gap-2">
+            <code className="text-xs font-mono text-foreground bg-secondary px-2 py-1 rounded flex-1">{baseUrl}</code>
+            <button onClick={() => { navigator.clipboard.writeText(baseUrl); toast({ title: "Copied" }); }} className="p-1 hover:bg-secondary rounded">
+              <Copy className="w-3.5 h-3.5 text-primary" />
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground mb-1">Flutter Quick Start (Dart)</p>
+          <pre className="text-[10px] bg-secondary rounded p-2 font-mono text-foreground overflow-x-auto">
+{`final response = await http.post(
+  Uri.parse('$baseUrl/endpoint'),
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': anonKey,
+    'Authorization': 'Bearer \$userJwt',
+  },
+  body: jsonEncode({'key': 'value'}),
+);`}
+          </pre>
         </div>
       </div>
 
+      {/* Endpoint Docs by Category */}
       {Object.entries(grouped).map(([cat, eps]) => (
         <div key={cat} className="space-y-2">
           <h4 className="text-xs font-semibold text-foreground capitalize flex items-center gap-2">
@@ -1223,48 +1332,140 @@ const ApiDocsTab = () => {
             <div key={ep.id} className="glass rounded-xl neural-border overflow-hidden">
               <button onClick={() => setExpanded(expanded === ep.id ? null : ep.id)}
                 className="w-full p-3 flex items-center gap-3 hover:bg-secondary/30 transition-colors text-left">
-                <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${ep.method === "GET" ? "bg-blue-500/15 text-blue-400" : "bg-green-500/15 text-green-400"}`}>
-                  {ep.method}
-                </span>
+                <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
+                  ep.method === "GET" ? "bg-green-500/15 text-green-400" :
+                  ep.method === "POST" ? "bg-blue-500/15 text-blue-400" :
+                  ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-400" :
+                  "bg-red-500/15 text-red-400"
+                }`}>{ep.method}</span>
                 <code className="text-xs font-mono text-foreground flex-1">/{ep.path}</code>
                 <span className="text-xs text-muted-foreground">{ep.display_name}</span>
                 {ep.requires_auth && <Lock className="w-3 h-3 text-warning" />}
-                <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded text-muted-foreground">{ep.version}</span>
+                <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded text-muted-foreground">{ep.version || "v1"}</span>
                 {expanded === ep.id ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
               </button>
               {expanded === ep.id && (
-                <div className="px-3 pb-3 space-y-2 border-t border-border">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                <div className="px-3 pb-3 space-y-3 border-t border-border">
+                  {ep.description && <p className="text-[10px] text-muted-foreground mt-2">{ep.description}</p>}
+
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2">
+                    <div><span className="text-[10px] text-muted-foreground block">Method</span><span className="text-xs font-mono font-bold text-foreground">{ep.method}</span></div>
                     <div><span className="text-[10px] text-muted-foreground block">Auth</span><span className="text-xs text-foreground">{ep.requires_auth ? "JWT Required" : "Public"}</span></div>
                     <div><span className="text-[10px] text-muted-foreground block">Rate Limit</span><span className="text-xs text-foreground">{ep.rate_limit_per_minute} req/min</span></div>
-                    <div><span className="text-[10px] text-muted-foreground block">Status</span><span className={`text-xs ${ep.is_enabled ? "text-success" : "text-destructive"}`}>{ep.is_enabled ? "Enabled" : "Disabled"}</span></div>
-                    <div><span className="text-[10px] text-muted-foreground block">Version</span><span className="text-xs text-foreground">{ep.version}</span></div>
+                    <div><span className="text-[10px] text-muted-foreground block">Version</span><span className="text-xs text-foreground">{ep.version || "v1"}</span></div>
+                    <div><span className="text-[10px] text-muted-foreground block">Status</span><span className={`text-xs ${ep.is_enabled ? "text-green-400" : "text-destructive"}`}>{ep.is_enabled ? "Active" : "Disabled"}</span></div>
                   </div>
-                  {ep.description && <p className="text-[10px] text-muted-foreground">{ep.description}</p>}
+
+                  {/* Endpoint URL */}
                   <div>
-                    <span className="text-[10px] text-muted-foreground block mb-1">Headers</span>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Endpoint URL</span>
+                    <div className="flex items-center gap-2">
+                      <code className="text-[10px] bg-secondary rounded px-2 py-1 font-mono text-foreground flex-1 overflow-x-auto">
+                        {ep.method} {baseUrl}/{ep.path}
+                      </code>
+                      <button onClick={() => { navigator.clipboard.writeText(`${baseUrl}/${ep.path}`); toast({ title: "URL copied" }); }} className="p-1 hover:bg-secondary rounded shrink-0">
+                        <Copy className="w-3 h-3 text-primary" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Headers */}
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Required Headers</span>
                     <pre className="text-[10px] bg-secondary rounded p-2 font-mono text-foreground overflow-x-auto">
 {`Content-Type: application/json
 apikey: <anon_key>${ep.requires_auth ? "\nAuthorization: Bearer <user_jwt>" : ""}`}
                     </pre>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-1">Example Request</span>
-                    <pre className="text-[10px] bg-secondary rounded p-2 font-mono text-foreground overflow-x-auto">
-{`${ep.method} ${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${ep.path}
 
-{
-  // Request body
-}`}
-                    </pre>
-                  </div>
+                  {/* Request Parameters */}
+                  {(ep.method === "POST" || ep.method === "PUT") && (
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block mb-1">Request Parameters</span>
+                      {ep.request_schema?.properties ? (
+                        <div className="bg-secondary rounded overflow-hidden">
+                          <table className="w-full text-[10px]">
+                            <thead><tr className="border-b border-border">
+                              <th className="text-left p-1.5 text-muted-foreground font-medium">Parameter</th>
+                              <th className="text-left p-1.5 text-muted-foreground font-medium">Type</th>
+                              <th className="text-left p-1.5 text-muted-foreground font-medium">Required</th>
+                              <th className="text-left p-1.5 text-muted-foreground font-medium">Description</th>
+                            </tr></thead>
+                            <tbody>
+                              {Object.entries(ep.request_schema.properties).map(([key, val]: any) => (
+                                <tr key={key} className="border-b border-border/50">
+                                  <td className="p-1.5 font-mono text-foreground">{key}</td>
+                                  <td className="p-1.5 text-muted-foreground">{val.type || "any"}</td>
+                                  <td className="p-1.5">{ep.request_schema.required?.includes(key) ? <span className="text-destructive">Yes</span> : <span className="text-muted-foreground">No</span>}</td>
+                                  <td className="p-1.5 text-muted-foreground">{val.description || "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <pre className="text-[10px] bg-secondary rounded p-2 font-mono text-foreground">{"{ /* See endpoint-specific docs */ }"}</pre>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Response Format */}
                   <div>
                     <span className="text-[10px] text-muted-foreground block mb-1">Response Format</span>
-                    <pre className="text-[10px] bg-secondary rounded p-2 font-mono text-foreground overflow-x-auto">
+                    {ep.response_schema?.properties ? (
+                      <div className="bg-secondary rounded overflow-hidden">
+                        <table className="w-full text-[10px]">
+                          <thead><tr className="border-b border-border">
+                            <th className="text-left p-1.5 text-muted-foreground font-medium">Field</th>
+                            <th className="text-left p-1.5 text-muted-foreground font-medium">Type</th>
+                            <th className="text-left p-1.5 text-muted-foreground font-medium">Description</th>
+                          </tr></thead>
+                          <tbody>
+                            {Object.entries(ep.response_schema.properties).map(([key, val]: any) => (
+                              <tr key={key} className="border-b border-border/50">
+                                <td className="p-1.5 font-mono text-foreground">{key}</td>
+                                <td className="p-1.5 text-muted-foreground">{val.type || "any"}</td>
+                                <td className="p-1.5 text-muted-foreground">{val.description || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <pre className="text-[10px] bg-secondary rounded p-2 font-mono text-foreground overflow-x-auto">
 {`{
   "success": true,
   "data": { ... }
 }`}
+                      </pre>
+                    )}
+                  </div>
+
+                  {/* Flutter Example */}
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Flutter (Dart) Example</span>
+                    <pre className="text-[10px] bg-secondary rounded p-2 font-mono text-foreground overflow-x-auto">
+{ep.method === "GET"
+  ? `final response = await http.get(
+  Uri.parse('${baseUrl}/${ep.path}'),
+  headers: {
+    'apikey': anonKey,${ep.requires_auth ? "\n    'Authorization': 'Bearer \$jwt'," : ""}
+  },
+);
+final data = jsonDecode(response.body);`
+  : `final response = await http.post(
+  Uri.parse('${baseUrl}/${ep.path}'),
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': anonKey,${ep.requires_auth ? "\n    'Authorization': 'Bearer \$jwt'," : ""}
+  },
+  body: jsonEncode({
+    ${ep.request_schema?.properties
+      ? Object.keys(ep.request_schema.properties).map(k => `'${k}': value`).join(",\n    ")
+      : "// request body"}
+  }),
+);
+final data = jsonDecode(response.body);`}
                     </pre>
                   </div>
                 </div>
