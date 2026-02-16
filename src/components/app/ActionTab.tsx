@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Crosshair, AlertOctagon, FileText, Mic, Camera, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3, RefreshCw } from "lucide-react";
+import { Coffee, Crosshair, AlertOctagon, FileText, Mic, Camera, X, Square, CheckCircle2, Loader2, Brain, Eye, ArrowRight, Edit3, RefreshCw, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import StudyPlanGenerator from "./StudyPlanGenerator";
+import AITopicManager from "./AITopicManager";
 import { useToast } from "@/hooks/use-toast";
 
 import LazyModeSession from "./LazyModeSession";
@@ -859,6 +860,19 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
             </motion.div>
           )}
         </AnimatePresence>
+      </motion.div>
+      )}
+
+      {/* AI Topic Manager Section */}
+      {isEnabled("action_ai_topic_manager") && (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <h2 className="font-semibold text-foreground text-sm">AI Topic Manager</h2>
+        </div>
+        <div className="glass rounded-xl neural-border p-4">
+          <AITopicManager mode="user" onDone={() => {}} />
+        </div>
       </motion.div>
       )}
 
