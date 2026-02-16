@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import SubscriptionAnalytics from "@/components/app/SubscriptionAnalytics";
 import ApiManagement from "@/components/app/ApiManagement";
 import UserManagement from "@/components/app/UserManagement";
+import AdminNotificationCenter from "@/components/app/AdminNotificationCenter";
 
 type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "apis" | "notifications" | "admins" | "audit" | "settings";
 
@@ -171,7 +172,7 @@ const AdminPanel = () => {
             {section === "knowledge" && <KnowledgeSection />}
             {section === "subscriptions" && <SubscriptionsSection />}
             {section === "apis" && <ApiManagement />}
-            {section === "notifications" && <NotificationsSection toast={toast} />}
+            {section === "notifications" && <AdminNotificationCenter />}
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
             {section === "audit" && <AuditSection />}
             {section === "settings" && <SettingsSection toast={toast} />}
@@ -1445,54 +1446,7 @@ const PaymentManagement = () => {
   );
 };
 
-// ─── Notifications ───
-const NotificationsSection = ({ toast }: { toast: any }) => {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [sending, setSending] = useState(false);
-
-  const sendGlobal = async () => {
-    if (!title.trim()) return;
-    setSending(true);
-    try {
-      // Insert notification for all users
-      const { data: profiles } = await supabase.from("profiles").select("id");
-      if (profiles && profiles.length > 0) {
-        const notifications = profiles.map(p => ({
-          user_id: p.id,
-          title: title.trim(),
-          body: body.trim() || null,
-          type: "admin_broadcast",
-        }));
-        // Batch insert in chunks
-        for (let i = 0; i < notifications.length; i += 50) {
-          await supabase.from("notification_history").insert(notifications.slice(i, i + 50));
-        }
-      }
-      toast({ title: "✅ Sent", description: `Notification sent to ${profiles?.length || 0} users` });
-      setTitle("");
-      setBody("");
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4 max-w-lg">
-      <h2 className="text-xl font-bold text-foreground">Send Notification</h2>
-      <div className="glass rounded-xl p-4 neural-border space-y-3">
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Notification title..." className="w-full px-3 py-2.5 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none" />
-        <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Optional body message..." rows={3} className="w-full px-3 py-2.5 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none resize-none" />
-        <button onClick={sendGlobal} disabled={!title.trim() || sending} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all">
-          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          Send to All Users
-        </button>
-      </div>
-    </div>
-  );
-};
+// ─── Notifications (moved to AdminNotificationCenter component) ───
 
 // ─── Admin Roles ───
 const AdminsSection = ({ isSuperAdmin, refetchRoles, toast }: { isSuperAdmin: boolean; refetchRoles: () => Promise<void>; toast: any }) => {
