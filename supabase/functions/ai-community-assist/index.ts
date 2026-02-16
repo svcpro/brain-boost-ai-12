@@ -17,13 +17,23 @@ const aiCall = async (key: string, messages: any[], maxTokens = 200, temp = 0.7)
 };
 
 const extractJson = (text: string) => {
-  const m = text.match(/\{[\s\S]*\}/);
-  return m ? JSON.parse(m[0]) : null;
+  let cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  const start = cleaned.search(/[\{\[]/);
+  const isArray = start !== -1 && cleaned[start] === '[';
+  const end = cleaned.lastIndexOf(isArray ? ']' : '}');
+  if (start === -1 || end === -1) return null;
+  cleaned = cleaned.substring(start, end + 1);
+  try { return JSON.parse(cleaned); } catch {
+    cleaned = cleaned
+      .replace(/,\s*}/g, "}").replace(/,\s*]/g, "]")
+      .replace(/[\x00-\x1F\x7F]/g, "");
+    try { return JSON.parse(cleaned); } catch { return null; }
+  }
 };
 
 const extractArray = (text: string) => {
-  const m = text.match(/\[[\s\S]*\]/);
-  return m ? JSON.parse(m[0]) : [];
+  const r = extractJson(text);
+  return Array.isArray(r) ? r : [];
 };
 
 serve(async (req) => {
