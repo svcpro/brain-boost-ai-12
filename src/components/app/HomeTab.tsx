@@ -36,7 +36,7 @@ import RiskDigestCard from "./RiskDigestCard";
 import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
 import RLPolicyCard from "./RLPolicyCard";
-
+import PlanGateWrapper from "./PlanGateWrapper";
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
   onRecommendationsSeen?: () => void;
@@ -516,13 +516,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       )}
 
       {/* Brain Missions — personalized daily missions */}
-      {isEnabled('home_brain_missions') && hasTopics && <BrainMissionsCard />}
+      {isEnabled('home_brain_missions') && hasTopics && <PlanGateWrapper featureKey="brain_missions"><BrainMissionsCard /></PlanGateWrapper>}
 
       {/* Cognitive DNA — embedding visualization */}
-      {isEnabled('home_cognitive_embedding') && hasTopics && <CognitiveEmbeddingCard />}
+      {isEnabled('home_cognitive_embedding') && hasTopics && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
 
       {/* Risk Digest Card */}
-      {isEnabled('home_risk_digest') && <RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} />}
+      {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
 
       <AnimatePresence>
         {analyzing && (
@@ -559,7 +559,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       </AnimatePresence>
 
       {/* Daily Motivational Quote */}
-      {isEnabled('home_daily_quote') && <DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} />}
+      {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
 
       {/* Brain Update Hero — opens Quick Study Signal */}
       {isEnabled('home_brain_update') && <BrainUpdateHero
@@ -590,7 +590,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {isEnabled('home_recently_studied') && <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />}
 
       {/* Burnout Warning */}
-      {isEnabled('home_burnout_warning') && burnoutData && burnoutData.burnout_score >= 40 && (
+      {isEnabled('home_burnout_warning') && burnoutData && burnoutData.burnout_score >= 40 && <PlanGateWrapper featureKey="burnout_warning">(
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -617,7 +617,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             </div>
           )}
         </motion.div>
-      )}
+      )</PlanGateWrapper>}
 
       {/* Daily Goal */}
       {isEnabled('home_daily_goal') && <DailyGoalTracker />}
@@ -649,13 +649,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* Daily Study Tip */}
       {isEnabled('home_daily_tip') && <DailyStudyTip />}
 
-      {isEnabled('home_weekly_reminder') && <WeeklyReminderSummary />}
+      {isEnabled('home_weekly_reminder') && <PlanGateWrapper featureKey="weekly_reminder"><WeeklyReminderSummary /></PlanGateWrapper>}
 
       {/* Smart Study Insights */}
-      {isEnabled('home_study_insights') && <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => {
+      {isEnabled('home_study_insights') && <PlanGateWrapper featureKey="study_insights"><StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => {
         setInsightReviewSubject(subject);
         setInsightReviewTopic(topic);
-      }} />}
+      }} /></PlanGateWrapper>}
 
       {/* Exam urgency banner — ≤3 days */}
       {examDaysLeft !== null && examDaysLeft <= 3 && (
@@ -791,12 +791,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       </motion.div>}
 
       {/* Spaced Repetition Review Queue */}
-      {isEnabled('home_review_queue') && <ReviewQueue />}
+      {isEnabled('home_review_queue') && <PlanGateWrapper featureKey="review_queue"><ReviewQueue /></PlanGateWrapper>}
 
-      {isEnabled('home_rl_policy') && <RLPolicyCard />}
+      {isEnabled('home_rl_policy') && <PlanGateWrapper featureKey="rl_policy"><RLPolicyCard /></PlanGateWrapper>}
 
       {/* AI Recommendations */}
       {isEnabled('home_recommendations') && recommendations.length > 0 && (
+        <PlanGateWrapper featureKey="ai_recommendations">
         <motion.div ref={recsRef} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl p-5 neural-border">
           <div className="flex items-center gap-2 mb-1">
             <Brain className="w-4 h-4 text-primary" />
@@ -809,9 +810,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                 key={rec.id}
                 whileTap={{ scale: 0.96 }}
                 onClick={async () => {
-                  // Haptic feedback
                   if (navigator.vibrate) navigator.vibrate(20);
-                  // Animate out then remove
                   const el = document.getElementById(`rec-${rec.id}`);
                   if (el) {
                     el.style.transition = "all 0.4s ease";
@@ -850,6 +849,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             ))}
           </div>
         </motion.div>
+        </PlanGateWrapper>
       )}
 
       {/* Quick Actions */}

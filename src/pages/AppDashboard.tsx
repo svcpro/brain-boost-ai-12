@@ -3,6 +3,7 @@ import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Bell, Shield } fr
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
+import { usePlanGating, PlanGatingContext } from "@/hooks/usePlanGating";
 import HomeTab from "@/components/app/HomeTab";
 import ActionTab from "@/components/app/ActionTab";
 import BrainTab from "@/components/app/BrainTab";
@@ -41,6 +42,7 @@ const AppDashboard = () => {
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
   const { isEnabled: isTabEnabled, loading: flagsLoading } = useFeatureFlags();
+  const planGating = usePlanGating();
   const [recCount, setRecCount] = useState(0);
   const [pendingGifts, setPendingGifts] = useState(0);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
@@ -195,6 +197,7 @@ const AppDashboard = () => {
 
   return (
     <FeatureFlagContext.Provider value={{ isEnabled: isTabEnabled }}>
+    <PlanGatingContext.Provider value={planGating}>
     <VoiceContext.Provider value={voice}>
       <div className="min-h-screen bg-background flex flex-col">
         {/* Expiry Warning Banner */}
@@ -287,6 +290,7 @@ const AppDashboard = () => {
         </nav>
       </div>
     </VoiceContext.Provider>
+    </PlanGatingContext.Provider>
     </FeatureFlagContext.Provider>
   );
 };
