@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          language: string | null
+          role: string
+          user_id: string
+          voice_used: boolean | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          role: string
+          user_id: string
+          voice_used?: boolean | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          role?: string
+          user_id?: string
+          voice_used?: boolean | null
+        }
+        Relationships: []
+      }
       ai_recommendations: {
         Row: {
           completed: boolean
