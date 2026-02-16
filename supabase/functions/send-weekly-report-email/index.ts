@@ -57,7 +57,7 @@ async function sendWeeklyReportEmail(email: string, displayName: string, stats: 
           ? '<div style="background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;"><p style="margin: 0; color: #92400e; font-size: 14px;">You didn\'t study this week. Even 5 minutes a day makes a difference! 💡</p></div>'
           : '<div style="background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;"><p style="margin: 0; color: #065f46; font-size: 14px;">Great work! Keep the momentum going this week. 💪</p></div>'}
         <div style="text-align: center; margin: 28px 0;">
-          <a href="https://id-preview--d1ba6129-f715-4b5b-be21-b93a62f817dd.lovable.app/app" style="background: linear-gradient(135deg, #0d9488, #065f46); color: white; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(13,148,136,0.3);">View Full Report →</a>
+          <a href="https://acry.ai/app" style="background: linear-gradient(135deg, #0d9488, #065f46); color: white; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(13,148,136,0.3);">View Full Report →</a>
         </div>
       </div>
       <div style="background: #f1f5f9; padding: 20px 28px; text-align: center; border-top: 1px solid #e2e8f0;">

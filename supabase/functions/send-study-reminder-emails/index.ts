@@ -23,7 +23,7 @@ async function sendReminderEmail(email: string, displayName: string, topicsCount
         ${topicList ? `<ul style="list-style: none; padding: 0; margin: 0 0 8px; background: #ffffff; border-radius: 10px; border: 1px solid #e2e8f0; padding: 4px 16px;">${topicList}</ul>` : ''}
         ${topicsCount > 5 ? `<p style="color: #94a3b8; font-size: 13px; margin: 8px 0 0; text-align: center;">...and ${topicsCount - 5} more topics</p>` : ''}
         <div style="text-align: center; margin: 28px 0;">
-          <a href="https://id-preview--d1ba6129-f715-4b5b-be21-b93a62f817dd.lovable.app/app" style="background: linear-gradient(135deg, #0d9488, #065f46); color: white; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(13,148,136,0.3);">Start Studying →</a>
+          <a href="https://acry.ai/app" style="background: linear-gradient(135deg, #0d9488, #065f46); color: white; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(13,148,136,0.3);">Start Studying →</a>
         </div>
       </div>
       <div style="background: #f1f5f9; padding: 20px 28px; text-align: center; border-top: 1px solid #e2e8f0;">
