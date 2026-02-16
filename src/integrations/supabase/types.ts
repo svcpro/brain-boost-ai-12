@@ -999,6 +999,57 @@ export type Database = {
           },
         ]
       }
+      content_flags: {
+        Row: {
+          abuse_score: number
+          ai_reasoning: string | null
+          auto_hidden: boolean
+          categories: string[] | null
+          content_id: string
+          content_type: string
+          created_at: string
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          abuse_score?: number
+          ai_reasoning?: string | null
+          auto_hidden?: boolean
+          categories?: string[] | null
+          content_id: string
+          content_type: string
+          created_at?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_level?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          abuse_score?: number
+          ai_reasoning?: string | null
+          auto_hidden?: boolean
+          categories?: string[] | null
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_level?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       discussion_recommendations: {
         Row: {
           created_at: string
@@ -1641,6 +1692,86 @@ export type Database = {
           model_domain?: string
           performance_history?: Json
           user_id?: string
+        }
+        Relationships: []
+      }
+      moderation_actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          is_automatic: boolean
+          reason: string | null
+          related_flag_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_automatic?: boolean
+          reason?: string | null
+          related_flag_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_automatic?: boolean
+          reason?: string | null
+          related_flag_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_actions_related_flag_id_fkey"
+            columns: ["related_flag_id"]
+            isOneToOne: false
+            referencedRelation: "content_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderation_rules: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          rule_key: string
+          rule_type: string
+          rule_value: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          rule_key: string
+          rule_type: string
+          rule_value?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          rule_key?: string
+          rule_type?: string
+          rule_value?: Json
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -2628,6 +2759,45 @@ export type Database = {
           response_latency_score?: number | null
           study_consistency_score?: number | null
           subject_strength_score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_moderation_profiles: {
+        Row: {
+          current_penalty: string | null
+          id: string
+          is_banned: boolean
+          is_restricted: boolean
+          last_violation_at: string | null
+          total_flags: number
+          total_violations: number
+          total_warnings: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_penalty?: string | null
+          id?: string
+          is_banned?: boolean
+          is_restricted?: boolean
+          last_violation_at?: string | null
+          total_flags?: number
+          total_violations?: number
+          total_warnings?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_penalty?: string | null
+          id?: string
+          is_banned?: boolean
+          is_restricted?: boolean
+          last_violation_at?: string | null
+          total_flags?: number
+          total_violations?: number
+          total_warnings?: number
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
