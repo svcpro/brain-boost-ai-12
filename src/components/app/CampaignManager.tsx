@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail, Volume2, Bell, Send, Sparkles, Loader2, Users,
@@ -7,7 +7,8 @@ import {
   Play, Calendar, BarChart3, TrendingUp, Target, Tag,
   FileText, Copy, ArrowRight, Pencil, Award, Star,
   Megaphone, Zap, ChevronDown, AlertTriangle, MessageSquare,
-  Wand2, Download, Rocket, Bot
+  Wand2, Download, Rocket, Bot, CalendarClock, Tags,
+  UserMinus, UserCheck, RotateCcw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -119,7 +120,7 @@ const CampaignManager = () => {
   );
 };
 
-// ─── AI Campaigns Tab — One-click AI campaign creation ───
+// ─── AI Campaigns Tab — One-click AI campaign creation + scheduling ───
 const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +128,9 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | "all">("all");
   const [creating, setCreating] = useState<string | null>(null);
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
+  const [scheduleMode, setScheduleMode] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("09:00");
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
@@ -143,64 +147,67 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
   const createAICampaign = async (triggerKey: string, channel: CampaignChannel) => {
     setCreating(`${triggerKey}-${channel}`);
     try {
-      // Step 1: AI generates content
       const { data: aiContent, error: aiErr } = await supabase.functions.invoke("generate-campaign-templates", {
         body: { action: "generate_campaign", trigger_key: triggerKey, channel },
       });
       if (aiErr) throw aiErr;
 
-      // Step 2: Resolve audience (all users)
       const { data: profiles } = await supabase.from("profiles").select("id");
       const recipientIds = (profiles || []).map((p: any) => p.id);
 
-      // Step 3: Create campaign
+      const isScheduled = scheduleMode && scheduleDate;
+      const scheduledAt = isScheduled ? new Date(`${scheduleDate}T${scheduleTime}`).toISOString() : null;
+
       const { data: campaign, error: campErr } = await (supabase as any).from("campaigns").insert({
         name: `[AI] ${aiContent.subject || triggerKey} — ${channel.toUpperCase()}`,
         channel,
-        status: "sent",
+        status: isScheduled ? "scheduled" : "sent",
         subject: aiContent.subject || "",
         title: aiContent.subject || "",
         body: aiContent.html_body || "",
         audience_type: "all",
         audience_filters: {},
         total_recipients: recipientIds.length,
-        sent_at: new Date().toISOString(),
+        scheduled_at: scheduledAt,
+        sent_at: isScheduled ? null : new Date().toISOString(),
         created_by: adminId,
       }).select().single();
       if (campErr) throw campErr;
 
-      // Step 4: Create recipients
-      const recipients = recipientIds.map((uid: string) => ({
-        campaign_id: campaign.id,
-        user_id: uid,
-        status: "delivered",
-        delivered_at: new Date().toISOString(),
-      }));
-      for (let i = 0; i < recipients.length; i += 50) {
-        await (supabase as any).from("campaign_recipients").insert(recipients.slice(i, i + 50));
-      }
-
-      // Step 5: Actually send via channels
-      if (channel === "push") {
-        const notifications = recipientIds.map((uid: string) => ({
-          user_id: uid, title: aiContent.subject, body: aiContent.html_body?.slice(0, 200), type: triggerKey, read: false,
+      if (!isScheduled) {
+        const recipients = recipientIds.map((uid: string) => ({
+          campaign_id: campaign.id,
+          user_id: uid,
+          status: "delivered",
+          delivered_at: new Date().toISOString(),
         }));
-        for (let i = 0; i < notifications.length; i += 50) {
-          await supabase.from("notification_history").insert(notifications.slice(i, i + 50));
+        for (let i = 0; i < recipients.length; i += 50) {
+          await (supabase as any).from("campaign_recipients").insert(recipients.slice(i, i + 50));
         }
-      }
 
-      // Update delivered count
-      await (supabase as any).from("campaigns").update({ delivered_count: recipientIds.length }).eq("id", campaign.id);
+        if (channel === "push") {
+          const notifications = recipientIds.map((uid: string) => ({
+            user_id: uid, title: aiContent.subject, body: aiContent.html_body?.slice(0, 200), type: triggerKey, read: false,
+          }));
+          for (let i = 0; i < notifications.length; i += 50) {
+            await supabase.from("notification_history").insert(notifications.slice(i, i + 50));
+          }
+        }
+
+        await (supabase as any).from("campaigns").update({ delivered_count: recipientIds.length }).eq("id", campaign.id);
+      }
 
       if (adminId) {
         await supabase.from("admin_audit_logs").insert({
-          admin_id: adminId, action: "ai_campaign_sent", target_type: "campaign",
-          target_id: campaign.id, details: { trigger: triggerKey, channel, recipients: recipientIds.length } as any,
+          admin_id: adminId, action: isScheduled ? "ai_campaign_scheduled" : "ai_campaign_sent", target_type: "campaign",
+          target_id: campaign.id, details: { trigger: triggerKey, channel, recipients: recipientIds.length, scheduled_at: scheduledAt } as any,
         });
       }
 
-      toast({ title: `🚀 AI ${channel} campaign sent to ${recipientIds.length} users!` });
+      toast({ title: isScheduled
+        ? `📅 AI ${channel} campaign scheduled for ${format(new Date(scheduledAt!), "PPp")}!`
+        : `🚀 AI ${channel} campaign sent to ${recipientIds.length} users!`
+      });
       fetchCampaigns();
     } catch (e: any) {
       toast({ title: "AI campaign failed", description: e?.message, variant: "destructive" });
@@ -208,16 +215,48 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
     setCreating(null);
   };
 
+  const cancelScheduled = async (id: string) => {
+    await (supabase as any).from("campaigns").update({ status: "cancelled" }).eq("id", id);
+    toast({ title: "Scheduled campaign cancelled" });
+    fetchCampaigns();
+  };
+
+  const reschedule = async (id: string, newDate: string) => {
+    await (supabase as any).from("campaigns").update({ scheduled_at: new Date(newDate).toISOString() }).eq("id", id);
+    toast({ title: "Campaign rescheduled ✅" });
+    fetchCampaigns();
+  };
+
   return (
     <div className="space-y-4">
-      {/* Quick AI Campaign Creator */}
+      {/* Quick AI Campaign Creator with scheduling */}
       <div className="glass rounded-xl p-4 neural-border space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">One-Click AI Campaign</h3>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">100% AI Generated</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">Select a trigger → AI writes content → sends to all users automatically. No manual work.</p>
+        <p className="text-[11px] text-muted-foreground">Select a trigger → AI writes content → sends or schedules automatically.</p>
+
+        {/* Schedule toggle */}
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border border-border">
+          <button onClick={() => setScheduleMode(!scheduleMode)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              scheduleMode ? "bg-primary/15 text-primary border border-primary/30" : "bg-secondary text-muted-foreground border border-border"
+            }`}>
+            <CalendarClock className="w-3.5 h-3.5" />
+            {scheduleMode ? "Scheduled" : "Send Now"}
+          </button>
+          {scheduleMode && (
+            <div className="flex items-center gap-2">
+              <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
+                min={format(new Date(), "yyyy-MM-dd")}
+                className="px-2 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground" />
+              <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
+                className="px-2 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground" />
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[320px] overflow-y-auto pr-1">
           {AI_CAMPAIGN_TRIGGERS.map(trigger => (
@@ -240,10 +279,10 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
                     const isCreating = creating === `${trigger.key}-${ch}`;
                     return (
                       <button key={ch} onClick={(e) => { e.stopPropagation(); createAICampaign(trigger.key, ch as CampaignChannel); }}
-                        disabled={!!creating}
+                        disabled={!!creating || (scheduleMode && !scheduleDate)}
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
                         {isCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Icon className="w-3 h-3" />}
-                        {isCreating ? "Sending..." : `Send ${ch}`}
+                        {isCreating ? (scheduleMode ? "Scheduling..." : "Sending...") : (scheduleMode ? `Schedule ${ch}` : `Send ${ch}`)}
                       </button>
                     );
                   })}
@@ -254,16 +293,26 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         </div>
       </div>
 
-      {/* Campaign history */}
+      {/* Campaign history with status filter */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-sm font-semibold text-foreground">Campaign History</h3>
-        <div className="flex gap-2">
-          {(["all", "email", "voice", "push"] as const).map(ch => (
-            <button key={ch} onClick={() => setFilter(ch)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors ${filter === ch ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-              {ch === "all" ? "All" : ch.charAt(0).toUpperCase() + ch.slice(1)}
-            </button>
-          ))}
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-1">
+            {(["all", "email", "voice", "push"] as const).map(ch => (
+              <button key={ch} onClick={() => setFilter(ch)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors ${filter === ch ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+                {ch === "all" ? "All" : ch.charAt(0).toUpperCase() + ch.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {(["all", "scheduled", "sent", "cancelled"] as const).map(s => (
+              <button key={s} onClick={() => setStatusFilter(s as any)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors ${statusFilter === s ? "bg-accent/15 text-accent" : "text-muted-foreground hover:bg-secondary"}`}>
+                {s === "all" ? "All Status" : s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -280,6 +329,7 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
             const Icon = CHANNEL_ICONS[c.channel as CampaignChannel] || Bell;
             const openRate = c.total_recipients > 0 ? Math.round(((c.opened_count || 0) / c.total_recipients) * 100) : 0;
             const deliveryRate = c.total_recipients > 0 ? Math.round(((c.delivered_count || 0) / c.total_recipients) * 100) : 0;
+            const isScheduled = c.status === "scheduled";
             return (
               <motion.div key={c.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-xl p-3 neural-border">
                 <div className="flex items-start justify-between gap-3">
@@ -294,12 +344,29 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
                         {c.name?.includes("[AI]") && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent/15 text-accent">AI</span>}
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{c.subject || c.title || "—"}</p>
+                      {isScheduled && c.scheduled_at && (
+                        <p className="text-[10px] text-primary mt-0.5 flex items-center gap-1">
+                          <CalendarClock className="w-3 h-3" />
+                          Scheduled: {format(new Date(c.scheduled_at), "PPp")}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
-                    <div className="text-center"><p className="text-xs font-bold text-foreground">{c.total_recipients || 0}</p><p>Sent</p></div>
-                    <div className="text-center"><p className="text-xs font-bold text-foreground">{deliveryRate}%</p><p>Delivered</p></div>
-                    <div className="text-center"><p className="text-xs font-bold text-foreground">{openRate}%</p><p>Opened</p></div>
+                    {isScheduled ? (
+                      <div className="flex gap-1.5">
+                        <button onClick={() => cancelScheduled(c.id)}
+                          className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg" title="Cancel">
+                          <XCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-center"><p className="text-xs font-bold text-foreground">{c.total_recipients || 0}</p><p>Sent</p></div>
+                        <div className="text-center"><p className="text-xs font-bold text-foreground">{deliveryRate}%</p><p>Delivered</p></div>
+                        <div className="text-center"><p className="text-xs font-bold text-foreground">{openRate}%</p><p>Opened</p></div>
+                      </>
+                    )}
                     <p className="text-[9px]">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</p>
                   </div>
                 </div>
@@ -351,7 +418,6 @@ const AITemplatesTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         body: { action: "generate_single", trigger_key: triggerKey, channel },
       });
       if (error) throw error;
-      // Save to templates
       await (supabase as any).from("email_templates").insert({
         name: `[AI] ${triggerKey} — ${channel.toUpperCase()}`,
         subject: data.subject,
@@ -386,7 +452,6 @@ const AITemplatesTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
 
   return (
     <div className="space-y-4">
-      {/* Bulk AI Generator */}
       <div className="glass rounded-xl p-5 neural-border space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -394,7 +459,7 @@ const AITemplatesTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
               <Wand2 className="w-4 h-4 text-primary" /> AI Template Generator
             </h3>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Generate templates for all {AI_CAMPAIGN_TRIGGERS.length} triggers × all channels in one click. AI handles subject, body, HTML, and voice scripts.
+              Generate templates for all {AI_CAMPAIGN_TRIGGERS.length} triggers × all channels in one click.
             </p>
           </div>
         </div>
@@ -413,7 +478,6 @@ const AITemplatesTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         </div>
       </div>
 
-      {/* Per-trigger generator */}
       <div className="glass rounded-xl p-4 neural-border space-y-3">
         <h4 className="text-xs font-semibold text-foreground">Generate Single Template</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
@@ -442,7 +506,6 @@ const AITemplatesTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         </div>
       </div>
 
-      {/* Saved templates */}
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-semibold text-foreground">Saved Templates ({templates.length})</h3>
       </div>
@@ -497,7 +560,7 @@ const AITemplatesTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
   );
 };
 
-// ─── Lead Management Tab (kept intact) ───
+// ─── Lead Management Tab — Bulk Actions + Auto Sync ───
 const LeadsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -507,6 +570,11 @@ const LeadsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
   const [noteModal, setNoteModal] = useState<{ leadId: string; open: boolean }>({ leadId: "", open: false });
   const [noteText, setNoteText] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [bulkTagInput, setBulkTagInput] = useState("");
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const autoSyncRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -519,32 +587,72 @@ const LeadsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
-  const syncLeads = async () => {
+  // ─── Auto Lead Sync ───
+  const syncLeads = useCallback(async (silent = false) => {
+    if (syncing) return;
     setSyncing(true);
     try {
       const { data: profiles } = await supabase.from("profiles").select("id, created_at, exam_type, daily_study_goal_minutes");
       if (!profiles?.length) { setSyncing(false); return; }
+
+      let created = 0, updated = 0;
       for (const p of profiles) {
-        const { data: existing } = await (supabase as any).from("leads").select("id").eq("user_id", p.id).maybeSingle();
+        const { data: logs } = await supabase.from("study_logs").select("duration_minutes, created_at").eq("user_id", p.id).order("created_at", { ascending: false }).limit(50);
+        const totalMinutes7d = (logs || []).filter(l => new Date(l.created_at) > new Date(Date.now() - 7 * 86400000)).reduce((s, l) => s + l.duration_minutes, 0);
+        const lastActive = logs?.[0]?.created_at || p.created_at;
+        const studyScore = Math.min(totalMinutes7d / 10, 30);
+        const recencyScore = Math.max(0, 30 - Math.floor((Date.now() - new Date(lastActive).getTime()) / 86400000));
+        const score = Math.round(studyScore + recencyScore);
+
+        // Determine stage from score
+        let stage: LeadStage = "new";
+        if (score >= 50) stage = "power_user";
+        else if (score >= 30) stage = "active";
+        else if (score >= 15) stage = "engaged";
+        else if (score < 5 && new Date(lastActive) < new Date(Date.now() - 7 * 86400000)) stage = "at_risk";
+
+        const { data: existing } = await (supabase as any).from("leads").select("id, stage").eq("user_id", p.id).maybeSingle();
+
         if (!existing) {
-          const { data: logs } = await supabase.from("study_logs").select("duration_minutes, created_at").eq("user_id", p.id).order("created_at", { ascending: false }).limit(50);
-          const totalMinutes7d = (logs || []).filter(l => new Date(l.created_at) > new Date(Date.now() - 7 * 86400000)).reduce((s, l) => s + l.duration_minutes, 0);
-          const lastActive = logs?.[0]?.created_at || p.created_at;
-          const studyScore = Math.min(totalMinutes7d / 10, 30);
-          const recencyScore = Math.max(0, 30 - Math.floor((Date.now() - new Date(lastActive).getTime()) / 86400000));
-          const score = Math.round(studyScore + recencyScore);
-          let stage: LeadStage = "new";
-          if (score >= 50) stage = "power_user";
-          else if (score >= 30) stage = "active";
-          else if (score >= 15) stage = "engaged";
-          else if (score < 5 && new Date(lastActive) < new Date(Date.now() - 7 * 86400000)) stage = "at_risk";
-          await (supabase as any).from("leads").insert({ user_id: p.id, stage, score, study_hours_7d: Math.round(totalMinutes7d / 60 * 10) / 10, last_active_at: lastActive });
+          await (supabase as any).from("leads").insert({
+            user_id: p.id, stage, score,
+            study_hours_7d: Math.round(totalMinutes7d / 60 * 10) / 10,
+            last_active_at: lastActive,
+          });
+          created++;
+        } else {
+          // Auto-update score and recalculate stage if not manually converted
+          if (existing.stage !== "converted") {
+            await (supabase as any).from("leads").update({
+              score,
+              stage,
+              study_hours_7d: Math.round(totalMinutes7d / 60 * 10) / 10,
+              last_active_at: lastActive,
+              updated_at: new Date().toISOString(),
+            }).eq("id", existing.id);
+            updated++;
+          }
         }
       }
-      toast({ title: "Leads synced ✅" }); fetchLeads();
-    } catch { toast({ title: "Sync failed", variant: "destructive" }); }
+
+      setLastSyncAt(new Date().toISOString());
+      if (!silent) toast({ title: `Leads synced ✅`, description: `${created} new, ${updated} updated` });
+      fetchLeads();
+    } catch {
+      if (!silent) toast({ title: "Sync failed", variant: "destructive" });
+    }
     setSyncing(false);
-  };
+  }, [syncing, fetchLeads, toast]);
+
+  // Auto-sync on mount and every 5 minutes
+  useEffect(() => {
+    if (autoSyncEnabled) {
+      syncLeads(true);
+      autoSyncRef.current = setInterval(() => syncLeads(true), 5 * 60 * 1000);
+    }
+    return () => { if (autoSyncRef.current) clearInterval(autoSyncRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSyncEnabled]);
 
   const updateStage = async (leadId: string, stage: LeadStage) => {
     await (supabase as any).from("leads").update({ stage }).eq("id", leadId);
@@ -559,10 +667,58 @@ const LeadsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
     toast({ title: "Note added" }); setNoteModal({ leadId: "", open: false }); setNoteText(""); fetchLeads();
   };
 
+  // ─── Bulk Actions ───
   const bulkUpdateStage = async (stage: LeadStage) => {
     if (selectedLeads.size === 0) return;
     for (const id of selectedLeads) { await (supabase as any).from("leads").update({ stage }).eq("id", id); }
     toast({ title: `${selectedLeads.size} leads → ${stage}` }); setSelectedLeads(new Set()); fetchLeads();
+  };
+
+  const bulkAddTag = async () => {
+    if (selectedLeads.size === 0 || !bulkTagInput.trim()) return;
+    const tag = bulkTagInput.trim();
+    for (const id of selectedLeads) {
+      const lead = leads.find(l => l.id === id);
+      const tags = Array.isArray(lead?.tags) ? lead.tags : [];
+      if (!tags.includes(tag)) {
+        await (supabase as any).from("leads").update({ tags: [...tags, tag] }).eq("id", id);
+      }
+    }
+    toast({ title: `Tag "${tag}" added to ${selectedLeads.size} leads` });
+    setBulkTagInput(""); setSelectedLeads(new Set()); fetchLeads();
+  };
+
+  const bulkRemoveTag = async (tag: string) => {
+    if (selectedLeads.size === 0) return;
+    for (const id of selectedLeads) {
+      const lead = leads.find(l => l.id === id);
+      const tags = Array.isArray(lead?.tags) ? lead.tags : [];
+      await (supabase as any).from("leads").update({ tags: tags.filter((t: string) => t !== tag) }).eq("id", id);
+    }
+    toast({ title: `Tag "${tag}" removed from ${selectedLeads.size} leads` }); setSelectedLeads(new Set()); fetchLeads();
+  };
+
+  const bulkDelete = async () => {
+    if (selectedLeads.size === 0) return;
+    for (const id of selectedLeads) { await (supabase as any).from("leads").delete().eq("id", id); }
+    toast({ title: `${selectedLeads.size} leads deleted` }); setSelectedLeads(new Set()); fetchLeads();
+  };
+
+  const bulkExport = () => {
+    const selected = leads.filter(l => selectedLeads.has(l.id));
+    const csv = [
+      "user_id,stage,score,study_hours_7d,streak_days,subscription_plan,last_active_at,tags",
+      ...selected.map(l => `${l.user_id},${l.stage},${l.score},${l.study_hours_7d},${l.streak_days || 0},${l.subscription_plan || ""},${l.last_active_at || ""},${(l.tags || []).join("|")}`)
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `leads_export_${Date.now()}.csv`; a.click();
+    toast({ title: `Exported ${selected.length} leads` });
+  };
+
+  const selectAll = () => {
+    if (selectedLeads.size === filteredLeads.length) setSelectedLeads(new Set());
+    else setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
   };
 
   const toggleSelect = (id: string) => {
@@ -572,8 +728,36 @@ const LeadsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
   const filteredLeads = leads.filter(l => !search || l.user_id?.includes(search));
   const stageCounts = LEAD_STAGES.reduce((acc, s) => { acc[s] = leads.filter(l => l.stage === s).length; return acc; }, {} as Record<LeadStage, number>);
 
+  // Collect all unique tags
+  const allTags = [...new Set(leads.flatMap(l => Array.isArray(l.tags) ? l.tags : []))];
+
   return (
     <div className="space-y-4">
+      {/* Auto-sync indicator */}
+      <div className="flex items-center justify-between glass rounded-xl p-3 neural-border">
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${autoSyncEnabled ? "bg-green-500 animate-pulse" : "bg-muted"}`} />
+          <div>
+            <p className="text-xs font-semibold text-foreground">Auto Lead Sync</p>
+            <p className="text-[10px] text-muted-foreground">
+              {autoSyncEnabled ? "Syncing every 5 min" : "Disabled"} 
+              {lastSyncAt && ` — Last: ${formatDistanceToNow(new Date(lastSyncAt), { addSuffix: true })}`}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setAutoSyncEnabled(!autoSyncEnabled)}
+            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${autoSyncEnabled ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
+            {autoSyncEnabled ? "On" : "Off"}
+          </button>
+          <button onClick={() => syncLeads(false)} disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground disabled:opacity-50">
+            {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Sync Now
+          </button>
+        </div>
+      </div>
+
+      {/* Stage pills */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {LEAD_STAGES.map(s => (
           <button key={s} onClick={() => setStageFilter(stageFilter === s ? "all" : s)}
@@ -585,33 +769,99 @@ const LeadsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
           </button>
         ))}
       </div>
+
+      {/* Search + Bulk bar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-1 max-w-sm">
           <Search className="w-4 h-4 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search user ID..."
             className="flex-1 px-3 py-1.5 bg-secondary rounded-lg text-xs text-foreground border border-border outline-none" />
         </div>
-        <div className="flex gap-2">
-          {selectedLeads.size > 0 && (
-            <select onChange={e => { if (e.target.value) bulkUpdateStage(e.target.value as LeadStage); }}
-              className="px-2 py-1.5 rounded-lg text-xs bg-secondary border border-border text-foreground" defaultValue="">
-              <option value="" disabled>Bulk move {selectedLeads.size}...</option>
-              {LEAD_STAGES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
-            </select>
-          )}
-          <button onClick={syncLeads} disabled={syncing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground disabled:opacity-50">
-            {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Sync Leads
+        <div className="flex gap-2 items-center">
+          <button onClick={selectAll}
+            className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium bg-secondary text-muted-foreground hover:text-foreground border border-border">
+            {selectedLeads.size === filteredLeads.length && filteredLeads.length > 0 ? "Deselect All" : "Select All"}
           </button>
+          {selectedLeads.size > 0 && (
+            <button onClick={() => setShowBulkActions(!showBulkActions)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-accent/15 text-accent">
+              <Zap className="w-3.5 h-3.5" /> Bulk ({selectedLeads.size})
+              <ChevronDown className={`w-3 h-3 transition-transform ${showBulkActions ? "rotate-180" : ""}`} />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Bulk actions panel */}
+      <AnimatePresence>
+        {showBulkActions && selectedLeads.size > 0 && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+            className="glass rounded-xl p-4 neural-border space-y-3">
+            <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
+              <Zap className="w-3.5 h-3.5 text-accent" /> Bulk Actions — {selectedLeads.size} selected
+            </h4>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {/* Move stage */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-medium text-muted-foreground">Move to Stage</p>
+                <select onChange={e => { if (e.target.value) bulkUpdateStage(e.target.value as LeadStage); }}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs bg-secondary border border-border text-foreground" defaultValue="">
+                  <option value="" disabled>Select stage...</option>
+                  {LEAD_STAGES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                </select>
+              </div>
+
+              {/* Add tag */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-medium text-muted-foreground">Add Tag</p>
+                <div className="flex gap-1">
+                  <input value={bulkTagInput} onChange={e => setBulkTagInput(e.target.value)} placeholder="Tag..."
+                    className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-secondary border border-border text-foreground outline-none" />
+                  <button onClick={bulkAddTag} disabled={!bulkTagInput.trim()}
+                    className="px-2 py-1.5 rounded-lg text-xs bg-primary text-primary-foreground disabled:opacity-50">
+                    <Tags className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Remove tag */}
+              {allTags.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-medium text-muted-foreground">Remove Tag</p>
+                  <select onChange={e => { if (e.target.value) bulkRemoveTag(e.target.value); }}
+                    className="w-full px-2 py-1.5 rounded-lg text-xs bg-secondary border border-border text-foreground" defaultValue="">
+                    <option value="" disabled>Select tag...</option>
+                    {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Export + Delete */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-medium text-muted-foreground">Other Actions</p>
+                <div className="flex gap-1.5">
+                  <button onClick={bulkExport} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-secondary text-foreground hover:bg-secondary/80 border border-border">
+                    <Download className="w-3 h-3" /> CSV
+                  </button>
+                  <button onClick={bulkDelete} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-destructive/15 text-destructive hover:bg-destructive/25">
+                    <Trash2 className="w-3 h-3" /> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Lead list */}
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
       ) : filteredLeads.length === 0 ? (
         <div className="glass rounded-xl p-8 neural-border text-center">
           <Target className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No leads found</p>
-          <button onClick={syncLeads} className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium">Sync from Users</button>
+          <button onClick={() => syncLeads(false)} className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium">Sync from Users</button>
         </div>
       ) : (
         <div className="space-y-2">
@@ -652,6 +902,8 @@ const LeadsTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
           })}
         </div>
       )}
+
+      {/* Note modal */}
       {noteModal.open && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setNoteModal({ leadId: "", open: false })}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -698,7 +950,6 @@ const AIDripTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
         body: { action: "generate_single", trigger_key: triggerEvent, channel },
       });
       if (error) throw error;
-      // Generate 4-step drip sequence from AI
       const baseTitle = data.subject || "Step";
       const baseBody = data.html_body || "";
       setSteps([
