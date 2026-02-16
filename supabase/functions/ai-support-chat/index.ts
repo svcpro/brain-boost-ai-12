@@ -266,7 +266,7 @@ ${cognitiveContext}
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const activeModel = chatConfig?.active_model || "google/gemini-2.5-flash-lite";
+    const activeModel = chatConfig?.active_model || "google/gemini-3-flash-preview";
     const maxTokens = chatConfig?.max_tokens || 1024;
     const temperature = chatConfig?.temperature ? Number(chatConfig.temperature) : 0.7;
 
