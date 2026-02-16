@@ -1,18 +1,7 @@
-import { useRef, useState, useEffect } from "react";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 import { Brain, Zap, Crown, Check } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const useInView = (ref: React.RefObject<HTMLElement>) => {
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } }, { rootMargin: "-100px" });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [ref]);
-  return inView;
-};
 
 const plans = [
   {
@@ -44,27 +33,36 @@ const plans = [
 ];
 
 const PricingSection = () => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref);
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
     <section ref={ref} className="relative py-32 px-6">
       <div className="max-w-6xl mx-auto">
-        <div className={`text-center mb-16 transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-16"
+        >
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
             Choose Your <span className="gradient-text">Brain Level</span>
           </h2>
           <p className="text-muted-foreground text-lg">Unlock the full power of your AI Second Brain.</p>
-        </div>
+        </motion.div>
 
         <div className="grid md:grid-cols-3 gap-6">
           {plans.map((plan, i) => (
-            <div
+            <motion.div
               key={i}
-              className={`glass rounded-2xl p-8 relative transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"} ${
-                plan.highlight ? "neural-border glow-primary" : "border border-border"
+              initial={{ opacity: 0, y: 40 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.2 + i * 0.15 }}
+              className={`glass rounded-2xl p-8 relative ${
+                plan.highlight
+                  ? "neural-border glow-primary"
+                  : "border border-border"
               }`}
-              style={{ transitionDelay: `${0.2 + i * 0.15}s` }}
             >
               {plan.highlight && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
@@ -97,7 +95,7 @@ const PricingSection = () => {
               >
                 {plan.cta}
               </Link>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
