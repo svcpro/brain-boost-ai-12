@@ -1,10 +1,21 @@
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { TrendingUp, Target } from "lucide-react";
 
+const useInView = (ref: React.RefObject<HTMLElement>) => {
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } }, { rootMargin: "-100px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [ref]);
+  return inView;
+};
+
 const RankSection = () => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref);
 
   const ranks = [
     { label: "Week 1", value: 45000, color: "bg-destructive/40" },
@@ -17,58 +28,40 @@ const RankSection = () => {
   return (
     <section ref={ref} className="relative py-32 px-6">
       <div className="max-w-6xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-16"
-        >
+        <div className={`text-center mb-16 transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full neural-border neural-gradient text-xs text-primary uppercase tracking-wider mb-4">
             <TrendingUp className="w-3 h-3" /> Rank Intelligence
           </span>
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
             See How Your Study <span className="gradient-text">Changes Rank</span>
           </h2>
-        </motion.div>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          {/* Rank visualization */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="glass rounded-2xl p-8 neural-border"
-          >
+          <div className={`glass rounded-2xl p-8 neural-border transition-all duration-700 delay-200 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
             <div className="flex items-end gap-3 h-64 justify-center">
-              {ranks.map((rank, i) => (
-                <motion.div
-                  key={i}
-                  className="flex flex-col items-center gap-2 flex-1"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={isInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ delay: 0.5 + i * 0.15 }}
-                >
-                  <span className="text-xs font-medium text-foreground">
-                    #{rank.value.toLocaleString()}
-                  </span>
-                  <motion.div
-                    className={`w-full rounded-t-lg ${rank.color}`}
-                    initial={{ height: 0 }}
-                    animate={isInView ? { height: `${((45000 - rank.value) / 45000) * 180 + 20}px` } : {}}
-                    transition={{ duration: 1, delay: 0.5 + i * 0.15, type: "spring" }}
-                  />
-                  <span className="text-[10px] text-muted-foreground">{rank.label}</span>
-                </motion.div>
-              ))}
+              {ranks.map((rank, i) => {
+                const height = ((45000 - rank.value) / 45000) * 180 + 20;
+                return (
+                  <div key={i} className="flex flex-col items-center gap-2 flex-1">
+                    <span className="text-xs font-medium text-foreground">
+                      #{rank.value.toLocaleString()}
+                    </span>
+                    <div
+                      className={`w-full rounded-t-lg ${rank.color} transition-all duration-1000`}
+                      style={{
+                        height: isInView ? `${height}px` : "0px",
+                        transitionDelay: `${0.5 + i * 0.15}s`,
+                      }}
+                    />
+                    <span className="text-[10px] text-muted-foreground">{rank.label}</span>
+                  </div>
+                );
+              })}
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="space-y-6"
-          >
+          <div className={`space-y-6 transition-all duration-700 delay-500 ${isInView ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10"}`}>
             <div className="glass rounded-xl p-6 neural-border">
               <div className="flex items-start gap-4">
                 <div className="p-2 rounded-lg neural-gradient neural-border">
@@ -95,7 +88,7 @@ const RankSection = () => {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

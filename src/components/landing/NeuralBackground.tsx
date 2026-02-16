@@ -6,6 +6,9 @@ const NeuralBackground = () => {
   const isMobile = useIsMobile();
 
   const initCanvas = useCallback(() => {
+    // Skip canvas entirely on mobile for performance
+    if (isMobile) return;
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: true });
@@ -13,12 +16,11 @@ const NeuralBackground = () => {
 
     let animationId: number;
     const nodes: { x: number; y: number; vx: number; vy: number; radius: number }[] = [];
-    // Far fewer nodes on mobile
-    const nodeCount = isMobile ? 12 : 30;
-    const maxDist = isMobile ? 80 : 120;
+    const nodeCount = 30;
+    const maxDist = 120;
 
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
       canvas.style.width = `${window.innerWidth}px`;
@@ -43,20 +45,17 @@ const NeuralBackground = () => {
 
     const animate = () => {
       ctx.clearRect(0, 0, w(), h());
-
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
         node.x += node.vx;
         node.y += node.vy;
         if (node.x < 0 || node.x > w()) node.vx *= -1;
         if (node.y < 0 || node.y > h()) node.vy *= -1;
-
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
         ctx.fillStyle = "hsla(175, 80%, 50%, 0.5)";
         ctx.fill();
       }
-
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[i].x - nodes[j].x;
@@ -73,7 +72,6 @@ const NeuralBackground = () => {
           }
         }
       }
-
       animationId = requestAnimationFrame(animate);
     };
     animate();
@@ -88,6 +86,9 @@ const NeuralBackground = () => {
     const cleanup = initCanvas();
     return cleanup;
   }, [initCanvas]);
+
+  // Don't render canvas at all on mobile
+  if (isMobile) return null;
 
   return (
     <canvas

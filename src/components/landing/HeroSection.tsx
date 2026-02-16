@@ -1,17 +1,14 @@
-import { motion } from "framer-motion";
 import { Brain, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const HeroSection = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-6">
-      {/* Radial glow - smaller on mobile */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="w-[300px] h-[300px] md:w-[600px] md:h-[600px] rounded-full bg-primary/5 blur-[80px] md:blur-[120px]" />
       </div>
 
-      <div className="relative z-10 text-center max-w-4xl mx-auto">
-        {/* Brain icon - no spring animation on initial load for faster LCP */}
+      <div className="relative z-10 text-center max-w-4xl mx-auto animate-[fade-in_0.5s_ease-out_both]">
         <div className="inline-flex items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-2xl neural-gradient neural-border mb-6 md:mb-8">
           <Brain className="w-10 h-10 md:w-12 md:h-12 text-primary" />
         </div>
@@ -47,22 +44,6 @@ const HeroSection = () => {
           </a>
         </div>
       </div>
-
-      {/* Scroll indicator - hidden on mobile for cleaner LCP */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 2 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 hidden md:block"
-      >
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="w-6 h-10 rounded-full neural-border flex justify-center pt-2"
-        >
-          <div className="w-1.5 h-3 rounded-full bg-primary/60" />
-        </motion.div>
-      </motion.div>
     </section>
   );
 };
