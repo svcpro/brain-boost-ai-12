@@ -92,6 +92,27 @@ serve(async (req) => {
       return json(parsed || { topics: [] });
     }
 
+    // --- AI ENHANCE POST ---
+    if (action === "enhance_post") {
+      const { title: pTitle, content: pContent, post_type, enhance_type } = body;
+      let prompt = "";
+      if (enhance_type === "suggest_title") {
+        prompt = `The user wants to create a "${post_type}" post in a study community. They wrote this content:\n"${pContent}"\nSuggest 4 clear, engaging titles. Return JSON: { "titles": ["title1","title2","title3","title4"] }`;
+      } else if (enhance_type === "improve_content") {
+        prompt = `Improve this study community ${post_type} post. Make it clearer, better formatted, and more helpful. Keep the same meaning.\nTitle: ${pTitle}\nContent: ${pContent}\nReturn JSON: { "improved_content": "improved version with proper formatting" }`;
+      } else if (enhance_type === "generate_content") {
+        prompt = `Generate detailed content for a study community ${post_type} post titled "${pTitle}". Include relevant details, examples, and structure it well for a learning community. Return JSON: { "generated_content": "detailed post content" }`;
+      } else if (enhance_type === "quality_check") {
+        prompt = `Rate this study post for quality. Title: ${pTitle}\nContent: ${pContent}\nReturn JSON: { "score": 0-100, "feedback": "brief feedback", "suggestions": ["suggestion1","suggestion2"] }`;
+      }
+      const text = await aiCall(LOVABLE_API_KEY, [
+        { role: "system", content: "You help create high-quality study community posts. Return JSON only." },
+        { role: "user", content: prompt },
+      ], 500, 0.7);
+      const parsed = extractJson(text);
+      return json(parsed || {});
+    }
+
     // --- SUGGEST COMMUNITY DESCRIPTION & RULES ---
     if (action === "suggest_community") {
       const context = category === "exam" ? `for ${exam_type || "competitive exam"} preparation` :

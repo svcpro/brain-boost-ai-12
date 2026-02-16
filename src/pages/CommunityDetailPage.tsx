@@ -635,6 +635,14 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
   const [aiTags, setAiTags] = useState<string[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
 
+  // AI enhancement states
+  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
+  const [loadingTitles, setLoadingTitles] = useState(false);
+  const [loadingEnhance, setLoadingEnhance] = useState(false);
+  const [loadingGenerate, setLoadingGenerate] = useState(false);
+  const [qualityScore, setQualityScore] = useState<{ score: number; feedback: string; suggestions: string[] } | null>(null);
+  const [loadingQuality, setLoadingQuality] = useState(false);
+
   const generateTags = async () => {
     if (!title.trim() && !content.trim()) return;
     setLoadingTags(true);
@@ -647,16 +655,67 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
     setLoadingTags(false);
   };
 
+  const suggestTitles = async () => {
+    if (!content.trim()) { toast({ title: "Write some content first" }); return; }
+    setLoadingTitles(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "enhance_post", content, post_type: postType, enhance_type: "suggest_title" }
+      });
+      if (res.data?.titles) setTitleSuggestions(res.data.titles);
+    } catch { /* ignore */ }
+    setLoadingTitles(false);
+  };
+
+  const improveContent = async () => {
+    if (!content.trim()) return;
+    setLoadingEnhance(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "enhance_post", title, content, post_type: postType, enhance_type: "improve_content" }
+      });
+      if (res.data?.improved_content) setContent(res.data.improved_content);
+    } catch { toast({ title: "Couldn't enhance content", variant: "destructive" }); }
+    setLoadingEnhance(false);
+  };
+
+  const generateContent = async () => {
+    if (!title.trim()) { toast({ title: "Enter a title first" }); return; }
+    setLoadingGenerate(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "enhance_post", title, post_type: postType, enhance_type: "generate_content" }
+      });
+      if (res.data?.generated_content) setContent(res.data.generated_content);
+    } catch { toast({ title: "Couldn't generate content", variant: "destructive" }); }
+    setLoadingGenerate(false);
+  };
+
+  const checkQuality = async () => {
+    if (!title.trim() || !content.trim()) return;
+    setLoadingQuality(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "enhance_post", title, content, post_type: postType, enhance_type: "quality_check" }
+      });
+      if (res.data?.score !== undefined) setQualityScore(res.data);
+    } catch { /* ignore */ }
+    setLoadingQuality(false);
+  };
+
   const handleCreate = async () => {
     if (!title.trim() || !content.trim() || !user) return;
     setLoading(true);
     const { error } = await supabase.from("community_posts").insert({
       community_id: communityId, user_id: user.id, title: title.trim(), content: content.trim(), post_type: postType,
+      ai_tags: aiTags.length > 0 ? aiTags : null,
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); setLoading(false); return; }
     toast({ title: "Post created! 📝" });
     onCreated();
   };
+
+  const qualityColor = qualityScore ? (qualityScore.score >= 80 ? "text-success" : qualityScore.score >= 50 ? "text-warning" : "text-destructive") : "";
 
   return (
     <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-md flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -671,8 +730,13 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
             <FileText className="w-4 h-4 text-primary-foreground" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-bold text-foreground">Create Post</h2>
-            <p className="text-[10px] text-muted-foreground">Share knowledge with the community</p>
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              Create Post
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-primary/15 to-accent/15 text-primary font-semibold flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5" /> AI Enhanced
+              </span>
+            </h2>
+            <p className="text-[10px] text-muted-foreground">AI helps you write better posts</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-secondary rounded-xl transition-colors"><X className="w-5 h-5 text-muted-foreground" /></button>
         </div>
@@ -695,19 +759,89 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
             </div>
           </div>
 
-          {/* Title */}
+          {/* Title with AI suggestions */}
           <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Title</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="What's your question or topic?"
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-foreground">Title</label>
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                onClick={suggestTitles} disabled={loadingTitles || !content.trim()}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary/15 to-accent/15 text-primary text-[10px] font-semibold disabled:opacity-50 hover:from-primary/25 hover:to-accent/25 transition-all">
+                {loadingTitles ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                AI Suggest Titles
+              </motion.button>
+            </div>
+            <input value={title} onChange={e => { setTitle(e.target.value); setQualityScore(null); }} placeholder="What's your question or topic?"
               className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all" />
+            {titleSuggestions.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 space-y-1.5">
+                <span className="text-[9px] font-bold text-primary uppercase tracking-wider flex items-center gap-1"><Lightbulb className="w-3 h-3" /> AI Title Ideas</span>
+                {titleSuggestions.map((t, i) => (
+                  <motion.button key={i} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                    onClick={() => { setTitle(t); setTitleSuggestions([]); setQualityScore(null); }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-[11px] font-medium bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/15 text-foreground hover:border-primary/40 transition-all">
+                    {t}
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
           </div>
 
-          {/* Content */}
+          {/* Content with AI tools */}
           <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Content</label>
-            <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="Describe in detail..." rows={5}
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-foreground">Content</label>
+              <div className="flex gap-1">
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  onClick={generateContent} disabled={loadingGenerate || !title.trim()}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-accent/15 to-primary/15 text-accent text-[9px] font-semibold disabled:opacity-50 hover:from-accent/25 hover:to-primary/25 transition-all"
+                  title="AI writes content based on your title">
+                  {loadingGenerate ? <Loader2 className="w-3 h-3 animate-spin" /> : <Brain className="w-3 h-3" />}
+                  AI Write
+                </motion.button>
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  onClick={improveContent} disabled={loadingEnhance || !content.trim()}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-primary/15 to-accent/15 text-primary text-[9px] font-semibold disabled:opacity-50 hover:from-primary/25 hover:to-accent/25 transition-all"
+                  title="AI improves your existing content">
+                  {loadingEnhance ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                  Enhance
+                </motion.button>
+              </div>
+            </div>
+            <textarea value={content} onChange={e => { setContent(e.target.value); setQualityScore(null); }} placeholder="Describe in detail..." rows={5}
               className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none" />
           </div>
+
+          {/* AI Quality Check */}
+          <div className="flex items-center gap-2">
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={checkQuality} disabled={loadingQuality || !title.trim() || !content.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary/40 border border-border/50 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-50 transition-all">
+              {loadingQuality ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+              AI Quality Check
+            </motion.button>
+            {qualityScore && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
+                <div className={`text-lg font-bold ${qualityColor}`}>{qualityScore.score}</div>
+                <span className="text-[9px] text-muted-foreground">/100</span>
+              </motion.div>
+            )}
+          </div>
+          {qualityScore && (
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/15 p-3 space-y-2">
+              <p className="text-[11px] text-foreground font-medium">{qualityScore.feedback}</p>
+              {qualityScore.suggestions?.length > 0 && (
+                <div className="space-y-1">
+                  {qualityScore.suggestions.map((s, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
+                      <Lightbulb className="w-3 h-3 text-warning shrink-0 mt-0.5" />
+                      <span>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {/* AI Tag Suggestions */}
           <div>
@@ -716,7 +850,7 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                 onClick={generateTags} disabled={loadingTags || (!title.trim() && !content.trim())}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary/15 to-accent/15 text-primary text-[10px] font-semibold disabled:opacity-50">
-                {loadingTags ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                {loadingTags ? <Loader2 className="w-3 h-3 animate-spin" /> : <Tag className="w-3 h-3" />}
                 Generate Tags
               </motion.button>
             </div>
