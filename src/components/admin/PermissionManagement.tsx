@@ -21,6 +21,7 @@ const CATEGORIES = [
   "Subscription Management",
   "Notification Management",
   "Admin Management",
+  "API Management",
 ];
 
 interface Permission {
