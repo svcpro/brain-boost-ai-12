@@ -24,16 +24,60 @@ const NOTIFICATION_TYPES = [
 ];
 
 const EVENT_TRIGGERS = [
-  { key: "study_reminder", label: "Study Reminder", desc: "When topics are due for revision", channels: ["push", "email"] as NotifChannel[] },
-  { key: "streak_milestone", label: "Streak Milestone", desc: "When users hit 7, 14, 30-day streaks", channels: ["push"] as NotifChannel[] },
-  { key: "freeze_gift", label: "Freeze Gift", desc: "When someone sends a streak freeze", channels: ["push"] as NotifChannel[] },
-  { key: "brain_update_reminder", label: "Brain Update", desc: "Nudge when no brain update in 24h", channels: ["push"] as NotifChannel[] },
-  { key: "weekly_insights", label: "Weekly Insights", desc: "AI study recommendations every Monday", channels: ["push", "email"] as NotifChannel[] },
-  { key: "daily_briefing", label: "Daily Briefing", desc: "Morning cognitive summary at 07:00 UTC", channels: ["push"] as NotifChannel[] },
-  { key: "risk_digest", label: "Risk Digest", desc: "At-risk topics every morning", channels: ["push"] as NotifChannel[] },
-  { key: "exam_countdown", label: "Exam Countdown", desc: "Alerts as exam date approaches", channels: ["push", "voice"] as NotifChannel[] },
-  { key: "forget_risk", label: "Forget Risk Alert", desc: "When memory score drops below threshold", channels: ["push", "voice"] as NotifChannel[] },
-  { key: "weekly_report", label: "Weekly Report", desc: "Weekly performance report via email", channels: ["email"] as NotifChannel[] },
+  // Study & Revision
+  { key: "study_reminder", label: "Study Reminder", desc: "When topics are due for revision based on forgetting curve", channels: ["push", "email", "voice"] as NotifChannel[] },
+  { key: "forget_risk", label: "Forget Risk Alert", desc: "When memory score drops below threshold or predicted drop within 3 days", channels: ["push", "voice"] as NotifChannel[] },
+  { key: "risk_digest", label: "Daily Risk Digest", desc: "At-risk topics summary with quick study plan every morning", channels: ["push", "email"] as NotifChannel[] },
+
+  // Streaks & Gamification
+  { key: "streak_milestone", label: "Streak Milestone", desc: "Celebrate 7, 14, 30-day study streaks", channels: ["push", "voice"] as NotifChannel[] },
+  { key: "freeze_gift", label: "Freeze Gift Received", desc: "When someone sends a streak freeze gift", channels: ["push"] as NotifChannel[] },
+  { key: "streak_break_warning", label: "Streak Break Warning", desc: "Alert when streak is about to break (no study today)", channels: ["push", "voice"] as NotifChannel[] },
+
+  // Brain & Cognitive
+  { key: "brain_update_reminder", label: "Brain Update Nudge", desc: "Nudge when no brain update in 24h", channels: ["push", "voice"] as NotifChannel[] },
+  { key: "daily_briefing", label: "Daily Morning Briefing", desc: "AI cognitive summary sent every morning at 07:00 UTC", channels: ["push", "email"] as NotifChannel[] },
+  { key: "brain_missions", label: "Brain Missions", desc: "New AI-generated learning missions assigned", channels: ["push"] as NotifChannel[] },
+  { key: "cognitive_twin_update", label: "Cognitive Twin Update", desc: "When cognitive twin model is recomputed with new insights", channels: ["push"] as NotifChannel[] },
+
+  // Weekly Reports & Insights
+  { key: "weekly_insights", label: "Weekly AI Insights", desc: "AI study recommendations every Monday", channels: ["push", "email", "voice"] as NotifChannel[] },
+  { key: "weekly_report", label: "Weekly Email Report", desc: "Detailed weekly performance report", channels: ["email"] as NotifChannel[] },
+  { key: "weekly_brain_digest", label: "Weekly Brain Digest", desc: "Weekly brain evolution & learning summary", channels: ["push", "email"] as NotifChannel[] },
+
+  // Exam & Goals
+  { key: "exam_countdown", label: "Exam Countdown", desc: "Alerts as exam date approaches (30d, 14d, 7d, 3d, 1d)", channels: ["push", "email", "voice"] as NotifChannel[] },
+  { key: "daily_goal_complete", label: "Daily Goal Complete", desc: "Congratulate when daily study goal is hit", channels: ["push"] as NotifChannel[] },
+  { key: "weekly_goal_complete", label: "Weekly Goal Complete", desc: "Celebrate hitting the weekly focus goal", channels: ["push", "voice"] as NotifChannel[] },
+
+  // Health & Wellbeing
+  { key: "burnout_detection", label: "Burnout Alert", desc: "Proactive wellness alert when fatigue score is high", channels: ["push", "voice"] as NotifChannel[] },
+  { key: "study_break_reminder", label: "Study Break Reminder", desc: "Suggest break after prolonged study sessions", channels: ["push", "voice"] as NotifChannel[] },
+
+  // AI & Model Events
+  { key: "ai_self_evaluate", label: "AI Self-Evaluation", desc: "When AI models complete self-evaluation cycle", channels: ["push"] as NotifChannel[] },
+  { key: "benchmark_deviation", label: "Benchmark Deviation", desc: "Alert when model performance deviates from baseline", channels: ["push", "email"] as NotifChannel[] },
+  { key: "adaptive_difficulty", label: "Difficulty Adjusted", desc: "When AI adjusts quiz difficulty based on performance", channels: ["push"] as NotifChannel[] },
+  { key: "rank_prediction_change", label: "Rank Prediction Change", desc: "When predicted rank improves or drops significantly", channels: ["push", "voice"] as NotifChannel[] },
+
+  // Subscription & Account
+  { key: "subscription_expiry", label: "Subscription Expiry", desc: "Warning before subscription expires (7d, 3d, 1d)", channels: ["push", "email"] as NotifChannel[] },
+  { key: "subscription_renewed", label: "Subscription Renewed", desc: "Confirmation when subscription is renewed", channels: ["push", "email"] as NotifChannel[] },
+  { key: "new_user_welcome", label: "Welcome Message", desc: "Onboarding welcome notification for new users", channels: ["push", "email"] as NotifChannel[] },
+  { key: "inactivity_nudge", label: "Inactivity Nudge", desc: "Re-engagement nudge after 3+ days of no activity", channels: ["push", "email", "voice"] as NotifChannel[] },
+
+  // Leaderboard & Social
+  { key: "leaderboard_rank_up", label: "Leaderboard Rank Up", desc: "When user climbs up the leaderboard", channels: ["push"] as NotifChannel[] },
+  { key: "leaderboard_overtaken", label: "Leaderboard Overtaken", desc: "When another user overtakes your position", channels: ["push"] as NotifChannel[] },
+
+  // Content & Knowledge
+  { key: "new_topic_added", label: "New Topic Added", desc: "Confirmation when a new topic is added via any input method", channels: ["push"] as NotifChannel[] },
+  { key: "study_plan_ready", label: "Study Plan Ready", desc: "When AI-generated study plan is ready", channels: ["push", "email"] as NotifChannel[] },
+
+  // System & Admin
+  { key: "admin_broadcast", label: "Admin Broadcast", desc: "Manual broadcasts from admin panel", channels: ["push", "email"] as NotifChannel[] },
+  { key: "system_maintenance", label: "System Maintenance", desc: "Scheduled maintenance or downtime alerts", channels: ["push", "email"] as NotifChannel[] },
+  { key: "feature_announcement", label: "Feature Announcement", desc: "New feature rollout announcements", channels: ["push", "email"] as NotifChannel[] },
 ];
 
 const CHANNEL_ICONS: Record<NotifChannel, any> = { push: Bell, email: Mail, voice: Volume2 };
@@ -668,6 +712,16 @@ const EventTriggersTab = ({ toast, adminId }: { toast: any; adminId?: string }) 
         weekly_insights: "weekly-insights-summary",
         risk_digest: "daily-risk-digest",
         weekly_report: "send-weekly-report-email",
+        brain_update_reminder: "brain-update-reminder",
+        brain_missions: "brain-missions",
+        cognitive_twin_update: "cognitive-twin",
+        weekly_brain_digest: "weekly-brain-digest",
+        burnout_detection: "burnout-detection",
+        ai_self_evaluate: "ai-self-evaluate",
+        benchmark_deviation: "benchmark-deviation-check",
+        adaptive_difficulty: "adaptive-difficulty",
+        subscription_expiry: "check-subscription-expiry",
+        leaderboard_rank_up: "leaderboard",
       };
 
       const fn = fnMap[eventKey];
