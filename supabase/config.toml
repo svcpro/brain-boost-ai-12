@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.send-campaign-email]
 verify_jwt = false
+
+[functions.ai-topic-manager]
+verify_jwt = false

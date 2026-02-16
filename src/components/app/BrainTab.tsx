@@ -10,6 +10,7 @@ import KnowledgeGraph from "./KnowledgeGraph";
 import BrainHealthSparkline from "./BrainHealthSparkline";
 import StudyPlanGenerator from "./StudyPlanGenerator";
 import MultiSourceSync from "./MultiSourceSync";
+import AITopicManager from "./AITopicManager";
 import PassiveLearning from "./PassiveLearning";
 import FocusModeSession from "./FocusModeSession";
 import AIBrainAgent from "./AIBrainAgent";
@@ -237,6 +238,7 @@ const BrainTab = () => {
   const [showBrainPlan, setShowBrainPlan] = useState(false);
   const [showMultiSync, setShowMultiSync] = useState(false);
   const [showPassiveLearning, setShowPassiveLearning] = useState(false);
+  const [showAITopicManager, setShowAITopicManager] = useState(false);
   const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
 
   useEffect(() => {
@@ -407,11 +409,20 @@ const BrainTab = () => {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass rounded-xl p-8 neural-border text-center"
+          className="space-y-4"
         >
-          <Sparkles className="w-8 h-8 text-primary/40 mx-auto mb-3" />
-          <p className="text-sm text-foreground font-medium">No subjects tracked yet</p>
-          <p className="text-[10px] text-muted-foreground mt-1">Log a study session from the Home tab to see your brain health here.</p>
+          <div className="glass rounded-xl p-8 neural-border text-center">
+            <Sparkles className="w-8 h-8 text-primary/40 mx-auto mb-3" />
+            <p className="text-sm text-foreground font-medium">No subjects tracked yet</p>
+            <p className="text-[10px] text-muted-foreground mt-1 mb-4">Let AI generate your complete curriculum or log a study session to get started.</p>
+            <button
+              onClick={() => setShowAITopicManager(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              AI Generate Curriculum
+            </button>
+          </div>
         </motion.div>
       )}
 
@@ -444,6 +455,7 @@ const BrainTab = () => {
           <FeatureCard icon={Brain} label="Brain Plan" desc="AI auto schedule" active={showBrainPlan} onClick={() => setShowBrainPlan(true)} delay={0.35} />
           <FeatureCard icon={Layers} label="Multi-Source Sync" desc="PDF, YouTube, Notes" active={showMultiSync} onClick={() => setShowMultiSync(true)} delay={0.4} />
           <FeatureCard icon={Clock} label="Passive Learning" desc="Auto detection" active={showPassiveLearning} onClick={() => setShowPassiveLearning(true)} delay={0.45} />
+          <FeatureCard icon={Sparkles} label="AI Topic Manager" desc="Auto-generate & gaps" active={showAITopicManager} onClick={() => setShowAITopicManager(true)} delay={0.5} />
         </div>
       </div>
       )}
@@ -468,6 +480,27 @@ const BrainTab = () => {
 
       {showMultiSync && <MultiSourceSync onClose={() => setShowMultiSync(false)} onSynced={() => refreshAll()} />}
       {showPassiveLearning && <PassiveLearning onClose={() => setShowPassiveLearning(false)} />}
+
+      {showAITopicManager && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-lg max-h-[90vh] overflow-y-auto glass rounded-2xl neural-border p-5"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                AI Topic Manager
+              </h2>
+              <button onClick={() => setShowAITopicManager(false)} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-secondary transition-colors">
+                ✕
+              </button>
+            </div>
+            <AITopicManager mode="user" onDone={() => { setShowAITopicManager(false); refreshAll(); }} />
+          </motion.div>
+        </div>
+      )}
 
       <FocusModeSession
         open={!!reviewSession}
