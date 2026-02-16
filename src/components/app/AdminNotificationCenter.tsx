@@ -121,8 +121,10 @@ const AdminNotificationCenter = () => {
 };
 
 // ─── User Selector Component ───
+type PlanFilter = "all" | "free" | "pro" | "ultra";
+
 const UserSelector = ({
-  mode, setMode, selectedIds, setSelectedIds, targetUserId, setTargetUserId
+  mode, setMode, selectedIds, setSelectedIds, targetUserId, setTargetUserId, planFilter, setPlanFilter
 }: {
   mode: AudienceMode;
   setMode: (m: AudienceMode) => void;
@@ -130,6 +132,8 @@ const UserSelector = ({
   setSelectedIds: (s: Set<string>) => void;
   targetUserId: string;
   setTargetUserId: (s: string) => void;
+  planFilter: PlanFilter;
+  setPlanFilter: (p: PlanFilter) => void;
 }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -193,25 +197,53 @@ const UserSelector = ({
   return (
     <div className="glass rounded-xl p-4 neural-border space-y-3">
       <h3 className="text-sm font-semibold text-foreground">Audience</h3>
-      <div className="flex gap-1.5 flex-wrap">
-        {([
-          { key: "all" as AudienceMode, label: "All Users", icon: Megaphone },
-          { key: "single" as AudienceMode, label: "Single User", icon: User },
-          { key: "select" as AudienceMode, label: "Multi-Select", icon: UserCheck },
-          { key: "segment" as AudienceMode, label: "Smart Segment", icon: Filter },
-          { key: "csv" as AudienceMode, label: "CSV Upload", icon: Upload },
-        ]).map(a => (
-          <button
-            key={a.key}
-            onClick={() => { setMode(a.key); deselectAll(); }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
-              mode === a.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"
-            }`}
-          >
-            <a.icon className="w-3 h-3" />
-            {a.label}
-          </button>
-        ))}
+
+      {/* Plan filter */}
+      <div>
+        <label className="text-[9px] text-muted-foreground block mb-1.5">User Plan</label>
+        <div className="flex gap-1.5 flex-wrap">
+          {([
+            { key: "all" as PlanFilter, label: "All Users" },
+            { key: "free" as PlanFilter, label: "Free" },
+            { key: "pro" as PlanFilter, label: "Pro" },
+            { key: "ultra" as PlanFilter, label: "Ultra" },
+          ]).map(p => (
+            <button
+              key={p.key}
+              onClick={() => setPlanFilter(p.key)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
+                planFilter === p.key ? "bg-primary/15 text-primary ring-1 ring-primary/30" : "text-muted-foreground hover:bg-secondary bg-secondary/50"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Selection mode */}
+      <div>
+        <label className="text-[9px] text-muted-foreground block mb-1.5">Selection Mode</label>
+        <div className="flex gap-1.5 flex-wrap">
+          {([
+            { key: "all" as AudienceMode, label: "All Users", icon: Megaphone },
+            { key: "single" as AudienceMode, label: "Single User", icon: User },
+            { key: "select" as AudienceMode, label: "Multi-Select", icon: UserCheck },
+            { key: "segment" as AudienceMode, label: "Smart Segment", icon: Filter },
+            { key: "csv" as AudienceMode, label: "CSV Upload", icon: Upload },
+          ]).map(a => (
+            <button
+              key={a.key}
+              onClick={() => { setMode(a.key); deselectAll(); }}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
+                mode === a.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <a.icon className="w-3 h-3" />
+              {a.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Single user input */}
@@ -330,6 +362,7 @@ const ComposeTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
   const [audience, setAudience] = useState<AudienceMode>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [targetUserId, setTargetUserId] = useState("");
+  const [planFilter, setPlanFilter] = useState<PlanFilter>("all");
   const [type, setType] = useState("general");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -395,12 +428,42 @@ const ComposeTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
 
   const getRecipientIds = async (): Promise<string[]> => {
     if (audience === "single") return targetUserId.trim() ? [targetUserId.trim()] : [];
-    if (audience === "select" || audience === "segment" || audience === "csv") return [...selectedIds];
-    // "all"
+    if (audience === "select" || audience === "segment" || audience === "csv") {
+      let ids = [...selectedIds];
+      if (planFilter !== "all") {
+        const { data: leads } = await supabase.from("leads").select("user_id, subscription_plan");
+        const planUsers = new Set(
+          (leads || [])
+            .filter(l => {
+              const p = (l.subscription_plan || "free").toLowerCase();
+              return planFilter === "free" ? (p === "free" || !l.subscription_plan) : p === planFilter;
+            })
+            .map(l => l.user_id)
+        );
+        ids = ids.filter(id => planUsers.has(id));
+      }
+      return ids;
+    }
+    // "all" mode
     const { data: profiles } = await supabase.from("profiles").select("id");
-    if (profiles && profiles.length > 0) return profiles.map(p => p.id);
-    const { data: leads } = await supabase.from("leads").select("user_id");
-    return (leads || []).map(l => l.user_id);
+    let allIds = (profiles && profiles.length > 0) ? profiles.map(p => p.id) : [];
+    if (allIds.length === 0) {
+      const { data: leads } = await supabase.from("leads").select("user_id");
+      allIds = (leads || []).map(l => l.user_id);
+    }
+    if (planFilter !== "all") {
+      const { data: leads } = await supabase.from("leads").select("user_id, subscription_plan");
+      const planUsers = new Set(
+        (leads || [])
+          .filter(l => {
+            const p = (l.subscription_plan || "free").toLowerCase();
+            return planFilter === "free" ? (p === "free" || !l.subscription_plan) : p === planFilter;
+          })
+          .map(l => l.user_id)
+      );
+      allIds = allIds.filter(id => planUsers.has(id));
+    }
+    return allIds;
   };
 
   const sendNotification = async () => {
@@ -507,7 +570,7 @@ const ComposeTab = ({ toast, adminId }: { toast: any; adminId?: string }) => {
       </div>
 
       {/* User Selector */}
-      <UserSelector mode={audience} setMode={setAudience} selectedIds={selectedIds} setSelectedIds={setSelectedIds} targetUserId={targetUserId} setTargetUserId={setTargetUserId} />
+      <UserSelector mode={audience} setMode={setAudience} selectedIds={selectedIds} setSelectedIds={setSelectedIds} targetUserId={targetUserId} setTargetUserId={setTargetUserId} planFilter={planFilter} setPlanFilter={setPlanFilter} />
 
       {/* Compose */}
       <div className="glass rounded-xl p-4 neural-border space-y-3">
