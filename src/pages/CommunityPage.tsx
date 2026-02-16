@@ -509,6 +509,79 @@ const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onC
   const [step, setStep] = useState(1);
   const [aiSuggestions, setAiSuggestions] = useState<{ description?: string; rules?: string[] } | null>(null);
 
+  // AI suggestion states
+  const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
+  const [examSuggestions, setExamSuggestions] = useState<{ name: string; full_name: string; emoji?: string }[]>([]);
+  const [subjectSuggestions, setSubjectSuggestions] = useState<{ name: string; emoji?: string }[]>([]);
+  const [topicSuggestions, setTopicSuggestions] = useState<{ name: string; importance?: string }[]>([]);
+  const [loadingNames, setLoadingNames] = useState(false);
+  const [loadingExams, setLoadingExams] = useState(false);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [loadingTopics, setLoadingTopics] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState("");
+
+  const fetchNameSuggestions = async () => {
+    setLoadingNames(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "suggest_names", category, exam_type: examType, subject, partial: name.trim() }
+      });
+      setNameSuggestions(res.data?.names || []);
+    } catch { /* ignore */ }
+    setLoadingNames(false);
+  };
+
+  const fetchExamSuggestions = async () => {
+    if (examSuggestions.length > 0) return;
+    setLoadingExams(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "suggest_exam_types" }
+      });
+      setExamSuggestions(res.data?.exams || []);
+    } catch { /* ignore */ }
+    setLoadingExams(false);
+  };
+
+  const fetchSubjectSuggestions = async () => {
+    setLoadingSubjects(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "suggest_subjects", exam_type: examType }
+      });
+      setSubjectSuggestions(res.data?.subjects || []);
+    } catch { /* ignore */ }
+    setLoadingSubjects(false);
+  };
+
+  const fetchTopicSuggestions = async () => {
+    if (!subject) return;
+    setLoadingTopics(true);
+    try {
+      const res = await supabase.functions.invoke("ai-community-assist", {
+        body: { action: "suggest_topics", subject, exam_type: examType }
+      });
+      setTopicSuggestions(res.data?.topics || []);
+    } catch { /* ignore */ }
+    setLoadingTopics(false);
+  };
+
+  // Auto-load exam suggestions when category is exam
+  useEffect(() => {
+    if (category === "exam") fetchExamSuggestions();
+    if (category === "subject") fetchSubjectSuggestions();
+  }, [category]);
+
+  // Load subjects when exam type changes
+  useEffect(() => {
+    if (examType) fetchSubjectSuggestions();
+  }, [examType]);
+
+  // Load topics when subject changes
+  useEffect(() => {
+    if (subject) fetchTopicSuggestions();
+  }, [subject]);
+
   const generateAIDescription = async () => {
     if (!name.trim()) { toast({ title: "Enter a name first" }); return; }
     setAiGenerating(true);
@@ -521,7 +594,6 @@ const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onC
         setAiSuggestions({ description: res.data.description, rules: res.data.rules || [] });
       }
     } catch {
-      // Fallback: generate locally
       const desc = `A community for ${category === "exam" ? examType || "exam" : category === "subject" ? subject || "subject" : category} enthusiasts. Discuss strategies, share resources, and learn together.`;
       setDescription(desc);
     }
@@ -550,6 +622,27 @@ const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onC
     { value: "general", label: "General", icon: Globe2, desc: "Open discussion" },
   ];
 
+  const SuggestionChips = ({ items, onSelect, loading: isLoading, label, icon: SIcon }: { items: string[]; onSelect: (v: string) => void; loading: boolean; label: string; icon: any }) => (
+    items.length > 0 || isLoading ? (
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <SIcon className="w-3 h-3 text-primary" />
+          <span className="text-[9px] font-bold text-primary uppercase tracking-wider">{label}</span>
+          {isLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {items.map((item) => (
+            <motion.button key={item} type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={() => onSelect(item)}
+              className="px-3 py-1.5 rounded-xl text-[10px] font-semibold bg-gradient-to-r from-primary/10 to-accent/10 text-primary border border-primary/15 hover:border-primary/40 hover:from-primary/20 hover:to-accent/20 transition-all">
+              {item}
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+    ) : null
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-md flex items-end sm:items-center justify-center" onClick={onClose}>
       <motion.div initial={{ opacity: 0, y: 40, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.97 }}
@@ -573,19 +666,12 @@ const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onC
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                {/* Name */}
-                <div>
-                  <label className="text-xs font-semibold text-foreground mb-1.5 block">Community Name</label>
-                  <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. JEE Physics Champions"
-                    className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all" />
-                </div>
-
                 {/* Category Selector */}
                 <div>
                   <label className="text-xs font-semibold text-foreground mb-2 block">Category</label>
                   <div className="grid grid-cols-2 gap-2">
                     {categories.map(cat => (
-                      <button key={cat.value} onClick={() => setCategory(cat.value)}
+                      <button key={cat.value} onClick={() => { setCategory(cat.value); setExamType(""); setSubject(""); setSelectedTopic(""); }}
                         className={`p-3 rounded-xl border text-left transition-all duration-200 ${
                           category === cat.value
                             ? "border-primary/50 bg-primary/10 shadow-md shadow-primary/5"
@@ -601,29 +687,126 @@ const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onC
                   </div>
                 </div>
 
-                {/* Conditional fields */}
+                {/* Exam Type - AI Suggestions */}
                 {category === "exam" && (
                   <div>
-                    <label className="text-xs font-semibold text-foreground mb-1.5 block">Exam Type</label>
-                    <div className="flex flex-wrap gap-2">
-                      {["JEE", "NEET", "UPSC", "SSC", "GATE", "CAT"].map(ex => (
-                        <button key={ex} onClick={() => setExamType(ex)}
-                          className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
-                            examType === ex ? "bg-primary text-primary-foreground shadow-md shadow-primary/15" : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                          }`}>
-                          {ex}
-                        </button>
-                      ))}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-semibold text-foreground">Exam Type</label>
+                      <span className="text-[9px] text-primary flex items-center gap-1"><Sparkles className="w-3 h-3" /> AI Suggested</span>
                     </div>
+                    {loadingExams ? (
+                      <div className="flex items-center gap-2 py-3"><Loader2 className="w-4 h-4 animate-spin text-primary" /><span className="text-xs text-muted-foreground">Loading suggestions...</span></div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {(examSuggestions.length > 0 ? examSuggestions : [
+                          { name: "JEE", full_name: "Joint Entrance Exam", emoji: "🎯" },
+                          { name: "NEET", full_name: "Medical Entrance", emoji: "🏥" },
+                          { name: "UPSC", full_name: "Civil Services", emoji: "🏛️" },
+                          { name: "SSC", full_name: "Staff Selection", emoji: "📋" },
+                          { name: "GATE", full_name: "Graduate Aptitude Test", emoji: "⚙️" },
+                          { name: "CAT", full_name: "Common Admission Test", emoji: "📊" },
+                        ]).map(ex => (
+                          <motion.button key={ex.name} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                            onClick={() => setExamType(ex.name)}
+                            className={`px-3 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center gap-1.5 ${
+                              examType === ex.name
+                                ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                                : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary border border-border/30"
+                            }`}>
+                            <span>{ex.emoji || "📝"}</span>
+                            <div className="text-left">
+                              <div>{ex.name}</div>
+                              {ex.full_name && <div className="text-[8px] opacity-70 font-normal">{ex.full_name}</div>}
+                            </div>
+                          </motion.button>
+                        ))}
+                      </div>
+                    )}
+                    <input value={examType} onChange={e => setExamType(e.target.value)} placeholder="Or type custom exam..."
+                      className="w-full mt-2 px-4 py-2.5 bg-secondary/30 border border-border/50 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all" />
                   </div>
                 )}
-                {category === "subject" && (
+
+                {/* Subject - AI Suggestions */}
+                {(category === "subject" || (category === "exam" && examType)) && (
                   <div>
-                    <label className="text-xs font-semibold text-foreground mb-1.5 block">Subject</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-semibold text-foreground">{category === "exam" ? "Subject (optional)" : "Subject"}</label>
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                        onClick={fetchSubjectSuggestions} disabled={loadingSubjects}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-semibold text-primary hover:bg-primary/10 transition-all">
+                        {loadingSubjects ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Refresh
+                      </motion.button>
+                    </div>
+                    {loadingSubjects ? (
+                      <div className="flex items-center gap-2 py-2"><Loader2 className="w-4 h-4 animate-spin text-primary" /><span className="text-xs text-muted-foreground">AI suggesting subjects...</span></div>
+                    ) : subjectSuggestions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {subjectSuggestions.map(s => (
+                          <motion.button key={s.name} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                            onClick={() => setSubject(s.name)}
+                            className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all ${
+                              subject === s.name
+                                ? "bg-gradient-to-r from-accent to-accent/90 text-accent-foreground shadow-md"
+                                : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary border border-border/30"
+                            }`}>
+                            {s.emoji || "📚"} {s.name}
+                          </motion.button>
+                        ))}
+                      </div>
+                    ) : null}
                     <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Physics, Chemistry"
-                      className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all" />
+                      className="w-full px-4 py-2.5 bg-secondary/30 border border-border/50 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all" />
                   </div>
                 )}
+
+                {/* Topic Suggestions */}
+                {category === "topic" && (
+                  <div>
+                    <label className="text-xs font-semibold text-foreground mb-1.5 block">Subject (for topic suggestions)</label>
+                    <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Physics"
+                      className="w-full px-4 py-2.5 bg-secondary/30 border border-border/50 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all" />
+                    {(topicSuggestions.length > 0 || loadingTopics) && (
+                      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Lightbulb className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] font-bold text-primary uppercase tracking-wider">AI Topic Suggestions</span>
+                          {loadingTopics && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {topicSuggestions.map(t => (
+                            <motion.button key={t.name} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                              onClick={() => { setSelectedTopic(t.name); setName(t.name); }}
+                              className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all border ${
+                                selectedTopic === t.name
+                                  ? "bg-primary/15 border-primary/40 text-primary"
+                                  : "bg-secondary/30 border-border/30 text-muted-foreground hover:text-foreground hover:border-primary/20"
+                              }`}>
+                              {t.name}
+                              {t.importance === "high" && <Flame className="w-3 h-3 text-destructive inline ml-1" />}
+                            </motion.button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
+                {/* Name with AI suggestions */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-foreground">Community Name</label>
+                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      onClick={fetchNameSuggestions} disabled={loadingNames}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary/15 to-accent/15 text-primary text-[10px] font-semibold hover:from-primary/25 hover:to-accent/25 transition-all disabled:opacity-50">
+                      {loadingNames ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                      AI Suggest Names
+                    </motion.button>
+                  </div>
+                  <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. JEE Physics Champions"
+                    className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all" />
+                  <SuggestionChips items={nameSuggestions} onSelect={setName} loading={loadingNames} label="AI Name Ideas" icon={Sparkles} />
+                </div>
 
                 <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
                   onClick={() => setStep(2)} disabled={!name.trim()}
@@ -683,6 +866,11 @@ const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onC
                       <p className="text-[10px] text-muted-foreground">{description || "Description will appear here"}</p>
                     </div>
                   </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {examType && <span className="text-[8px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">{examType}</span>}
+                    {subject && <span className="text-[8px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold">{subject}</span>}
+                    {selectedTopic && <span className="text-[8px] px-2 py-0.5 rounded-full bg-warning/10 text-warning font-semibold">{selectedTopic}</span>}
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -702,5 +890,4 @@ const CreateCommunityModal = ({ onClose, onCreated }: { onClose: () => void; onC
     </div>
   );
 };
-
 export default CommunityPage;
