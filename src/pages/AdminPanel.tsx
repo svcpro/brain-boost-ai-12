@@ -6,7 +6,7 @@ import {
   Loader2, AlertTriangle, Search, MoreVertical, Eye,
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
-  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon,
+  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
@@ -1029,21 +1029,80 @@ const PlanFormModal = ({ plan, onClose, onSaved }: { plan: any | null; onClose: 
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Features</label>
-            <div className="space-y-1.5 mb-2">
-              {features.map((f, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <span className="flex-1 text-foreground bg-secondary px-2 py-1 rounded">{f}</span>
-                  <button onClick={() => removeFeature(i)} className="text-destructive hover:text-destructive/80"><XCircle className="w-3.5 h-3.5" /></button>
-                </div>
-              ))}
+            <label className="text-xs text-muted-foreground mb-1 block">Features (select from list)</label>
+            <div className="max-h-48 overflow-y-auto space-y-1 mb-2 p-2 bg-secondary/50 rounded-lg border border-border">
+              {[
+                "5 subjects & 20 topics",
+                "Basic memory tracking",
+                "Daily study reminders",
+                "Community leaderboard",
+                "Unlimited subjects & topics",
+                "AI exam simulator",
+                "Advanced analytics",
+                "Voice notifications",
+                "Priority support",
+                "Weekly AI reports",
+                "Everything in Pro",
+                "AI study coach (1-on-1)",
+                "Custom study plans",
+                "Peer competition insights",
+                "Offline mode",
+                "Data export & backup",
+                "Early access to features",
+              ].map((f) => {
+                const isSelected = features.includes(f);
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setFeatures(prev => prev.filter(x => x !== f));
+                      } else {
+                        setFeatures(prev => [...prev, f]);
+                      }
+                    }}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
+                      isSelected
+                        ? "bg-primary/15 text-primary border border-primary/30"
+                        : "text-foreground hover:bg-secondary border border-transparent"
+                    }`}
+                  >
+                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${isSelected ? "bg-primary border-primary" : "border-muted-foreground"}`}>
+                      {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                    </div>
+                    {f}
+                  </button>
+                );
+              })}
             </div>
             <div className="flex gap-2">
-              <input value={newFeature} onChange={e => setNewFeature(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addFeature())} className="flex-1 px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none" placeholder="Add feature..." />
+              <input value={newFeature} onChange={e => setNewFeature(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addFeature())} className="flex-1 px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none" placeholder="Add custom feature..." />
               <button onClick={addFeature} className="px-3 py-2 bg-secondary rounded-lg text-sm text-foreground hover:bg-secondary/80 border border-border">
                 <Plus className="w-4 h-4" />
               </button>
             </div>
+            {features.filter(f => ![
+              "5 subjects & 20 topics", "Basic memory tracking", "Daily study reminders", "Community leaderboard",
+              "Unlimited subjects & topics", "AI exam simulator", "Advanced analytics", "Voice notifications",
+              "Priority support", "Weekly AI reports", "Everything in Pro", "AI study coach (1-on-1)",
+              "Custom study plans", "Peer competition insights", "Offline mode", "Data export & backup", "Early access to features",
+            ].includes(f)).length > 0 && (
+              <div className="mt-2 space-y-1">
+                <p className="text-[10px] text-muted-foreground">Custom features:</p>
+                {features.filter(f => ![
+                  "5 subjects & 20 topics", "Basic memory tracking", "Daily study reminders", "Community leaderboard",
+                  "Unlimited subjects & topics", "AI exam simulator", "Advanced analytics", "Voice notifications",
+                  "Priority support", "Weekly AI reports", "Everything in Pro", "AI study coach (1-on-1)",
+                  "Custom study plans", "Peer competition insights", "Offline mode", "Data export & backup", "Early access to features",
+                ].includes(f)).map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="flex-1 text-foreground bg-secondary px-2 py-1 rounded">{f}</span>
+                    <button onClick={() => removeFeature(features.indexOf(f))} className="text-destructive hover:text-destructive/80"><XCircle className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
