@@ -2374,6 +2374,221 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_ai_suggestions: {
+        Row: {
+          created_at: string
+          id: string
+          page_id: string | null
+          page_url: string
+          status: string
+          suggested_keywords: string[] | null
+          suggested_meta_description: string | null
+          suggested_meta_title: string | null
+          suggested_schema: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page_id?: string | null
+          page_url: string
+          status?: string
+          suggested_keywords?: string[] | null
+          suggested_meta_description?: string | null
+          suggested_meta_title?: string | null
+          suggested_schema?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page_id?: string | null
+          page_url?: string
+          status?: string
+          suggested_keywords?: string[] | null
+          suggested_meta_description?: string | null
+          suggested_meta_title?: string | null
+          suggested_schema?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seo_ai_suggestions_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "seo_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seo_analytics: {
+        Row: {
+          clicks: number
+          id: string
+          impressions: number
+          last_updated: string
+          page_url: string
+          ranking_position: number | null
+        }
+        Insert: {
+          clicks?: number
+          id?: string
+          impressions?: number
+          last_updated?: string
+          page_url: string
+          ranking_position?: number | null
+        }
+        Update: {
+          clicks?: number
+          id?: string
+          impressions?: number
+          last_updated?: string
+          page_url?: string
+          ranking_position?: number | null
+        }
+        Relationships: []
+      }
+      seo_keywords: {
+        Row: {
+          created_at: string
+          id: string
+          keyword: string
+          priority: string
+          search_volume: number | null
+          target_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          keyword: string
+          priority?: string
+          search_volume?: number | null
+          target_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          keyword?: string
+          priority?: string
+          search_volume?: number | null
+          target_url?: string | null
+        }
+        Relationships: []
+      }
+      seo_pages: {
+        Row: {
+          canonical_url: string | null
+          created_at: string
+          id: string
+          meta_description: string | null
+          meta_keywords: string[] | null
+          meta_title: string | null
+          og_description: string | null
+          og_image: string | null
+          og_title: string | null
+          page_type: string
+          page_url: string
+          robots_follow: boolean
+          robots_index: boolean
+          schema_markup_json: Json | null
+          seo_score: number | null
+          twitter_description: string | null
+          twitter_image: string | null
+          twitter_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          canonical_url?: string | null
+          created_at?: string
+          id?: string
+          meta_description?: string | null
+          meta_keywords?: string[] | null
+          meta_title?: string | null
+          og_description?: string | null
+          og_image?: string | null
+          og_title?: string | null
+          page_type?: string
+          page_url: string
+          robots_follow?: boolean
+          robots_index?: boolean
+          schema_markup_json?: Json | null
+          seo_score?: number | null
+          twitter_description?: string | null
+          twitter_image?: string | null
+          twitter_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          canonical_url?: string | null
+          created_at?: string
+          id?: string
+          meta_description?: string | null
+          meta_keywords?: string[] | null
+          meta_title?: string | null
+          og_description?: string | null
+          og_image?: string | null
+          og_title?: string | null
+          page_type?: string
+          page_url?: string
+          robots_follow?: boolean
+          robots_index?: boolean
+          schema_markup_json?: Json | null
+          seo_score?: number | null
+          twitter_description?: string | null
+          twitter_image?: string | null
+          twitter_title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      seo_redirects: {
+        Row: {
+          created_at: string
+          destination_url: string
+          id: string
+          is_active: boolean
+          redirect_type: string
+          source_url: string
+        }
+        Insert: {
+          created_at?: string
+          destination_url: string
+          id?: string
+          is_active?: boolean
+          redirect_type?: string
+          source_url: string
+        }
+        Update: {
+          created_at?: string
+          destination_url?: string
+          id?: string
+          is_active?: boolean
+          redirect_type?: string
+          source_url?: string
+        }
+        Relationships: []
+      }
+      seo_sitemap: {
+        Row: {
+          change_frequency: string
+          id: string
+          last_modified: string
+          page_url: string
+          priority: number
+        }
+        Insert: {
+          change_frequency?: string
+          id?: string
+          last_modified?: string
+          page_url: string
+          priority?: number
+        }
+        Update: {
+          change_frequency?: string
+          id?: string
+          last_modified?: string
+          page_url?: string
+          priority?: number
+        }
+        Relationships: []
+      }
       streak_freezes: {
         Row: {
           created_at: string
