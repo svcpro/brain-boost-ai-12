@@ -428,6 +428,90 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_admin_config: {
+        Row: {
+          active_model: string
+          cost_per_request: number
+          global_chat_enabled: boolean
+          global_daily_limit: number
+          id: string
+          max_conversation_history: number
+          max_tokens: number
+          response_timeout_seconds: number
+          system_prompt_override: string | null
+          temperature: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active_model?: string
+          cost_per_request?: number
+          global_chat_enabled?: boolean
+          global_daily_limit?: number
+          id?: string
+          max_conversation_history?: number
+          max_tokens?: number
+          response_timeout_seconds?: number
+          system_prompt_override?: string | null
+          temperature?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active_model?: string
+          cost_per_request?: number
+          global_chat_enabled?: boolean
+          global_daily_limit?: number
+          id?: string
+          max_conversation_history?: number
+          max_tokens?: number
+          response_timeout_seconds?: number
+          system_prompt_override?: string | null
+          temperature?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      chat_usage_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          estimated_cost: number | null
+          id: string
+          latency_ms: number | null
+          model_used: string
+          status: string
+          tokens_input: number | null
+          tokens_output: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          estimated_cost?: number | null
+          id?: string
+          latency_ms?: number | null
+          model_used: string
+          status?: string
+          tokens_input?: number | null
+          tokens_output?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          estimated_cost?: number | null
+          id?: string
+          latency_ms?: number | null
+          model_used?: string
+          status?: string
+          tokens_input?: number | null
+          tokens_output?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       cognitive_twins: {
         Row: {
           avg_decay_rate: number | null
@@ -1769,6 +1853,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_chat_limits: {
+        Row: {
+          chat_enabled: boolean
+          created_at: string
+          daily_message_limit: number
+          estimated_cost: number
+          id: string
+          last_message_at: string | null
+          limit_reset_at: string
+          messages_used_today: number
+          notes: string | null
+          total_messages_sent: number
+          total_tokens_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_enabled?: boolean
+          created_at?: string
+          daily_message_limit?: number
+          estimated_cost?: number
+          id?: string
+          last_message_at?: string | null
+          limit_reset_at?: string
+          messages_used_today?: number
+          notes?: string | null
+          total_messages_sent?: number
+          total_tokens_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_enabled?: boolean
+          created_at?: string
+          daily_message_limit?: number
+          estimated_cost?: number
+          id?: string
+          last_message_at?: string | null
+          limit_reset_at?: string
+          messages_used_today?: number
+          notes?: string | null
+          total_messages_sent?: number
+          total_tokens_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_cognitive_embeddings: {
         Row: {

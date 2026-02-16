@@ -40,8 +40,10 @@ serve(async (req) => {
     const userId = user.id;
     const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Gather comprehensive cognitive context in parallel
-    const [topicsRes, logsRes, profileRes, examsRes, rankRes, featuresRes, subjectsRes, memoryRes, twinRes, missionsRes, plansRes, streaksRes] = await Promise.all([
+    // Fetch admin chat config and user limits in parallel with context
+    const [chatConfigRes, userLimitRes, topicsRes, logsRes, profileRes, examsRes, rankRes, featuresRes, subjectsRes, memoryRes, twinRes, missionsRes, plansRes, streaksRes] = await Promise.all([
+      adminClient.from("chat_admin_config").select("*").limit(1).maybeSingle(),
+      adminClient.from("user_chat_limits").select("*").eq("user_id", userId).maybeSingle(),
       adminClient.from("topics").select("name, memory_strength, next_predicted_drop_date, subject_id, last_revision_date, marks_impact_weight").eq("user_id", userId).is("deleted_at", null).order("memory_strength", { ascending: true }).limit(50),
       adminClient.from("study_logs").select("duration_minutes, created_at, confidence_level, study_mode, topic_id").eq("user_id", userId).order("created_at", { ascending: false }).limit(80),
       adminClient.from("profiles").select("daily_study_goal_minutes, exam_date, exam_type, display_name, weekly_focus_goal_minutes, weekly_report_day").eq("id", userId).maybeSingle(),
@@ -55,6 +57,49 @@ serve(async (req) => {
       adminClient.from("study_plans").select("summary, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       adminClient.from("streak_freezes").select("id, used_date").eq("user_id", userId).is("used_date", null),
     ]);
+
+    const chatConfig = chatConfigRes.data;
+    const userLimit = userLimitRes.data;
+
+    // Check global chat enabled
+    if (chatConfig && !chatConfig.global_chat_enabled) {
+      return new Response(JSON.stringify({ error: "Chat is currently disabled by admin." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check user-specific access
+    if (userLimit && !userLimit.chat_enabled) {
+      return new Response(JSON.stringify({ error: "Your chat access has been disabled. Contact support." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check daily limit
+    const dailyLimit = userLimit?.daily_message_limit ?? chatConfig?.global_daily_limit ?? 100;
+    const usedToday = userLimit?.messages_used_today ?? 0;
+    if (usedToday >= dailyLimit) {
+      return new Response(JSON.stringify({ error: `Daily message limit (${dailyLimit}) reached. Try again tomorrow.` }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Update user usage tracking
+    const startTime = Date.now();
+    if (userLimit) {
+      await adminClient.from("user_chat_limits").update({
+        messages_used_today: usedToday + 1,
+        total_messages_sent: (userLimit.total_messages_sent || 0) + 1,
+        last_message_at: new Date().toISOString(),
+      }).eq("id", userLimit.id);
+    } else {
+      await adminClient.from("user_chat_limits").insert({
+        user_id: userId,
+        messages_used_today: 1,
+        total_messages_sent: 1,
+        last_message_at: new Date().toISOString(),
+      });
+    }
 
     const topics = topicsRes.data || [];
     const logs = logsRes.data || [];
@@ -204,11 +249,13 @@ ${cognitiveContext}
 12. For app usage: ACRY has Brain tab (memory tracking), Action tab (study tools), Progress tab (analytics), You tab (settings)
 13. If a problem requires human support, direct to support@acry.app`;
 
-    // Build messages array
-    const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
+    // Build messages array — use admin override if set
+    const finalPrompt = chatConfig?.system_prompt_override || systemPrompt;
+    const aiMessages: any[] = [{ role: "system", content: finalPrompt }];
 
     if (conversationHistory && Array.isArray(conversationHistory)) {
-      const recent = conversationHistory.slice(-20);
+      const historyLimit = chatConfig?.max_conversation_history ?? 20;
+      const recent = conversationHistory.slice(-historyLimit);
       for (const msg of recent) {
         aiMessages.push({ role: msg.role, content: msg.content });
       }
@@ -219,6 +266,10 @@ ${cognitiveContext}
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    const activeModel = chatConfig?.active_model || "google/gemini-2.5-flash-lite";
+    const maxTokens = chatConfig?.max_tokens || 1024;
+    const temperature = chatConfig?.temperature ? Number(chatConfig.temperature) : 0.7;
+
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -226,14 +277,24 @@ ${cognitiveContext}
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: activeModel,
         messages: aiMessages,
         stream: true,
-        max_tokens: 1024,
+        max_tokens: maxTokens,
+        temperature,
       }),
     });
 
     if (!aiResp.ok) {
+      // Log failed request
+      adminClient.from("chat_usage_logs").insert({
+        user_id: userId,
+        model_used: activeModel,
+        latency_ms: Date.now() - startTime,
+        status: "error",
+        error_message: `HTTP ${aiResp.status}`,
+      }).then(() => {}).catch(() => {});
+
       if (aiResp.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited. Please try again in a moment." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -251,7 +312,26 @@ ${cognitiveContext}
       });
     }
 
-    // Track usage
+    const latencyMs = Date.now() - startTime;
+    const costPerReq = chatConfig?.cost_per_request ? Number(chatConfig.cost_per_request) : 0.001;
+
+    // Log successful usage
+    adminClient.from("chat_usage_logs").insert({
+      user_id: userId,
+      model_used: activeModel,
+      latency_ms: latencyMs,
+      estimated_cost: costPerReq,
+      status: "success",
+    }).then(() => {}).catch(() => {});
+
+    // Update cost tracking
+    if (userLimit) {
+      adminClient.from("user_chat_limits").update({
+        estimated_cost: Number(userLimit.estimated_cost || 0) + costPerReq,
+      }).eq("id", userLimit.id).then(() => {}).catch(() => {});
+    }
+
+    // Track API usage
     adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}).catch(() => {});
 
     return new Response(aiResp.body, {

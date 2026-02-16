@@ -7,7 +7,7 @@ import {
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check,
-  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles
+  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,8 +31,9 @@ import PermissionManagement from "@/components/admin/PermissionManagement";
 import AIModelManagement from "@/components/admin/AIModelManagement";
 import SystemMonitor from "@/components/admin/SystemMonitor";
 import AdminProfile from "@/components/admin/AdminProfile";
+import ChatManagement from "@/components/admin/ChatManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -54,6 +55,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
   { key: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
   { key: "ai", label: "AI Models", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
+  { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
   { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
   { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
@@ -187,6 +189,7 @@ const AdminPanel = () => {
             {section === "dashboard" && <DashboardSection />}
             {section === "users" && <UserManagement />}
             {section === "ai" && <AIModelManagement />}
+            {section === "chat" && <ChatManagement />}
             {section === "knowledge" && <KnowledgeSection />}
             {section === "leaderboard" && <LeaderboardManagement />}
             {section === "subscriptions" && <SubscriptionsSection />}
