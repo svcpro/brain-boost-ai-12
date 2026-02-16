@@ -7,7 +7,7 @@ import {
   Info, Hash, Plus, X, Trash2, Clock, Shield, Zap, Globe,
   Copy, RefreshCw, Search, Filter, Download, FileJson, BarChart3,
   TrendingUp, AlertCircle, Server, Lock, Unlock, ChevronDown,
-  ChevronRight, Code, BookOpen, Gauge, Users, ArrowUpDown
+  ChevronRight, Code, BookOpen, Gauge, Users, ArrowUpDown, GitBranch, Tag
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -170,6 +170,7 @@ const ApiManagement = () => {
             { value: "security", label: "Security", icon: Shield },
             { value: "integrations", label: "Integrations", icon: Settings },
             { value: "docs", label: "API Docs", icon: BookOpen },
+            { value: "versions", label: "Versions", icon: GitBranch },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5 text-xs px-3 py-1.5">
               <tab.icon className="w-3.5 h-3.5" />
@@ -187,6 +188,7 @@ const ApiManagement = () => {
         <TabsContent value="security"><SecurityTab /></TabsContent>
         <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
         <TabsContent value="docs"><ApiDocsTab /></TabsContent>
+        <TabsContent value="versions"><VersionsTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -1269,6 +1271,156 @@ apikey: <anon_key>${ep.requires_auth ? "\nAuthorization: Bearer <user_jwt>" : ""
               )}
             </div>
           ))}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ─── VERSIONS TAB ───
+const VersionsTab = () => {
+  const { toast } = useToast();
+  const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("api_endpoints").select("*").order("path");
+      setEndpoints((data as any[]) || []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const versions = useMemo(() => {
+    const map: Record<string, ApiEndpoint[]> = {};
+    endpoints.forEach(ep => {
+      const v = ep.version || "v1";
+      if (!map[v]) map[v] = [];
+      map[v].push(ep);
+    });
+    // Ensure v1, v2, v3 always exist
+    ["v1", "v2", "v3"].forEach(v => { if (!map[v]) map[v] = []; });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [endpoints]);
+
+  const updateEndpointVersion = async (id: string, newVersion: string) => {
+    const { error } = await supabase.from("api_endpoints").update({ version: newVersion } as any).eq("id", id);
+    if (error) return toast({ title: "Failed to update version", variant: "destructive" });
+    setEndpoints(prev => prev.map(ep => ep.id === id ? { ...ep, version: newVersion } : ep));
+    toast({ title: `Moved to ${newVersion}` });
+  };
+
+  const toggleEndpoint = async (id: string, enabled: boolean) => {
+    await supabase.from("api_endpoints").update({ is_enabled: !enabled } as any).eq("id", id);
+    setEndpoints(prev => prev.map(ep => ep.id === id ? { ...ep, is_enabled: !enabled } : ep));
+    toast({ title: !enabled ? "Endpoint enabled" : "Endpoint disabled" });
+  };
+
+  const versionStats = useMemo(() => {
+    return versions.map(([version, eps]) => ({
+      version,
+      total: eps.length,
+      active: eps.filter(e => e.is_enabled).length,
+      deprecated: eps.filter(e => !e.is_enabled).length,
+      requests: eps.reduce((s, e) => s + (e.total_requests || 0), 0),
+    }));
+  }, [versions]);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  const VERSION_COLORS: Record<string, string> = {
+    v1: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    v2: "bg-green-500/15 text-green-400 border-green-500/30",
+    v3: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+  };
+
+  const VERSION_STATUS: Record<string, { label: string; color: string }> = {
+    v1: { label: "Stable", color: "text-blue-400" },
+    v2: { label: "Current", color: "text-green-400" },
+    v3: { label: "Beta", color: "text-purple-400" },
+  };
+
+  return (
+    <div className="space-y-4 mt-4">
+      {/* Version Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {versionStats.map((vs, i) => (
+          <motion.div key={vs.version} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            className={`rounded-xl p-4 border ${VERSION_COLORS[vs.version] || "bg-secondary/50 text-muted-foreground border-border"}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4" />
+                <span className="text-sm font-bold uppercase">{vs.version}</span>
+              </div>
+              <span className={`text-[10px] font-medium ${VERSION_STATUS[vs.version]?.color || "text-muted-foreground"}`}>
+                {VERSION_STATUS[vs.version]?.label || "Custom"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              <div>
+                <p className="text-lg font-bold">{vs.total}</p>
+                <p className="text-[10px] opacity-70">Endpoints</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold">{vs.active}</p>
+                <p className="text-[10px] opacity-70">Active</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold">{vs.requests.toLocaleString()}</p>
+                <p className="text-[10px] opacity-70">Requests</p>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Endpoints by Version */}
+      {versions.map(([version, eps]) => (
+        <div key={version} className="glass rounded-xl neural-border overflow-hidden">
+          <div className="p-3 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <GitBranch className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground uppercase">{version}</span>
+              <span className="text-[10px] text-muted-foreground">({eps.length} endpoints)</span>
+            </div>
+            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${VERSION_COLORS[version] || "bg-secondary text-muted-foreground"}`}>
+              {VERSION_STATUS[version]?.label || version}
+            </span>
+          </div>
+          {eps.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">No endpoints in this version</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {eps.map(ep => (
+                <div key={ep.id} className="p-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                      ep.method === "GET" ? "bg-green-500/15 text-green-400" :
+                      ep.method === "POST" ? "bg-blue-500/15 text-blue-400" :
+                      ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-400" :
+                      "bg-red-500/15 text-red-400"
+                    }`}>{ep.method}</span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{ep.display_name}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono truncate">{ep.path}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <select value={ep.version || "v1"} onChange={e => updateEndpointVersion(ep.id, e.target.value)}
+                      className="px-2 py-1 bg-secondary rounded text-[10px] text-foreground border border-border outline-none">
+                      <option value="v1">v1</option>
+                      <option value="v2">v2</option>
+                      <option value="v3">v3</option>
+                    </select>
+                    <button onClick={() => toggleEndpoint(ep.id, ep.is_enabled)}
+                      className={`p-1 rounded transition-colors ${ep.is_enabled ? "text-green-400 hover:bg-green-500/10" : "text-muted-foreground hover:bg-secondary"}`}>
+                      {ep.is_enabled ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
