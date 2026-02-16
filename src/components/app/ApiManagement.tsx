@@ -1372,7 +1372,7 @@ const ApiDocsTab = () => {
 
   const filtered = versionFilter === "all" ? endpoints : endpoints.filter(ep => (ep.version || "v1") === versionFilter);
 
-  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  const baseUrl = "https://api.acry.ai/v1";
 
   const buildEndpointDoc = (ep: ApiEndpoint) => ({
     name: ep.display_name,
