@@ -66,6 +66,92 @@ Deno.serve(async (req) => {
       }
     };
 
+    // ========== ACTION: GENERATE-PAGE-SEO ==========
+    if (action === "generate-page-seo") {
+      const { page_url, page_type, platform_name } = body;
+      if (!page_url) return errorResponse("page_url is required", 400);
+
+      const systemPrompt = `You are an elite SEO expert specializing in ranking education platforms on Google India. Platform: ${platform_name || "ACRY – AI Second Brain for All Exams"} (Indian competitive exam prep: UPSC, SSC, Banking, JEE, NEET).
+
+Generate ultra-optimized, production-ready SEO data. Use power words, emotional triggers, CTR-boosting techniques. All content must be highly relevant to the page URL and type.`;
+
+      const userPrompt = `Generate complete SEO data for this page:
+URL: ${page_url}
+Page Type: ${page_type || "landing"}
+
+Generate:
+- meta_title: CTR-optimized, under 60 chars, power words, main keyword first
+- meta_description: compelling, under 155 chars, include CTA, emotional trigger
+- meta_keywords: 8-12 high-intent keywords relevant to this page
+- canonical_url: proper canonical URL for this page
+- og_title: optimized for social sharing, slightly different from meta_title
+- og_description: engaging for social, under 200 chars
+- twitter_title: optimized for Twitter/X sharing
+- twitter_description: concise for Twitter, under 200 chars
+- schema_type: recommended schema.org type (e.g. WebPage, Article, FAQPage, Organization)
+- schema_markup: complete JSON-LD schema markup object for this page`;
+
+      const tools = [{
+        type: "function",
+        function: {
+          name: "generate_page_seo",
+          description: "Return complete SEO data for a single page",
+          parameters: {
+            type: "object",
+            properties: {
+              meta_title: { type: "string" },
+              meta_description: { type: "string" },
+              meta_keywords: { type: "array", items: { type: "string" } },
+              canonical_url: { type: "string" },
+              og_title: { type: "string" },
+              og_description: { type: "string" },
+              twitter_title: { type: "string" },
+              twitter_description: { type: "string" },
+              schema_type: { type: "string" },
+              schema_markup: { type: "object" },
+            },
+            required: ["meta_title", "meta_description", "meta_keywords", "canonical_url", "og_title", "og_description", "twitter_title", "twitter_description", "schema_type", "schema_markup"],
+            additionalProperties: false,
+          },
+        },
+      }];
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          tools,
+          tool_choice: { type: "function", function: { name: "generate_page_seo" } },
+        }),
+      });
+
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 429) return errorResponse("Rate limited, try again later", 429);
+        if (status === 402) return errorResponse("Credits exhausted", 402);
+        return errorResponse("AI gateway error", 500);
+      }
+
+      const data = await response.json();
+      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+      if (toolCall) {
+        try {
+          return jsonResponse(JSON.parse(toolCall.function.arguments));
+        } catch {
+          return errorResponse("Failed to parse AI response");
+        }
+      }
+      return errorResponse("No AI response generated");
+    }
+
     // ========== ACTION: OPTIMIZE ==========
     if (action === "optimize") {
       const { data: pages } = await adminClient.from("seo_pages").select("*");
