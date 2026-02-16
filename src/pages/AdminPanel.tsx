@@ -990,11 +990,11 @@ const PlanFormModal = ({ plan, onClose, onSaved }: { plan: any | null; onClose: 
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Plan Key *</label>
-              <select value={planKey} onChange={e => setPlanKey(e.target.value)} disabled={isEdit} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none disabled:opacity-50">
-                <option value="">Select plan key</option>
-                <option value="free">free</option>
-                <option value="pro">pro</option>
-                <option value="ultra">ultra</option>
+              <select value={planKey} onChange={e => setPlanKey(e.target.value)} disabled={isEdit} className="w-full px-3 py-2 rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none disabled:opacity-50 appearance-none cursor-pointer" style={{ backgroundColor: 'hsl(var(--secondary))' }}>
+                <option value="" style={{ backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--muted-foreground))' }}>Select plan key</option>
+                <option value="free" style={{ backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--foreground))' }}>Free</option>
+                <option value="pro" style={{ backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--foreground))' }}>Pro</option>
+                <option value="ultra" style={{ backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--foreground))' }}>Ultra</option>
               </select>
             </div>
           </div>
@@ -1011,10 +1011,10 @@ const PlanFormModal = ({ plan, onClose, onSaved }: { plan: any | null; onClose: 
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Billing</label>
-              <select value={billingPeriod} onChange={e => setBillingPeriod(e.target.value)} className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none">
-                <option value="forever">Forever</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
+              <select value={billingPeriod} onChange={e => setBillingPeriod(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none cursor-pointer" style={{ backgroundColor: 'hsl(var(--secondary))' }}>
+                <option value="forever" style={{ backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--foreground))' }}>Forever</option>
+                <option value="monthly" style={{ backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--foreground))' }}>Monthly</option>
+                <option value="yearly" style={{ backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--foreground))' }}>Yearly</option>
               </select>
             </div>
             <div>
