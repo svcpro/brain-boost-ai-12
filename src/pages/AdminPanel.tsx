@@ -476,20 +476,70 @@ const AISection = () => {
 
 // ─── Knowledge DB ───
 const KnowledgeSection = () => {
-  const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"overview" | "ai-manager">("overview");
+  const [tab, setTab] = useState<"overview" | "ai-manager" | "brain-updates">("overview");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [users, setUsers] = useState<{ id: string; display_name: string | null; exam_type: string | null }[]>([]);
+  const [users, setUsers] = useState<{ id: string; display_name: string | null; exam_type: string | null; last_brain_update_at: string | null }[]>([]);
   const [userSearch, setUserSearch] = useState("");
+  const [userSubjects, setUserSubjects] = useState<Record<string, { id: string; name: string; topics: { id: string; name: string; memory_strength: number; marks_impact_weight: number | null; last_revision_date: string | null; next_predicted_drop_date: string | null }[] }[]>>({});
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
+  const [globalStats, setGlobalStats] = useState({ totalSubjects: 0, totalTopics: 0, avgStrength: 0, atRisk: 0, usersWithTopics: 0 });
+  const [brainUpdates, setBrainUpdates] = useState<{ user_id: string; display_name: string | null; last_brain_update_at: string | null; topic_count: number; avg_strength: number }[]>([]);
+  const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
-    const [subRes, userRes] = await Promise.all([
-      supabase.from("subjects").select("id, name, created_at, user_id").is("deleted_at", null).order("name").limit(200),
-      supabase.from("profiles").select("id, display_name, exam_type").limit(200),
+    setLoading(true);
+    const [userRes, subRes, topicRes] = await Promise.all([
+      supabase.from("profiles").select("id, display_name, exam_type, last_brain_update_at").limit(500),
+      supabase.from("subjects").select("id, name, user_id").is("deleted_at", null).limit(1000),
+      supabase.from("topics").select("id, name, memory_strength, marks_impact_weight, last_revision_date, next_predicted_drop_date, subject_id, user_id").is("deleted_at", null).limit(1000),
     ]);
-    setSubjects(subRes.data || []);
-    setUsers(userRes.data || []);
+
+    const allUsers = userRes.data || [];
+    const allSubjects = subRes.data || [];
+    const allTopics = topicRes.data || [];
+
+    setUsers(allUsers);
+
+    // Build organized structure: user -> subjects -> topics
+    const organized: Record<string, { id: string; name: string; topics: any[] }[]> = {};
+    for (const sub of allSubjects) {
+      if (!organized[sub.user_id]) organized[sub.user_id] = [];
+      const subTopics = allTopics.filter(t => t.subject_id === sub.id && t.user_id === sub.user_id);
+      organized[sub.user_id].push({ id: sub.id, name: sub.name, topics: subTopics });
+    }
+    // Sort subjects alphabetically per user and topics by strength ascending
+    for (const uid of Object.keys(organized)) {
+      organized[uid].sort((a, b) => a.name.localeCompare(b.name));
+      for (const s of organized[uid]) {
+        s.topics.sort((a: any, b: any) => a.memory_strength - b.memory_strength);
+      }
+    }
+    setUserSubjects(organized);
+
+    // Global stats
+    const totalSubjects = allSubjects.length;
+    const totalTopics = allTopics.length;
+    const avgStrength = totalTopics > 0 ? Math.round(allTopics.reduce((s, t) => s + Number(t.memory_strength), 0) / totalTopics) : 0;
+    const now = new Date();
+    const atRisk = allTopics.filter(t => t.next_predicted_drop_date && new Date(t.next_predicted_drop_date) <= now).length;
+    const usersWithTopics = new Set(allTopics.map(t => t.user_id)).size;
+    setGlobalStats({ totalSubjects, totalTopics, avgStrength, atRisk, usersWithTopics });
+
+    // Brain update leaderboard
+    const brainData = allUsers.map(u => {
+      const uTopics = allTopics.filter(t => t.user_id === u.id);
+      return {
+        user_id: u.id,
+        display_name: u.display_name,
+        last_brain_update_at: u.last_brain_update_at,
+        topic_count: uTopics.length,
+        avg_strength: uTopics.length > 0 ? Math.round(uTopics.reduce((s, t) => s + Number(t.memory_strength), 0) / uTopics.length) : 0,
+      };
+    }).filter(u => u.topic_count > 0).sort((a, b) => (b.last_brain_update_at || "").localeCompare(a.last_brain_update_at || ""));
+    setBrainUpdates(brainData);
+
     setLoading(false);
   }, []);
 
@@ -499,59 +549,232 @@ const KnowledgeSection = () => {
     !userSearch || (u.display_name || "").toLowerCase().includes(userSearch.toLowerCase()) || u.id.includes(userSearch)
   );
 
+  const toggleUser = (id: string) => setExpandedUsers(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleSubject = (key: string) => setExpandedSubjects(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+
+  const getStrengthColor = (s: number) => s > 70 ? "text-success" : s > 50 ? "text-warning" : "text-destructive";
+  const getStrengthBg = (s: number) => s > 70 ? "bg-success" : s > 50 ? "bg-warning" : "bg-destructive";
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-foreground">Knowledge Database</h2>
-      <div className="flex gap-2">
-        <button onClick={() => setTab("overview")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "overview" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-          Overview
-        </button>
-        <button onClick={() => setTab("ai-manager")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "ai-manager" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-          <Sparkles className="w-3.5 h-3.5" /> AI Topic Manager
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-primary" />
+          Knowledge Database
+        </h2>
+        <button onClick={fetchData} disabled={loading} className="p-2 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50">
+          <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
-      {tab === "overview" && (
-        loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">{subjects.length} subjects across all users</p>
-            {subjects.map(s => (
-              <div key={s.id} className="glass rounded-xl p-3 neural-border flex items-center gap-3">
-                <BookOpen className="w-4 h-4 text-primary" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">{s.name}</p>
-                  <p className="text-[10px] text-muted-foreground">Created: {new Date(s.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-            ))}
-            {subjects.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No subjects in database</p>}
-          </div>
-        )
+      {/* Global Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: "Users", value: globalStats.usersWithTopics, icon: Users, color: "text-primary" },
+          { label: "Subjects", value: globalStats.totalSubjects, icon: BookOpen, color: "text-primary" },
+          { label: "Topics", value: globalStats.totalTopics, icon: Brain, color: "text-primary" },
+          { label: "Avg Strength", value: `${globalStats.avgStrength}%`, icon: TrendingUp, color: getStrengthColor(globalStats.avgStrength) },
+          { label: "At Risk", value: globalStats.atRisk, icon: AlertTriangle, color: "text-destructive" },
+        ].map((stat, i) => (
+          <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            className="glass rounded-xl p-4 neural-border text-center">
+            <stat.icon className={`w-4 h-4 mx-auto mb-1.5 ${stat.color}`} />
+            <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+            <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {([
+          { key: "overview" as const, label: "Subjects & Topics", icon: BookOpen },
+          { key: "brain-updates" as const, label: "Brain Updates", icon: Brain },
+          { key: "ai-manager" as const, label: "AI Topic Manager", icon: Sparkles },
+        ]).map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+            <t.icon className="w-3.5 h-3.5" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>}
+
+      {/* ── Subjects & Topics Overview ── */}
+      {!loading && tab === "overview" && (
+        <div className="space-y-3">
+          <input
+            type="text" placeholder="Search users..." value={userSearch} onChange={e => setUserSearch(e.target.value)}
+            className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none"
+          />
+
+          {filteredUsers.filter(u => userSubjects[u.id]?.length > 0).length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">No subjects found</p>
+          )}
+
+          {filteredUsers.filter(u => userSubjects[u.id]?.length > 0).map(u => {
+            const subs = userSubjects[u.id] || [];
+            const totalTopics = subs.reduce((a, s) => a + s.topics.length, 0);
+            const avgStr = totalTopics > 0 ? Math.round(subs.reduce((a, s) => a + s.topics.reduce((b: number, t: any) => b + Number(t.memory_strength), 0), 0) / totalTopics) : 0;
+            const isExpanded = expandedUsers.has(u.id);
+
+            return (
+              <motion.div key={u.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-xl neural-border overflow-hidden">
+                <button onClick={() => toggleUser(u.id)} className="w-full p-4 flex items-center gap-3 text-left hover:bg-secondary/20 transition-colors">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground truncate">{u.display_name || "Unnamed"}</p>
+                      {u.exam_type && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent/15 text-accent-foreground">{u.exam_type}</span>}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{subs.length} subjects · {totalTopics} topics · Avg: <span className={getStrengthColor(avgStr)}>{avgStr}%</span></p>
+                  </div>
+                  <motion.div animate={{ rotate: isExpanded ? 90 : 0 }}>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </motion.div>
+                </button>
+
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+                      <div className="px-4 pb-4 space-y-2">
+                        {subs.map(sub => {
+                          const subKey = `${u.id}:${sub.id}`;
+                          const subExpanded = expandedSubjects.has(subKey);
+                          const subAvg = sub.topics.length > 0 ? Math.round(sub.topics.reduce((a, t) => a + Number(t.memory_strength), 0) / sub.topics.length) : 0;
+                          const subAtRisk = sub.topics.filter(t => t.next_predicted_drop_date && new Date(t.next_predicted_drop_date) <= new Date()).length;
+
+                          return (
+                            <div key={sub.id} className="rounded-lg border border-border/50 overflow-hidden">
+                              <button onClick={() => toggleSubject(subKey)} className="w-full px-3 py-2.5 flex items-center gap-2 hover:bg-secondary/30 transition-colors">
+                                <BookOpen className="w-3.5 h-3.5 text-primary shrink-0" />
+                                <span className="text-xs font-semibold text-foreground flex-1 text-left truncate">{sub.name}</span>
+                                <span className="text-[10px] text-muted-foreground">{sub.topics.length} topics</span>
+                                {subAtRisk > 0 && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">{subAtRisk} at risk</span>
+                                )}
+                                <span className={`text-[10px] font-bold ${getStrengthColor(subAvg)}`}>{subAvg}%</span>
+                                <motion.div animate={{ rotate: subExpanded ? 90 : 0 }}>
+                                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                                </motion.div>
+                              </button>
+
+                              <AnimatePresence>
+                                {subExpanded && (
+                                  <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+                                    <div className="px-3 pb-3 space-y-1">
+                                      {sub.topics.length === 0 && <p className="text-[10px] text-muted-foreground py-2 text-center">No topics</p>}
+                                      {sub.topics.map(topic => {
+                                        const str = Number(topic.memory_strength);
+                                        const isAtRisk = topic.next_predicted_drop_date && new Date(topic.next_predicted_drop_date) <= new Date();
+                                        return (
+                                          <div key={topic.id} className={`flex items-center gap-2 px-2.5 py-2 rounded-lg ${isAtRisk ? "bg-destructive/5 border border-destructive/20" : "bg-secondary/20"}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${getStrengthBg(str)}`} />
+                                            <span className="text-[11px] text-foreground flex-1 truncate">{topic.name}</span>
+                                            {topic.marks_impact_weight != null && (
+                                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">w:{topic.marks_impact_weight}</span>
+                                            )}
+                                            <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
+                                              <div className={`h-full rounded-full ${getStrengthBg(str)}`} style={{ width: `${str}%` }} />
+                                            </div>
+                                            <span className={`text-[10px] font-bold min-w-[28px] text-right ${getStrengthColor(str)}`}>{str}%</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </div>
       )}
 
-      {tab === "ai-manager" && (
+      {/* ── Brain Updates Tab ── */}
+      {!loading && tab === "brain-updates" && (
+        <div className="space-y-3">
+          <div className="glass rounded-xl p-4 neural-border">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+              <Brain className="w-4 h-4 text-primary" />
+              Daily Brain Update Activity
+            </h3>
+            <p className="text-[10px] text-muted-foreground mb-3">Users who have updated their brain, sorted by most recent activity.</p>
+
+            {brainUpdates.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No brain updates recorded</p>}
+
+            <div className="space-y-2">
+              {brainUpdates.map((bu, i) => {
+                const lastUpdate = bu.last_brain_update_at ? new Date(bu.last_brain_update_at) : null;
+                const hoursAgo = lastUpdate ? Math.round((Date.now() - lastUpdate.getTime()) / 3600000) : null;
+                const isRecent = hoursAgo !== null && hoursAgo < 24;
+                const isStale = hoursAgo !== null && hoursAgo > 72;
+
+                return (
+                  <motion.div key={bu.user_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                      isRecent ? "bg-success/5 border-success/20" : isStale ? "bg-destructive/5 border-destructive/20" : "bg-secondary/20 border-border/50"
+                    }`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      isRecent ? "bg-success/15" : isStale ? "bg-destructive/15" : "bg-secondary"
+                    }`}>
+                      <Brain className={`w-3.5 h-3.5 ${isRecent ? "text-success" : isStale ? "text-destructive" : "text-muted-foreground"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{bu.display_name || "Unnamed"}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {bu.topic_count} topics · Avg: <span className={getStrengthColor(bu.avg_strength)}>{bu.avg_strength}%</span>
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {lastUpdate ? (
+                        <>
+                          <p className={`text-[10px] font-medium ${isRecent ? "text-success" : isStale ? "text-destructive" : "text-muted-foreground"}`}>
+                            {hoursAgo! < 1 ? "Just now" : hoursAgo! < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo! / 24)}d ago`}
+                          </p>
+                          <p className="text-[9px] text-muted-foreground">{format(lastUpdate, "MMM d, HH:mm")}</p>
+                        </>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground">Never</p>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Topic Manager Tab ── */}
+      {!loading && tab === "ai-manager" && (
         <div className="space-y-4">
-          {/* User selector for admin */}
           <div className="glass rounded-xl p-4 neural-border space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Select User</h3>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Select User
+            </h3>
             <input
-              type="text"
-              placeholder="Search by name or ID..."
-              value={userSearch}
-              onChange={e => setUserSearch(e.target.value)}
+              type="text" placeholder="Search by name or ID..." value={userSearch} onChange={e => setUserSearch(e.target.value)}
               className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none"
             />
             <div className="max-h-40 overflow-y-auto space-y-1">
               {filteredUsers.slice(0, 20).map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => setSelectedUserId(u.id)}
+                <button key={u.id} onClick={() => setSelectedUserId(u.id)}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors ${
                     selectedUserId === u.id ? "bg-primary/15 text-primary" : "text-foreground hover:bg-secondary"
-                  }`}
-                >
+                  }`}>
                   <User className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="flex-1 truncate">{u.display_name || "Unnamed"}</span>
                   <span className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"}</span>
