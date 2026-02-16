@@ -318,8 +318,7 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
       });
       if (aiErr) throw aiErr;
 
-      // Fetch audience filtered by target plan
-      let profilesQuery = supabase.from("profiles").select("id, subscription_plan:study_preferences");
+      // Fetch all profiles
       const { data: profiles } = await supabase.from("profiles").select("id");
       let allProfiles = profiles || [];
 
