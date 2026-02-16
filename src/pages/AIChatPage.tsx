@@ -4,7 +4,7 @@ import {
   ArrowLeft, Send, Mic, MicOff, Volume2, VolumeX,
   Loader2, Brain, Trash2, Sparkles, TrendingUp,
   BookOpen, Target, Zap, AlertTriangle, BarChart3,
-  Clock, Copy, Check, RefreshCw, ChevronDown
+  Clock, Copy, Check, RefreshCw, ChevronDown, Search, X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +60,10 @@ const AIChatPage = () => {
   const [language, setLanguage] = useState<"en" | "hi">("en");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchIndex, setSearchIndex] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -308,6 +312,34 @@ const AIChatPage = () => {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
   };
 
+  // Search
+  const searchResults = searchQuery.trim()
+    ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+    : [];
+
+  const jumpToMessage = (msgId: string) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleSearchNav = (dir: 1 | -1) => {
+    if (searchResults.length === 0) return;
+    const next = (searchIndex + dir + searchResults.length) % searchResults.length;
+    setSearchIndex(next);
+    jumpToMessage(searchResults[next].id);
+  };
+
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) searchInputRef.current.focus();
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (searchResults.length > 0) {
+      setSearchIndex(0);
+      jumpToMessage(searchResults[0].id);
+    }
+  }, [searchQuery]);
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -359,7 +391,55 @@ const AIChatPage = () => {
         <button onClick={clearHistory} className="p-2 rounded-lg text-muted-foreground hover:text-destructive transition-colors">
           <Trash2 className="w-4 h-4" />
         </button>
+        <button
+          onClick={() => { setSearchOpen(o => !o); setSearchQuery(""); }}
+          className={`p-2 rounded-lg transition-colors ${searchOpen ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <Search className="w-4 h-4" />
+        </button>
       </header>
+
+      {/* Search Bar */}
+      <AnimatePresence>
+        {searchOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="border-b border-border bg-secondary/50 backdrop-blur-xl px-4 py-2 shrink-0 overflow-hidden"
+          >
+            <div className="flex items-center gap-2">
+              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search messages..."
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+              />
+              {searchQuery && (
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  {searchResults.length > 0 ? `${searchIndex + 1}/${searchResults.length}` : "No results"}
+                </span>
+              )}
+              {searchResults.length > 1 && (
+                <div className="flex gap-0.5">
+                  <button onClick={() => handleSearchNav(-1)} className="p-1 rounded hover:bg-secondary text-muted-foreground">
+                    <ChevronDown className="w-3.5 h-3.5 rotate-180" />
+                  </button>
+                  <button onClick={() => handleSearchNav(1)} className="p-1 rounded hover:bg-secondary text-muted-foreground">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="p-1 rounded hover:bg-secondary text-muted-foreground">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages */}
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -464,11 +544,12 @@ const AIChatPage = () => {
           <>
             {messages.map((msg, idx) => (
               <motion.div
+                id={`msg-${msg.id}`}
                 key={msg.id}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group`}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group ${searchQuery && searchResults.length > 0 && searchResults[searchIndex]?.id === msg.id ? "ring-2 ring-primary/50 rounded-2xl" : ""}`}
               >
                 <div className={`max-w-[88%] ${msg.role === "assistant" ? "flex gap-2" : ""}`}>
                   {/* AI avatar */}
