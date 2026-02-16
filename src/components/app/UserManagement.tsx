@@ -99,46 +99,109 @@ const UserManagement = () => {
   const { user: adminUser } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [subscriptions, setSubscriptions] = useState<UserSubscription[]>([]);
   const [plans, setPlans] = useState<SubPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [filter, setFilter] = useState<"all" | "free" | "pro" | "ultra" | "banned">("all");
+  const [filter, setFilter] = useState<"all" | "banned">("all");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc" | "plan">("newest");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc">("newest");
   const [bulkConfirm, setBulkConfirm] = useState<{ action: "ban" | "unban" } | null>(null);
-
   const [studyActivity, setStudyActivity] = useState<Record<string, number[]>>({});
+  const [summaryStats, setSummaryStats] = useState({ totalUsers: 0, paidUsers: 0, newThisWeek: 0, totalRevenue: 0 });
+
+  // Debounce search input for server-side queries
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const [usersRes, subsRes, plansRes, logsRes] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes, created_at, updated_at, avatar_url, opt_in_leaderboard, email_notifications_enabled, is_banned, banned_at, ban_reason").order("created_at", { ascending: false }).limit(500),
-      supabase.from("user_subscriptions").select("id, user_id, plan_id, status, amount, currency, expires_at, created_at").order("created_at", { ascending: false }),
+
+    // Build server-side query with filters, sorting, and pagination
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    let query = supabase
+      .from("profiles")
+      .select("id, display_name, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes, created_at, updated_at, avatar_url, opt_in_leaderboard, email_notifications_enabled, is_banned, banned_at, ban_reason", { count: "exact" });
+
+    // Server-side search filter
+    if (debouncedSearch) {
+      query = query.or(`display_name.ilike.%${debouncedSearch}%,id.eq.${debouncedSearch.match(/^[0-9a-f-]{36}$/i) ? debouncedSearch : "00000000-0000-0000-0000-000000000000"}`);
+    }
+
+    // Server-side status filter
+    if (filter === "banned") {
+      query = query.eq("is_banned", true);
+    }
+
+    // Server-side sorting
+    switch (sortBy) {
+      case "newest": query = query.order("created_at", { ascending: false }); break;
+      case "oldest": query = query.order("created_at", { ascending: true }); break;
+      case "name_asc": query = query.order("display_name", { ascending: true, nullsFirst: false }); break;
+      case "name_desc": query = query.order("display_name", { ascending: false, nullsFirst: true }); break;
+    }
+
+    query = query.range(from, to);
+
+    // Fetch page of users + summary counts + plans in parallel
+    const [usersRes, plansRes, totalUsersRes, paidCountRes, newWeekRes, revenueRes] = await Promise.all([
+      query,
       supabase.from("subscription_plans").select("id, plan_key, name, price, currency").order("sort_order"),
-      supabase.from("study_logs").select("user_id, duration_minutes, created_at").gte("created_at", weekAgo.toISOString()),
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("user_subscriptions").select("id", { count: "exact", head: true }).eq("status", "active").neq("plan_id", "free"),
+      supabase.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", weekAgo.toISOString()),
+      supabase.from("user_subscriptions").select("amount").eq("status", "active"),
     ]);
-    setUsers((usersRes.data as UserProfile[]) || []);
-    setSubscriptions((subsRes.data as UserSubscription[]) || []);
+
+    const pageUsers = (usersRes.data as UserProfile[]) || [];
+    setUsers(pageUsers);
+    setTotalCount(usersRes.count || 0);
     setPlans((plansRes.data as SubPlan[]) || []);
 
-    // Build 7-day activity map per user
-    const actMap: Record<string, number[]> = {};
-    const logs = logsRes.data || [];
-    for (const log of logs) {
-      const uid = (log as any).user_id;
-      const dayIdx = 6 - Math.min(6, Math.floor((Date.now() - new Date((log as any).created_at).getTime()) / 86400000));
-      if (!actMap[uid]) actMap[uid] = [0, 0, 0, 0, 0, 0, 0];
-      actMap[uid][dayIdx] += (log as any).duration_minutes || 0;
+    setSummaryStats({
+      totalUsers: totalUsersRes.count || 0,
+      paidUsers: paidCountRes.count || 0,
+      newThisWeek: newWeekRes.count || 0,
+      totalRevenue: (revenueRes.data || []).reduce((sum, s: any) => sum + (s.amount || 0), 0),
+    });
+
+    // Fetch subscriptions only for visible users (not all users)
+    const userIds = pageUsers.map(u => u.id);
+    if (userIds.length > 0) {
+      const [subsRes, logsRes] = await Promise.all([
+        supabase.from("user_subscriptions").select("id, user_id, plan_id, status, amount, currency, expires_at, created_at").in("user_id", userIds).order("created_at", { ascending: false }),
+        supabase.from("study_logs").select("user_id, duration_minutes, created_at").in("user_id", userIds).gte("created_at", weekAgo.toISOString()),
+      ]);
+      setSubscriptions((subsRes.data as UserSubscription[]) || []);
+
+      // Build 7-day activity map per user
+      const actMap: Record<string, number[]> = {};
+      for (const log of (logsRes.data || [])) {
+        const uid = (log as any).user_id;
+        const dayIdx = 6 - Math.min(6, Math.floor((Date.now() - new Date((log as any).created_at).getTime()) / 86400000));
+        if (!actMap[uid]) actMap[uid] = [0, 0, 0, 0, 0, 0, 0];
+        actMap[uid][dayIdx] += (log as any).duration_minutes || 0;
+      }
+      setStudyActivity(actMap);
+    } else {
+      setSubscriptions([]);
+      setStudyActivity({});
     }
-    setStudyActivity(actMap);
+
     setLoading(false);
-  }, []);
+  }, [page, debouncedSearch, filter, sortBy]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -149,33 +212,8 @@ const UserManagement = () => {
     return { planKey: plan?.plan_key || "free", planName: plan?.name || "Free", sub };
   };
 
-  const filtered = users.filter(u => {
-    const matchSearch = !search || (u.display_name || "").toLowerCase().includes(search.toLowerCase()) || u.id.includes(search);
-    if (!matchSearch) return false;
-    if (filter === "all") return true;
-    if (filter === "banned") return u.is_banned;
-    const { planKey } = getUserPlan(u.id);
-    return planKey === filter;
-  });
-
-  const planOrder: Record<string, number> = { free: 0, pro: 1, ultra: 2 };
-  const sorted = [...filtered].sort((a, b) => {
-    switch (sortBy) {
-      case "newest": return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      case "oldest": return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      case "name_asc": return (a.display_name || "").localeCompare(b.display_name || "");
-      case "name_desc": return (b.display_name || "").localeCompare(a.display_name || "");
-      case "plan": {
-        const pa = planOrder[getUserPlan(a.id).planKey] ?? 0;
-        const pb = planOrder[getUserPlan(b.id).planKey] ?? 0;
-        return pb - pa;
-      }
-      default: return 0;
-    }
-  });
-
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const paginatedUsers = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const paginatedUsers = users;
 
   // Reset page & selection when filters change
   useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [search, filter, sortBy]);
@@ -229,19 +267,12 @@ const UserManagement = () => {
     setBulkProcessing(false);
   };
 
-  // Summary stats
-  const totalUsers = users.length;
-  const paidUsers = users.filter(u => getUserPlan(u.id).planKey !== "free").length;
-  const totalRevenue = subscriptions.filter(s => s.status === "active").reduce((sum, s) => sum + (s.amount || 0), 0);
-  const newThisWeek = users.filter(u => {
-    const d = new Date(u.created_at);
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-    return d >= weekAgo;
-  }).length;
+  // Summary stats from server-side counts
+  const { totalUsers, paidUsers, totalRevenue, newThisWeek } = summaryStats;
 
   const exportCSV = () => {
     const headers = ["ID", "Display Name", "Exam Type", "Exam Date", "Daily Goal (min)", "Weekly Goal (min)", "Plan", "Plan Status", "Amount", "Banned", "Ban Reason", "Joined", "Last Updated"];
-    const rows = filtered.map(u => {
+    const rows = users.map(u => {
       const { planName, sub } = getUserPlan(u.id);
       return [
         u.id,
@@ -267,7 +298,7 @@ const UserManagement = () => {
     a.download = `users-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: `Exported ${filtered.length} users` });
+    toast({ title: `Exported ${users.length} users (current page)` });
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
@@ -316,9 +347,9 @@ const UserManagement = () => {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or ID..." className="w-full pl-10 pr-4 py-2.5 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none" />
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          {(["all", "free", "pro", "ultra", "banned"] as const).map(f => (
+          {(["all", "banned"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)} className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors capitalize ${filter === f ? (f === "banned" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary") : "text-muted-foreground hover:bg-secondary"}`}>
-              {f === "all" ? "All" : f}{f === "banned" ? ` (${users.filter(u => u.is_banned).length})` : ""}
+              {f === "all" ? "All" : f}
             </button>
           ))}
           <div className="relative">
@@ -331,7 +362,6 @@ const UserManagement = () => {
               <option value="oldest">Oldest first</option>
               <option value="name_asc">Name A–Z</option>
               <option value="name_desc">Name Z–A</option>
-              <option value="plan">Plan (highest)</option>
             </select>
             <ArrowUpDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           </div>
@@ -430,14 +460,14 @@ const UserManagement = () => {
             </motion.div>
           );
         })}
-        {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No users found</p>}
+        {users.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No users found</p>}
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-xs text-muted-foreground">
-            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount}
           </p>
           <div className="flex items-center gap-1">
             <button
