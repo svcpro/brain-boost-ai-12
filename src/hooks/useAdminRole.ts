@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type AppRole = "super_admin" | "admin" | "ai_admin" | "support_admin" | "finance_admin";
+export type AppRole = "super_admin" | "admin" | "ai_admin" | "support_admin" | "finance_admin" | "api_admin";
 
 interface AdminRoleState {
   roles: AppRole[];
