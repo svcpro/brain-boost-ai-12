@@ -328,7 +328,7 @@ const AIAssistantButton = () => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             onClick={() => setOpen(true)}
-            className="fixed bottom-[5.5rem] left-1/2 -translate-x-1/2 z-[60] w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground flex items-center justify-center transition-all duration-300 shadow-[0_0_25px_hsl(var(--primary)/0.4),0_0_50px_hsl(var(--primary)/0.15)]"
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground flex items-center justify-center transition-all duration-300 shadow-[0_0_25px_hsl(var(--primary)/0.4),0_0_50px_hsl(var(--primary)/0.15)]"
           >
             {/* Outer orbital ring */}
             <motion.div
