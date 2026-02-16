@@ -430,11 +430,15 @@ const AIModelManagement = () => {
                   </div>
                   {s.candidate_models && Array.isArray(s.candidate_models) && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      {(s.candidate_models as string[]).map((c: string) => (
-                        <span key={c} className={`text-[10px] px-2 py-0.5 rounded-full ${c === s.active_model ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"}`}>
-                          {c}
-                        </span>
-                      ))}
+                      {(s.candidate_models as any[]).map((c, idx) => {
+                        const label = typeof c === "string" ? c : (c?.model || c?.name || JSON.stringify(c));
+                        const labelStr = String(label);
+                        return (
+                          <span key={idx} className={`text-[10px] px-2 py-0.5 rounded-full ${labelStr === s.active_model ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"}`}>
+                            {labelStr}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                   {s.last_evaluated_at && (
@@ -500,9 +504,11 @@ const ParametersTab = ({ selections, metrics, onRefresh }: { selections: ModelSe
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Active Model Selections</p>
           {selections.map(s => {
-            const perfHistory = s.performance_history && typeof s.performance_history === "object"
-              ? Object.entries(s.performance_history as Record<string, any>)
-              : [];
+            const perfHistory = Array.isArray(s.performance_history)
+              ? s.performance_history as any[]
+              : s.performance_history && typeof s.performance_history === "object"
+                ? Object.entries(s.performance_history as Record<string, any>)
+                : [];
 
             return (
               <div key={s.id} className="glass rounded-xl p-4 neural-border">
@@ -518,10 +524,10 @@ const ParametersTab = ({ selections, metrics, onRefresh }: { selections: ModelSe
                   {perfHistory.length > 0 && (
                     <div className="mt-2 space-y-1">
                       <p className="text-[10px] text-muted-foreground">Performance History</p>
-                      {perfHistory.slice(0, 5).map(([key, val]) => (
-                        <div key={key} className="flex items-center justify-between text-[10px]">
-                          <span className="text-muted-foreground">{key}</span>
-                          <span className="text-foreground">{typeof val === "number" ? val.toFixed(3) : JSON.stringify(val)}</span>
+                      {(Array.isArray(perfHistory[0]) ? perfHistory : perfHistory.map((item: any, i: number) => [String(i), item])).slice(0, 5).map(([key, val]: [string, any], idx: number) => (
+                        <div key={idx} className="flex items-center justify-between text-[10px]">
+                          <span className="text-muted-foreground">{typeof val === "object" && val?.selected ? val.selected : key}</span>
+                          <span className="text-foreground">{typeof val === "number" ? val.toFixed(3) : typeof val === "object" ? `score: ${val?.score ?? "—"}` : String(val)}</span>
                         </div>
                       ))}
                     </div>
