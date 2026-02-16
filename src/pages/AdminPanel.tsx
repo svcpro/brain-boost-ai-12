@@ -29,8 +29,9 @@ import LeaderboardManagement from "@/components/app/LeaderboardManagement";
 import PlanGatingManagement from "@/components/app/PlanGatingManagement";
 import PermissionManagement from "@/components/admin/PermissionManagement";
 import AIModelManagement from "@/components/admin/AIModelManagement";
+import SystemMonitor from "@/components/admin/SystemMonitor";
 
-type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "admins" | "audit" | "settings";
+type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -59,6 +60,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
+  { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
   { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
   { key: "settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
@@ -190,6 +192,7 @@ const AdminPanel = () => {
             {section === "apis" && <ApiManagement />}
             {section === "notifications" && <AdminNotificationCenter />}
             {section === "campaigns" && <CampaignManager />}
+            {section === "monitoring" && <SystemMonitor />}
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
             {section === "audit" && <AuditSection />}
             {section === "settings" && <SettingsSection toast={toast} />}
