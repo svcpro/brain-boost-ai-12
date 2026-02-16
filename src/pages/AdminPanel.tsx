@@ -28,6 +28,7 @@ import CampaignManager from "@/components/app/CampaignManager";
 import LeaderboardManagement from "@/components/app/LeaderboardManagement";
 import PlanGatingManagement from "@/components/app/PlanGatingManagement";
 import PermissionManagement from "@/components/admin/PermissionManagement";
+import AIModelManagement from "@/components/admin/AIModelManagement";
 
 type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "admins" | "audit" | "settings";
 
@@ -181,7 +182,7 @@ const AdminPanel = () => {
           <motion.div key={section} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             {section === "dashboard" && <DashboardSection />}
             {section === "users" && <UserManagement />}
-            {section === "ai" && <AISection />}
+            {section === "ai" && <AIModelManagement />}
             {section === "knowledge" && <KnowledgeSection />}
             {section === "leaderboard" && <LeaderboardManagement />}
             {section === "subscriptions" && <SubscriptionsSection />}
@@ -552,63 +553,6 @@ const DashboardSection = () => {
 
 // UsersSection replaced by UserManagement component
 
-// ─── AI Models ───
-const AISection = () => {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [predictions, setPredictions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const [logsRes, predsRes] = await Promise.all([
-        supabase.from("ml_training_logs").select("*").order("started_at", { ascending: false }).limit(20),
-        supabase.from("model_metrics").select("*").order("created_at", { ascending: false }).limit(20),
-      ]);
-      setLogs(logsRes.data || []);
-      setPredictions(predsRes.data || []);
-      setLoading(false);
-    })();
-  }, []);
-
-  return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-foreground">AI Model Management</h2>
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-      ) : (
-        <>
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-foreground">Training Logs</h3>
-            {logs.map(l => (
-              <div key={l.id} className="glass rounded-xl p-3 neural-border flex items-center gap-3">
-                {l.status === "completed" ? <CheckCircle2 className="w-4 h-4 text-success" /> : l.status === "failed" ? <XCircle className="w-4 h-4 text-destructive" /> : <Loader2 className="w-4 h-4 text-primary animate-spin" />}
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">{l.model_name} <span className="text-muted-foreground">v{l.model_version}</span></p>
-                  <p className="text-[10px] text-muted-foreground">{l.training_type} · {l.training_data_size || 0} samples</p>
-                </div>
-                <span className="text-[10px] text-muted-foreground">{new Date(l.started_at).toLocaleString()}</span>
-              </div>
-            ))}
-            {logs.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No training logs yet</p>}
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-foreground">Model Metrics</h3>
-            {predictions.map(m => (
-              <div key={m.id} className="glass rounded-xl p-3 neural-border flex items-center gap-3">
-                <BarChart3 className="w-4 h-4 text-accent" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">{m.model_name}: {m.metric_type}</p>
-                  <p className="text-[10px] text-muted-foreground">Value: {m.metric_value} · Samples: {m.sample_size}</p>
-                </div>
-              </div>
-            ))}
-            {predictions.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No metrics yet</p>}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
 
 // ─── Knowledge DB ───
 const KnowledgeSection = () => {
