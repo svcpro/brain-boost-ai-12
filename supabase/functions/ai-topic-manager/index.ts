@@ -109,7 +109,7 @@ serve(async (req) => {
       }
 
       // Track usage
-      admin.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).catch(() => {});
+      await admin.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}, () => {});
 
       return new Response(JSON.stringify(curriculum), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -257,7 +257,7 @@ serve(async (req) => {
       }
 
       const aiData = await aiResp.json();
-      admin.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).catch(() => {});
+      await admin.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}, () => {});
       const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
       let analysis = { coverage_percentage: 0, missing_topics: [], weight_corrections: [], summary: "" };
       if (toolCall?.function?.arguments) {
@@ -330,7 +330,7 @@ serve(async (req) => {
 
       if (!aiResp.ok) throw new Error("AI gateway error");
       const aiData = await aiResp.json();
-      admin.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).catch(() => {});
+      await admin.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}, () => {});
       const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
       if (toolCall?.function?.arguments) {
