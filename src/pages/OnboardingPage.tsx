@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, GraduationCap, BookOpen, Calendar, Plus, X, ChevronRight, Sparkles, Hash } from "lucide-react";
+import { Brain, GraduationCap, BookOpen, Calendar, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +58,7 @@ const OnboardingPage = () => {
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [studyMode, setStudyMode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -116,6 +117,38 @@ const OnboardingPage = () => {
       ...prev,
       [subject]: (prev[subject] || []).filter(t => t !== topic),
     }));
+  };
+
+  const handleAIGenerate = async () => {
+    const examLabel = examType === "other" ? customExam || "Custom Exam" : examType.toUpperCase();
+    setAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-topic-manager", {
+        body: { action: "generate_curriculum", exam_type: examLabel, custom_exam: customExam },
+      });
+      if (error) throw error;
+      const curriculum = data as { subjects: { name: string; topics: { name: string }[] }[] };
+      if (curriculum?.subjects?.length) {
+        const newSubjects: string[] = [];
+        const newTopics: Record<string, string[]> = { ...topicsBySubject };
+        for (const sub of curriculum.subjects) {
+          if (!subjects.includes(sub.name) && !newSubjects.includes(sub.name)) {
+            newSubjects.push(sub.name);
+          }
+          const subName = sub.name;
+          const existingTopics = newTopics[subName] || [];
+          const aiTopics = (sub.topics || []).map(t => t.name).filter(t => !existingTopics.includes(t));
+          newTopics[subName] = [...existingTopics, ...aiTopics];
+        }
+        setSubjects(prev => [...prev, ...newSubjects]);
+        setTopicsBySubject(newTopics);
+        toast({ title: "AI Curriculum Generated ✨", description: `Added ${newSubjects.length} subjects with topics.` });
+      }
+    } catch (e: any) {
+      toast({ title: "AI generation failed", description: e.message || "Try again later", variant: "destructive" });
+    } finally {
+      setAiGenerating(false);
+    }
   };
 
   const canProceed = () => {
@@ -313,11 +346,26 @@ const OnboardingPage = () => {
           {/* Step 3: Subjects */}
           {step === 3 && (
             <motion.div key="subjects" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <BookOpen className="w-5 h-5 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">Add your subjects</h1>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <h1 className="text-2xl font-bold text-foreground">Add your subjects</h1>
+                </div>
               </div>
-              <p className="text-muted-foreground text-sm mb-6">You'll add topics for each subject next.</p>
+              <p className="text-muted-foreground text-sm mb-4">You'll add topics for each subject next.</p>
+
+              {/* AI Generate Button */}
+              <button
+                onClick={handleAIGenerate}
+                disabled={aiGenerating}
+                className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-xl border border-dashed border-primary/40 text-primary hover:bg-primary/10 transition-all disabled:opacity-50"
+              >
+                {aiGenerating ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Generating with AI...</>
+                ) : (
+                  <><Wand2 className="w-4 h-4" /> Auto-Generate Subjects & Topics with AI</>
+                )}
+              </button>
 
               {SUGGESTED_SUBJECTS[examType] && (
                 <div className="mb-4">
