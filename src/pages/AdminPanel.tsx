@@ -7,8 +7,9 @@ import {
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon,
-  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone
+  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles
 } from "lucide-react";
+import AITopicManager from "@/components/app/AITopicManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminRole, type AppRole } from "@/hooks/useAdminRole";
@@ -477,32 +478,96 @@ const AISection = () => {
 const KnowledgeSection = () => {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"overview" | "ai-manager">("overview");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [users, setUsers] = useState<{ id: string; display_name: string | null; exam_type: string | null }[]>([]);
+  const [userSearch, setUserSearch] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("subjects").select("id, name, created_at").is("deleted_at", null).order("name").limit(200);
-      setSubjects(data || []);
-      setLoading(false);
-    })();
+  const fetchData = useCallback(async () => {
+    const [subRes, userRes] = await Promise.all([
+      supabase.from("subjects").select("id, name, created_at, user_id").is("deleted_at", null).order("name").limit(200),
+      supabase.from("profiles").select("id, display_name, exam_type").limit(200),
+    ]);
+    setSubjects(subRes.data || []);
+    setUsers(userRes.data || []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const filteredUsers = users.filter(u =>
+    !userSearch || (u.display_name || "").toLowerCase().includes(userSearch.toLowerCase()) || u.id.includes(userSearch)
+  );
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-foreground">Knowledge Database</h2>
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-      ) : (
-        <div className="space-y-2">
-          {subjects.map(s => (
-            <div key={s.id} className="glass rounded-xl p-3 neural-border flex items-center gap-3">
-              <BookOpen className="w-4 h-4 text-primary" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{s.name}</p>
-                <p className="text-[10px] text-muted-foreground">Created: {new Date(s.created_at).toLocaleDateString()}</p>
+      <div className="flex gap-2">
+        <button onClick={() => setTab("overview")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "overview" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+          Overview
+        </button>
+        <button onClick={() => setTab("ai-manager")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "ai-manager" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
+          <Sparkles className="w-3.5 h-3.5" /> AI Topic Manager
+        </button>
+      </div>
+
+      {tab === "overview" && (
+        loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">{subjects.length} subjects across all users</p>
+            {subjects.map(s => (
+              <div key={s.id} className="glass rounded-xl p-3 neural-border flex items-center gap-3">
+                <BookOpen className="w-4 h-4 text-primary" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">{s.name}</p>
+                  <p className="text-[10px] text-muted-foreground">Created: {new Date(s.created_at).toLocaleDateString()}</p>
+                </div>
               </div>
+            ))}
+            {subjects.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No subjects in database</p>}
+          </div>
+        )
+      )}
+
+      {tab === "ai-manager" && (
+        <div className="space-y-4">
+          {/* User selector for admin */}
+          <div className="glass rounded-xl p-4 neural-border space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Select User</h3>
+            <input
+              type="text"
+              placeholder="Search by name or ID..."
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none"
+            />
+            <div className="max-h-40 overflow-y-auto space-y-1">
+              {filteredUsers.slice(0, 20).map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => setSelectedUserId(u.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors ${
+                    selectedUserId === u.id ? "bg-primary/15 text-primary" : "text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="flex-1 truncate">{u.display_name || "Unnamed"}</span>
+                  <span className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"}</span>
+                </button>
+              ))}
             </div>
-          ))}
-          {subjects.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No subjects in database</p>}
+          </div>
+
+          {selectedUserId && (
+            <AITopicManager
+              mode="admin"
+              targetUserId={selectedUserId}
+              examType={users.find(u => u.id === selectedUserId)?.exam_type || undefined}
+              onDone={() => fetchData()}
+            />
+          )}
         </div>
       )}
     </div>
