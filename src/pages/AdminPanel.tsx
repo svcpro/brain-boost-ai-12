@@ -30,8 +30,9 @@ import PlanGatingManagement from "@/components/app/PlanGatingManagement";
 import PermissionManagement from "@/components/admin/PermissionManagement";
 import AIModelManagement from "@/components/admin/AIModelManagement";
 import SystemMonitor from "@/components/admin/SystemMonitor";
+import AdminProfile from "@/components/admin/AdminProfile";
 
-type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings";
+type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -64,6 +65,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
   { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
   { key: "settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
+  { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
 ];
 
 const AdminPanel = () => {
@@ -196,6 +198,7 @@ const AdminPanel = () => {
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
             {section === "audit" && <AuditSection />}
             {section === "settings" && <SettingsSection toast={toast} />}
+            {section === "profile" && <AdminProfile />}
           </motion.div>
         </AnimatePresence>
       </main>
