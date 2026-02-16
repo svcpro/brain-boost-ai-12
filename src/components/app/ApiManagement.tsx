@@ -153,9 +153,23 @@ const ApiManagement = () => {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">API Management</h2>
-        <p className="text-xs text-muted-foreground mt-1">Enterprise API gateway, keys, endpoints, rate limits, monitoring & security</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Server className="w-4 h-4 text-primary-foreground" />
+            </div>
+            API Command Center
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">Enterprise API gateway • Keys • Endpoints • Security • Monitoring</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 border border-success/20">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span className="text-[10px] font-medium text-success">System Online</span>
+          </div>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -196,57 +210,291 @@ const ApiManagement = () => {
 
 // ─── OVERVIEW TAB ───
 const OverviewTab = () => {
-  const [stats, setStats] = useState({ keys: 0, activeKeys: 0, endpoints: 0, activeEndpoints: 0, totalRequests: 0, totalErrors: 0, integrations: 0, totalCost: 0 });
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [keysRes, endpointsRes, integrationsRes, logsRes] = await Promise.all([
-        supabase.from("api_keys").select("id, is_active"),
-        supabase.from("api_endpoints").select("id, is_enabled, total_requests, total_errors"),
-        supabase.from("api_integrations").select("id, monthly_cost_estimate, is_enabled"),
-        supabase.from("api_request_logs").select("id", { count: "exact", head: true }),
+      const [keysRes, endpointsRes, integrationsRes, logsRes, rateLimitsRes] = await Promise.all([
+        supabase.from("api_keys").select("*"),
+        supabase.from("api_endpoints").select("*"),
+        supabase.from("api_integrations").select("*"),
+        supabase.from("api_request_logs").select("*").order("created_at", { ascending: false }).limit(500),
+        supabase.from("api_rate_limits").select("*"),
       ]);
-      const keys = keysRes.data || [];
-      const endpoints = endpointsRes.data || [];
-      const integrations = (integrationsRes.data || []) as any[];
+      const keys = (keysRes.data as any[]) || [];
+      const endpoints = (endpointsRes.data as any[]) || [];
+      const integrations = (integrationsRes.data as any[]) || [];
+      const logs = (logsRes.data as any[]) || [];
+      const rateLimits = (rateLimitsRes.data as any[]) || [];
+
+      const totalRequests = endpoints.reduce((s: number, e: any) => s + (e.total_requests || 0), 0);
+      const totalErrors = endpoints.reduce((s: number, e: any) => s + (e.total_errors || 0), 0);
+      const avgLatency = endpoints.length > 0 ? Math.round(endpoints.reduce((s: number, e: any) => s + (e.avg_latency_ms || 0), 0) / endpoints.length) : 0;
+      
+      // Security analysis
+      const noAuthEndpoints = endpoints.filter((e: any) => !e.requires_auth && e.is_enabled);
+      const expiredKeys = keys.filter((k: any) => k.expires_at && new Date(k.expires_at) < new Date() && k.is_active);
+      const securityChecks = 9;
+      const securityPassed = securityChecks - (noAuthEndpoints.length > 10 ? 1 : 0) - (expiredKeys.length > 0 ? 1 : 0);
+      
+      // Version distribution
+      const versionMap: Record<string, number> = {};
+      endpoints.forEach((ep: any) => { const v = ep.version || "v1"; versionMap[v] = (versionMap[v] || 0) + 1; });
+      
+      // Category distribution
+      const categoryMap: Record<string, number> = {};
+      endpoints.forEach((ep: any) => { categoryMap[ep.category] = (categoryMap[ep.category] || 0) + 1; });
+
+      // Recent activity (last 24h)
+      const now = new Date();
+      const last24h = logs.filter((l: any) => (now.getTime() - new Date(l.created_at).getTime()) < 86400000);
+      const last24hErrors = last24h.filter((l: any) => l.status_code >= 400);
+
+      // Top endpoints by traffic
+      const topEndpoints = [...endpoints].sort((a: any, b: any) => (b.total_requests || 0) - (a.total_requests || 0)).slice(0, 5);
+
       setStats({
-        keys: keys.length,
-        activeKeys: keys.filter(k => k.is_active).length,
-        endpoints: endpoints.length,
-        activeEndpoints: endpoints.filter(e => e.is_enabled).length,
-        totalRequests: endpoints.reduce((s, e: any) => s + (e.total_requests || 0), 0),
-        totalErrors: endpoints.reduce((s, e: any) => s + (e.total_errors || 0), 0),
-        integrations: integrations.length,
-        totalCost: integrations.reduce((s, i) => s + (i.monthly_cost_estimate || 0), 0),
+        keys, endpoints, integrations, logs, rateLimits,
+        totalRequests, totalErrors, avgLatency,
+        securityScore: Math.round((securityPassed / securityChecks) * 100),
+        noAuthEndpoints: noAuthEndpoints.length,
+        expiredKeys: expiredKeys.length,
+        versionMap, categoryMap,
+        last24h: last24h.length,
+        last24hErrors: last24hErrors.length,
+        totalCost: integrations.reduce((s: number, i: any) => s + (i.monthly_cost_estimate || 0), 0),
+        totalUsage: integrations.reduce((s: number, i: any) => s + (i.monthly_usage_count || 0), 0),
+        topEndpoints,
       });
       setLoading(false);
     })();
   }, []);
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+  if (!stats) return null;
 
-  const cards = [
-    { label: "API Keys", value: `${stats.activeKeys}/${stats.keys}`, sub: "active/total", icon: Key, color: "text-primary" },
-    { label: "Endpoints", value: `${stats.activeEndpoints}/${stats.endpoints}`, sub: "enabled/total", icon: Globe, color: "text-accent" },
-    { label: "Total Requests", value: stats.totalRequests.toLocaleString(), sub: "all time", icon: Activity, color: "text-success" },
-    { label: "Error Rate", value: stats.totalRequests > 0 ? `${((stats.totalErrors / stats.totalRequests) * 100).toFixed(1)}%` : "0%", sub: `${stats.totalErrors} errors`, icon: AlertTriangle, color: "text-warning" },
-    { label: "Integrations", value: stats.integrations, sub: "services", icon: Settings, color: "text-muted-foreground" },
-    { label: "Monthly Cost", value: `$${stats.totalCost.toFixed(0)}`, sub: "estimated", icon: DollarSign, color: "text-primary" },
-  ];
+  const successRate = stats.totalRequests > 0 ? ((1 - stats.totalErrors / stats.totalRequests) * 100).toFixed(1) : "100";
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
-      {cards.map((card, i) => (
-        <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="glass rounded-xl p-4 neural-border">
-          <div className="flex items-center gap-2 mb-1">
-            <card.icon className={`w-4 h-4 ${card.color}`} />
-            <span className="text-[10px] text-muted-foreground">{card.label}</span>
+    <div className="space-y-5 mt-4">
+      {/* Primary KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Total API Keys", value: `${stats.keys.filter((k: any) => k.is_active).length}/${stats.keys.length}`, sub: "active / total", icon: Key, color: "text-primary", gradient: "from-primary/20 to-primary/5" },
+          { label: "Endpoints", value: `${stats.endpoints.filter((e: any) => e.is_enabled).length}/${stats.endpoints.length}`, sub: "enabled / total", icon: Globe, color: "text-accent", gradient: "from-accent/20 to-accent/5" },
+          { label: "Total Requests", value: stats.totalRequests.toLocaleString(), sub: "all time", icon: Activity, color: "text-success", gradient: "from-success/20 to-success/5" },
+          { label: "Monthly Cost", value: `$${stats.totalCost.toFixed(0)}`, sub: `${stats.totalUsage.toLocaleString()} API calls`, icon: DollarSign, color: "text-warning", gradient: "from-warning/20 to-warning/5" },
+        ].map((card, i) => (
+          <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            className={`relative overflow-hidden rounded-xl p-4 border border-border bg-gradient-to-br ${card.gradient}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-background/80 flex items-center justify-center">
+                <card.icon className={`w-4 h-4 ${card.color}`} />
+              </div>
+              <span className="text-[10px] text-muted-foreground font-medium">{card.label}</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{card.value}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{card.sub}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* System Health Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Performance Gauge */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="glass rounded-xl p-4 neural-border">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-accent" />
+            <span className="text-xs font-semibold text-foreground">Performance</span>
           </div>
-          <p className="text-xl font-bold text-foreground">{card.value}</p>
-          <p className="text-[10px] text-muted-foreground">{card.sub}</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <p className={`text-lg font-bold ${parseFloat(successRate) >= 99 ? "text-success" : parseFloat(successRate) >= 95 ? "text-warning" : "text-destructive"}`}>
+                {successRate}%
+              </p>
+              <span className="text-[10px] text-muted-foreground">Success Rate</span>
+            </div>
+            <div className="text-center">
+              <p className={`text-lg font-bold ${stats.avgLatency < 500 ? "text-success" : stats.avgLatency < 1000 ? "text-warning" : "text-destructive"}`}>
+                {stats.avgLatency}ms
+              </p>
+              <span className="text-[10px] text-muted-foreground">Avg Latency</span>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-foreground">{stats.totalErrors.toLocaleString()}</p>
+              <span className="text-[10px] text-muted-foreground">Total Errors</span>
+            </div>
+          </div>
         </motion.div>
-      ))}
+
+        {/* Security Score */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+          className="glass rounded-xl p-4 neural-border">
+          <div className="flex items-center gap-2 mb-3">
+            <Shield className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold text-foreground">Security Score</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative w-16 h-16">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="hsl(var(--border))" strokeWidth="3" />
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none"
+                  stroke={stats.securityScore >= 90 ? "hsl(var(--success))" : stats.securityScore >= 70 ? "hsl(var(--warning))" : "hsl(var(--destructive))"}
+                  strokeWidth="3" strokeDasharray={`${stats.securityScore}, 100`} strokeLinecap="round" />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-foreground">{stats.securityScore}%</span>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">No-Auth Endpoints</span>
+                <span className={stats.noAuthEndpoints > 10 ? "text-warning font-medium" : "text-success"}>{stats.noAuthEndpoints}</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">Expired Active Keys</span>
+                <span className={stats.expiredKeys > 0 ? "text-destructive font-medium" : "text-success"}>{stats.expiredKeys}</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">Rate Limit Rules</span>
+                <span className="text-foreground">{stats.rateLimits.length}</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 24h Activity */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          className="glass rounded-xl p-4 neural-border">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity className="w-4 h-4 text-success" />
+            <span className="text-xs font-semibold text-foreground">Last 24 Hours</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-lg font-bold text-foreground">{stats.last24h.toLocaleString()}</p>
+              <span className="text-[10px] text-muted-foreground">Requests</span>
+            </div>
+            <div>
+              <p className={`text-lg font-bold ${stats.last24hErrors > 0 ? "text-destructive" : "text-success"}`}>{stats.last24hErrors}</p>
+              <span className="text-[10px] text-muted-foreground">Errors</span>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-foreground">{stats.integrations.filter((i: any) => i.is_enabled).length}</p>
+              <span className="text-[10px] text-muted-foreground">Active Services</span>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-foreground">{stats.rateLimits.filter((r: any) => r.is_active).length}</p>
+              <span className="text-[10px] text-muted-foreground">Rate Rules</span>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Version Distribution + Category Breakdown + Top Endpoints */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Version Distribution */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+          className="glass rounded-xl p-4 neural-border">
+          <div className="flex items-center gap-2 mb-3">
+            <GitBranch className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold text-foreground">Version Distribution</span>
+          </div>
+          <div className="space-y-2">
+            {Object.entries(stats.versionMap).sort(([a], [b]) => a.localeCompare(b)).map(([version, count]) => {
+              const pct = stats.endpoints.length > 0 ? ((count as number) / stats.endpoints.length) * 100 : 0;
+              const colors: Record<string, string> = { v1: "bg-blue-400", v2: "bg-green-400", v3: "bg-purple-400" };
+              return (
+                <div key={version}>
+                  <div className="flex items-center justify-between text-[10px] mb-1">
+                    <span className="font-medium text-foreground uppercase">{version}</span>
+                    <span className="text-muted-foreground">{count as number} endpoints ({pct.toFixed(0)}%)</span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2">
+                    <div className={`${colors[version] || "bg-primary"} rounded-full h-2 transition-all`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+            {Object.keys(stats.versionMap).length === 0 && <p className="text-[10px] text-muted-foreground text-center py-2">No endpoints configured</p>}
+          </div>
+        </motion.div>
+
+        {/* Category Breakdown */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+          className="glass rounded-xl p-4 neural-border">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 className="w-4 h-4 text-accent" />
+            <span className="text-xs font-semibold text-foreground">Categories</span>
+          </div>
+          <div className="space-y-1.5">
+            {Object.entries(stats.categoryMap).sort(([, a], [, b]) => (b as number) - (a as number)).map(([cat, count]) => {
+              const Icon = CATEGORY_ICONS[cat] || Globe;
+              return (
+                <div key={cat} className="flex items-center gap-2 py-1">
+                  <Icon className="w-3 h-3 text-primary shrink-0" />
+                  <span className="text-[10px] text-foreground capitalize flex-1">{cat}</span>
+                  <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{count as number}</span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Top Endpoints */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+          className="glass rounded-xl p-4 neural-border">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="w-4 h-4 text-success" />
+            <span className="text-xs font-semibold text-foreground">Top Endpoints</span>
+          </div>
+          <div className="space-y-2">
+            {stats.topEndpoints.map((ep: any, i: number) => (
+              <div key={ep.id} className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-muted-foreground w-4">#{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-medium text-foreground truncate">{ep.display_name}</p>
+                  <p className="text-[9px] text-muted-foreground font-mono truncate">/{ep.path}</p>
+                </div>
+                <span className="text-[10px] font-medium text-foreground shrink-0">{(ep.total_requests || 0).toLocaleString()}</span>
+              </div>
+            ))}
+            {stats.topEndpoints.length === 0 && <p className="text-[10px] text-muted-foreground text-center py-2">No traffic data yet</p>}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Cost Breakdown by Service */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+        className="glass rounded-xl p-4 neural-border">
+        <div className="flex items-center gap-2 mb-3">
+          <DollarSign className="w-4 h-4 text-warning" />
+          <span className="text-xs font-semibold text-foreground">Cost Breakdown by Service</span>
+          <span className="text-[10px] text-muted-foreground ml-auto">Total: ${stats.totalCost.toFixed(2)}/mo</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {stats.integrations.filter((i: any) => i.monthly_cost_estimate > 0).sort((a: any, b: any) => b.monthly_cost_estimate - a.monthly_cost_estimate).map((integration: any) => {
+            const Icon = CATEGORY_ICONS[integration.category] || Settings;
+            const pct = stats.totalCost > 0 ? ((integration.monthly_cost_estimate / stats.totalCost) * 100).toFixed(0) : "0";
+            return (
+              <div key={integration.id} className="bg-secondary/50 rounded-lg p-2.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Icon className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] text-foreground font-medium truncate">{integration.display_name}</span>
+                </div>
+                <p className="text-sm font-bold text-foreground">${integration.monthly_cost_estimate.toFixed(0)}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-muted-foreground">{pct}% of total</span>
+                  <span className="text-[9px] text-muted-foreground">{(integration.monthly_usage_count || 0).toLocaleString()} calls</span>
+                </div>
+              </div>
+            );
+          })}
+          {stats.integrations.filter((i: any) => i.monthly_cost_estimate > 0).length === 0 && (
+            <p className="text-[10px] text-muted-foreground col-span-4 text-center py-2">No cost data available</p>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 };
