@@ -6,12 +6,18 @@ import {
   RefreshCw, Calendar, Users, Zap, Shield, AlertTriangle, CheckCircle2,
   IndianRupee, Brain, Mail, Mic, Bell, Globe, Clock, Database,
   Receipt, Percent, Target, Landmark, ChevronDown, ChevronRight,
-  Filter, Download
+  Filter, Download, HardDrive
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import AICostTab from "./finance/AICostTab";
+import DatabaseCostTab from "./finance/DatabaseCostTab";
+import UserCostTab from "./finance/UserCostTab";
+import CostAlertsTab from "./finance/CostAlertsTab";
+import CostForecastTab from "./finance/CostForecastTab";
+import ExportReportsTab from "./finance/ExportReportsTab";
 
 // ─── Types ───
 interface SubscriptionRow {
@@ -68,9 +74,9 @@ const FinanceManagement = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-warning/30 to-success/20 flex items-center justify-center">
               <Landmark className="w-4 h-4 text-warning" />
             </div>
-            Finance Management
+            Finance & Cost Center
           </h2>
-          <p className="text-xs text-muted-foreground mt-1">Revenue • API Costs • Subscriptions • Profit & Loss</p>
+          <p className="text-xs text-muted-foreground mt-1">Revenue • AI Costs • Database • User Analytics • Forecasting • Exports</p>
         </div>
       </div>
 
@@ -80,13 +86,19 @@ const FinanceManagement = () => {
             { value: "overview", label: "Overview", icon: PieChart },
             { value: "revenue", label: "Revenue", icon: IndianRupee },
             { value: "costs", label: "API Costs", icon: IndianRupee },
+            { value: "ai_cost", label: "AI Cost", icon: Brain },
+            { value: "db_cost", label: "Database", icon: Database },
+            { value: "user_cost", label: "User Cost", icon: Users },
             { value: "subscriptions", label: "Subscriptions", icon: CreditCard },
             { value: "transactions", label: "Transactions", icon: Receipt },
-            { value: "pnl", label: "P&L Report", icon: BarChart3 },
+            { value: "pnl", label: "P&L", icon: BarChart3 },
+            { value: "alerts", label: "Alerts", icon: AlertTriangle },
+            { value: "forecast", label: "Forecast", icon: TrendingUp },
+            { value: "export", label: "Export", icon: Download },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5 text-xs px-3 py-1.5">
               <tab.icon className="w-3.5 h-3.5" />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -94,9 +106,15 @@ const FinanceManagement = () => {
         <TabsContent value="overview"><OverviewTab /></TabsContent>
         <TabsContent value="revenue"><RevenueTab /></TabsContent>
         <TabsContent value="costs"><CostsTab /></TabsContent>
+        <TabsContent value="ai_cost"><AICostTab /></TabsContent>
+        <TabsContent value="db_cost"><DatabaseCostTab /></TabsContent>
+        <TabsContent value="user_cost"><UserCostTab /></TabsContent>
         <TabsContent value="subscriptions"><SubscriptionsTab /></TabsContent>
         <TabsContent value="transactions"><TransactionsTab /></TabsContent>
         <TabsContent value="pnl"><PnLTab /></TabsContent>
+        <TabsContent value="alerts"><CostAlertsTab /></TabsContent>
+        <TabsContent value="forecast"><CostForecastTab /></TabsContent>
+        <TabsContent value="export"><ExportReportsTab /></TabsContent>
       </Tabs>
     </div>
   );
