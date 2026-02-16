@@ -561,7 +561,7 @@ const AIChatPage = () => {
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Header */}
       <header className="border-b border-border bg-background/95 backdrop-blur-xl px-4 py-3 flex items-center gap-3 shrink-0">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-secondary transition-colors">
+        <button onClick={() => { if (window.history.length > 1) navigate(-1); else navigate("/app"); }} className="p-2 rounded-xl hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
 
