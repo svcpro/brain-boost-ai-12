@@ -54,7 +54,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
 };
 
 const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[] }[] = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin", "api_admin"] },
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
   { key: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
   { key: "ai", label: "AI Models", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
   { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
@@ -69,7 +69,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
   { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
   { key: "settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
-  { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin", "api_admin"] },
+  { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
 ];
 
 const AdminPanel = () => {
@@ -77,7 +77,8 @@ const AdminPanel = () => {
   const { roles, isAdmin, isSuperAdmin, loading: roleLoading, hasAnyRole, refetch: refetchRoles } = useAdminRole();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [section, setSection] = useState<AdminSection>("dashboard");
+  const defaultSection: AdminSection = roles.length === 1 && roles[0] === "api_admin" ? "apis" : "dashboard";
+  const [section, setSection] = useState<AdminSection>(defaultSection);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (roleLoading) {
