@@ -34,8 +34,9 @@ import AdminProfile from "@/components/admin/AdminProfile";
 import ChatManagement from "@/components/admin/ChatManagement";
 import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
 import FinanceManagement from "@/components/admin/FinanceManagement";
+import CommunityManagement from "@/components/admin/CommunityManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -62,6 +63,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
   { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
   { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
+  { key: "community", label: "Community", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
@@ -199,6 +201,7 @@ const AdminPanel = () => {
             {section === "chat" && <ChatManagement />}
             {section === "knowledge" && <KnowledgeSection />}
             {section === "leaderboard" && <LeaderboardManagement />}
+            {section === "community" && <CommunityManagement />}
             {section === "subscriptions" && <SubscriptionsSection />}
             {section === "plan_gating" && <PlanGatingManagement />}
             {section === "apis" && <ApiManagement />}
