@@ -656,16 +656,19 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
   };
 
   const suggestTitles = async () => {
+    console.log("[AI Suggest] content value:", JSON.stringify(content), "length:", content.length);
     if (!content.trim()) { toast({ title: "✍️ Write some content first so AI can suggest titles" }); return; }
     setLoadingTitles(true);
+    toast({ title: "🔄 Generating title suggestions..." });
     try {
       const res = await supabase.functions.invoke("ai-community-assist", {
         body: { action: "enhance_post", content, post_type: postType, enhance_type: "suggest_title" }
       });
+      console.log("[AI Suggest] response:", JSON.stringify(res.data), "error:", res.error);
       if (res.error) { toast({ title: "AI error", description: String(res.error), variant: "destructive" }); }
-      else if (res.data?.titles) setTitleSuggestions(res.data.titles);
+      else if (res.data?.titles) { setTitleSuggestions(res.data.titles); toast({ title: "✅ Title suggestions ready!" }); }
       else toast({ title: "No suggestions returned", variant: "destructive" });
-    } catch (e) { toast({ title: "AI Suggest failed", description: String(e), variant: "destructive" }); }
+    } catch (e) { console.error("[AI Suggest] exception:", e); toast({ title: "AI Suggest failed", description: String(e), variant: "destructive" }); }
     setLoadingTitles(false);
   };
 
