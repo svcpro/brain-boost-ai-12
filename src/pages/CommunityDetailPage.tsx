@@ -656,38 +656,44 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
   };
 
   const suggestTitles = async () => {
-    if (!content.trim()) { toast({ title: "Write some content first" }); return; }
+    if (!content.trim()) { toast({ title: "✍️ Write some content first so AI can suggest titles" }); return; }
     setLoadingTitles(true);
     try {
       const res = await supabase.functions.invoke("ai-community-assist", {
         body: { action: "enhance_post", content, post_type: postType, enhance_type: "suggest_title" }
       });
-      if (res.data?.titles) setTitleSuggestions(res.data.titles);
-    } catch { /* ignore */ }
+      if (res.error) { toast({ title: "AI error", description: String(res.error), variant: "destructive" }); }
+      else if (res.data?.titles) setTitleSuggestions(res.data.titles);
+      else toast({ title: "No suggestions returned", variant: "destructive" });
+    } catch (e) { toast({ title: "AI Suggest failed", description: String(e), variant: "destructive" }); }
     setLoadingTitles(false);
   };
 
   const improveContent = async () => {
-    if (!content.trim()) return;
+    if (!content.trim()) { toast({ title: "✍️ Write some content first to enhance" }); return; }
     setLoadingEnhance(true);
     try {
       const res = await supabase.functions.invoke("ai-community-assist", {
         body: { action: "enhance_post", title, content, post_type: postType, enhance_type: "improve_content" }
       });
-      if (res.data?.improved_content) setContent(res.data.improved_content);
-    } catch { toast({ title: "Couldn't enhance content", variant: "destructive" }); }
+      if (res.error) { toast({ title: "AI error", description: String(res.error), variant: "destructive" }); }
+      else if (res.data?.improved_content) setContent(res.data.improved_content);
+      else toast({ title: "No enhancement returned", variant: "destructive" });
+    } catch (e) { toast({ title: "Couldn't enhance content", description: String(e), variant: "destructive" }); }
     setLoadingEnhance(false);
   };
 
   const generateContent = async () => {
-    if (!title.trim()) { toast({ title: "Enter a title first" }); return; }
+    if (!title.trim()) { toast({ title: "📝 Enter a title first so AI can write content" }); return; }
     setLoadingGenerate(true);
     try {
       const res = await supabase.functions.invoke("ai-community-assist", {
         body: { action: "enhance_post", title, post_type: postType, enhance_type: "generate_content" }
       });
-      if (res.data?.generated_content) setContent(res.data.generated_content);
-    } catch { toast({ title: "Couldn't generate content", variant: "destructive" }); }
+      if (res.error) { toast({ title: "AI error", description: String(res.error), variant: "destructive" }); }
+      else if (res.data?.generated_content) setContent(res.data.generated_content);
+      else toast({ title: "No content generated", variant: "destructive" });
+    } catch (e) { toast({ title: "Couldn't generate content", description: String(e), variant: "destructive" }); }
     setLoadingGenerate(false);
   };
 
@@ -764,7 +770,7 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-foreground">Title</label>
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                onClick={suggestTitles} disabled={loadingTitles || !content.trim()}
+                onClick={suggestTitles} disabled={loadingTitles}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary/15 to-accent/15 text-primary text-[10px] font-semibold disabled:opacity-50 hover:from-primary/25 hover:to-accent/25 transition-all">
                 {loadingTitles ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
                 AI Suggest Titles
@@ -792,14 +798,14 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
               <label className="text-xs font-semibold text-foreground">Content</label>
               <div className="flex gap-1">
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                  onClick={generateContent} disabled={loadingGenerate || !title.trim()}
+                  onClick={generateContent} disabled={loadingGenerate}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-accent/15 to-primary/15 text-accent text-[9px] font-semibold disabled:opacity-50 hover:from-accent/25 hover:to-primary/25 transition-all"
                   title="AI writes content based on your title">
                   {loadingGenerate ? <Loader2 className="w-3 h-3 animate-spin" /> : <Brain className="w-3 h-3" />}
                   AI Write
                 </motion.button>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                  onClick={improveContent} disabled={loadingEnhance || !content.trim()}
+                  onClick={improveContent} disabled={loadingEnhance}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-primary/15 to-accent/15 text-primary text-[9px] font-semibold disabled:opacity-50 hover:from-primary/25 hover:to-accent/25 transition-all"
                   title="AI improves your existing content">
                   {loadingEnhance ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
