@@ -228,7 +228,7 @@ const FlutterApiHub = () => {
 // ─── Quick Start ───
 const QuickStartSection = () => {
   const { toast } = useToast();
-  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  const baseUrl = "https://api.acry.ai/v1";
   const copy = (text: string) => { navigator.clipboard.writeText(text); toast({ title: "Copied!" }); };
 
   const groupCounts = useMemo(() => 
@@ -426,7 +426,7 @@ const RoutesSection = () => {
   const [search, setSearch] = useState("");
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
   const [filterGroup, setFilterGroup] = useState<string>("all");
-  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  const baseUrl = "https://api.acry.ai/v1";
 
   const groups = useMemo(() => ACRY_API_ROUTES.reduce((acc, route) => {
     if (!acc[route.group]) acc[route.group] = [];
@@ -1051,7 +1051,7 @@ final profile = await safeApiCall(() => api.get('user/profile'));`} lang="dart" 
 // ─── Documentation Export ───
 const DocsExportSection = () => {
   const { toast } = useToast();
-  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  const baseUrl = "https://api.acry.ai/v1";
 
   const generateOpenApiSpec = useCallback(() => {
     const paths: Record<string, any> = {};
