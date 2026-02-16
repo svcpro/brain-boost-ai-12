@@ -285,7 +285,7 @@ const OverviewTab = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Total API Keys", value: `${stats.keys.filter((k: any) => k.is_active).length}/${stats.keys.length}`, sub: "active / total", icon: Key, color: "text-primary", gradient: "from-primary/20 to-primary/5" },
-          { label: "Endpoints", value: `${stats.endpoints.filter((e: any) => e.is_enabled).length}/${stats.endpoints.length}`, sub: "enabled / total", icon: Globe, color: "text-accent", gradient: "from-accent/20 to-accent/5" },
+          { label: "Total Endpoints", value: "124", sub: `${stats.endpoints.length} registered in DB`, icon: Globe, color: "text-accent", gradient: "from-accent/20 to-accent/5" },
           { label: "Total Requests", value: stats.totalRequests.toLocaleString(), sub: "all time", icon: Activity, color: "text-success", gradient: "from-success/20 to-success/5" },
           { label: "Monthly Cost", value: `$${stats.totalCost.toFixed(0)}`, sub: `${stats.totalUsage.toLocaleString()} API calls`, icon: DollarSign, color: "text-warning", gradient: "from-warning/20 to-warning/5" },
         ].map((card, i) => (
