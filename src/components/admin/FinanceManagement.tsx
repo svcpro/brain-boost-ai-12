@@ -18,6 +18,7 @@ import UserCostTab from "./finance/UserCostTab";
 import CostAlertsTab from "./finance/CostAlertsTab";
 import CostForecastTab from "./finance/CostForecastTab";
 import ExportReportsTab from "./finance/ExportReportsTab";
+import BillingLinksTab from "./finance/BillingLinksTab";
 
 // ─── Types ───
 interface SubscriptionRow {
@@ -95,6 +96,7 @@ const FinanceManagement = () => {
             { value: "alerts", label: "Alerts", icon: AlertTriangle },
             { value: "forecast", label: "Forecast", icon: TrendingUp },
             { value: "export", label: "Export", icon: Download },
+            { value: "billing", label: "Billing Links", icon: Globe },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5 text-xs px-3 py-1.5">
               <tab.icon className="w-3.5 h-3.5" />
@@ -115,6 +117,7 @@ const FinanceManagement = () => {
         <TabsContent value="alerts"><CostAlertsTab /></TabsContent>
         <TabsContent value="forecast"><CostForecastTab /></TabsContent>
         <TabsContent value="export"><ExportReportsTab /></TabsContent>
+        <TabsContent value="billing"><BillingLinksTab /></TabsContent>
       </Tabs>
     </div>
   );
