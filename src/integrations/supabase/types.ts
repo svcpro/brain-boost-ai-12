@@ -887,15 +887,23 @@ export type Database = {
         Row: {
           ai_answer: string | null
           ai_answered_at: string | null
+          ai_detailed_summary: string | null
+          ai_key_insights: Json | null
+          ai_key_points: Json | null
+          ai_summary: string | null
+          ai_tags: string[] | null
           comment_count: number
           community_id: string
           content: string
           created_at: string
           id: string
           image_urls: string[] | null
+          importance_level: string | null
+          importance_score: number | null
           is_deleted: boolean
           is_pinned: boolean
           post_type: string
+          summary_updated_at: string | null
           title: string
           updated_at: string
           upvote_count: number
@@ -905,15 +913,23 @@ export type Database = {
         Insert: {
           ai_answer?: string | null
           ai_answered_at?: string | null
+          ai_detailed_summary?: string | null
+          ai_key_insights?: Json | null
+          ai_key_points?: Json | null
+          ai_summary?: string | null
+          ai_tags?: string[] | null
           comment_count?: number
           community_id: string
           content: string
           created_at?: string
           id?: string
           image_urls?: string[] | null
+          importance_level?: string | null
+          importance_score?: number | null
           is_deleted?: boolean
           is_pinned?: boolean
           post_type?: string
+          summary_updated_at?: string | null
           title: string
           updated_at?: string
           upvote_count?: number
@@ -923,15 +939,23 @@ export type Database = {
         Update: {
           ai_answer?: string | null
           ai_answered_at?: string | null
+          ai_detailed_summary?: string | null
+          ai_key_insights?: Json | null
+          ai_key_points?: Json | null
+          ai_summary?: string | null
+          ai_tags?: string[] | null
           comment_count?: number
           community_id?: string
           content?: string
           created_at?: string
           id?: string
           image_urls?: string[] | null
+          importance_level?: string | null
+          importance_score?: number | null
           is_deleted?: boolean
           is_pinned?: boolean
           post_type?: string
+          summary_updated_at?: string | null
           title?: string
           updated_at?: string
           upvote_count?: number
@@ -944,6 +968,44 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discussion_recommendations: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          reason: string | null
+          relevance_score: number | null
+          seen: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          reason?: string | null
+          relevance_score?: number | null
+          seen?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          reason?: string | null
+          relevance_score?: number | null
+          seen?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussion_recommendations_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
             referencedColumns: ["id"]
           },
         ]
