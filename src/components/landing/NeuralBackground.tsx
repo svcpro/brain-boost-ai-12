@@ -1,7 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const NeuralBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isMobile = useIsMobile();
 
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -11,11 +13,12 @@ const NeuralBackground = () => {
 
     let animationId: number;
     const nodes: { x: number; y: number; vx: number; vy: number; radius: number }[] = [];
-    // Reduce node count for better performance
-    const nodeCount = 30;
+    // Far fewer nodes on mobile
+    const nodeCount = isMobile ? 12 : 30;
+    const maxDist = isMobile ? 80 : 120;
 
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 2);
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
       canvas.style.width = `${window.innerWidth}px`;
@@ -29,8 +32,8 @@ const NeuralBackground = () => {
       nodes.push({
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
+        vx: (Math.random() - 0.5) * 0.2,
+        vy: (Math.random() - 0.5) * 0.2,
         radius: Math.random() * 1.5 + 0.5,
       });
     }
@@ -54,8 +57,6 @@ const NeuralBackground = () => {
         ctx.fill();
       }
 
-      // Reduce connection distance for fewer draw calls
-      const maxDist = 120;
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[i].x - nodes[j].x;
@@ -81,7 +82,7 @@ const NeuralBackground = () => {
       cancelAnimationFrame(animationId);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     const cleanup = initCanvas();
