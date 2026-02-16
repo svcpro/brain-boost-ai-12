@@ -1,8 +1,9 @@
 import { useState } from "react";
 import {
   Users, MessageSquare, BarChart3, MessageCircle, Shield, AlertTriangle, Settings,
-  Activity, FileText, TrendingUp
+  Activity, FileText, TrendingUp, Lock
 } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 import CommunityOverviewDashboard from "./community/CommunityOverviewDashboard";
 import CommunityListManager from "./community/CommunityListManager";
 import PostManager from "./community/PostManager";
@@ -31,6 +32,22 @@ type TabId = typeof tabs[number]["id"];
 
 const CommunityManagement = () => {
   const [tab, setTab] = useState<TabId>("overview");
+  const { hasPermission, loading: permLoading } = usePermissions();
+
+  const permMap: Record<TabId, string> = {
+    overview: "community.view",
+    communities: "community.manage",
+    posts: "community.moderate",
+    comments: "community.moderate",
+    abuse: "community.view_flags",
+    moderation: "community.ban_users",
+    rules: "community.manage_rules",
+    analytics: "community.view_analytics",
+    audit: "community.view_audit",
+    activity: "community.view_audit",
+  };
+
+  const visibleTabs = tabs.filter(t => hasPermission(permMap[t.id]));
 
   return (
     <div className="space-y-4">
@@ -43,7 +60,7 @@ const CommunityManagement = () => {
 
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
-        {tabs.map(t => (
+        {visibleTabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
               tab === t.id ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground hover:text-foreground"
@@ -54,17 +71,26 @@ const CommunityManagement = () => {
         ))}
       </div>
 
-      {/* Tab Content */}
-      {tab === "overview" && <CommunityOverviewDashboard />}
-      {tab === "communities" && <CommunityListManager />}
-      {tab === "posts" && <PostManager />}
-      {tab === "comments" && <CommentManager />}
-      {tab === "abuse" && <AbuseDetectionPanel />}
-      {tab === "moderation" && <UserModerationPanel />}
-      {tab === "rules" && <ModerationRulesPanel />}
-      {tab === "analytics" && <CommunityAnalytics />}
-      {tab === "audit" && <ModerationAuditLog />}
-      {tab === "activity" && <ModerationActivityStream />}
+      {/* Permission guard */}
+      {!hasPermission(permMap[tab]) ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+          <Lock className="w-8 h-8" />
+          <p className="text-sm">You don't have permission to access this section.</p>
+        </div>
+      ) : (
+        <>
+          {tab === "overview" && <CommunityOverviewDashboard />}
+          {tab === "communities" && <CommunityListManager />}
+          {tab === "posts" && <PostManager />}
+          {tab === "comments" && <CommentManager />}
+          {tab === "abuse" && <AbuseDetectionPanel />}
+          {tab === "moderation" && <UserModerationPanel />}
+          {tab === "rules" && <ModerationRulesPanel />}
+          {tab === "analytics" && <CommunityAnalytics />}
+          {tab === "audit" && <ModerationAuditLog />}
+          {tab === "activity" && <ModerationActivityStream />}
+        </>
+      )}
     </div>
   );
 };
