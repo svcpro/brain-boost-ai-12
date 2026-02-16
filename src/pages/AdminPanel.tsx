@@ -25,8 +25,9 @@ import ApiManagement from "@/components/app/ApiManagement";
 import UserManagement from "@/components/app/UserManagement";
 import AdminNotificationCenter from "@/components/app/AdminNotificationCenter";
 import CampaignManager from "@/components/app/CampaignManager";
+import LeaderboardManagement from "@/components/app/LeaderboardManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "subscriptions" | "apis" | "notifications" | "campaigns" | "admins" | "audit" | "settings";
+type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "apis" | "notifications" | "campaigns" | "admins" | "audit" | "settings";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -49,6 +50,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
   { key: "ai", label: "AI Models", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
   { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
+  { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
@@ -173,6 +175,7 @@ const AdminPanel = () => {
             {section === "users" && <UserManagement />}
             {section === "ai" && <AISection />}
             {section === "knowledge" && <KnowledgeSection />}
+            {section === "leaderboard" && <LeaderboardManagement />}
             {section === "subscriptions" && <SubscriptionsSection />}
             {section === "apis" && <ApiManagement />}
             {section === "notifications" && <AdminNotificationCenter />}
