@@ -27,6 +27,7 @@ import AdminNotificationCenter from "@/components/app/AdminNotificationCenter";
 import CampaignManager from "@/components/app/CampaignManager";
 import LeaderboardManagement from "@/components/app/LeaderboardManagement";
 import PlanGatingManagement from "@/components/app/PlanGatingManagement";
+import PermissionManagement from "@/components/admin/PermissionManagement";
 
 type AdminSection = "dashboard" | "users" | "ai" | "knowledge" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "notifications" | "campaigns" | "admins" | "audit" | "settings";
 
@@ -2023,6 +2024,13 @@ const AdminsSection = ({ isSuperAdmin, refetchRoles, toast }: { isSuperAdmin: bo
             </div>
           ))}
           {admins.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No admin roles assigned</p>}
+        </div>
+      )}
+
+      {/* Permission Matrix */}
+      {isSuperAdmin && (
+        <div className="mt-8 pt-6 border-t border-border">
+          <PermissionManagement />
         </div>
       )}
     </div>
