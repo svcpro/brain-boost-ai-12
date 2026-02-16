@@ -648,6 +648,15 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               <span className="text-xs font-semibold text-foreground">7 Day Streak</span>
               <span className="text-sm">🔥</span>
             </motion.div>
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+              onClick={() => navigate("/profile")}
+              className="mt-1.5 text-[11px] text-primary hover:underline font-medium"
+            >
+              Manage Profile →
+            </motion.button>
           </div>
         </div>
       </motion.div>
