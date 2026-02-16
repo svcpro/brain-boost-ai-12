@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.email-webhook]
 verify_jwt = false
+
+[functions.send-campaign-email]
+verify_jwt = false

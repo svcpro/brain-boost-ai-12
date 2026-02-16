@@ -345,6 +345,12 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
 
       const recipientIds = allProfiles.map((p: any) => p.id);
 
+      if (recipientIds.length === 0) {
+        toast({ title: "No users found", description: `No users match the "${targetPlan}" plan filter. Try "All Users" instead.`, variant: "destructive" });
+        setCreating(null);
+        return;
+      }
+
       const isScheduled = scheduleMode && scheduleDate;
       const scheduledAt = isScheduled ? new Date(`${scheduleDate}T${scheduleTime}`).toISOString() : null;
 
@@ -381,6 +387,23 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
           }));
           for (let i = 0; i < notifications.length; i += 50) {
             await supabase.from("notification_history").insert(notifications.slice(i, i + 50));
+          }
+        }
+
+        if (channel === "email") {
+          // Actually send emails via edge function
+          try {
+            const { data: emailResult } = await supabase.functions.invoke("send-campaign-email", {
+              body: { recipientIds, subject: aiContent.subject, htmlBody: aiContent.html_body, campaignId: campaign.id },
+            });
+            if (emailResult?.sentCount > 0) {
+              toast({ title: `📧 ${emailResult.sentCount} email(s) delivered!` });
+            }
+            if (emailResult?.failedCount > 0) {
+              toast({ title: `⚠️ ${emailResult.failedCount} email(s) failed`, variant: "destructive" });
+            }
+          } catch (emailErr: any) {
+            console.error("Email sending error:", emailErr);
           }
         }
 
