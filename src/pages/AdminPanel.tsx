@@ -28,7 +28,7 @@ import CampaignManager from "@/components/app/CampaignManager";
 import LeaderboardManagement from "@/components/app/LeaderboardManagement";
 import PlanGatingManagement from "@/components/app/PlanGatingManagement";
 import PermissionManagement from "@/components/admin/PermissionManagement";
-import AIModelManagement from "@/components/admin/AIModelManagement";
+import AICommandCenter from "@/components/admin/AICommandCenter";
 import SystemMonitor from "@/components/admin/SystemMonitor";
 import AdminProfile from "@/components/admin/AdminProfile";
 import ChatManagement from "@/components/admin/ChatManagement";
@@ -58,7 +58,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
 const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[] }[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
   { key: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
-  { key: "ai", label: "AI Models", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
+  { key: "ai", label: "AI Command", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
   { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
   { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
   { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
@@ -195,7 +195,7 @@ const AdminPanel = () => {
           <motion.div key={section} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             {section === "dashboard" && <DashboardSection />}
             {section === "users" && <UserManagement />}
-            {section === "ai" && <AIModelManagement />}
+            {section === "ai" && <AICommandCenter />}
             {section === "chat" && <ChatManagement />}
             {section === "knowledge" && <KnowledgeSection />}
             {section === "leaderboard" && <LeaderboardManagement />}
