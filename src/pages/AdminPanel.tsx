@@ -223,21 +223,23 @@ const DashboardSection = () => {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const [usersRes, subsRes, logsRes, predsRes, activityRes, txRes, studyActivityRes, auditRes] = await Promise.all([
-        supabase.from("profiles").select("id, created_at", { count: "exact" }),
-        supabase.from("user_subscriptions").select("id, plan_id, amount, status"),
-        supabase.from("study_logs").select("id, created_at").gte("created_at", today),
-        supabase.from("model_predictions").select("id").gte("created_at", today),
-        supabase.from("study_logs").select("user_id, created_at, duration_minutes").gte("created_at", thirtyDaysAgo.toISOString()),
+      const [usersCountRes, newTodayRes, activeSubsRes, revenueRes, logsRes, predsRes, activityRes, txRes, studyActivityRes, auditRes] = await Promise.all([
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", today),
+        supabase.from("user_subscriptions").select("id", { count: "exact", head: true }).eq("status", "active").neq("plan_id", "free"),
+        supabase.from("user_subscriptions").select("amount").eq("status", "active"),
+        supabase.from("study_logs").select("id", { count: "exact", head: true }).gte("created_at", today),
+        supabase.from("model_predictions").select("id", { count: "exact", head: true }).gte("created_at", today),
+        supabase.from("study_logs").select("user_id, created_at, duration_minutes").gte("created_at", thirtyDaysAgo.toISOString()).limit(5000),
         supabase.from("user_subscriptions").select("*").order("created_at", { ascending: false }).limit(8),
         supabase.from("study_logs").select("id, user_id, created_at, duration_minutes, study_mode, confidence_level").order("created_at", { ascending: false }).limit(10),
         supabase.from("admin_audit_logs").select("*").order("created_at", { ascending: false }).limit(8),
       ]);
-      const totalUsers = usersRes.count || 0;
-      const activeSubs = (subsRes.data || []).filter(s => s.status === "active" && s.plan_id !== "free").length;
-      const revenue = (subsRes.data || []).filter(s => s.status === "active").reduce((sum, s) => sum + (s.amount || 0), 0);
-      const newToday = (usersRes.data || []).filter(u => u.created_at >= today).length;
-      setStats({ totalUsers, activeSubs, revenue, newToday, studySessions: logsRes.data?.length || 0, predictions: predsRes.data?.length || 0 });
+      const totalUsers = usersCountRes.count || 0;
+      const activeSubs = activeSubsRes.count || 0;
+      const revenue = (revenueRes.data || []).reduce((sum, s: any) => sum + (s.amount || 0), 0);
+      const newToday = newTodayRes.count || 0;
+      setStats({ totalUsers, activeSubs, revenue, newToday, studySessions: logsRes.count || 0, predictions: predsRes.count || 0 });
       setRecentTransactions(txRes.data || []);
       setRecentActivity(studyActivityRes.data || []);
       setRecentLogs(auditRes.data || []);
