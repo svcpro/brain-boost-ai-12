@@ -8,7 +8,7 @@ const SCHEMA_TEMPLATES: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "ACRY - AI Second Brain",
-    url: "https://brain-boost-ai-12.lovable.app",
+    url: "https://acry.ai",
     description: "AI-powered exam preparation platform",
   },
   article: {

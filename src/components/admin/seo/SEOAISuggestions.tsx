@@ -203,7 +203,7 @@ const SEOAISuggestions = () => {
               <div className="p-3 rounded-lg bg-background border border-border">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Google Preview</span>
                 <p className="text-blue-400 text-sm font-medium truncate">{s.suggested_meta_title}</p>
-                <p className="text-green-500 text-[11px]">brain-boost-ai-12.lovable.app{s.page_url}</p>
+                <p className="text-green-500 text-[11px]"><p className="text-green-500 text-[11px]">acry.ai{s.page_url}</p></p>
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{s.suggested_meta_description || ""}</p>
               </div>
             )}
