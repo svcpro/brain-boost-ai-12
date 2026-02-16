@@ -116,3 +116,9 @@ verify_jwt = false
 
 [functions.ai-support-chat]
 verify_jwt = false
+
+[functions.ai-community-answer]
+verify_jwt = false
+
+[functions.discussion-intelligence]
+verify_jwt = false

@@ -6,7 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Loader2, Users, MessageSquare, Plus, ThumbsUp,
-  Brain, Send, ChevronDown, Eye, Clock, Sparkles, X
+  Brain, Send, ChevronDown, Eye, Clock, Sparkles, X,
+  Tag, Lightbulb, Star, Zap, BookOpen, FileText
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -16,6 +17,12 @@ const POST_TYPES = [
   { value: "doubt", label: "🤔 Doubt" },
   { value: "strategy", label: "📋 Strategy" },
 ];
+
+const IMPORTANCE_BADGE: Record<string, { label: string; cls: string }> = {
+  high: { label: "🔥 High Importance", cls: "bg-destructive/15 text-destructive" },
+  medium: { label: "⭐ Medium", cls: "bg-warning/15 text-warning" },
+  normal: { label: "", cls: "" },
+};
 
 const CommunityDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -28,9 +35,11 @@ const CommunityDetailPage = () => {
   const [isMember, setIsMember] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  const [expandedSummary, setExpandedSummary] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, any[]>>({});
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [myVotes, setMyVotes] = useState<Set<string>>(new Set());
+  const [analyzingPost, setAnalyzingPost] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!slug) return;
@@ -41,7 +50,7 @@ const CommunityDetailPage = () => {
     const [postsRes, memberRes, votesRes] = await Promise.all([
       supabase.from("community_posts").select("*").eq("community_id", comm.id).eq("is_deleted", false).order("is_pinned", { ascending: false }).order("created_at", { ascending: false }).limit(50),
       user ? supabase.from("community_members").select("id").eq("community_id", comm.id).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null }),
-      user ? supabase.from("post_votes").select("target_id").eq("user_id", user.id) : Promise.resolve({ data: [] }),
+      user ? (supabase as any).from("post_votes").select("target_id").eq("user_id", user.id) : Promise.resolve({ data: [] }),
     ]);
     setPosts(postsRes.data || []);
     setIsMember(!!memberRes.data);
@@ -51,7 +60,6 @@ const CommunityDetailPage = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!community) return;
     const channel = supabase.channel(`community-${community.id}`)
@@ -76,11 +84,11 @@ const CommunityDetailPage = () => {
   const toggleVote = async (targetId: string, targetType: string) => {
     if (!user) return;
     if (myVotes.has(targetId)) {
-      await supabase.from("post_votes").delete().eq("user_id", user.id).eq("target_id", targetId);
+      await (supabase as any).from("post_votes").delete().eq("user_id", user.id).eq("target_id", targetId);
       setMyVotes(prev => { const n = new Set(prev); n.delete(targetId); return n; });
       if (targetType === "post") setPosts(prev => prev.map(p => p.id === targetId ? { ...p, upvote_count: Math.max(0, p.upvote_count - 1) } : p));
     } else {
-      await supabase.from("post_votes").insert({ user_id: user.id, target_id: targetId, target_type: targetType });
+      await (supabase as any).from("post_votes").insert({ user_id: user.id, target_id: targetId, target_type: targetType });
       setMyVotes(prev => new Set([...prev, targetId]));
       if (targetType === "post") setPosts(prev => prev.map(p => p.id === targetId ? { ...p, upvote_count: p.upvote_count + 1 } : p));
     }
@@ -101,7 +109,6 @@ const CommunityDetailPage = () => {
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     await supabase.from("community_posts").update({ comment_count: (posts.find(p => p.id === postId)?.comment_count || 0) + 1 }).eq("id", postId);
     setCommentText(prev => ({ ...prev, [postId]: "" }));
-    // Reload comments
     const { data } = await supabase.from("post_comments").select("*").eq("post_id", postId).eq("is_deleted", false).order("created_at", { ascending: true });
     setComments(prev => ({ ...prev, [postId]: data || [] }));
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p));
@@ -117,6 +124,34 @@ const CommunityDetailPage = () => {
     } catch {
       toast({ title: "AI couldn't answer right now", variant: "destructive" });
     }
+  };
+
+  const analyzePost = async (postId: string) => {
+    setAnalyzingPost(postId);
+    toast({ title: "AI analyzing discussion... 🔍" });
+    try {
+      const res = await supabase.functions.invoke("discussion-intelligence", {
+        body: { action: "analyze_post", post_id: postId },
+      });
+      if (res.error) throw new Error(res.error.message);
+      const analysis = res.data?.analysis;
+      if (analysis) {
+        setPosts(prev => prev.map(p => p.id === postId ? {
+          ...p,
+          ai_summary: analysis.short_summary,
+          ai_detailed_summary: analysis.detailed_summary,
+          ai_key_points: analysis.key_points,
+          ai_tags: analysis.tags,
+          importance_score: analysis.importance_score,
+          importance_level: analysis.importance_level,
+          ai_key_insights: analysis.key_insights,
+        } : p));
+      }
+      toast({ title: "Analysis complete! ✨" });
+    } catch {
+      toast({ title: "Analysis failed", variant: "destructive" });
+    }
+    setAnalyzingPost(null);
   };
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
@@ -158,88 +193,176 @@ const CommunityDetailPage = () => {
             <p className="text-sm text-muted-foreground">No posts yet. Be the first!</p>
           </div>
         ) : (
-          posts.map((post, i) => (
-            <motion.div key={post.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-              className="glass rounded-xl p-4 neural-border space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                  {post.user_id?.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
-                      {POST_TYPES.find(t => t.value === post.post_type)?.label || post.post_type}
-                    </span>
-                    {post.is_pinned && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-warning/15 text-warning font-medium">📌 Pinned</span>}
+          posts.map((post, i) => {
+            const imp = IMPORTANCE_BADGE[post.importance_level] || IMPORTANCE_BADGE.normal;
+            return (
+              <motion.div key={post.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+                className="glass rounded-xl p-4 neural-border space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    {post.user_id?.slice(0, 2).toUpperCase()}
                   </div>
-                  <h3 className="text-sm font-semibold text-foreground mt-1">{post.title}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-4">{post.content}</p>
-                  <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
-                  </div>
-                </div>
-              </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
+                        {POST_TYPES.find(t => t.value === post.post_type)?.label || post.post_type}
+                      </span>
+                      {post.is_pinned && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-warning/15 text-warning font-medium">📌 Pinned</span>}
+                      {imp.label && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${imp.cls}`}>{imp.label}</span>}
+                      {post.importance_score > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                          Score: {post.importance_score}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground mt-1">{post.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-4">{post.content}</p>
 
-              {/* AI Answer */}
-              {post.ai_answer && (
-                <div className="ml-11 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Brain className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-[10px] font-semibold text-primary">AI Brain Answer</span>
-                  </div>
-                  <p className="text-xs text-foreground whitespace-pre-wrap">{post.ai_answer}</p>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex items-center gap-2 ml-11">
-                <button onClick={() => toggleVote(post.id, "post")}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${myVotes.has(post.id) ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}>
-                  <ThumbsUp className="w-3.5 h-3.5" /> {post.upvote_count}
-                </button>
-                <button onClick={() => loadComments(post.id)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary/50 text-[11px] text-muted-foreground hover:text-foreground">
-                  <MessageSquare className="w-3.5 h-3.5" /> {post.comment_count}
-                </button>
-                {!post.ai_answer && post.post_type === "question" && (
-                  <button onClick={() => requestAIAnswer(post.id, post.content, post.title)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-[11px] text-primary font-medium hover:bg-primary/20">
-                    <Sparkles className="w-3.5 h-3.5" /> Ask AI
-                  </button>
-                )}
-              </div>
-
-              {/* Comments */}
-              <AnimatePresence>
-                {expandedPost === post.id && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                    className="ml-11 space-y-2 overflow-hidden">
-                    {(comments[post.id] || []).map(c => (
-                      <div key={c.id} className={`p-2.5 rounded-lg text-xs ${c.is_ai_answer ? "bg-primary/5 border border-primary/20" : "bg-secondary/30"}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          {c.is_ai_answer ? <Brain className="w-3 h-3 text-primary" /> : <div className="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center text-[8px] font-bold text-accent">{c.user_id?.slice(0, 2).toUpperCase()}</div>}
-                          <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
-                          {c.is_ai_answer && <span className="text-[9px] text-primary font-semibold">AI Brain</span>}
-                        </div>
-                        <p className="text-foreground">{c.content}</p>
-                      </div>
-                    ))}
-                    {isMember && (
-                      <div className="flex gap-2">
-                        <input value={commentText[post.id] || ""} onChange={e => setCommentText(prev => ({ ...prev, [post.id]: e.target.value }))}
-                          onKeyDown={e => e.key === "Enter" && submitComment(post.id)}
-                          placeholder="Write a reply..."
-                          className="flex-1 px-3 py-2 bg-secondary/50 border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                        <button onClick={() => submitComment(post.id)} className="p-2 bg-primary text-primary-foreground rounded-lg">
-                          <Send className="w-3.5 h-3.5" />
-                        </button>
+                    {/* AI Tags */}
+                    {post.ai_tags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {post.ai_tags.map((tag: string) => (
+                          <span key={tag} className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                            <Tag className="w-2.5 h-2.5" />{tag}
+                          </span>
+                        ))}
                       </div>
                     )}
-                  </motion.div>
+
+                    <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Summary Section */}
+                {post.ai_summary && (
+                  <div className="ml-11">
+                    <button onClick={() => setExpandedSummary(expandedSummary === post.id ? null : post.id)}
+                      className="flex items-center gap-1.5 text-[10px] text-primary font-medium hover:underline">
+                      <FileText className="w-3 h-3" /> AI Summary
+                      <ChevronDown className={`w-3 h-3 transition-transform ${expandedSummary === post.id ? "rotate-180" : ""}`} />
+                    </button>
+                    <AnimatePresence>
+                      {expandedSummary === post.id && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden mt-2 space-y-2">
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/15">
+                            <p className="text-[11px] text-foreground">{post.ai_summary}</p>
+                            {post.ai_detailed_summary && (
+                              <p className="text-[10px] text-muted-foreground mt-2 border-t border-border pt-2">{post.ai_detailed_summary}</p>
+                            )}
+                          </div>
+
+                          {/* Key Points */}
+                          {post.ai_key_points?.length > 0 && (
+                            <div className="p-3 rounded-lg bg-accent/5 border border-accent/15">
+                              <p className="text-[10px] font-semibold text-accent mb-1.5 flex items-center gap-1"><Lightbulb className="w-3 h-3" /> Key Points</p>
+                              <ul className="space-y-1">
+                                {post.ai_key_points.map((pt: string, idx: number) => (
+                                  <li key={idx} className="text-[10px] text-foreground flex items-start gap-1.5">
+                                    <span className="text-accent mt-0.5">•</span> {pt}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Key Insights */}
+                          {post.ai_key_insights?.length > 0 && (
+                            <div className="p-3 rounded-lg bg-warning/5 border border-warning/15">
+                              <p className="text-[10px] font-semibold text-warning mb-1.5 flex items-center gap-1"><Zap className="w-3 h-3" /> AI Key Insights</p>
+                              <div className="space-y-1.5">
+                                {post.ai_key_insights.map((insight: any, idx: number) => (
+                                  <div key={idx} className="flex items-start gap-1.5 text-[10px]">
+                                    <span className={`px-1 py-0.5 rounded text-[8px] font-bold shrink-0 ${
+                                      insight.type === "formula" ? "bg-primary/15 text-primary" :
+                                      insight.type === "concept" ? "bg-accent/15 text-accent" :
+                                      insight.type === "tip" ? "bg-warning/15 text-warning" :
+                                      "bg-muted text-muted-foreground"
+                                    }`}>
+                                      {insight.type === "formula" ? "📐" : insight.type === "concept" ? "💡" : insight.type === "tip" ? "💎" : "📋"}
+                                    </span>
+                                    <span className="text-foreground">{insight.content}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 )}
-              </AnimatePresence>
-            </motion.div>
-          ))
+
+                {/* AI Answer */}
+                {post.ai_answer && (
+                  <div className="ml-11 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Brain className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[10px] font-semibold text-primary">AI Brain Answer</span>
+                    </div>
+                    <p className="text-xs text-foreground whitespace-pre-wrap">{post.ai_answer}</p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 ml-11 flex-wrap">
+                  <button onClick={() => toggleVote(post.id, "post")}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${myVotes.has(post.id) ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}>
+                    <ThumbsUp className="w-3.5 h-3.5" /> {post.upvote_count}
+                  </button>
+                  <button onClick={() => loadComments(post.id)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary/50 text-[11px] text-muted-foreground hover:text-foreground">
+                    <MessageSquare className="w-3.5 h-3.5" /> {post.comment_count}
+                  </button>
+                  {!post.ai_answer && post.post_type === "question" && (
+                    <button onClick={() => requestAIAnswer(post.id, post.content, post.title)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-[11px] text-primary font-medium hover:bg-primary/20">
+                      <Sparkles className="w-3.5 h-3.5" /> Ask AI
+                    </button>
+                  )}
+                  {!post.ai_summary && (
+                    <button onClick={() => analyzePost(post.id)} disabled={analyzingPost === post.id}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent/10 text-[11px] text-accent font-medium hover:bg-accent/20 disabled:opacity-50">
+                      {analyzingPost === post.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+                      Analyze
+                    </button>
+                  )}
+                </div>
+
+                {/* Comments */}
+                <AnimatePresence>
+                  {expandedPost === post.id && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      className="ml-11 space-y-2 overflow-hidden">
+                      {(comments[post.id] || []).map(c => (
+                        <div key={c.id} className={`p-2.5 rounded-lg text-xs ${c.is_ai_answer ? "bg-primary/5 border border-primary/20" : "bg-secondary/30"}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            {c.is_ai_answer ? <Brain className="w-3 h-3 text-primary" /> : <div className="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center text-[8px] font-bold text-accent">{c.user_id?.slice(0, 2).toUpperCase()}</div>}
+                            <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
+                            {c.is_ai_answer && <span className="text-[9px] text-primary font-semibold">AI Brain</span>}
+                          </div>
+                          <p className="text-foreground">{c.content}</p>
+                        </div>
+                      ))}
+                      {isMember && (
+                        <div className="flex gap-2">
+                          <input value={commentText[post.id] || ""} onChange={e => setCommentText(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            onKeyDown={e => e.key === "Enter" && submitComment(post.id)}
+                            placeholder="Write a reply..."
+                            className="flex-1 px-3 py-2 bg-secondary/50 border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                          <button onClick={() => submitComment(post.id)} className="p-2 bg-primary text-primary-foreground rounded-lg">
+                            <Send className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })
         )}
       </div>
 
@@ -266,7 +389,6 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
       community_id: communityId, user_id: user.id, title: title.trim(), content: content.trim(), post_type: postType,
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); setLoading(false); return; }
-    try { await supabase.rpc("increment_api_usage", { p_service_name: "community" }); } catch {}
     toast({ title: "Post created! 📝" });
     onCreated();
   };
