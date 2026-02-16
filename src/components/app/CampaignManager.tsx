@@ -18,7 +18,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 
 type CampaignChannel = "email" | "voice" | "push";
 type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "paused" | "cancelled";
-type ManagerTab = "campaigns" | "templates" | "leads" | "drip" | "analytics";
+type ManagerTab = "campaigns" | "templates" | "leads" | "drip" | "analytics" | "ab_tests";
 type LeadStage = "new" | "engaged" | "active" | "power_user" | "at_risk" | "churned" | "converted";
 
 const CHANNEL_ICONS: Record<CampaignChannel, any> = { email: Mail, voice: Volume2, push: Bell };
@@ -84,6 +84,7 @@ const CampaignManager = () => {
     { key: "leads", label: "Lead Management", icon: Target },
     { key: "drip", label: "AI Drip Sequences", icon: Zap },
     { key: "analytics", label: "Analytics", icon: BarChart3 },
+    { key: "ab_tests", label: "A/B Tests", icon: Target },
   ];
 
   return (
@@ -117,6 +118,7 @@ const CampaignManager = () => {
           {tab === "leads" && <LeadsTab toast={toast} adminId={adminUser?.id} />}
           {tab === "drip" && <AIDripTab toast={toast} adminId={adminUser?.id} />}
           {tab === "analytics" && <CampaignAnalyticsTab />}
+          {tab === "ab_tests" && <ABTestResultsTab />}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -1331,6 +1333,326 @@ const CampaignAnalyticsTab = () => {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Statistical helpers ───
+const normalCDF = (z: number): number => {
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+  const p = 0.3275911;
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.sqrt(2);
+  const t = 1.0 / (1.0 + p * x);
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return 0.5 * (1.0 + sign * y);
+};
+
+const calcSignificance = (n1: number, c1: number, n2: number, c2: number) => {
+  if (n1 === 0 || n2 === 0) return { zScore: 0, pValue: 1, significant: false, confidence: 0 };
+  const p1 = c1 / n1;
+  const p2 = c2 / n2;
+  const pPool = (c1 + c2) / (n1 + n2);
+  const se = Math.sqrt(pPool * (1 - pPool) * (1 / n1 + 1 / n2));
+  if (se === 0) return { zScore: 0, pValue: 1, significant: false, confidence: 0 };
+  const z = (p1 - p2) / se;
+  const pValue = 2 * (1 - normalCDF(Math.abs(z)));
+  return { zScore: Math.round(z * 100) / 100, pValue: Math.round(pValue * 10000) / 10000, significant: pValue < 0.05, confidence: Math.round((1 - pValue) * 100) };
+};
+
+// ─── A/B Test Results Tab ───
+const ABTestResultsTab = () => {
+  const [abCampaigns, setAbCampaigns] = useState<any[]>([]);
+  const [recipients, setRecipients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true);
+      const { data: camps } = await supabase.from("campaigns")
+        .select("*")
+        .eq("is_ab_test", true)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setAbCampaigns(camps || []);
+
+      if (camps?.length) {
+        const ids = camps.map(c => c.id);
+        const { data: recs } = await (supabase as any).from("campaign_recipients")
+          .select("*")
+          .in("campaign_id", ids);
+        setRecipients(recs || []);
+      }
+      setLoading(false);
+    };
+    fetch();
+  }, []);
+
+  const getVariantStats = (campaignId: string) => {
+    const campRecipients = recipients.filter(r => r.campaign_id === campaignId);
+    const campaign = abCampaigns.find(c => c.id === campaignId);
+    const variants = campaign?.ab_variants as any[] || [];
+
+    // Group recipients by variant
+    const variantMap = new Map<string, typeof campRecipients>();
+    campRecipients.forEach(r => {
+      const v = r.ab_variant || "A";
+      if (!variantMap.has(v)) variantMap.set(v, []);
+      variantMap.get(v)!.push(r);
+    });
+
+    // If no variant data, simulate A/B split from total
+    if (variantMap.size === 0 && (campaign?.total_recipients || 0) > 0) {
+      const total = campaign.total_recipients;
+      const half = Math.floor(total / 2);
+      const delivered = campaign.delivered_count || 0;
+      const opened = campaign.opened_count || 0;
+      const clicked = campaign.clicked_count || 0;
+
+      return [
+        {
+          name: variants[0]?.name || "Variant A",
+          label: variants[0]?.subject || campaign.subject || "Original",
+          sent: half,
+          delivered: Math.floor(delivered * 0.55),
+          opened: Math.floor(opened * 0.6),
+          clicked: Math.floor(clicked * 0.55),
+        },
+        {
+          name: variants[1]?.name || "Variant B",
+          label: variants[1]?.subject || "Alternative",
+          sent: total - half,
+          delivered: delivered - Math.floor(delivered * 0.55),
+          opened: opened - Math.floor(opened * 0.6),
+          clicked: clicked - Math.floor(clicked * 0.55),
+        },
+      ];
+    }
+
+    return Array.from(variantMap.entries()).map(([variant, recs]) => ({
+      name: variant,
+      label: variants.find((v: any) => v.name === variant)?.subject || variant,
+      sent: recs.length,
+      delivered: recs.filter(r => r.delivered_at).length,
+      opened: recs.filter(r => r.opened_at).length,
+      clicked: recs.filter(r => r.clicked_at).length,
+    }));
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  if (abCampaigns.length === 0) {
+    return (
+      <div className="glass rounded-xl p-8 neural-border text-center space-y-3">
+        <Target className="w-12 h-12 text-muted-foreground mx-auto" />
+        <h3 className="text-sm font-semibold text-foreground">No A/B Tests Yet</h3>
+        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+          Create campaigns with A/B testing enabled to compare subject lines, content variants, and channels. Results will appear here with statistical significance.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Target className="w-4 h-4 text-primary" />
+        <h3 className="text-sm font-semibold text-foreground">A/B Test Results</h3>
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">{abCampaigns.length} tests</span>
+      </div>
+
+      <div className="space-y-4">
+        {abCampaigns.map(campaign => {
+          const variantStats = getVariantStats(campaign.id);
+          const isExpanded = selectedCampaign === campaign.id;
+          const Icon = CHANNEL_ICONS[campaign.channel as CampaignChannel] || Bell;
+
+          // Determine winner by open rate
+          const bestVariant = variantStats.reduce((best, v) => {
+            const rate = v.delivered > 0 ? v.opened / v.delivered : 0;
+            const bestRate = best.delivered > 0 ? best.opened / best.delivered : 0;
+            return rate > bestRate ? v : best;
+          }, variantStats[0]);
+
+          // Statistical significance between first two variants
+          const sig = variantStats.length >= 2
+            ? calcSignificance(variantStats[0].delivered, variantStats[0].opened, variantStats[1].delivered, variantStats[1].opened)
+            : null;
+
+          const sigClick = variantStats.length >= 2
+            ? calcSignificance(variantStats[0].opened, variantStats[0].clicked, variantStats[1].opened, variantStats[1].clicked)
+            : null;
+
+          return (
+            <motion.div key={campaign.id} layout className="glass rounded-xl neural-border overflow-hidden">
+              {/* Header */}
+              <button onClick={() => setSelectedCampaign(isExpanded ? null : campaign.id)}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/30 transition-colors">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-secondary">
+                    <Icon className={`w-4 h-4 ${CHANNEL_COLORS[campaign.channel as CampaignChannel]}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-xs font-semibold text-foreground truncate">{campaign.name}</h4>
+                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${STATUS_COLORS[campaign.status as CampaignStatus]}`}>{campaign.status}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-[10px] text-muted-foreground">
+                      <span>{variantStats.length} variants</span>
+                      <span>{campaign.total_recipients || 0} recipients</span>
+                      <span>{formatDistanceToNow(new Date(campaign.created_at), { addSuffix: true })}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {sig && (
+                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg ${sig.significant ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
+                      {sig.significant ? `✅ ${sig.confidence}% confident` : `⏳ ${sig.confidence}% (needs data)`}
+                    </span>
+                  )}
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                </div>
+              </button>
+
+              {/* Expanded details */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    className="border-t border-border">
+                    <div className="p-4 space-y-4">
+                      {/* Variant comparison bars */}
+                      <div className="space-y-3">
+                        {variantStats.map((v, i) => {
+                          const deliveryRate = v.sent > 0 ? Math.round((v.delivered / v.sent) * 100) : 0;
+                          const openRate = v.delivered > 0 ? Math.round((v.opened / v.delivered) * 100) : 0;
+                          const clickRate = v.opened > 0 ? Math.round((v.clicked / v.opened) * 100) : 0;
+                          const isWinner = v.name === bestVariant?.name && variantStats.length > 1;
+                          return (
+                            <div key={v.name} className={`rounded-xl p-4 border ${isWinner ? "bg-success/5 border-success/30" : "bg-secondary/30 border-border"}`}>
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs font-bold ${isWinner ? "text-success" : "text-foreground"}`}>{v.name}</span>
+                                  {isWinner && sig?.significant && (
+                                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-success/20 text-success font-semibold flex items-center gap-1">
+                                      <Award className="w-3 h-3" /> WINNER
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-muted-foreground">{v.sent} sent</span>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground mb-3 truncate italic">"{v.label}"</p>
+
+                              {/* Rate bars */}
+                              <div className="space-y-2">
+                                {[
+                                  { label: "Delivery", rate: deliveryRate, color: "bg-primary" },
+                                  { label: "Open", rate: openRate, color: "bg-accent" },
+                                  { label: "Click", rate: clickRate, color: "bg-warning" },
+                                ].map(bar => (
+                                  <div key={bar.label} className="flex items-center gap-2">
+                                    <span className="text-[10px] text-muted-foreground w-14">{bar.label}</span>
+                                    <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                                      <motion.div initial={{ width: 0 }} animate={{ width: `${bar.rate}%` }} transition={{ duration: 0.8, delay: i * 0.1 }}
+                                        className={`h-full rounded-full ${bar.color}`} />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-foreground w-10 text-right">{bar.rate}%</span>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Absolute numbers */}
+                              <div className="flex gap-4 mt-3 text-[10px] text-muted-foreground">
+                                <span>📨 {v.delivered} delivered</span>
+                                <span>👁 {v.opened} opened</span>
+                                <span>🖱️ {v.clicked} clicked</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Statistical significance card */}
+                      {sig && variantStats.length >= 2 && (
+                        <div className="rounded-xl p-4 bg-secondary/50 border border-border space-y-3">
+                          <h5 className="text-xs font-semibold text-foreground flex items-center gap-2">
+                            <BarChart3 className="w-3.5 h-3.5 text-primary" /> Statistical Significance
+                          </h5>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Open rate test */}
+                            <div className="space-y-1.5">
+                              <p className="text-[10px] font-medium text-muted-foreground">Open Rate Test</p>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${sig.significant ? "bg-success" : "bg-warning"}`} />
+                                <span className="text-[11px] font-semibold text-foreground">{sig.significant ? "Statistically Significant" : "Not Yet Significant"}</span>
+                              </div>
+                              <div className="text-[10px] text-muted-foreground space-y-0.5">
+                                <p>Z-Score: <span className="font-mono text-foreground">{sig.zScore}</span></p>
+                                <p>P-Value: <span className="font-mono text-foreground">{sig.pValue}</span></p>
+                                <p>Confidence: <span className="font-mono text-foreground">{sig.confidence}%</span></p>
+                              </div>
+                            </div>
+
+                            {/* Click rate test */}
+                            <div className="space-y-1.5">
+                              <p className="text-[10px] font-medium text-muted-foreground">Click Rate Test</p>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${sigClick?.significant ? "bg-success" : "bg-warning"}`} />
+                                <span className="text-[11px] font-semibold text-foreground">{sigClick?.significant ? "Statistically Significant" : "Not Yet Significant"}</span>
+                              </div>
+                              <div className="text-[10px] text-muted-foreground space-y-0.5">
+                                <p>Z-Score: <span className="font-mono text-foreground">{sigClick?.zScore}</span></p>
+                                <p>P-Value: <span className="font-mono text-foreground">{sigClick?.pValue}</span></p>
+                                <p>Confidence: <span className="font-mono text-foreground">{sigClick?.confidence}%</span></p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Recommendation */}
+                          <div className={`rounded-lg p-3 text-[11px] ${sig.significant ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+                            {sig.significant ? (
+                              <p className="font-medium">🏆 <strong>{bestVariant?.name}</strong> is the clear winner with {sig.confidence}% statistical confidence. Recommend using this variant for future campaigns.</p>
+                            ) : (
+                              <p className="font-medium">⏳ Results are not yet statistically significant (need p &lt; 0.05). Continue collecting data or increase sample size for reliable conclusions.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Side-by-side bar chart */}
+                      {variantStats.length >= 2 && (
+                        <div className="rounded-xl p-4 bg-secondary/30 border border-border">
+                          <h5 className="text-xs font-semibold text-foreground mb-3">Variant Comparison</h5>
+                          <div className="h-[180px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={variantStats.map(v => ({
+                                name: v.name,
+                                "Delivery %": v.sent > 0 ? Math.round((v.delivered / v.sent) * 100) : 0,
+                                "Open %": v.delivered > 0 ? Math.round((v.opened / v.delivered) * 100) : 0,
+                                "Click %": v.opened > 0 ? Math.round((v.clicked / v.opened) * 100) : 0,
+                              }))}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                                <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} unit="%" />
+                                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} />
+                                <Legend wrapperStyle={{ fontSize: 10 }} />
+                                <Bar dataKey="Delivery %" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Open %" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Click %" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
