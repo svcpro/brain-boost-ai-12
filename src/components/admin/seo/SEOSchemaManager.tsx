@@ -58,14 +58,20 @@ const SEOSchemaManager = () => {
 
   const saveSchema = async () => {
     if (!selectedPage) return;
+    let parsed: any;
     try {
-      const parsed = JSON.parse(schema);
-      setSaving(true);
-      await supabase.from("seo_pages").update({ schema_markup_json: parsed }).eq("id", selectedPage);
-      toast({ title: "Schema saved" });
-      setSaving(false);
+      parsed = JSON.parse(schema);
     } catch {
       toast({ title: "Invalid JSON", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("seo_pages").update({ schema_markup_json: parsed }).eq("id", selectedPage);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Schema saved" });
     }
   };
 
