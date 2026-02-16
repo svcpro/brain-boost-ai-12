@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, formatDistanceToNow, startOfMonth, addMonths, subDays } from "date-fns";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import FlutterApiHub from "@/components/app/FlutterApiHub";
 
 // ─── Types ───
 interface ApiKey {
@@ -184,6 +185,7 @@ const ApiManagement = () => {
             { value: "security", label: "Security", icon: Shield },
             { value: "integrations", label: "Integrations", icon: Settings },
             { value: "docs", label: "API Docs", icon: BookOpen },
+            { value: "flutter", label: "Flutter Hub", icon: Code },
             { value: "versions", label: "Versions", icon: GitBranch },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5 text-xs px-3 py-1.5">
@@ -202,6 +204,7 @@ const ApiManagement = () => {
         <TabsContent value="security"><SecurityTab /></TabsContent>
         <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
         <TabsContent value="docs"><ApiDocsTab /></TabsContent>
+        <TabsContent value="flutter"><FlutterApiHub /></TabsContent>
         <TabsContent value="versions"><VersionsTab /></TabsContent>
       </Tabs>
     </div>
