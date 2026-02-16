@@ -79,7 +79,7 @@ const FinanceManagement = () => {
           {[
             { value: "overview", label: "Overview", icon: PieChart },
             { value: "revenue", label: "Revenue", icon: IndianRupee },
-            { value: "costs", label: "API Costs", icon: DollarSign },
+            { value: "costs", label: "API Costs", icon: IndianRupee },
             { value: "subscriptions", label: "Subscriptions", icon: CreditCard },
             { value: "transactions", label: "Transactions", icon: Receipt },
             { value: "pnl", label: "P&L Report", icon: BarChart3 },
@@ -125,7 +125,7 @@ const useFinanceData = () => {
 
   const activeSubs = subs.filter(s => s.status === "active" && s.plan_id !== "free");
   const mrr = activeSubs.reduce((s, sub) => s + (sub.amount || 0), 0);
-  const totalApiCost = apiCosts.reduce((s, a) => s + (a.monthly_cost_estimate || 0), 0);
+  const totalApiCost = apiCosts.reduce((s, a) => s + ((a.monthly_cost_estimate || 0) * 83), 0);
   const totalApiCalls = apiCosts.reduce((s, a) => s + (a.monthly_usage_count || 0), 0);
 
   return { subs, plans, apiCosts, loading, activeSubs, mrr, totalApiCost, totalApiCalls };
@@ -167,7 +167,7 @@ const OverviewTab = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Monthly Revenue (MRR)", value: `₹${mrr.toLocaleString()}`, icon: IndianRupee, color: "text-success", gradient: "from-success/20 to-success/5", sub: `${totalCustomers} paying customers` },
-          { label: "API Spend (Monthly)", value: `$${totalApiCost.toFixed(2)}`, icon: DollarSign, color: "text-warning", gradient: "from-warning/20 to-warning/5", sub: `${totalApiCalls.toLocaleString()} total calls` },
+          { label: "API Spend (Monthly)", value: `₹${Math.round(totalApiCost).toLocaleString()}`, icon: Wallet, color: "text-warning", gradient: "from-warning/20 to-warning/5", sub: `${totalApiCalls.toLocaleString()} total calls` },
           { label: "Net Profit", value: `₹${netProfit.toLocaleString()}`, icon: TrendingUp, color: netProfit >= 0 ? "text-success" : "text-destructive", gradient: netProfit >= 0 ? "from-success/20 to-success/5" : "from-destructive/20 to-destructive/5", sub: `${profitMargin.toFixed(1)}% margin` },
           { label: "Churn Rate", value: `${churnRate.toFixed(1)}%`, icon: TrendingDown, color: churnRate > 10 ? "text-destructive" : "text-success", gradient: churnRate > 10 ? "from-destructive/20 to-destructive/5" : "from-success/20 to-success/5", sub: `${churned} churned (30d)` },
         ].map((card, i) => (
@@ -191,7 +191,7 @@ const OverviewTab = () => {
           { label: "ARPU", value: `₹${arpu.toFixed(0)}` },
           { label: "Active Plans", value: activeSubs.length },
           { label: "Free Users", value: subs.filter(s => s.plan_id === "free" || s.status !== "active").length },
-          { label: "Avg Cost/Call", value: `$${totalApiCalls > 0 ? (totalApiCost / totalApiCalls).toFixed(4) : "0"}` },
+          { label: "Avg Cost/Call", value: `₹${totalApiCalls > 0 ? (totalApiCost / totalApiCalls).toFixed(2) : "0"}` },
           { label: "New Subs (30d)", value: recentSubs.filter(s => s.plan_id !== "free").length },
           { label: "API Services", value: apiCosts.filter(a => a.is_enabled).length },
         ].map((kpi, i) => (
@@ -238,7 +238,7 @@ const OverviewTab = () => {
         {/* API Cost Distribution */}
         <div className="glass rounded-xl p-4 neural-border">
           <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-warning" /> API Cost by Category
+            <DollarSign className="w-4 h-4 text-warning" /> API Cost by Category (₹)
           </h3>
           <div className="space-y-2.5">
             {Object.entries(costByCat).sort((a, b) => b[1] - a[1]).map(([cat, cost]) => {
@@ -252,7 +252,7 @@ const OverviewTab = () => {
                       <CatIcon className={`w-3.5 h-3.5 ${meta.color}`} />
                       <span className="text-xs font-medium text-foreground">{meta.label}</span>
                     </div>
-                    <span className="text-xs font-semibold text-foreground">${cost.toFixed(2)}</span>
+                    <span className="text-xs font-semibold text-foreground">₹{Math.round(cost * 83).toLocaleString()}</span>
                   </div>
                   <div className="h-2 bg-border rounded-full overflow-hidden">
                     <div className="h-full bg-warning/50 rounded-full transition-all" style={{ width: `${pct}%` }} />
@@ -414,10 +414,10 @@ const CostsTab = () => {
       {/* Cost KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Total Monthly Spend", value: `$${totalApiCost.toFixed(2)}`, icon: DollarSign, color: "text-warning" },
-          { label: "Annual Projection", value: `$${(totalApiCost * 12).toFixed(2)}`, icon: TrendingUp, color: "text-destructive" },
+          { label: "Total Monthly Spend", value: `₹${Math.round(totalApiCost).toLocaleString()}`, icon: IndianRupee, color: "text-warning" },
+          { label: "Annual Projection", value: `₹${Math.round(totalApiCost * 12).toLocaleString()}`, icon: TrendingUp, color: "text-destructive" },
           { label: "Total API Calls", value: totalApiCalls.toLocaleString(), icon: Activity, color: "text-primary" },
-          { label: "Avg Cost / Call", value: `$${avgCostPerCall.toFixed(5)}`, icon: Target, color: "text-accent" },
+          { label: "Avg Cost / Call", value: `₹${(avgCostPerCall).toFixed(3)}`, icon: Target, color: "text-accent" },
         ].map((card, i) => (
           <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
             className="glass rounded-xl p-4 neural-border">
@@ -447,7 +447,7 @@ const CostsTab = () => {
                     <CatIcon className={`w-4 h-4 ${meta.color}`} />
                     <span className="text-sm font-medium text-foreground">{meta.label}</span>
                   </div>
-                  <span className="text-sm font-bold text-foreground">${data.cost.toFixed(2)}</span>
+                  <span className="text-sm font-bold text-foreground">₹{Math.round(data.cost * 83).toLocaleString()}</span>
                 </div>
                 <div className="h-2 bg-border rounded-full overflow-hidden mb-1.5">
                   <div className="h-full bg-warning/50 rounded-full transition-all" style={{ width: `${pct}%` }} />
@@ -483,14 +483,14 @@ const CostsTab = () => {
                     <cat.icon className={`w-3.5 h-3.5 ${cat.color}`} />
                     <span className="text-xs font-medium text-foreground">{s.display_name}</span>
                   </div>
-                  <span className="text-xs font-bold text-foreground">${(s.monthly_cost_estimate || 0).toFixed(2)}</span>
+                  <span className="text-xs font-bold text-foreground">₹{Math.round((s.monthly_cost_estimate || 0) * 83).toLocaleString()}</span>
                 </div>
                 <div className="h-1 bg-border rounded-full overflow-hidden mb-1">
                   <div className="h-full bg-warning/40 rounded-full" style={{ width: `${pct}%` }} />
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                   <span>{(s.monthly_usage_count || 0).toLocaleString()} calls</span>
-                  <span>${costPerCall.toFixed(5)}/call</span>
+                  <span>₹{(costPerCall * 83).toFixed(3)}/call</span>
                   {s.usage_limit && (
                     <span className={s.monthly_usage_count / s.usage_limit > 0.8 ? "text-destructive font-medium" : ""}>
                       {((s.monthly_usage_count / s.usage_limit) * 100).toFixed(0)}% quota
@@ -739,13 +739,13 @@ const PnLTab = () => {
                 <ArrowDownRight className="w-4 h-4 text-destructive" />
                 <span className="text-sm font-semibold text-foreground">Total Costs (API Spend)</span>
               </div>
-              <span className="text-xl font-bold text-destructive">${totalApiCost.toFixed(2)}</span>
+              <span className="text-xl font-bold text-destructive">₹{Math.round(totalApiCost).toLocaleString()}</span>
             </div>
             <div className="mt-2 space-y-1">
               {apiCosts.filter(a => a.monthly_cost_estimate > 0).map(a => (
                 <div key={a.service_name} className="flex items-center justify-between text-[10px]">
                   <span className="text-muted-foreground">{a.display_name}</span>
-                  <span className="text-foreground font-medium">${a.monthly_cost_estimate.toFixed(2)}</span>
+                  <span className="text-foreground font-medium">₹{Math.round(a.monthly_cost_estimate * 83).toLocaleString()}</span>
                 </div>
               ))}
               {apiCosts.every(a => a.monthly_cost_estimate === 0) && (
@@ -767,7 +767,7 @@ const PnLTab = () => {
             </div>
             <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
               <span>Margin: {profitMargin.toFixed(1)}%</span>
-              <span>Cost/Customer: ${costPerCustomer.toFixed(2)}</span>
+              <span>Cost/Customer: ₹{Math.round(costPerCustomer).toLocaleString()}</span>
               <span>Net/Customer: ₹{customerMargin.toFixed(0)}</span>
             </div>
           </div>
@@ -786,7 +786,7 @@ const PnLTab = () => {
               <span className="text-xs font-medium text-foreground w-16">{m.month}</span>
               <div className="flex-1 flex items-center gap-2 text-[10px]">
                 <span className="text-success font-medium">↑ ₹{m.revenue.toLocaleString()}</span>
-                <span className="text-destructive font-medium">↓ ${m.cost.toFixed(2)}</span>
+                <span className="text-destructive font-medium">↓ ₹{Math.round(m.cost).toLocaleString()}</span>
               </div>
               <span className={`text-xs font-bold ${m.profit >= 0 ? "text-success" : "text-destructive"}`}>
                 ₹{m.profit.toLocaleString()}
@@ -804,9 +804,9 @@ const PnLTab = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Revenue / Customer", value: `₹${revenuePerCustomer.toFixed(0)}` },
-            { label: "Cost / Customer", value: `$${costPerCustomer.toFixed(2)}` },
-            { label: "Margin / Customer", value: `₹${customerMargin.toFixed(0)}` },
-            { label: "Cost / API Call", value: `$${totalApiCalls > 0 ? (totalApiCost / totalApiCalls).toFixed(5) : "0"}` },
+            { label: "Cost / Customer", value: `₹${Math.round(costPerCustomer).toLocaleString()}` },
+            { label: "Margin / Customer", value: `₹${Math.round(customerMargin).toLocaleString()}` },
+            { label: "Cost / API Call", value: `₹${totalApiCalls > 0 ? (totalApiCost / totalApiCalls).toFixed(3) : "0"}` },
           ].map(u => (
             <div key={u.label} className="p-3 rounded-xl bg-secondary/30 text-center">
               <p className="text-[10px] text-muted-foreground font-medium">{u.label}</p>
