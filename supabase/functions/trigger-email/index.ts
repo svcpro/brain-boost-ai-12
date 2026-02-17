@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Beautiful email template builder
+// Professional email template – dark teal glassmorphism theme matching landing page
 function buildEmailHtml(params: {
   userName: string;
   subject: string;
@@ -19,20 +19,22 @@ function buildEmailHtml(params: {
   userId: string;
   footerNote?: string;
 }) {
-  const categoryColors: Record<string, { primary: string; gradient: string; accent: string }> = {
-    user_lifecycle: { primary: "#6366f1", gradient: "linear-gradient(135deg, #6366f1, #8b5cf6)", accent: "#c4b5fd" },
-    ai_brain: { primary: "#0d9488", gradient: "linear-gradient(135deg, #0d9488, #065f46)", accent: "#a7f3d0" },
-    study_reminder: { primary: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #d97706)", accent: "#fde68a" },
-    study_progress: { primary: "#10b981", gradient: "linear-gradient(135deg, #10b981, #059669)", accent: "#a7f3d0" },
-    rank_performance: { primary: "#3b82f6", gradient: "linear-gradient(135deg, #3b82f6, #1d4ed8)", accent: "#bfdbfe" },
-    community: { primary: "#8b5cf6", gradient: "linear-gradient(135deg, #8b5cf6, #6d28d9)", accent: "#ddd6fe" },
-    billing: { primary: "#ec4899", gradient: "linear-gradient(135deg, #ec4899, #be185d)", accent: "#fbcfe8" },
-    security: { primary: "#ef4444", gradient: "linear-gradient(135deg, #ef4444, #b91c1c)", accent: "#fecaca" },
-    system: { primary: "#64748b", gradient: "linear-gradient(135deg, #64748b, #334155)", accent: "#cbd5e1" },
-    general: { primary: "#0d9488", gradient: "linear-gradient(135deg, #0d9488, #065f46)", accent: "#a7f3d0" },
+  // Category accent colors for the icon badge only – main theme stays consistent
+  const categoryAccents: Record<string, string> = {
+    user_lifecycle: "#818cf8",
+    ai_brain: "#2dd4bf",
+    study_reminder: "#fbbf24",
+    study_progress: "#34d399",
+    rank_performance: "#60a5fa",
+    community: "#a78bfa",
+    billing: "#f472b6",
+    security: "#f87171",
+    system: "#94a3b8",
+    engagement: "#2dd4bf",
+    general: "#2dd4bf",
   };
 
-  const colors = categoryColors[params.category] || categoryColors.general;
+  const accentColor = categoryAccents[params.category] || "#2dd4bf";
   const year = new Date().getFullYear();
 
   return `<!DOCTYPE html>
@@ -41,59 +43,67 @@ function buildEmailHtml(params: {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${params.subject}</title>
+  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:32px 16px;">
+<body style="margin:0;padding:0;background-color:#0a1628;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0a1628;padding:40px 16px;">
     <tr><td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-        
-        <!-- Header -->
-        <tr><td style="background:${colors.gradient};padding:40px 32px;text-align:center;">
+      <table role="presentation" width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;background:#111b2e;border-radius:20px;overflow:hidden;border:1px solid rgba(45,212,191,0.15);box-shadow:0 8px 40px rgba(0,0,0,0.4),0 0 80px rgba(13,148,136,0.08);">
+
+        <!-- Header with gradient -->
+        <tr><td style="background:linear-gradient(135deg,#0d9488 0%,#065f46 50%,#064e3b 100%);padding:44px 36px;text-align:center;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr><td align="center">
-              <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;display:inline-block;line-height:48px;font-size:24px;font-weight:900;color:#fff;margin-bottom:12px;">A</div>
+              <div style="width:56px;height:56px;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.2);border-radius:16px;display:inline-block;line-height:56px;font-size:28px;font-weight:900;color:#fff;margin-bottom:14px;backdrop-filter:blur(10px);">A</div>
             </td></tr>
             <tr><td align="center">
-              <h1 style="color:#ffffff;margin:0 0 4px;font-size:28px;font-weight:800;letter-spacing:-0.5px;">ACRY</h1>
-              <p style="color:${colors.accent};margin:0;font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:600;">AI Second Brain</p>
+              <h1 style="color:#ffffff;margin:0 0 4px;font-size:30px;font-weight:800;letter-spacing:-0.5px;">ACRY</h1>
+              <p style="color:#a7f3d0;margin:0;font-size:11px;text-transform:uppercase;letter-spacing:3px;font-weight:600;">AI Second Brain</p>
             </td></tr>
           </table>
         </td></tr>
 
-        <!-- Hero -->
-        <tr><td style="padding:32px 32px 0;text-align:center;">
-          <h2 style="color:#1e293b;margin:0 0 8px;font-size:22px;font-weight:700;line-height:1.3;">${params.heroTitle}</h2>
-          ${params.heroSubtitle ? `<p style="color:#64748b;margin:0;font-size:14px;line-height:1.5;">${params.heroSubtitle}</p>` : ''}
+        <!-- Hero Section -->
+        <tr><td style="padding:36px 36px 8px;text-align:center;">
+          <div style="width:10px;height:10px;background:${accentColor};border-radius:50%;display:inline-block;margin-bottom:16px;box-shadow:0 0 12px ${accentColor}80;"></div>
+          <h2 style="color:#f1f5f9;margin:0 0 8px;font-size:24px;font-weight:700;line-height:1.3;letter-spacing:-0.3px;">${params.heroTitle}</h2>
+          ${params.heroSubtitle ? `<p style="color:#94a3b8;margin:0;font-size:14px;line-height:1.5;">${params.heroSubtitle}</p>` : ''}
         </td></tr>
 
-        <!-- Body -->
-        <tr><td style="padding:24px 32px;">
-          <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 8px;">Hi ${params.userName},</p>
-          <div style="color:#334155;font-size:15px;line-height:1.7;">${params.bodyContent}</div>
+        <!-- Divider -->
+        <tr><td style="padding:0 36px;">
+          <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,0.2),transparent);margin:16px 0;"></div>
         </td></tr>
 
-        <!-- CTA -->
+        <!-- Body Content -->
+        <tr><td style="padding:8px 36px 24px;">
+          <p style="color:#e2e8f0;font-size:15px;line-height:1.8;margin:0 0 8px;">Hi <strong style="color:#2dd4bf;">${params.userName}</strong>,</p>
+          <div style="color:#cbd5e1;font-size:15px;line-height:1.8;">${params.bodyContent}</div>
+        </td></tr>
+
+        <!-- CTA Button -->
         ${params.ctaText ? `
-        <tr><td style="padding:8px 32px 32px;text-align:center;">
-          <a href="${params.ctaUrl || 'https://acry.ai/app'}" style="background:${colors.gradient};color:#ffffff;padding:14px 40px;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;box-shadow:0 4px 14px ${colors.primary}40;">${params.ctaText}</a>
+        <tr><td style="padding:8px 36px 36px;text-align:center;">
+          <a href="${params.ctaUrl || 'https://acry.ai/app'}" style="background:linear-gradient(135deg,#0d9488,#0f766e);color:#ffffff;padding:16px 48px;border-radius:14px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;box-shadow:0 4px 20px rgba(13,148,136,0.4),0 0 40px rgba(13,148,136,0.15);letter-spacing:0.3px;border:1px solid rgba(167,243,208,0.2);transition:all 0.3s;">${params.ctaText}</a>
         </td></tr>
         ` : ''}
 
+        <!-- Footer Note -->
         ${params.footerNote ? `
-        <tr><td style="padding:0 32px 24px;">
-          <div style="background:#f8fafc;border-radius:10px;padding:16px;border:1px solid #e2e8f0;">
-            <p style="color:#64748b;font-size:13px;margin:0;line-height:1.6;">${params.footerNote}</p>
+        <tr><td style="padding:0 36px 28px;">
+          <div style="background:rgba(45,212,191,0.06);border-radius:12px;padding:16px 20px;border:1px solid rgba(45,212,191,0.12);">
+            <p style="color:#94a3b8;font-size:13px;margin:0;line-height:1.6;">${params.footerNote}</p>
           </div>
         </td></tr>
         ` : ''}
 
         <!-- Footer -->
-        <tr><td style="background:#f8fafc;padding:24px 32px;text-align:center;border-top:1px solid #e2e8f0;">
-          <p style="color:#94a3b8;font-size:12px;margin:0 0 8px;">© ${year} ACRY · AI Second Brain for All Exams</p>
+        <tr><td style="background:rgba(10,22,40,0.6);padding:28px 36px;text-align:center;border-top:1px solid rgba(45,212,191,0.1);">
+          <p style="color:#475569;font-size:12px;margin:0 0 10px;font-weight:500;">© ${year} ACRY · AI Second Brain for All Exams</p>
           <p style="margin:0;">
-            <a href="https://acry.ai" style="color:#94a3b8;font-size:11px;text-decoration:underline;margin:0 8px;">Website</a>
-            <a href="https://acry.ai/support" style="color:#94a3b8;font-size:11px;text-decoration:underline;margin:0 8px;">Support</a>
-            <a href="https://yvxrsujwgmzdjzsjyqfb.supabase.co/functions/v1/email-unsubscribe?uid=${params.userId}&type=all" style="color:#94a3b8;font-size:11px;text-decoration:underline;margin:0 8px;">Unsubscribe</a>
+            <a href="https://acry.ai" style="color:#0d9488;font-size:11px;text-decoration:none;font-weight:600;margin:0 10px;">Website</a>
+            <a href="https://acry.ai/support" style="color:#0d9488;font-size:11px;text-decoration:none;font-weight:600;margin:0 10px;">Support</a>
+            <a href="https://yvxrsujwgmzdjzsjyqfb.supabase.co/functions/v1/email-unsubscribe?uid=${params.userId}&type=all" style="color:#475569;font-size:11px;text-decoration:underline;margin:0 10px;">Unsubscribe</a>
           </p>
         </td></tr>
 
@@ -113,13 +123,16 @@ function generateEmailContent(triggerKey: string, variables: Record<string, unkn
       heroTitle: "Welcome to ACRY!",
       heroSubtitle: "Your journey to exam mastery starts now",
       body: `<p>We're thrilled to have you on board! ACRY uses AI to help you study smarter, not harder.</p>
-        <p style="margin:16px 0;"><strong>Here's what you can do:</strong></p>
-        <ul style="padding-left:20px;color:#334155;">
-          <li style="padding:4px 0;">📚 Add your exam topics</li>
-          <li style="padding:4px 0;">🧠 Let AI track your memory strength</li>
-          <li style="padding:4px 0;">📊 Get personalized study plans</li>
-          <li style="padding:4px 0;">🏆 Compete on leaderboards</li>
-        </ul>`,
+        <p style="margin:16px 0;"><strong style="color:#2dd4bf;">Here's what you can do:</strong></p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0;">
+          <tr><td style="padding:10px 14px;background:rgba(45,212,191,0.06);border-radius:8px;margin-bottom:4px;"><span style="color:#cbd5e1;font-size:14px;">📚 Add your exam topics</span></td></tr>
+          <tr><td style="height:4px;"></td></tr>
+          <tr><td style="padding:10px 14px;background:rgba(45,212,191,0.06);border-radius:8px;"><span style="color:#cbd5e1;font-size:14px;">🧠 Let AI track your memory strength</span></td></tr>
+          <tr><td style="height:4px;"></td></tr>
+          <tr><td style="padding:10px 14px;background:rgba(45,212,191,0.06);border-radius:8px;"><span style="color:#cbd5e1;font-size:14px;">📊 Get personalized study plans</span></td></tr>
+          <tr><td style="height:4px;"></td></tr>
+          <tr><td style="padding:10px 14px;background:rgba(45,212,191,0.06);border-radius:8px;"><span style="color:#cbd5e1;font-size:14px;">🏆 Compete on leaderboards</span></td></tr>
+        </table>`,
       cta: "Start Studying →",
       ctaUrl: "https://acry.ai/app",
     },
@@ -139,9 +152,9 @@ function generateEmailContent(triggerKey: string, variables: Record<string, unkn
       subject: "⚠️ Memory Alert – Topics at Risk!",
       heroTitle: "Memory Forget Risk Detected",
       heroSubtitle: "Your AI brain detected topics that need attention",
-      body: `<p>Our AI analysis shows that <strong>${v.topics_count || 'some'} topic(s)</strong> are at risk of being forgotten:</p>
-        <div style="background:#fef2f2;border-radius:8px;padding:12px 16px;margin:12px 0;border-left:4px solid #ef4444;">
-          <p style="margin:0;color:#991b1b;font-size:14px;">${v.topic_names || 'Review your dashboard for details'}</p>
+      body: `<p>Our AI analysis shows that <strong style="color:#f87171;">${v.topics_count || 'some'} topic(s)</strong> are at risk of being forgotten:</p>
+        <div style="background:rgba(239,68,68,0.08);border-radius:10px;padding:14px 18px;margin:14px 0;border-left:4px solid #f87171;border:1px solid rgba(239,68,68,0.15);">
+          <p style="margin:0;color:#fca5a5;font-size:14px;">${v.topic_names || 'Review your dashboard for details'}</p>
         </div>
         <p>A quick revision session can prevent this memory loss!</p>`,
       cta: "Start Revision →",
@@ -291,8 +304,8 @@ function generateEmailContent(triggerKey: string, variables: Record<string, unkn
       subject: "🔐 New Login Detected",
       heroTitle: "New Device Login",
       body: `<p>A login was detected from a new device:</p>
-        <div style="background:#fef2f2;border-radius:8px;padding:12px 16px;margin:12px 0;border-left:4px solid #ef4444;">
-          <p style="margin:0;color:#991b1b;font-size:14px;">📍 ${v.location || 'Unknown location'}<br>🖥️ ${v.device || 'Unknown device'}<br>🕐 ${v.time || new Date().toISOString()}</p>
+        <div style="background:rgba(239,68,68,0.08);border-radius:10px;padding:14px 18px;margin:14px 0;border-left:4px solid #f87171;border:1px solid rgba(239,68,68,0.15);">
+          <p style="margin:0;color:#fca5a5;font-size:14px;">📍 ${v.location || 'Unknown location'}<br>🖥️ ${v.device || 'Unknown device'}<br>🕐 ${v.time || new Date().toISOString()}</p>
         </div>
         <p>If this wasn't you, please change your password immediately.</p>`,
       cta: "Secure My Account →",
