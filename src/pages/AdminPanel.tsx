@@ -165,6 +165,10 @@ const AdminPanel = () => {
           <LayoutDashboard className="w-5 h-5 text-primary" />
         </button>
         <h1 className="text-sm font-bold text-foreground flex-1">ACRY Admin</h1>
+        <button onClick={() => { localStorage.clear(); toast({ title: "Cache Cleared ✨", description: "All local cache has been cleared successfully." }); }} className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-warning bg-warning/10 rounded-lg hover:bg-warning/20 transition-colors">
+          <RefreshCw className="w-3 h-3" />
+          Clear Cache
+        </button>
         <button onClick={() => navigate("/app")} className="text-xs text-muted-foreground">← App</button>
       </div>
 
@@ -198,6 +202,13 @@ const AdminPanel = () => {
 
       {/* Main content */}
       <main className="flex-1 p-4 md:p-6 mt-14 md:mt-0 overflow-auto">
+        {/* Desktop top bar with Clear Cache */}
+        <div className="hidden md:flex items-center justify-end mb-4 gap-3">
+          <button onClick={() => { localStorage.clear(); toast({ title: "Cache Cleared ✨", description: "All local cache has been cleared successfully." }); }} className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-warning bg-warning/10 rounded-lg hover:bg-warning/20 border border-warning/20 transition-colors">
+            <RefreshCw className="w-4 h-4" />
+            Clear Cache
+          </button>
+        </div>
         <AnimatePresence mode="wait">
           <motion.div key={section} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             {section === "dashboard" && <DashboardSection />}
