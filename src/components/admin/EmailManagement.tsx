@@ -493,6 +493,24 @@ const TriggersTab = () => {
   );
 };
 
+// ─── AI Template Purposes ───
+const AI_TEMPLATE_PURPOSES = [
+  { value: "welcome", label: "🎉 Welcome / Onboarding", desc: "First-time user welcome email" },
+  { value: "study_reminder", label: "📚 Study Reminder", desc: "Remind users to study today" },
+  { value: "streak_alert", label: "🔥 Streak Alert", desc: "Streak at risk or milestone" },
+  { value: "weekly_report", label: "📊 Weekly Report", desc: "Weekly study progress summary" },
+  { value: "exam_prep", label: "🎯 Exam Preparation", desc: "Exam coming soon motivation" },
+  { value: "memory_risk", label: "🧠 Memory Risk Alert", desc: "Topics about to be forgotten" },
+  { value: "achievement", label: "🏆 Achievement Unlocked", desc: "Badge or milestone earned" },
+  { value: "comeback", label: "💪 Comeback / Re-engagement", desc: "Bring back inactive users" },
+  { value: "subscription", label: "💳 Subscription Update", desc: "Plan upgrade, expiry, or renewal" },
+  { value: "community", label: "💬 Community Activity", desc: "New replies, trending discussions" },
+  { value: "ai_insight", label: "🤖 AI Brain Insight", desc: "Personalized AI-generated insight" },
+  { value: "security", label: "🔐 Security Alert", desc: "Login, password change, MFA" },
+  { value: "promotional", label: "🚀 Promotional", desc: "Feature launch or special offer" },
+  { value: "custom", label: "✏️ Custom Purpose", desc: "Describe your own purpose" },
+];
+
 // ─── Templates Tab ───
 const TemplatesTab = () => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -501,6 +519,11 @@ const TemplatesTab = () => {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: "", subject: "", html_body: "", category: "general", variables: "" });
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiPurpose, setAiPurpose] = useState("welcome");
+  const [aiCustomPurpose, setAiCustomPurpose] = useState("");
+  const [aiCategory, setAiCategory] = useState("general");
+  const [showAiCreate, setShowAiCreate] = useState(false);
   const { toast } = useToast();
 
   const fetchTemplates = useCallback(async () => {
@@ -545,15 +568,46 @@ const TemplatesTab = () => {
     fetchTemplates();
   };
 
+  const generateWithAI = async () => {
+    setAiGenerating(true);
+    try {
+      const purpose = aiPurpose === "custom" ? aiCustomPurpose : AI_TEMPLATE_PURPOSES.find(p => p.value === aiPurpose)?.label || aiPurpose;
+      const { data, error } = await supabase.functions.invoke("generate-email-template", {
+        body: { purpose, category: aiCategory },
+      });
+      if (error) throw error;
+      if (data) {
+        setForm({
+          name: data.name || "",
+          subject: data.subject || "",
+          html_body: data.html_body || "",
+          category: aiCategory,
+          variables: (data.variables || []).join(", "),
+        });
+        setShowAiCreate(false);
+        setShowCreate(true);
+        toast({ title: "✨ AI generated template ready!", description: "Review and save the template" });
+      }
+    } catch (e: any) {
+      toast({ title: "AI generation failed", description: e.message, variant: "destructive" });
+    }
+    setAiGenerating(false);
+  };
+
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">{templates.length} templates</p>
-        <Button size="sm" onClick={() => { setForm({ name: "", subject: "", html_body: "", category: "general", variables: "" }); setEditId(null); setShowCreate(true); }}>
-          <Plus className="w-3.5 h-3.5 mr-1.5" />New Template
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => { setForm({ name: "", subject: "", html_body: "", category: "general", variables: "" }); setEditId(null); setShowCreate(true); }}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" />Manual
+          </Button>
+          <Button size="sm" onClick={() => { setAiPurpose("welcome"); setAiCategory("general"); setAiCustomPurpose(""); setShowAiCreate(true); }} className="gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" />AI Create
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -598,6 +652,64 @@ const TemplatesTab = () => {
         ))}
       </div>
 
+      {/* AI Create Dialog */}
+      <Dialog open={showAiCreate} onOpenChange={setShowAiCreate}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+              AI Template Generator
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">Select a purpose and category — AI will generate the complete template with professional HTML, subject line, and variables.</p>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">Template Purpose</label>
+              <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                {AI_TEMPLATE_PURPOSES.map(p => (
+                  <button
+                    key={p.value}
+                    onClick={() => setAiPurpose(p.value)}
+                    className={`text-left p-2.5 rounded-lg border transition-all ${
+                      aiPurpose === p.value
+                        ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                        : "border-border bg-card hover:border-primary/40 hover:bg-primary/5"
+                    }`}
+                  >
+                    <p className="text-xs font-medium text-foreground">{p.label}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{p.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {aiPurpose === "custom" && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Describe your purpose</label>
+                <Input value={aiCustomPurpose} onChange={e => setAiCustomPurpose(e.target.value)} placeholder="e.g., Notify users about a new AI feature launch..." />
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Category</label>
+              <Select value={aiCategory} onValueChange={setAiCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAiCreate(false)}>Cancel</Button>
+            <Button onClick={generateWithAI} disabled={aiGenerating || (aiPurpose === "custom" && !aiCustomPurpose.trim())} className="gap-2">
+              {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {aiGenerating ? "Generating..." : "Generate Template"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Create/Edit Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-auto">
@@ -634,11 +746,13 @@ const TemplatesTab = () => {
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-xs font-medium text-muted-foreground">HTML Body</label>
-                {form.html_body && (
-                  <Button size="sm" variant="ghost" className="text-xs h-6" onClick={() => setPreviewHtml(form.html_body)}>
-                    <Eye className="w-3 h-3 mr-1" />Preview
-                  </Button>
-                )}
+                <div className="flex gap-1">
+                  {form.html_body && (
+                    <Button size="sm" variant="ghost" className="text-xs h-6" onClick={() => setPreviewHtml(form.html_body)}>
+                      <Eye className="w-3 h-3 mr-1" />Preview
+                    </Button>
+                  )}
+                </div>
               </div>
               <Textarea value={form.html_body} onChange={e => setForm(p => ({ ...p, html_body: e.target.value }))} className="min-h-[250px] font-mono text-xs" placeholder="<div>Your email HTML...</div>" />
             </div>

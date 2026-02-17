@@ -146,3 +146,6 @@ verify_jwt = false
 
 [functions.daily-brand-email]
 verify_jwt = false
+
+[functions.generate-email-template]
+verify_jwt = false
