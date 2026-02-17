@@ -6,7 +6,7 @@ import {
   Loader2, AlertTriangle, Search, MoreVertical, Eye,
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
-  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check,
+  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare, Globe,
   Search as SearchIcon, Mail
 } from "lucide-react";
@@ -39,8 +39,9 @@ import CommunityManagement from "@/components/admin/CommunityManagement";
 import SEOManagement from "@/components/admin/SEOManagement";
 import WhatsAppManagement from "@/components/admin/WhatsAppManagement";
 import EmailManagement from "@/components/admin/EmailManagement";
+import PushNotificationManagement from "@/components/admin/PushNotificationManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "email" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "email" | "push" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -77,6 +78,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
   { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
+  { key: "push", label: "Push Notifs", icon: Smartphone, roles: ["super_admin", "admin"] },
   { key: "whatsapp", label: "WhatsApp", icon: MessageSquare, roles: ["super_admin", "admin"] },
   { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
@@ -229,6 +231,7 @@ const AdminPanel = () => {
             {section === "notifications" && <AdminNotificationCenter />}
             {section === "campaigns" && <CampaignManager />}
             {section === "whatsapp" && <WhatsAppManagement />}
+            {section === "push" && <PushNotificationManagement />}
             {section === "email" && <EmailManagement />}
             {section === "monitoring" && <SystemMonitor />}
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
