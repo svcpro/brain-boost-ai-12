@@ -33,7 +33,7 @@ export function getVoiceSettings(): VoiceSettings {
     const stored = localStorage.getItem(VOICE_SETTINGS_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { enabled: false, language: "en", tone: "soft", schedule: "morning" };
+  return { enabled: true, language: "en", tone: "soft", schedule: "morning" };
 }
 
 export function saveVoiceSettings(settings: VoiceSettings) {
