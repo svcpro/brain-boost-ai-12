@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { dispatchWhatsApp } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -149,6 +150,13 @@ serve(async (req) => {
           }
         }
       }
+    }
+
+    // Send WhatsApp notifications for all users with due topics
+    for (const [userId, topics] of userTopics) {
+      dispatchWhatsApp("study_reminder", userId, {
+        message: `${topics.length} topic${topics.length > 1 ? "s" : ""} need revision: ${topics.slice(0, 3).join(", ")}${topics.length > 3 ? ` +${topics.length - 3} more` : ""}`,
+      });
     }
 
     console.log(`Sent ${emailsSent} emails, ${pushesSent} push notifications`);

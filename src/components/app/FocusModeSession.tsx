@@ -7,6 +7,7 @@ import { useAmbientSound, type AmbientSoundType } from "@/hooks/useAmbientSound"
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import confetti from "canvas-confetti";
+import { notifyWhatsApp } from "@/lib/whatsappNotify";
 
 const PRESETS = [15, 25, 45, 60];
 const POMODORO_WORK = 25;
@@ -255,6 +256,15 @@ const FocusModeSession = ({ open, onClose, onSessionComplete, initialSubject, in
 
     setLogging(false);
     onSessionComplete?.();
+    
+    // WhatsApp notification for focus session completion
+    if (user && summary) {
+      notifyWhatsApp("focus_session_completed", {
+        user_id: user.id,
+        data: { minutes: summary.elapsedMinutes, topic_name: summary.topic || summary.subject },
+      });
+    }
+    
     callback();
   };
 

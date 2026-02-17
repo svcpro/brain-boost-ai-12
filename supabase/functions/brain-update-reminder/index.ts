@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { dispatchWhatsApp } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,6 +68,11 @@ serve(async (req) => {
       } catch (e) {
         console.warn(`Push failed for ${user.id}:`, e);
       }
+
+      // Send WhatsApp brain update reminder
+      dispatchWhatsApp("brain_update", user.id, {
+        summary: "It's been over 24 hours since your last brain update. Refresh your memory predictions!",
+      });
     }
 
     console.log(`Brain update reminders sent: ${sent}`);

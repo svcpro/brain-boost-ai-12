@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useAdaptiveDifficulty } from "@/hooks/useAdaptiveDifficulty";
+import { notifyWhatsApp } from "@/lib/whatsappNotify";
 
 interface Question {
   question: string;
@@ -256,6 +257,17 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
         topics: questions.map(q => q.question.slice(0, 50)).join("; "),
         questions_data: answersRef.current,
       } as any);
+
+      // WhatsApp notification for exam result
+      notifyWhatsApp("exam_result", {
+        user_id: user.id,
+        data: {
+          score: finalScore,
+          total: questions.length,
+          percentage: Math.round((finalScore / questions.length) * 100),
+          difficulty,
+        },
+      });
 
       // Track per-question performance for spaced repetition
       for (const qa of answersRef.current) {

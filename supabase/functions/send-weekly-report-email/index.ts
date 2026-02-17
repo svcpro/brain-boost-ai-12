@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { dispatchWhatsApp } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -180,6 +181,13 @@ serve(async (req) => {
           weakCount: weakCount ?? 0,
         }, profile.id);
         emailsSent++;
+
+        // Send WhatsApp weekly report
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        dispatchWhatsApp("weekly_report", profile.id, {
+          summary: `${hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} studied, ${sessionsCount} sessions, ${streakDays}-day streak.`,
+        });
       }
     }
 
