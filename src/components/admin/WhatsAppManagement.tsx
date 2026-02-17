@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, formatDistanceToNow, subDays, startOfDay, eachDayOfInterval, subHours } from "date-fns";
+import MetaTemplateApproval from "./whatsapp/MetaTemplateApproval";
 
 // ─── Animated Counter ───
 const AnimatedNumber = ({ value, suffix = "" }: { value: number; suffix?: string }) => (
@@ -2286,6 +2287,9 @@ const WhatsAppManagement = () => {
           <TabsTrigger value="costs" className="text-xs rounded-lg data-[state=active]:bg-green-600/15 data-[state=active]:text-green-500 gap-1.5 py-2">
             <DollarSign className="w-3.5 h-3.5" />Costs
           </TabsTrigger>
+          <TabsTrigger value="meta" className="text-xs rounded-lg data-[state=active]:bg-green-600/15 data-[state=active]:text-green-500 gap-1.5 py-2">
+            <Shield className="w-3.5 h-3.5" />META
+          </TabsTrigger>
           <TabsTrigger value="settings" className="text-xs rounded-lg data-[state=active]:bg-green-600/15 data-[state=active]:text-green-500 gap-1.5 py-2">
             <Settings className="w-3.5 h-3.5" />Settings
           </TabsTrigger>
@@ -2299,6 +2303,7 @@ const WhatsAppManagement = () => {
         <TabsContent value="analytics"><AdvancedAnalyticsTab /></TabsContent>
         <TabsContent value="events"><EventTriggersTab /></TabsContent>
         <TabsContent value="costs"><APICostingTab /></TabsContent>
+        <TabsContent value="meta"><MetaTemplateApproval /></TabsContent>
         <TabsContent value="settings"><SettingsTab /></TabsContent>
       </Tabs>
     </div>

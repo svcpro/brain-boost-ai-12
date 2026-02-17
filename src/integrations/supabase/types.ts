@@ -1509,6 +1509,96 @@ export type Database = {
         }
         Relationships: []
       }
+      meta_template_submissions: {
+        Row: {
+          approved_at: string | null
+          body_text: string
+          button_type: string | null
+          buttons: Json | null
+          category: string
+          created_at: string
+          display_name: string
+          footer_text: string | null
+          header_content: string | null
+          header_type: string | null
+          id: string
+          language: string
+          last_synced_at: string | null
+          message_sends_24h: number | null
+          message_sends_total: number | null
+          meta_status: string
+          meta_template_id: string | null
+          notes: string | null
+          quality_score: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
+          sample_values: Json | null
+          submitted_at: string | null
+          submitted_by: string | null
+          tags: string[] | null
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          body_text: string
+          button_type?: string | null
+          buttons?: Json | null
+          category?: string
+          created_at?: string
+          display_name: string
+          footer_text?: string | null
+          header_content?: string | null
+          header_type?: string | null
+          id?: string
+          language?: string
+          last_synced_at?: string | null
+          message_sends_24h?: number | null
+          message_sends_total?: number | null
+          meta_status?: string
+          meta_template_id?: string | null
+          notes?: string | null
+          quality_score?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          sample_values?: Json | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tags?: string[] | null
+          template_name: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          body_text?: string
+          button_type?: string | null
+          buttons?: Json | null
+          category?: string
+          created_at?: string
+          display_name?: string
+          footer_text?: string | null
+          header_content?: string | null
+          header_type?: string | null
+          id?: string
+          language?: string
+          last_synced_at?: string | null
+          message_sends_24h?: number | null
+          message_sends_total?: number | null
+          meta_status?: string
+          meta_template_id?: string | null
+          notes?: string | null
+          quality_score?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          sample_values?: Json | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tags?: string[] | null
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ml_events: {
         Row: {
           created_at: string
