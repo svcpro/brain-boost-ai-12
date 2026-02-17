@@ -529,36 +529,152 @@ const MessageHistoryTab = () => {
   );
 };
 
-// ─── Templates Tab ───
+// ─── AI Templates Tab (Full AI-Powered — matching Campaign Manager) ───
 const TemplatesTab = () => {
   const { toast } = useToast();
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [subTab, setSubTab] = useState<"ai_generate" | "wa_templates" | "manual">("ai_generate");
+  const [aiTemplates, setAiTemplates] = useState<any[]>([]);
+  const [waTemplates, setWaTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const [generatingSingle, setGeneratingSingle] = useState<string | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<any>(null);
   const [creating, setCreating] = useState(false);
   const [newTemplate, setNewTemplate] = useState({ name: "", description: "", body_template: "", category: "general", variables: "" });
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
-    const { data } = await (supabase as any).from("whatsapp_templates").select("*").order("name");
-    setTemplates(data || []);
+    const [aiRes, waRes] = await Promise.all([
+      (supabase as any).from("email_templates").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("whatsapp_templates").select("*").order("name"),
+    ]);
+    setAiTemplates(aiRes.data || []);
+    setWaTemplates(waRes.data || []);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
 
-  const toggleTemplate = async (id: string, active: boolean) => {
+  // ── Bulk generate ALL templates (all triggers × WhatsApp channel) ──
+  const generateAllTemplates = async () => {
+    setGeneratingAll(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
+        body: { action: "generate_all" },
+      });
+      if (error) throw error;
+      toast({ title: `✨ ${data.templates_created} AI templates generated!`, description: "All triggers × all channels covered." });
+      fetchTemplates();
+    } catch (e: any) {
+      toast({ title: "Bulk generation failed", description: e?.message, variant: "destructive" });
+    }
+    setGeneratingAll(false);
+  };
+
+  // ── Generate single template for a trigger ──
+  const generateSingleTemplate = async (triggerKey: string, channel: string) => {
+    setGeneratingSingle(`${triggerKey}-${channel}`);
+    try {
+      const isWA = channel === "whatsapp";
+      const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
+        body: {
+          action: "generate_single",
+          trigger_key: triggerKey,
+          channel: isWA ? "push" : channel,
+          custom_context: isWA ? "Generate a WhatsApp message (max 300 chars, include emojis, friendly conversational tone for WhatsApp Business API). No HTML." : undefined,
+        },
+      });
+      if (error) throw error;
+
+      if (isWA) {
+        // Save to whatsapp_templates table
+        const body = (data.html_body || data.subject || "").replace(/<[^>]+>/g, "").slice(0, 1600);
+        await (supabase as any).from("whatsapp_templates").insert({
+          name: `ai_${triggerKey}`,
+          description: `AI-generated for ${triggerKey}`,
+          body_template: body,
+          category: triggerKey.startsWith("promo_") ? "promotional" : "study",
+          variables: data.variables || null,
+          is_active: true,
+        });
+      } else {
+        // Save to email_templates table
+        await (supabase as any).from("email_templates").insert({
+          name: `[AI WA] ${triggerKey} — ${channel.toUpperCase()}`,
+          subject: data.subject,
+          html_body: data.html_body,
+          category: triggerKey.startsWith("promo_") ? "promotion" : "reminder",
+          variables: data.variables,
+          is_active: true,
+          created_by: "ai-system",
+        });
+      }
+      toast({ title: `Template generated for ${triggerKey} (${channel}) ✨` });
+      fetchTemplates();
+    } catch (e: any) {
+      toast({ title: "Generation failed", description: e?.message, variant: "destructive" });
+    }
+    setGeneratingSingle(null);
+  };
+
+  // ── Bulk generate WhatsApp templates for ALL triggers ──
+  const generateAllWATemplates = async () => {
+    setGeneratingAll(true);
+    try {
+      let created = 0;
+      for (const trigger of WA_CAMPAIGN_TRIGGERS) {
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
+            body: {
+              action: "generate_single",
+              trigger_key: trigger.key,
+              channel: "push",
+              custom_context: `Generate a WhatsApp message for "${trigger.label}" (${trigger.desc}). Max 300 chars, include emojis, friendly conversational tone. No HTML tags.`,
+            },
+          });
+          if (error) throw error;
+          const body = (data.html_body || data.subject || "").replace(/<[^>]+>/g, "").slice(0, 1600);
+          await (supabase as any).from("whatsapp_templates").insert({
+            name: `ai_${trigger.key}`,
+            description: `AI: ${trigger.label}`,
+            body_template: body,
+            category: trigger.key.startsWith("promo_") ? "promotional" : "study",
+            variables: data.variables || null,
+            is_active: true,
+          });
+          created++;
+        } catch { /* skip failed */ }
+      }
+      toast({ title: `✨ ${created} WhatsApp templates generated!` });
+      fetchTemplates();
+    } catch (e: any) {
+      toast({ title: "Bulk WA generation failed", description: e?.message, variant: "destructive" });
+    }
+    setGeneratingAll(false);
+  };
+
+  const deleteTemplate = async (id: string, table: "email_templates" | "whatsapp_templates") => {
+    await (supabase as any).from(table).delete().eq("id", id);
+    toast({ title: "Template deleted" });
+    fetchTemplates();
+  };
+
+  const deleteAllAITemplates = async () => {
+    const aiTmpl = aiTemplates.filter(t => t.name?.includes("[AI"));
+    for (const t of aiTmpl) { await (supabase as any).from("email_templates").delete().eq("id", t.id); }
+    const aiWa = waTemplates.filter(t => t.name?.startsWith("ai_"));
+    for (const t of aiWa) { await (supabase as any).from("whatsapp_templates").delete().eq("id", t.id); }
+    toast({ title: `Cleared ${aiTmpl.length + aiWa.length} AI templates` });
+    fetchTemplates();
+  };
+
+  const toggleWATemplate = async (id: string, active: boolean) => {
     await (supabase as any).from("whatsapp_templates").update({ is_active: !active }).eq("id", id);
     toast({ title: `Template ${!active ? "activated" : "deactivated"}` });
     fetchTemplates();
   };
 
-  const deleteTemplate = async (id: string) => {
-    await (supabase as any).from("whatsapp_templates").delete().eq("id", id);
-    toast({ title: "Template deleted" });
-    fetchTemplates();
-  };
-
-  const createTemplate = async () => {
+  const createManualTemplate = async () => {
     if (!newTemplate.name || !newTemplate.body_template) { toast({ title: "Name and body required", variant: "destructive" }); return; }
     const vars = newTemplate.variables.split(",").map(v => v.trim()).filter(Boolean);
     await (supabase as any).from("whatsapp_templates").insert({
@@ -571,88 +687,260 @@ const TemplatesTab = () => {
     fetchTemplates();
   };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">{templates.length} templates configured</p>
-        <button onClick={() => setCreating(!creating)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-600/15 text-green-500 text-xs font-medium hover:bg-green-600/25 transition-all border border-green-500/20">
-          <Plus className="w-3.5 h-3.5" />{creating ? "Cancel" : "New Template"}
-        </button>
+      <SectionHeader icon={Sparkles} title="AI Template Engine" subtitle="One-click AI generation for all triggers • WhatsApp + Email + Push + Voice" />
+
+      {/* Sub-tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {([
+          { key: "ai_generate" as const, label: "AI Generator", icon: Bot },
+          { key: "wa_templates" as const, label: `WhatsApp Templates (${waTemplates.length})`, icon: MessageSquare },
+          { key: "manual" as const, label: "Manual Create", icon: Plus },
+        ]).map(t => (
+          <button key={t.key} onClick={() => setSubTab(t.key)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+              subTab === t.key ? "bg-green-600/15 text-green-500 border border-green-500/30" : "bg-secondary/50 text-muted-foreground border border-transparent hover:border-border"
+            }`}>
+            <t.icon className="w-3.5 h-3.5" />{t.label}
+          </button>
+        ))}
       </div>
 
-      <AnimatePresence>
-        {creating && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-            className="bg-card border border-green-500/20 rounded-2xl p-5 space-y-3 overflow-hidden">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Name</label>
-                <input value={newTemplate.name} onChange={e => setNewTemplate(p => ({ ...p, name: e.target.value }))} placeholder="study_reminder"
-                  className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 font-mono" />
+      <AnimatePresence mode="wait">
+        {/* ── AI Generator Sub-tab ── */}
+        {subTab === "ai_generate" && (
+          <motion.div key="ai_generate" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+            {/* Bulk Actions */}
+            <div className="bg-card border border-green-500/20 rounded-2xl p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-green-500" /> AI Template Generator
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Generate templates for all {WA_CAMPAIGN_TRIGGERS.length} triggers in one click.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={generateAllWATemplates} disabled={generatingAll}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-green-600/20">
+                  {generatingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {generatingAll ? "Generating all..." : `🚀 Generate All WhatsApp Templates (${WA_CAMPAIGN_TRIGGERS.length} triggers)`}
+                </button>
+                <button onClick={generateAllTemplates} disabled={generatingAll}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                  {generatingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                  Generate All Channels (Email/Push/Voice)
+                </button>
+                {(aiTemplates.some(t => t.name?.includes("[AI")) || waTemplates.some(t => t.name?.startsWith("ai_"))) && (
+                  <button onClick={deleteAllAITemplates}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors border border-destructive/20">
+                    <Trash2 className="w-3.5 h-3.5" /> Clear All AI Templates
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Single Trigger Generator */}
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+              <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
+                <Target className="w-3.5 h-3.5 text-green-500" /> Generate Single Template by Trigger
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto pr-1">
+                {WA_CAMPAIGN_TRIGGERS.map(trigger => (
+                  <div key={trigger.key} className="flex items-center justify-between bg-secondary/50 rounded-xl px-3 py-2.5 border border-border hover:border-green-500/20 transition-all">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-base">{trigger.icon}</span>
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-semibold text-foreground block truncate">{trigger.label}</span>
+                        <span className="text-[9px] text-muted-foreground">{trigger.desc}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0 ml-2">
+                      {/* WhatsApp button */}
+                      <button onClick={() => generateSingleTemplate(trigger.key, "whatsapp")}
+                        disabled={!!generatingSingle}
+                        className="p-1.5 rounded-lg hover:bg-green-500/10 text-muted-foreground hover:text-green-500 transition-colors disabled:opacity-30"
+                        title="Generate WhatsApp template">
+                        {generatingSingle === `${trigger.key}-whatsapp` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                      </button>
+                      {/* Email button */}
+                      <button onClick={() => generateSingleTemplate(trigger.key, "email")}
+                        disabled={!!generatingSingle}
+                        className="p-1.5 rounded-lg hover:bg-blue-500/10 text-muted-foreground hover:text-blue-500 transition-colors disabled:opacity-30"
+                        title="Generate Email template">
+                        {generatingSingle === `${trigger.key}-email` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                      </button>
+                      {/* Push button */}
+                      <button onClick={() => generateSingleTemplate(trigger.key, "push")}
+                        disabled={!!generatingSingle}
+                        className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors disabled:opacity-30"
+                        title="Generate Push template">
+                        {generatingSingle === `${trigger.key}-push` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Generated AI Templates List (email_templates) */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold text-foreground">Saved AI Templates ({aiTemplates.length})</h3>
+              </div>
+              {loading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              ) : aiTemplates.length === 0 ? (
+                <div className="text-center py-8 bg-card border border-border rounded-2xl">
+                  <Bot className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No AI templates yet — click "Generate All" above!</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                  {aiTemplates.map((t: any) => (
+                    <div key={t.id} className="bg-card border border-border rounded-xl p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-[11px] font-semibold text-foreground truncate">{t.name}</h4>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">{t.category}</span>
+                            {t.name?.includes("[AI") && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-500">AI</span>}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">{t.subject}</p>
+                          {t.variables?.length > 0 && (
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {t.variables.map((v: string) => (
+                                <span key={v} className="text-[8px] px-1 py-0.5 rounded bg-green-500/10 text-green-500 font-mono">{`{{${v}}}`}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <button onClick={() => setPreviewTemplate(previewTemplate?.id === t.id ? null : t)}
+                            className="p-1.5 text-muted-foreground hover:text-green-500 transition-colors"><Eye className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => deleteTemplate(t.id, "email_templates")} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </div>
+                      {previewTemplate?.id === t.id && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                          className="mt-3 pt-3 border-t border-border">
+                          <div className="bg-[#0b141a] rounded-xl p-3 text-[11px] text-green-300/80 whitespace-pre-wrap max-h-[200px] overflow-y-auto font-mono border border-green-500/10">
+                            {t.html_body?.replace(/<[^>]+>/g, "").slice(0, 1000) || t.html_body}
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── WhatsApp Templates Sub-tab ── */}
+        {subTab === "wa_templates" && (
+          <motion.div key="wa_templates" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">{waTemplates.length} WhatsApp templates</p>
+              <button onClick={fetchTemplates} className="p-2 rounded-xl bg-secondary/50 border border-border hover:bg-secondary transition-colors">
+                <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : waTemplates.length === 0 ? (
+              <div className="text-center py-12 bg-card border border-border rounded-2xl">
+                <FileText className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">No WhatsApp templates — use AI Generator to create them!</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {waTemplates.map((t, i) => (
+                  <motion.div key={t.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                    className={`bg-card border rounded-2xl p-4 transition-all ${t.is_active ? "border-green-500/20" : "border-border opacity-60"}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <MessageSquare className={`w-4 h-4 ${t.is_active ? "text-green-500" : "text-muted-foreground"}`} />
+                        <span className="text-sm font-bold text-foreground">{t.name}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold uppercase tracking-wider">{t.category}</span>
+                        {t.name?.startsWith("ai_") && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-500 font-bold">AI</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => deleteTemplate(t.id, "whatsapp_templates")} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                        </button>
+                        <button onClick={() => toggleWATemplate(t.id, t.is_active)} className={`w-11 h-6 rounded-full transition-all relative ${t.is_active ? "bg-green-500" : "bg-secondary"}`}>
+                          <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1 shadow-sm" animate={{ left: t.is_active ? 24 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">{t.description}</p>
+                    <div className="bg-[#0b141a] rounded-xl p-3 text-xs text-green-300/80 whitespace-pre-wrap font-mono border border-green-500/10">{t.body_template}</div>
+                    {t.variables?.length > 0 && (
+                      <div className="flex gap-1.5 mt-3 flex-wrap">
+                        {(t.variables as string[]).map((v: string) => (
+                          <span key={v} className="text-[10px] px-2 py-1 rounded-lg bg-green-500/10 text-green-500 font-semibold border border-green-500/20">{`{{${v}}}`}</span>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Manual Create Sub-tab ── */}
+        {subTab === "manual" && (
+          <motion.div key="manual" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="bg-card border border-green-500/20 rounded-2xl p-5 space-y-3">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Plus className="w-4 h-4 text-green-500" /> Create WhatsApp Template Manually
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Name</label>
+                  <input value={newTemplate.name} onChange={e => setNewTemplate(p => ({ ...p, name: e.target.value }))} placeholder="study_reminder"
+                    className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 font-mono" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Category</label>
+                  <select value={newTemplate.category} onChange={e => setNewTemplate(p => ({ ...p, category: e.target.value }))}
+                    className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none text-foreground">
+                    <option value="general">General</option><option value="study">Study</option><option value="streak">Streak</option>
+                    <option value="engagement">Engagement</option><option value="promotional">Promotional</option><option value="lead">Lead</option><option value="campaign">Campaign</option>
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Category</label>
-                <select value={newTemplate.category} onChange={e => setNewTemplate(p => ({ ...p, category: e.target.value }))}
-                  className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none">
-                  <option value="general">General</option><option value="study">Study</option><option value="streak">Streak</option>
-                  <option value="engagement">Engagement</option><option value="promotional">Promotional</option><option value="lead">Lead</option><option value="campaign">Campaign</option>
-                </select>
+                <label className="text-xs font-medium text-muted-foreground">Description</label>
+                <input value={newTemplate.description} onChange={e => setNewTemplate(p => ({ ...p, description: e.target.value }))} placeholder="Short description..."
+                  className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Body Template</label>
+                <textarea value={newTemplate.body_template} onChange={e => setNewTemplate(p => ({ ...p, body_template: e.target.value }))}
+                  placeholder={"Hey {{1}}! 🧠 Your topic {{2}} needs review. Memory is at {{3}}%."}
+                  className="w-full mt-1 p-3 rounded-xl bg-secondary/50 border border-border text-sm min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Variables (comma-separated)</label>
+                <input value={newTemplate.variables} onChange={e => setNewTemplate(p => ({ ...p, variables: e.target.value }))} placeholder="user_name, topic_name, memory_strength"
+                  className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+              </div>
+              <button onClick={createManualTemplate}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold text-sm shadow-lg shadow-green-600/20 hover:from-green-700 hover:to-emerald-700 transition-all">
+                Create Template
+              </button>
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Description</label>
-              <input value={newTemplate.description} onChange={e => setNewTemplate(p => ({ ...p, description: e.target.value }))} placeholder="Short description..."
-                className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Body Template</label>
-              <textarea value={newTemplate.body_template} onChange={e => setNewTemplate(p => ({ ...p, body_template: e.target.value }))}
-                placeholder={"Hey {{1}}! 🧠 Your topic {{2}} needs review. Memory is at {{3}}%."}
-                className="w-full mt-1 p-3 rounded-xl bg-secondary/50 border border-border text-sm min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-green-500/50" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Variables (comma-separated)</label>
-              <input value={newTemplate.variables} onChange={e => setNewTemplate(p => ({ ...p, variables: e.target.value }))} placeholder="user_name, topic_name, memory_strength"
-                className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
-            </div>
-            <button onClick={createTemplate}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold text-sm shadow-lg shadow-green-600/20 hover:from-green-700 hover:to-emerald-700 transition-all">Create Template</button>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {templates.map((t, i) => (
-        <motion.div key={t.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-          className={`bg-card border rounded-2xl p-4 transition-all ${t.is_active ? "border-green-500/20" : "border-border opacity-60"}`}>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <FileText className={`w-4 h-4 ${t.is_active ? "text-green-500" : "text-muted-foreground"}`} />
-              <span className="text-sm font-bold text-foreground">{t.name}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold uppercase tracking-wider">{t.category}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => deleteTemplate(t.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
-                <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-              </button>
-              <button onClick={() => toggleTemplate(t.id, t.is_active)} className={`w-11 h-6 rounded-full transition-all relative ${t.is_active ? "bg-green-500" : "bg-secondary"}`}>
-                <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1 shadow-sm" animate={{ left: t.is_active ? 24 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-              </button>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">{t.description}</p>
-          <div className="bg-[#0b141a] rounded-xl p-3 text-xs text-green-300/80 whitespace-pre-wrap font-mono border border-green-500/10">{t.body_template}</div>
-          {t.variables?.length > 0 && (
-            <div className="flex gap-1.5 mt-3 flex-wrap">
-              {(t.variables as string[]).map((v: string) => (
-                <span key={v} className="text-[10px] px-2 py-1 rounded-lg bg-green-500/10 text-green-500 font-semibold border border-green-500/20">{`{{${v}}}`}</span>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      ))}
     </div>
   );
 };
