@@ -76,7 +76,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
   { key: "services", label: "3rd Party Services", icon: Globe, roles: ["super_admin", "admin", "api_admin"] },
   { key: "finance", label: "Finance", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
-  { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
+  
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
   { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
   { key: "push", label: "Push Notifs", icon: Smartphone, roles: ["super_admin", "admin"] },
@@ -230,7 +230,7 @@ const AdminPanel = () => {
             {section === "apis" && <ApiManagement />}
             {section === "services" && <ThirdPartyServices />}
             {section === "finance" && <FinanceManagement />}
-            {section === "notifications" && <AdminNotificationCenter />}
+            
             {section === "campaigns" && <CampaignManager />}
             {section === "whatsapp" && <WhatsAppManagement />}
             {section === "push" && <PushNotificationManagement />}
