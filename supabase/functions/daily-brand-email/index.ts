@@ -24,24 +24,24 @@ function buildDailyEmail(params: {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
   const streakEmoji = streakDays >= 30 ? "🏆" : streakDays >= 14 ? "🔥" : streakDays >= 7 ? "⚡" : streakDays >= 3 ? "✨" : "💪";
-  const memoryColor = memoryStrength >= 70 ? "#10b981" : memoryStrength >= 40 ? "#f59e0b" : "#ef4444";
-  const brainColor = brainScore >= 70 ? "#10b981" : brainScore >= 40 ? "#f59e0b" : "#ef4444";
+  const memoryColor = memoryStrength >= 70 ? "#34d399" : memoryStrength >= 40 ? "#fbbf24" : "#f87171";
+  const brainColor = brainScore >= 70 ? "#34d399" : brainScore >= 40 ? "#fbbf24" : "#f87171";
 
   const topicList = dueTopicNames.slice(0, 5).map(t =>
-    `<tr><td style="padding:8px 12px;font-size:14px;color:#334155;border-bottom:1px solid #f1f5f9;">📌 ${t}</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f1f5f9;"><a href="https://acry.ai/app" style="color:#0d9488;font-size:12px;font-weight:600;text-decoration:none;">Review →</a></td></tr>`
+    `<tr><td style="padding:10px 14px;font-size:14px;color:#e2e8f0;border-bottom:1px solid rgba(45,212,191,0.08);">📌 ${t}</td><td style="padding:10px 14px;text-align:right;border-bottom:1px solid rgba(45,212,191,0.08);"><a href="https://acry.ai/app" style="color:#2dd4bf;font-size:12px;font-weight:600;text-decoration:none;">Review →</a></td></tr>`
   ).join("");
 
   const actionCards = [
-    { emoji: "📚", title: "Quick Study", desc: "5-min revision session", url: "https://acry.ai/app?action=quick-study", color: "#6366f1" },
-    { emoji: "🧠", title: "Brain Check", desc: "View your brain health", url: "https://acry.ai/app?tab=brain", color: "#0d9488" },
-    { emoji: "📊", title: "Progress", desc: "See your growth", url: "https://acry.ai/app?tab=progress", color: "#f59e0b" },
-    { emoji: "🏆", title: "Leaderboard", desc: "Check your rank", url: "https://acry.ai/app?tab=home", color: "#8b5cf6" },
+    { emoji: "📚", title: "Quick Study", desc: "5-min revision", url: "https://acry.ai/app?action=quick-study", color: "#818cf8" },
+    { emoji: "🧠", title: "Brain Check", desc: "View brain health", url: "https://acry.ai/app?tab=brain", color: "#2dd4bf" },
+    { emoji: "📊", title: "Progress", desc: "See your growth", url: "https://acry.ai/app?tab=progress", color: "#fbbf24" },
+    { emoji: "🏆", title: "Leaderboard", desc: "Check your rank", url: "https://acry.ai/app?tab=home", color: "#a78bfa" },
   ].map(a =>
     `<td style="width:25%;padding:4px;">
-      <a href="${a.url}" style="text-decoration:none;display:block;background:#f8fafc;border-radius:12px;padding:14px 8px;text-align:center;border:1px solid #e2e8f0;">
-        <div style="font-size:24px;margin-bottom:4px;">${a.emoji}</div>
-        <div style="font-size:12px;font-weight:700;color:${a.color};margin-bottom:2px;">${a.title}</div>
-        <div style="font-size:10px;color:#94a3b8;">${a.desc}</div>
+      <a href="${a.url}" style="text-decoration:none;display:block;background:rgba(45,212,191,0.04);border-radius:12px;padding:14px 6px;text-align:center;border:1px solid rgba(45,212,191,0.1);">
+        <div style="font-size:22px;margin-bottom:4px;">${a.emoji}</div>
+        <div style="font-size:11px;font-weight:700;color:${a.color};margin-bottom:2px;">${a.title}</div>
+        <div style="font-size:10px;color:#64748b;">${a.desc}</div>
       </a>
     </td>`
   ).join("");
@@ -49,45 +49,48 @@ function buildDailyEmail(params: {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Your Daily ACRY Briefing</title></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 12px;">
+<body style="margin:0;padding:0;background:#0a1628;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;padding:40px 12px;">
 <tr><td align="center">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.08);">
+<table role="presentation" width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;background:#111b2e;border-radius:20px;overflow:hidden;border:1px solid rgba(45,212,191,0.15);box-shadow:0 8px 40px rgba(0,0,0,0.4),0 0 80px rgba(13,148,136,0.08);">
 
 <!-- Header -->
-<tr><td style="background:linear-gradient(135deg,#0d9488,#065f46);padding:36px 28px;text-align:center;">
-  <div style="width:44px;height:44px;background:rgba(255,255,255,0.2);border-radius:11px;display:inline-block;line-height:44px;font-size:22px;font-weight:900;color:#fff;margin-bottom:10px;">A</div>
-  <h1 style="color:#fff;margin:0 0 2px;font-size:26px;font-weight:800;letter-spacing:-0.5px;">ACRY</h1>
-  <p style="color:#a7f3d0;margin:0 0 12px;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:600;">AI Second Brain</p>
+<tr><td style="background:linear-gradient(135deg,#0d9488 0%,#065f46 50%,#064e3b 100%);padding:40px 32px;text-align:center;">
+  <div style="width:56px;height:56px;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.2);border-radius:16px;display:inline-block;line-height:56px;font-size:28px;font-weight:900;color:#fff;margin-bottom:12px;">A</div>
+  <h1 style="color:#fff;margin:0 0 4px;font-size:30px;font-weight:800;letter-spacing:-0.5px;">ACRY</h1>
+  <p style="color:#a7f3d0;margin:0 0 14px;font-size:11px;text-transform:uppercase;letter-spacing:3px;font-weight:600;">AI Second Brain</p>
   <p style="color:#d1fae5;margin:0;font-size:14px;">${today}</p>
 </td></tr>
 
 <!-- Greeting -->
-<tr><td style="padding:28px 28px 12px;">
-  <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0 0 4px;">${greeting}, ${userName}! ${streakEmoji}</p>
-  <p style="color:#64748b;font-size:14px;margin:0;line-height:1.6;">Here's your personalized daily briefing from your AI Second Brain.</p>
+<tr><td style="padding:32px 32px 12px;">
+  <p style="color:#f1f5f9;font-size:18px;font-weight:700;margin:0 0 4px;">${greeting}, <span style="color:#2dd4bf;">${userName}</span>! ${streakEmoji}</p>
+  <p style="color:#94a3b8;font-size:14px;margin:0;line-height:1.6;">Here's your personalized daily briefing from your AI Second Brain.</p>
 </td></tr>
 
+<!-- Divider -->
+<tr><td style="padding:0 32px;"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,0.2),transparent);margin:8px 0;"></div></td></tr>
+
 <!-- Stats Row -->
-<tr><td style="padding:8px 28px 20px;">
+<tr><td style="padding:16px 32px 20px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr>
-      <td style="width:33%;text-align:center;padding:12px 4px;">
-        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:12px;padding:14px 8px;">
-          <div style="font-size:24px;font-weight:800;color:${memoryColor};">${memoryStrength}%</div>
-          <div style="font-size:11px;color:#64748b;margin-top:2px;">Memory</div>
+      <td style="width:33%;text-align:center;padding:8px 4px;">
+        <div style="background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.1);border-radius:14px;padding:16px 8px;">
+          <div style="font-size:26px;font-weight:800;color:${memoryColor};">${memoryStrength}%</div>
+          <div style="font-size:11px;color:#64748b;margin-top:4px;font-weight:500;">Memory</div>
         </div>
       </td>
-      <td style="width:33%;text-align:center;padding:12px 4px;">
-        <div style="background:linear-gradient(135deg,#f0f9ff,#dbeafe);border-radius:12px;padding:14px 8px;">
-          <div style="font-size:24px;font-weight:800;color:${brainColor};">${brainScore}%</div>
-          <div style="font-size:11px;color:#64748b;margin-top:2px;">Brain Score</div>
+      <td style="width:33%;text-align:center;padding:8px 4px;">
+        <div style="background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.1);border-radius:14px;padding:16px 8px;">
+          <div style="font-size:26px;font-weight:800;color:${brainColor};">${brainScore}%</div>
+          <div style="font-size:11px;color:#64748b;margin-top:4px;font-weight:500;">Brain Score</div>
         </div>
       </td>
-      <td style="width:33%;text-align:center;padding:12px 4px;">
-        <div style="background:linear-gradient(135deg,#fefce8,#fef9c3);border-radius:12px;padding:14px 8px;">
-          <div style="font-size:24px;font-weight:800;color:#f59e0b;">${streakDays}</div>
-          <div style="font-size:11px;color:#64748b;margin-top:2px;">Day Streak</div>
+      <td style="width:33%;text-align:center;padding:8px 4px;">
+        <div style="background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.1);border-radius:14px;padding:16px 8px;">
+          <div style="font-size:26px;font-weight:800;color:#2dd4bf;">${streakDays}</div>
+          <div style="font-size:11px;color:#64748b;margin-top:4px;font-weight:500;">Day Streak</div>
         </div>
       </td>
     </tr>
@@ -96,57 +99,57 @@ function buildDailyEmail(params: {
 
 <!-- Due Topics -->
 ${dueTopicsCount > 0 ? `
-<tr><td style="padding:0 28px 20px;">
-  <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:16px;">
-    <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#92400e;">⚠️ ${dueTopicsCount} Topic${dueTopicsCount > 1 ? "s" : ""} Need Revision Today</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;">
+<tr><td style="padding:0 32px 20px;">
+  <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:14px;padding:18px;">
+    <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#fbbf24;">⚠️ ${dueTopicsCount} Topic${dueTopicsCount > 1 ? "s" : ""} Need Revision Today</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:rgba(0,0,0,0.2);border-radius:10px;overflow:hidden;">
       ${topicList}
-      ${dueTopicsCount > 5 ? `<tr><td colspan="2" style="padding:8px 12px;font-size:12px;color:#94a3b8;text-align:center;">...and ${dueTopicsCount - 5} more topics</td></tr>` : ""}
+      ${dueTopicsCount > 5 ? `<tr><td colspan="2" style="padding:10px 14px;font-size:12px;color:#64748b;text-align:center;">...and ${dueTopicsCount - 5} more topics</td></tr>` : ""}
     </table>
   </div>
 </td></tr>
 ` : `
-<tr><td style="padding:0 28px 20px;">
-  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;text-align:center;">
-    <p style="margin:0;font-size:14px;font-weight:600;color:#166534;">✅ All caught up! No topics due for revision.</p>
+<tr><td style="padding:0 32px 20px;">
+  <div style="background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:14px;padding:18px;text-align:center;">
+    <p style="margin:0;font-size:14px;font-weight:600;color:#34d399;">✅ All caught up! No topics due for revision.</p>
   </div>
 </td></tr>
 `}
 
 <!-- Quick Actions -->
-<tr><td style="padding:0 28px 20px;">
-  <p style="font-size:13px;font-weight:700;color:#1e293b;margin:0 0 10px;">⚡ Quick Actions</p>
+<tr><td style="padding:0 32px 20px;">
+  <p style="font-size:13px;font-weight:700;color:#e2e8f0;margin:0 0 10px;">⚡ Quick Actions</p>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr>${actionCards}</tr>
   </table>
 </td></tr>
 
 <!-- CTA Button -->
-<tr><td style="padding:0 28px 24px;text-align:center;">
-  <a href="https://acry.ai/app" style="background:linear-gradient(135deg,#0d9488,#065f46);color:#fff;padding:14px 48px;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;box-shadow:0 4px 14px rgba(13,148,136,0.3);">Open ACRY & Start Studying →</a>
+<tr><td style="padding:0 32px 28px;text-align:center;">
+  <a href="https://acry.ai/app" style="background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;padding:16px 48px;border-radius:14px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;box-shadow:0 4px 20px rgba(13,148,136,0.4),0 0 40px rgba(13,148,136,0.15);letter-spacing:0.3px;border:1px solid rgba(167,243,208,0.2);">Open ACRY & Start Studying →</a>
 </td></tr>
 
 <!-- Daily Tip -->
-<tr><td style="padding:0 28px 24px;">
-  <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:12px;padding:16px;border:1px solid #ddd6fe;">
-    <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6d28d9;">💡 AI Tip of the Day</p>
-    <p style="margin:0;font-size:13px;color:#4c1d95;line-height:1.5;">${tip}</p>
+<tr><td style="padding:0 32px 28px;">
+  <div style="background:rgba(129,140,248,0.06);border-radius:14px;padding:18px;border:1px solid rgba(129,140,248,0.12);">
+    <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#818cf8;">💡 AI Tip of the Day</p>
+    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">${tip}</p>
   </div>
 </td></tr>
 
 ${rank ? `
-<tr><td style="padding:0 28px 24px;text-align:center;">
-  <p style="font-size:13px;color:#64748b;margin:0;">Your current rank: <strong style="color:#6366f1;">#${rank}</strong> — keep studying to climb higher!</p>
+<tr><td style="padding:0 32px 24px;text-align:center;">
+  <p style="font-size:13px;color:#64748b;margin:0;">Your current rank: <strong style="color:#818cf8;">#${rank}</strong> — keep studying to climb higher!</p>
 </td></tr>
 ` : ""}
 
 <!-- Footer -->
-<tr><td style="background:#f8fafc;padding:20px 28px;text-align:center;border-top:1px solid #e2e8f0;">
-  <p style="color:#94a3b8;font-size:11px;margin:0 0 8px;">© ${year} ACRY · AI Second Brain for All Exams</p>
+<tr><td style="background:rgba(10,22,40,0.6);padding:24px 32px;text-align:center;border-top:1px solid rgba(45,212,191,0.1);">
+  <p style="color:#475569;font-size:12px;margin:0 0 10px;font-weight:500;">© ${year} ACRY · AI Second Brain for All Exams</p>
   <p style="margin:0;">
-    <a href="https://acry.ai" style="color:#94a3b8;font-size:10px;text-decoration:underline;margin:0 6px;">Website</a>
-    <a href="https://acry.ai/support" style="color:#94a3b8;font-size:10px;text-decoration:underline;margin:0 6px;">Support</a>
-    <a href="https://yvxrsujwgmzdjzsjyqfb.supabase.co/functions/v1/email-unsubscribe?uid=${userId}&type=daily_brand" style="color:#94a3b8;font-size:10px;text-decoration:underline;margin:0 6px;">Unsubscribe</a>
+    <a href="https://acry.ai" style="color:#0d9488;font-size:11px;text-decoration:none;font-weight:600;margin:0 10px;">Website</a>
+    <a href="https://acry.ai/support" style="color:#0d9488;font-size:11px;text-decoration:none;font-weight:600;margin:0 10px;">Support</a>
+    <a href="https://yvxrsujwgmzdjzsjyqfb.supabase.co/functions/v1/email-unsubscribe?uid=${userId}&type=daily_brand" style="color:#475569;font-size:11px;text-decoration:underline;margin:0 10px;">Unsubscribe</a>
   </p>
 </td></tr>
 
