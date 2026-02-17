@@ -161,3 +161,15 @@ verify_jwt = false
 
 [functions.voice-automation-engine]
 verify_jwt = false
+
+[functions.signup-welcome-notifications]
+verify_jwt = false
+
+[functions.whatsapp-automation-engine]
+verify_jwt = false
+
+[functions.whatsapp-notify]
+verify_jwt = false
+
+[functions.resolve-whatsapp-variables]
+verify_jwt = false
