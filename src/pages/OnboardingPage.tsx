@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, GraduationCap, BookOpen, Calendar, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2 } from "lucide-react";
+import { Brain, GraduationCap, BookOpen, Calendar, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2, MessageSquare, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +57,8 @@ const OnboardingPage = () => {
   const [newTopic, setNewTopic] = useState("");
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [studyMode, setStudyMode] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
 
@@ -71,7 +73,7 @@ const OnboardingPage = () => {
     if (name) setDisplayName(name);
   });
 
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
@@ -158,6 +160,7 @@ const OnboardingPage = () => {
     if (step === 3) return subjects.length > 0;
     if (step === 4) return true; // topics are optional
     if (step === 5) return studyMode !== "";
+    if (step === 6) return true; // whatsapp is optional
     return false;
   };
 
@@ -176,14 +179,22 @@ const OnboardingPage = () => {
     try {
       const finalExam = examType === "other" ? customExam || "Custom Exam" : examType.toUpperCase();
 
+      const profileUpdate: any = {
+        display_name: displayName.trim(),
+        exam_type: finalExam,
+        exam_date: examDate,
+        study_preferences: { mode: studyMode, onboarded: true },
+      };
+
+      // Save WhatsApp number if provided
+      if (whatsappNumber.trim()) {
+        profileUpdate.whatsapp_number = whatsappNumber.trim();
+        profileUpdate.whatsapp_opted_in = whatsappOptIn;
+      }
+
       const { error: profileErr } = await supabase
         .from("profiles")
-        .update({
-          display_name: displayName.trim(),
-          exam_type: finalExam,
-          exam_date: examDate,
-          study_preferences: { mode: studyMode, onboarded: true },
-        })
+        .update(profileUpdate)
         .eq("id", user.id);
       if (profileErr) throw profileErr;
 
@@ -562,6 +573,58 @@ const OnboardingPage = () => {
               </div>
             </motion.div>
           )}
+          {/* Step 6: WhatsApp Number (Optional) */}
+          {step === 6 && (
+            <motion.div key="whatsapp" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground">WhatsApp notifications</h1>
+              </div>
+              <p className="text-muted-foreground text-sm mb-6">
+                Get study reminders, risk digests, and streak alerts on WhatsApp. <span className="text-muted-foreground/70">(Optional)</span>
+              </p>
+
+              <div className="space-y-4">
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    value={whatsappNumber}
+                    onChange={e => setWhatsappNumber(e.target.value)}
+                    maxLength={20}
+                    className="w-full rounded-xl bg-secondary border border-border pl-10 pr-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+
+                <p className="text-[10px] text-muted-foreground">
+                  Include country code (e.g. +91 for India). We'll send via Twilio Sandbox — you may need to opt-in by sending a join message first.
+                </p>
+
+                {whatsappNumber.trim().length >= 10 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-3 p-3 rounded-xl glass border border-border"
+                  >
+                    <button
+                      onClick={() => setWhatsappOptIn(!whatsappOptIn)}
+                      className={`w-10 h-6 rounded-full transition-all relative flex-shrink-0 ${whatsappOptIn ? "bg-primary" : "bg-secondary"}`}
+                    >
+                      <motion.div
+                        className="w-4 h-4 rounded-full bg-white absolute top-1"
+                        animate={{ left: whatsappOptIn ? 22 : 4 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    </button>
+                    <span className="text-xs text-foreground">
+                      Enable WhatsApp notifications
+                    </span>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         {/* Navigation */}
@@ -580,7 +643,7 @@ const OnboardingPage = () => {
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {loading ? "Setting up..." : step < totalSteps - 1 ? (
-              <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-4 h-4" /></>
+              <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : step === 6 ? (whatsappNumber.trim() ? "Continue" : "Skip") : "Continue"} <ChevronRight className="w-4 h-4" /></>
             ) : (
               <>Launch ACRY <Sparkles className="w-4 h-4" /></>
             )}
