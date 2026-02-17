@@ -3895,6 +3895,54 @@ export type Database = {
           },
         ]
       }
+      whatsapp_cost_tracking: {
+        Row: {
+          category: string | null
+          cost_per_message: number | null
+          created_at: string
+          currency: string | null
+          date: string
+          id: string
+          messages_delivered: number | null
+          messages_failed: number | null
+          messages_read: number | null
+          messages_sent: number | null
+          provider: string | null
+          total_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          cost_per_message?: number | null
+          created_at?: string
+          currency?: string | null
+          date?: string
+          id?: string
+          messages_delivered?: number | null
+          messages_failed?: number | null
+          messages_read?: number | null
+          messages_sent?: number | null
+          provider?: string | null
+          total_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          cost_per_message?: number | null
+          created_at?: string
+          currency?: string | null
+          date?: string
+          id?: string
+          messages_delivered?: number | null
+          messages_failed?: number | null
+          messages_read?: number | null
+          messages_sent?: number | null
+          provider?: string | null
+          total_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_messages: {
         Row: {
           category: string | null
@@ -3966,6 +4014,69 @@ export type Database = {
           },
         ]
       }
+      whatsapp_queue: {
+        Row: {
+          category: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          max_retries: number | null
+          media_url: string | null
+          message_body: string
+          priority: string
+          retry_count: number | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          template_name: string | null
+          template_params: Json | null
+          to_number: string
+          trigger_key: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          media_url?: string | null
+          message_body: string
+          priority?: string
+          retry_count?: number | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          template_name?: string | null
+          template_params?: Json | null
+          to_number: string
+          trigger_key?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          media_url?: string | null
+          message_body?: string
+          priority?: string
+          retry_count?: number | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          template_name?: string | null
+          template_params?: Json | null
+          to_number?: string
+          trigger_key?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       whatsapp_templates: {
         Row: {
           body_template: string
@@ -4002,6 +4113,75 @@ export type Database = {
           name?: string
           updated_at?: string
           variables?: string[] | null
+        }
+        Relationships: []
+      }
+      whatsapp_triggers: {
+        Row: {
+          category: string
+          conditions: Json
+          cooldown_minutes: number | null
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_enabled: boolean
+          last_triggered_at: string | null
+          meta_template_id: string | null
+          priority: string
+          schedule_cron: string | null
+          schedule_type: string
+          target_filter: Json | null
+          template_name: string | null
+          total_delivered: number | null
+          total_failed: number | null
+          total_sent: number | null
+          trigger_key: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          conditions?: Json
+          cooldown_minutes?: number | null
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_enabled?: boolean
+          last_triggered_at?: string | null
+          meta_template_id?: string | null
+          priority?: string
+          schedule_cron?: string | null
+          schedule_type?: string
+          target_filter?: Json | null
+          template_name?: string | null
+          total_delivered?: number | null
+          total_failed?: number | null
+          total_sent?: number | null
+          trigger_key: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          conditions?: Json
+          cooldown_minutes?: number | null
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_enabled?: boolean
+          last_triggered_at?: string | null
+          meta_template_id?: string | null
+          priority?: string
+          schedule_cron?: string | null
+          schedule_type?: string
+          target_filter?: Json | null
+          template_name?: string | null
+          total_delivered?: number | null
+          total_failed?: number | null
+          total_sent?: number | null
+          trigger_key?: string
+          updated_at?: string
         }
         Relationships: []
       }
