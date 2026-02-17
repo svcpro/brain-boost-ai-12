@@ -3673,6 +3673,228 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_notification_logs: {
+        Row: {
+          ai_generated: boolean
+          context: Json | null
+          created_at: string
+          error_message: string | null
+          id: string
+          language: string
+          played_at: string | null
+          status: string
+          template_id: string | null
+          tone: string
+          trigger_key: string | null
+          user_id: string
+          voice_id: string | null
+          voice_text: string
+        }
+        Insert: {
+          ai_generated?: boolean
+          context?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          language?: string
+          played_at?: string | null
+          status?: string
+          template_id?: string | null
+          tone?: string
+          trigger_key?: string | null
+          user_id: string
+          voice_id?: string | null
+          voice_text: string
+        }
+        Update: {
+          ai_generated?: boolean
+          context?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          language?: string
+          played_at?: string | null
+          status?: string
+          template_id?: string | null
+          tone?: string
+          trigger_key?: string | null
+          user_id?: string
+          voice_id?: string | null
+          voice_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_notification_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "voice_notification_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voice_notification_queue: {
+        Row: {
+          context: Json | null
+          created_at: string
+          error_message: string | null
+          id: string
+          max_retries: number
+          retry_count: number
+          scheduled_at: string
+          status: string
+          template_id: string | null
+          trigger_key: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number
+          retry_count?: number
+          scheduled_at?: string
+          status?: string
+          template_id?: string | null
+          trigger_key?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number
+          retry_count?: number
+          scheduled_at?: string
+          status?: string
+          template_id?: string | null
+          trigger_key?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_notification_queue_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "voice_notification_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voice_notification_templates: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          language: string
+          name: string
+          tone: string
+          updated_at: string
+          variables: string[] | null
+          voice_id: string | null
+          voice_text: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          name: string
+          tone?: string
+          updated_at?: string
+          variables?: string[] | null
+          voice_id?: string | null
+          voice_text: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          name?: string
+          tone?: string
+          updated_at?: string
+          variables?: string[] | null
+          voice_id?: string | null
+          voice_text?: string
+        }
+        Relationships: []
+      }
+      voice_notification_triggers: {
+        Row: {
+          category: string
+          conditions: Json | null
+          cooldown_minutes: number
+          created_at: string
+          default_language: string
+          default_tone: string
+          description: string | null
+          display_name: string
+          id: string
+          is_enabled: boolean
+          priority: string
+          template_id: string | null
+          trigger_key: string
+          updated_at: string
+          use_ai_content: boolean
+        }
+        Insert: {
+          category?: string
+          conditions?: Json | null
+          cooldown_minutes?: number
+          created_at?: string
+          default_language?: string
+          default_tone?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_enabled?: boolean
+          priority?: string
+          template_id?: string | null
+          trigger_key: string
+          updated_at?: string
+          use_ai_content?: boolean
+        }
+        Update: {
+          category?: string
+          conditions?: Json | null
+          cooldown_minutes?: number
+          created_at?: string
+          default_language?: string
+          default_tone?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_enabled?: boolean
+          priority?: string
+          template_id?: string | null
+          trigger_key?: string
+          updated_at?: string
+          use_ai_content?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_notification_triggers_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "voice_notification_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           category: string | null
