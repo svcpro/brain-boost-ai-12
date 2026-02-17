@@ -159,17 +159,36 @@ const MetaTemplateApproval = () => {
         sample_values: Object.keys(form.sample_values).length > 0 ? form.sample_values : null,
         tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : null,
         notes: form.notes || null,
-        meta_status: status,
-        submitted_at: status === "submitted" ? new Date().toISOString() : null,
+        meta_status: status === "submitted" ? "draft" : status, // Save as draft first if submitting
+        submitted_at: null,
       };
+
+      let savedId = selectedTemplate?.id;
 
       if (selectedTemplate) {
         await (supabase as any).from("meta_template_submissions").update(payload).eq("id", selectedTemplate.id);
-        toast({ title: `Template ${status === "submitted" ? "submitted to META" : "saved"} ✅` });
       } else {
-        await (supabase as any).from("meta_template_submissions").insert(payload);
-        toast({ title: `Template ${status === "submitted" ? "submitted to META" : "created"} ✅` });
+        const { data: insertedData } = await (supabase as any).from("meta_template_submissions").insert(payload).select("id").single();
+        savedId = insertedData?.id;
       }
+
+      // If user wants to submit to META, call the real API
+      if (status === "submitted" && savedId) {
+        toast({ title: "Template saved. Submitting to META..." });
+        const { data, error } = await supabase.functions.invoke("meta-whatsapp-templates", {
+          body: {
+            action: selectedTemplate?.meta_template_id ? "edit_template" : "create_template",
+            template_id: savedId,
+            template_data: payload,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        toast({ title: "✅ Submitted to META!", description: `Template ID: ${data.meta_template_id}` });
+      } else {
+        toast({ title: "Template saved as draft ✅" });
+      }
+
       setView("list");
       setForm(EMPTY_FORM);
       setSelectedTemplate(null);
@@ -180,19 +199,58 @@ const MetaTemplateApproval = () => {
     setSaving(false);
   };
 
+  const [syncing, setSyncing] = useState(false);
+  const [deletingMeta, setDeletingMeta] = useState(false);
+
   const submitToMeta = async (id: string) => {
     setSubmitting(true);
     try {
-      await (supabase as any).from("meta_template_submissions").update({
-        meta_status: "submitted",
-        submitted_at: new Date().toISOString(),
-      }).eq("id", id);
-      toast({ title: "📤 Template submitted to META for review!" });
+      // Find the template data
+      const template = templates.find(t => t.id === id);
+      if (!template) throw new Error("Template not found");
+
+      const { data, error } = await supabase.functions.invoke("meta-whatsapp-templates", {
+        body: {
+          action: "create_template",
+          template_id: id,
+          template_data: {
+            template_name: template.template_name,
+            category: template.category,
+            language: template.language,
+            header_type: template.header_type,
+            header_content: template.header_content,
+            body_text: template.body_text,
+            footer_text: template.footer_text,
+            button_type: template.button_type,
+            buttons: template.buttons,
+            sample_values: template.sample_values,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "📤 Template submitted to META!", description: `ID: ${data.meta_template_id} | Status: ${data.status}` });
       fetchTemplates();
     } catch (e: any) {
-      toast({ title: "Submission failed", description: e.message, variant: "destructive" });
+      toast({ title: "META submission failed", description: e.message, variant: "destructive" });
     }
     setSubmitting(false);
+  };
+
+  const syncWithMeta = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("meta-whatsapp-templates", {
+        body: { action: "sync_status" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "🔄 Synced with META!", description: `${data.synced} templates synced. META has ${data.meta_total} total.` });
+      fetchTemplates();
+    } catch (e: any) {
+      toast({ title: "Sync failed", description: e.message, variant: "destructive" });
+    }
+    setSyncing(false);
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -205,9 +263,27 @@ const MetaTemplateApproval = () => {
   };
 
   const deleteTemplate = async (id: string) => {
+    const template = templates.find(t => t.id === id);
+    setDeletingMeta(true);
+    try {
+      // If it has a meta_template_id, also delete from META
+      if (template?.meta_template_id && template?.template_name) {
+        const { data, error } = await supabase.functions.invoke("meta-whatsapp-templates", {
+          body: {
+            action: "delete_template",
+            template_id: id,
+            template_data: { template_name: template.template_name },
+          },
+        });
+        if (error) console.warn("META delete failed:", error);
+      }
+    } catch (e) {
+      console.warn("META delete error:", e);
+    }
     await (supabase as any).from("meta_template_submissions").delete().eq("id", id);
     toast({ title: "Template deleted" });
     if (selectedTemplate?.id === id) { setView("list"); setSelectedTemplate(null); }
+    setDeletingMeta(false);
     fetchTemplates();
   };
 
@@ -335,6 +411,11 @@ Return just the template body text, nothing else.`,
               <button onClick={() => { setForm(EMPTY_FORM); setSelectedTemplate(null); setView("create"); }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-600/20 transition-all">
                 <Plus className="w-4 h-4" /> New META Template
+              </button>
+              <button onClick={syncWithMeta} disabled={syncing}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50">
+                {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Sync with META
               </button>
               <button onClick={fetchTemplates} className="p-2.5 rounded-xl bg-secondary/50 border border-border hover:bg-secondary transition-colors">
                 <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
