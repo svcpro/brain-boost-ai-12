@@ -837,66 +837,259 @@ const LeadManagementTab = () => {
   );
 };
 
-// ─── Campaign Management Tab ───
+// ─── WhatsApp Campaign Triggers ───
+const WA_CAMPAIGN_TRIGGERS = [
+  { key: "study_reminder", label: "Study Reminder", icon: "📚", desc: "Topics due for revision" },
+  { key: "forget_risk", label: "Forget Risk Alert", icon: "⚠️", desc: "Memory score dropping" },
+  { key: "risk_digest", label: "Daily Risk Digest", icon: "📊", desc: "At-risk topics summary" },
+  { key: "streak_milestone", label: "Streak Milestone", icon: "🔥", desc: "Celebrate streaks" },
+  { key: "streak_break_warning", label: "Streak Break Warning", icon: "💔", desc: "Streak about to break" },
+  { key: "brain_update_reminder", label: "Brain Update Nudge", icon: "🧠", desc: "No brain update in 24h" },
+  { key: "daily_briefing", label: "Daily Briefing", icon: "🌅", desc: "Morning cognitive summary" },
+  { key: "brain_missions", label: "Brain Missions", icon: "🎯", desc: "New AI learning missions" },
+  { key: "weekly_insights", label: "Weekly Insights", icon: "📈", desc: "AI study recommendations" },
+  { key: "exam_countdown", label: "Exam Countdown", icon: "⏰", desc: "Exam date approaching" },
+  { key: "burnout_detection", label: "Burnout Alert", icon: "😮‍💨", desc: "High fatigue detected" },
+  { key: "subscription_expiry", label: "Sub Expiry", icon: "💳", desc: "Subscription expiring" },
+  { key: "new_user_welcome", label: "Welcome Message", icon: "👋", desc: "Onboarding message" },
+  { key: "inactivity_nudge", label: "Inactivity Nudge", icon: "💤", desc: "3+ days inactive" },
+  { key: "leaderboard_rank_up", label: "Rank Up", icon: "🏅", desc: "Leaderboard climb" },
+  { key: "promo_seasonal", label: "Seasonal Promo", icon: "🎉", desc: "Seasonal offer" },
+  { key: "promo_upgrade", label: "Upgrade Promo", icon: "⬆️", desc: "Encourage upgrade" },
+  { key: "promo_referral", label: "Referral Promo", icon: "🤝", desc: "Invite friends" },
+  { key: "promo_reengagement", label: "Re-engagement", icon: "🔄", desc: "Win back churned users" },
+];
+
+// ─── AI Campaign Management Tab ───
 const CampaignManagementTab = () => {
   const { toast } = useToast();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [newCampaign, setNewCampaign] = useState({ name: "", body: "", audience_type: "all", scheduled_at: "" });
+  const [creating, setCreating] = useState<string | null>(null);
+  const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
+  const [scheduleMode, setScheduleMode] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [targetPlan, setTargetPlan] = useState<"all" | "free" | "pro" | "ultra">("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [subTab, setSubTab] = useState<"ai" | "ab" | "drip" | "list">("ai");
+
+  // A/B Test state
+  const [abTrigger, setAbTrigger] = useState("");
+  const [abVariantCount, setAbVariantCount] = useState(2);
+  const [abVariants, setAbVariants] = useState<{ subject: string; body: string }[]>([]);
+  const [abGenerating, setAbGenerating] = useState(false);
+  const [abSending, setAbSending] = useState(false);
+  const [abSplitRatio, setAbSplitRatio] = useState(50);
+
+  // Drip state
+  const [drips, setDrips] = useState<any[]>([]);
+  const [creatingDrip, setCreatingDrip] = useState(false);
+  const [newDrip, setNewDrip] = useState({ name: "", trigger_event: "signup", steps: [{ delay_hours: 0, message: "" }, { delay_hours: 24, message: "" }] });
+  const [generatingDrip, setGeneratingDrip] = useState(false);
+
+  // Live updates
+  const [liveUpdates, setLiveUpdates] = useState<{ id: string; field: string; value: any; at: Date }[]>([]);
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
-    const { data } = await (supabase as any).from("campaigns").select("*").eq("channel", "whatsapp").order("created_at", { ascending: false }).limit(50);
+    let q = (supabase as any).from("campaigns").select("*").eq("channel", "whatsapp").order("created_at", { ascending: false }).limit(50);
+    if (statusFilter !== "all") q = q.eq("status", statusFilter);
+    const { data } = await q;
     setCampaigns(data || []);
     setLoading(false);
+  }, [statusFilter]);
+
+  const fetchDrips = useCallback(async () => {
+    const { data } = await (supabase as any).from("drip_sequences").select("*").eq("channel", "whatsapp").order("created_at", { ascending: false });
+    setDrips(data || []);
   }, []);
 
-  useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+  useEffect(() => { fetchCampaigns(); fetchDrips(); }, [fetchCampaigns, fetchDrips]);
 
-  const createCampaign = async () => {
-    if (!newCampaign.name || !newCampaign.body) { toast({ title: "Name and message required", variant: "destructive" }); return; }
-    const { data: user } = await supabase.auth.getUser();
-    await (supabase as any).from("campaigns").insert({
-      name: newCampaign.name, body: newCampaign.body, channel: "whatsapp", audience_type: newCampaign.audience_type,
-      status: newCampaign.scheduled_at ? "scheduled" : "draft", scheduled_at: newCampaign.scheduled_at || null,
-      created_by: user?.user?.id,
-    });
-    toast({ title: "Campaign created! ✅" });
-    setCreating(false); setNewCampaign({ name: "", body: "", audience_type: "all", scheduled_at: "" });
-    fetchCampaigns();
-  };
+  // Real-time tracking
+  useEffect(() => {
+    const channel = supabase.channel('wa-campaign-live')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'campaigns' }, (payload) => {
+        const updated = payload.new as any;
+        if (updated.channel === "whatsapp") {
+          setCampaigns(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+          setLiveUpdates(prev => [{ id: updated.id, field: 'status', value: updated.status, at: new Date() }, ...prev.slice(0, 9)]);
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'campaigns' }, (payload) => {
+        const nc = payload.new as any;
+        if (nc.channel === "whatsapp") {
+          setCampaigns(prev => [nc, ...prev]);
+          setLiveUpdates(prev => [{ id: nc.id, field: 'created', value: nc.name, at: new Date() }, ...prev.slice(0, 9)]);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
-  const launchCampaign = async (campaign: any) => {
+  // One-click AI WhatsApp campaign
+  const createAICampaign = async (triggerKey: string) => {
+    setCreating(triggerKey);
     try {
-      // Get target users based on audience type
+      const { data: aiContent, error: aiErr } = await supabase.functions.invoke("generate-campaign-templates", {
+        body: { action: "generate_campaign", trigger_key: triggerKey, channel: "push", custom_context: "Generate a WhatsApp message (max 300 chars, include emojis, friendly conversational tone). This will be sent via WhatsApp Business API." },
+      });
+      if (aiErr) throw aiErr;
+
       let query = (supabase as any).from("profiles").select("id, whatsapp_number, display_name").not("whatsapp_number", "is", null);
-      if (campaign.audience_type === "pro") query = query.eq("subscription_plan", "pro");
-      if (campaign.audience_type === "free") query = query.eq("subscription_plan", "free");
+      if (targetPlan === "pro") query = query.eq("subscription_plan", "pro");
+      if (targetPlan === "ultra") query = query.eq("subscription_plan", "ultra");
+      if (targetPlan === "free") query = query.or("subscription_plan.is.null,subscription_plan.eq.free");
       const { data: users } = await query.limit(500);
 
-      if (!users || users.length === 0) { toast({ title: "No eligible users found", variant: "destructive" }); return; }
+      if (!users || users.length === 0) { toast({ title: "No users with WhatsApp numbers found", variant: "destructive" }); setCreating(null); return; }
 
-      const payload = users.map((u: any) => ({
-        to: u.whatsapp_number,
-        message: campaign.body.replace("{{name}}", u.display_name || "there"),
-        category: "campaign",
-        user_id: u.id,
-      }));
+      const isScheduled = scheduleMode && scheduleDate;
+      const scheduledAt = isScheduled ? new Date(`${scheduleDate}T${scheduleTime}`).toISOString() : null;
 
-      const { data, error } = await supabase.functions.invoke("send-whatsapp", { body: payload });
-      if (error) throw error;
+      const messageBody = (aiContent.html_body || aiContent.subject || "").replace(/<[^>]+>/g, "").slice(0, 1600);
 
-      await (supabase as any).from("campaigns").update({
-        status: "sent", sent_at: new Date().toISOString(), total_recipients: users.length,
-        delivered_count: data.sent, failed_count: data.failed,
-      }).eq("id", campaign.id);
+      const { data: user } = await supabase.auth.getUser();
+      const { data: campaign, error: campErr } = await (supabase as any).from("campaigns").insert({
+        name: `[AI WA] ${aiContent.subject || triggerKey}${targetPlan !== "all" ? ` (${targetPlan})` : ""}`,
+        channel: "whatsapp", status: isScheduled ? "scheduled" : "sent",
+        subject: aiContent.subject || "", body: messageBody,
+        audience_type: targetPlan === "all" ? "all" : "segment",
+        audience_filters: targetPlan !== "all" ? { plan: targetPlan } : {},
+        total_recipients: users.length,
+        scheduled_at: scheduledAt, sent_at: isScheduled ? null : new Date().toISOString(),
+        created_by: user?.user?.id,
+      }).select().single();
+      if (campErr) throw campErr;
 
-      toast({ title: `🚀 Campaign sent to ${data.sent} users!` });
+      if (!isScheduled) {
+        // Send via Twilio
+        const payload = users.map((u: any) => ({
+          to: u.whatsapp_number, message: messageBody.replace("{{name}}", u.display_name || "there"),
+          category: "campaign", user_id: u.id,
+        }));
+        const { data: sendResult, error: sendErr } = await supabase.functions.invoke("send-whatsapp", { body: payload });
+        if (sendErr) throw sendErr;
+
+        await (supabase as any).from("campaigns").update({
+          delivered_count: sendResult.sent, failed_count: sendResult.failed,
+        }).eq("id", campaign.id);
+
+        toast({ title: `🚀 WhatsApp AI campaign sent to ${sendResult.sent} users!` });
+      } else {
+        toast({ title: `📅 Campaign scheduled for ${format(new Date(scheduledAt!), "PPp")}` });
+      }
       fetchCampaigns();
     } catch (e: any) {
-      toast({ title: "Campaign launch failed", description: e.message, variant: "destructive" });
+      toast({ title: "AI campaign failed", description: e?.message, variant: "destructive" });
     }
+    setCreating(null);
+  };
+
+  // A/B Test
+  const generateABVariants = async () => {
+    if (!abTrigger) return;
+    setAbGenerating(true);
+    try {
+      const variants: { subject: string; body: string }[] = [];
+      for (let i = 0; i < abVariantCount; i++) {
+        const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
+          body: { action: "generate_single", trigger_key: abTrigger, channel: "push",
+            custom_context: `Generate WhatsApp message variant ${String.fromCharCode(65 + i)} — use a ${i === 0 ? "direct and urgent" : i === 1 ? "friendly and casual" : "data-driven"} tone. Max 300 chars with emojis.` },
+        });
+        if (error) throw error;
+        variants.push({ subject: data.subject || `Variant ${String.fromCharCode(65 + i)}`, body: (data.html_body || "").replace(/<[^>]+>/g, "").slice(0, 1600) });
+      }
+      setAbVariants(variants);
+      toast({ title: `🧪 ${variants.length} AI WhatsApp variants generated!` });
+    } catch (e: any) { toast({ title: "Variant generation failed", description: e?.message, variant: "destructive" }); }
+    setAbGenerating(false);
+  };
+
+  const sendABCampaign = async () => {
+    if (abVariants.length < 2) return;
+    setAbSending(true);
+    try {
+      const { data: users } = await (supabase as any).from("profiles").select("id, whatsapp_number, display_name").not("whatsapp_number", "is", null).limit(500);
+      if (!users || users.length === 0) { toast({ title: "No WhatsApp users found", variant: "destructive" }); setAbSending(false); return; }
+
+      const shuffled = [...users].sort(() => Math.random() - 0.5);
+      const splitIdx = Math.floor(shuffled.length * (abSplitRatio / 100));
+      const groups = abVariantCount === 2
+        ? [shuffled.slice(0, splitIdx), shuffled.slice(splitIdx)]
+        : [shuffled.slice(0, Math.floor(shuffled.length / 3)), shuffled.slice(Math.floor(shuffled.length / 3), Math.floor(shuffled.length * 2 / 3)), shuffled.slice(Math.floor(shuffled.length * 2 / 3))];
+
+      const { data: user } = await supabase.auth.getUser();
+      const { data: campaign } = await (supabase as any).from("campaigns").insert({
+        name: `[AI WA A/B] ${abTrigger}`, channel: "whatsapp", status: "sent",
+        subject: abVariants[0].subject, body: abVariants[0].body,
+        audience_type: "all", total_recipients: users.length,
+        sent_at: new Date().toISOString(), created_by: user?.user?.id,
+        is_ab_test: true, ab_variants: abVariants.map((v, i) => ({ variant: String.fromCharCode(65 + i), subject: v.subject, body: v.body, audience_size: groups[i]?.length || 0 })),
+      }).select().single();
+
+      // Send each variant group
+      let totalSent = 0;
+      for (let vi = 0; vi < groups.length; vi++) {
+        const payload = groups[vi].map((u: any) => ({
+          to: u.whatsapp_number, message: abVariants[vi].body.replace("{{name}}", u.display_name || "there"),
+          category: "campaign", user_id: u.id,
+        }));
+        if (payload.length > 0) {
+          const { data: result } = await supabase.functions.invoke("send-whatsapp", { body: payload });
+          totalSent += result?.sent || 0;
+        }
+        // Insert recipients
+        const recipients = groups[vi].map((u: any) => ({ campaign_id: campaign.id, user_id: u.id, status: "delivered", delivered_at: new Date().toISOString(), ab_variant: String.fromCharCode(65 + vi) }));
+        for (let i = 0; i < recipients.length; i += 50) {
+          await (supabase as any).from("campaign_recipients").insert(recipients.slice(i, i + 50));
+        }
+      }
+
+      await (supabase as any).from("campaigns").update({ delivered_count: totalSent }).eq("id", campaign.id);
+      toast({ title: `🧪 A/B WhatsApp campaign sent to ${totalSent} users!` });
+      setAbVariants([]); setAbTrigger("");
+      fetchCampaigns();
+    } catch (e: any) { toast({ title: "A/B campaign failed", description: e?.message, variant: "destructive" }); }
+    setAbSending(false);
+  };
+
+  // Drip Sequences
+  const generateDripContent = async () => {
+    setGeneratingDrip(true);
+    try {
+      const steps = [];
+      for (let i = 0; i < newDrip.steps.length; i++) {
+        const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
+          body: { action: "generate_single", trigger_key: newDrip.trigger_event, channel: "push",
+            custom_context: `WhatsApp drip step ${i + 1}/${newDrip.steps.length}. Delay: ${newDrip.steps[i].delay_hours}h. ${i === 0 ? "Welcome/intro tone" : i === newDrip.steps.length - 1 ? "Final nudge, create urgency" : "Follow-up, add value"}. Max 300 chars with emojis.` },
+        });
+        if (error) throw error;
+        steps.push({ ...newDrip.steps[i], message: (data.html_body || data.subject || "").replace(/<[^>]+>/g, "").slice(0, 600) });
+      }
+      setNewDrip(prev => ({ ...prev, steps }));
+      toast({ title: "🤖 AI generated all drip steps!" });
+    } catch (e: any) { toast({ title: "AI drip generation failed", description: e?.message, variant: "destructive" }); }
+    setGeneratingDrip(false);
+  };
+
+  const saveDrip = async () => {
+    if (!newDrip.name) { toast({ title: "Name required", variant: "destructive" }); return; }
+    const { data: user } = await supabase.auth.getUser();
+    await (supabase as any).from("drip_sequences").insert({
+      name: newDrip.name, channel: "whatsapp", trigger_event: newDrip.trigger_event,
+      steps: newDrip.steps, status: "active", created_by: user?.user?.id,
+    });
+    toast({ title: "Drip sequence created! ✅" });
+    setCreatingDrip(false);
+    setNewDrip({ name: "", trigger_event: "signup", steps: [{ delay_hours: 0, message: "" }, { delay_hours: 24, message: "" }] });
+    fetchDrips();
+  };
+
+  const cancelCampaign = async (id: string) => {
+    await (supabase as any).from("campaigns").update({ status: "cancelled" }).eq("id", id);
+    toast({ title: "Campaign cancelled" }); fetchCampaigns();
   };
 
   const campaignStatusConfig: Record<string, { color: string; bg: string }> = {
@@ -904,116 +1097,405 @@ const CampaignManagementTab = () => {
     scheduled: { color: "text-blue-500", bg: "bg-blue-500/15" },
     sending: { color: "text-yellow-500", bg: "bg-yellow-500/15" },
     sent: { color: "text-green-500", bg: "bg-green-500/15" },
+    cancelled: { color: "text-destructive", bg: "bg-destructive/15" },
     failed: { color: "text-destructive", bg: "bg-destructive/15" },
   };
 
   return (
     <div className="space-y-4">
-      <SectionHeader icon={Megaphone} title="WhatsApp Campaigns" subtitle="Create, schedule, and launch bulk WhatsApp campaigns" />
+      <SectionHeader icon={Megaphone} title="AI WhatsApp Campaign Center" subtitle="One-click AI campaigns • A/B Tests • Drip Sequences • Real-time tracking" />
 
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          {Object.entries(campaignStatusConfig).map(([status, cfg]) => {
-            const count = campaigns.filter(c => c.status === status).length;
-            return count > 0 ? (
-              <span key={status} className={`text-[10px] px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color} font-semibold capitalize`}>
-                {status} ({count})
-              </span>
-            ) : null;
-          })}
-        </div>
-        <button onClick={() => setCreating(!creating)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-600/15 text-green-500 text-xs font-medium hover:bg-green-600/25 transition-all border border-green-500/20">
-          <Plus className="w-3.5 h-3.5" />{creating ? "Cancel" : "New Campaign"}
-        </button>
+      {/* Sub-tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {([
+          { key: "ai", label: "AI Campaigns", icon: Sparkles },
+          { key: "ab", label: "A/B Tests", icon: Target },
+          { key: "drip", label: "Drip Sequences", icon: GitBranch },
+          { key: "list", label: "All Campaigns", icon: Layers },
+        ] as const).map(t => (
+          <button key={t.key} onClick={() => setSubTab(t.key)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+              subTab === t.key ? "bg-green-600/15 text-green-500 border border-green-500/30" : "bg-secondary/50 text-muted-foreground border border-transparent hover:border-border"
+            }`}>
+            <t.icon className="w-3.5 h-3.5" />{t.label}
+          </button>
+        ))}
       </div>
 
-      <AnimatePresence>
-        {creating && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-            className="bg-card border border-green-500/20 rounded-2xl p-5 space-y-3 overflow-hidden">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Campaign Name</label>
-              <input value={newCampaign.name} onChange={e => setNewCampaign(p => ({ ...p, name: e.target.value }))} placeholder="Weekend Study Boost"
-                className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Message (use {"{{name}}"} for personalization)</label>
-              <textarea value={newCampaign.body} onChange={e => setNewCampaign(p => ({ ...p, body: e.target.value }))}
-                placeholder={"Hey {{name}}! 🧠 Weekend study tip: Review your weakest topics for 15 min today!"}
-                className="w-full mt-1 p-3 rounded-xl bg-secondary/50 border border-border text-sm min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-green-500/50" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Audience</label>
-                <select value={newCampaign.audience_type} onChange={e => setNewCampaign(p => ({ ...p, audience_type: e.target.value }))}
-                  className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none">
-                  <option value="all">All Users</option><option value="pro">Pro Users</option><option value="free">Free Users</option>
-                  <option value="at_risk">At Risk</option><option value="inactive">Inactive 7d+</option>
-                </select>
+      {/* Live Activity Feed */}
+      {liveUpdates.length > 0 && (
+        <div className="bg-card/50 border border-green-500/10 rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-green-500">LIVE</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {liveUpdates.slice(0, 5).map((u, i) => (
+              <span key={i} className="text-[9px] px-2 py-1 rounded-full bg-green-500/10 text-green-400 whitespace-nowrap flex-shrink-0">
+                {u.field === "created" ? `📢 ${u.value}` : `${u.field}: ${u.value}`} · {formatDistanceToNow(u.at, { addSuffix: true })}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <AnimatePresence mode="wait">
+        {/* ── AI Campaigns Sub-tab ── */}
+        {subTab === "ai" && (
+          <motion.div key="ai" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="bg-card border border-green-500/20 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-green-500" />
+                <h3 className="text-sm font-bold text-foreground">One-Click AI WhatsApp Campaign</h3>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-500 font-bold">100% AI</span>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Schedule (optional)</label>
-                <input type="datetime-local" value={newCampaign.scheduled_at} onChange={e => setNewCampaign(p => ({ ...p, scheduled_at: e.target.value }))}
-                  className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none" />
+              <p className="text-[11px] text-muted-foreground">Select trigger → AI writes WhatsApp message → sends or schedules automatically to all opted-in users.</p>
+
+              {/* Schedule toggle */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50 border border-border">
+                <button onClick={() => setScheduleMode(!scheduleMode)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                    scheduleMode ? "bg-green-600/15 text-green-500 border border-green-500/30" : "bg-secondary text-muted-foreground border border-border"
+                  }`}>
+                  <Calendar className="w-3.5 h-3.5" />{scheduleMode ? "Scheduled" : "Send Now"}
+                </button>
+                {scheduleMode && (
+                  <div className="flex items-center gap-2">
+                    <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
+                      min={format(new Date(), "yyyy-MM-dd")}
+                      className="px-2 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground" />
+                    <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
+                      className="px-2 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground" />
+                  </div>
+                )}
+              </div>
+
+              {/* Target Plan */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50 border border-border">
+                <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1"><Filter className="w-3 h-3" />Target:</span>
+                <div className="flex gap-1">
+                  {(["all", "free", "pro", "ultra"] as const).map(plan => (
+                    <button key={plan} onClick={() => setTargetPlan(plan)}
+                      className={`px-2.5 py-1.5 rounded-xl text-[10px] font-medium transition-all ${
+                        targetPlan === plan
+                          ? "bg-green-600/15 text-green-500 border border-green-500/30"
+                          : "text-muted-foreground hover:bg-secondary border border-transparent"
+                      }`}>
+                      {plan === "all" ? "👥 All" : plan === "free" ? "Free" : plan === "pro" ? "⭐ Pro" : "💎 Ultra"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Trigger Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto pr-1">
+                {WA_CAMPAIGN_TRIGGERS.map(trigger => (
+                  <div key={trigger.key}
+                    className={`rounded-xl p-3 border transition-all cursor-pointer ${
+                      selectedTrigger === trigger.key ? "bg-green-500/10 border-green-500/30" : "bg-secondary/50 border-border hover:border-green-500/20"
+                    }`}
+                    onClick={() => setSelectedTrigger(selectedTrigger === trigger.key ? null : trigger.key)}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{trigger.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-foreground">{trigger.label}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{trigger.desc}</p>
+                      </div>
+                    </div>
+                    {selectedTrigger === trigger.key && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-2">
+                        <button onClick={(e) => { e.stopPropagation(); createAICampaign(trigger.key); }}
+                          disabled={!!creating || (scheduleMode && !scheduleDate)}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[11px] font-semibold bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-green-600/20">
+                          {creating === trigger.key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          {creating === trigger.key ? (scheduleMode ? "Scheduling..." : "Generating & Sending...") : (scheduleMode ? "Schedule WhatsApp" : "Send WhatsApp Now")}
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
-            <button onClick={createCampaign}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold text-sm shadow-lg shadow-green-600/20 hover:from-green-700 hover:to-emerald-700 transition-all">
-              Create Campaign
-            </button>
+          </motion.div>
+        )}
+
+        {/* ── A/B Test Sub-tab ── */}
+        {subTab === "ab" && (
+          <motion.div key="ab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="bg-card border border-green-500/20 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-green-500" />
+                <h3 className="text-sm font-bold text-foreground">WhatsApp A/B Test Creator</h3>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-500 font-bold">AI Variants</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">AI generates distinct WhatsApp message variants → audience auto-splits → track delivery & read rates per variant.</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Trigger</label>
+                  <select value={abTrigger} onChange={e => { setAbTrigger(e.target.value); setAbVariants([]); }}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                    <option value="">Select trigger...</option>
+                    {WA_CAMPAIGN_TRIGGERS.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Variants & Split</label>
+                  <div className="flex gap-2">
+                    {[2, 3].map(n => (
+                      <button key={n} onClick={() => { setAbVariantCount(n); setAbVariants([]); }}
+                        className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                          abVariantCount === n ? "bg-green-600/15 text-green-500 border border-green-500/30" : "bg-secondary/50 text-muted-foreground border border-border"
+                        }`}>
+                        {n} Variants
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {abVariantCount === 2 && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50 border border-border">
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">Split:</span>
+                  <input type="range" min={20} max={80} value={abSplitRatio} onChange={e => setAbSplitRatio(Number(e.target.value))} className="w-32 h-1.5 accent-green-500" />
+                  <span className="text-[10px] font-bold text-foreground">{abSplitRatio}% / {100 - abSplitRatio}%</span>
+                </div>
+              )}
+
+              <button onClick={generateABVariants} disabled={!abTrigger || abGenerating}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-green-600/20">
+                {abGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+                {abGenerating ? `Generating ${abVariantCount} variants...` : `Generate ${abVariantCount} AI WhatsApp Variants`}
+              </button>
+
+              {abVariants.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-foreground flex items-center gap-2"><Sparkles className="w-3.5 h-3.5 text-green-500" />Generated Variants</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {abVariants.map((v, i) => (
+                      <div key={i} className="rounded-xl border border-border p-3 bg-secondary/30 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-green-500/15 text-green-500 flex items-center justify-center text-[10px] font-bold">{String.fromCharCode(65 + i)}</span>
+                          <span className="text-[10px] font-bold text-foreground">Variant {String.fromCharCode(65 + i)}</span>
+                          <span className="text-[9px] text-muted-foreground ml-auto">{abVariantCount === 2 ? (i === 0 ? `${abSplitRatio}%` : `${100 - abSplitRatio}%`) : "33%"}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{v.body.slice(0, 200)}{v.body.length > 200 ? "..." : ""}</p>
+                        <textarea value={v.body} onChange={e => setAbVariants(prev => prev.map((vr, vi) => vi === i ? { ...vr, body: e.target.value } : vr))}
+                          className="w-full px-2 py-1.5 rounded-xl bg-background border border-border text-[10px] text-foreground min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                          placeholder="Edit message..." />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={sendABCampaign} disabled={abSending}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-green-600 to-emerald-600 text-white disabled:opacity-50 shadow-lg shadow-green-600/20">
+                    {abSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {abSending ? "Sending A/B..." : `Send A/B WhatsApp Test (${abVariantCount} variants)`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Drip Sequences Sub-tab ── */}
+        {subTab === "drip" && (
+          <motion.div key="drip" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">{drips.length} drip sequences configured</p>
+              <button onClick={() => setCreatingDrip(!creatingDrip)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-600/15 text-green-500 text-xs font-medium hover:bg-green-600/25 transition-all border border-green-500/20">
+                <Plus className="w-3.5 h-3.5" />{creatingDrip ? "Cancel" : "New Drip Sequence"}
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {creatingDrip && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                  className="bg-card border border-green-500/20 rounded-2xl p-5 space-y-4 overflow-hidden">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">Sequence Name</label>
+                      <input value={newDrip.name} onChange={e => setNewDrip(p => ({ ...p, name: e.target.value }))} placeholder="Welcome WhatsApp Series"
+                        className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">Trigger Event</label>
+                      <select value={newDrip.trigger_event} onChange={e => setNewDrip(p => ({ ...p, trigger_event: e.target.value }))}
+                        className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none text-foreground">
+                        <option value="signup">User Signup</option><option value="first_study">First Study</option>
+                        <option value="subscription">New Subscription</option><option value="streak_lost">Streak Lost</option>
+                        <option value="inactivity_3d">3-Day Inactivity</option><option value="exam_registered">Exam Registered</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><GitBranch className="w-3 h-3" />Steps ({newDrip.steps.length})</label>
+                      <div className="flex gap-2">
+                        <button onClick={() => setNewDrip(p => ({ ...p, steps: [...p.steps, { delay_hours: (p.steps.at(-1)?.delay_hours || 0) + 24, message: "" }] }))}
+                          className="text-[10px] px-2 py-1 rounded-lg bg-secondary text-muted-foreground hover:bg-secondary/80">+ Add Step</button>
+                        <button onClick={generateDripContent} disabled={generatingDrip}
+                          className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-green-600/15 text-green-500 hover:bg-green-600/25 border border-green-500/20">
+                          {generatingDrip ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
+                          AI Write All
+                        </button>
+                      </div>
+                    </div>
+                    {newDrip.steps.map((step, i) => (
+                      <div key={i} className="flex gap-3 items-start">
+                        <div className="flex flex-col items-center">
+                          <div className="w-7 h-7 rounded-full bg-green-500/15 text-green-500 flex items-center justify-center text-[10px] font-bold">{i + 1}</div>
+                          {i < newDrip.steps.length - 1 && <div className="w-0.5 h-6 bg-green-500/20 mt-1" />}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground">Delay:</span>
+                            <input type="number" value={step.delay_hours} min={0}
+                              onChange={e => setNewDrip(p => ({ ...p, steps: p.steps.map((s, si) => si === i ? { ...s, delay_hours: Number(e.target.value) } : s) }))}
+                              className="w-16 px-2 py-1 rounded-lg bg-secondary/50 border border-border text-xs text-foreground" />
+                            <span className="text-[10px] text-muted-foreground">hours</span>
+                            {i > 1 && (
+                              <button onClick={() => setNewDrip(p => ({ ...p, steps: p.steps.filter((_, si) => si !== i) }))}
+                                className="ml-auto p-1 rounded hover:bg-destructive/10"><Trash2 className="w-3 h-3 text-muted-foreground" /></button>
+                            )}
+                          </div>
+                          <textarea value={step.message} onChange={e => setNewDrip(p => ({ ...p, steps: p.steps.map((s, si) => si === i ? { ...s, message: e.target.value } : s) }))}
+                            placeholder={`Step ${i + 1} WhatsApp message...`}
+                            className="w-full p-2 rounded-xl bg-secondary/50 border border-border text-xs min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button onClick={saveDrip}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold text-sm shadow-lg shadow-green-600/20 hover:from-green-700 hover:to-emerald-700 transition-all">
+                    Save Drip Sequence
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Existing drips */}
+            {drips.length === 0 && !creatingDrip ? (
+              <div className="text-center py-12"><GitBranch className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" /><p className="text-muted-foreground text-sm">No WhatsApp drip sequences yet</p></div>
+            ) : (
+              <div className="space-y-2">
+                {drips.map((drip, i) => (
+                  <motion.div key={drip.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                    className="bg-card border border-border rounded-2xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <GitBranch className="w-4 h-4 text-green-500" />
+                        <span className="text-sm font-bold text-foreground">{drip.name}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${drip.status === "active" ? "bg-green-500/15 text-green-500" : "bg-muted text-muted-foreground"}`}>{drip.status}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span>{(drip.steps as any[])?.length || 0} steps</span>
+                        <span>·</span>
+                        <span>Trigger: {drip.trigger_event}</span>
+                        {drip.total_enrolled > 0 && <><span>·</span><span>{drip.total_enrolled} enrolled</span></>}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── All Campaigns List Sub-tab ── */}
+        {subTab === "list" && (
+          <motion.div key="list" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="flex gap-2 flex-wrap items-center">
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none text-foreground">
+                <option value="all">All Status</option><option value="draft">Draft</option><option value="scheduled">Scheduled</option>
+                <option value="sent">Sent</option><option value="cancelled">Cancelled</option>
+              </select>
+              <button onClick={fetchCampaigns} className="p-2.5 rounded-xl bg-secondary/50 border border-border hover:bg-secondary transition-colors">
+                <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
+              </button>
+              <div className="ml-auto flex gap-2">
+                {Object.entries(campaignStatusConfig).map(([status, cfg]) => {
+                  const count = campaigns.filter(c => c.status === status).length;
+                  return count > 0 ? <span key={status} className={`text-[10px] px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color} font-semibold capitalize`}>{status} ({count})</span> : null;
+                })}
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : campaigns.length === 0 ? (
+              <div className="text-center py-12"><Megaphone className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" /><p className="text-muted-foreground text-sm">No WhatsApp campaigns yet</p></div>
+            ) : (
+              <div className="space-y-3">
+                {campaigns.map((c, i) => {
+                  const cfg = campaignStatusConfig[c.status] || campaignStatusConfig.draft;
+                  return (
+                    <motion.div key={c.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                      className="bg-card border border-border rounded-2xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <MessageSquare className="w-4 h-4 text-green-500" />
+                          <span className="text-sm font-bold text-foreground">{c.name}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color} font-semibold capitalize`}>{c.status}</span>
+                          {c.is_ab_test && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-bold">A/B</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {c.status === "scheduled" && (
+                            <button onClick={() => cancelCampaign(c.id)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-destructive/10 text-destructive text-[10px] font-medium hover:bg-destructive/20 transition-colors">
+                              <Pause className="w-3 h-3" />Cancel
+                            </button>
+                          )}
+                          {c.status === "draft" && (
+                            <button onClick={() => { setSubTab("ai"); }}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-600 text-white text-[10px] font-medium hover:bg-green-700 transition-colors">
+                              <Send className="w-3 h-3" />Launch
+                            </button>
+                          )}
+                          <button onClick={async () => { await (supabase as any).from("campaigns").delete().eq("id", c.id); fetchCampaigns(); }}
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </div>
+                      {c.body && <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{c.body.replace(/<[^>]+>/g, "").slice(0, 200)}</p>}
+                      <div className="flex items-center gap-4 text-[10px] text-muted-foreground flex-wrap">
+                        <span className="flex items-center gap-1"><Users className="w-3 h-3" />{c.audience_type}</span>
+                        {c.total_recipients > 0 && <span className="flex items-center gap-1"><Send className="w-3 h-3" />{c.total_recipients} recipients</span>}
+                        {c.delivered_count > 0 && <span className="flex items-center gap-1 text-green-500"><CheckCircle2 className="w-3 h-3" />{c.delivered_count} delivered</span>}
+                        {c.failed_count > 0 && <span className="flex items-center gap-1 text-destructive"><XCircle className="w-3 h-3" />{c.failed_count} failed</span>}
+                        {c.scheduled_at && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{format(new Date(c.scheduled_at), "PPp")}</span>}
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
+                      </div>
+                      {/* A/B Variant details */}
+                      {c.is_ab_test && c.ab_variants && (
+                        <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-2">
+                          {(c.ab_variants as any[]).map((v: any, vi: number) => (
+                            <div key={vi} className="p-2 rounded-xl bg-secondary/30 border border-border">
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-5 h-5 rounded-full bg-green-500/15 text-green-500 flex items-center justify-center text-[9px] font-bold">{v.variant}</span>
+                                <span className="text-[10px] font-medium text-foreground">{v.audience_size} users</span>
+                              </div>
+                              <p className="text-[9px] text-muted-foreground mt-1 line-clamp-2">{(v.body || v.subject || "").replace(/<[^>]+>/g, "").slice(0, 100)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
-
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-      ) : campaigns.length === 0 ? (
-        <div className="text-center py-12"><Megaphone className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" /><p className="text-muted-foreground text-sm">No WhatsApp campaigns yet</p></div>
-      ) : (
-        <div className="space-y-3">
-          {campaigns.map((c, i) => {
-            const cfg = campaignStatusConfig[c.status] || campaignStatusConfig.draft;
-            return (
-              <motion.div key={c.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                className="bg-card border border-border rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Megaphone className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-bold text-foreground">{c.name}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color} font-semibold capitalize`}>{c.status}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {c.status === "draft" && (
-                      <button onClick={() => launchCampaign(c)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-[10px] font-medium hover:bg-green-700 transition-colors">
-                        <Send className="w-3 h-3" /> Launch
-                      </button>
-                    )}
-                    <button onClick={async () => { await (supabase as any).from("campaigns").delete().eq("id", c.id); fetchCampaigns(); }}
-                      className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{c.body}</p>
-                <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{c.audience_type}</span>
-                  {c.total_recipients && <span className="flex items-center gap-1"><Send className="w-3 h-3" />{c.total_recipients} recipients</span>}
-                  {c.delivered_count && <span className="flex items-center gap-1 text-green-500"><CheckCircle2 className="w-3 h-3" />{c.delivered_count} delivered</span>}
-                  {c.failed_count > 0 && <span className="flex items-center gap-1 text-destructive"><XCircle className="w-3 h-3" />{c.failed_count} failed</span>}
-                  {c.scheduled_at && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{format(new Date(c.scheduled_at), "PPp")}</span>}
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 };
-
 // ─── Advanced Analytics Tab ───
 const AdvancedAnalyticsTab = () => {
   const [daily, setDaily] = useState<{ date: string; sent: number; delivered: number; failed: number; read: number }[]>([]);
