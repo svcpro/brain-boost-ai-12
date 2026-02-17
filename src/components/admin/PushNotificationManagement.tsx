@@ -91,6 +91,64 @@ const PushNotificationManagement = () => {
   const [announcementForm, setAnnouncementForm] = useState({ title: "", body: "", target: "all" });
   const [sending, setSending] = useState(false);
 
+  // AI Template Generator state
+  const [showAIPicker, setShowAIPicker] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiPurpose, setAiPurpose] = useState("");
+  const [aiCategory, setAiCategory] = useState("general");
+  const [customPurpose, setCustomPurpose] = useState("");
+
+  const AI_PURPOSES = [
+    { value: "welcome", label: "🎉 Welcome / Onboarding", desc: "New user signup or profile setup" },
+    { value: "memory_risk", label: "⚠️ Memory Risk Alert", desc: "Topic about to be forgotten" },
+    { value: "weak_topic", label: "📉 Weak Topic Detected", desc: "AI found a struggling area" },
+    { value: "study_reminder", label: "📚 Study Reminder", desc: "Nudge to study today" },
+    { value: "inactive_comeback", label: "💤 Comeback Nudge", desc: "User inactive for days" },
+    { value: "streak_risk", label: "🔥 Streak At Risk", desc: "Streak about to break" },
+    { value: "streak_milestone", label: "🏆 Streak Milestone", desc: "Celebrate streak achievement" },
+    { value: "brain_improved", label: "🧠 Brain Performance Up", desc: "Brain score improved" },
+    { value: "brain_declined", label: "📊 Brain Performance Down", desc: "Brain score dropped" },
+    { value: "rank_improved", label: "🚀 Rank Improved", desc: "User rank went up" },
+    { value: "rank_declined", label: "📉 Rank Declined", desc: "User rank dropped" },
+    { value: "exam_approaching", label: "📅 Exam Approaching", desc: "Exam date countdown" },
+    { value: "fix_session", label: "🔧 Fix Session Needed", desc: "AI recommends a fix session" },
+    { value: "revision_due", label: "🔄 Revision Due", desc: "Topics need revision" },
+    { value: "achievement", label: "🎖️ Achievement Unlocked", desc: "Milestone or badge earned" },
+    { value: "subscription", label: "💳 Subscription Alert", desc: "Billing or plan notification" },
+    { value: "community", label: "💬 Community Activity", desc: "Reply, mention, or AI answer" },
+    { value: "security", label: "🔒 Security Alert", desc: "New login or suspicious activity" },
+    { value: "custom", label: "✨ Custom Purpose", desc: "Describe your own purpose" },
+  ];
+
+  const generateAITemplate = async () => {
+    setAiGenerating(true);
+    try {
+      const purpose = aiPurpose === "custom" ? customPurpose : aiPurpose;
+      const { data, error } = await supabase.functions.invoke("generate-push-template", {
+        body: { purpose, category: aiCategory },
+      });
+      if (error) throw error;
+      if (!data?.name) throw new Error("AI returned empty result");
+
+      setTemplateForm({
+        name: data.name,
+        title_template: data.title_template,
+        body_template: data.body_template,
+        category: data.category || aiCategory,
+        priority: data.priority || "normal",
+        use_ai_personalization: true,
+        variables: (data.variables || []).join(", "),
+      });
+      setShowAIPicker(false);
+      setShowTemplateDialog(true);
+      setEditTemplate(null);
+      toast({ title: "AI Template Generated ✨", description: "Review and save the template" });
+    } catch (e: any) {
+      toast({ title: "AI Generation Failed", description: e.message, variant: "destructive" });
+    }
+    setAiGenerating(false);
+  };
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [trRes, tmRes, lgRes, qRes, devRes] = await Promise.all([
@@ -459,7 +517,12 @@ const PushNotificationManagement = () => {
         <TabsContent value="templates" className="space-y-4 mt-4">
           <div className="flex justify-between items-center">
             <p className="text-sm text-muted-foreground">{templates.length} templates</p>
-            <Button size="sm" onClick={openNewTemplate}><Plus className="w-4 h-4 mr-1" /> New Template</Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => { setAiPurpose(""); setCustomPurpose(""); setShowAIPicker(true); }} className="border-primary/30 text-primary">
+                <Sparkles className="w-4 h-4 mr-1" /> AI Create
+              </Button>
+              <Button size="sm" onClick={openNewTemplate}><Plus className="w-4 h-4 mr-1" /> Manual</Button>
+            </div>
           </div>
           <div className="grid md:grid-cols-2 gap-3">
             {templates.map(t => (
@@ -739,6 +802,71 @@ const PushNotificationManagement = () => {
             <Button variant="outline" onClick={() => setShowAnnouncement(false)}>Cancel</Button>
             <Button onClick={sendAnnouncement} disabled={sending || !announcementForm.title}>
               {sending ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Sending...</> : <><Send className="w-4 h-4 mr-1" /> Send to All Users</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════ AI TEMPLATE PICKER ═══════════ */}
+      <Dialog open={showAIPicker} onOpenChange={setShowAIPicker}>
+        <DialogContent className="max-w-lg bg-card max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /> AI Template Generator</DialogTitle>
+            <CardDescription>Select a purpose and AI will generate a complete push notification template</CardDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Select Purpose</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {AI_PURPOSES.map(p => (
+                    <button
+                      key={p.value}
+                      onClick={() => setAiPurpose(p.value)}
+                      className={`p-2.5 rounded-lg border text-left transition-all ${
+                        aiPurpose === p.value
+                          ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                          : "border-border/50 bg-muted/20 hover:border-primary/30"
+                      }`}
+                    >
+                      <p className="text-xs font-medium text-foreground">{p.label}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{p.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {aiPurpose === "custom" && (
+                <div>
+                  <label className="text-xs text-muted-foreground">Describe your purpose</label>
+                  <Input
+                    value={customPurpose}
+                    onChange={e => setCustomPurpose(e.target.value)}
+                    placeholder="e.g. Congratulate user on completing 100 study sessions"
+                    className="mt-1"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs text-muted-foreground">Category</label>
+                <Select value={aiCategory} onValueChange={setAiCategory}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowAIPicker(false)}>Cancel</Button>
+            <Button
+              onClick={generateAITemplate}
+              disabled={aiGenerating || !aiPurpose || (aiPurpose === "custom" && !customPurpose)}
+              className="bg-primary text-primary-foreground"
+            >
+              {aiGenerating ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Generating...</> : <><Sparkles className="w-4 h-4 mr-1" /> Generate Template</>}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -150,6 +150,9 @@ verify_jwt = false
 [functions.generate-email-template]
 verify_jwt = false
 
+[functions.generate-push-template]
+verify_jwt = false
+
 [functions.push-automation-engine]
 verify_jwt = false
 
