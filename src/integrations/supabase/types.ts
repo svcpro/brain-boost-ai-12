@@ -2448,6 +2448,264 @@ export type Database = {
         }
         Relationships: []
       }
+      push_notification_logs: {
+        Row: {
+          ai_generated: boolean | null
+          body: string | null
+          clicked_at: string | null
+          created_at: string
+          data: Json | null
+          delivered_count: number | null
+          device_count: number | null
+          error_message: string | null
+          id: string
+          opened_at: string | null
+          status: string
+          template_id: string | null
+          title: string
+          trigger_key: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          body?: string | null
+          clicked_at?: string | null
+          created_at?: string
+          data?: Json | null
+          delivered_count?: number | null
+          device_count?: number | null
+          error_message?: string | null
+          id?: string
+          opened_at?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+          trigger_key?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_generated?: boolean | null
+          body?: string | null
+          clicked_at?: string | null
+          created_at?: string
+          data?: Json | null
+          delivered_count?: number | null
+          device_count?: number | null
+          error_message?: string | null
+          id?: string
+          opened_at?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+          trigger_key?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_notification_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "push_notification_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_notification_queue: {
+        Row: {
+          body: string
+          clicked_at: string | null
+          created_at: string
+          data: Json | null
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          max_retries: number | null
+          opened_at: string | null
+          priority: string
+          retry_count: number | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          template_id: string | null
+          title: string
+          trigger_key: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          clicked_at?: string | null
+          created_at?: string
+          data?: Json | null
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          opened_at?: string | null
+          priority?: string
+          retry_count?: number | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+          trigger_key?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          clicked_at?: string | null
+          created_at?: string
+          data?: Json | null
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          opened_at?: string | null
+          priority?: string
+          retry_count?: number | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+          trigger_key?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_notification_queue_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "push_notification_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_notification_templates: {
+        Row: {
+          body_template: string
+          category: string
+          created_at: string
+          created_by: string
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          priority: string
+          title_template: string
+          updated_at: string
+          use_ai_personalization: boolean
+          variables: string[] | null
+        }
+        Insert: {
+          body_template: string
+          category?: string
+          created_at?: string
+          created_by: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          priority?: string
+          title_template: string
+          updated_at?: string
+          use_ai_personalization?: boolean
+          variables?: string[] | null
+        }
+        Update: {
+          body_template?: string
+          category?: string
+          created_at?: string
+          created_by?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          priority?: string
+          title_template?: string
+          updated_at?: string
+          use_ai_personalization?: boolean
+          variables?: string[] | null
+        }
+        Relationships: []
+      }
+      push_notification_triggers: {
+        Row: {
+          category: string
+          conditions: Json
+          cooldown_minutes: number | null
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_enabled: boolean
+          priority: string
+          schedule_config: Json | null
+          schedule_type: string
+          target_audience: Json
+          template_id: string | null
+          total_clicked: number | null
+          total_opened: number | null
+          total_sent: number | null
+          trigger_key: string
+          updated_at: string
+          use_ai_content: boolean
+        }
+        Insert: {
+          category?: string
+          conditions?: Json
+          cooldown_minutes?: number | null
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_enabled?: boolean
+          priority?: string
+          schedule_config?: Json | null
+          schedule_type?: string
+          target_audience?: Json
+          template_id?: string | null
+          total_clicked?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          trigger_key: string
+          updated_at?: string
+          use_ai_content?: boolean
+        }
+        Update: {
+          category?: string
+          conditions?: Json
+          cooldown_minutes?: number | null
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_enabled?: boolean
+          priority?: string
+          schedule_config?: Json | null
+          schedule_type?: string
+          target_audience?: Json
+          template_id?: string | null
+          total_clicked?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          trigger_key?: string
+          updated_at?: string
+          use_ai_content?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_notification_triggers_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "push_notification_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
