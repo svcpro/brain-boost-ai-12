@@ -167,10 +167,17 @@ const SendMessageTab = () => {
   const [generatingAI, setGeneratingAI] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const [scheduledAt, setScheduledAt] = useState("");
+  // Meta approved templates
+  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
+  const [templateSource, setTemplateSource] = useState<"local" | "meta">("meta");
+  const [selectedMetaTemplate, setSelectedMetaTemplate] = useState<any>(null);
 
   useEffect(() => {
     (supabase as any).from("whatsapp_templates").select("*").eq("is_active", true).order("name")
       .then(({ data }: any) => setTemplates(data || []));
+    // Fetch approved Meta templates
+    (supabase as any).from("meta_template_submissions").select("*").eq("meta_status", "approved").order("template_name")
+      .then(({ data }: any) => setMetaTemplates(data || []));
   }, []);
 
   useEffect(() => {
@@ -186,6 +193,16 @@ const SendMessageTab = () => {
   }, [templateName, templates]);
 
   useEffect(() => { setCharCount(message.length); }, [message]);
+
+  // When selecting a Meta template, extract its variables
+  useEffect(() => {
+    if (selectedMetaTemplate) {
+      const bodyVars = selectedMetaTemplate.body_text?.match(/\{\{\d+\}\}/g) || [];
+      const params: Record<string, string> = {};
+      bodyVars.forEach((_: string, i: number) => { params[`var_${i + 1}`] = ""; });
+      setTemplateParams(params);
+    }
+  }, [selectedMetaTemplate]);
 
   const generateAIMessage = async () => {
     if (!aiPrompt.trim()) return;
@@ -210,6 +227,30 @@ const SendMessageTab = () => {
     try {
       const numbers = mode === "bulk" ? bulkNumbers.split(/[\n,;]+/).map(n => n.trim()).filter(Boolean) : [phone.trim()];
       if (numbers.length === 0 || numbers[0] === "") { toast({ title: "Enter phone number(s)", variant: "destructive" }); setSending(false); return; }
+
+      // If sending Meta template, resolve variables per-user via edge function
+      if (mode === "template" && templateSource === "meta" && selectedMetaTemplate) {
+        let resolvedMessage = selectedMetaTemplate.body_text || "";
+        // Replace numbered placeholders with provided params
+        Object.entries(templateParams).forEach(([key, val]) => {
+          const idx = key.replace("var_", "");
+          resolvedMessage = resolvedMessage.split(`{{${idx}}}`).join(val || `{{${idx}}}`);
+        });
+        const payload = numbers.map(num => ({
+          to: num.startsWith("+") ? num : `+${num}`,
+          message: resolvedMessage,
+          template_name: selectedMetaTemplate.template_name,
+          media_url: mediaUrl || undefined,
+          category: "meta_template",
+        }));
+        const { data, error } = await supabase.functions.invoke("send-whatsapp", { body: payload.length === 1 ? payload[0] : payload });
+        if (error) throw error;
+        toast({ title: `✅ ${data.sent} sent, ${data.failed} failed` });
+        setPhone(""); setBulkNumbers(""); setMediaUrl("");
+        setSending(false);
+        return;
+      }
+
       const payload = numbers.map(num => ({
         to: num.startsWith("+") ? num : `+${num}`,
         message: mode === "template" ? undefined : message,
@@ -227,9 +268,15 @@ const SendMessageTab = () => {
     } finally { setSending(false); }
   };
 
-  const previewText = selectedTemplate
-    ? (() => { let text = selectedTemplate.body_template; const vars = (selectedTemplate.variables as string[]) || []; vars.forEach((v: string, i: number) => { text = text.replace(`{{${i + 1}}}`, templateParams[v] || `[${v}]`); }); return text; })()
-    : message;
+  const metaPreviewText = selectedMetaTemplate
+    ? (() => { let text = selectedMetaTemplate.body_text || ""; Object.entries(templateParams).forEach(([key, val]) => { const idx = key.replace("var_", ""); text = text.split(`{{${idx}}}`).join(val || `[var ${idx}]`); }); return text; })()
+    : "";
+
+  const previewText = (mode === "template" && templateSource === "meta")
+    ? metaPreviewText
+    : selectedTemplate
+      ? (() => { let text = selectedTemplate.body_template; const vars = (selectedTemplate.variables as string[]) || []; vars.forEach((v: string, i: number) => { text = text.replace(`{{${i + 1}}}`, templateParams[v] || `[${v}]`); }); return text; })()
+      : message;
 
   const bulkCount = bulkNumbers.split(/[\n,;]+/).filter(n => n.trim()).length;
 
@@ -319,21 +366,75 @@ const SendMessageTab = () => {
               )}
               {mode === "template" ? (
                 <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Template</label>
-                    <select value={templateName} onChange={e => setTemplateName(e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
-                      <option value="">Select template…</option>
-                      {templates.map(t => <option key={t.id} value={t.name}>{t.name} — {t.description}</option>)}
-                    </select>
+                  {/* Template Source Toggle */}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setTemplateSource("meta"); setTemplateName(""); setSelectedTemplate(null); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${templateSource === "meta" ? "bg-green-600/15 text-green-500 border border-green-500/30" : "bg-secondary/50 text-muted-foreground border border-transparent hover:border-border"}`}>
+                      <Shield className="w-3.5 h-3.5" />Meta Approved
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-500 font-bold">{metaTemplates.length}</span>
+                    </button>
+                    <button onClick={() => { setTemplateSource("local"); setSelectedMetaTemplate(null); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${templateSource === "local" ? "bg-green-600/15 text-green-500 border border-green-500/30" : "bg-secondary/50 text-muted-foreground border border-transparent hover:border-border"}`}>
+                      <FileText className="w-3.5 h-3.5" />Local Templates
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground font-bold">{templates.length}</span>
+                    </button>
                   </div>
-                  {selectedTemplate && (selectedTemplate.variables as string[] || []).map((v: string) => (
-                    <div key={v}>
-                      <label className="text-xs font-medium text-muted-foreground capitalize">{v.replace(/_/g, " ")}</label>
-                      <input value={templateParams[v] || ""} onChange={e => setTemplateParams(p => ({ ...p, [v]: e.target.value }))} placeholder={v}
-                        className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
-                    </div>
-                  ))}
+
+                  {templateSource === "meta" ? (
+                    <>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Approved Meta Template</label>
+                        <select value={selectedMetaTemplate?.id || ""} onChange={e => { const t = metaTemplates.find(mt => mt.id === e.target.value); setSelectedMetaTemplate(t || null); }}
+                          className="w-full mt-1 p-3 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                          <option value="">Select approved template…</option>
+                          {metaTemplates.map(t => <option key={t.id} value={t.id}>✅ {t.display_name} ({t.template_name})</option>)}
+                        </select>
+                      </div>
+                      {selectedMetaTemplate && (
+                        <>
+                          <div className="p-2.5 rounded-xl bg-green-500/5 border border-green-500/15">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-500 font-bold uppercase">{selectedMetaTemplate.category}</span>
+                              <span className="text-[10px] text-muted-foreground">{selectedMetaTemplate.language}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">{selectedMetaTemplate.body_text}</p>
+                            {selectedMetaTemplate.footer_text && <p className="text-[10px] text-muted-foreground/60 mt-1 italic">{selectedMetaTemplate.footer_text}</p>}
+                          </div>
+                          {Object.keys(templateParams).length > 0 && (
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Template Variables</label>
+                              {Object.keys(templateParams).map(key => (
+                                <div key={key}>
+                                  <label className="text-xs font-medium text-muted-foreground capitalize">{`Variable ${key.replace("var_", "")}`}</label>
+                                  <input value={templateParams[key] || ""} onChange={e => setTemplateParams(p => ({ ...p, [key]: e.target.value }))}
+                                    placeholder={`Value for {{${key.replace("var_", "")}}}`}
+                                    className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Template</label>
+                        <select value={templateName} onChange={e => setTemplateName(e.target.value)}
+                          className="w-full mt-1 p-3 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                          <option value="">Select template…</option>
+                          {templates.map(t => <option key={t.id} value={t.name}>{t.name} — {t.description}</option>)}
+                        </select>
+                      </div>
+                      {selectedTemplate && (selectedTemplate.variables as string[] || []).map((v: string) => (
+                        <div key={v}>
+                          <label className="text-xs font-medium text-muted-foreground capitalize">{v.replace(/_/g, " ")}</label>
+                          <input value={templateParams[v] || ""} onChange={e => setTemplateParams(p => ({ ...p, [v]: e.target.value }))} placeholder={v}
+                            className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               ) : (
                 <div>
@@ -2247,42 +2348,98 @@ const AdvancedAnalyticsTab = () => {
 
 // ─── Event Triggers Tab ───
 const EventTriggersTab = () => {
+  const { toast } = useToast();
   const [triggers, setTriggers] = useState([
-    { id: "signup", name: "User Signup", desc: "Welcome message on registration", icon: UserPlus, enabled: true, category: "onboarding", schedule: "Instant", color: "text-blue-500" },
-    { id: "first_study", name: "First Study Session", desc: "Celebrate first study completion", icon: BookOpen, enabled: true, category: "study", schedule: "Instant", color: "text-green-500" },
-    { id: "streak_milestone", name: "Streak Milestone", desc: "Celebrate 7, 14, 30, 100 day streaks", icon: Flame, enabled: true, category: "engagement", schedule: "On achievement", color: "text-orange-500" },
-    { id: "streak_at_risk", name: "Streak At Risk", desc: "Alert when streak might break", icon: AlertTriangle, enabled: true, category: "engagement", schedule: "Daily 8 PM", color: "text-yellow-500" },
-    { id: "risk_digest", name: "Memory Risk Digest", desc: "Daily digest of at-risk topics", icon: Brain, enabled: true, category: "study", schedule: "Daily 8 AM", color: "text-purple-500" },
-    { id: "study_reminder", name: "Study Reminder", desc: "Personalized study nudge", icon: Bell, enabled: true, category: "study", schedule: "Every 4 hours", color: "text-primary" },
-    { id: "exam_result", name: "Exam Result", desc: "Score and improvement tips after exam", icon: Trophy, enabled: true, category: "exam", schedule: "Instant", color: "text-emerald-500" },
-    { id: "exam_countdown", name: "Exam Countdown", desc: "Daily countdown before scheduled exam", icon: Clock, enabled: false, category: "exam", schedule: "Daily 7 AM", color: "text-cyan-500" },
-    { id: "burnout_alert", name: "Burnout Detection", desc: "Alert when burnout patterns detected", icon: Heart, enabled: true, category: "wellness", schedule: "On detection", color: "text-red-500" },
-    { id: "brain_update", name: "Brain Update Reminder", desc: "Nudge if no brain activity in 24h", icon: Brain, enabled: true, category: "engagement", schedule: "Daily 9 PM", color: "text-violet-500" },
-    { id: "weekly_report", name: "Weekly Report", desc: "AI-generated weekly study summary", icon: BarChart3, enabled: false, category: "analytics", schedule: "Sunday 10 AM", color: "text-indigo-500" },
-    { id: "payment_success", name: "Payment Success", desc: "Confirmation after subscription payment", icon: CreditCard, enabled: true, category: "billing", schedule: "Instant", color: "text-green-500" },
-    { id: "payment_failure", name: "Payment Failed", desc: "Alert on failed payment attempt", icon: AlertTriangle, enabled: true, category: "billing", schedule: "Instant", color: "text-red-500" },
-    { id: "subscription_expiry", name: "Subscription Expiring", desc: "Reminder before plan expires", icon: Clock, enabled: true, category: "billing", schedule: "3 days before", color: "text-amber-500" },
-    { id: "inactivity_7d", name: "7-Day Inactivity", desc: "Win-back message after 7 days inactive", icon: TrendingDown, enabled: true, category: "engagement", schedule: "After 7d inactive", color: "text-orange-500" },
-    { id: "inactivity_30d", name: "30-Day Inactivity", desc: "Last chance re-engagement message", icon: XCircle, enabled: false, category: "engagement", schedule: "After 30d inactive", color: "text-red-500" },
-    { id: "topic_mastered", name: "Topic Mastered", desc: "Celebrate when a topic reaches 100%", icon: Star, enabled: true, category: "study", schedule: "On achievement", color: "text-yellow-500" },
-    { id: "leaderboard_change", name: "Leaderboard Change", desc: "Alert on rank up/down", icon: TrendingUp, enabled: false, category: "social", schedule: "On change", color: "text-blue-500" },
-    { id: "community_mention", name: "Community Mention", desc: "Notify when mentioned in community", icon: MessageSquare, enabled: false, category: "social", schedule: "Instant", color: "text-cyan-500" },
-    { id: "ai_insight", name: "AI Brain Insight", desc: "Weekly AI-powered learning insight", icon: Sparkles, enabled: true, category: "analytics", schedule: "Wednesday 10 AM", color: "text-purple-500" },
+    { id: "signup", name: "User Signup", desc: "Welcome message on registration", icon: UserPlus, enabled: true, category: "onboarding", schedule: "Instant", color: "text-blue-500", metaTemplateId: "" },
+    { id: "first_study", name: "First Study Session", desc: "Celebrate first study completion", icon: BookOpen, enabled: true, category: "study", schedule: "Instant", color: "text-green-500", metaTemplateId: "" },
+    { id: "streak_milestone", name: "Streak Milestone", desc: "Celebrate 7, 14, 30, 100 day streaks", icon: Flame, enabled: true, category: "engagement", schedule: "On achievement", color: "text-orange-500", metaTemplateId: "" },
+    { id: "streak_at_risk", name: "Streak At Risk", desc: "Alert when streak might break", icon: AlertTriangle, enabled: true, category: "engagement", schedule: "Daily 8 PM", color: "text-yellow-500", metaTemplateId: "" },
+    { id: "risk_digest", name: "Memory Risk Digest", desc: "Daily digest of at-risk topics", icon: Brain, enabled: true, category: "study", schedule: "Daily 8 AM", color: "text-purple-500", metaTemplateId: "" },
+    { id: "study_reminder", name: "Study Reminder", desc: "Personalized study nudge", icon: Bell, enabled: true, category: "study", schedule: "Every 4 hours", color: "text-primary", metaTemplateId: "" },
+    { id: "exam_result", name: "Exam Result", desc: "Score and improvement tips after exam", icon: Trophy, enabled: true, category: "exam", schedule: "Instant", color: "text-emerald-500", metaTemplateId: "" },
+    { id: "exam_countdown", name: "Exam Countdown", desc: "Daily countdown before scheduled exam", icon: Clock, enabled: false, category: "exam", schedule: "Daily 7 AM", color: "text-cyan-500", metaTemplateId: "" },
+    { id: "burnout_alert", name: "Burnout Detection", desc: "Alert when burnout patterns detected", icon: Heart, enabled: true, category: "wellness", schedule: "On detection", color: "text-red-500", metaTemplateId: "" },
+    { id: "brain_update", name: "Brain Update Reminder", desc: "Nudge if no brain activity in 24h", icon: Brain, enabled: true, category: "engagement", schedule: "Daily 9 PM", color: "text-violet-500", metaTemplateId: "" },
+    { id: "weekly_report", name: "Weekly Report", desc: "AI-generated weekly study summary", icon: BarChart3, enabled: false, category: "analytics", schedule: "Sunday 10 AM", color: "text-indigo-500", metaTemplateId: "" },
+    { id: "payment_success", name: "Payment Success", desc: "Confirmation after subscription payment", icon: CreditCard, enabled: true, category: "billing", schedule: "Instant", color: "text-green-500", metaTemplateId: "" },
+    { id: "payment_failure", name: "Payment Failed", desc: "Alert on failed payment attempt", icon: AlertTriangle, enabled: true, category: "billing", schedule: "Instant", color: "text-red-500", metaTemplateId: "" },
+    { id: "subscription_expiry", name: "Subscription Expiring", desc: "Reminder before plan expires", icon: Clock, enabled: true, category: "billing", schedule: "3 days before", color: "text-amber-500", metaTemplateId: "" },
+    { id: "inactivity_7d", name: "7-Day Inactivity", desc: "Win-back message after 7 days inactive", icon: TrendingDown, enabled: true, category: "engagement", schedule: "After 7d inactive", color: "text-orange-500", metaTemplateId: "" },
+    { id: "inactivity_30d", name: "30-Day Inactivity", desc: "Last chance re-engagement message", icon: XCircle, enabled: false, category: "engagement", schedule: "After 30d inactive", color: "text-red-500", metaTemplateId: "" },
+    { id: "topic_mastered", name: "Topic Mastered", desc: "Celebrate when a topic reaches 100%", icon: Star, enabled: true, category: "study", schedule: "On achievement", color: "text-yellow-500", metaTemplateId: "" },
+    { id: "leaderboard_change", name: "Leaderboard Change", desc: "Alert on rank up/down", icon: TrendingUp, enabled: false, category: "social", schedule: "On change", color: "text-blue-500", metaTemplateId: "" },
+    { id: "community_mention", name: "Community Mention", desc: "Notify when mentioned in community", icon: MessageSquare, enabled: false, category: "social", schedule: "Instant", color: "text-cyan-500", metaTemplateId: "" },
+    { id: "ai_insight", name: "AI Brain Insight", desc: "Weekly AI-powered learning insight", icon: Sparkles, enabled: true, category: "analytics", schedule: "Wednesday 10 AM", color: "text-purple-500", metaTemplateId: "" },
   ]);
 
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
+  const [expandedTrigger, setExpandedTrigger] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const categories = [...new Set(triggers.map(t => t.category))];
+
+  // Load approved Meta templates + saved trigger mappings
+  useEffect(() => {
+    (supabase as any).from("meta_template_submissions").select("id, template_name, display_name, body_text, category")
+      .eq("meta_status", "approved").order("template_name")
+      .then(({ data }: any) => setMetaTemplates(data || []));
+    // Load saved mappings from feature_flags (stored as JSON)
+    (supabase as any).from("feature_flags").select("*").eq("flag_key", "whatsapp_event_meta_mappings").maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.label) {
+          try {
+            const mappings = JSON.parse(data.label);
+            setTriggers(prev => prev.map(t => ({
+              ...t,
+              metaTemplateId: mappings[t.id]?.metaTemplateId || "",
+              enabled: mappings[t.id]?.enabled ?? t.enabled,
+            })));
+          } catch { /* ignore */ }
+        }
+      });
+  }, []);
 
   const toggleTrigger = (id: string) => {
     setTriggers(prev => prev.map(t => t.id === id ? { ...t, enabled: !t.enabled } : t));
   };
 
+  const setMetaTemplate = (triggerId: string, templateId: string) => {
+    setTriggers(prev => prev.map(t => t.id === triggerId ? { ...t, metaTemplateId: templateId } : t));
+  };
+
+  const saveMappings = async () => {
+    setSaving(true);
+    try {
+      const mappings: Record<string, { metaTemplateId: string; enabled: boolean }> = {};
+      triggers.forEach(t => { mappings[t.id] = { metaTemplateId: t.metaTemplateId, enabled: t.enabled }; });
+      // Upsert to feature_flags
+      const { error } = await (supabase as any).from("feature_flags").upsert({
+        flag_key: "whatsapp_event_meta_mappings",
+        label: JSON.stringify(mappings),
+        enabled: true,
+      }, { onConflict: "flag_key" });
+      if (error) throw error;
+      toast({ title: "✅ Event trigger mappings saved!", description: "Meta templates will be used for mapped events." });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e?.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
   const filteredTriggers = triggers.filter(t => categoryFilter === "all" || t.category === categoryFilter);
   const enabledCount = triggers.filter(t => t.enabled).length;
+  const mappedCount = triggers.filter(t => t.metaTemplateId).length;
 
   return (
     <div className="space-y-4">
-      <SectionHeader icon={Zap} title="Event-Driven WhatsApp Triggers" subtitle={`${enabledCount}/${triggers.length} triggers active — every user event covered`} />
+      <div className="flex items-center justify-between">
+        <SectionHeader icon={Zap} title="Event-Driven WhatsApp Triggers" subtitle={`${enabledCount}/${triggers.length} active · ${mappedCount} mapped to Meta templates`} />
+        <button onClick={saveMappings} disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium text-xs transition-all disabled:opacity-50 shadow-lg shadow-green-600/20">
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+          Save Mappings
+        </button>
+      </div>
 
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setCategoryFilter("all")}
@@ -2298,25 +2455,67 @@ const EventTriggersTab = () => {
       </div>
 
       <div className="space-y-2">
-        {filteredTriggers.map((trigger, i) => (
-          <motion.div key={trigger.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-            className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${trigger.enabled ? "bg-card border-green-500/15" : "bg-card/50 border-border opacity-60"}`}>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${trigger.enabled ? "bg-green-500/10" : "bg-secondary"}`}>
-              <trigger.icon className={`w-5 h-5 ${trigger.color}`} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-bold text-foreground">{trigger.name}</p>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground capitalize">{trigger.category}</span>
+        {filteredTriggers.map((trigger, i) => {
+          const mappedTemplate = metaTemplates.find(mt => mt.id === trigger.metaTemplateId);
+          return (
+            <motion.div key={trigger.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+              className={`rounded-2xl border transition-all ${trigger.enabled ? "bg-card border-green-500/15" : "bg-card/50 border-border opacity-60"}`}>
+              <div className="flex items-center gap-4 p-4 cursor-pointer" onClick={() => setExpandedTrigger(expandedTrigger === trigger.id ? null : trigger.id)}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${trigger.enabled ? "bg-green-500/10" : "bg-secondary"}`}>
+                  <trigger.icon className={`w-5 h-5 ${trigger.color}`} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-foreground">{trigger.name}</p>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground capitalize">{trigger.category}</span>
+                    {mappedTemplate && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-500 font-bold flex items-center gap-1">
+                        <Shield className="w-2.5 h-2.5" />Meta: {mappedTemplate.display_name}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{trigger.desc}</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5 flex items-center gap-1"><Clock className="w-3 h-3" />{trigger.schedule}</p>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedTrigger === trigger.id ? "rotate-180" : ""}`} />
+                <button onClick={e => { e.stopPropagation(); toggleTrigger(trigger.id); }} className={`w-11 h-6 rounded-full relative transition-all ${trigger.enabled ? "bg-green-500" : "bg-secondary"}`}>
+                  <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1 shadow-sm" animate={{ left: trigger.enabled ? 24 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
+                </button>
               </div>
-              <p className="text-xs text-muted-foreground">{trigger.desc}</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5 flex items-center gap-1"><Clock className="w-3 h-3" />{trigger.schedule}</p>
-            </div>
-            <button onClick={() => toggleTrigger(trigger.id)} className={`w-11 h-6 rounded-full relative transition-all ${trigger.enabled ? "bg-green-500" : "bg-secondary"}`}>
-              <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1 shadow-sm" animate={{ left: trigger.enabled ? 24 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-            </button>
-          </motion.div>
-        ))}
+
+              <AnimatePresence>
+                {expandedTrigger === trigger.id && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                    className="px-4 pb-4 overflow-hidden">
+                    <div className="pt-2 border-t border-border space-y-2">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> Map to Meta Approved Template
+                      </label>
+                      <select value={trigger.metaTemplateId} onChange={e => setMetaTemplate(trigger.id, e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-secondary/50 border border-border text-xs focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                        <option value="">Default (built-in message)</option>
+                        {metaTemplates.map(mt => (
+                          <option key={mt.id} value={mt.id}>✅ {mt.display_name} ({mt.template_name})</option>
+                        ))}
+                      </select>
+                      {mappedTemplate && (
+                        <div className="p-2.5 rounded-xl bg-green-500/5 border border-green-500/15">
+                          <p className="text-[10px] font-semibold text-green-500 mb-1">Template Preview:</p>
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">{mappedTemplate.body_text}</p>
+                        </div>
+                      )}
+                      <p className="text-[10px] text-muted-foreground/60">
+                        {trigger.metaTemplateId
+                          ? "✅ This event will send the approved Meta template with auto-resolved variables."
+                          : "ℹ️ Using default built-in message. Map a Meta template for better deliverability."}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
