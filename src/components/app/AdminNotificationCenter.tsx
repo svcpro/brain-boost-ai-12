@@ -7,7 +7,7 @@ import {
   CalendarCheck, AlertTriangle, Award, Settings2, Zap,
   BarChart3, ArrowLeft, Play, Square, Upload, UserCheck,
   UserMinus, RotateCcw, TrendingUp, Target, PieChart as PieChartIcon,
-  FileText, Download, ChevronDown
+  FileText, Download, ChevronDown, MessageSquare
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,7 +19,7 @@ import {
   AreaChart, Area, FunnelChart, Funnel, LabelList
 } from "recharts";
 
-type NotifChannel = "push" | "email" | "voice";
+type NotifChannel = "push" | "email" | "voice" | "whatsapp";
 type NotifTab = "compose" | "history" | "events" | "analytics";
 type AudienceMode = "all" | "single" | "select" | "segment" | "csv";
 
@@ -32,22 +32,22 @@ const NOTIFICATION_TYPES = [
 ];
 
 const EVENT_TRIGGERS = [
-  { key: "study_reminder", label: "Study Reminder", desc: "When topics are due for revision based on forgetting curve", channels: ["push", "email", "voice"] as NotifChannel[] },
-  { key: "forget_risk", label: "Forget Risk Alert", desc: "When memory score drops below threshold or predicted drop within 3 days", channels: ["push", "voice"] as NotifChannel[] },
-  { key: "risk_digest", label: "Daily Risk Digest", desc: "At-risk topics summary with quick study plan every morning", channels: ["push", "email"] as NotifChannel[] },
-  { key: "streak_milestone", label: "Streak Milestone", desc: "Celebrate 7, 14, 30-day study streaks", channels: ["push", "voice"] as NotifChannel[] },
-  { key: "freeze_gift", label: "Freeze Gift Received", desc: "When someone sends a streak freeze gift", channels: ["push"] as NotifChannel[] },
-  { key: "streak_break_warning", label: "Streak Break Warning", desc: "Alert when streak is about to break (no study today)", channels: ["push", "voice"] as NotifChannel[] },
-  { key: "brain_update_reminder", label: "Brain Update Nudge", desc: "Nudge when no brain update in 24h", channels: ["push", "voice"] as NotifChannel[] },
-  { key: "daily_briefing", label: "Daily Morning Briefing", desc: "AI cognitive summary sent every morning at 07:00 UTC", channels: ["push", "email"] as NotifChannel[] },
-  { key: "brain_missions", label: "Brain Missions", desc: "New AI-generated learning missions assigned", channels: ["push"] as NotifChannel[] },
+  { key: "study_reminder", label: "Study Reminder", desc: "When topics are due for revision based on forgetting curve", channels: ["push", "email", "voice", "whatsapp"] as NotifChannel[] },
+  { key: "forget_risk", label: "Forget Risk Alert", desc: "When memory score drops below threshold or predicted drop within 3 days", channels: ["push", "voice", "whatsapp"] as NotifChannel[] },
+  { key: "risk_digest", label: "Daily Risk Digest", desc: "At-risk topics summary with quick study plan every morning", channels: ["push", "email", "whatsapp"] as NotifChannel[] },
+  { key: "streak_milestone", label: "Streak Milestone", desc: "Celebrate 7, 14, 30-day study streaks", channels: ["push", "voice", "whatsapp"] as NotifChannel[] },
+  { key: "freeze_gift", label: "Freeze Gift Received", desc: "When someone sends a streak freeze gift", channels: ["push", "whatsapp"] as NotifChannel[] },
+  { key: "streak_break_warning", label: "Streak Break Warning", desc: "Alert when streak is about to break (no study today)", channels: ["push", "voice", "whatsapp"] as NotifChannel[] },
+  { key: "brain_update_reminder", label: "Brain Update Nudge", desc: "Nudge when no brain update in 24h", channels: ["push", "voice", "whatsapp"] as NotifChannel[] },
+  { key: "daily_briefing", label: "Daily Morning Briefing", desc: "AI cognitive summary sent every morning at 07:00 UTC", channels: ["push", "email", "whatsapp"] as NotifChannel[] },
+  { key: "brain_missions", label: "Brain Missions", desc: "New AI-generated learning missions assigned", channels: ["push", "whatsapp"] as NotifChannel[] },
   { key: "cognitive_twin_update", label: "Cognitive Twin Update", desc: "When cognitive twin model is recomputed with new insights", channels: ["push"] as NotifChannel[] },
-  { key: "weekly_insights", label: "Weekly AI Insights", desc: "AI study recommendations every Monday", channels: ["push", "email", "voice"] as NotifChannel[] },
-  { key: "weekly_report", label: "Weekly Email Report", desc: "Detailed weekly performance report", channels: ["email"] as NotifChannel[] },
-  { key: "weekly_brain_digest", label: "Weekly Brain Digest", desc: "Weekly brain evolution & learning summary", channels: ["push", "email"] as NotifChannel[] },
-  { key: "exam_countdown", label: "Exam Countdown", desc: "Alerts as exam date approaches (30d, 14d, 7d, 3d, 1d)", channels: ["push", "email", "voice"] as NotifChannel[] },
-  { key: "daily_goal_complete", label: "Daily Goal Complete", desc: "Congratulate when daily study goal is hit", channels: ["push"] as NotifChannel[] },
-  { key: "weekly_goal_complete", label: "Weekly Goal Complete", desc: "Celebrate hitting the weekly focus goal", channels: ["push", "voice"] as NotifChannel[] },
+  { key: "weekly_insights", label: "Weekly AI Insights", desc: "AI study recommendations every Monday", channels: ["push", "email", "voice", "whatsapp"] as NotifChannel[] },
+  { key: "weekly_report", label: "Weekly Email Report", desc: "Detailed weekly performance report", channels: ["email", "whatsapp"] as NotifChannel[] },
+  { key: "weekly_brain_digest", label: "Weekly Brain Digest", desc: "Weekly brain evolution & learning summary", channels: ["push", "email", "whatsapp"] as NotifChannel[] },
+  { key: "exam_countdown", label: "Exam Countdown", desc: "Alerts as exam date approaches (30d, 14d, 7d, 3d, 1d)", channels: ["push", "email", "voice", "whatsapp"] as NotifChannel[] },
+  { key: "daily_goal_complete", label: "Daily Goal Complete", desc: "Congratulate when daily study goal is hit", channels: ["push", "whatsapp"] as NotifChannel[] },
+  { key: "weekly_goal_complete", label: "Weekly Goal Complete", desc: "Celebrate hitting the weekly focus goal", channels: ["push", "voice", "whatsapp"] as NotifChannel[] },
   { key: "burnout_detection", label: "Burnout Alert", desc: "Proactive wellness alert when fatigue score is high", channels: ["push", "voice"] as NotifChannel[] },
   { key: "study_break_reminder", label: "Study Break Reminder", desc: "Suggest break after prolonged study sessions", channels: ["push", "voice"] as NotifChannel[] },
   { key: "ai_self_evaluate", label: "AI Self-Evaluation", desc: "When AI models complete self-evaluation cycle", channels: ["push"] as NotifChannel[] },
@@ -67,9 +67,9 @@ const EVENT_TRIGGERS = [
   { key: "feature_announcement", label: "Feature Announcement", desc: "New feature rollout announcements", channels: ["push", "email"] as NotifChannel[] },
 ];
 
-const CHANNEL_ICONS: Record<NotifChannel, any> = { push: Bell, email: Mail, voice: Volume2 };
-const CHANNEL_LABELS: Record<NotifChannel, string> = { push: "Push", email: "Email", voice: "Voice" };
-const CHANNEL_COLORS: Record<NotifChannel, string> = { push: "text-primary", email: "text-accent", voice: "text-warning" };
+const CHANNEL_ICONS: Record<NotifChannel, any> = { push: Bell, email: Mail, voice: Volume2, whatsapp: MessageSquare };
+const CHANNEL_LABELS: Record<NotifChannel, string> = { push: "Push", email: "Email", voice: "Voice", whatsapp: "WhatsApp" };
+const CHANNEL_COLORS: Record<NotifChannel, string> = { push: "text-primary", email: "text-accent", voice: "text-warning", whatsapp: "text-success" };
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--success, 142 71% 45%))"];
 
@@ -1101,7 +1101,7 @@ const EventTriggersTab = ({ toast, adminId }: { toast: any; adminId?: string }) 
   useEffect(() => {
     const defaults: Record<string, Record<NotifChannel, boolean>> = {};
     for (const evt of EVENT_TRIGGERS) {
-      defaults[evt.key] = { push: true, email: true, voice: true };
+      defaults[evt.key] = { push: true, email: true, voice: true, whatsapp: true };
     }
     (async () => {
       const { data: flags } = await supabase.from("feature_flags").select("flag_key, enabled").like("flag_key", "notif_event_%");
