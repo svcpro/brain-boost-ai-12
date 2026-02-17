@@ -8,7 +8,7 @@ import {
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare, Globe,
-  Search as SearchIcon, Mail, Volume2
+  Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,31 +62,78 @@ const ROLE_COLORS: Record<AppRole, string> = {
   api_admin: "bg-blue-500/15 text-blue-400",
 };
 
-const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[] }[] = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
-  { key: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
-  { key: "ai", label: "AI Command", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
-  { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
-  { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
-  { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
-  { key: "community", label: "Community", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
-  { key: "seo", label: "SEO", icon: SearchIcon, roles: ["super_admin", "admin"] },
-  { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
-  { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
-  { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
-  { key: "services", label: "3rd Party Services", icon: Globe, roles: ["super_admin", "admin", "api_admin"] },
-  { key: "finance", label: "Finance", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
-  
-  { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
-  { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
-  { key: "push", label: "Push Notifs", icon: Smartphone, roles: ["super_admin", "admin"] },
-  { key: "voice", label: "Voice Notifs", icon: Volume2, roles: ["super_admin", "admin"] },
-  { key: "whatsapp", label: "WhatsApp", icon: MessageSquare, roles: ["super_admin", "admin"] },
-  { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
-  { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
-  { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
-  { key: "settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
-  { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
+interface NavGroup {
+  label: string;
+  icon: any;
+  items: { key: AdminSection; label: string; icon: any; roles: AppRole[]; badge?: string }[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Overview",
+    icon: LayoutDashboard,
+    items: [
+      { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
+    ],
+  },
+  {
+    label: "AI & Intelligence",
+    icon: Brain,
+    items: [
+      { key: "ai", label: "AI Command Center", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
+      { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
+      { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
+    ],
+  },
+  {
+    label: "Users & Community",
+    icon: Users,
+    items: [
+      { key: "users", label: "User Management", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
+      { key: "community", label: "Community Hub", icon: Radio, roles: ["super_admin", "admin", "support_admin"] },
+      { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
+    ],
+  },
+  {
+    label: "Messaging",
+    icon: Mail,
+    items: [
+      { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
+      { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
+      { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
+      { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
+      { key: "whatsapp", label: "WhatsApp", icon: MessageSquare, roles: ["super_admin", "admin"] },
+    ],
+  },
+  {
+    label: "Revenue & Plans",
+    icon: Wallet,
+    items: [
+      { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
+      { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
+      { key: "finance", label: "Finance & Costs", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
+    ],
+  },
+  {
+    label: "Platform & APIs",
+    icon: Server,
+    items: [
+      { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
+      { key: "services", label: "3rd Party Services", icon: Globe, roles: ["super_admin", "admin", "api_admin"] },
+      { key: "seo", label: "SEO Manager", icon: SearchIcon, roles: ["super_admin", "admin"] },
+      { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
+    ],
+  },
+  {
+    label: "Admin & Security",
+    icon: Shield,
+    items: [
+      { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
+      { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
+      { key: "settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
+      { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
+    ],
+  },
 ];
 
 const AdminPanel = () => {
@@ -97,11 +144,42 @@ const AdminPanel = () => {
   const defaultSection: AdminSection = roles.length === 1 && roles[0] === "api_admin" ? "apis" : "dashboard";
   const [section, setSection] = useState<AdminSection>(defaultSection);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [navSearch, setNavSearch] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(NAV_GROUPS.map(g => g.label)));
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+  };
+
+  // Find which group the current section belongs to
+  const currentGroupLabel = NAV_GROUPS.find(g => g.items.some(i => i.key === section))?.label;
+
+  // Filter groups based on search and roles
+  const filteredGroups = NAV_GROUPS.map(g => ({
+    ...g,
+    items: g.items.filter(item =>
+      hasAnyRole(...item.roles) &&
+      (!navSearch || item.label.toLowerCase().includes(navSearch.toLowerCase()))
+    ),
+  })).filter(g => g.items.length > 0);
 
   if (roleLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+            <div className="absolute -inset-1 rounded-2xl bg-primary/5 animate-pulse" />
+          </div>
+          <p className="text-sm text-muted-foreground">Loading admin panel...</p>
+        </div>
       </div>
     );
   }
@@ -121,128 +199,275 @@ const AdminPanel = () => {
     );
   }
 
-  const visibleNavItems = NAV_ITEMS.filter(item => hasAnyRole(...item.roles));
+  const sectionLabel = NAV_GROUPS.flatMap(g => g.items).find(i => i.key === section)?.label || "Dashboard";
+
+  // Shared sidebar content renderer
+  const renderSidebarContent = (isMobile = false) => (
+    <div className="flex flex-col h-full">
+      {/* Logo / Header */}
+      <div className="px-4 pt-5 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0 border border-primary/20">
+            <Zap className="w-5 h-5 text-primary" />
+          </div>
+          {!sidebarCollapsed && (
+            <div className="min-w-0">
+              <h1 className="text-base font-bold text-foreground tracking-tight">ACRY Admin</h1>
+              <p className="text-[10px] text-muted-foreground truncate">Control Center</p>
+            </div>
+          )}
+          {!isMobile && (
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="ml-auto p-1.5 rounded-lg hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors hidden md:flex"
+            >
+              <ChevronRight className={`w-4 h-4 transition-transform ${sidebarCollapsed ? "" : "rotate-180"}`} />
+            </button>
+          )}
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(false)} className="ml-auto p-1.5 rounded-lg hover:bg-secondary/80 text-muted-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Search */}
+      {!sidebarCollapsed && (
+        <div className="px-3 pb-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search menu..."
+              value={navSearch}
+              onChange={e => setNavSearch(e.target.value)}
+              className="w-full bg-secondary/60 border border-border/50 rounded-lg pl-8 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/30 transition-all"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Role badges */}
+      {!sidebarCollapsed && (
+        <div className="px-4 pb-3 flex flex-wrap gap-1">
+          {roles.map(r => (
+            <span key={r} className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[r]}`}>
+              {ROLE_LABELS[r]}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Separator */}
+      <div className="mx-3 border-t border-border/40 mb-2" />
+
+      {/* Navigation Groups */}
+      <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-1 scrollbar-thin">
+        {filteredGroups.map((group) => {
+          const isExpanded = expandedGroups.has(group.label);
+          const hasActiveItem = group.items.some(i => i.key === section);
+          const GroupIcon = group.icon;
+
+          return (
+            <div key={group.label}>
+              {/* Group header */}
+              <button
+                onClick={() => !sidebarCollapsed && toggleGroup(group.label)}
+                className={cn(
+                  "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all",
+                  hasActiveItem ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                  sidebarCollapsed ? "justify-center" : ""
+                )}
+              >
+                <GroupIcon className="w-3.5 h-3.5 shrink-0" />
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="flex-1 text-left">{group.label}</span>
+                    <ChevronDown className={cn("w-3 h-3 transition-transform duration-200", isExpanded ? "" : "-rotate-90")} />
+                  </>
+                )}
+              </button>
+
+              {/* Group items */}
+              <AnimatePresence initial={false}>
+                {(isExpanded || sidebarCollapsed) && (
+                  <motion.div
+                    initial={sidebarCollapsed ? false : { height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={sidebarCollapsed ? undefined : { height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className={cn("space-y-0.5", !sidebarCollapsed && "ml-2 pl-2 border-l border-border/30")}>
+                      {group.items.map(item => {
+                        const isActive = section === item.key;
+                        const ItemIcon = item.icon;
+                        return (
+                          <button
+                            key={item.key}
+                            onClick={() => {
+                              setSection(item.key);
+                              if (isMobile) setSidebarOpen(false);
+                            }}
+                            title={sidebarCollapsed ? item.label : undefined}
+                            className={cn(
+                              "w-full flex items-center gap-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative",
+                              sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
+                              isActive
+                                ? "bg-primary/12 text-primary shadow-sm shadow-primary/5"
+                                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+                            )}
+                          >
+                            {isActive && (
+                              <motion.div
+                                layoutId="activeNavIndicator"
+                                className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full"
+                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                              />
+                            )}
+                            <ItemIcon className={cn("w-4 h-4 shrink-0 transition-colors", isActive ? "text-primary" : "group-hover:text-foreground")} />
+                            {!sidebarCollapsed && (
+                              <span className="truncate">{item.label}</span>
+                            )}
+                            {!sidebarCollapsed && item.badge && (
+                              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">{item.badge}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="mt-auto border-t border-border/40 p-3 space-y-1.5">
+        <button
+          onClick={() => navigate("/app")}
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 shrink-0" />
+          {!sidebarCollapsed && <span>Back to App</span>}
+        </button>
+        <button
+          onClick={async () => { sessionStorage.removeItem("admin_login_time"); await signOut(); navigate("/admin/login"); }}
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          {!sidebarCollapsed && <span>Sign Out</span>}
+        </button>
+        {!sidebarCollapsed && (
+          <p className="text-[9px] text-muted-foreground/60 px-3">Session auto-expires in 2h</p>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col bg-card border-r border-border p-4">
-        <div className="flex items-center gap-2 mb-6 px-2">
-          <Shield className="w-6 h-6 text-primary" />
-          <h1 className="text-lg font-bold text-foreground">ACRY Admin</h1>
-        </div>
-        <nav className="flex-1 space-y-1">
-          {visibleNavItems.map(item => (
-            <button
-              key={item.key}
-              onClick={() => setSection(item.key)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                section === item.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="border-t border-border pt-4 mt-4 space-y-2">
-          <div className="flex flex-wrap gap-1 px-2">
-            {roles.map(r => (
-              <span key={r} className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${ROLE_COLORS[r]}`}>
-                {ROLE_LABELS[r]}
-              </span>
-            ))}
-          </div>
-          <button onClick={() => navigate("/app")} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            Back to App
-          </button>
-          <button onClick={async () => { sessionStorage.removeItem("admin_login_time"); await signOut(); navigate("/admin/login"); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
-            <LogOut className="w-4 h-4" />
-            Force Logout
-          </button>
-          <p className="text-[10px] text-muted-foreground px-3 mt-1">Session auto-expires in 2h</p>
-        </div>
+      {/* Desktop Sidebar */}
+      <aside className={cn(
+        "hidden md:flex flex-col bg-card/80 backdrop-blur-xl border-r border-border/60 transition-all duration-300 shrink-0",
+        sidebarCollapsed ? "w-[68px]" : "w-[260px]"
+      )}>
+        {renderSidebarContent()}
       </aside>
 
-      {/* Mobile header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center gap-3">
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1">
-          <LayoutDashboard className="w-5 h-5 text-primary" />
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border/60 px-4 py-3 flex items-center gap-3">
+        <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-secondary/60 transition-colors">
+          <Menu className="w-5 h-5 text-foreground" />
         </button>
-        <h1 className="text-sm font-bold text-foreground flex-1">ACRY Admin</h1>
-        <button onClick={() => { localStorage.clear(); toast({ title: "Cache Cleared ✨", description: "All local cache has been cleared successfully." }); }} className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-warning bg-warning/10 rounded-lg hover:bg-warning/20 transition-colors">
-          <RefreshCw className="w-3 h-3" />
-          Clear Cache
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Zap className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-sm font-bold text-foreground truncate">{sectionLabel}</span>
+        </div>
+        <button
+          onClick={() => { localStorage.clear(); toast({ title: "Cache Cleared ✨", description: "All local cache has been cleared successfully." }); }}
+          className="p-1.5 rounded-lg hover:bg-warning/10 text-warning transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
         </button>
-        <button onClick={() => navigate("/app")} className="text-xs text-muted-foreground">← App</button>
       </div>
 
-      {/* Mobile nav */}
+      {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
-            initial={{ x: -300 }}
-            animate={{ x: 0 }}
-            exit={{ x: -300 }}
-            className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="md:hidden fixed inset-0 z-40 bg-background/60 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           >
-            <motion.nav className="w-64 h-full bg-card border-r border-border p-4 space-y-1" onClick={e => e.stopPropagation()}>
-              {visibleNavItems.map(item => (
-                <button
-                  key={item.key}
-                  onClick={() => { setSection(item.key); setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    section === item.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"
-                  }`}
-                >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </button>
-              ))}
-            </motion.nav>
+            <motion.div
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-[280px] h-full bg-card border-r border-border/60 shadow-2xl shadow-background/80"
+              onClick={e => e.stopPropagation()}
+            >
+              {renderSidebarContent(true)}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Main content */}
-      <main className="flex-1 p-4 md:p-6 mt-14 md:mt-0 overflow-auto">
-        {/* Desktop top bar with Clear Cache */}
-        <div className="hidden md:flex items-center justify-end mb-4 gap-3">
-          <button onClick={() => { localStorage.clear(); toast({ title: "Cache Cleared ✨", description: "All local cache has been cleared successfully." }); }} className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-warning bg-warning/10 rounded-lg hover:bg-warning/20 border border-warning/20 transition-colors">
-            <RefreshCw className="w-4 h-4" />
+      {/* Main Content */}
+      <main className="flex-1 min-w-0 mt-14 md:mt-0 overflow-auto">
+        {/* Desktop top bar */}
+        <div className="hidden md:flex items-center justify-between px-6 py-4 border-b border-border/30 bg-card/30 backdrop-blur-sm sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            {currentGroupLabel && (
+              <span className="text-xs text-muted-foreground">{currentGroupLabel}</span>
+            )}
+            {currentGroupLabel && <ChevronRight className="w-3 h-3 text-muted-foreground/50" />}
+            <h2 className="text-sm font-semibold text-foreground">{sectionLabel}</h2>
+          </div>
+          <button
+            onClick={() => { localStorage.clear(); toast({ title: "Cache Cleared ✨", description: "All local cache has been cleared successfully." }); }}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-warning bg-warning/10 rounded-lg hover:bg-warning/20 border border-warning/20 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
             Clear Cache
           </button>
         </div>
-        <AnimatePresence mode="wait">
-          <motion.div key={section} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-            {section === "dashboard" && <DashboardSection />}
-            {section === "users" && <UserManagement />}
-            {section === "ai" && <AICommandCenter />}
-            {section === "chat" && <ChatManagement />}
-            {section === "knowledge" && <KnowledgeSection />}
-            {section === "leaderboard" && <LeaderboardManagement />}
-            {section === "community" && <CommunityManagement />}
-            {section === "seo" && <SEOManagement />}
-            {section === "subscriptions" && <SubscriptionsSection />}
-            {section === "plan_gating" && <PlanGatingManagement />}
-            {section === "apis" && <ApiManagement />}
-            {section === "services" && <ThirdPartyServices />}
-            {section === "finance" && <FinanceManagement />}
-            
-            {section === "campaigns" && <CampaignManager />}
-            {section === "whatsapp" && <WhatsAppManagement />}
-            {section === "push" && <PushNotificationManagement />}
-            {section === "voice" && <VoiceNotificationManagement />}
-            {section === "email" && <EmailManagement />}
-            {section === "monitoring" && <SystemMonitor />}
-            {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
-            {section === "audit" && <AuditSection />}
-            {section === "settings" && <SettingsSection toast={toast} />}
-            {section === "profile" && <AdminProfile />}
-          </motion.div>
-        </AnimatePresence>
+
+        <div className="p-4 md:p-6">
+          <AnimatePresence mode="wait">
+            <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+              {section === "dashboard" && <DashboardSection />}
+              {section === "users" && <UserManagement />}
+              {section === "ai" && <AICommandCenter />}
+              {section === "chat" && <ChatManagement />}
+              {section === "knowledge" && <KnowledgeSection />}
+              {section === "leaderboard" && <LeaderboardManagement />}
+              {section === "community" && <CommunityManagement />}
+              {section === "seo" && <SEOManagement />}
+              {section === "subscriptions" && <SubscriptionsSection />}
+              {section === "plan_gating" && <PlanGatingManagement />}
+              {section === "apis" && <ApiManagement />}
+              {section === "services" && <ThirdPartyServices />}
+              {section === "finance" && <FinanceManagement />}
+              {section === "campaigns" && <CampaignManager />}
+              {section === "whatsapp" && <WhatsAppManagement />}
+              {section === "push" && <PushNotificationManagement />}
+              {section === "voice" && <VoiceNotificationManagement />}
+              {section === "email" && <EmailManagement />}
+              {section === "monitoring" && <SystemMonitor />}
+              {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
+              {section === "audit" && <AuditSection />}
+              {section === "settings" && <SettingsSection toast={toast} />}
+              {section === "profile" && <AdminProfile />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
     </div>
   );
