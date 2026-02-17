@@ -131,3 +131,9 @@ verify_jwt = false
 
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+[functions.twilio-whatsapp-templates]
+verify_jwt = false
+
+[functions.meta-whatsapp-templates]
+verify_jwt = false
