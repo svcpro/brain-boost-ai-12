@@ -2386,8 +2386,10 @@ export type Database = {
           last_brain_update_at: string | null
           opt_in_leaderboard: boolean
           push_notification_prefs: Json
+          push_notifications_enabled: boolean
           study_preferences: Json | null
           updated_at: string
+          voice_notifications_enabled: boolean
           weekly_focus_goal_minutes: number
           weekly_report_day: number
           weekly_report_hour: number
@@ -2412,8 +2414,10 @@ export type Database = {
           last_brain_update_at?: string | null
           opt_in_leaderboard?: boolean
           push_notification_prefs?: Json
+          push_notifications_enabled?: boolean
           study_preferences?: Json | null
           updated_at?: string
+          voice_notifications_enabled?: boolean
           weekly_focus_goal_minutes?: number
           weekly_report_day?: number
           weekly_report_hour?: number
@@ -2438,8 +2442,10 @@ export type Database = {
           last_brain_update_at?: string | null
           opt_in_leaderboard?: boolean
           push_notification_prefs?: Json
+          push_notifications_enabled?: boolean
           study_preferences?: Json | null
           updated_at?: string
+          voice_notifications_enabled?: boolean
           weekly_focus_goal_minutes?: number
           weekly_report_day?: number
           weekly_report_hour?: number

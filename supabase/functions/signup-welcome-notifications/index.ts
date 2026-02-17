@@ -82,7 +82,7 @@ serve(async (req) => {
       console.error("WhatsApp error:", e);
     }
 
-    // ─── 3. PUSH NOTIFICATION ───
+    // ─── 3. PUSH NOTIFICATION (enabled by default) ───
     try {
       // Check if user has push subscription
       const { data: pushSubs } = await supabase
@@ -110,23 +110,26 @@ serve(async (req) => {
         results.push = { status: pushResp.ok ? "sent" : "failed", ...pushResult };
         console.log("Push result:", JSON.stringify(results.push));
       } else {
-        results.push = { status: "skipped", reason: "no_push_subscription" };
+        results.push = { status: "skipped", reason: "no_push_subscription_yet" };
       }
     } catch (e) {
       results.push = { status: "error", message: e instanceof Error ? e.message : "unknown" };
       console.error("Push error:", e);
     }
 
-    // ─── 4. VOICE NOTIFICATION ───
+    // ─── 4. VOICE NOTIFICATION (enabled by default) ───
     try {
-      // Check if user has voice notifications enabled
-      const { data: prefs } = await supabase
-        .from("notification_preferences")
-        .select("voice_enabled")
-        .eq("user_id", user_id)
+      // Voice is enabled by default for all users – check profile flag
+      const { data: voiceProfile } = await supabase
+        .from("profiles")
+        .select("voice_notifications_enabled")
+        .eq("id", user_id)
         .maybeSingle();
 
-      if (prefs?.voice_enabled) {
+      // Default to true if no profile or column not set
+      const voiceEnabled = voiceProfile?.voice_notifications_enabled !== false;
+
+      if (voiceEnabled) {
         const voiceResp = await fetch(`${SUPABASE_URL}/functions/v1/voice-notification`, {
           method: "POST",
           headers: {
@@ -134,7 +137,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            type: "test",
+            type: "welcome",
             language: "en",
             tone: "soft",
             context: { userName },
@@ -144,7 +147,7 @@ serve(async (req) => {
         results.voice = { status: voiceResp.ok ? "generated" : "failed", ...voiceResult };
         console.log("Voice result:", JSON.stringify(results.voice));
       } else {
-        results.voice = { status: "skipped", reason: "voice_not_enabled" };
+        results.voice = { status: "skipped", reason: "voice_disabled_by_user" };
       }
     } catch (e) {
       results.voice = { status: "error", message: e instanceof Error ? e.message : "unknown" };
