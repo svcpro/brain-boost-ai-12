@@ -29,6 +29,48 @@ const HEADER_TYPES = [
   { value: "DOCUMENT", label: "📄 Document" },
 ];
 
+const APP_ACTIONS = [
+  { key: "", label: "— Select Action —", template_name: "", display_name: "", body: "", category: "UTILITY" },
+  { key: "study_reminder", label: "📚 Study Reminder", template_name: "study_reminder", display_name: "Study Reminder",
+    body: "Hi {{1}}, it's time to review *{{2}}*! Your memory score is {{3}}%. Last studied {{4}} ago. A quick 5-min session now will boost your retention. 🧠📖", category: "UTILITY" },
+  { key: "forget_risk", label: "⚠️ Forget Risk Alert", template_name: "forget_risk_alert", display_name: "Forget Risk Alert",
+    body: "🚨 Hi {{1}}, your memory for *{{2}}* is dropping fast! Current score: {{3}}%. Predicted to forget by {{4}}. Quick revision now can save it! ⚡", category: "UTILITY" },
+  { key: "risk_digest", label: "📊 Daily Risk Digest", template_name: "daily_risk_digest", display_name: "Daily Risk Digest",
+    body: "📊 Hi {{1}}, you have {{2}} topics at risk today. Weakest: *{{3}}* at {{4}}%. Your average score is {{5}}%. Focus on the weak ones! 💪", category: "UTILITY" },
+  { key: "streak_milestone", label: "🔥 Streak Milestone", template_name: "streak_milestone", display_name: "Streak Milestone",
+    body: "🔥 Congrats {{1}}! You've hit a *{{2}}-day streak*! That's {{3}} total sessions. You're ranked #{{4}} on the leaderboard. Keep going! 🏆", category: "MARKETING" },
+  { key: "streak_break_warning", label: "💔 Streak Break Warning", template_name: "streak_break_warning", display_name: "Streak Break Warning",
+    body: "⏰ {{1}}, your *{{2}}-day streak* is about to break! Only {{3}} hours left. A quick 2-min session will save it! Don't lose your progress 💪", category: "UTILITY" },
+  { key: "brain_update_reminder", label: "🧠 Brain Update Nudge", template_name: "brain_update_reminder", display_name: "Brain Update Nudge",
+    body: "🧠 Hi {{1}}, it's been {{2}} hours since your last brain update. You have {{3}} topics pending review. Your brain score is {{4}}%. Update now! 🔄", category: "UTILITY" },
+  { key: "daily_briefing", label: "🌅 Daily Briefing", template_name: "daily_briefing", display_name: "Daily Briefing",
+    body: "🌅 Good morning {{1}}! Today's plan: {{2}} topics to study. Brain score: {{3}}%. Streak: {{4}} days. Focus on *{{5}}* today for maximum impact! 🎯", category: "UTILITY" },
+  { key: "brain_missions", label: "🎯 Brain Missions", template_name: "brain_missions", display_name: "Brain Missions",
+    body: "🎯 New mission for {{1}}! *{{2}}* — {{3}} challenge. Reward: {{4}}. Deadline: {{5}}. Accept the mission and level up! 🚀", category: "MARKETING" },
+  { key: "weekly_insights", label: "📈 Weekly Insights", template_name: "weekly_insights", display_name: "Weekly Insights",
+    body: "📈 Weekly Report for {{1}}: {{2}} topics studied, {{3}} hours invested, {{4}}% accuracy. Rank change: {{5}}. Top improvement: *{{6}}*. Weak area: *{{7}}*. 💡", category: "UTILITY" },
+  { key: "exam_countdown", label: "⏰ Exam Countdown", template_name: "exam_countdown", display_name: "Exam Countdown",
+    body: "⏰ {{1}}, *{{2}}* is in {{3}} days! Readiness: {{4}}%. {{5}} topics remaining. Target: {{6}} topics/day. You've got this! 📝", category: "UTILITY" },
+  { key: "burnout_detection", label: "😮‍💨 Burnout Alert", template_name: "burnout_alert", display_name: "Burnout Alert",
+    body: "😮‍💨 Hi {{1}}, you seem fatigued (score: {{2}}%). After {{3}} mins of study, a break is recommended. Try again at {{4}} for optimal focus. Take care! 🌿", category: "UTILITY" },
+  { key: "subscription_expiry", label: "💳 Subscription Expiry", template_name: "subscription_expiry", display_name: "Subscription Expiry",
+    body: "💳 Hi {{1}}, your *{{2}}* plan expires in {{3}} days ({{4}}). Renew now at {{5}} and use code *{{6}}* for a discount! 🎁", category: "MARKETING" },
+  { key: "new_user_welcome", label: "👋 Welcome Message", template_name: "new_user_welcome", display_name: "Welcome Message",
+    body: "👋 Welcome to BrainBoost, {{1}}! Start your journey with *{{2}}*. Join {{3}} learners in the community. Let's make learning fun! 🎓", category: "MARKETING" },
+  { key: "inactivity_nudge", label: "💤 Inactivity Nudge", template_name: "inactivity_nudge", display_name: "Inactivity Nudge",
+    body: "💤 Hey {{1}}, we miss you! It's been {{2}} days. Your memory dropped {{3}}% and {{4}} topics are decaying. {{5}} friends are still active. Come back! 🔥", category: "MARKETING" },
+  { key: "leaderboard_rank_up", label: "🏅 Rank Up", template_name: "leaderboard_rank_up", display_name: "Leaderboard Rank Up",
+    body: "🏅 {{1}}, you climbed from #{{2}} to #{{3}}! That's a {{4}} position jump. Top score: {{5}}. You're in the top {{6}}%! Keep rising! 🚀", category: "MARKETING" },
+  { key: "promo_seasonal", label: "🎉 Seasonal Promo", template_name: "promo_seasonal", display_name: "Seasonal Promo",
+    body: "🎉 Hi {{1}}! *{{2}}* — Get {{3}}% off! Valid until {{4}}. Use code *{{5}}* at checkout. Don't miss this! 🛒", category: "MARKETING" },
+  { key: "promo_upgrade", label: "⬆️ Upgrade Promo", template_name: "promo_upgrade", display_name: "Upgrade Promo",
+    body: "⬆️ {{1}}, upgrade from {{2}} to *{{3}}* for just {{4}}/mo! Save {{5}}% and unlock {{6}} premium features. Level up today! 🌟", category: "MARKETING" },
+  { key: "promo_referral", label: "🤝 Referral Promo", template_name: "promo_referral", display_name: "Referral Promo",
+    body: "🤝 {{1}}, invite friends and earn *{{2}}* per referral! Your code: *{{3}}*. {{4}} friends already joined. Share now: {{5}} 🎁", category: "MARKETING" },
+  { key: "promo_reengagement", label: "🔄 Re-engagement", template_name: "promo_reengagement", display_name: "Re-engagement Offer",
+    body: "🔄 {{1}}, it's been {{2}} days! Your memory dropped {{3}}%. Come back with *{{4}}* — use code *{{5}}*. {{6}} friends are still learning! 💪", category: "MARKETING" },
+];
+
 const BUTTON_TYPES = [
   { value: "NONE", label: "No Buttons" },
   { value: "QUICK_REPLY", label: "⚡ Quick Reply" },
@@ -552,6 +594,29 @@ Return just the template body text, nothing else.`,
               <div className="space-y-3">
                 <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
                   <h4 className="text-xs font-bold text-foreground flex items-center gap-2"><FileText className="w-3.5 h-3.5 text-green-500" /> Template Info</h4>
+                  
+                  {/* Action Selector - auto-fills fields */}
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">🎯 Action (Auto-fill)</label>
+                    <select
+                      onChange={e => {
+                        const action = APP_ACTIONS.find(a => a.key === e.target.value);
+                        if (action && action.key) {
+                          setForm(p => ({
+                            ...p,
+                            template_name: action.template_name,
+                            display_name: action.display_name,
+                            body_text: action.body,
+                            category: action.category,
+                          }));
+                        }
+                      }}
+                      className="w-full mt-1 p-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground">
+                      {APP_ACTIONS.map(a => <option key={a.key} value={a.key}>{a.label}</option>)}
+                    </select>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Select an action to auto-fill Template Name, Display Name & Body</p>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Template Name *</label>
