@@ -421,7 +421,25 @@ const ProgressTab = () => {
 
       {/* Features - placeholder removed */}
 
-      {/* Exam */}
+      {/* Quick Exam */}
+      {isEnabled("progress_exam") && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl neural-border p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Quick Exam</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">Test your knowledge with an AI-generated exam based on your study topics.</p>
+          <button
+            onClick={() => { setRetryQuestions(undefined); setShowExamSim(true); }}
+            className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <Zap className="w-4 h-4" />
+            Start Quick Exam
+          </button>
+        </motion.div>
+      )}
+
+      {/* Exam History */}
       {isEnabled("progress_exam") && (
       <ExamHistory onRetryMistakes={(questions) => {
         setRetryQuestions(questions);
