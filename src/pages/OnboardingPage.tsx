@@ -160,7 +160,7 @@ const OnboardingPage = () => {
     if (step === 3) return subjects.length > 0;
     if (step === 4) return true; // topics are optional
     if (step === 5) return studyMode !== "";
-    if (step === 6) return true; // whatsapp is optional
+    if (step === 6) return whatsappNumber.replace(/\s/g, "").length >= 13; // +91 + 10 digits
     return false;
   };
 
@@ -581,7 +581,7 @@ const OnboardingPage = () => {
                 <h1 className="text-2xl font-bold text-foreground">WhatsApp notifications</h1>
               </div>
               <p className="text-muted-foreground text-sm mb-6">
-                Get study reminders, risk digests, and streak alerts on WhatsApp. <span className="text-muted-foreground/70">(Optional)</span>
+                Get study reminders, risk digests, and streak alerts on WhatsApp.
               </p>
 
               <div className="space-y-4">
@@ -598,7 +598,7 @@ const OnboardingPage = () => {
                 </div>
 
                 <p className="text-[10px] text-muted-foreground">
-                  Enter your WhatsApp number with country code.
+                  Enter your 10-digit WhatsApp number to receive study alerts.
                 </p>
 
                 {whatsappNumber.trim().length >= 10 && (
@@ -643,7 +643,7 @@ const OnboardingPage = () => {
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {loading ? "Setting up..." : step < totalSteps - 1 ? (
-              <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : step === 6 ? (whatsappNumber.trim() ? "Continue" : "Skip") : "Continue"} <ChevronRight className="w-4 h-4" /></>
+              <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-4 h-4" /></>
             ) : (
               <>Launch ACRY <Sparkles className="w-4 h-4" /></>
             )}
