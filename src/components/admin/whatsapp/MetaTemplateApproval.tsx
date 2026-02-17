@@ -4,7 +4,7 @@ import {
   Shield, CheckCircle2, XCircle, Clock, Send, Loader2, Eye, Trash2,
   Plus, RefreshCw, AlertTriangle, Globe, FileText, MessageSquare,
   Star, Tag, ChevronRight, Copy, Edit3, Search, Filter,
-  Sparkles, ArrowUpRight, BarChart3, Zap, Bot, Phone
+  Sparkles, ArrowUpRight, BarChart3, Zap, Bot, Phone, ToggleLeft, ToggleRight
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -234,6 +234,9 @@ const MetaTemplateApproval = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [apiProvider, setApiProvider] = useState<"meta" | "twilio">(() => {
+    try { return (localStorage.getItem("wa_template_provider") as "meta" | "twilio") || "meta"; } catch { return "meta"; }
+  });
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
@@ -300,19 +303,27 @@ const MetaTemplateApproval = () => {
         savedId = insertedData?.id;
       }
 
-      // If user wants to submit to META, call the real API
+      // If user wants to submit, call the selected provider API
       if (status === "submitted" && savedId) {
-        toast({ title: "Template saved. Submitting to META..." });
-        const { data, error } = await supabase.functions.invoke("meta-whatsapp-templates", {
+        const providerLabel = apiProvider === "twilio" ? "Twilio" : "META";
+        toast({ title: `Template saved. Submitting via ${providerLabel}...` });
+        
+        const functionName = apiProvider === "twilio" ? "twilio-whatsapp-templates" : "meta-whatsapp-templates";
+        const actionName = apiProvider === "twilio" 
+          ? "create_and_submit" 
+          : (selectedTemplate?.meta_template_id ? "edit_template" : "create_template");
+
+        const { data, error } = await supabase.functions.invoke(functionName, {
           body: {
-            action: selectedTemplate?.meta_template_id ? "edit_template" : "create_template",
+            action: actionName,
             template_id: savedId,
             template_data: payload,
           },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
-        toast({ title: "✅ Submitted to META!", description: `Template ID: ${data.meta_template_id}` });
+        const idField = apiProvider === "twilio" ? data.content_sid : data.meta_template_id;
+        toast({ title: `✅ Submitted via ${providerLabel}!`, description: `Template ID: ${idField}` });
       } else {
         toast({ title: "Template saved as draft ✅" });
       }
@@ -333,13 +344,15 @@ const MetaTemplateApproval = () => {
   const submitToMeta = async (id: string) => {
     setSubmitting(true);
     try {
-      // Find the template data
       const template = templates.find(t => t.id === id);
       if (!template) throw new Error("Template not found");
 
-      const { data, error } = await supabase.functions.invoke("meta-whatsapp-templates", {
+      const functionName = apiProvider === "twilio" ? "twilio-whatsapp-templates" : "meta-whatsapp-templates";
+      const actionName = apiProvider === "twilio" ? "create_and_submit" : "create_template";
+
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
-          action: "create_template",
+          action: actionName,
           template_id: id,
           template_data: {
             template_name: template.template_name,
@@ -352,15 +365,19 @@ const MetaTemplateApproval = () => {
             button_type: template.button_type,
             buttons: template.buttons,
             sample_values: template.sample_values,
+            display_name: template.display_name,
           },
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "📤 Template submitted to META!", description: `ID: ${data.meta_template_id} | Status: ${data.status}` });
+
+      const providerLabel = apiProvider === "twilio" ? "Twilio" : "META";
+      const idField = apiProvider === "twilio" ? data.content_sid : data.meta_template_id;
+      toast({ title: `📤 Template submitted via ${providerLabel}!`, description: `ID: ${idField} | Status: ${data.status}` });
       fetchTemplates();
     } catch (e: any) {
-      toast({ title: "META submission failed", description: e.message, variant: "destructive" });
+      toast({ title: `${apiProvider === "twilio" ? "Twilio" : "META"} submission failed`, description: e.message, variant: "destructive" });
     }
     setSubmitting(false);
   };
@@ -368,12 +385,14 @@ const MetaTemplateApproval = () => {
   const syncWithMeta = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("meta-whatsapp-templates", {
+      const functionName = apiProvider === "twilio" ? "twilio-whatsapp-templates" : "meta-whatsapp-templates";
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { action: "sync_status" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "🔄 Synced with META!", description: `${data.synced} templates synced. META has ${data.meta_total} total.` });
+      const providerLabel = apiProvider === "twilio" ? "Twilio" : "META";
+      toast({ title: `🔄 Synced with ${providerLabel}!`, description: `${data.synced} templates synced.${data.meta_total ? ` META has ${data.meta_total} total.` : ""}` });
       fetchTemplates();
     } catch (e: any) {
       toast({ title: "Sync failed", description: e.message, variant: "destructive" });
@@ -534,16 +553,36 @@ Return just the template body text, nothing else.`,
         {/* ─── LIST VIEW ─── */}
         {view === "list" && (
           <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+
+            {/* API Provider Toggle */}
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border">
+              <Globe className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-foreground">Approval API:</span>
+              <div className="flex rounded-lg border border-border overflow-hidden">
+                <button onClick={() => { setApiProvider("meta"); localStorage.setItem("wa_template_provider", "meta"); }}
+                  className={`px-3 py-1.5 text-[10px] font-bold transition-all ${apiProvider === "meta" ? "bg-blue-600/15 text-blue-500 border-r border-blue-500/30" : "bg-secondary/30 text-muted-foreground border-r border-border hover:bg-secondary/50"}`}>
+                  🌐 Direct META API
+                </button>
+                <button onClick={() => { setApiProvider("twilio"); localStorage.setItem("wa_template_provider", "twilio"); }}
+                  className={`px-3 py-1.5 text-[10px] font-bold transition-all ${apiProvider === "twilio" ? "bg-red-600/15 text-red-500" : "bg-secondary/30 text-muted-foreground hover:bg-secondary/50"}`}>
+                  📞 Twilio Content API
+                </button>
+              </div>
+              <span className="text-[9px] text-muted-foreground ml-auto">
+                {apiProvider === "twilio" ? "Templates submitted via Twilio Content API → Meta approval" : "Templates submitted directly to Meta Graph API"}
+              </span>
+            </div>
+
             {/* Actions Bar */}
             <div className="flex flex-wrap items-center gap-3">
               <button onClick={() => { setForm(EMPTY_FORM); setSelectedTemplate(null); setView("create"); }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-600/20 transition-all">
-                <Plus className="w-4 h-4" /> New META Template
+                <Plus className="w-4 h-4" /> New Template
               </button>
               <button onClick={syncWithMeta} disabled={syncing}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50">
                 {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Sync with META
+                Sync with {apiProvider === "twilio" ? "Twilio" : "META"}
               </button>
               <button onClick={fetchTemplates} className="p-2.5 rounded-xl bg-secondary/50 border border-border hover:bg-secondary transition-colors">
                 <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
@@ -565,22 +604,40 @@ Return just the template body text, nothing else.`,
               </div>
             </div>
 
-            {/* META Compliance Tips */}
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
+            {/* Compliance Tips */}
+            <div className={`${apiProvider === "twilio" ? "bg-red-500/10 border-red-500/20" : "bg-blue-500/10 border-blue-500/20"} border rounded-2xl p-4`}>
               <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <Shield className={`w-5 h-5 ${apiProvider === "twilio" ? "text-red-500" : "text-blue-500"} flex-shrink-0 mt-0.5`} />
                 <div>
-                  <p className="text-sm font-bold text-blue-500">META Template Guidelines</p>
+                  <p className={`text-sm font-bold ${apiProvider === "twilio" ? "text-red-500" : "text-blue-500"}`}>
+                    {apiProvider === "twilio" ? "Twilio Content API Template Approval" : "META Template Guidelines"}
+                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-                    <div className="text-[11px] text-muted-foreground">
-                      <span className="font-bold text-foreground">📋 Naming:</span> Lowercase, underscores only. Example: <code className="text-blue-400 bg-secondary px-1 rounded">order_confirmation</code>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      <span className="font-bold text-foreground">🔢 Variables:</span> Use numbered <code className="text-blue-400 bg-secondary px-1 rounded">{"{{1}}"}, {"{{2}}"}</code> format only
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      <span className="font-bold text-foreground">⏱️ Review:</span> META reviews within 24-48 hours typically
-                    </div>
+                    {apiProvider === "twilio" ? (
+                      <>
+                        <div className="text-[11px] text-muted-foreground">
+                          <span className="font-bold text-foreground">📞 Flow:</span> Create → Submit → Meta reviews via Twilio
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          <span className="font-bold text-foreground">🔑 Auth:</span> Uses your existing Twilio Account SID & Auth Token
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          <span className="font-bold text-foreground">⏱️ Review:</span> 5 minutes to 24 hours typically
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-[11px] text-muted-foreground">
+                          <span className="font-bold text-foreground">📋 Naming:</span> Lowercase, underscores only. Example: <code className="text-blue-400 bg-secondary px-1 rounded">order_confirmation</code>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          <span className="font-bold text-foreground">🔢 Variables:</span> Use numbered <code className="text-blue-400 bg-secondary px-1 rounded">{"{{1}}"}, {"{{2}}"}</code> format only
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          <span className="font-bold text-foreground">⏱️ Review:</span> META reviews within 24-48 hours typically
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -848,7 +905,7 @@ Return just the template body text, nothing else.`,
                   <button onClick={() => saveTemplate("submitted")} disabled={saving}
                     className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold text-sm hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 shadow-lg shadow-green-600/20 transition-all">
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    Submit to META
+                    Submit via {apiProvider === "twilio" ? "Twilio" : "META"}
                   </button>
                 </div>
               </div>
