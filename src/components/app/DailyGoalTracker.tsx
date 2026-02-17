@@ -5,13 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useVoice } from "@/pages/AppDashboard";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
-import { notifyWhatsApp } from "@/lib/whatsappNotify";
+import { useWhatsAppPreview } from "@/hooks/useWhatsAppPreview";
+import WhatsAppPreviewModal from "@/components/app/WhatsAppPreviewModal";
 
 const GOAL_OPTIONS = [15, 30, 45, 60, 90, 120];
 
 const DailyGoalTracker = () => {
   const { user } = useAuth();
   const voice = useVoice();
+  const { previewState, showPreview, confirmSend, cancelSend } = useWhatsAppPreview();
   const [goalMinutes, setGoalMinutes] = useState(60);
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -73,7 +75,7 @@ const DailyGoalTracker = () => {
     voice.speak("motivation", { daily_minutes: todayMinutes });
     // Send WhatsApp notification for daily goal completion
     if (user) {
-      notifyWhatsApp("daily_goal_completed", { user_id: user.id, data: { minutes: todayMinutes } });
+      showPreview("daily_goal_completed", { user_id: user.id, data: { minutes: todayMinutes } });
     }
   }, [completed, voice, todayMinutes, user]);
 
@@ -87,6 +89,7 @@ const DailyGoalTracker = () => {
   if (loading) return null;
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -172,6 +175,15 @@ const DailyGoalTracker = () => {
         </div>
       )}
     </motion.div>
+    <WhatsAppPreviewModal
+      open={previewState.open}
+      message={previewState.message}
+      eventType={previewState.eventType}
+      onConfirm={confirmSend}
+      onCancel={cancelSend}
+      sending={previewState.sending}
+    />
+    </>
   );
 };
 

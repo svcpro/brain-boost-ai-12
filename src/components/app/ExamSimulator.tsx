@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useAdaptiveDifficulty } from "@/hooks/useAdaptiveDifficulty";
-import { notifyWhatsApp } from "@/lib/whatsappNotify";
+import { useWhatsAppPreview } from "@/hooks/useWhatsAppPreview";
+import WhatsAppPreviewModal from "@/components/app/WhatsAppPreviewModal";
 
 interface Question {
   question: string;
@@ -35,6 +36,7 @@ interface SubjectOption {
 const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { previewState, showPreview, confirmSend, cancelSend } = useWhatsAppPreview();
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [retryMode] = useState(!!retryQuestions);
@@ -258,16 +260,18 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
         questions_data: answersRef.current,
       } as any);
 
-      // WhatsApp notification for exam result
-      notifyWhatsApp("exam_result", {
-        user_id: user.id,
-        data: {
-          score: finalScore,
-          total: questions.length,
-          percentage: Math.round((finalScore / questions.length) * 100),
-          difficulty,
-        },
-      });
+      // WhatsApp notification preview for exam result
+      if (user) {
+        showPreview("exam_result", {
+          user_id: user.id,
+          data: {
+            score: finalScore,
+            total: questions.length,
+            percentage: Math.round((finalScore / questions.length) * 100),
+            difficulty,
+          },
+        });
+      }
 
       // Track per-question performance for spaced repetition
       for (const qa of answersRef.current) {
@@ -624,6 +628,14 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
           </motion.div>
         )}
       </motion.div>
+      <WhatsAppPreviewModal
+        open={previewState.open}
+        message={previewState.message}
+        eventType={previewState.eventType}
+        onConfirm={confirmSend}
+        onCancel={cancelSend}
+        sending={previewState.sending}
+      />
     </div>
   );
 };
