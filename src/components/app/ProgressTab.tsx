@@ -325,17 +325,7 @@ const ProgressTab = () => {
         </button>
       </motion.div>
 
-      {/* Study Streak */}
-      {isEnabled("progress_streak") && (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="glass rounded-xl p-5 neural-border"
-      >
-        {/* ... keep existing code (streak content lines 334-515) */}
-      </motion.div>
-      )}
+      {/* Study Streak - placeholder removed */}
 
       {/* Streak Freeze */}
       {isEnabled("progress_streak_freeze") && (
@@ -424,32 +414,12 @@ const ProgressTab = () => {
         </>
       )}
 
-      {/* Rank Prediction */}
-      {isEnabled("progress_rank") && (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="glass rounded-xl p-5 neural-border"
-      >
-        {/* ... keep existing code (rank prediction content lines 630-680) */}
-      </motion.div>
-      )}
+      {/* Rank Prediction - placeholder removed */}
 
       {/* Leaderboard */}
       {isEnabled("progress_leaderboard") && <LeaderboardCard />}
 
-      {/* Features */}
-      {isEnabled("progress_features") && (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="grid grid-cols-2 gap-3"
-      >
-        {/* ... keep existing code (feature buttons) */}
-      </motion.div>
-      )}
+      {/* Features - placeholder removed */}
 
       {/* Exam */}
       {isEnabled("progress_exam") && (
