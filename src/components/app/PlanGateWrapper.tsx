@@ -15,6 +15,7 @@ interface PlanGateWrapperProps {
 const PLAN_ICONS: Record<string, typeof Zap> = { pro: Zap, ultra: Sparkles };
 const PLAN_LABELS: Record<string, string> = { pro: "Pro Brain", ultra: "Ultra Brain" };
 
+
 const PlanGateWrapper = ({ featureKey, children, showPreview = true, onUpgrade }: PlanGateWrapperProps) => {
   const { canAccess, getRequiredPlan, loading, currentPlan, refetch } = usePlanGatingContext();
   const [showPlanModal, setShowPlanModal] = useState(false);
