@@ -1540,11 +1540,15 @@ const CampaignManagementTab = () => {
       if (campErr) throw campErr;
 
       if (!isScheduled) {
-        // Resolve all template variables per user
-        const userVars = await resolveUserVariables(users.map((u: any) => u.id));
+        // Resolve all template variables per user via server-side edge function (bypasses RLS)
+        const { data: varData, error: varErr } = await supabase.functions.invoke("resolve-whatsapp-variables", {
+          body: { user_ids: users.map((u: any) => u.id), template_message: messageBody },
+        });
+        if (varErr) console.warn("Variable resolution failed:", varErr);
+        const resolvedMessages = varData?.resolved_messages || {};
         const payload = users.map((u: any) => ({
           to: u.whatsapp_number,
-          message: resolveMessage(messageBody, userVars[u.id] || { name: u.display_name || "there" }),
+          message: resolvedMessages[u.id] || resolveMessage(messageBody, { name: u.display_name || "there" }),
           category: "campaign", user_id: u.id,
         }));
         const { data: sendResult, error: sendErr } = await supabase.functions.invoke("send-whatsapp", { body: payload });
@@ -1608,9 +1612,12 @@ const CampaignManagementTab = () => {
         is_ab_test: true, ab_variants: abVariants.map((v, i) => ({ variant: String.fromCharCode(65 + i), subject: v.subject, body: v.body, audience_size: groups[i]?.length || 0 })),
       }).select().single();
 
-      // Resolve variables for all users
+      // Resolve variables for all users via server-side edge function (bypasses RLS)
       const allUserIds = users.map((u: any) => u.id);
-      const userVars = await resolveUserVariables(allUserIds);
+      const { data: varData } = await supabase.functions.invoke("resolve-whatsapp-variables", {
+        body: { user_ids: allUserIds },
+      });
+      const userVars = varData?.variables || {};
 
       let totalSent = 0;
       for (let vi = 0; vi < groups.length; vi++) {
