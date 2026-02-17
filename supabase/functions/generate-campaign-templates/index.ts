@@ -146,10 +146,17 @@ async function generateTemplateContent(apiKey: string, triggerKey: string, label
 - Use variables like {{name}}, {{streak}}, {{topic}}, {{score}}, {{exam_date}}, {{days_left}} where relevant
 - Include a CTA button linking to {{app_url}}
 - Professional footer with unsubscribe link {{unsubscribe_url}}`,
-    push: `Generate a push notification. Include:
+    push: `Generate a push notification OR WhatsApp message (based on custom_context). For push:
 - A short punchy title (max 50 chars, use emoji)
 - A concise body (max 100 chars, actionable)
-- Use variables like {{name}}, {{streak}}, {{topic}}, {{score}} where relevant`,
+- Use variables like {{name}}, {{streak}}, {{topic}}, {{score}} where relevant
+
+If the custom_context mentions WhatsApp, generate a premium WhatsApp Business message instead:
+- Use WhatsApp formatting: *bold* for headers, _italic_ for emphasis
+- Include rich emojis throughout (🧠 📊 🎯 🔥 ⚡ 💡 📈 🏆 👋 👉 ✨ 💪 ❗ 🚀)
+- Structure: emoji header → greeting → emoji bullet points → CTA → sign-off
+- Max 500 chars, no HTML tags
+- Make it visually stunning and scannable`,
     voice: `Generate a voice notification script. Include:
 - A natural, conversational spoken text (1-3 sentences)
 - Write for text-to-speech: spell out numbers, avoid abbreviations
