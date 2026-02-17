@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useVoice } from "@/pages/AppDashboard";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
+import { notifyWhatsApp } from "@/lib/whatsappNotify";
 
 const GOAL_OPTIONS = [15, 30, 45, 60, 90, 120];
 
@@ -70,7 +71,11 @@ const DailyGoalTracker = () => {
     if (!settings.enabled) return;
     goalVoiceFiredRef.current = true;
     voice.speak("motivation", { daily_minutes: todayMinutes });
-  }, [completed, voice, todayMinutes]);
+    // Send WhatsApp notification for daily goal completion
+    if (user) {
+      notifyWhatsApp("daily_goal_completed", { user_id: user.id, data: { minutes: todayMinutes } });
+    }
+  }, [completed, voice, todayMinutes, user]);
 
   const remaining = Math.max(goalMinutes - todayMinutes, 0);
 

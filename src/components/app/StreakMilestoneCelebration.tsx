@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, X, Flame, Star, Crown } from "lucide-react";
 import confetti from "canvas-confetti";
+import { useAuth } from "@/contexts/AuthContext";
+import { notifyWhatsApp } from "@/lib/whatsappNotify";
 
 interface StreakMilestoneProps {
   currentStreak: number;
@@ -30,6 +32,7 @@ function setDismissed(days: number) {
 }
 
 const StreakMilestoneCelebration = ({ currentStreak }: StreakMilestoneProps) => {
+  const { user } = useAuth();
   const [visible, setVisible] = useState(false);
   const [milestone, setMilestone] = useState<typeof MILESTONES[0] | null>(null);
 
@@ -45,8 +48,12 @@ const StreakMilestoneCelebration = ({ currentStreak }: StreakMilestoneProps) => 
     if (hit) {
       setMilestone(hit);
       setVisible(true);
+      // Send WhatsApp streak milestone notification
+      if (user) {
+        notifyWhatsApp("streak_milestone", { user_id: user.id, data: { days: hit.days } });
+      }
     }
-  }, [currentStreak]);
+  }, [currentStreak, user]);
 
   // Fire confetti when card appears
   useEffect(() => {
