@@ -1130,6 +1130,133 @@ export type Database = {
         }
         Relationships: []
       }
+      email_logs: {
+        Row: {
+          bounced_at: string | null
+          clicked_at: string | null
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          opened_at: string | null
+          status: string
+          subject: string
+          template_id: string | null
+          to_email: string
+          trigger_key: string
+          user_id: string
+        }
+        Insert: {
+          bounced_at?: string | null
+          clicked_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          opened_at?: string | null
+          status?: string
+          subject: string
+          template_id?: string | null
+          to_email: string
+          trigger_key: string
+          user_id: string
+        }
+        Update: {
+          bounced_at?: string | null
+          clicked_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          opened_at?: string | null
+          status?: string
+          subject?: string
+          template_id?: string | null
+          to_email?: string
+          trigger_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_queue: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          html_body: string
+          id: string
+          max_retries: number
+          priority: string
+          retry_count: number
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          subject: string
+          template_id: string | null
+          to_email: string
+          trigger_key: string
+          updated_at: string
+          user_id: string
+          variables: Json
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          html_body: string
+          id?: string
+          max_retries?: number
+          priority?: string
+          retry_count?: number
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+          template_id?: string | null
+          to_email: string
+          trigger_key: string
+          updated_at?: string
+          user_id: string
+          variables?: Json
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          html_body?: string
+          id?: string
+          max_retries?: number
+          priority?: string
+          retry_count?: number
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          template_id?: string | null
+          to_email?: string
+          trigger_key?: string
+          updated_at?: string
+          user_id?: string
+          variables?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_queue_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_templates: {
         Row: {
           category: string | null
@@ -1168,6 +1295,59 @@ export type Database = {
           variables?: string[] | null
         }
         Relationships: []
+      }
+      email_triggers: {
+        Row: {
+          category: string
+          conditions: Json
+          cooldown_hours: number | null
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_enabled: boolean
+          priority: string
+          template_id: string | null
+          trigger_key: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          conditions?: Json
+          cooldown_hours?: number | null
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_enabled?: boolean
+          priority?: string
+          template_id?: string | null
+          trigger_key: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          conditions?: Json
+          cooldown_hours?: number | null
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_enabled?: boolean
+          priority?: string
+          template_id?: string | null
+          trigger_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_triggers_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       exam_results: {
         Row: {

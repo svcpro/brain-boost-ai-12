@@ -8,7 +8,7 @@ import {
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare, Globe,
-  Search as SearchIcon
+  Search as SearchIcon, Mail
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,8 +38,9 @@ import FinanceManagement from "@/components/admin/FinanceManagement";
 import CommunityManagement from "@/components/admin/CommunityManagement";
 import SEOManagement from "@/components/admin/SEOManagement";
 import WhatsAppManagement from "@/components/admin/WhatsAppManagement";
+import EmailManagement from "@/components/admin/EmailManagement";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "email" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -75,6 +76,7 @@ const NAV_ITEMS: { key: AdminSection; label: string; icon: any; roles: AppRole[]
   { key: "finance", label: "Finance", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
   { key: "notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin"] },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
+  { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
   { key: "whatsapp", label: "WhatsApp", icon: MessageSquare, roles: ["super_admin", "admin"] },
   { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
   { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
@@ -227,6 +229,7 @@ const AdminPanel = () => {
             {section === "notifications" && <AdminNotificationCenter />}
             {section === "campaigns" && <CampaignManager />}
             {section === "whatsapp" && <WhatsAppManagement />}
+            {section === "email" && <EmailManagement />}
             {section === "monitoring" && <SystemMonitor />}
             {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
             {section === "audit" && <AuditSection />}
