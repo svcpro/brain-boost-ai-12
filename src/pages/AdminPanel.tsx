@@ -2064,6 +2064,7 @@ const TAB_GROUPS = [
   { key: "tab_home", label: "Home Tab", icon: Home, prefix: "home_" },
   { key: "tab_action", label: "Action Tab", icon: Zap, prefix: "action_" },
   { key: "tab_brain", label: "Brain Tab", icon: Brain, prefix: "brain_" },
+  { key: "tab_community", label: "Community Tab", icon: Users, prefix: "community_" },
   { key: "tab_progress", label: "Progress Tab", icon: TrendingUp, prefix: "progress_" },
   { key: "tab_you", label: "You Tab", icon: User, prefix: "you_" },
 ];
