@@ -23,7 +23,7 @@ serve(async (req) => {
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Determine the user to operate on (admin can target other users)
-    const userId = target_user_id || user.id;
+    const targetUserId = target_user_id || user.id;
 
     if (action === "generate_curriculum") {
       // AI generates full subject + topic tree based on exam type
@@ -116,7 +116,7 @@ serve(async (req) => {
         // Check if subject already exists
         const { data: existing } = await admin.from("subjects")
           .select("id")
-          .eq("user_id", userId)
+          .eq("user_id", targetUserId)
           .eq("name", sub.name)
           .is("deleted_at", null)
           .maybeSingle();
@@ -126,7 +126,7 @@ serve(async (req) => {
           subjectId = existing.id;
         } else {
           const { data: newSub, error: subErr } = await admin.from("subjects")
-            .insert({ name: sub.name, user_id: userId })
+            .insert({ name: sub.name, user_id: targetUserId })
             .select("id")
             .single();
           if (subErr) continue;
@@ -137,7 +137,7 @@ serve(async (req) => {
           // Check if topic already exists
           const { data: existingTopic } = await admin.from("topics")
             .select("id")
-            .eq("user_id", userId)
+            .eq("user_id", targetUserId)
             .eq("subject_id", subjectId)
             .eq("name", topic.name)
             .is("deleted_at", null)
@@ -147,7 +147,7 @@ serve(async (req) => {
             await admin.from("topics").insert({
               name: topic.name,
               subject_id: subjectId,
-              user_id: userId,
+              user_id: targetUserId,
               marks_impact_weight: topic.marks_impact_weight || 5,
             });
           }
@@ -162,9 +162,9 @@ serve(async (req) => {
     if (action === "gap_analysis") {
       // Analyze existing topics and find gaps
       const [topicsRes, subjectsRes, profileRes] = await Promise.all([
-        admin.from("topics").select("name, memory_strength, marks_impact_weight, subject_id").eq("user_id", userId).is("deleted_at", null),
-        admin.from("subjects").select("id, name").eq("user_id", userId).is("deleted_at", null),
-        admin.from("profiles").select("exam_type").eq("id", userId).maybeSingle(),
+        admin.from("topics").select("name, memory_strength, marks_impact_weight, subject_id").eq("user_id", targetUserId).is("deleted_at", null),
+        admin.from("subjects").select("id, name").eq("user_id", targetUserId).is("deleted_at", null),
+        admin.from("profiles").select("exam_type").eq("id", targetUserId).maybeSingle(),
       ]);
 
       const topics = topicsRes.data || [];
@@ -265,9 +265,9 @@ serve(async (req) => {
     if (action === "auto_prioritize") {
       // AI re-calculates marks_impact_weight for all topics
       const [topicsRes, subjectsRes, profileRes] = await Promise.all([
-        admin.from("topics").select("id, name, marks_impact_weight, subject_id").eq("user_id", userId).is("deleted_at", null),
-        admin.from("subjects").select("id, name").eq("user_id", userId).is("deleted_at", null),
-        admin.from("profiles").select("exam_type").eq("id", userId).maybeSingle(),
+        admin.from("topics").select("id, name, marks_impact_weight, subject_id").eq("user_id", targetUserId).is("deleted_at", null),
+        admin.from("subjects").select("id, name").eq("user_id", targetUserId).is("deleted_at", null),
+        admin.from("profiles").select("exam_type").eq("id", targetUserId).maybeSingle(),
       ]);
 
       const topics = topicsRes.data || [];
@@ -333,7 +333,7 @@ serve(async (req) => {
           const { error } = await admin.from("topics")
             .update({ marks_impact_weight: w.marks_impact_weight })
             .eq("id", w.topic_id)
-            .eq("user_id", userId);
+            .eq("user_id", targetUserId);
           if (!error) updated++;
         }
         return new Response(JSON.stringify({ updated, total: weights?.length || 0 }), {
