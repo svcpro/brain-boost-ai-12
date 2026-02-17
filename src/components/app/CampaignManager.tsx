@@ -8,7 +8,7 @@ import {
   FileText, Copy, ArrowRight, Pencil, Award, Star,
   Megaphone, Zap, ChevronDown, AlertTriangle, MessageSquare,
   Wand2, Download, Rocket, Bot, CalendarClock, Tags,
-  UserMinus, UserCheck, RotateCcw
+  UserMinus, UserCheck, RotateCcw, Phone
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,13 +16,13 @@ import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow, subDays, startOfDay } from "date-fns";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
 
-type CampaignChannel = "email" | "voice" | "push";
+type CampaignChannel = "email" | "voice" | "push" | "whatsapp";
 type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "paused" | "cancelled";
 type ManagerTab = "campaigns" | "templates" | "leads" | "drip" | "analytics" | "ab_tests";
 type LeadStage = "new" | "engaged" | "active" | "power_user" | "at_risk" | "churned" | "converted";
 
-const CHANNEL_ICONS: Record<CampaignChannel, any> = { email: Mail, voice: Volume2, push: Bell };
-const CHANNEL_COLORS: Record<CampaignChannel, string> = { email: "text-accent", voice: "text-warning", push: "text-primary" };
+const CHANNEL_ICONS: Record<CampaignChannel, any> = { email: Mail, voice: Volume2, push: Bell, whatsapp: MessageSquare };
+const CHANNEL_COLORS: Record<CampaignChannel, string> = { email: "text-accent", voice: "text-warning", push: "text-primary", whatsapp: "text-success" };
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -46,31 +46,31 @@ const LEAD_STAGE_COLORS: Record<LeadStage, string> = {
 const LEAD_STAGES: LeadStage[] = ["new", "engaged", "active", "power_user", "at_risk", "churned", "converted"];
 
 const AI_CAMPAIGN_TRIGGERS = [
-  { key: "study_reminder", label: "Study Reminder", channels: ["email", "push", "voice"], icon: "📚" },
-  { key: "forget_risk", label: "Forget Risk Alert", channels: ["push", "voice"], icon: "⚠️" },
-  { key: "risk_digest", label: "Daily Risk Digest", channels: ["push", "email"], icon: "📊" },
-  { key: "streak_milestone", label: "Streak Milestone", channels: ["push", "voice"], icon: "🔥" },
-  { key: "streak_break_warning", label: "Streak Break Warning", channels: ["push", "voice"], icon: "💔" },
-  { key: "daily_briefing", label: "Daily Morning Briefing", channels: ["push", "email"], icon: "🌅" },
-  { key: "brain_missions", label: "Brain Missions", channels: ["push"], icon: "🎯" },
-  { key: "weekly_insights", label: "Weekly AI Insights", channels: ["push", "email", "voice"], icon: "🧠" },
+  { key: "study_reminder", label: "Study Reminder", channels: ["email", "push", "voice", "whatsapp"], icon: "📚" },
+  { key: "forget_risk", label: "Forget Risk Alert", channels: ["push", "voice", "whatsapp"], icon: "⚠️" },
+  { key: "risk_digest", label: "Daily Risk Digest", channels: ["push", "email", "whatsapp"], icon: "📊" },
+  { key: "streak_milestone", label: "Streak Milestone", channels: ["push", "voice", "whatsapp"], icon: "🔥" },
+  { key: "streak_break_warning", label: "Streak Break Warning", channels: ["push", "voice", "whatsapp"], icon: "💔" },
+  { key: "daily_briefing", label: "Daily Morning Briefing", channels: ["push", "email", "whatsapp"], icon: "🌅" },
+  { key: "brain_missions", label: "Brain Missions", channels: ["push", "whatsapp"], icon: "🎯" },
+  { key: "weekly_insights", label: "Weekly AI Insights", channels: ["push", "email", "voice", "whatsapp"], icon: "🧠" },
   { key: "weekly_report", label: "Weekly Email Report", channels: ["email"], icon: "📈" },
-  { key: "exam_countdown", label: "Exam Countdown", channels: ["push", "email", "voice"], icon: "⏰" },
-  { key: "daily_goal_complete", label: "Daily Goal Complete", channels: ["push"], icon: "✅" },
-  { key: "weekly_goal_complete", label: "Weekly Goal Complete", channels: ["push", "voice"], icon: "🏆" },
-  { key: "burnout_detection", label: "Burnout Alert", channels: ["push", "voice"], icon: "😮‍💨" },
-  { key: "subscription_expiry", label: "Subscription Expiry", channels: ["push", "email"], icon: "💳" },
-  { key: "new_user_welcome", label: "Welcome Message", channels: ["push", "email"], icon: "👋" },
-  { key: "inactivity_nudge", label: "Inactivity Nudge", channels: ["push", "email", "voice"], icon: "💤" },
-  { key: "leaderboard_rank_up", label: "Leaderboard Rank Up", channels: ["push"], icon: "🏅" },
-  { key: "rank_prediction_change", label: "Rank Prediction Change", channels: ["push", "voice"], icon: "📉" },
-  { key: "study_plan_ready", label: "Study Plan Ready", channels: ["push", "email"], icon: "📋" },
-  { key: "feature_announcement", label: "Feature Announcement", channels: ["push", "email"], icon: "🆕" },
-  { key: "promo_seasonal", label: "Seasonal Promotion", channels: ["email", "push"], icon: "🎉" },
-  { key: "promo_upgrade", label: "Upgrade Promotion", channels: ["email", "push", "voice"], icon: "⬆️" },
-  { key: "promo_referral", label: "Referral Promotion", channels: ["email", "push"], icon: "🤝" },
-  { key: "promo_milestone_reward", label: "Milestone Reward", channels: ["email", "push"], icon: "🎁" },
-  { key: "promo_reengagement", label: "Re-engagement Promo", channels: ["email", "push", "voice"], icon: "🔄" },
+  { key: "exam_countdown", label: "Exam Countdown", channels: ["push", "email", "voice", "whatsapp"], icon: "⏰" },
+  { key: "daily_goal_complete", label: "Daily Goal Complete", channels: ["push", "whatsapp"], icon: "✅" },
+  { key: "weekly_goal_complete", label: "Weekly Goal Complete", channels: ["push", "voice", "whatsapp"], icon: "🏆" },
+  { key: "burnout_detection", label: "Burnout Alert", channels: ["push", "voice", "whatsapp"], icon: "😮‍💨" },
+  { key: "subscription_expiry", label: "Subscription Expiry", channels: ["push", "email", "whatsapp"], icon: "💳" },
+  { key: "new_user_welcome", label: "Welcome Message", channels: ["push", "email", "whatsapp"], icon: "👋" },
+  { key: "inactivity_nudge", label: "Inactivity Nudge", channels: ["push", "email", "voice", "whatsapp"], icon: "💤" },
+  { key: "leaderboard_rank_up", label: "Leaderboard Rank Up", channels: ["push", "whatsapp"], icon: "🏅" },
+  { key: "rank_prediction_change", label: "Rank Prediction Change", channels: ["push", "voice", "whatsapp"], icon: "📉" },
+  { key: "study_plan_ready", label: "Study Plan Ready", channels: ["push", "email", "whatsapp"], icon: "📋" },
+  { key: "feature_announcement", label: "Feature Announcement", channels: ["push", "email", "whatsapp"], icon: "🆕" },
+  { key: "promo_seasonal", label: "Seasonal Promotion", channels: ["email", "push", "whatsapp"], icon: "🎉" },
+  { key: "promo_upgrade", label: "Upgrade Promotion", channels: ["email", "push", "voice", "whatsapp"], icon: "⬆️" },
+  { key: "promo_referral", label: "Referral Promotion", channels: ["email", "push", "whatsapp"], icon: "🤝" },
+  { key: "promo_milestone_reward", label: "Milestone Reward", channels: ["email", "push", "whatsapp"], icon: "🎁" },
+  { key: "promo_reengagement", label: "Re-engagement Promo", channels: ["email", "push", "voice", "whatsapp"], icon: "🔄" },
 ];
 
 const CampaignManager = () => {
@@ -138,6 +138,13 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
   const [scheduleTime, setScheduleTime] = useState("09:00");
   const [targetPlan, setTargetPlan] = useState<"all" | "free" | "pro" | "ultra">("all");
 
+  // WhatsApp Meta Template state
+  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
+  const [selectedMetaTemplate, setSelectedMetaTemplate] = useState<string>("");
+  const [metaTemplatesLoading, setMetaTemplatesLoading] = useState(false);
+  const [showMetaCampaign, setShowMetaCampaign] = useState(false);
+  const [sendingMetaCampaign, setSendingMetaCampaign] = useState(false);
+
   // A/B Test Creation State
   const [showABCreator, setShowABCreator] = useState(false);
   const [abTrigger, setAbTrigger] = useState<string>("");
@@ -148,6 +155,146 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
   const [abSending, setAbSending] = useState(false);
   const [abSplitRatio, setAbSplitRatio] = useState(50);
   const [abWinnerMetric, setAbWinnerMetric] = useState<"open_rate" | "click_rate">("open_rate");
+
+  // Fetch approved Meta templates
+  const fetchMetaTemplates = useCallback(async () => {
+    setMetaTemplatesLoading(true);
+    const { data } = await (supabase as any).from("meta_template_submissions")
+      .select("*")
+      .eq("meta_status", "approved")
+      .order("approved_at", { ascending: false });
+    setMetaTemplates(data || []);
+    setMetaTemplatesLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (showMetaCampaign && metaTemplates.length === 0) fetchMetaTemplates();
+  }, [showMetaCampaign]);
+
+  // Send approved Meta Template as WhatsApp campaign
+  const sendMetaTemplateCampaign = async () => {
+    if (!selectedMetaTemplate || !adminId) return;
+    setSendingMetaCampaign(true);
+    try {
+      const template = metaTemplates.find(t => t.id === selectedMetaTemplate);
+      if (!template) throw new Error("Template not found");
+
+      // Fetch target users with WhatsApp numbers
+      const { data: profiles } = await supabase.from("profiles").select("id, whatsapp_number");
+      let eligibleUsers = (profiles || []).filter((p: any) => p.whatsapp_number);
+
+      // Apply plan filter
+      if (targetPlan !== "all") {
+        const { data: leads } = await supabase.from("leads").select("user_id, subscription_plan");
+        if (targetPlan === "free") {
+          const paidUsers = new Set((leads || []).filter((l: any) => ["pro", "ultra"].includes((l.subscription_plan || "").toLowerCase())).map((l: any) => l.user_id));
+          eligibleUsers = eligibleUsers.filter((p: any) => !paidUsers.has(p.id));
+        } else {
+          const planUsers = new Set((leads || []).filter((l: any) => (l.subscription_plan || "").toLowerCase() === targetPlan).map((l: any) => l.user_id));
+          eligibleUsers = eligibleUsers.filter((p: any) => planUsers.has(p.id));
+        }
+      }
+
+      if (eligibleUsers.length === 0) {
+        toast({ title: "No eligible users", description: "No users with WhatsApp numbers found for this plan filter.", variant: "destructive" });
+        setSendingMetaCampaign(false);
+        return;
+      }
+
+      // Create campaign record
+      const { data: campaign, error: campErr } = await (supabase as any).from("campaigns").insert({
+        name: `[Meta Template] ${template.display_name}`,
+        channel: "whatsapp",
+        status: "sending",
+        subject: template.display_name,
+        title: template.display_name,
+        body: template.body_text,
+        audience_type: targetPlan === "all" ? "all" : "segment",
+        audience_filters: targetPlan !== "all" ? { plan: targetPlan } : {},
+        total_recipients: eligibleUsers.length,
+        sent_at: new Date().toISOString(),
+        created_by: adminId,
+      }).select().single();
+      if (campErr) throw campErr;
+
+      let sentCount = 0;
+      let failedCount = 0;
+
+      // Send to each user with resolved variables
+      for (const user of eligibleUsers) {
+        try {
+          // Resolve variables for this user
+          const { data: resolved } = await supabase.functions.invoke("resolve-whatsapp-variables", {
+            body: { user_id: user.id, template: template.body_text },
+          });
+
+          const resolvedMessage = resolved?.resolved || template.body_text;
+
+          // Send via send-whatsapp
+          const { data: sendResult } = await supabase.functions.invoke("send-whatsapp", {
+            body: {
+              to: user.whatsapp_number,
+              message: resolvedMessage,
+              user_id: user.id,
+              category: "campaign",
+            },
+          });
+
+          // Insert campaign recipient
+          await (supabase as any).from("campaign_recipients").insert({
+            campaign_id: campaign.id,
+            user_id: user.id,
+            status: sendResult?.results?.[0]?.status === "failed" ? "failed" : "delivered",
+            delivered_at: sendResult?.results?.[0]?.status !== "failed" ? new Date().toISOString() : null,
+            error_message: sendResult?.results?.[0]?.error || null,
+          });
+
+          if (sendResult?.results?.[0]?.status === "failed") {
+            failedCount++;
+          } else {
+            sentCount++;
+          }
+        } catch (err: any) {
+          failedCount++;
+          await (supabase as any).from("campaign_recipients").insert({
+            campaign_id: campaign.id,
+            user_id: user.id,
+            status: "failed",
+            error_message: err?.message || "Send failed",
+          });
+        }
+
+        // Rate limiting
+        if (eligibleUsers.length > 1) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      // Update campaign stats
+      await (supabase as any).from("campaigns").update({
+        status: "sent",
+        delivered_count: sentCount,
+        failed_count: failedCount,
+      }).eq("id", campaign.id);
+
+      // Audit log
+      await supabase.from("admin_audit_logs").insert({
+        admin_id: adminId,
+        action: "meta_template_campaign_sent",
+        target_type: "campaign",
+        target_id: campaign.id,
+        details: { template_name: template.template_name, sent: sentCount, failed: failedCount, total: eligibleUsers.length } as any,
+      });
+
+      toast({ title: `📱 WhatsApp campaign sent!`, description: `${sentCount} delivered, ${failedCount} failed out of ${eligibleUsers.length} users` });
+      setShowMetaCampaign(false);
+      setSelectedMetaTemplate("");
+      fetchCampaigns();
+    } catch (e: any) {
+      toast({ title: "WhatsApp campaign failed", description: e?.message, variant: "destructive" });
+    }
+    setSendingMetaCampaign(false);
+  };
 
   const generateABVariants = async () => {
     if (!abTrigger) return;
@@ -394,7 +541,6 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         }
 
         if (channel === "email") {
-          // Actually send emails via edge function
           try {
             const { data: emailResult } = await supabase.functions.invoke("send-campaign-email", {
               body: { recipientIds, subject: aiContent.subject, htmlBody: aiContent.html_body, campaignId: campaign.id },
@@ -408,6 +554,28 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
           } catch (emailErr: any) {
             console.error("Email sending error:", emailErr);
           }
+        }
+
+        if (channel === "whatsapp") {
+          // Send WhatsApp messages via send-whatsapp with variable resolution
+          const { data: waProfiles } = await supabase.from("profiles").select("id, whatsapp_number");
+          const waUsers = (waProfiles || []).filter((p: any) => p.whatsapp_number && recipientIds.includes(p.id));
+          let waSent = 0;
+          for (const u of waUsers) {
+            try {
+              const { data: resolved } = await supabase.functions.invoke("resolve-whatsapp-variables", {
+                body: { user_id: u.id, template: aiContent.html_body || aiContent.subject },
+              });
+              await supabase.functions.invoke("send-whatsapp", {
+                body: { to: u.whatsapp_number, message: resolved?.resolved || aiContent.html_body, user_id: u.id, category: "campaign" },
+              });
+              waSent++;
+              if (waUsers.length > 1) await new Promise(r => setTimeout(r, 300));
+            } catch (err) {
+              console.error(`WhatsApp send error for ${u.id}:`, err);
+            }
+          }
+          if (waSent > 0) toast({ title: `📱 ${waSent} WhatsApp message(s) sent!` });
         }
 
         await (supabase as any).from("campaigns").update({ delivered_count: recipientIds.length }).eq("id", campaign.id);
@@ -573,6 +741,7 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
                     <option value="email">📧 Email</option>
                     <option value="push">🔔 Push</option>
                     <option value="voice">🔊 Voice</option>
+                    <option value="whatsapp">📱 WhatsApp</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
@@ -677,6 +846,105 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         </AnimatePresence>
       </div>
 
+      {/* WhatsApp Meta Template Campaign */}
+      <div className="glass rounded-xl p-4 neural-border space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-success" />
+            <h3 className="text-sm font-semibold text-foreground">WhatsApp Meta Template Campaign</h3>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success font-medium">Approved Templates</span>
+          </div>
+          <button onClick={() => setShowMetaCampaign(!showMetaCampaign)}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              showMetaCampaign ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+            }`}>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMetaCampaign ? "rotate-180" : ""}`} />
+            {showMetaCampaign ? "Collapse" : "Send Meta Template"}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showMetaCampaign && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-3 overflow-hidden">
+              <p className="text-[11px] text-muted-foreground">Select an approved Meta template → variables auto-resolve per user → sends via WhatsApp to all users with registered numbers.</p>
+
+              {metaTemplatesLoading ? (
+                <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-success" /></div>
+              ) : metaTemplates.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-xs text-muted-foreground">No approved Meta templates found.</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Go to WhatsApp → Meta Template Approval to create and get templates approved.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Select Approved Template</label>
+                    <select value={selectedMetaTemplate} onChange={e => setSelectedMetaTemplate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs text-foreground">
+                      <option value="">Choose a template...</option>
+                      {metaTemplates.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.display_name} ({t.template_name}) — {t.category} [{t.language}]
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedMetaTemplate && (() => {
+                    const tmpl = metaTemplates.find(t => t.id === selectedMetaTemplate);
+                    if (!tmpl) return null;
+                    return (
+                      <div className="rounded-lg border border-success/20 bg-success/5 p-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                          <span className="text-xs font-semibold text-foreground">{tmpl.display_name}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-success/15 text-success">APPROVED</span>
+                        </div>
+                        {tmpl.header_type && tmpl.header_type !== "NONE" && (
+                          <p className="text-[10px] text-muted-foreground">
+                            <span className="font-medium">Header ({tmpl.header_type}):</span> {tmpl.header_content || "—"}
+                          </p>
+                        )}
+                        <div className="p-2 rounded bg-background border border-border">
+                          <p className="text-[11px] text-foreground whitespace-pre-wrap">{tmpl.body_text}</p>
+                        </div>
+                        {tmpl.footer_text && (
+                          <p className="text-[10px] text-muted-foreground italic">{tmpl.footer_text}</p>
+                        )}
+                        {tmpl.buttons && (tmpl.buttons as any[]).length > 0 && (
+                          <div className="flex gap-1.5 flex-wrap">
+                            {(tmpl.buttons as any[]).map((btn: any, i: number) => (
+                              <span key={i} className="text-[9px] px-2 py-1 rounded bg-primary/10 text-primary font-medium">
+                                {btn.text}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[9px] text-muted-foreground">
+                          Variables like {"{{topic}}"}, {"{{memory_score}}"}, {"{{name}}"} etc. will be auto-resolved per user.
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                  <button onClick={sendMetaTemplateCampaign}
+                    disabled={!selectedMetaTemplate || sendingMetaCampaign}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 transition-colors">
+                    {sendingMetaCampaign ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {sendingMetaCampaign ? "Sending WhatsApp Campaign..." : "Send Meta Template to All Users"}
+                  </button>
+
+                  <button onClick={fetchMetaTemplates}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-muted-foreground hover:bg-secondary transition-colors">
+                    <RefreshCw className="w-3 h-3" /> Refresh Templates
+                  </button>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* Live Activity Feed */}
       {liveUpdates.length > 0 && (
         <div className="glass rounded-xl p-3 neural-border space-y-2">
@@ -710,7 +978,7 @@ const AICampaignsTab = ({ toast, adminId }: { toast: any; adminId?: string }) =>
         </div>
         <div className="flex gap-2 flex-wrap">
           <div className="flex gap-1">
-            {(["all", "email", "voice", "push"] as const).map(ch => (
+            {(["all", "email", "voice", "push", "whatsapp"] as const).map(ch => (
               <button key={ch} onClick={() => setFilter(ch)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors ${filter === ch ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
                 {ch === "all" ? "All" : ch.charAt(0).toUpperCase() + ch.slice(1)}
