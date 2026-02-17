@@ -72,7 +72,7 @@ async function sendWeeklyReportEmail(email: string, displayName: string, stats: 
     method: 'POST',
     headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'ACRY <onboarding@resend.dev>',
+      from: 'ACRY <notifications@acry.ai>',
       to: [email],
       subject: `📊 Your Weekly Study Report – ${timeStr} studied`,
       html,

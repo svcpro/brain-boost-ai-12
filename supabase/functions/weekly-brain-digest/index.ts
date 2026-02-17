@@ -244,7 +244,7 @@ Total topics: ${topics.length}`;
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "ACRY <onboarding@resend.dev>",
+            from: "ACRY <notifications@acry.ai>",
             to: [email],
             subject: `🧠 Brain Evolution Digest — ${twin ? `Score: ${Math.round(twin.brain_evolution_score)}/100` : timeStr + " studied"}${evolutionChange != null ? ` (${evolutionChange >= 0 ? "+" : ""}${evolutionChange})` : ""}`,
             html,
