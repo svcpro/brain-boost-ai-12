@@ -56,6 +56,101 @@ const MiniStatCard = ({ label, value, icon: Icon, color, border, gradient, sub }
   </motion.div>
 );
 
+// ─── Reusable WhatsApp Phone Preview ───
+const WhatsAppPhonePreview = ({ message, mediaUrl, timestamp, compact = false, buttons }: {
+  message: string; mediaUrl?: string; timestamp?: Date; compact?: boolean; buttons?: { text: string; url?: string }[];
+}) => {
+  if (compact) {
+    return (
+      <div className="bg-[#0b141a] rounded-xl overflow-hidden border border-green-500/10">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1f2c34]">
+          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+            <MessageSquare className="w-2.5 h-2.5 text-white" />
+          </div>
+          <p className="text-white text-[10px] font-semibold">ACRY Brain</p>
+          <p className="text-green-400 text-[8px]">online</p>
+        </div>
+        <div className="p-2.5">
+          <div className="bg-[#005c4b] rounded-xl rounded-tr-sm p-2.5 max-w-full shadow-md">
+            <p className="text-white text-[10px] whitespace-pre-wrap leading-relaxed">{message}</p>
+            {mediaUrl && (
+              <div className="mt-1.5 rounded-lg bg-white/10 p-1.5 flex items-center gap-1.5">
+                <Image className="w-3 h-3 text-white/60" />
+                <span className="text-white/60 text-[8px] truncate">{mediaUrl}</span>
+              </div>
+            )}
+            {buttons && buttons.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {buttons.map((btn, i) => (
+                  <div key={i} className="w-full py-1.5 rounded-lg bg-white/10 text-center">
+                    <span className="text-[9px] text-blue-300 font-medium">{btn.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-1 mt-1">
+              <p className="text-white/40 text-[8px]">{format(timestamp || new Date(), "h:mm a")}</p>
+              <CheckCircle2 className="w-2.5 h-2.5 text-blue-400" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[#0b141a] rounded-2xl overflow-hidden shadow-2xl shadow-black/30">
+      <div className="flex items-center gap-3 px-4 py-3 bg-[#1f2c34]">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+          <MessageSquare className="w-4 h-4 text-white" />
+        </div>
+        <div className="flex-1">
+          <p className="text-white text-sm font-semibold">ACRY Brain</p>
+          <p className="text-green-400 text-[10px]">online</p>
+        </div>
+        <Phone className="w-4 h-4 text-white/50" />
+      </div>
+      <div className="p-4 min-h-[280px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=')]">
+        {message ? (
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="flex justify-end">
+            <div className="bg-[#005c4b] rounded-2xl rounded-tr-sm p-3.5 max-w-[85%] shadow-lg">
+              <p className="text-white text-xs whitespace-pre-wrap leading-relaxed">{message}</p>
+              {mediaUrl && (
+                <div className="mt-2 rounded-lg bg-white/10 p-2 flex items-center gap-2">
+                  <Image className="w-4 h-4 text-white/60" />
+                  <span className="text-white/60 text-[10px] truncate">{mediaUrl}</span>
+                </div>
+              )}
+              {buttons && buttons.length > 0 && (
+                <div className="mt-2.5 space-y-1">
+                  {buttons.map((btn, i) => (
+                    <div key={i} className="w-full py-2 rounded-lg bg-white/10 text-center">
+                      <span className="text-[10px] text-blue-300 font-medium">{btn.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-1 mt-1.5">
+                <p className="text-white/40 text-[9px]">{format(timestamp || new Date(), "h:mm a")}</p>
+                <CheckCircle2 className="w-3 h-3 text-blue-400" />
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-[250px] gap-3">
+            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center"><MessageSquare className="w-8 h-8 text-white/10" /></div>
+            <p className="text-white/20 text-xs">Message preview will appear here</p>
+          </div>
+        )}
+      </div>
+      <div className="px-4 py-2 bg-[#1f2c34] flex items-center gap-2">
+        <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2"><p className="text-white/30 text-xs">Type a message</p></div>
+        <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center"><Send className="w-3.5 h-3.5 text-white" /></div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Section Header ───
 const SectionHeader = ({ icon: Icon, title, subtitle, color = "text-green-500" }: any) => (
   <div className="flex items-center gap-3 mb-4">
@@ -467,46 +562,7 @@ const SendMessageTab = () => {
         </div>
 
         {/* WhatsApp Preview */}
-        <div className="bg-[#0b141a] rounded-2xl overflow-hidden shadow-2xl shadow-black/30">
-          <div className="flex items-center gap-3 px-4 py-3 bg-[#1f2c34]">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
-              <MessageSquare className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="text-white text-sm font-semibold">ACRY Brain</p>
-              <p className="text-green-400 text-[10px]">online</p>
-            </div>
-            <Phone className="w-4 h-4 text-white/50" />
-          </div>
-          <div className="p-4 min-h-[280px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=')]">
-            {previewText ? (
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="flex justify-end">
-                <div className="bg-[#005c4b] rounded-2xl rounded-tr-sm p-3.5 max-w-[85%] shadow-lg">
-                  <p className="text-white text-xs whitespace-pre-wrap leading-relaxed">{previewText}</p>
-                  {mediaUrl && (
-                    <div className="mt-2 rounded-lg bg-white/10 p-2 flex items-center gap-2">
-                      <Image className="w-4 h-4 text-white/60" />
-                      <span className="text-white/60 text-[10px] truncate">{mediaUrl}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-end gap-1 mt-1.5">
-                    <p className="text-white/40 text-[9px]">{format(new Date(), "h:mm a")}</p>
-                    <CheckCircle2 className="w-3 h-3 text-blue-400" />
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[250px] gap-3">
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center"><MessageSquare className="w-8 h-8 text-white/10" /></div>
-                <p className="text-white/20 text-xs">Message preview will appear here</p>
-              </div>
-            )}
-          </div>
-          <div className="px-4 py-2 bg-[#1f2c34] flex items-center gap-2">
-            <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2"><p className="text-white/30 text-xs">Type a message</p></div>
-            <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center"><Send className="w-3.5 h-3.5 text-white" /></div>
-          </div>
-        </div>
+        <WhatsAppPhonePreview message={previewText} mediaUrl={mediaUrl} />
       </div>
     </div>
   );
@@ -610,7 +666,9 @@ const MessageHistoryTab = () => {
                           {msg.read_at && <div className="space-y-1"><p className="text-muted-foreground">Read</p><p className="text-emerald-400">{format(new Date(msg.read_at), "PPp")}</p></div>}
                           {msg.error_message && <div className="col-span-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20"><p className="text-destructive font-medium">Error {msg.error_code}: {msg.error_message}</p></div>}
                         </div>
-                        {msg.content && <div className="bg-secondary/50 rounded-xl p-3 whitespace-pre-wrap text-foreground border border-border">{msg.content}</div>}
+                        {msg.content && (
+                          <WhatsAppPhonePreview compact message={msg.content} mediaUrl={msg.media_url} timestamp={new Date(msg.created_at)} />
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -992,9 +1050,7 @@ const TemplatesTab = () => {
                       {previewTemplate?.id === t.id && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
                           className="mt-3 pt-3 border-t border-border">
-                          <div className="bg-[#0b141a] rounded-xl p-3 text-[11px] text-green-300/80 whitespace-pre-wrap max-h-[200px] overflow-y-auto font-mono border border-green-500/10">
-                            {t.html_body?.replace(/<[^>]+>/g, "").slice(0, 1000) || t.html_body}
-                          </div>
+                          <WhatsAppPhonePreview compact message={t.html_body?.replace(/<[^>]+>/g, "").slice(0, 1000) || t.html_body || ""} />
                         </motion.div>
                       )}
                     </div>
@@ -1044,7 +1100,7 @@ const TemplatesTab = () => {
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">{t.description}</p>
-                    <div className="bg-[#0b141a] rounded-xl p-3 text-xs text-green-300/80 whitespace-pre-wrap font-mono border border-green-500/10">{t.body_template}</div>
+                    <WhatsAppPhonePreview compact message={t.body_template} />
                     {t.variables?.length > 0 && (
                       <div className="flex gap-1.5 mt-3 flex-wrap">
                         {(t.variables as string[]).map((v: string) => (
@@ -1973,7 +2029,7 @@ const CampaignManagementTab = () => {
                           <span className="text-[10px] font-bold text-foreground">Variant {String.fromCharCode(65 + i)}</span>
                           <span className="text-[9px] text-muted-foreground ml-auto">{abVariantCount === 2 ? (i === 0 ? `${abSplitRatio}%` : `${100 - abSplitRatio}%`) : "33%"}</span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">{v.body.slice(0, 200)}{v.body.length > 200 ? "..." : ""}</p>
+                        <WhatsAppPhonePreview compact message={v.body} />
                         <textarea value={v.body} onChange={e => setAbVariants(prev => prev.map((vr, vi) => vi === i ? { ...vr, body: e.target.value } : vr))}
                           className="w-full px-2 py-1.5 rounded-xl bg-background border border-border text-[10px] text-foreground min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-green-500/50"
                           placeholder="Edit message..." />
@@ -2057,6 +2113,7 @@ const CampaignManagementTab = () => {
                           <textarea value={step.message} onChange={e => setNewDrip(p => ({ ...p, steps: p.steps.map((s, si) => si === i ? { ...s, message: e.target.value } : s) }))}
                             placeholder={`Step ${i + 1} WhatsApp message...`}
                             className="w-full p-2 rounded-xl bg-secondary/50 border border-border text-xs min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+                          {step.message && <WhatsAppPhonePreview compact message={step.message} />}
                         </div>
                       </div>
                     ))}
@@ -2155,7 +2212,7 @@ const CampaignManagementTab = () => {
                           </button>
                         </div>
                       </div>
-                      {c.body && <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{c.body.replace(/<[^>]+>/g, "").slice(0, 200)}</p>}
+                      {c.body && <WhatsAppPhonePreview compact message={c.body.replace(/<[^>]+>/g, "").slice(0, 500)} />}
                       <div className="flex items-center gap-4 text-[10px] text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1"><Users className="w-3 h-3" />{c.audience_type}</span>
                         {c.total_recipients > 0 && <span className="flex items-center gap-1"><Send className="w-3 h-3" />{c.total_recipients} recipients</span>}
@@ -2173,7 +2230,7 @@ const CampaignManagementTab = () => {
                                 <span className="w-5 h-5 rounded-full bg-green-500/15 text-green-500 flex items-center justify-center text-[9px] font-bold">{v.variant}</span>
                                 <span className="text-[10px] font-medium text-foreground">{v.audience_size} users</span>
                               </div>
-                              <p className="text-[9px] text-muted-foreground mt-1 line-clamp-2">{(v.body || v.subject || "").replace(/<[^>]+>/g, "").slice(0, 100)}</p>
+                              <WhatsAppPhonePreview compact message={(v.body || v.subject || "").replace(/<[^>]+>/g, "").slice(0, 300)} />
                             </div>
                           ))}
                         </div>
@@ -2499,10 +2556,7 @@ const EventTriggersTab = () => {
                         ))}
                       </select>
                       {mappedTemplate && (
-                        <div className="p-2.5 rounded-xl bg-green-500/5 border border-green-500/15">
-                          <p className="text-[10px] font-semibold text-green-500 mb-1">Template Preview:</p>
-                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">{mappedTemplate.body_text}</p>
-                        </div>
+                        <WhatsAppPhonePreview compact message={mappedTemplate.body_text} />
                       )}
                       <p className="text-[10px] text-muted-foreground/60">
                         {trigger.metaTemplateId
