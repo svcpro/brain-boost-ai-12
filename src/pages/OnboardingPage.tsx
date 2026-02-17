@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, GraduationCap, BookOpen, Calendar, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2, MessageSquare, Phone } from "lucide-react";
+import { Brain, GraduationCap, BookOpen, Calendar as CalendarIcon, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2, MessageSquare, Phone } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const EXAM_TYPES = [
   { id: "neet", label: "NEET", desc: "Medical entrance" },
@@ -331,18 +335,36 @@ const OnboardingPage = () => {
           {step === 2 && (
             <motion.div key="date" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-5 h-5 text-primary" />
+                <CalendarIcon className="w-5 h-5 text-primary" />
                 <h1 className="text-2xl font-bold text-foreground">When's the exam?</h1>
               </div>
               <p className="text-muted-foreground text-sm mb-6">ACRY will build a countdown and pace your revision.</p>
 
-              <input
-                type="date"
-                value={examDate}
-                onChange={e => setExamDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-                className="w-full rounded-xl bg-secondary border border-border px-4 py-3.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-xl bg-secondary border border-border px-4 py-3.5 text-sm text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50",
+                      examDate ? "text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    {examDate ? format(new Date(examDate), "PPP") : "Pick your exam date"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-card border-border z-50" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={examDate ? new Date(examDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) setExamDate(date.toISOString().split("T")[0]);
+                    }}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
 
               {examDate && (
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-muted-foreground">
