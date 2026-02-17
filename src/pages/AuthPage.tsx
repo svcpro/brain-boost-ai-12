@@ -6,6 +6,16 @@ import { motion } from "framer-motion";
 import { Brain, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+const triggerSignupNotifications = async (userId: string, email: string, displayName: string, event: "signup" | "first_login") => {
+  try {
+    await supabase.functions.invoke("signup-welcome-notifications", {
+      body: { user_id: userId, email, display_name: displayName, event },
+    });
+  } catch (e) {
+    console.warn("Signup notifications dispatch failed:", e);
+  }
+};
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -22,11 +32,15 @@ const AuthPage = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error, data } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        // Trigger welcome notifications on first login (non-blocking)
+        if (data.user) {
+          triggerSignupNotifications(data.user.id, email, data.user.user_metadata?.display_name || email.split("@")[0], "first_login");
+        }
         navigate("/app");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { error, data } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -35,6 +49,10 @@ const AuthPage = () => {
           },
         });
         if (error) throw error;
+        // Trigger welcome email immediately on signup (non-blocking)
+        if (data.user) {
+          triggerSignupNotifications(data.user.id, email, displayName, "signup");
+        }
         toast({
           title: "Check your email",
           description: "We sent you a confirmation link to verify your account.",
