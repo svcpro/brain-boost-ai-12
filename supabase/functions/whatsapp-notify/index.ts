@@ -148,6 +148,36 @@ serve(async (req) => {
       });
     }
 
+    // Check if this event has a Meta template mapping
+    let metaTemplateBody: string | null = null;
+    const { data: mappingsFlag } = await supabase
+      .from("feature_flags")
+      .select("label")
+      .eq("flag_key", "whatsapp_event_meta_mappings")
+      .maybeSingle();
+
+    if (mappingsFlag?.label) {
+      try {
+        const mappings = JSON.parse(mappingsFlag.label);
+        const mapping = mappings[event_type];
+        if (mapping?.metaTemplateId && mapping?.enabled !== false) {
+          // Fetch the Meta template body
+          const { data: metaTmpl } = await supabase
+            .from("meta_template_submissions")
+            .select("body_text, template_name")
+            .eq("id", mapping.metaTemplateId)
+            .eq("meta_status", "approved")
+            .maybeSingle();
+          if (metaTmpl) {
+            metaTemplateBody = metaTmpl.body_text;
+            console.log(`Using Meta template "${metaTmpl.template_name}" for event "${event_type}"`);
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to parse event-meta mappings:", e);
+      }
+    }
+
     // Fetch opted-in users with WhatsApp numbers
     const { data: profiles } = await supabase
       .from("profiles")
@@ -161,15 +191,42 @@ serve(async (req) => {
       });
     }
 
-    // Build messages and send via send-whatsapp
-    const messages = profiles
-      .filter((p) => p.whatsapp_number)
-      .map((p) => ({
+    // Build messages — use Meta template if mapped, otherwise default
+    const messages: { to: string; message: string; user_id: string; category: string }[] = [];
+
+    for (const p of profiles) {
+      if (!p.whatsapp_number) continue;
+
+      let messageText: string;
+
+      if (metaTemplateBody) {
+        // Resolve variables via resolve-whatsapp-variables edge function
+        try {
+          const resolveResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-whatsapp-variables`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ user_id: p.id, template: metaTemplateBody }),
+          });
+          const resolveData = await resolveResp.json();
+          messageText = resolveData.resolved || metaTemplateBody;
+        } catch (e) {
+          console.warn(`Variable resolution failed for ${p.id}, using default:`, e);
+          messageText = template.buildMessage({ ...data, name: p.display_name });
+        }
+      } else {
+        messageText = template.buildMessage({ ...data, name: p.display_name });
+      }
+
+      messages.push({
         to: p.whatsapp_number!,
-        message: template.buildMessage({ ...data, name: p.display_name }),
+        message: messageText,
         user_id: p.id,
         category: event_type,
-      }));
+      });
+    }
 
     if (messages.length === 0) {
       return new Response(JSON.stringify({ sent: 0, skipped: targetIds.length, reason: "no_whatsapp_numbers" }), {
@@ -193,6 +250,7 @@ serve(async (req) => {
       event_type,
       targeted: targetIds.length,
       eligible: messages.length,
+      meta_template_used: !!metaTemplateBody,
       ...result,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
