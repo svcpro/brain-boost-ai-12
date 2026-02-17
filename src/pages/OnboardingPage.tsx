@@ -57,8 +57,8 @@ const OnboardingPage = () => {
   const [newTopic, setNewTopic] = useState("");
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [studyMode, setStudyMode] = useState("");
-  const [whatsappNumber, setWhatsappNumber] = useState("");
-  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState("+91 ");
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
 
@@ -598,7 +598,7 @@ const OnboardingPage = () => {
                 </div>
 
                 <p className="text-[10px] text-muted-foreground">
-                  Include country code (e.g. +91 for India). We'll send via Twilio Sandbox — you may need to opt-in by sending a join message first.
+                  Enter your WhatsApp number with country code.
                 </p>
 
                 {whatsappNumber.trim().length >= 10 && (
