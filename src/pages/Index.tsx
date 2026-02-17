@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import NeuralBackground from "@/components/landing/NeuralBackground";
 import HeroSection from "@/components/landing/HeroSection";
+import Footer from "@/components/landing/Footer";
 
 // Lazy load below-fold sections
 const ForgettingCurveSection = lazy(() => import("@/components/landing/ForgettingCurveSection"));
@@ -50,18 +51,7 @@ const Index = () => {
         <CTASection />
       </Suspense>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-border py-12 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded neural-gradient neural-border flex items-center justify-center">
-              <span className="text-primary font-bold text-xs">A</span>
-            </div>
-            <span className="font-display font-semibold text-foreground">ACRY</span>
-          </div>
-          <p className="text-sm text-muted-foreground">© 2026 ACRY. AI Second Brain for All Exams.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
