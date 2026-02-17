@@ -529,6 +529,63 @@ const MessageHistoryTab = () => {
   );
 };
 
+// ─── Build Dynamic Prompt for WhatsApp Templates ───
+const buildDynamicPrompt = (trigger: typeof WA_CAMPAIGN_TRIGGERS[0]) => {
+  const varsStr = trigger.vars.map(v => `{{${v}}}`).join(", ");
+  const varExamples = trigger.vars.map(v => {
+    const examples: Record<string, string> = {
+      name: "Rahul", topic: "Organic Chemistry", memory_score: "42%", last_studied: "3 days ago",
+      days_since_review: "5", revision_count: "3", predicted_drop_date: "tomorrow",
+      decay_rate: "fast", urgency_level: "HIGH", at_risk_count: "7", top_risk_topic: "Thermodynamics",
+      weakest_score: "28%", total_topics: "45", avg_score: "67%", streak_days: "14",
+      milestone: "14-day streak!", total_sessions: "89", best_streak: "21", rank: "#12",
+      hours_remaining: "6h", last_study_time: "yesterday 8PM", streak_freeze_count: "2",
+      hours_since_update: "26h", pending_topics: "5", brain_score: "78/100", topics_due: "8",
+      today_topics_count: "6", focus_topic: "Cell Biology", predicted_rank: "Top 5%",
+      mission_title: "Master Genetics", mission_type: "deep_review", reward: "🏆 Gold Badge",
+      deadline: "48h", difficulty: "Medium", topics_studied: "12", hours_studied: "8.5h",
+      accuracy: "73%", rank_change: "+3", top_improvement: "Physics", weak_area: "Calculus",
+      exam_name: "NEET 2025", days_left: "45", readiness_score: "62%", topics_remaining: "18",
+      daily_target: "3 topics", fatigue_score: "HIGH (82%)", session_duration: "3.5h",
+      break_suggestion: "15-min walk", optimal_study_time: "6AM-8AM", plan_name: "Pro",
+      days_remaining: "7", expiry_date: "Feb 24", renewal_price: "₹499/mo", discount_code: "RENEW20",
+      exam_type: "NEET", first_topic: "Biology Basics", community_count: "2,400+",
+      inactive_days: "5", streak_lost: "12-day streak", topics_decaying: "9",
+      memory_drop_pct: "23%", friends_active: "4 friends studied today",
+      new_rank: "#8", old_rank: "#11", top_score: "940", percentile: "Top 3%",
+      offer_name: "New Year Sale", discount_pct: "40%", valid_until: "Jan 31",
+      promo_code: "NEWYEAR40", current_plan: "Free", upgrade_plan: "Pro",
+      price: "₹299/mo", savings_pct: "50%", features_unlocked: "AI Brain, Unlimited Exams",
+      referral_code: "RAHUL2025", reward_amount: "₹100 credit", friends_joined: "3",
+      referral_link: "{{app_url}}/refer/RAHUL2025", comeback_offer: "7 days Pro free",
+    };
+    return `{{${v}}} = "${examples[v] || v}"`;
+  }).join(", ");
+
+  return `Generate a premium WhatsApp Business message for "${trigger.label}" (${trigger.desc}).
+
+📋 *DYNAMIC VARIABLES — YOU MUST USE ALL OF THESE:*
+${varsStr}
+
+Example values for context: ${varExamples}
+
+📐 *MESSAGE STRUCTURE:*
+🔹 Line 1: Eye-catching emoji header with *bold* — e.g. ${trigger.icon}✨ *${trigger.label}*
+🔹 Line 2: Blank line
+🔹 Line 3: Hey {{name}}! 👋 + one-line hook
+🔹 Lines 4-7: Dynamic data using ALL variables above with emoji bullets (📊 🎯 🔥 ⚡ 💡 📈 🏆 ❗ 📉 ⏰)
+🔹 Line 8: Blank line
+🔹 Line 9: Actionable CTA with 👉 emoji and {{app_url}}
+🔹 Line 10: Motivational sign-off — ✨ _ACRY Brain — Your AI Study Partner_
+
+⚠️ CRITICAL RULES:
+- Use EVERY variable from the list as {{variable_name}} placeholders
+- Use *bold* and _italic_ WhatsApp formatting
+- Max 600 chars. No HTML tags
+- Every data point must be a {{variable}} — NEVER hardcode values
+- Make it feel personalized, data-driven, and visually premium`;
+};
+
 // ─── AI Templates Tab (Full AI-Powered — matching Campaign Manager) ───
 const TemplatesTab = () => {
   const { toast } = useToast();
@@ -576,12 +633,13 @@ const TemplatesTab = () => {
     setGeneratingSingle(`${triggerKey}-${channel}`);
     try {
       const isWA = channel === "whatsapp";
+      const trigger = WA_CAMPAIGN_TRIGGERS.find(t => t.key === triggerKey);
       const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
         body: {
           action: "generate_single",
           trigger_key: triggerKey,
           channel: isWA ? "push" : channel,
-          custom_context: isWA ? "Generate a premium WhatsApp Business message with this structure:\n🔹 Line 1: Eye-catching emoji header (e.g. 🧠✨ *ACRY Brain Alert*)\n🔹 Line 2: Blank line\n🔹 Line 3: Personalized greeting — Hey {{name}}! 👋\n🔹 Lines 4-6: Core message with emoji bullet points (📊 🎯 🔥 ⚡ 💡 📈 🏆)\n🔹 Line 7: Blank line\n🔹 Line 8: Strong CTA with 👉 or ➡️ emoji\n🔹 Line 9: Motivational sign-off with sparkle emoji\n\nUse WhatsApp formatting: *bold* for emphasis, _italic_ for highlights. Max 500 chars. No HTML tags. Make it visually stunning, scannable, and feel premium." : undefined,
+          custom_context: isWA && trigger ? buildDynamicPrompt(trigger) : undefined,
         },
       });
       if (error) throw error;
@@ -594,7 +652,7 @@ const TemplatesTab = () => {
           description: `AI-generated for ${triggerKey}`,
           body_template: body,
           category: triggerKey.startsWith("promo_") ? "promotional" : "study",
-          variables: data.variables || null,
+          variables: trigger?.vars || data.variables || null,
           is_active: true,
         });
       } else {
@@ -629,7 +687,7 @@ const TemplatesTab = () => {
               action: "generate_single",
               trigger_key: trigger.key,
               channel: "push",
-              custom_context: `Generate a premium WhatsApp Business message for "${trigger.label}" (${trigger.desc}). Follow this structure:\n🔹 Line 1: Bold emoji header — e.g. 🧠✨ *${trigger.label}*\n🔹 Line 2: Blank line\n🔹 Line 3: Hey {{name}}! 👋\n🔹 Lines 4-6: Key info with emoji bullets (📊 🎯 🔥 ⚡ 💡 📈 🏆 ❗)\n🔹 Line 7: Blank line\n🔹 Line 8: CTA with 👉 emoji\n🔹 Line 9: Motivational closer ✨\n\nUse *bold* and _italic_ WhatsApp formatting. Max 500 chars. No HTML. Make it visually stunning and premium.`,
+              custom_context: buildDynamicPrompt(trigger),
             },
           });
           if (error) throw error;
@@ -639,7 +697,7 @@ const TemplatesTab = () => {
             description: `AI: ${trigger.label}`,
             body_template: body,
             category: trigger.key.startsWith("promo_") ? "promotional" : "study",
-            variables: data.variables || null,
+            variables: trigger.vars || data.variables || null,
             is_active: true,
           });
           created++;
@@ -750,36 +808,40 @@ const TemplatesTab = () => {
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto pr-1">
                 {WA_CAMPAIGN_TRIGGERS.map(trigger => (
-                  <div key={trigger.key} className="flex items-center justify-between bg-secondary/50 rounded-xl px-3 py-2.5 border border-border hover:border-green-500/20 transition-all">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-base">{trigger.icon}</span>
-                      <div className="min-w-0">
-                        <span className="text-[11px] font-semibold text-foreground block truncate">{trigger.label}</span>
-                        <span className="text-[9px] text-muted-foreground">{trigger.desc}</span>
+                  <div key={trigger.key} className="bg-secondary/50 rounded-xl px-3 py-2.5 border border-border hover:border-green-500/20 transition-all space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-base">{trigger.icon}</span>
+                        <div className="min-w-0">
+                          <span className="text-[11px] font-semibold text-foreground block truncate">{trigger.label}</span>
+                          <span className="text-[9px] text-muted-foreground">{trigger.desc}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0 ml-2">
+                        <button onClick={() => generateSingleTemplate(trigger.key, "whatsapp")}
+                          disabled={!!generatingSingle}
+                          className="p-1.5 rounded-lg hover:bg-green-500/10 text-muted-foreground hover:text-green-500 transition-colors disabled:opacity-30"
+                          title="Generate WhatsApp template">
+                          {generatingSingle === `${trigger.key}-whatsapp` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                        </button>
+                        <button onClick={() => generateSingleTemplate(trigger.key, "email")}
+                          disabled={!!generatingSingle}
+                          className="p-1.5 rounded-lg hover:bg-blue-500/10 text-muted-foreground hover:text-blue-500 transition-colors disabled:opacity-30"
+                          title="Generate Email template">
+                          {generatingSingle === `${trigger.key}-email` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                        </button>
+                        <button onClick={() => generateSingleTemplate(trigger.key, "push")}
+                          disabled={!!generatingSingle}
+                          className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors disabled:opacity-30"
+                          title="Generate Push template">
+                          {generatingSingle === `${trigger.key}-push` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-1 shrink-0 ml-2">
-                      {/* WhatsApp button */}
-                      <button onClick={() => generateSingleTemplate(trigger.key, "whatsapp")}
-                        disabled={!!generatingSingle}
-                        className="p-1.5 rounded-lg hover:bg-green-500/10 text-muted-foreground hover:text-green-500 transition-colors disabled:opacity-30"
-                        title="Generate WhatsApp template">
-                        {generatingSingle === `${trigger.key}-whatsapp` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
-                      </button>
-                      {/* Email button */}
-                      <button onClick={() => generateSingleTemplate(trigger.key, "email")}
-                        disabled={!!generatingSingle}
-                        className="p-1.5 rounded-lg hover:bg-blue-500/10 text-muted-foreground hover:text-blue-500 transition-colors disabled:opacity-30"
-                        title="Generate Email template">
-                        {generatingSingle === `${trigger.key}-email` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
-                      </button>
-                      {/* Push button */}
-                      <button onClick={() => generateSingleTemplate(trigger.key, "push")}
-                        disabled={!!generatingSingle}
-                        className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors disabled:opacity-30"
-                        title="Generate Push template">
-                        {generatingSingle === `${trigger.key}-push` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
-                      </button>
+                    <div className="flex flex-wrap gap-1">
+                      {trigger.vars.map(v => (
+                        <span key={v} className="text-[8px] px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-500 font-mono">{`{{${v}}}`}</span>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -1125,27 +1187,46 @@ const LeadManagementTab = () => {
   );
 };
 
-// ─── WhatsApp Campaign Triggers ───
+// ─── WhatsApp Campaign Triggers with Dynamic Variables ───
 const WA_CAMPAIGN_TRIGGERS = [
-  { key: "study_reminder", label: "Study Reminder", icon: "📚", desc: "Topics due for revision" },
-  { key: "forget_risk", label: "Forget Risk Alert", icon: "⚠️", desc: "Memory score dropping" },
-  { key: "risk_digest", label: "Daily Risk Digest", icon: "📊", desc: "At-risk topics summary" },
-  { key: "streak_milestone", label: "Streak Milestone", icon: "🔥", desc: "Celebrate streaks" },
-  { key: "streak_break_warning", label: "Streak Break Warning", icon: "💔", desc: "Streak about to break" },
-  { key: "brain_update_reminder", label: "Brain Update Nudge", icon: "🧠", desc: "No brain update in 24h" },
-  { key: "daily_briefing", label: "Daily Briefing", icon: "🌅", desc: "Morning cognitive summary" },
-  { key: "brain_missions", label: "Brain Missions", icon: "🎯", desc: "New AI learning missions" },
-  { key: "weekly_insights", label: "Weekly Insights", icon: "📈", desc: "AI study recommendations" },
-  { key: "exam_countdown", label: "Exam Countdown", icon: "⏰", desc: "Exam date approaching" },
-  { key: "burnout_detection", label: "Burnout Alert", icon: "😮‍💨", desc: "High fatigue detected" },
-  { key: "subscription_expiry", label: "Sub Expiry", icon: "💳", desc: "Subscription expiring" },
-  { key: "new_user_welcome", label: "Welcome Message", icon: "👋", desc: "Onboarding message" },
-  { key: "inactivity_nudge", label: "Inactivity Nudge", icon: "💤", desc: "3+ days inactive" },
-  { key: "leaderboard_rank_up", label: "Rank Up", icon: "🏅", desc: "Leaderboard climb" },
-  { key: "promo_seasonal", label: "Seasonal Promo", icon: "🎉", desc: "Seasonal offer" },
-  { key: "promo_upgrade", label: "Upgrade Promo", icon: "⬆️", desc: "Encourage upgrade" },
-  { key: "promo_referral", label: "Referral Promo", icon: "🤝", desc: "Invite friends" },
-  { key: "promo_reengagement", label: "Re-engagement", icon: "🔄", desc: "Win back churned users" },
+  { key: "study_reminder", label: "Study Reminder", icon: "📚", desc: "Topics due for revision",
+    vars: ["name", "topic", "memory_score", "last_studied", "days_since_review", "revision_count"] },
+  { key: "forget_risk", label: "Forget Risk Alert", icon: "⚠️", desc: "Memory score dropping",
+    vars: ["name", "topic", "memory_score", "predicted_drop_date", "decay_rate", "urgency_level"] },
+  { key: "risk_digest", label: "Daily Risk Digest", icon: "📊", desc: "At-risk topics summary",
+    vars: ["name", "at_risk_count", "top_risk_topic", "weakest_score", "total_topics", "avg_score"] },
+  { key: "streak_milestone", label: "Streak Milestone", icon: "🔥", desc: "Celebrate streaks",
+    vars: ["name", "streak_days", "milestone", "total_sessions", "best_streak", "rank"] },
+  { key: "streak_break_warning", label: "Streak Break Warning", icon: "💔", desc: "Streak about to break",
+    vars: ["name", "streak_days", "hours_remaining", "last_study_time", "streak_freeze_count"] },
+  { key: "brain_update_reminder", label: "Brain Update Nudge", icon: "🧠", desc: "No brain update in 24h",
+    vars: ["name", "hours_since_update", "pending_topics", "brain_score", "topics_due"] },
+  { key: "daily_briefing", label: "Daily Briefing", icon: "🌅", desc: "Morning cognitive summary",
+    vars: ["name", "today_topics_count", "brain_score", "streak_days", "focus_topic", "predicted_rank"] },
+  { key: "brain_missions", label: "Brain Missions", icon: "🎯", desc: "New AI learning missions",
+    vars: ["name", "mission_title", "mission_type", "reward", "deadline", "difficulty"] },
+  { key: "weekly_insights", label: "Weekly Insights", icon: "📈", desc: "AI study recommendations",
+    vars: ["name", "topics_studied", "hours_studied", "accuracy", "rank_change", "top_improvement", "weak_area"] },
+  { key: "exam_countdown", label: "Exam Countdown", icon: "⏰", desc: "Exam date approaching",
+    vars: ["name", "exam_name", "days_left", "readiness_score", "topics_remaining", "daily_target"] },
+  { key: "burnout_detection", label: "Burnout Alert", icon: "😮‍💨", desc: "High fatigue detected",
+    vars: ["name", "fatigue_score", "session_duration", "break_suggestion", "optimal_study_time"] },
+  { key: "subscription_expiry", label: "Sub Expiry", icon: "💳", desc: "Subscription expiring",
+    vars: ["name", "plan_name", "days_remaining", "expiry_date", "renewal_price", "discount_code"] },
+  { key: "new_user_welcome", label: "Welcome Message", icon: "👋", desc: "Onboarding message",
+    vars: ["name", "exam_type", "first_topic", "community_count"] },
+  { key: "inactivity_nudge", label: "Inactivity Nudge", icon: "💤", desc: "3+ days inactive",
+    vars: ["name", "inactive_days", "streak_lost", "topics_decaying", "memory_drop_pct", "friends_active"] },
+  { key: "leaderboard_rank_up", label: "Rank Up", icon: "🏅", desc: "Leaderboard climb",
+    vars: ["name", "new_rank", "old_rank", "rank_change", "top_score", "percentile"] },
+  { key: "promo_seasonal", label: "Seasonal Promo", icon: "🎉", desc: "Seasonal offer",
+    vars: ["name", "offer_name", "discount_pct", "valid_until", "promo_code"] },
+  { key: "promo_upgrade", label: "Upgrade Promo", icon: "⬆️", desc: "Encourage upgrade",
+    vars: ["name", "current_plan", "upgrade_plan", "price", "savings_pct", "features_unlocked"] },
+  { key: "promo_referral", label: "Referral Promo", icon: "🤝", desc: "Invite friends",
+    vars: ["name", "referral_code", "reward_amount", "friends_joined", "referral_link"] },
+  { key: "promo_reengagement", label: "Re-engagement", icon: "🔄", desc: "Win back churned users",
+    vars: ["name", "inactive_days", "memory_drop_pct", "comeback_offer", "discount_code", "friends_active"] },
 ];
 
 // ─── AI Campaign Management Tab ───
@@ -1220,8 +1301,9 @@ const CampaignManagementTab = () => {
   const createAICampaign = async (triggerKey: string) => {
     setCreating(triggerKey);
     try {
+      const trigger = WA_CAMPAIGN_TRIGGERS.find(t => t.key === triggerKey);
       const { data: aiContent, error: aiErr } = await supabase.functions.invoke("generate-campaign-templates", {
-        body: { action: "generate_campaign", trigger_key: triggerKey, channel: "push", custom_context: "Generate a premium WhatsApp Business campaign message. Structure:\n🔹 Line 1: Bold emoji header — 🚀✨ *Campaign Alert*\n🔹 Line 2: Blank line\n🔹 Line 3: Hey {{name}}! 👋\n🔹 Lines 4-7: Compelling content with emoji bullets (📊 🎯 🔥 ⚡ 💡 🏆 📈)\n🔹 Line 8: Blank line\n🔹 Line 9: Strong CTA with 👉 emoji and urgency\n🔹 Line 10: Premium sign-off ✨💪\n\nUse *bold* and _italic_ WhatsApp formatting. Max 500 chars. No HTML. Make it visually premium, scannable, and action-driving." },
+        body: { action: "generate_campaign", trigger_key: triggerKey, channel: "push", custom_context: trigger ? buildDynamicPrompt(trigger) : "Generate a premium WhatsApp campaign message with dynamic {{variables}}. Max 600 chars. No HTML." },
       });
       if (aiErr) throw aiErr;
 
@@ -1282,9 +1364,11 @@ const CampaignManagementTab = () => {
     try {
       const variants: { subject: string; body: string }[] = [];
       for (let i = 0; i < abVariantCount; i++) {
+        const abTriggerObj = WA_CAMPAIGN_TRIGGERS.find(t => t.key === abTrigger);
+        const varsContext = abTriggerObj ? `\n\nDYNAMIC VARIABLES TO USE: ${abTriggerObj.vars.map(v => `{{${v}}}`).join(", ")}` : "";
         const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
           body: { action: "generate_single", trigger_key: abTrigger, channel: "push",
-            custom_context: `Generate premium WhatsApp message variant ${String.fromCharCode(65 + i)} with a ${i === 0 ? "🔴 URGENT & direct" : i === 1 ? "💚 friendly & casual" : "📊 data-driven & analytical"} tone. Structure:\n🔹 Bold emoji header line\n🔹 Personalized greeting with {{name}} 👋\n🔹 2-3 emoji bullet points with key info\n🔹 Strong CTA with 👉\n🔹 Motivational closer\n\nUse *bold* and _italic_ formatting. Max 500 chars. No HTML. Make it visually stunning.` },
+            custom_context: `Generate premium WhatsApp message variant ${String.fromCharCode(65 + i)} with a ${i === 0 ? "🔴 URGENT & direct" : i === 1 ? "💚 friendly & casual" : "📊 data-driven & analytical"} tone. Structure:\n🔹 Bold emoji header line\n🔹 Personalized greeting with {{name}} 👋\n🔹 2-3 emoji bullet points using dynamic data variables\n🔹 Strong CTA with 👉\n🔹 Motivational closer\n\nUse *bold* and _italic_ formatting. Max 600 chars. No HTML. Every data point MUST be a {{variable}} placeholder.${varsContext}` },
         });
         if (error) throw error;
         variants.push({ subject: data.subject || `Variant ${String.fromCharCode(65 + i)}`, body: (data.html_body || "").replace(/<[^>]+>/g, "").slice(0, 1600) });
@@ -1349,9 +1433,11 @@ const CampaignManagementTab = () => {
     try {
       const steps = [];
       for (let i = 0; i < newDrip.steps.length; i++) {
+        const dripTrigger = WA_CAMPAIGN_TRIGGERS.find(t => t.key === newDrip.trigger_event);
+        const dripVars = dripTrigger ? `\n\nDYNAMIC VARIABLES: ${dripTrigger.vars.map(v => `{{${v}}}`).join(", ")}` : "";
         const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
           body: { action: "generate_single", trigger_key: newDrip.trigger_event, channel: "push",
-            custom_context: `Premium WhatsApp drip step ${i + 1}/${newDrip.steps.length}. Delay: ${newDrip.steps[i].delay_hours}h. Tone: ${i === 0 ? "🎉 Warm welcome/intro" : i === newDrip.steps.length - 1 ? "⏰ Final nudge with urgency" : "💡 Helpful follow-up, add value"}. Structure:\n🔹 Emoji header with *bold* title\n🔹 {{name}} personalization\n🔹 2-3 emoji bullet points\n🔹 CTA with 👉\n🔹 Sign-off\n\nUse *bold*/_italic_ formatting. Max 500 chars. No HTML. Make it visually premium.` },
+            custom_context: `Premium WhatsApp drip step ${i + 1}/${newDrip.steps.length}. Delay: ${newDrip.steps[i].delay_hours}h. Tone: ${i === 0 ? "🎉 Warm welcome/intro" : i === newDrip.steps.length - 1 ? "⏰ Final nudge with urgency" : "💡 Helpful follow-up, add value"}. Structure:\n🔹 Emoji header with *bold* title\n🔹 {{name}} personalization\n🔹 2-3 emoji bullet points using dynamic {{variables}}\n🔹 CTA with 👉\n🔹 Sign-off\n\nUse *bold*/_italic_ formatting. Max 600 chars. No HTML. Every data point MUST be a {{variable}} placeholder.${dripVars}` },
         });
         if (error) throw error;
         steps.push({ ...newDrip.steps[i], message: (data.html_body || data.subject || "").replace(/<[^>]+>/g, "").slice(0, 600) });
