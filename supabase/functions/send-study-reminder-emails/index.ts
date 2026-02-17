@@ -38,7 +38,7 @@ async function sendReminderEmail(email: string, displayName: string, topicsCount
     method: 'POST',
     headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'ACRY <onboarding@resend.dev>',
+      from: 'ACRY <notifications@acry.ai>',
       to: [email],
       subject: `📚 ${topicsCount} topic${topicsCount > 1 ? 's' : ''} need revision today`,
       html,

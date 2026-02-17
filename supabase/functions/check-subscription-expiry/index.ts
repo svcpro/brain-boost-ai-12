@@ -48,7 +48,7 @@ async function sendExpiryEmail(email: string, planName: string, daysLeft: number
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'ACRY <onboarding@resend.dev>',
+      from: 'ACRY <notifications@acry.ai>',
       to: [email],
       subject,
       html,

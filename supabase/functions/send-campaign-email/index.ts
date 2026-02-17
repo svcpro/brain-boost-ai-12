@@ -88,7 +88,7 @@ serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: "ACRY Brain <onboarding@resend.dev>",
+            from: "ACRY <notifications@acry.ai>",
             to: [email],
             subject: personalizedSubject,
             html: fullHtml,
