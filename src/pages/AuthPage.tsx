@@ -45,13 +45,20 @@ const AuthPage = () => {
           password,
           options: {
             data: { display_name: displayName },
-            emailRedirectTo: `${window.location.origin}/app`,
           },
         });
         if (error) throw error;
-        // Trigger welcome email immediately on signup (non-blocking)
+        // Send branded confirmation email via Resend (non-blocking)
         if (data.user) {
           triggerSignupNotifications(data.user.id, email, displayName, "signup");
+          supabase.functions.invoke("send-branded-auth-email", {
+            body: {
+              type: "confirm",
+              email,
+              user_id: data.user.id,
+              redirect_to: `${window.location.origin}/app`,
+            },
+          }).catch(() => {});
         }
         toast({
           title: "Check your email",
@@ -158,18 +165,23 @@ const AuthPage = () => {
             <div className="flex justify-end mt-2">
               <button
                 type="button"
-                onClick={async () => {
+              onClick={async () => {
                   if (!email) {
                     toast({ title: "Enter your email first", variant: "destructive" });
                     return;
                   }
-                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: `${window.location.origin}/reset-password`,
-                  });
-                  if (error) {
-                    toast({ title: "Error", description: error.message, variant: "destructive" });
-                  } else {
+                  try {
+                    const { error } = await supabase.functions.invoke("send-branded-auth-email", {
+                      body: {
+                        type: "reset",
+                        email,
+                        redirect_to: `${window.location.origin}/reset-password`,
+                      },
+                    });
+                    if (error) throw error;
                     toast({ title: "📧 Reset email sent!", description: "Check your inbox for the password reset link." });
+                  } catch (err: any) {
+                    toast({ title: "Error", description: err.message || "Failed to send reset email", variant: "destructive" });
                   }
                 }}
                 className="text-xs text-primary hover:underline"
