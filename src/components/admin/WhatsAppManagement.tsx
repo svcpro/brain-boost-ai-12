@@ -1230,6 +1230,211 @@ const WA_CAMPAIGN_TRIGGERS = [
     vars: ["name", "inactive_days", "memory_drop_pct", "comeback_offer", "discount_code", "friends_active"] },
 ];
 
+// ─── Resolve Template Variables Per User ───
+async function resolveUserVariables(userIds: string[]): Promise<Record<string, Record<string, string>>> {
+  const result: Record<string, Record<string, string>> = {};
+
+  // Fetch profiles with extended data
+  const { data: profiles } = await (supabase as any).from("profiles")
+    .select("id, display_name, exam_type, exam_date, created_at, last_brain_update_at, daily_study_goal_minutes")
+    .in("id", userIds);
+
+  // Fetch weakest topic per user (lowest memory_strength)
+  const { data: topics } = await (supabase as any).from("topics")
+    .select("user_id, name, memory_strength, last_revision_date, next_predicted_drop_date")
+    .in("user_id", userIds)
+    .is("deleted_at", null)
+    .order("memory_strength", { ascending: true });
+
+  // Fetch study log counts per user (last 7 days)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const { data: studyLogs } = await (supabase as any).from("study_logs")
+    .select("user_id, duration_minutes, confidence_level, created_at")
+    .in("user_id", userIds)
+    .gte("created_at", sevenDaysAgo);
+
+  // Fetch brain missions (active)
+  const { data: missions } = await (supabase as any).from("brain_missions")
+    .select("user_id, title, mission_type, reward_type, reward_value, priority, expires_at")
+    .in("user_id", userIds)
+    .eq("status", "active")
+    .limit(100);
+
+  // Fetch cognitive twins for brain scores
+  const { data: twins } = await (supabase as any).from("cognitive_twins")
+    .select("user_id, brain_evolution_score, learning_efficiency_score, optimal_study_hour")
+    .in("user_id", userIds)
+    .order("computed_at", { ascending: false });
+
+  // Fetch exam results for accuracy
+  const { data: exams } = await (supabase as any).from("exam_results")
+    .select("user_id, score, total_questions")
+    .in("user_id", userIds)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  // Group data by user
+  const topicsByUser: Record<string, any[]> = {};
+  (topics || []).forEach((t: any) => {
+    if (!topicsByUser[t.user_id]) topicsByUser[t.user_id] = [];
+    topicsByUser[t.user_id].push(t);
+  });
+
+  const logsByUser: Record<string, any[]> = {};
+  (studyLogs || []).forEach((l: any) => {
+    if (!logsByUser[l.user_id]) logsByUser[l.user_id] = [];
+    logsByUser[l.user_id].push(l);
+  });
+
+  const missionsByUser: Record<string, any> = {};
+  (missions || []).forEach((m: any) => {
+    if (!missionsByUser[m.user_id]) missionsByUser[m.user_id] = m;
+  });
+
+  const twinByUser: Record<string, any> = {};
+  (twins || []).forEach((t: any) => {
+    if (!twinByUser[t.user_id]) twinByUser[t.user_id] = t;
+  });
+
+  const examsByUser: Record<string, any[]> = {};
+  (exams || []).forEach((e: any) => {
+    if (!examsByUser[e.user_id]) examsByUser[e.user_id] = [];
+    examsByUser[e.user_id].push(e);
+  });
+
+  for (const profile of (profiles || [])) {
+    const uid = profile.id;
+    const uTopics = topicsByUser[uid] || [];
+    const uLogs = logsByUser[uid] || [];
+    const uMission = missionsByUser[uid];
+    const uTwin = twinByUser[uid];
+    const uExams = examsByUser[uid] || [];
+
+    const totalTopics = uTopics.length;
+    const weakestTopic = uTopics[0];
+    const atRiskTopics = uTopics.filter((t: any) => (t.memory_strength || 0) < 50);
+    const avgScore = totalTopics > 0 ? Math.round(uTopics.reduce((s: number, t: any) => s + (t.memory_strength || 0), 0) / totalTopics) : 0;
+    const totalMinutes = uLogs.reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+    const totalSessions = uLogs.length;
+    const lastLog = uLogs.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    const daysSinceLastStudy = lastLog ? Math.floor((Date.now() - new Date(lastLog.created_at).getTime()) / 86400000) : 0;
+    const lastStudiedStr = lastLog ? formatDistanceToNow(new Date(lastLog.created_at), { addSuffix: true }) : "never";
+
+    const revisionCount = weakestTopic ? uLogs.filter((l: any) => l.topic_id === weakestTopic?.id).length : 0;
+    const brainScore = uTwin?.brain_evolution_score ? Math.round(uTwin.brain_evolution_score * 100) : avgScore;
+    const hoursSinceUpdate = profile.last_brain_update_at
+      ? Math.round((Date.now() - new Date(profile.last_brain_update_at).getTime()) / 3600000)
+      : 48;
+
+    const examAccuracy = uExams.length > 0
+      ? Math.round(uExams.reduce((s: number, e: any) => s + (e.score / e.total_questions) * 100, 0) / uExams.length)
+      : 0;
+
+    const daysLeft = profile.exam_date
+      ? Math.max(0, Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000))
+      : 0;
+
+    const topImprovement = uTopics.length > 1 ? uTopics[uTopics.length - 1]?.name : "N/A";
+    const weakArea = weakestTopic?.name || "N/A";
+
+    result[uid] = {
+      name: profile.display_name || "there",
+      topic: weakestTopic?.name || "your topics",
+      memory_score: `${weakestTopic?.memory_strength ?? avgScore}%`,
+      last_studied: lastStudiedStr,
+      days_since_review: String(daysSinceLastStudy),
+      revision_count: String(revisionCount),
+      predicted_drop_date: weakestTopic?.next_predicted_drop_date
+        ? format(new Date(weakestTopic.next_predicted_drop_date), "MMM d")
+        : "soon",
+      decay_rate: (weakestTopic?.memory_strength || 0) < 30 ? "fast" : "moderate",
+      urgency_level: (weakestTopic?.memory_strength || 0) < 30 ? "HIGH" : "MEDIUM",
+      at_risk_count: String(atRiskTopics.length),
+      top_risk_topic: atRiskTopics[0]?.name || "N/A",
+      weakest_score: `${weakestTopic?.memory_strength ?? 0}%`,
+      total_topics: String(totalTopics),
+      avg_score: `${avgScore}%`,
+      streak_days: String(totalSessions > 0 ? Math.min(totalSessions, 7) : 0),
+      milestone: `${Math.min(totalSessions, 7)}-day streak`,
+      total_sessions: String(totalSessions),
+      best_streak: String(totalSessions),
+      rank: "N/A",
+      hours_remaining: "6h",
+      last_study_time: lastLog ? format(new Date(lastLog.created_at), "h:mm a") : "N/A",
+      streak_freeze_count: "0",
+      hours_since_update: `${hoursSinceUpdate}h`,
+      pending_topics: String(atRiskTopics.length),
+      brain_score: `${brainScore}/100`,
+      topics_due: String(atRiskTopics.length),
+      today_topics_count: String(Math.min(atRiskTopics.length, 5)),
+      focus_topic: weakestTopic?.name || "your focus area",
+      predicted_rank: "Top 10%",
+      mission_title: uMission?.title || "Complete a study session",
+      mission_type: uMission?.mission_type || "review",
+      reward: uMission?.reward_value ? `${uMission.reward_value} XP` : "🏆 Badge",
+      deadline: uMission?.expires_at ? formatDistanceToNow(new Date(uMission.expires_at)) : "48h",
+      difficulty: uMission?.priority || "Medium",
+      topics_studied: String(new Set(uLogs.map((l: any) => l.topic_id)).size),
+      hours_studied: `${(totalMinutes / 60).toFixed(1)}h`,
+      accuracy: `${examAccuracy}%`,
+      rank_change: "+0",
+      top_improvement: topImprovement,
+      weak_area: weakArea,
+      exam_name: profile.exam_type || "your exam",
+      days_left: String(daysLeft),
+      readiness_score: `${avgScore}%`,
+      topics_remaining: String(atRiskTopics.length),
+      daily_target: `${Math.max(1, Math.ceil(atRiskTopics.length / Math.max(daysLeft, 1)))} topics`,
+      fatigue_score: totalMinutes > 120 ? "HIGH" : "LOW",
+      session_duration: `${(totalMinutes / Math.max(totalSessions, 1)).toFixed(0)} min`,
+      break_suggestion: totalMinutes > 120 ? "Take a 15-min break" : "Keep going!",
+      optimal_study_time: uTwin?.optimal_study_hour ? `${uTwin.optimal_study_hour}:00` : "morning",
+      plan_name: "Pro",
+      days_remaining: "30",
+      expiry_date: format(new Date(Date.now() + 30 * 86400000), "MMM d"),
+      renewal_price: "₹499/mo",
+      discount_code: "RENEW20",
+      exam_type: profile.exam_type || "NEET",
+      first_topic: uTopics[uTopics.length - 1]?.name || "Biology Basics",
+      community_count: "2,400+",
+      inactive_days: String(daysSinceLastStudy),
+      streak_lost: daysSinceLastStudy > 1 ? `${Math.min(totalSessions, 7)}-day streak` : "none",
+      topics_decaying: String(atRiskTopics.length),
+      memory_drop_pct: `${Math.max(0, 100 - avgScore)}%`,
+      friends_active: "friends are studying today",
+      new_rank: "N/A",
+      old_rank: "N/A",
+      top_score: "N/A",
+      percentile: "Top 10%",
+      offer_name: "Special Offer",
+      discount_pct: "30%",
+      valid_until: format(new Date(Date.now() + 7 * 86400000), "MMM d"),
+      promo_code: "BRAIN30",
+      current_plan: "Free",
+      upgrade_plan: "Pro",
+      price: "₹299/mo",
+      savings_pct: "40%",
+      features_unlocked: "AI Brain, Unlimited Exams, Priority Support",
+      referral_code: `REF${uid.slice(0, 6).toUpperCase()}`,
+      reward_amount: "₹100 credit",
+      friends_joined: "0",
+      referral_link: "{{app_url}}/refer",
+      comeback_offer: "7 days Pro free",
+      app_url: "https://brain-boost-ai-12.lovable.app",
+    };
+  }
+
+  return result;
+}
+
+function resolveMessage(template: string, vars: Record<string, string>): string {
+  let msg = template;
+  for (const [key, value] of Object.entries(vars)) {
+    msg = msg.split(`{{${key}}}`).join(value);
+  }
+  return msg;
+}
+
 // ─── AI Campaign Management Tab ───
 const CampaignManagementTab = () => {
   const { toast } = useToast();
@@ -1335,14 +1540,15 @@ const CampaignManagementTab = () => {
       if (campErr) throw campErr;
 
       if (!isScheduled) {
-        // Send via Twilio
+        // Resolve all template variables per user
+        const userVars = await resolveUserVariables(users.map((u: any) => u.id));
         const payload = users.map((u: any) => ({
-          to: u.whatsapp_number, message: messageBody.replace("{{name}}", u.display_name || "there"),
+          to: u.whatsapp_number,
+          message: resolveMessage(messageBody, userVars[u.id] || { name: u.display_name || "there" }),
           category: "campaign", user_id: u.id,
         }));
         const { data: sendResult, error: sendErr } = await supabase.functions.invoke("send-whatsapp", { body: payload });
         if (sendErr) throw sendErr;
-
         await (supabase as any).from("campaigns").update({
           delivered_count: sendResult.sent, failed_count: sendResult.failed,
         }).eq("id", campaign.id);
@@ -1402,11 +1608,15 @@ const CampaignManagementTab = () => {
         is_ab_test: true, ab_variants: abVariants.map((v, i) => ({ variant: String.fromCharCode(65 + i), subject: v.subject, body: v.body, audience_size: groups[i]?.length || 0 })),
       }).select().single();
 
-      // Send each variant group
+      // Resolve variables for all users
+      const allUserIds = users.map((u: any) => u.id);
+      const userVars = await resolveUserVariables(allUserIds);
+
       let totalSent = 0;
       for (let vi = 0; vi < groups.length; vi++) {
         const payload = groups[vi].map((u: any) => ({
-          to: u.whatsapp_number, message: abVariants[vi].body.replace("{{name}}", u.display_name || "there"),
+          to: u.whatsapp_number,
+          message: resolveMessage(abVariants[vi].body, userVars[u.id] || { name: u.display_name || "there" }),
           category: "campaign", user_id: u.id,
         }));
         if (payload.length > 0) {
