@@ -20,15 +20,21 @@ interface PlanGatingContextType {
   canAccess: (featureKey: string) => boolean;
   getRequiredPlan: (featureKey: string) => string | null;
   refetch: () => Promise<void>;
+  isTrialActive: boolean;
+  trialDaysLeft: number;
+  subscription: any;
 }
 
 export const PlanGatingContext = createContext<PlanGatingContextType>({
   gates: [],
-  currentPlan: "free",
+  currentPlan: "none",
   loading: true,
-  canAccess: () => true,
-  getRequiredPlan: () => null,
+  canAccess: () => false,
+  getRequiredPlan: () => "pro",
   refetch: async () => {},
+  isTrialActive: false,
+  trialDaysLeft: 0,
+  subscription: null,
 });
 
 export const usePlanGatingContext = () => useContext(PlanGatingContext);
@@ -36,8 +42,9 @@ export const usePlanGatingContext = () => useContext(PlanGatingContext);
 export const usePlanGating = () => {
   const { user } = useAuth();
   const [gates, setGates] = useState<PlanFeatureGate[]>([]);
-  const [currentPlan, setCurrentPlan] = useState("free");
+  const [currentPlan, setCurrentPlan] = useState("none");
   const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<any>(null);
 
   const fetchGates = useCallback(async () => {
     const { data } = await supabase
@@ -48,16 +55,38 @@ export const usePlanGating = () => {
   }, []);
 
   const fetchPlan = useCallback(async () => {
-    if (!user) { setCurrentPlan("free"); return; }
+    if (!user) { setCurrentPlan("none"); setSubscription(null); return; }
     const { data } = await supabase
       .from("user_subscriptions")
-      .select("plan_id")
+      .select("*")
       .eq("user_id", user.id)
       .eq("status", "active")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    setCurrentPlan(data?.plan_id || "free");
+    
+    if (!data) {
+      setCurrentPlan("none");
+      setSubscription(null);
+      return;
+    }
+
+    // Check if trial expired
+    if (data.is_trial && data.trial_end_date && new Date(data.trial_end_date) < new Date()) {
+      setCurrentPlan("none");
+      setSubscription(data);
+      return;
+    }
+
+    // Check if subscription expired
+    if (data.expires_at && new Date(data.expires_at) < new Date() && !data.is_trial) {
+      setCurrentPlan("none");
+      setSubscription(data);
+      return;
+    }
+
+    setCurrentPlan(data.plan_id || "none");
+    setSubscription(data);
   }, [user]);
 
   const refetch = useCallback(async () => {
@@ -69,20 +98,23 @@ export const usePlanGating = () => {
   }, [fetchGates, fetchPlan]);
 
   const canAccess = useCallback((featureKey: string) => {
+    if (currentPlan === "none") return false; // No plan = no access
     const gate = gates.find(g => g.feature_key === featureKey);
     if (!gate) return true; // no gate = allowed
     if (currentPlan === "ultra") return gate.ultra_enabled;
     if (currentPlan === "pro") return gate.pro_enabled;
-    return gate.free_enabled;
+    return false;
   }, [gates, currentPlan]);
 
   const getRequiredPlan = useCallback((featureKey: string): string | null => {
     const gate = gates.find(g => g.feature_key === featureKey);
     if (!gate) return null;
-    if (gate.free_enabled) return null;
     if (gate.pro_enabled) return "pro";
     return "ultra";
   }, [gates]);
 
-  return { gates, currentPlan, loading, canAccess, getRequiredPlan, refetch };
+  const isTrialActive = subscription?.is_trial && subscription?.status === "active" && subscription?.trial_end_date && new Date(subscription.trial_end_date) > new Date();
+  const trialDaysLeft = isTrialActive ? Math.ceil((new Date(subscription.trial_end_date).getTime() - Date.now()) / 86400000) : 0;
+
+  return { gates, currentPlan, loading, canAccess, getRequiredPlan, refetch, isTrialActive, trialDaysLeft, subscription };
 };

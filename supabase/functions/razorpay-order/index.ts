@@ -22,7 +22,6 @@ async function getRazorpayKeys(adminClient: any) {
     }
   }
 
-  // Fallback to env vars
   const keyId = Deno.env.get('RAZORPAY_KEY_ID');
   const keySecret = Deno.env.get('RAZORPAY_KEY_SECRET');
   if (!keyId || !keySecret) {
@@ -56,7 +55,7 @@ serve(async (req) => {
 
     const { keyId: RAZORPAY_KEY_ID, keySecret: RAZORPAY_KEY_SECRET, mode } = await getRazorpayKeys(adminClient);
 
-    const { action, plan_id, amount, order_id, payment_id, signature } = await req.json();
+    const { action, plan_id, amount, order_id, payment_id, signature, billing_cycle } = await req.json();
 
     if (action === 'create_order') {
       const credentials = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
@@ -70,7 +69,7 @@ serve(async (req) => {
           amount: amount * 100,
           currency: 'INR',
           receipt: `sub_${user.id.slice(0, 8)}_${Date.now()}`,
-          notes: { plan_id, user_id: user.id },
+          notes: { plan_id, user_id: user.id, billing_cycle: billing_cycle || 'monthly' },
         }),
       });
 
@@ -79,7 +78,6 @@ serve(async (req) => {
         throw new Error(`Razorpay order creation failed: ${JSON.stringify(orderData)}`);
       }
 
-      // Track Razorpay usage (fire-and-forget)
       adminClient.rpc("increment_api_usage", { p_service_name: "razorpay" }).then(() => {}).catch(() => {});
 
       return new Response(JSON.stringify({ order: orderData, key_id: RAZORPAY_KEY_ID, mode }), {
@@ -106,12 +104,25 @@ serve(async (req) => {
         throw new Error('Payment signature verification failed');
       }
 
+      const cycle = billing_cycle || 'monthly';
       const expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
+      if (cycle === 'yearly') {
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      } else {
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+      }
+
+      // Cancel any existing active subscriptions for this user
+      await adminClient
+        .from('user_subscriptions')
+        .update({ status: 'superseded' })
+        .eq('user_id', user.id)
+        .eq('status', 'active');
 
       await adminClient.from('user_subscriptions').insert({
         user_id: user.id,
         plan_id,
+        billing_cycle: cycle,
         razorpay_order_id: order_id,
         razorpay_payment_id: payment_id,
         razorpay_signature: signature,
@@ -119,6 +130,7 @@ serve(async (req) => {
         amount,
         currency: 'INR',
         expires_at: expiresAt.toISOString(),
+        is_trial: false,
       });
 
       return new Response(JSON.stringify({ success: true }), {

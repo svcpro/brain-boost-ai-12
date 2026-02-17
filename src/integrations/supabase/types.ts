@@ -3272,7 +3272,9 @@ export type Database = {
           price: number
           razorpay_plan_id: string | null
           sort_order: number
+          trial_days: number | null
           updated_at: string
+          yearly_price: number | null
         }
         Insert: {
           billing_period?: string
@@ -3288,7 +3290,9 @@ export type Database = {
           price?: number
           razorpay_plan_id?: string | null
           sort_order?: number
+          trial_days?: number | null
           updated_at?: string
+          yearly_price?: number | null
         }
         Update: {
           billing_period?: string
@@ -3304,7 +3308,9 @@ export type Database = {
           price?: number
           razorpay_plan_id?: string | null
           sort_order?: number
+          trial_days?: number | null
           updated_at?: string
+          yearly_price?: number | null
         }
         Relationships: []
       }
@@ -3637,43 +3643,55 @@ export type Database = {
       user_subscriptions: {
         Row: {
           amount: number | null
+          billing_cycle: string | null
           created_at: string
           currency: string | null
           expires_at: string | null
           id: string
+          is_trial: boolean | null
           plan_id: string
           razorpay_order_id: string | null
           razorpay_payment_id: string | null
           razorpay_signature: string | null
           status: string
+          trial_end_date: string | null
+          trial_start_date: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           amount?: number | null
+          billing_cycle?: string | null
           created_at?: string
           currency?: string | null
           expires_at?: string | null
           id?: string
+          is_trial?: boolean | null
           plan_id?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           razorpay_signature?: string | null
           status?: string
+          trial_end_date?: string | null
+          trial_start_date?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           amount?: number | null
+          billing_cycle?: string | null
           created_at?: string
           currency?: string | null
           expires_at?: string | null
           id?: string
+          is_trial?: boolean | null
           plan_id?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           razorpay_signature?: string | null
           status?: string
+          trial_end_date?: string | null
+          trial_start_date?: string | null
           updated_at?: string
           user_id?: string
         }

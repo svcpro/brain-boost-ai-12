@@ -237,8 +237,10 @@ const AppDashboard = () => {
                 <Shield className="w-4 h-4 text-primary" />
               </button>
             )}
-            <div className="px-3 py-1 rounded-full neural-gradient neural-border text-xs text-primary font-medium">
-              {currentPlan === "ultra" ? "Ultra Brain" : currentPlan === "pro" ? "Pro Brain" : "Free Brain"}
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+              currentPlan === "none" ? "bg-destructive/15 text-destructive" : "neural-gradient neural-border text-primary"
+            }`}>
+              {currentPlan === "ultra" ? "Ultra Brain" : currentPlan === "pro" ? "Pro Brain" : "No Plan"}
             </div>
           </div>
         </header>
