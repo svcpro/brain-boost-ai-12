@@ -191,7 +191,7 @@ const SendMessageTab = () => {
     setGeneratingAI(true);
     try {
       const { data, error } = await supabase.functions.invoke("memory-engine", {
-        body: { type: "weekly_report", stats: { aiPrompt, context: "Generate a WhatsApp notification message. Keep it short, friendly, and within 300 characters. Include relevant emojis." } },
+        body: { type: "weekly_report", stats: { aiPrompt, context: "Generate a premium WhatsApp Business message. Use this structure:\n1️⃣ Start with an attention-grabbing emoji header line (e.g. 🧠✨ ACRY Brain Alert)\n2️⃣ Add a blank line, then a personalized greeting with {{name}}\n3️⃣ Main message body with bullet points using emojis (📊, 🎯, 🔥, ⚡, 💡)\n4️⃣ End with a strong CTA line using 👉 or ➡️\n5️⃣ Sign off with a motivational closer and app name\n\nMax 500 chars. No HTML. Use WhatsApp formatting: *bold*, _italic_. Make it visually stunning and scannable." } },
       });
       if (error) throw error;
       const content = data?.choices?.[0]?.message?.content || data?.result || "";
@@ -581,7 +581,7 @@ const TemplatesTab = () => {
           action: "generate_single",
           trigger_key: triggerKey,
           channel: isWA ? "push" : channel,
-          custom_context: isWA ? "Generate a WhatsApp message (max 300 chars, include emojis, friendly conversational tone for WhatsApp Business API). No HTML." : undefined,
+          custom_context: isWA ? "Generate a premium WhatsApp Business message with this structure:\n🔹 Line 1: Eye-catching emoji header (e.g. 🧠✨ *ACRY Brain Alert*)\n🔹 Line 2: Blank line\n🔹 Line 3: Personalized greeting — Hey {{name}}! 👋\n🔹 Lines 4-6: Core message with emoji bullet points (📊 🎯 🔥 ⚡ 💡 📈 🏆)\n🔹 Line 7: Blank line\n🔹 Line 8: Strong CTA with 👉 or ➡️ emoji\n🔹 Line 9: Motivational sign-off with sparkle emoji\n\nUse WhatsApp formatting: *bold* for emphasis, _italic_ for highlights. Max 500 chars. No HTML tags. Make it visually stunning, scannable, and feel premium." : undefined,
         },
       });
       if (error) throw error;
@@ -629,7 +629,7 @@ const TemplatesTab = () => {
               action: "generate_single",
               trigger_key: trigger.key,
               channel: "push",
-              custom_context: `Generate a WhatsApp message for "${trigger.label}" (${trigger.desc}). Max 300 chars, include emojis, friendly conversational tone. No HTML tags.`,
+              custom_context: `Generate a premium WhatsApp Business message for "${trigger.label}" (${trigger.desc}). Follow this structure:\n🔹 Line 1: Bold emoji header — e.g. 🧠✨ *${trigger.label}*\n🔹 Line 2: Blank line\n🔹 Line 3: Hey {{name}}! 👋\n🔹 Lines 4-6: Key info with emoji bullets (📊 🎯 🔥 ⚡ 💡 📈 🏆 ❗)\n🔹 Line 7: Blank line\n🔹 Line 8: CTA with 👉 emoji\n🔹 Line 9: Motivational closer ✨\n\nUse *bold* and _italic_ WhatsApp formatting. Max 500 chars. No HTML. Make it visually stunning and premium.`,
             },
           });
           if (error) throw error;
@@ -1221,7 +1221,7 @@ const CampaignManagementTab = () => {
     setCreating(triggerKey);
     try {
       const { data: aiContent, error: aiErr } = await supabase.functions.invoke("generate-campaign-templates", {
-        body: { action: "generate_campaign", trigger_key: triggerKey, channel: "push", custom_context: "Generate a WhatsApp message (max 300 chars, include emojis, friendly conversational tone). This will be sent via WhatsApp Business API." },
+        body: { action: "generate_campaign", trigger_key: triggerKey, channel: "push", custom_context: "Generate a premium WhatsApp Business campaign message. Structure:\n🔹 Line 1: Bold emoji header — 🚀✨ *Campaign Alert*\n🔹 Line 2: Blank line\n🔹 Line 3: Hey {{name}}! 👋\n🔹 Lines 4-7: Compelling content with emoji bullets (📊 🎯 🔥 ⚡ 💡 🏆 📈)\n🔹 Line 8: Blank line\n🔹 Line 9: Strong CTA with 👉 emoji and urgency\n🔹 Line 10: Premium sign-off ✨💪\n\nUse *bold* and _italic_ WhatsApp formatting. Max 500 chars. No HTML. Make it visually premium, scannable, and action-driving." },
       });
       if (aiErr) throw aiErr;
 
@@ -1284,7 +1284,7 @@ const CampaignManagementTab = () => {
       for (let i = 0; i < abVariantCount; i++) {
         const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
           body: { action: "generate_single", trigger_key: abTrigger, channel: "push",
-            custom_context: `Generate WhatsApp message variant ${String.fromCharCode(65 + i)} — use a ${i === 0 ? "direct and urgent" : i === 1 ? "friendly and casual" : "data-driven"} tone. Max 300 chars with emojis.` },
+            custom_context: `Generate premium WhatsApp message variant ${String.fromCharCode(65 + i)} with a ${i === 0 ? "🔴 URGENT & direct" : i === 1 ? "💚 friendly & casual" : "📊 data-driven & analytical"} tone. Structure:\n🔹 Bold emoji header line\n🔹 Personalized greeting with {{name}} 👋\n🔹 2-3 emoji bullet points with key info\n🔹 Strong CTA with 👉\n🔹 Motivational closer\n\nUse *bold* and _italic_ formatting. Max 500 chars. No HTML. Make it visually stunning.` },
         });
         if (error) throw error;
         variants.push({ subject: data.subject || `Variant ${String.fromCharCode(65 + i)}`, body: (data.html_body || "").replace(/<[^>]+>/g, "").slice(0, 1600) });
@@ -1351,7 +1351,7 @@ const CampaignManagementTab = () => {
       for (let i = 0; i < newDrip.steps.length; i++) {
         const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
           body: { action: "generate_single", trigger_key: newDrip.trigger_event, channel: "push",
-            custom_context: `WhatsApp drip step ${i + 1}/${newDrip.steps.length}. Delay: ${newDrip.steps[i].delay_hours}h. ${i === 0 ? "Welcome/intro tone" : i === newDrip.steps.length - 1 ? "Final nudge, create urgency" : "Follow-up, add value"}. Max 300 chars with emojis.` },
+            custom_context: `Premium WhatsApp drip step ${i + 1}/${newDrip.steps.length}. Delay: ${newDrip.steps[i].delay_hours}h. Tone: ${i === 0 ? "🎉 Warm welcome/intro" : i === newDrip.steps.length - 1 ? "⏰ Final nudge with urgency" : "💡 Helpful follow-up, add value"}. Structure:\n🔹 Emoji header with *bold* title\n🔹 {{name}} personalization\n🔹 2-3 emoji bullet points\n🔹 CTA with 👉\n🔹 Sign-off\n\nUse *bold*/_italic_ formatting. Max 500 chars. No HTML. Make it visually premium.` },
         });
         if (error) throw error;
         steps.push({ ...newDrip.steps[i], message: (data.html_body || data.subject || "").replace(/<[^>]+>/g, "").slice(0, 600) });
