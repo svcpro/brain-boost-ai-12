@@ -137,3 +137,9 @@ verify_jwt = false
 
 [functions.meta-whatsapp-templates]
 verify_jwt = false
+
+[functions.trigger-email]
+verify_jwt = false
+
+[functions.process-email-queue]
+verify_jwt = false
