@@ -31,7 +31,7 @@ const defaultPrefs: PushNotifPrefs = {
   weeklyInsights: true,
   dailyBriefing: true,
   riskDigest: true,
-  whatsappNotifications: false,
+  whatsappNotifications: true,
 };
 
 export function getPushNotifPrefs(): PushNotifPrefs {

@@ -118,6 +118,19 @@ serve(async (req) => {
       });
     }
 
+    // Check admin-level global WhatsApp kill switch
+    const { data: flag } = await supabase
+      .from("feature_flags")
+      .select("enabled")
+      .eq("flag_key", "notif_whatsapp_global")
+      .maybeSingle();
+
+    if (flag && flag.enabled === false) {
+      return new Response(JSON.stringify({ sent: 0, skipped: 0, reason: "whatsapp_disabled_by_admin" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const template = EVENT_TEMPLATES[event_type];
     if (!template) {
       return new Response(JSON.stringify({ error: `Unknown event_type: ${event_type}` }), {
