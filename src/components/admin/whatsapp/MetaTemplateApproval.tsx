@@ -36,7 +36,7 @@ interface AppAction {
   sample_values: Record<string, string>; tags: string; notes: string;
 }
 
-const APP_URL = "https://brain-boost-ai-12.lovable.app";
+const APP_URL = "https://acry.ai";
 
 const APP_ACTIONS: AppAction[] = [
   { key: "", label: "— Select Action —", template_name: "", display_name: "", body: "", category: "UTILITY",
