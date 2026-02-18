@@ -6,12 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const META_GRAPH_URL = "https://graph.facebook.com/v21.0";
+
 // ─── Event → Meta-approved template mapping ───
-// Each entry maps a system event to the approved template_name in meta_template_submissions
-// and defines how to map event data fields to positional variables {{1}}, {{2}}, etc.
 interface TemplateMapping {
   metaTemplateName: string;
-  // Maps positional index (1-based) to a data key or a resolver function
   variableMap: (data: Record<string, any>, profile: any) => Record<string, string>;
 }
 
@@ -190,6 +189,57 @@ const EVENT_TO_TEMPLATE: Record<string, TemplateMapping> = {
   },
 };
 
+// ─── Send via Meta Cloud API directly ───
+async function sendMetaTemplate(
+  phoneNumberId: string,
+  accessToken: string,
+  to: string,
+  templateName: string,
+  language: string,
+  parameters: Record<string, string>,
+): Promise<{ success: boolean; message_id?: string; error?: string }> {
+  // Build body parameters from numbered keys
+  const bodyParams = Object.entries(parameters)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([, value]) => ({ type: "text" as const, text: value }));
+
+  const payload = {
+    messaging_product: "whatsapp",
+    to: to.replace("+", ""), // Meta expects without + prefix
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: language },
+      components: bodyParams.length > 0
+        ? [{ type: "body", parameters: bodyParams }]
+        : [],
+    },
+  };
+
+  console.log(`Sending Meta template "${templateName}" to ${to}:`, JSON.stringify(payload));
+
+  const resp = await fetch(`${META_GRAPH_URL}/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await resp.json();
+
+  if (!resp.ok) {
+    const errMsg = result.error?.message || JSON.stringify(result);
+    console.error(`Meta API error for ${to}:`, errMsg);
+    return { success: false, error: errMsg };
+  }
+
+  const messageId = result.messages?.[0]?.id || "";
+  console.log(`Meta API success for ${to}: message_id=${messageId}`);
+  return { success: true, message_id: messageId };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -205,6 +255,16 @@ serve(async (req) => {
     if (!event_type) {
       return new Response(JSON.stringify({ error: "event_type is required" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Meta Cloud API credentials
+    const PHONE_NUMBER_ID = Deno.env.get("META_WHATSAPP_PHONE_NUMBER_ID");
+    const ACCESS_TOKEN = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN");
+    if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
+      return new Response(JSON.stringify({ error: "Meta WhatsApp credentials not configured" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -241,15 +301,15 @@ serve(async (req) => {
       });
     }
 
-    // Look up the approved Meta template from DB to get Twilio Content SID
+    // Look up the approved Meta template
     const { data: metaTemplate } = await supabase
       .from("meta_template_submissions")
-      .select("id, template_name, meta_template_id, meta_status, body_text")
+      .select("id, template_name, meta_template_id, meta_status, language")
       .eq("template_name", mapping.metaTemplateName)
       .eq("meta_status", "approved")
       .maybeSingle();
 
-    if (!metaTemplate || !metaTemplate.meta_template_id) {
+    if (!metaTemplate) {
       console.error(`No approved Meta template found for: ${mapping.metaTemplateName}`);
       return new Response(JSON.stringify({
         error: `Template "${mapping.metaTemplateName}" not approved or missing`,
@@ -260,7 +320,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Event "${event_type}" → Template "${metaTemplate.template_name}"`);
+    console.log(`Event "${event_type}" → Meta template "${metaTemplate.template_name}" (lang: ${metaTemplate.language || "en"})`);
 
     // Fetch opted-in users with WhatsApp numbers
     const { data: profiles } = await supabase
@@ -275,16 +335,10 @@ serve(async (req) => {
       });
     }
 
-    // Build messages using Twilio Content SID (Meta-approved templates)
-    // Production number required for template delivery outside 24hr window
-    const messages: {
-      to: string;
-      user_id: string;
-      category: string;
-      content_sid: string;
-      content_variables: Record<string, string>;
-      template_name: string;
-    }[] = [];
+    // Send directly via Meta Cloud API
+    let sent = 0;
+    let failed = 0;
+    const results: { to: string; status: string; message_id?: string; error?: string }[] = [];
 
     for (const p of profiles) {
       if (!p.whatsapp_number) continue;
@@ -292,40 +346,51 @@ serve(async (req) => {
       const normalizedNumber = p.whatsapp_number.replace(/\s+/g, "");
       const contentVariables = mapping.variableMap(data, p);
 
-      messages.push({
-        to: normalizedNumber,
+      const sendResult = await sendMetaTemplate(
+        PHONE_NUMBER_ID,
+        ACCESS_TOKEN,
+        normalizedNumber,
+        metaTemplate.template_name,
+        metaTemplate.language || "en",
+        contentVariables,
+      );
+
+      // Log to whatsapp_messages
+      await supabase.from("whatsapp_messages").insert({
         user_id: p.id,
-        category: event_type,
-        content_sid: metaTemplate.meta_template_id!,
-        content_variables: contentVariables,
+        to_number: normalizedNumber,
+        message_type: "template",
+        content: `[Meta Template: ${metaTemplate.template_name}]`,
         template_name: metaTemplate.template_name,
+        template_params: contentVariables,
+        twilio_sid: sendResult.message_id || null,
+        status: sendResult.success ? "sent" : "failed",
+        error_message: sendResult.error || null,
+        category: event_type,
       });
+
+      if (sendResult.success) {
+        sent++;
+        results.push({ to: normalizedNumber, status: "sent", message_id: sendResult.message_id });
+      } else {
+        failed++;
+        results.push({ to: normalizedNumber, status: "failed", error: sendResult.error });
+      }
+
+      // Rate limiting for batch sends
+      if (profiles.length > 1) {
+        await new Promise(r => setTimeout(r, 100));
+      }
     }
-
-    if (messages.length === 0) {
-      return new Response(JSON.stringify({ sent: 0, skipped: targetIds.length, reason: "no_whatsapp_numbers" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Call send-whatsapp with resolved template body text
-    const sendResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(messages),
-    });
-
-    const result = await sendResp.json();
 
     return new Response(JSON.stringify({
       event_type,
       template_used: metaTemplate.template_name,
       targeted: targetIds.length,
-      eligible: messages.length,
-      ...result,
+      eligible: profiles.filter(p => p.whatsapp_number).length,
+      sent,
+      failed,
+      results,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
