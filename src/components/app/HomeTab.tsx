@@ -34,6 +34,7 @@ import ExplainButton from "./ExplainButton";
 import RiskDigestCard from "./RiskDigestCard";
 import AIRiskReductionEngine from "./AIRiskReductionEngine";
 import TodaysMission from "./TodaysMission";
+import QuickMicroActions from "./QuickMicroActions";
 import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
 import RLPolicyCard from "./RLPolicyCard";
@@ -540,67 +541,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         }}
       />
 
-      {/* ─── SECTION 3: Quick Micro Actions (3 compact cards) ─── */}
+      {/* ─── SECTION 3: Quick Micro Actions ─── */}
       {hasTopics && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">Quick Actions</p>
-          <div className="grid grid-cols-3 gap-2.5">
-            {[
-              {
-                icon: RefreshCw,
-                label: "AI Scan",
-                sublabel: "Full analysis",
-                color: "text-primary",
-                bg: "bg-primary/10",
-                action: handleRefresh,
-                disabled: analyzing,
-              },
-              {
-                icon: Shield,
-                label: "Risk Fix",
-                sublabel: `${atRisk.length} topics`,
-                color: "text-warning",
-                bg: "bg-warning/10",
-                action: () => {
-                  triggerHaptic(20);
-                  if (atRisk.length > 0) {
-                    openSignalWithPrefill(atRisk[0].subject_name, atRisk[0].name, 5);
-                  } else {
-                    toast({ title: "🎉 All clear!", description: "No at-risk topics right now." });
-                  }
-                },
-              },
-              {
-                icon: BookOpen,
-                label: "Quick Log",
-                sublabel: "2 min",
-                color: "text-accent",
-                bg: "bg-accent/10",
-                action: () => { triggerHaptic(20); openSignalWithPrefill(); },
-              },
-            ].map((item) => (
-              <motion.button
-                key={item.label}
-                whileTap={{ scale: 0.93 }}
-                onClick={item.action}
-                disabled={item.disabled}
-                className="rounded-2xl border border-border bg-card p-3.5 flex flex-col items-center gap-2 hover:border-primary/20 transition-all disabled:opacity-50"
-              >
-                <div className={`w-9 h-9 rounded-xl ${item.bg} flex items-center justify-center`}>
-                  <item.icon className={`w-4 h-4 ${item.color} ${item.disabled ? "animate-spin" : ""}`} />
-                </div>
-                <div className="text-center">
-                  <p className="text-[11px] font-semibold text-foreground leading-tight">{item.label}</p>
-                  <p className="text-[9px] text-muted-foreground">{item.sublabel}</p>
-                </div>
-              </motion.button>
-            ))}
-          </div>
-        </motion.section>
+        <QuickMicroActions
+          atRisk={atRisk}
+          overallHealth={overallHealth}
+          streakDays={streakData?.currentStreak ?? 0}
+          onStartRecall={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
+        />
       )}
 
       {/* ─── SECTION 4: Progress & Streak Momentum ─── */}
