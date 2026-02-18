@@ -55,6 +55,55 @@
     --sidebar-border: 222 30% 16%;
     --sidebar-ring: 175 80% 50%;
   }
+
+  .light {
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 175 80% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 20% 93%;
+    --secondary-foreground: 222 30% 20%;
+
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 175 60% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 175 80% 38%;
+
+    --neural-glow: 175 80% 38%;
+    --neural-dim: 175 30% 70%;
+    --surface-glass: 210 20% 96%;
+    --surface-elevated: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+    --danger: 0 72% 51%;
+
+    --sidebar-background: 210 20% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 175 80% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 93%;
+    --sidebar-accent-foreground: 222 30% 20%;
+    --sidebar-border: 214 20% 88%;
+    --sidebar-ring: 175 80% 38%;
+  }
 }
 
 @layer base {
@@ -85,19 +134,19 @@
   }
 
   .glass {
-    background: hsl(222 47% 8% / 0.6);
+    background: hsl(var(--surface-glass) / 0.6);
     backdrop-filter: blur(20px);
-    border: 1px solid hsl(222 30% 16% / 0.5);
+    border: 1px solid hsl(var(--border) / 0.5);
   }
 
   .glass-strong {
-    background: hsl(222 47% 8% / 0.8);
+    background: hsl(var(--surface-glass) / 0.8);
     backdrop-filter: blur(30px);
-    border: 1px solid hsl(222 30% 20% / 0.6);
+    border: 1px solid hsl(var(--border) / 0.6);
   }
 
   .neural-gradient {
-    background: linear-gradient(135deg, hsl(175 80% 50% / 0.15), hsl(175 40% 25% / 0.05));
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--neural-dim) / 0.05));
   }
 
   .neural-border {

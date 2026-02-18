@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Shield, Users } from "lucide-react";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
@@ -190,6 +191,7 @@ const AppDashboard = () => {
             <span className="font-display font-bold text-lg text-foreground">ACRY</span>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <GlobalNotificationCenter
               unreadCount={unreadNotifs}
               setUnreadCount={setUnreadNotifs}
