@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useNavigate } from "react-router-dom";
+import { emitEvent } from "@/lib/eventBus";
 import { motion } from "framer-motion";
 import { Brain, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ const AuthPage = () => {
         // Trigger welcome notifications on first login (non-blocking)
         if (data.user) {
           triggerSignupNotifications(data.user.id, email, data.user.user_metadata?.display_name || email.split("@")[0], "first_login");
+          emitEvent("login", { method: "password" }, { title: "Welcome back!", body: "You logged in successfully." });
         }
         navigate("/app");
       } else {
@@ -51,6 +53,7 @@ const AuthPage = () => {
         // Send branded confirmation email via Resend (non-blocking)
         if (data.user) {
           triggerSignupNotifications(data.user.id, email, displayName, "signup");
+          emitEvent("signup", { method: "password", email }, { title: "Welcome to ACRY!", body: "Your AI Second Brain is ready." });
           supabase.functions.invoke("send-branded-auth-email", {
             body: {
               type: "confirm",

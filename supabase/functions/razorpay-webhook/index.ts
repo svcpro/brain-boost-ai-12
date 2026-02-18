@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { emitServerEvent } from "../_shared/eventBus.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -94,6 +95,14 @@ serve(async (req) => {
           }
         }
         logEntry.processed = true;
+
+        // Emit omnichannel event for payment success
+        if (sub?.user_id) {
+          emitServerEvent("payment_success", sub.user_id, {
+            amount: entity.amount ? Math.round(entity.amount / 100) : 0,
+            payment_id: entity.id,
+          }, { title: "Payment Successful!", body: "Your payment has been confirmed." });
+        }
         break;
       }
 
@@ -122,6 +131,13 @@ serve(async (req) => {
           }
         }
         logEntry.processed = true;
+
+        // Emit omnichannel event for payment failure
+        if (sub?.user_id) {
+          emitServerEvent("payment_failure", sub.user_id, {
+            order_id: orderId,
+          }, { title: "Payment Failed", body: "Your payment could not be processed. Please retry." });
+        }
         break;
       }
 
