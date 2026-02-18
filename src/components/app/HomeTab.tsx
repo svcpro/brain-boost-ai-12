@@ -37,6 +37,7 @@ import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
 import RLPolicyCard from "./RLPolicyCard";
 import PlanGateWrapper from "./PlanGateWrapper";
+import TrialBanner from "./TrialBanner";
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
   onRecommendationsSeen?: () => void;
@@ -362,6 +363,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
         </button>
       </motion.div>
+
+      {/* Trial urgency banner */}
+      <TrialBanner />
 
       {/* First-visit welcome card */}
       <AnimatePresence>

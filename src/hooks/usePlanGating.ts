@@ -110,12 +110,17 @@ export const usePlanGating = () => {
   }, [fetchGates, fetchPlan]);
 
   const canAccess = useCallback((featureKey: string) => {
-    if (currentPlan === "none") return false; // No plan = no access
+    if (currentPlan === "none") {
+      // Allow free-enabled features even without a plan
+      const gate = gates.find(g => g.feature_key === featureKey);
+      if (!gate) return false;
+      return gate.free_enabled;
+    }
     const gate = gates.find(g => g.feature_key === featureKey);
     if (!gate) return true; // no gate = allowed
     if (currentPlan === "ultra") return gate.ultra_enabled;
     if (currentPlan === "pro") return gate.pro_enabled;
-    return false;
+    return gate.free_enabled;
   }, [gates, currentPlan]);
 
   const getRequiredPlan = useCallback((featureKey: string): string | null => {
