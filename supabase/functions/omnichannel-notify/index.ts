@@ -9,8 +9,8 @@ const corsHeaders = {
 };
 
 const PRIORITY_MAP: Record<string, string[]> = {
-  critical: ["push", "whatsapp", "email", "voice"],
-  high: ["push", "whatsapp"],
+  critical: ["push", "email", "voice"],
+  high: ["push", "email"],
   medium: ["push"],
   low: ["in_app"],
 };
@@ -279,8 +279,6 @@ async function dispatchToChannel(
       switch (channel) {
         case "push":
           return await sendPush(supabaseUrl, serviceKey, userId, title, body, data);
-        case "whatsapp":
-          return await sendWhatsApp(supabaseUrl, serviceKey, userId, title, body, data);
         case "email":
           return await sendEmail(supabaseUrl, serviceKey, userId, title, body, data);
         case "voice":
@@ -322,20 +320,6 @@ async function sendPush(
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ recipient_id: userId, title, body, data }),
-  });
-  const result = await res.json();
-  return { success: (result.sent || 0) > 0, retryCount: 0, error: result.error };
-}
-
-async function sendWhatsApp(
-  url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
-) {
-  // Use the original event_type from the omnichannel rule, mapped to whatsapp-notify event names
-  const eventType = data.original_event_type || data.event_type || "study_reminder";
-  const res = await fetch(`${url}/functions/v1/whatsapp-notify`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ event_type: eventType, user_id: userId, data: { ...data, title, body } }),
   });
   const result = await res.json();
   return { success: (result.sent || 0) > 0, retryCount: 0, error: result.error };

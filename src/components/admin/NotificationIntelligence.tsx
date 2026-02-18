@@ -310,7 +310,7 @@ const ChurnTab = ({ data, analytics }: { data: any; analytics: any }) => {
           <div className="grid md:grid-cols-3 gap-4">
             {[
               { stage: "Detection", desc: "AI analyzes activity decline, session gaps, and engagement patterns", icon: Eye, status: "active" },
-              { stage: "Escalation", desc: "Push → WhatsApp → Email → Voice — progressive urgency ladder", icon: Siren, status: "active" },
+              { stage: "Escalation", desc: "Push → Email → Voice — progressive urgency ladder", icon: Siren, status: "active" },
               { stage: "Recovery", desc: "Dopamine-optimized motivation copy with psychological triggers", icon: Sparkles, status: "active" },
             ].map(s => (
               <div key={s.stage} className="p-4 bg-secondary/30 rounded-xl border border-border/30">

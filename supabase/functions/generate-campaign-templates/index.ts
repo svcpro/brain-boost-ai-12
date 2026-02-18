@@ -153,17 +153,10 @@ async function generateTemplateContent(apiKey: string, triggerKey: string, label
 - Use these dynamic variables as {{variable}} placeholders: ${varsStr}
 - Include a CTA button linking to {{app_url}}
 - Professional footer with unsubscribe link {{unsubscribe_url}}${varsInstruction}`,
-    push: `Generate a push notification OR WhatsApp message (based on custom_context). For push:
+    push: `Generate a push notification. Include:
 - A short punchy title (max 50 chars, use emoji)
 - A concise body (max 100 chars, actionable)
-- Use these dynamic variables: ${varsStr}
-
-If the custom_context mentions WhatsApp, generate a premium WhatsApp Business message instead:
-- Use WhatsApp formatting: *bold* for headers, _italic_ for emphasis
-- Include rich emojis throughout (🧠 📊 🎯 🔥 ⚡ 💡 📈 🏆 👋 👉 ✨ 💪 ❗ 🚀)
-- Structure: emoji header → greeting with {{name}} → emoji bullet points using ALL dynamic variables → CTA → sign-off
-- Max 600 chars, no HTML tags
-- Make it visually stunning, data-driven, and fully personalized${varsInstruction}`,
+- Use these dynamic variables: ${varsStr}${varsInstruction}`,
     voice: `Generate a voice notification script. Include:
 - A natural, conversational spoken text (1-3 sentences)
 - Write for text-to-speech: spell out numbers, avoid abbreviations
