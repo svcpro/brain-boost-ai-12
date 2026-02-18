@@ -11,6 +11,7 @@ import {
   Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminRole, type AppRole } from "@/hooks/useAdminRole";
@@ -216,6 +217,7 @@ const AdminPanel = () => {
               <p className="text-[10px] text-muted-foreground truncate">Control Center</p>
             </div>
           )}
+          {!sidebarCollapsed && <ThemeToggle />}
           {!isMobile && (
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
