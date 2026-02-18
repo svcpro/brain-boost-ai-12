@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Shield, Trophy, Zap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { triggerHaptic } from "@/lib/feedback";
 import { useToast } from "@/hooks/use-toast";
 import type { TopicPrediction } from "@/hooks/useMemoryEngine";
+import SmartRecallOverlay from "./SmartRecallOverlay";
 
 interface QuickMicroActionsProps {
   atRisk: TopicPrediction[];
@@ -28,7 +29,8 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
   const { user } = useAuth();
   const { toast } = useToast();
   const [loadingId, setLoadingId] = useState<string | null>(null);
-
+  const [showRecall, setShowRecall] = useState(false);
+  const [recallTopic, setRecallTopic] = useState<{ topic?: string; subject?: string }>({});
   // Dynamic reordering based on user state
   const actions = useMemo<MicroAction[]>(() => {
     const items: MicroAction[] = [
@@ -72,15 +74,14 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
 
     try {
       if (id === "smart-recall") {
-        // Pick highest-risk topic for a 1-2 min recall sprint
         const target = atRisk[0];
-        if (target) {
-          onStartRecall(target.subject_name ?? undefined, target.name, 2);
-        } else {
-          // No at-risk topics — pick a random topic for maintenance recall
-          onStartRecall(undefined, undefined, 2);
-        }
-        toast({ title: "⚡ Smart Recall started", description: "1–2 min sprint for maximum retention" });
+        setRecallTopic({
+          topic: target?.name,
+          subject: target?.subject_name ?? undefined,
+        });
+        setShowRecall(true);
+        setLoadingId(null);
+        return;
       }
 
       if (id === "risk-shield") {
@@ -156,6 +157,17 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
           );
         })}
       </div>
+
+      {/* Smart Recall Overlay */}
+      <AnimatePresence>
+        {showRecall && (
+          <SmartRecallOverlay
+            topicName={recallTopic.topic}
+            subjectName={recallTopic.subject}
+            onClose={() => setShowRecall(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.section>
   );
 }
