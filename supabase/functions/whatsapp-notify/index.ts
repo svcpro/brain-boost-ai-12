@@ -275,13 +275,13 @@ serve(async (req) => {
       });
     }
 
-    // Build messages using Twilio Content SID (Meta-approved templates only)
+    // Build messages with resolved body text from Meta-approved templates
+    // Twilio auto-matches to approved templates on production numbers
     const messages: {
       to: string;
       user_id: string;
       category: string;
-      content_sid: string;
-      content_variables: Record<string, string>;
+      message: string;
       template_name: string;
     }[] = [];
 
@@ -291,12 +291,17 @@ serve(async (req) => {
       const normalizedNumber = p.whatsapp_number.replace(/\s+/g, "");
       const contentVariables = mapping.variableMap(data, p);
 
+      // Replace positional placeholders {{1}}, {{2}}, etc. with resolved values
+      let messageBody = metaTemplate.body_text || "";
+      for (const [key, value] of Object.entries(contentVariables)) {
+        messageBody = messageBody.replace(`{{${key}}}`, value);
+      }
+
       messages.push({
         to: normalizedNumber,
         user_id: p.id,
         category: event_type,
-        content_sid: metaTemplate.meta_template_id!,
-        content_variables: contentVariables,
+        message: messageBody,
         template_name: metaTemplate.template_name,
       });
     }
@@ -307,7 +312,7 @@ serve(async (req) => {
       });
     }
 
-    // Call send-whatsapp with Twilio Content SID (Meta-approved template only)
+    // Call send-whatsapp with resolved template body text
     const sendResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp`, {
       method: "POST",
       headers: {
