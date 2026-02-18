@@ -13,10 +13,8 @@ serve(async (req) => {
 
   try {
     const { userId, supabase } = await authenticateRequest(req);
-    const user = { id: userId };
 
     const { action, message } = await req.json();
-    const userId = user.id;
 
     // Gather comprehensive user context in parallel
     const [
