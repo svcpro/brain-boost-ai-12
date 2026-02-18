@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { setCache, getCache } from "@/lib/offlineCache";
 import { triggerHaptic } from "@/lib/feedback";
 import { useToast } from "@/hooks/use-toast";
+import MicroMissionFlow from "./MicroMissionFlow";
 
 interface DailyMission {
   title: string;
@@ -45,6 +46,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showMissionFlow, setShowMissionFlow] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -84,7 +86,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
 
   const handleStart = () => {
     triggerHaptic(30);
-    onStartMission(mission?.subject_name, mission?.topic_name, mission?.estimated_minutes || 5);
+    setShowMissionFlow(true);
   };
 
   const handleComplete = async () => {
@@ -254,6 +256,22 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
           )}
         </AnimatePresence>
       )}
+      {/* Micro Mission Flow overlay */}
+      <AnimatePresence>
+        {showMissionFlow && mission && (
+          <MicroMissionFlow
+            missionTitle={mission.title}
+            topicName={mission.topic_name}
+            subjectName={mission.subject_name}
+            estimatedMinutes={mission.estimated_minutes}
+            brainImprovementPct={mission.brain_improvement_pct}
+            onComplete={() => {
+              handleComplete();
+            }}
+            onClose={() => setShowMissionFlow(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.section>
   );
 }

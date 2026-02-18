@@ -14,7 +14,8 @@ serve(async (req) => {
   try {
     const { userId, supabase } = await authenticateRequest(req);
 
-    const { action, message } = await req.json();
+    const body = await req.json();
+    const { action, message, topic_name, subject_name, difficulty: reqDifficulty, count: reqCount } = body;
 
     // Gather comprehensive user context in parallel
     const [
@@ -284,6 +285,79 @@ ${cognitiveContext}`
       }
 
       return new Response(JSON.stringify(mission), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "mission_questions") {
+      const qCount = Math.min(reqCount || 4, 5);
+      const diff = reqDifficulty || "medium";
+      const topicCtx = topic_name ? `Focus on the topic "${topic_name}"${subject_name ? ` (subject: ${subject_name})` : ""}.` : "Pick from the student's weakest topics.";
+
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: `You are ACRY, an AI tutor generating recall questions for exam preparation. Generate exactly ${qCount} multiple-choice questions at "${diff}" difficulty. ${topicCtx} Each question must test recall and understanding, not just definitions. Make questions progressively harder if difficulty is "hard", or simpler if "easy".`
+            },
+            {
+              role: "user",
+              content: `${cognitiveContext}\n\nGenerate ${qCount} recall questions at ${diff} difficulty.`
+            }
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "mission_questions",
+              description: "Generate recall questions for a micro mission",
+              parameters: {
+                type: "object",
+                properties: {
+                  questions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        question: { type: "string", description: "The question text" },
+                        options: { type: "array", items: { type: "string" }, description: "4 answer options" },
+                        correct_index: { type: "number", description: "Index (0-3) of the correct answer" },
+                        explanation: { type: "string", description: "Brief explanation of why the answer is correct (1-2 sentences)" },
+                        difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                      },
+                      required: ["question", "options", "correct_index", "explanation", "difficulty"],
+                    }
+                  }
+                },
+                required: ["questions"],
+              }
+            }
+          }],
+          tool_choice: { type: "function", function: { name: "mission_questions" } },
+        }),
+      });
+
+      if (!aiResp.ok) {
+        if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (aiResp.status === 402) return new Response(JSON.stringify({ error: "Credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        throw new Error("AI gateway error");
+      }
+
+      const aiData = await aiResp.json();
+      trackAI();
+      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      let result = { questions: [] };
+      if (toolCall?.function?.arguments) {
+        result = JSON.parse(toolCall.function.arguments);
+      }
+
+      return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
