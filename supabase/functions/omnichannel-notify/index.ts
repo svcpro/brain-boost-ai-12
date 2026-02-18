@@ -1,0 +1,313 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const PRIORITY_MAP: Record<string, string[]> = {
+  critical: ["push", "whatsapp", "email", "voice"],
+  high: ["push", "whatsapp"],
+  medium: ["push"],
+  low: ["in_app"],
+};
+
+interface EventPayload {
+  event_type: string;
+  user_id?: string;
+  user_ids?: string[];
+  source?: string;
+  data?: Record<string, any>;
+  title?: string;
+  body?: string;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    const payload: EventPayload = await req.json();
+    const { event_type, source = "web", data = {} } = payload;
+
+    if (!event_type) {
+      return json({ error: "event_type required" }, 400);
+    }
+
+    // Resolve target users
+    const userIds: string[] = payload.user_ids
+      ? payload.user_ids
+      : payload.user_id
+      ? [payload.user_id]
+      : [];
+
+    if (userIds.length === 0) {
+      return json({ error: "user_id or user_ids required" }, 400);
+    }
+
+    // Fetch rule for this event
+    const { data: rule } = await supabase
+      .from("omnichannel_rules")
+      .select("*")
+      .eq("event_type", event_type)
+      .eq("is_enabled", true)
+      .maybeSingle();
+
+    if (!rule) {
+      return json({ processed: 0, reason: "no_active_rule" });
+    }
+
+    // Cooldown check
+    if (rule.cooldown_minutes > 0 && rule.last_triggered_at) {
+      const cooldownEnd = new Date(
+        new Date(rule.last_triggered_at).getTime() + rule.cooldown_minutes * 60000
+      );
+      if (new Date() < cooldownEnd) {
+        return json({ processed: 0, reason: "cooldown_active" });
+      }
+    }
+
+    const channels: string[] = rule.channels || PRIORITY_MAP[rule.priority] || ["push"];
+    const fallbackChannels: string[] = rule.fallback_channels || [];
+    const title = payload.title || data.title || rule.display_name;
+    const body = payload.body || data.body || "";
+
+    let totalDelivered = 0;
+    let totalFailed = 0;
+
+    for (const userId of userIds) {
+      // 1. Log the event
+      const { data: eventRow } = await supabase
+        .from("event_log")
+        .insert({
+          event_type,
+          user_id: userId,
+          source,
+          priority: rule.priority,
+          payload: data,
+          status: "processing",
+        })
+        .select("id")
+        .single();
+
+      const eventId = eventRow?.id;
+
+      // 2. Check user notification preferences
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("push_notification_prefs, notification_preferences, phone, email")
+        .eq("id", userId)
+        .maybeSingle();
+
+      // 3. Dispatch to each channel
+      for (const channel of channels) {
+        const deliveryResult = await dispatchToChannel(
+          supabase,
+          SUPABASE_URL,
+          SERVICE_KEY,
+          { channel, userId, title, body, data, eventId, priority: rule.priority, retries: rule.retry_count, profile }
+        );
+
+        // Log delivery
+        await supabase.from("notification_delivery_log").insert({
+          event_id: eventId,
+          user_id: userId,
+          channel,
+          status: deliveryResult.success ? "delivered" : "failed",
+          priority: rule.priority,
+          title,
+          body,
+          retry_count: deliveryResult.retryCount || 0,
+          max_retries: rule.retry_count,
+          error_message: deliveryResult.error || null,
+          delivered_at: deliveryResult.success ? new Date().toISOString() : null,
+        });
+
+        if (deliveryResult.success) {
+          totalDelivered++;
+        } else {
+          totalFailed++;
+          // Try fallback
+          const fallback = fallbackChannels.find((f) => !channels.includes(f));
+          if (fallback) {
+            const fbResult = await dispatchToChannel(
+              supabase,
+              SUPABASE_URL,
+              SERVICE_KEY,
+              { channel: fallback, userId, title, body, data, eventId, priority: rule.priority, retries: rule.retry_count, profile }
+            );
+            await supabase.from("notification_delivery_log").insert({
+              event_id: eventId,
+              user_id: userId,
+              channel: fallback,
+              status: fbResult.success ? "delivered" : "failed",
+              priority: rule.priority,
+              title,
+              body,
+              retry_count: fbResult.retryCount || 0,
+              fallback_channel: channel as any,
+              error_message: fbResult.error || null,
+              delivered_at: fbResult.success ? new Date().toISOString() : null,
+            });
+            if (fbResult.success) totalDelivered++;
+          }
+        }
+      }
+
+      // Mark event processed
+      if (eventId) {
+        await supabase
+          .from("event_log")
+          .update({ status: "processed", processed_at: new Date().toISOString() })
+          .eq("id", eventId);
+      }
+    }
+
+    // Update rule stats
+    await supabase
+      .from("omnichannel_rules")
+      .update({
+        last_triggered_at: new Date().toISOString(),
+        total_triggered: (rule.total_triggered || 0) + userIds.length,
+        total_delivered: (rule.total_delivered || 0) + totalDelivered,
+        total_failed: (rule.total_failed || 0) + totalFailed,
+      })
+      .eq("id", rule.id);
+
+    return json({
+      processed: userIds.length,
+      delivered: totalDelivered,
+      failed: totalFailed,
+      event_type,
+    });
+  } catch (e) {
+    console.error("omnichannel-notify error:", e);
+    return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
+  }
+});
+
+// ─── Channel Dispatcher ───
+
+interface DispatchParams {
+  channel: string;
+  userId: string;
+  title: string;
+  body: string;
+  data: Record<string, any>;
+  eventId?: string;
+  priority: string;
+  retries: number;
+  profile?: any;
+}
+
+async function dispatchToChannel(
+  supabase: any,
+  supabaseUrl: string,
+  serviceKey: string,
+  params: DispatchParams
+): Promise<{ success: boolean; retryCount?: number; error?: string }> {
+  const { channel, userId, title, body, data, retries, profile } = params;
+
+  let attempt = 0;
+  while (attempt <= retries) {
+    try {
+      switch (channel) {
+        case "push":
+          return await sendPush(supabaseUrl, serviceKey, userId, title, body, data);
+        case "whatsapp":
+          return await sendWhatsApp(supabaseUrl, serviceKey, userId, title, body, data);
+        case "email":
+          return await sendEmail(supabaseUrl, serviceKey, userId, title, body, data);
+        case "voice":
+          return await sendVoice(supabaseUrl, serviceKey, userId, title, body, data);
+        case "in_app":
+          // Store in-app notification directly
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            title,
+            message: body,
+            type: data.type || "system",
+            action_url: data.action_url || null,
+          });
+          return { success: true, retryCount: attempt };
+        default:
+          return { success: false, error: `Unknown channel: ${channel}` };
+      }
+    } catch (err) {
+      attempt++;
+      if (attempt > retries) {
+        return {
+          success: false,
+          retryCount: attempt,
+          error: err instanceof Error ? err.message : "Unknown error",
+        };
+      }
+      await new Promise((r) => setTimeout(r, 1000 * attempt)); // exponential backoff
+    }
+  }
+  return { success: false, retryCount: retries, error: "Max retries exceeded" };
+}
+
+// ─── Channel Senders ───
+
+async function sendPush(
+  url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
+) {
+  const res = await fetch(`${url}/functions/v1/send-push-notification`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient_id: userId, title, body, data }),
+  });
+  const result = await res.json();
+  return { success: (result.sent || 0) > 0, retryCount: 0, error: result.error };
+}
+
+async function sendWhatsApp(
+  url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
+) {
+  const res = await fetch(`${url}/functions/v1/whatsapp-notify`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ event_type: data.event_type || "general", user_id: userId, data: { ...data, title, body } }),
+  });
+  const result = await res.json();
+  return { success: (result.sent || 0) > 0, retryCount: 0, error: result.error };
+}
+
+async function sendEmail(
+  url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
+) {
+  const res = await fetch(`${url}/functions/v1/trigger-email`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ trigger_key: data.event_type || "general", user_id: userId, variables: { title, body, ...data } }),
+  });
+  const result = await res.json();
+  return { success: !result.error, retryCount: 0, error: result.error };
+}
+
+async function sendVoice(
+  url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
+) {
+  const res = await fetch(`${url}/functions/v1/voice-automation-engine`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "send_notification", user_id: userId, title, body, data }),
+  });
+  const result = await res.json();
+  return { success: result.success || (result.queued || 0) > 0, retryCount: 0, error: result.error };
+}
+
+// ─── Helpers ───
+
+function json(data: any, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}

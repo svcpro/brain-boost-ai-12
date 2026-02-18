@@ -176,3 +176,6 @@ verify_jwt = false
 
 [functions.send-branded-auth-email]
 verify_jwt = false
+
+[functions.omnichannel-notify]
+verify_jwt = false

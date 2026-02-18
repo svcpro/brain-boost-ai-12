@@ -1349,6 +1349,45 @@ export type Database = {
           },
         ]
       }
+      event_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          priority: Database["public"]["Enums"]["notification_priority"]
+          processed_at: string | null
+          source: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload?: Json | null
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          processed_at?: string | null
+          source?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          processed_at?: string | null
+          source?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       exam_results: {
         Row: {
           created_at: string
@@ -2053,6 +2092,74 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_delivery_log: {
+        Row: {
+          body: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          event_id: string | null
+          fallback_channel:
+            | Database["public"]["Enums"]["notification_channel"]
+            | null
+          id: string
+          max_retries: number
+          priority: Database["public"]["Enums"]["notification_priority"]
+          retry_count: number
+          status: Database["public"]["Enums"]["delivery_status"]
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          event_id?: string | null
+          fallback_channel?:
+            | Database["public"]["Enums"]["notification_channel"]
+            | null
+          id?: string
+          max_retries?: number
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          retry_count?: number
+          status?: Database["public"]["Enums"]["delivery_status"]
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          event_id?: string | null
+          fallback_channel?:
+            | Database["public"]["Enums"]["notification_channel"]
+            | null
+          id?: string
+          max_retries?: number
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          retry_count?: number
+          status?: Database["public"]["Enums"]["delivery_status"]
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_delivery_log_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "event_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_history: {
         Row: {
           action_url: string | null
@@ -2086,6 +2193,75 @@ export type Database = {
           title?: string
           type?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      omnichannel_rules: {
+        Row: {
+          category: string
+          channels: Database["public"]["Enums"]["notification_channel"][]
+          condition_expression: Json | null
+          cooldown_minutes: number
+          created_at: string
+          delay_seconds: number
+          display_name: string
+          event_type: string
+          fallback_channels:
+            | Database["public"]["Enums"]["notification_channel"][]
+            | null
+          id: string
+          is_enabled: boolean
+          last_triggered_at: string | null
+          priority: Database["public"]["Enums"]["notification_priority"]
+          retry_count: number
+          total_delivered: number
+          total_failed: number
+          total_triggered: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          channels?: Database["public"]["Enums"]["notification_channel"][]
+          condition_expression?: Json | null
+          cooldown_minutes?: number
+          created_at?: string
+          delay_seconds?: number
+          display_name: string
+          event_type: string
+          fallback_channels?:
+            | Database["public"]["Enums"]["notification_channel"][]
+            | null
+          id?: string
+          is_enabled?: boolean
+          last_triggered_at?: string | null
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          retry_count?: number
+          total_delivered?: number
+          total_failed?: number
+          total_triggered?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          channels?: Database["public"]["Enums"]["notification_channel"][]
+          condition_expression?: Json | null
+          cooldown_minutes?: number
+          created_at?: string
+          delay_seconds?: number
+          display_name?: string
+          event_type?: string
+          fallback_channels?:
+            | Database["public"]["Enums"]["notification_channel"][]
+            | null
+          id?: string
+          is_enabled?: boolean
+          last_triggered_at?: string | null
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          retry_count?: number
+          total_delivered?: number
+          total_failed?: number
+          total_triggered?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -4253,6 +4429,15 @@ export type Database = {
         | "support_admin"
         | "finance_admin"
         | "api_admin"
+      delivery_status:
+        | "pending"
+        | "processing"
+        | "delivered"
+        | "failed"
+        | "skipped"
+        | "opted_out"
+      notification_channel: "push" | "whatsapp" | "email" | "voice" | "in_app"
+      notification_priority: "critical" | "high" | "medium" | "low"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4388,6 +4573,16 @@ export const Constants = {
         "finance_admin",
         "api_admin",
       ],
+      delivery_status: [
+        "pending",
+        "processing",
+        "delivered",
+        "failed",
+        "skipped",
+        "opted_out",
+      ],
+      notification_channel: ["push", "whatsapp", "email", "voice", "in_app"],
+      notification_priority: ["critical", "high", "medium", "low"],
     },
   },
 } as const
