@@ -33,6 +33,7 @@ import StreakRecoveryCard from "./StreakRecoveryCard";
 import ComebackCelebration from "./ComebackCelebration";
 import ExplainButton from "./ExplainButton";
 import RiskDigestCard from "./RiskDigestCard";
+import AIRiskReductionEngine from "./AIRiskReductionEngine";
 import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
 import RLPolicyCard from "./RLPolicyCard";
@@ -742,57 +743,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </div>
       </motion.div>}
 
-      {/* Forget Risk Radar */}
-      {isEnabled('home_forget_risk') && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl p-5 neural-border">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle className="w-4 h-4 text-destructive" />
-          <h2 className="font-semibold text-foreground text-sm">Forget Risk Radar</h2>
-          {radarLastUpdated && (
-            <span className="text-[9px] text-muted-foreground/60 ml-1 tabular-nums">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-success/60 animate-pulse mr-1 align-middle" />
-              {formatDistanceToNow(radarLastUpdated, { addSuffix: true })}
-            </span>
-          )}
-          {atRisk.length > 0 && (
-            <span className="ml-auto px-2 py-0.5 rounded-full bg-destructive/20 text-destructive text-[10px] font-medium">
-              {atRisk.length} at risk
-            </span>
-          )}
-        </div>
-        {atRisk.length > 0 ? (
-          <div className="space-y-3">
-            {atRisk.slice(0, 5).map((topic: TopicPrediction) => (
-              <div key={topic.id} className="space-y-0.5">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-xs text-foreground">{topic.name}</span>
-                      <span className={`text-[10px] ${topic.risk_level === "critical" ? "text-destructive" : "text-warning"}`}>
-                        {Math.round(100 - topic.memory_strength)}% risk
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-warning to-destructive transition-all"
-                        style={{ width: `${100 - topic.memory_strength}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <ExplainButton
-                  predictionType="forget_risk"
-                  predictionData={{ topic_name: topic.name, memory_strength: topic.memory_strength, risk_level: topic.risk_level, hours_until_drop: topic.hours_until_drop, subject: topic.subject_name }}
-                  label="Why at risk?"
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            {hasTopics ? "All topics are healthy! 🧠" : "No topics tracked yet. Log a study session to start."}
-          </p>
-        )}
-      </motion.div>}
+      {/* AI Risk Reduction Engine */}
+      {isEnabled('home_forget_risk') && (
+        <AIRiskReductionEngine
+          atRisk={atRisk}
+          hasTopics={hasTopics}
+          onStudyTopic={openSignalWithPrefill}
+        />
+      )}
 
       {/* Spaced Repetition Review Queue */}
       {isEnabled('home_review_queue') && <PlanGateWrapper featureKey="review_queue"><ReviewQueue /></PlanGateWrapper>}
