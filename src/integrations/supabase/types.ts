@@ -4854,6 +4854,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          twilio_content_sid: string | null
           updated_at: string
           variables: string[] | null
         }
@@ -4866,6 +4867,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          twilio_content_sid?: string | null
           updated_at?: string
           variables?: string[] | null
         }
@@ -4878,6 +4880,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          twilio_content_sid?: string | null
           updated_at?: string
           variables?: string[] | null
         }

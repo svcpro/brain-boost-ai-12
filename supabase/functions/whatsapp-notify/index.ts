@@ -209,16 +209,56 @@ serve(async (req) => {
       });
     }
 
-    // Build messages — use Meta template if mapped, otherwise default
-    const messages: { to: string; message: string; user_id: string; category: string }[] = [];
+    // Check if there's a whatsapp_template with a Twilio Content SID for this event
+    let twilioContentSid: string | null = null;
+    let templateName: string | null = null;
+    let templateVars: string[] = [];
+
+    const { data: waTmpl } = await supabase
+      .from("whatsapp_templates")
+      .select("name, twilio_content_sid, variables")
+      .eq("name", event_type)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (waTmpl?.twilio_content_sid) {
+      twilioContentSid = waTmpl.twilio_content_sid;
+      templateName = waTmpl.name;
+      templateVars = (waTmpl.variables as string[]) || [];
+      console.log(`Found Twilio Content SID "${twilioContentSid}" for event "${event_type}"`);
+    }
+
+    // Build messages — use approved template if available, Meta template if mapped, otherwise default
+    const messages: { to: string; message: string; user_id: string; category: string; content_sid?: string; content_variables?: Record<string, string>; template_name?: string }[] = [];
 
     for (const p of profiles) {
       if (!p.whatsapp_number) continue;
 
+      // If we have a Twilio Content SID, use approved template
+      if (twilioContentSid) {
+        const params = { ...data, name: p.display_name };
+        const contentVariables: Record<string, string> = {};
+        templateVars.forEach((v: string, i: number) => {
+          contentVariables[String(i + 1)] = params[v] || `{{${v}}}`;
+        });
+
+        const normalizedNumber = p.whatsapp_number!.replace(/\s+/g, "");
+        messages.push({
+          to: normalizedNumber,
+          message: "",
+          user_id: p.id,
+          category: event_type,
+          content_sid: twilioContentSid,
+          content_variables: contentVariables,
+          template_name: templateName || undefined,
+        });
+        continue;
+      }
+
+      // Otherwise build freeform message
       let messageText: string;
 
       if (metaTemplateBody) {
-        // Resolve variables via resolve-whatsapp-variables edge function
         try {
           const resolveResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-whatsapp-variables`, {
             method: "POST",
@@ -248,9 +288,7 @@ serve(async (req) => {
         console.warn(`[UVR] WhatsApp variable warnings for ${p.id}:`, issues);
       }
 
-      // Normalize phone number: strip spaces
       const normalizedNumber = p.whatsapp_number!.replace(/\s+/g, "");
-
       messages.push({
         to: normalizedNumber,
         message: cleaned,
