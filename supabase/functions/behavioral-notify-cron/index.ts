@@ -35,6 +35,13 @@ serve(async (req) => {
     let bundled = 0;
     let rankWar = 0;
     let motivation = 0;
+    let growthProcessed = 0;
+
+    // Run growth engine daily tasks (segmentation, journeys, subscription triggers)
+    try {
+      const growthRes = await callGrowthEngine(SUPABASE_URL, SERVICE_KEY, { action: "run_daily_growth" });
+      growthProcessed = growthRes?.processed || 0;
+    } catch { /* non-blocking */ }
 
     for (const user of users) {
       const userId = user.id;
@@ -46,7 +53,6 @@ serve(async (req) => {
         });
 
         if (churnRes?.risk_level === "critical" || churnRes?.risk_level === "high") {
-          // Send churn prevention notification
           await callOmnichannel(SUPABASE_URL, SERVICE_KEY, {
             event_type: "churn_risk_detected",
             user_id: userId,
@@ -111,6 +117,7 @@ serve(async (req) => {
       bundled,
       rank_war: rankWar,
       motivation_boosts: motivation,
+      growth_engine: growthProcessed,
     });
   } catch (e) {
     console.error("behavioral-notify-cron error:", e);
@@ -129,6 +136,15 @@ async function callEngine(url: string, key: string, body: Record<string, any>) {
 
 async function callOmnichannel(url: string, key: string, body: Record<string, any>) {
   const res = await fetch(`${url}/functions/v1/omnichannel-notify`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.ok ? await res.json() : null;
+}
+
+async function callGrowthEngine(url: string, key: string, body: Record<string, any>) {
+  const res = await fetch(`${url}/functions/v1/growth-engine`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
