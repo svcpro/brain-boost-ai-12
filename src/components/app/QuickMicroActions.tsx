@@ -7,6 +7,7 @@ import { triggerHaptic } from "@/lib/feedback";
 import { useToast } from "@/hooks/use-toast";
 import type { TopicPrediction } from "@/hooks/useMemoryEngine";
 import SmartRecallOverlay from "./SmartRecallOverlay";
+import RiskShieldOverlay from "./RiskShieldOverlay";
 
 interface QuickMicroActionsProps {
   atRisk: TopicPrediction[];
@@ -31,6 +32,7 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [showRecall, setShowRecall] = useState(false);
   const [recallTopic, setRecallTopic] = useState<{ topic?: string; subject?: string }>({});
+  const [showShield, setShowShield] = useState(false);
   // Dynamic reordering based on user state
   const actions = useMemo<MicroAction[]>(() => {
     const items: MicroAction[] = [
@@ -90,10 +92,9 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
           setLoadingId(null);
           return;
         }
-        // Auto-protect: trigger quick recall for the most critical topic
-        const critical = atRisk[0];
-        onStartRecall(critical.subject_name ?? undefined, critical.name, 2);
-        toast({ title: "🛡️ Risk Shield activated", description: `Protecting: ${critical.name}` });
+        setShowShield(true);
+        setLoadingId(null);
+        return;
       }
 
       if (id === "rank-boost") {
@@ -165,6 +166,16 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
             topicName={recallTopic.topic}
             subjectName={recallTopic.subject}
             onClose={() => setShowRecall(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Risk Shield Overlay */}
+      <AnimatePresence>
+        {showShield && (
+          <RiskShieldOverlay
+            atRisk={atRisk}
+            onClose={() => setShowShield(false)}
           />
         )}
       </AnimatePresence>
