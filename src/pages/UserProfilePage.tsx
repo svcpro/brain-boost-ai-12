@@ -63,6 +63,9 @@ const UserProfilePage = () => {
       toast({ title: "Failed to save profile", variant: "destructive" });
     } else {
       toast({ title: "✨ Profile updated!" });
+      import("@/lib/eventBus").then(({ emitEvent }) =>
+        emitEvent("profile_completed", {}, { title: "Profile Updated" })
+      );
     }
     setSaving(false);
   };

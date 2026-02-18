@@ -231,6 +231,11 @@ const ReviewSessionModal = ({ item, onClose, onComplete }: ReviewSessionProps) =
         study_mode: "review",
       });
 
+      // Emit study session event for review
+      import("@/lib/eventBus").then(({ emitEvent }) =>
+        emitEvent("study_session_end", { mode: "review", duration: durationMinutes, topic: item.name, confidence }, { title: "Review Complete!", body: `Reviewed ${item.name}` })
+      );
+
       // Update topic's last_revision_date and memory_strength
       const strengthBoost = confidence === "high" ? 25 : confidence === "medium" ? 15 : 5;
       const newStrength = Math.min(100, item.memory_strength + strengthBoost);

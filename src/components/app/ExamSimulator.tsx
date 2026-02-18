@@ -4,6 +4,7 @@ import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { emitEvent } from "@/lib/eventBus";
 import { useAdaptiveDifficulty } from "@/hooks/useAdaptiveDifficulty";
 import { useWhatsAppPreview } from "@/hooks/useWhatsAppPreview";
 import WhatsAppPreviewModal from "@/components/app/WhatsAppPreviewModal";
@@ -260,6 +261,12 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
         questions_data: answersRef.current,
       } as any);
 
+      // Emit exam completed event
+      const pct = Math.round((finalScore / questions.length) * 100);
+      emitEvent("exam_completed", {
+        score: finalScore, total: questions.length, percentage: pct, difficulty,
+      }, { title: "Exam Complete!", body: `You scored ${pct}% (${finalScore}/${questions.length})` });
+
       // WhatsApp notification preview for exam result
       if (user) {
         showPreview("exam_result", {
@@ -267,7 +274,7 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
           data: {
             score: finalScore,
             total: questions.length,
-            percentage: Math.round((finalScore / questions.length) * 100),
+            percentage: pct,
             difficulty,
           },
         });

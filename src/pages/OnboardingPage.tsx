@@ -220,6 +220,11 @@ const OnboardingPage = () => {
         }
       }
 
+      // Emit profile & exam setup events
+      const { emitEvent } = await import("@/lib/eventBus");
+      emitEvent("profile_completed", { exam_type: finalExam, subjects: subjects.length }, { title: "Profile Set Up!", body: "Your brain is configured." });
+      emitEvent("exam_setup", { exam_type: finalExam, exam_date: examDate }, { title: "Exam Target Set!", body: `Preparing for ${finalExam}` });
+
       toast({ title: "You're all set! 🧠", description: "Your AI brain is now configured." });
       navigate("/app", { replace: true });
     } catch (e: any) {

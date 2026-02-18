@@ -179,6 +179,18 @@ export function useStudyStreak() {
       }
 
       setStreak({ currentStreak, longestStreak, todayMet, goalMinutes, todayMinutes, frozenDays, dailyTotals, freezeRecords });
+
+      // Emit streak milestone events (non-blocking)
+      if (currentStreak > 0 && [3, 7, 14, 21, 30, 50, 100, 200, 365].includes(currentStreak)) {
+        import("@/lib/eventBus").then(({ emitEvent }) =>
+          emitEvent("streak_milestone", { days: currentStreak }, { title: `🔥 ${currentStreak}-Day Streak!`, body: "Keep the momentum going!" })
+        );
+      }
+      if (!todayMet && currentStreak >= 3 && todayMinutes === 0) {
+        import("@/lib/eventBus").then(({ emitEvent }) =>
+          emitEvent("streak_at_risk", { days: currentStreak }, { title: "⚠️ Streak At Risk!", body: `Your ${currentStreak}-day streak needs action today.` })
+        );
+      }
     } finally {
       setLoading(false);
     }

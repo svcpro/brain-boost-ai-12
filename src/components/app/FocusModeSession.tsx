@@ -7,6 +7,7 @@ import { useAmbientSound, type AmbientSoundType } from "@/hooks/useAmbientSound"
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import confetti from "canvas-confetti";
+import { emitEvent } from "@/lib/eventBus";
 import { useWhatsAppPreview } from "@/hooks/useWhatsAppPreview";
 import WhatsAppPreviewModal from "@/components/app/WhatsAppPreviewModal";
 
@@ -258,6 +259,14 @@ const FocusModeSession = ({ open, onClose, onSessionComplete, initialSubject, in
 
     setLogging(false);
     onSessionComplete?.();
+
+    // Emit study session end event
+    emitEvent("study_session_end", {
+      mode: "focus",
+      duration: summary.elapsedMinutes,
+      topic: summary.topic || summary.subject,
+      confidence,
+    }, { title: "Focus Session Complete!", body: `${summary.elapsedMinutes} min on ${summary.topic || summary.subject}` });
     
     // WhatsApp notification preview for focus session completion
     if (user && summary) {

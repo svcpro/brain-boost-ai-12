@@ -4,6 +4,7 @@ import { Coffee, Play, Pause, RotateCcw, CheckCircle, X, Brain } from "lucide-re
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
+import { emitEvent } from "@/lib/eventBus";
 
 const TOTAL_SECONDS = 5 * 60; // 5 minutes
 
@@ -101,6 +102,9 @@ const LazyModeSession = ({ open, onClose, onSessionComplete }: LazyModeSessionPr
       studyMode: "lazy",
     });
     toast({ title: "Lazy session logged! 🧠", description: `${elapsed} min on ${suggestedTopic.name}` });
+    emitEvent("study_session_end", {
+      mode: "lazy", duration: elapsed, topic: suggestedTopic.name,
+    }, { title: "Lazy Session Done!", body: `${elapsed} min on ${suggestedTopic.name}` });
     setLogging(false);
     onSessionComplete?.();
     onClose();
