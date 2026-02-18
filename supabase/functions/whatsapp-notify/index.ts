@@ -9,6 +9,23 @@ const corsHeaders = {
 
 // All supported WhatsApp notification event types and their default messages
 const EVENT_TEMPLATES: Record<string, { title: string; buildMessage: (data: Record<string, any>) => string }> = {
+  // ── Auth & Onboarding ──
+  signup: {
+    title: "🎉 Welcome to ACRY!",
+    buildMessage: (d) => `🎉 Welcome${d.name ? ` ${d.name}` : ""}! Your AI Second Brain is ready. Start studying smarter today! 🧠`,
+  },
+  user_signup: {
+    title: "🎉 Welcome to ACRY!",
+    buildMessage: (d) => `🎉 Welcome${d.name ? ` ${d.name}` : ""}! Your AI Second Brain is ready. Start studying smarter today! 🧠`,
+  },
+  profile_completed: {
+    title: "✅ Profile Set Up!",
+    buildMessage: (d) => `✅ Profile configured${d.name ? ` ${d.name}` : ""}! Your brain is mapped and ready. Let's start learning! 🚀`,
+  },
+  exam_setup: {
+    title: "🎯 Exam Target Set!",
+    buildMessage: (d) => `🎯 Exam target locked${d.exam_type ? `: ${d.exam_type}` : ""}! Your AI study plan is ready. Let's crush it! 💪`,
+  },
   // ── Study & Memory ──
   daily_goal_completed: {
     title: "🎯 Daily Goal Completed!",
@@ -231,8 +248,11 @@ serve(async (req) => {
         console.warn(`[UVR] WhatsApp variable warnings for ${p.id}:`, issues);
       }
 
+      // Normalize phone number: strip spaces
+      const normalizedNumber = p.whatsapp_number!.replace(/\s+/g, "");
+
       messages.push({
-        to: p.whatsapp_number!,
+        to: normalizedNumber,
         message: cleaned,
         user_id: p.id,
         category: event_type,

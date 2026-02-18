@@ -72,21 +72,28 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Authenticate the request - require admin access
-    let auth;
-    try {
-      auth = await authenticateRequest(req);
-    } catch (res) {
-      if (res instanceof Response) return res;
-      throw res;
-    }
+    // Authenticate the request - allow service role or require admin
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isServiceRole = token === serviceRoleKey;
 
-    // Require admin role for sending WhatsApp messages
-    try {
-      await requireAdmin(auth.userId);
-    } catch (res) {
-      if (res instanceof Response) return res;
-      throw res;
+    if (!isServiceRole) {
+      let auth;
+      try {
+        auth = await authenticateRequest(req);
+      } catch (res) {
+        if (res instanceof Response) return res;
+        throw res;
+      }
+
+      // Require admin role for sending WhatsApp messages
+      try {
+        await requireAdmin(auth.userId);
+      } catch (res) {
+        if (res instanceof Response) return res;
+        throw res;
+      }
     }
 
     const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
@@ -114,9 +121,10 @@ serve(async (req) => {
 
     for (const item of requests) {
       try {
-        // Validate phone number
-        if (!item.to || !PHONE_REGEX.test(item.to)) {
-          results.push({ to: item.to || "unknown", status: "failed", error: "Invalid phone number format" });
+        // Normalize phone number: strip spaces
+        const normalizedTo = (item.to || "").replace(/\s+/g, "");
+        if (!normalizedTo || !PHONE_REGEX.test(normalizedTo)) {
+          results.push({ to: normalizedTo || "unknown", status: "failed", error: "Invalid phone number format" });
           continue;
         }
 
@@ -158,7 +166,7 @@ serve(async (req) => {
           TWILIO_ACCOUNT_SID,
           TWILIO_AUTH_TOKEN,
           TWILIO_WHATSAPP_NUMBER,
-          item.to,
+          normalizedTo,
           messageBody,
           item.media_url,
         );
@@ -166,7 +174,7 @@ serve(async (req) => {
         // Log to database
         await supabase.from("whatsapp_messages").insert({
           user_id: item.user_id || null,
-          to_number: item.to,
+          to_number: normalizedTo,
           message_type: item.media_url ? "media" : item.template_name ? "template" : "text",
           content: messageBody,
           template_name: item.template_name || null,
