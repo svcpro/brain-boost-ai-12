@@ -154,6 +154,13 @@ serve(async (req) => {
       });
     }
 
+    // Fetch existing subjects for context
+    const { data: existingSubjects } = await supabase
+      .from("subjects")
+      .select("id, name")
+      .eq("user_id", userId);
+    const existingSubjectNames = (existingSubjects || []).map((s: any) => s.name).join(", ");
+
     console.log("Step 2: Extracting topics from transcription...");
 
     // Step 2: Extract topics from the transcription
