@@ -594,9 +594,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* Additional analytics (feature-flagged) */}
       {hasTopics && (
         <div className="space-y-3">
-          {isEnabled('home_forget_risk') && (
-            <AIRiskReductionEngine atRisk={atRisk} hasTopics={hasTopics} onStudyTopic={openSignalWithPrefill} />
-          )}
+          {/* AIRiskReductionEngine hidden — functionality consolidated into MomentumSection */}
           {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
           {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
           {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
