@@ -34,20 +34,19 @@ serve(async (req) => {
   let eventPayload: any;
 
   try {
-    // Get webhook secret - try config table first, then env
-    let webhookSecret: string | null = null;
-    const { data: config } = await adminClient.from('razorpay_config').select('webhook_secret, mode, test_key_secret, live_key_secret').limit(1).maybeSingle();
-    if (config?.webhook_secret) {
-      webhookSecret = config.webhook_secret;
-    } else if (config) {
-      webhookSecret = config.mode === 'live' ? config.live_key_secret : config.test_key_secret;
-    }
-    if (!webhookSecret) {
-      webhookSecret = Deno.env.get('RAZORPAY_KEY_SECRET') || null;
-    }
+    // Use env var for webhook secret only - no DB lookup for secrets
+    const webhookSecret = Deno.env.get('RAZORPAY_KEY_SECRET');
     if (!webhookSecret) throw new Error('Razorpay webhook secret not configured');
 
     const signature = req.headers.get('x-razorpay-signature') || '';
+    if (!signature) {
+      console.error('Missing webhook signature');
+      return new Response(JSON.stringify({ error: 'Missing signature' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
     if (!isValid) {
       console.error('Invalid webhook signature');
@@ -113,12 +112,11 @@ serve(async (req) => {
             }).eq('id', sub.id);
           }
 
-          // Notify user via notification_history
           if (sub?.user_id) {
             await adminClient.from('notification_history').insert({
               user_id: sub.user_id,
               title: 'Payment Failed',
-              body: `Your payment for subscription could not be processed. Please retry or use a different payment method.`,
+              body: 'Your payment for subscription could not be processed. Please retry or use a different payment method.',
               type: 'payment_failed',
             });
           }
@@ -128,7 +126,6 @@ serve(async (req) => {
       }
 
       case 'payment.authorized': {
-        // Payment authorized but not yet captured - just log
         logEntry.processed = true;
         break;
       }
@@ -152,7 +149,7 @@ serve(async (req) => {
               await adminClient.from('notification_history').insert({
                 user_id: sub.user_id,
                 title: 'Refund Processed',
-                body: `Your refund has been processed successfully.`,
+                body: 'Your refund has been processed successfully.',
                 type: 'refund',
               });
             }
@@ -164,7 +161,6 @@ serve(async (req) => {
 
       case 'subscription.activated':
       case 'subscription.charged': {
-        // Handle recurring subscription payments
         const subEntity = eventPayload.payload?.subscription?.entity;
         if (subEntity?.notes?.user_id) {
           const userId = subEntity.notes.user_id;
@@ -173,7 +169,6 @@ serve(async (req) => {
           const expiresAt = new Date();
           expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-          // Upsert or extend subscription
           const { data: existing } = await adminClient
             .from('user_subscriptions')
             .select('*')
@@ -227,7 +222,6 @@ serve(async (req) => {
       }
 
       default:
-        // Log but don't process unknown events
         logEntry.processed = false;
         break;
     }
@@ -244,7 +238,6 @@ serve(async (req) => {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Webhook processing error:', message);
 
-    // Try to log the failed event
     try {
       await adminClient.from('razorpay_webhook_events').insert({
         event_type: eventPayload?.event || 'unknown',
@@ -256,7 +249,7 @@ serve(async (req) => {
       console.error('Failed to log webhook error:', e);
     }
 
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

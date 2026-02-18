@@ -6,28 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function getRazorpayKeys(adminClient: any) {
-  const { data: config } = await adminClient
-    .from('razorpay_config')
-    .select('*')
-    .limit(1)
-    .maybeSingle();
-
-  if (config) {
-    const mode = config.mode || 'test';
-    const keyId = mode === 'live' ? config.live_key_id : config.test_key_id;
-    const keySecret = mode === 'live' ? config.live_key_secret : config.test_key_secret;
-    if (keyId && keySecret) {
-      return { keyId, keySecret, mode };
-    }
-  }
-
+function getRazorpayKeys() {
   const keyId = Deno.env.get('RAZORPAY_KEY_ID');
   const keySecret = Deno.env.get('RAZORPAY_KEY_SECRET');
   if (!keyId || !keySecret) {
     throw new Error('Razorpay keys not configured');
   }
-  return { keyId, keySecret, mode: 'env' };
+  return { keyId, keySecret };
 }
 
 serve(async (req) => {
@@ -48,16 +33,20 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
+    const { keyId: RAZORPAY_KEY_ID, keySecret: RAZORPAY_KEY_SECRET } = getRazorpayKeys();
+
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { keyId: RAZORPAY_KEY_ID, keySecret: RAZORPAY_KEY_SECRET, mode } = await getRazorpayKeys(adminClient);
-
     const { action, plan_id, amount, order_id, payment_id, signature, billing_cycle } = await req.json();
 
     if (action === 'create_order') {
+      if (!amount || typeof amount !== 'number' || amount <= 0 || amount > 100000) {
+        throw new Error('Invalid amount');
+      }
+
       const credentials = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
       const orderRes = await fetch('https://api.razorpay.com/v1/orders', {
         method: 'POST',
@@ -75,17 +64,21 @@ serve(async (req) => {
 
       const orderData = await orderRes.json();
       if (!orderRes.ok) {
-        throw new Error(`Razorpay order creation failed: ${JSON.stringify(orderData)}`);
+        throw new Error('Razorpay order creation failed');
       }
 
       adminClient.rpc("increment_api_usage", { p_service_name: "razorpay" }).then(() => {}).catch(() => {});
 
-      return new Response(JSON.stringify({ order: orderData, key_id: RAZORPAY_KEY_ID, mode }), {
+      return new Response(JSON.stringify({ order: orderData, key_id: RAZORPAY_KEY_ID }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (action === 'verify_payment') {
+      if (!order_id || !payment_id || !signature) {
+        throw new Error('Missing payment verification parameters');
+      }
+
       const encoder = new TextEncoder();
       const key = await crypto.subtle.importKey(
         'raw',
