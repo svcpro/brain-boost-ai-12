@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { dispatchWhatsApp } from "../_shared/whatsapp.ts";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,8 +109,6 @@ serve(async (req) => {
           await sendExpiryEmail(user.email, planName, daysLeft, sub.user_id);
           emailsSent++;
           
-          // Send WhatsApp notification
-          dispatchWhatsApp("subscription_expiry", sub.user_id, { plan: planName, days_left: daysLeft });
         }
       }
     }

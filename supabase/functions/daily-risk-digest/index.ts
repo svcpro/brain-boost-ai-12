@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { dispatchWhatsApp } from "../_shared/whatsapp.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -198,11 +198,6 @@ Keep it under 5 lines total. Be specific with topic names and durations.`,
           });
         }
 
-        // Send WhatsApp notification
-        await dispatchWhatsApp("risk_digest", userId, {
-          at_risk_count: atRisk.length,
-          digest_text: digestText,
-        });
 
         sent++;
         processed++;
