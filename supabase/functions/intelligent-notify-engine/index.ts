@@ -350,13 +350,8 @@ async function trackEngagement(supabase: any, userId: string, data: any) {
   const day = now.getDay();
   const type = data?.type || "app_open";
 
-  await supabase.rpc("upsert_engagement_pattern", {
-    p_user_id: userId,
-    p_hour: hour,
-    p_day: day,
-    p_type: type,
-  }).catch(async () => {
-    // Fallback: manual upsert
+  // Direct upsert without RPC
+  try {
     const { data: existing } = await supabase
       .from("user_engagement_patterns")
       .select("id, engagement_count")
@@ -379,7 +374,9 @@ async function trackEngagement(supabase: any, userId: string, data: any) {
         engagement_count: 1,
       });
     }
-  });
+  } catch (e) {
+    console.warn("Engagement tracking failed:", e);
+  }
 
   return { tracked: true, hour, day, type };
 }

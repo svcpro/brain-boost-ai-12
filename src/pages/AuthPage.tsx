@@ -2,20 +2,9 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useNavigate } from "react-router-dom";
-import { emitEvent } from "@/lib/eventBus";
 import { motion } from "framer-motion";
 import { Brain, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const triggerSignupNotifications = async (userId: string, email: string, displayName: string, event: "signup" | "first_login") => {
-  try {
-    await supabase.functions.invoke("signup-welcome-notifications", {
-      body: { user_id: userId, email, display_name: displayName, event },
-    });
-  } catch (e) {
-    console.warn("Signup notifications dispatch failed:", e);
-  }
-};
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -33,13 +22,9 @@ const AuthPage = () => {
 
     try {
       if (isLogin) {
-        const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // Trigger welcome notifications on first login (non-blocking)
-        if (data.user) {
-          triggerSignupNotifications(data.user.id, email, data.user.user_metadata?.display_name || email.split("@")[0], "first_login");
-          emitEvent("login", { method: "password" }, { title: "Welcome back!", body: "You logged in successfully." });
-        }
+        // Notifications are now handled centrally in AuthContext
         navigate("/app");
       } else {
         const { error, data } = await supabase.auth.signUp({
@@ -50,10 +35,9 @@ const AuthPage = () => {
           },
         });
         if (error) throw error;
-        // Send branded confirmation email via Resend (non-blocking)
+        // Welcome notifications are handled centrally in AuthContext on SIGNED_IN event.
+        // Send branded confirmation email (non-blocking)
         if (data.user) {
-          triggerSignupNotifications(data.user.id, email, displayName, "signup");
-          emitEvent("signup", { method: "password", email }, { title: "Welcome to ACRY!", body: "Your AI Second Brain is ready." });
           supabase.functions.invoke("send-branded-auth-email", {
             body: {
               type: "confirm",
