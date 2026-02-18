@@ -183,9 +183,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showPushPrefs, setShowPushPrefs] = useState(false);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [showMLDashboard, setShowMLDashboard] = useState(false);
-  const [showWhatsAppSetting, setShowWhatsAppSetting] = useState(false);
-  const [whatsappOptedIn, setWhatsappOptedIn] = useState(true);
-  const [whatsappNumber, setWhatsappNumber] = useState("");
 
   const voiceSettings = getVoiceSettings();
   const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
@@ -273,7 +270,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     });
     // Load leaderboard opt-in & subscription
     if (user) {
-      supabase.from("profiles").select("opt_in_leaderboard, email_notifications_enabled, email_study_reminders, email_weekly_reports, weekly_report_day, weekly_report_hour, whatsapp_opted_in, whatsapp_number").eq("id", user.id).maybeSingle().then(({ data }) => {
+      supabase.from("profiles").select("opt_in_leaderboard, email_notifications_enabled, email_study_reminders, email_weekly_reports, weekly_report_day, weekly_report_hour").eq("id", user.id).maybeSingle().then(({ data }) => {
         if (data) {
           setLeaderboardOptIn(data.opt_in_leaderboard ?? false);
           setEmailNotifications((data as any).email_notifications_enabled ?? true);
@@ -284,8 +281,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           const localH = ((storedUtcHour * 60 - offsetMin) / 60) % 24;
           setWeeklyReportHour(localH < 0 ? localH + 24 : Math.floor(localH));
           setWeeklyReportDay((data as any).weekly_report_day ?? 0);
-          setWhatsappOptedIn((data as any).whatsapp_opted_in ?? true);
-          setWhatsappNumber((data as any).whatsapp_number || "");
         }
       });
       supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
@@ -453,7 +448,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting), isOpen: showEmailSetting },
     { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting), isOpen: showFeedbackSetting },
     { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings), isOpen: showVoiceSettings, gateKey: "voice_notifications" },
-    { icon: MessageSquare, label: "WhatsApp Notifications", value: whatsappOptedIn ? "On" : "Off", onClick: () => setShowWhatsAppSetting(!showWhatsAppSetting), isOpen: showWhatsAppSetting },
+    
   ];
 
   const dataSection = [
@@ -1058,85 +1053,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         </AnimatePresence>
         )}
 
-        {/* WhatsApp Notifications Panel */}
-        <AnimatePresence>
-          {showWhatsAppSetting && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
-            >
-              <div className="glass rounded-xl p-4 neural-border space-y-4 mt-1">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-foreground">WhatsApp Notifications</span>
-                    <button
-                      onClick={async () => {
-                        const newVal = !whatsappOptedIn;
-                        setWhatsappOptedIn(newVal);
-                        if (user) await supabase.from("profiles").update({ whatsapp_opted_in: newVal } as any).eq("id", user.id);
-                        toast({ title: newVal ? "✅ WhatsApp notifications enabled" : "WhatsApp notifications disabled" });
-                      }}
-                      className={`w-10 h-6 rounded-full transition-all relative ${whatsappOptedIn ? "bg-primary" : "bg-secondary"}`}
-                    >
-                      <motion.div
-                        className="w-4 h-4 rounded-full bg-white absolute top-1"
-                        animate={{ left: whatsappOptedIn ? 22 : 4 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    Receive study reminders, streak alerts, and risk digests via WhatsApp
-                  </p>
-                </div>
-
-                {whatsappOptedIn && (
-                  <>
-                    <div className="border-t border-border" />
-                    <div>
-                      <label className="text-xs font-medium text-foreground">WhatsApp Number</label>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-xs text-muted-foreground">+91</span>
-                        <input
-                          type="tel"
-                          value={whatsappNumber.replace(/^\+91/, "")}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
-                            setWhatsappNumber(digits);
-                          }}
-                          placeholder="10-digit number"
-                          className="flex-1 rounded-lg bg-secondary border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        />
-                        <button
-                          onClick={async () => {
-                            const num = whatsappNumber.replace(/\D/g, "");
-                            if (num.length !== 10) {
-                              toast({ title: "Invalid number", description: "Please enter a valid 10-digit number.", variant: "destructive" });
-                              return;
-                            }
-                            const fullNum = `+91${num}`;
-                            if (user) await supabase.from("profiles").update({ whatsapp_number: fullNum } as any).eq("id", user.id);
-                            setWhatsappNumber(num);
-                            toast({ title: "📱 WhatsApp number saved!" });
-                          }}
-                          className="text-xs font-medium text-primary hover:text-primary/80 px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors"
-                        >
-                          Save
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        We'll send notifications to this number
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Push Notification Preferences Panel */}
         {isEnabled("you_notif_push") && (
