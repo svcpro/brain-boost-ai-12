@@ -85,7 +85,19 @@ export const usePlanGating = () => {
       return;
     }
 
-    setCurrentPlan(data.plan_id || "none");
+    // Resolve plan_id to plan_key — plan_id may be a UUID or a plan_key string
+    let planKey = data.plan_id || "none";
+    // If plan_id looks like a UUID, look up the plan_key from subscription_plans
+    if (planKey.includes("-") && planKey.length > 10) {
+      const { data: planData } = await supabase
+        .from("subscription_plans")
+        .select("plan_key")
+        .eq("id", planKey)
+        .maybeSingle();
+      planKey = planData?.plan_key || "none";
+    }
+
+    setCurrentPlan(planKey);
     setSubscription(data);
   }, [user]);
 
