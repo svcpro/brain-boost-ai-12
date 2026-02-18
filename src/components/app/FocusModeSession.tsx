@@ -267,6 +267,15 @@ const FocusModeSession = ({ open, onClose, onSessionComplete, initialSubject, in
       topic: summary.topic || summary.subject,
       confidence,
     }, { title: "Focus Session Complete!", body: `${summary.elapsedMinutes} min on ${summary.topic || summary.subject}` });
+
+    // Emit dynamic reward (non-blocking)
+    import("@/lib/eventBus").then(({ emitDynamicReward }) =>
+      emitDynamicReward({
+        session_duration: summary.elapsedMinutes,
+        topics_reviewed: 1,
+        confidence_delta: confidence === "high" ? 10 : confidence === "medium" ? 0 : -10,
+      })
+    );
     
     // WhatsApp notification preview for focus session completion
     if (user && summary) {

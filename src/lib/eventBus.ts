@@ -29,6 +29,53 @@ export async function emitEvent(
 }
 
 /**
+ * Track user engagement for send-time optimization (non-blocking).
+ */
+export async function trackEngagement(type: string = "app_open"): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase.functions.invoke("intelligent-notify-engine", {
+      body: { action: "track_engagement", user_id: user.id, data: { type } },
+    });
+  } catch {
+    // Non-blocking
+  }
+}
+
+/**
+ * Emit dynamic reward after a productive session.
+ */
+export async function emitDynamicReward(data: {
+  session_duration?: number;
+  topics_reviewed?: number;
+  confidence_delta?: number;
+  memory_points_saved?: number;
+}): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const rewardRes = await supabase.functions.invoke("intelligent-notify-engine", {
+      body: { action: "compute_dynamic_reward", user_id: user.id, data },
+    });
+
+    if (rewardRes.data?.rewards?.length > 0) {
+      await emitEvent("dynamic_reward", {
+        rewards: rewardRes.data.rewards,
+        ...data,
+      }, {
+        title: "🏆 Session Complete!",
+        body: rewardRes.data.rewards[0],
+      });
+    }
+  } catch {
+    // Non-blocking
+  }
+}
+
+/**
  * Admin broadcast – sends to multiple users (service-role only via edge function).
  */
 export async function emitAdminEvent(
