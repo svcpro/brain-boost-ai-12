@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authenticateRequest, requireAdmin, handleCors, jsonResponse, errorResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,9 @@ interface SendWhatsAppRequest {
   user_id?: string;
   category?: string;
 }
+
+// Phone number validation: E.164 format
+const PHONE_REGEX = /^\+[1-9]\d{6,14}$/;
 
 async function sendTwilioWhatsApp(
   accountSid: string,
@@ -34,7 +38,6 @@ async function sendTwilioWhatsApp(
     formData.append("MediaUrl", mediaUrl);
   }
 
-  // Add status callback
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const callbackUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
   formData.append("StatusCallback", callbackUrl);
@@ -69,6 +72,23 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Authenticate the request - require admin access
+    let auth;
+    try {
+      auth = await authenticateRequest(req);
+    } catch (res) {
+      if (res instanceof Response) return res;
+      throw res;
+    }
+
+    // Require admin role for sending WhatsApp messages
+    try {
+      await requireAdmin(auth.userId);
+    } catch (res) {
+      if (res instanceof Response) return res;
+      throw res;
+    }
+
     const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
     const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
     const TWILIO_WHATSAPP_NUMBER = Deno.env.get("TWILIO_WHATSAPP_NUMBER");
@@ -84,10 +104,22 @@ serve(async (req) => {
 
     const body: SendWhatsAppRequest | SendWhatsAppRequest[] = await req.json();
     const requests = Array.isArray(body) ? body : [body];
+
+    // Limit batch size
+    if (requests.length > 100) {
+      return errorResponse("Batch size exceeds maximum of 100", 400);
+    }
+
     const results: { to: string; status: string; sid?: string; error?: string }[] = [];
 
     for (const item of requests) {
       try {
+        // Validate phone number
+        if (!item.to || !PHONE_REGEX.test(item.to)) {
+          results.push({ to: item.to || "unknown", status: "failed", error: "Invalid phone number format" });
+          continue;
+        }
+
         let messageBody = item.message || "";
 
         // Resolve template if provided
@@ -114,6 +146,11 @@ serve(async (req) => {
         if (!messageBody) {
           results.push({ to: item.to, status: "failed", error: "No message content" });
           continue;
+        }
+
+        // Truncate message to WhatsApp limit
+        if (messageBody.length > 4096) {
+          messageBody = messageBody.slice(0, 4096);
         }
 
         // Send via Twilio
@@ -155,21 +192,16 @@ serve(async (req) => {
         }
       } catch (err) {
         console.error(`WhatsApp send error for ${item.to}:`, err);
-        results.push({ to: item.to, status: "failed", error: err instanceof Error ? err.message : "Unknown error" });
+        results.push({ to: item.to, status: "failed", error: "Send failed" });
       }
     }
 
     const sent = results.filter(r => r.status !== "failed").length;
     const failed = results.filter(r => r.status === "failed").length;
 
-    return new Response(JSON.stringify({ sent, failed, results }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ sent, failed, results });
   } catch (e) {
     console.error("send-whatsapp error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return errorResponse("Internal error", 500);
   }
 });
