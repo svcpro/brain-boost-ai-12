@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveTemplate, sanitizeMessage } from "../_shared/variableResolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -456,13 +457,14 @@ serve(async (req) => {
         .maybeSingle();
 
       if (template) {
-        // Replace variables in custom template
-        subject = template.subject;
-        htmlBody = template.html_body;
-        for (const [key, value] of Object.entries({ ...variables, user_name: userName })) {
-          const regex = new RegExp(`{{${key}}}`, "g");
-          subject = subject.replace(regex, String(value));
-          htmlBody = htmlBody.replace(regex, String(value));
+        // Replace variables in custom template using UVR
+        const allVars = { ...variables, user_name: userName };
+        const subjectResult = resolveTemplate(template.subject, allVars);
+        const bodyResult = resolveTemplate(template.html_body, allVars);
+        subject = subjectResult.resolved;
+        htmlBody = bodyResult.resolved;
+        if (subjectResult.warnings.length > 0 || bodyResult.warnings.length > 0) {
+          console.warn(`[UVR] Email template variable warnings for ${trigger_key}:`, [...subjectResult.warnings, ...bodyResult.warnings]);
         }
       } else {
         const content = generateEmailContent(trigger_key, variables, userName);

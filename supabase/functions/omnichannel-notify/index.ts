@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sanitizeMessage } from "../_shared/variableResolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +77,15 @@ serve(async (req) => {
     const fallbackChannels: string[] = rule.fallback_channels || [];
     let title = payload.title || data.title || rule.display_name;
     let body = payload.body || data.body || "";
+
+    // ── UVR: Sanitize title & body before dispatch ──
+    const titleSan = sanitizeMessage(title);
+    const bodySan = sanitizeMessage(body);
+    title = titleSan.cleaned || rule.display_name;
+    body = bodySan.cleaned;
+    if (titleSan.issues.length > 0 || bodySan.issues.length > 0) {
+      console.warn(`[UVR] omnichannel title/body warnings for ${event_type}:`, [...titleSan.issues, ...bodySan.issues]);
+    }
 
     let totalDelivered = 0;
     let totalFailed = 0;
