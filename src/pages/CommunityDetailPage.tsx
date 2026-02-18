@@ -175,6 +175,8 @@ const CommunityDetailPage = () => {
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     await supabase.from("community_posts").update({ comment_count: (posts.find(p => p.id === postId)?.comment_count || 0) + 1 }).eq("id", postId);
+    // Emit comment event (non-blocking)
+    import("@/lib/eventBus").then(({ emitEvent }) => emitEvent("community_reply", { post_id: postId }, { title: "New Comment" }));
     setCommentText(prev => ({ ...prev, [postId]: "" }));
     setReplyTo(prev => ({ ...prev, [postId]: null }));
     const { data } = await supabase.from("post_comments").select("*").eq("post_id", postId).eq("is_deleted", false).order("created_at", { ascending: true });
@@ -726,6 +728,9 @@ const CreatePostModal = ({ communityId, onClose, onCreated }: { communityId: str
       ai_tags: aiTags.length > 0 ? aiTags : null,
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); setLoading(false); return; }
+    // Emit community post event
+    const { emitEvent } = await import("@/lib/eventBus");
+    emitEvent("community_reply", { community_id: communityId, post_type: postType }, { title: "New Post!", body: finalTitle });
     toast({ title: "Post created! 📝" });
     onCreated();
   };

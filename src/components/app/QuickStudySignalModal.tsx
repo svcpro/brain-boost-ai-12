@@ -143,6 +143,11 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess, initialSubject, initi
         notifyFeedback();
         confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, zIndex: 9999 });
         toast({ title: "🧠 Brain updated!", description: "Your study signal has been logged." });
+        import("@/lib/eventBus").then(({ emitEvent }) =>
+          emitEvent("study_session_end", {
+            mode: "brain_update", duration: parseInt(minutes), topic: finalTopic || finalSubject, confidence,
+          }, { title: "Brain Updated!", body: `${minutes} min on ${finalTopic || finalSubject}` })
+        );
         setTimeout(() => {
           setSubject("");
           setTopic("");

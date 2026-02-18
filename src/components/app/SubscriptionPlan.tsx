@@ -147,6 +147,10 @@ const SubscriptionPlan = ({ onClose, currentPlan = "free", onPlanChanged }: Subs
           }
 
           toast({ title: "Upgrade Successful! 🎉", description: `You're now on ${plan.name}. Enjoy premium features!` });
+          // Emit subscription activated event
+          import("@/lib/eventBus").then(({ emitEvent }) =>
+            emitEvent("subscription_activated", { plan: plan.name, amount: price, billing_cycle: billingCycle }, { title: "Subscription Activated!", body: `Welcome to ${plan.name}!` })
+          );
           onPlanChanged?.();
           onClose();
         },
