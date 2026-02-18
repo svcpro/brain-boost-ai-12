@@ -51,7 +51,7 @@ function resolvePreview(template: string, sampleData: Record<string, string>): s
 
 interface Props {
   template: string;
-  channel: "whatsapp" | "push" | "email" | "voice";
+  channel: "push" | "email" | "voice";
   className?: string;
 }
 
@@ -78,7 +78,7 @@ export default function TemplateVariableValidator({ template, channel, className
     setLoading(true);
     setLiveWarnings([]);
     try {
-      const { data, error } = await supabase.functions.invoke("resolve-whatsapp-variables", {
+      const { data, error } = await supabase.functions.invoke("resolve-variables", {
         body: { user_ids: [testUserId.trim()], template_message: template },
       });
       if (error) throw error;

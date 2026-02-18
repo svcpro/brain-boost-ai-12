@@ -42,7 +42,7 @@ const PricingSection = () => {
     { feature: "Custom Study Plans", pro: false, ultra: true },
     { feature: "Peer Competition Insights", pro: false, ultra: true },
     { feature: "Full Community Access", pro: false, ultra: true },
-    { feature: "Full WhatsApp Notifications", pro: false, ultra: true },
+    
     { feature: "Knowledge Graph", pro: false, ultra: true },
     { feature: "Cognitive Twin", pro: false, ultra: true },
     { feature: "Data Export & Backup", pro: false, ultra: true },

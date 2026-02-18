@@ -7,7 +7,7 @@ import {
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone,
-  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Megaphone, Sparkles, MessageSquare, Globe,
+  Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Sparkles, MessageSquare, Globe,
   Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
@@ -26,7 +26,7 @@ import SubscriptionAnalytics from "@/components/app/SubscriptionAnalytics";
 import ApiManagement from "@/components/app/ApiManagement";
 import UserManagement from "@/components/app/UserManagement";
 import AdminNotificationCenter from "@/components/app/AdminNotificationCenter";
-import CampaignManager from "@/components/app/CampaignManager";
+
 import LeaderboardManagement from "@/components/app/LeaderboardManagement";
 import PlanGatingManagement from "@/components/app/PlanGatingManagement";
 import PermissionManagement from "@/components/admin/PermissionManagement";
@@ -45,7 +45,7 @@ import VoiceNotificationManagement from "@/components/admin/VoiceNotificationMan
 import NotificationIntelligence from "@/components/admin/NotificationIntelligence";
 import GrowthControlCenter from "@/components/admin/GrowthControlCenter";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -103,7 +103,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "notify_intelligence", label: "🧠 AI Intelligence", icon: Brain, roles: ["super_admin", "admin"], badge: "NEW" },
       { key: "growth_center", label: "🚀 Growth Engine", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "NEW" },
-      { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
+      
       { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
       { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
       { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
@@ -461,7 +461,7 @@ const AdminPanel = () => {
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
               {section === "finance" && <FinanceManagement />}
-              {section === "campaigns" && <CampaignManager />}
+              
               
               {section === "push" && <PushNotificationManagement />}
               {section === "voice" && <VoiceNotificationManagement />}

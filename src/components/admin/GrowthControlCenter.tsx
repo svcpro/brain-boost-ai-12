@@ -176,12 +176,12 @@ const GrowthControlCenter = () => {
                   </TableHeader>
                   <TableBody>
                     {[
-                      { seg: "new_user", freq: "High (3-4/day)", tone: "Welcoming", channels: "Push, WhatsApp" },
+                      { seg: "new_user", freq: "High (3-4/day)", tone: "Welcoming", channels: "Push, Email" },
                       { seg: "early_learner", freq: "Medium (2/day)", tone: "Encouraging", channels: "Push, Email" },
                       { seg: "active_learner", freq: "Normal (1-2/day)", tone: "Informative", channels: "Push" },
                       { seg: "power_user", freq: "Low (1/day)", tone: "Competitive", channels: "Push, In-App" },
-                      { seg: "at_risk", freq: "High (3/day)", tone: "Urgent", channels: "Push, WhatsApp, Email" },
-                      { seg: "dormant", freq: "Critical (4/day)", tone: "Loss Aversion", channels: "WhatsApp, Voice, Email" },
+                      { seg: "at_risk", freq: "High (3/day)", tone: "Urgent", channels: "Push, Email, Voice" },
+                      { seg: "dormant", freq: "Critical (4/day)", tone: "Loss Aversion", channels: "Voice, Email, Push" },
                       { seg: "exam_week", freq: "Very High", tone: "Serious Mentor", channels: "All Channels" },
                       { seg: "high_churn_risk", freq: "Escalation", tone: "Emotional", channels: "Escalation Ladder" },
                     ].map(r => {

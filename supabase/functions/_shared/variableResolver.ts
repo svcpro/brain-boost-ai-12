@@ -1,7 +1,7 @@
 /**
  * Unified Variable Resolver (UVR)
  * Centralized variable validation, fallback injection, and pre-send sanitization
- * for ALL notification channels (WhatsApp, Push, Email, Voice).
+ * for ALL notification channels (Push, Email, Voice).
  *
  * Guarantees: No notification is ever sent with blank, undefined, or null variables.
  */
@@ -76,7 +76,7 @@ const VARIABLE_DEFAULTS: Record<string, string> = {
   fixed_count: "several",
   maintenance_date: "soon",
   downtime: "~30 minutes",
-  // WhatsApp-specific resolve-whatsapp-variables fields
+  // Additional notification variable fields
   last_studied: "recently",
   days_since_review: "0",
   revision_count: "0",

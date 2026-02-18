@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check, CalendarCheck, Shield, Crown, Award, ShieldAlert, MessageSquare } from "lucide-react";
+import { Bell, Gift, Flame, BookOpen, Brain, Sparkles, Clock, Zap, Loader2, Copy, Share2, Check, CalendarCheck, Shield, Crown, Award, ShieldAlert } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +20,6 @@ export interface PushNotifPrefs {
   weeklyInsights: boolean;
   dailyBriefing: boolean;
   riskDigest: boolean;
-  whatsappNotifications: boolean;
 }
 
 const defaultPrefs: PushNotifPrefs = {
@@ -31,7 +30,6 @@ const defaultPrefs: PushNotifPrefs = {
   weeklyInsights: true,
   dailyBriefing: true,
   riskDigest: true,
-  whatsappNotifications: true,
 };
 
 export function getPushNotifPrefs(): PushNotifPrefs {
@@ -256,12 +254,6 @@ const NotificationPreferencesPanel = () => {
       label: "Daily risk digest",
       desc: "At-risk topics and quick study plan every morning",
       key: "riskDigest" as const,
-    },
-    {
-      icon: MessageSquare,
-      label: "WhatsApp notifications",
-      desc: "Receive study reminders and alerts via WhatsApp",
-      key: "whatsappNotifications" as const,
     },
     {
       icon: Brain,
