@@ -1,119 +1,192 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sanitizeMessage } from "../_shared/variableResolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// All supported WhatsApp notification event types and their default messages
-const EVENT_TEMPLATES: Record<string, { title: string; buildMessage: (data: Record<string, any>) => string }> = {
+// ─── Event → Meta-approved template mapping ───
+// Each entry maps a system event to the approved template_name in meta_template_submissions
+// and defines how to map event data fields to positional variables {{1}}, {{2}}, etc.
+interface TemplateMapping {
+  metaTemplateName: string;
+  // Maps positional index (1-based) to a data key or a resolver function
+  variableMap: (data: Record<string, any>, profile: any) => Record<string, string>;
+}
+
+const EVENT_TO_TEMPLATE: Record<string, TemplateMapping> = {
   // ── Auth & Onboarding ──
   signup: {
-    title: "🎉 Welcome to ACRY!",
-    buildMessage: (d) => `🎉 Welcome${d.name ? ` ${d.name}` : ""}! Your AI Second Brain is ready. Start studying smarter today! 🧠`,
+    metaTemplateName: "new_user_welcome",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.first_topic || "Your First Topic",
+      "3": d.community_count || "10,000",
+    }),
   },
   user_signup: {
-    title: "🎉 Welcome to ACRY!",
-    buildMessage: (d) => `🎉 Welcome${d.name ? ` ${d.name}` : ""}! Your AI Second Brain is ready. Start studying smarter today! 🧠`,
+    metaTemplateName: "new_user_welcome",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.first_topic || "Your First Topic",
+      "3": d.community_count || "10,000",
+    }),
   },
-  profile_completed: {
-    title: "✅ Profile Set Up!",
-    buildMessage: (d) => `✅ Profile configured${d.name ? ` ${d.name}` : ""}! Your brain is mapped and ready. Let's start learning! 🚀`,
-  },
-  exam_setup: {
-    title: "🎯 Exam Target Set!",
-    buildMessage: (d) => `🎯 Exam target locked${d.exam_type ? `: ${d.exam_type}` : ""}! Your AI study plan is ready. Let's crush it! 💪`,
-  },
+
   // ── Study & Memory ──
-  daily_goal_completed: {
-    title: "🎯 Daily Goal Completed!",
-    buildMessage: (d) => `🎯 You crushed your daily goal! ${d.minutes || 0} minutes studied today. Keep the momentum going! 🔥`,
-  },
-  streak_milestone: {
-    title: "🔥 Streak Milestone!",
-    buildMessage: (d) => `🔥 ${d.days}-day streak! You're on fire! Every day counts — don't break the chain! 💪`,
-  },
-  streak_broken: {
-    title: "💔 Streak Broken",
-    buildMessage: (d) => `💔 Your ${d.previous_days || 0}-day streak ended. No worries — start fresh today and bounce back stronger! 🚀`,
-  },
-  streak_freeze_used: {
-    title: "🧊 Streak Freeze Used",
-    buildMessage: (d) => `🧊 A streak freeze saved your ${d.days}-day streak yesterday! You have ${d.remaining || 0} freezes left. Study today to keep going!`,
+  study_reminder: {
+    metaTemplateName: "study_reminder",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.topic_name || "your topics",
+      "3": String(d.memory_score ?? d.strength ?? "45"),
+      "4": d.last_studied || "3 days",
+    }),
   },
   memory_strength_drop: {
-    title: "⚠️ Memory Alert",
-    buildMessage: (d) => `⚠️ "${d.topic_name}" dropped to ${d.strength}% memory strength. A quick 10-min review can save it! 📚`,
-  },
-  study_reminder: {
-    title: "📖 Time to Study!",
-    buildMessage: (d) => `📖 Hey! ${d.message || "It's time for your scheduled study session. Open the app and start learning!"} 💡`,
+    metaTemplateName: "forget_risk_alert",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.topic_name || "a topic",
+      "3": String(d.strength ?? d.score ?? "32"),
+      "4": d.predicted_forget_date || "soon",
+    }),
   },
   weak_topic_alert: {
-    title: "🧠 Weak Topic Alert",
-    buildMessage: (d) => `🧠 "${d.topic_name}" needs attention — it's one of your weakest topics. A focused session can make a big difference! 📝`,
+    metaTemplateName: "forget_risk_alert",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.topic_name || "a topic",
+      "3": String(d.strength ?? d.score ?? "30"),
+      "4": d.predicted_forget_date || "soon",
+    }),
+  },
+  risk_digest: {
+    metaTemplateName: "daily_risk_digest",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": String(d.at_risk_count ?? d.topics_at_risk ?? "5"),
+      "3": d.weakest_topic || "a topic",
+      "4": String(d.weakest_score ?? "28"),
+      "5": String(d.average_score ?? "62"),
+    }),
+  },
+  daily_goal_completed: {
+    metaTemplateName: "daily_briefing",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": String(d.topics_count ?? "6"),
+      "3": String(d.brain_score ?? "78"),
+      "4": String(d.streak_days ?? d.days ?? "1"),
+      "5": d.focus_topic || "your topics",
+    }),
+  },
+
+  // ── Streak ──
+  streak_milestone: {
+    metaTemplateName: "streak_milestone",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": String(d.days ?? "7"),
+      "3": String(d.total_sessions ?? "30"),
+      "4": String(d.rank ?? "50"),
+    }),
+  },
+  streak_broken: {
+    metaTemplateName: "inactivity_nudge",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": String(d.days_inactive ?? d.previous_days ?? "3"),
+      "3": String(d.memory_drop ?? "18"),
+      "4": String(d.decaying_topics ?? "5"),
+      "5": String(d.friends_count ?? "10"),
+    }),
+  },
+  comeback_nudge: {
+    metaTemplateName: "inactivity_nudge",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": String(d.days_inactive ?? "5"),
+      "3": String(d.memory_drop ?? "18"),
+      "4": String(d.decaying_topics ?? "7"),
+      "5": String(d.friends_count ?? "12"),
+    }),
   },
 
   // ── AI & Brain ──
-  risk_digest: {
-    title: "🔴 Daily Risk Digest",
-    buildMessage: (d) => d.digest_text || `🔴 ${d.at_risk_count || 0} topics are at risk today. Open the app for your personalized study plan!`,
-  },
   brain_mission_assigned: {
-    title: "🎯 New Brain Mission!",
-    buildMessage: (d) => `🎯 New mission: "${d.mission_title}". ${d.description || "Complete it to level up your brain!"} 🧠`,
+    metaTemplateName: "brain_missions",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.mission_title || "New Mission",
+      "3": d.mission_type || "Weekly",
+      "4": d.reward || "50 XP",
+      "5": d.deadline || "Sunday",
+    }),
   },
   brain_mission_completed: {
-    title: "✅ Mission Complete!",
-    buildMessage: (d) => `✅ Mission "${d.mission_title}" completed! ${d.reward || "Great work — check for your next challenge!"} 🏆`,
-  },
-  weekly_report: {
-    title: "📊 Weekly Report",
-    buildMessage: (d) => `📊 Your weekly report is ready! ${d.summary || "See how you performed this week."} Check the app for details! 📈`,
-  },
-  ai_recommendation: {
-    title: "💡 AI Recommendation",
-    buildMessage: (d) => `💡 AI Tip: ${d.recommendation || "We have a new personalized recommendation for you!"} Open the app to see details.`,
+    metaTemplateName: "brain_missions",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.mission_title || "Mission Complete",
+      "3": d.mission_type || "Achievement",
+      "4": d.reward || "Completed!",
+      "5": d.deadline || "Done",
+    }),
   },
   brain_update: {
-    title: "🧠 Brain Update",
-    buildMessage: (d) => `🧠 Your cognitive model just updated! ${d.summary || "New insights about your learning patterns are available."} 📊`,
+    metaTemplateName: "brain_update_reminder",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": String(d.hours_since ?? "36"),
+      "3": String(d.pending_topics ?? "8"),
+      "4": String(d.brain_score ?? "71"),
+    }),
   },
 
   // ── Engagement ──
-  comeback_nudge: {
-    title: "👋 We Miss You!",
-    buildMessage: (d) => `👋 Hey${d.name ? ` ${d.name}` : ""}! You've been away for ${d.days_inactive || "a few"} days. Your topics are fading — a quick session can bring them back! 🚀`,
-  },
-  badge_earned: {
-    title: "🏅 Badge Earned!",
-    buildMessage: (d) => `🏅 You earned the "${d.badge_name}" badge! ${d.description || "Keep up the amazing work!"} 🎉`,
-  },
   leaderboard_rank_change: {
-    title: "📈 Rank Update",
-    buildMessage: (d) => `📈 Your rank ${d.direction === "up" ? "improved" : "changed"} to #${d.new_rank}${d.direction === "up" ? "! Keep climbing! 🚀" : ". Study more to climb back up! 💪"}`,
-  },
-  exam_result: {
-    title: "📝 Exam Result",
-    buildMessage: (d) => `📝 You scored ${d.score}/${d.total} (${d.percentage || Math.round((d.score / d.total) * 100)}%) on your ${d.difficulty || ""} exam. ${(d.score / d.total) >= 0.8 ? "Excellent work! 🌟" : "Review weak areas to improve! 📖"}`,
+    metaTemplateName: "leaderboard_rank_up",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": String(d.old_rank ?? "25"),
+      "3": String(d.new_rank ?? "18"),
+      "4": String(d.rank_jump ?? Math.abs((d.old_rank || 25) - (d.new_rank || 18))),
+      "5": String(d.top_percent ?? "10"),
+    }),
   },
   exam_countdown: {
-    title: "⏰ Exam Countdown",
-    buildMessage: (d) => `⏰ ${d.days_left} days until your ${d.exam_type || "exam"}! Stay focused and follow your study plan. You got this! 💪`,
-  },
-  focus_session_completed: {
-    title: "✅ Focus Session Done",
-    buildMessage: (d) => `✅ Great focus session! ${d.minutes || 25} minutes on "${d.topic_name || "your topics"}". ${d.streak_bonus ? "Streak bonus applied! " : ""}Keep it up! 🎯`,
-  },
-  community_reply: {
-    title: "💬 New Reply",
-    buildMessage: (d) => `💬 Someone replied to your post "${d.post_title || ""}". Check the community to continue the discussion! 🗣️`,
+    metaTemplateName: "exam_countdown",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.exam_type || "your exam",
+      "3": String(d.days_left ?? "15"),
+      "4": String(d.readiness ?? "68"),
+      "5": String(d.topics_remaining ?? "12"),
+      "6": String(d.daily_target ?? "3"),
+    }),
   },
   subscription_expiry: {
-    title: "⚡ Subscription Alert",
-    buildMessage: (d) => `⚡ Your ${d.plan || "Pro"} plan expires in ${d.days_left} days. Renew now to keep your premium features! ✨`,
+    metaTemplateName: "subscription_expiry",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": d.plan || "Pro",
+      "3": String(d.days_left ?? "5"),
+      "4": d.expiry_date || "soon",
+      "5": d.renewal_price || "₹299/mo",
+    }),
+  },
+
+  // ── Burnout ──
+  burnout_alert: {
+    metaTemplateName: "burnout_alert",
+    variableMap: (d, p) => ({
+      "1": p.display_name || d.name || "Student",
+      "2": String(d.fatigue_score ?? "85"),
+      "3": String(d.session_duration ?? "120"),
+      "4": d.optimal_time || "6:00 PM",
+    }),
   },
 };
 
@@ -149,9 +222,11 @@ serve(async (req) => {
       });
     }
 
-    const template = EVENT_TEMPLATES[event_type];
-    if (!template) {
-      return new Response(JSON.stringify({ error: `Unknown event_type: ${event_type}` }), {
+    // Get the template mapping for this event
+    const mapping = EVENT_TO_TEMPLATE[event_type];
+    if (!mapping) {
+      console.warn(`No approved template mapping for event: ${event_type}`);
+      return new Response(JSON.stringify({ error: `No approved template mapping for event: ${event_type}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -166,35 +241,27 @@ serve(async (req) => {
       });
     }
 
-    // Check if this event has a Meta template mapping
-    let metaTemplateBody: string | null = null;
-    const { data: mappingsFlag } = await supabase
-      .from("feature_flags")
-      .select("label")
-      .eq("flag_key", "whatsapp_event_meta_mappings")
+    // Look up the approved Meta template from DB to get Twilio Content SID
+    const { data: metaTemplate } = await supabase
+      .from("meta_template_submissions")
+      .select("id, template_name, meta_template_id, meta_status, body_text")
+      .eq("template_name", mapping.metaTemplateName)
+      .eq("meta_status", "approved")
       .maybeSingle();
 
-    if (mappingsFlag?.label) {
-      try {
-        const mappings = JSON.parse(mappingsFlag.label);
-        const mapping = mappings[event_type];
-        if (mapping?.metaTemplateId && mapping?.enabled !== false) {
-          // Fetch the Meta template body
-          const { data: metaTmpl } = await supabase
-            .from("meta_template_submissions")
-            .select("body_text, template_name")
-            .eq("id", mapping.metaTemplateId)
-            .eq("meta_status", "approved")
-            .maybeSingle();
-          if (metaTmpl) {
-            metaTemplateBody = metaTmpl.body_text;
-            console.log(`Using Meta template "${metaTmpl.template_name}" for event "${event_type}"`);
-          }
-        }
-      } catch (e) {
-        console.warn("Failed to parse event-meta mappings:", e);
-      }
+    if (!metaTemplate || !metaTemplate.meta_template_id) {
+      console.error(`No approved Meta template found for: ${mapping.metaTemplateName}`);
+      return new Response(JSON.stringify({
+        error: `Template "${mapping.metaTemplateName}" not approved or missing`,
+        event_type,
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    const contentSid = metaTemplate.meta_template_id; // This is the Twilio Content SID (HX...)
+    console.log(`Event "${event_type}" → Template "${metaTemplate.template_name}" → ContentSID "${contentSid}"`);
 
     // Fetch opted-in users with WhatsApp numbers
     const { data: profiles } = await supabase
@@ -209,91 +276,29 @@ serve(async (req) => {
       });
     }
 
-    // Check if there's a whatsapp_template with a Twilio Content SID for this event
-    let twilioContentSid: string | null = null;
-    let templateName: string | null = null;
-    let templateVars: string[] = [];
-
-    const { data: waTmpl } = await supabase
-      .from("whatsapp_templates")
-      .select("name, twilio_content_sid, variables")
-      .eq("name", event_type)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (waTmpl?.twilio_content_sid) {
-      twilioContentSid = waTmpl.twilio_content_sid;
-      templateName = waTmpl.name;
-      templateVars = (waTmpl.variables as string[]) || [];
-      console.log(`Found Twilio Content SID "${twilioContentSid}" for event "${event_type}"`);
-    }
-
-    // Build messages — use approved template if available, Meta template if mapped, otherwise default
-    const messages: { to: string; message: string; user_id: string; category: string; content_sid?: string; content_variables?: Record<string, string>; template_name?: string }[] = [];
+    // Build messages using approved template + Content SID
+    const messages: {
+      to: string;
+      user_id: string;
+      category: string;
+      content_sid: string;
+      content_variables: Record<string, string>;
+      template_name: string;
+    }[] = [];
 
     for (const p of profiles) {
       if (!p.whatsapp_number) continue;
 
-      // If we have a Twilio Content SID, use approved template
-      if (twilioContentSid) {
-        const params = { ...data, name: p.display_name };
-        const contentVariables: Record<string, string> = {};
-        templateVars.forEach((v: string, i: number) => {
-          contentVariables[String(i + 1)] = params[v] || `{{${v}}}`;
-        });
+      const normalizedNumber = p.whatsapp_number.replace(/\s+/g, "");
+      const contentVariables = mapping.variableMap(data, p);
 
-        const normalizedNumber = p.whatsapp_number!.replace(/\s+/g, "");
-        messages.push({
-          to: normalizedNumber,
-          message: "",
-          user_id: p.id,
-          category: event_type,
-          content_sid: twilioContentSid,
-          content_variables: contentVariables,
-          template_name: templateName || undefined,
-        });
-        continue;
-      }
-
-      // Otherwise build freeform message
-      let messageText: string;
-
-      if (metaTemplateBody) {
-        try {
-          const resolveResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-whatsapp-variables`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ user_id: p.id, template: metaTemplateBody }),
-          });
-          const resolveData = await resolveResp.json();
-          messageText = resolveData.resolved || metaTemplateBody;
-        } catch (e) {
-          console.warn(`Variable resolution failed for ${p.id}, using default:`, e);
-          messageText = template.buildMessage({ ...data, name: p.display_name });
-        }
-      } else {
-        messageText = template.buildMessage({ ...data, name: p.display_name });
-      }
-
-      // ── UVR Sanitization Gate ──
-      const { cleaned, issues, hasBlank } = sanitizeMessage(messageText);
-      if (hasBlank && cleaned.length < 5) {
-        console.warn(`[UVR] Blocked blank WhatsApp message for user ${p.id}, event ${event_type}:`, issues);
-        continue;
-      }
-      if (issues.length > 0) {
-        console.warn(`[UVR] WhatsApp variable warnings for ${p.id}:`, issues);
-      }
-
-      const normalizedNumber = p.whatsapp_number!.replace(/\s+/g, "");
       messages.push({
         to: normalizedNumber,
-        message: cleaned,
         user_id: p.id,
         category: event_type,
+        content_sid: contentSid,
+        content_variables: contentVariables,
+        template_name: metaTemplate.template_name,
       });
     }
 
@@ -303,7 +308,7 @@ serve(async (req) => {
       });
     }
 
-    // Call the existing send-whatsapp function
+    // Call send-whatsapp with Content SID (approved template path)
     const sendResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp`, {
       method: "POST",
       headers: {
@@ -317,9 +322,10 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       event_type,
+      template_used: metaTemplate.template_name,
+      content_sid: contentSid,
       targeted: targetIds.length,
       eligible: messages.length,
-      meta_template_used: !!metaTemplateBody,
       ...result,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
