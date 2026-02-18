@@ -50,6 +50,15 @@ serve(async (req) => {
       case "compute_dynamic_reward":
         return json(await computeDynamicReward(supabase, user_id, data));
 
+      case "compute_profile":
+        return json(await computeBehavioralProfile(supabase, user_id));
+
+      case "get_analytics":
+        return json(await getNotificationAnalytics(supabase, data));
+
+      case "get_dashboard":
+        return json(await getDashboardData(supabase));
+
       default:
         return json({ error: "Unknown action" }, 400);
     }
@@ -521,6 +530,139 @@ async function computeDynamicReward(supabase: any, userId: string, data: any) {
   }
 
   return { rewards, count: rewards.length };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 11. BEHAVIORAL PROFILE COMPUTATION
+// ═══════════════════════════════════════════════════════════════
+
+async function computeBehavioralProfile(supabase: any, userId: string) {
+  const [sendTime, channels, churn] = await Promise.all([
+    computeOptimalSendTime(supabase, userId),
+    getSmartChannels(supabase, userId),
+    predictChurn(supabase, userId),
+  ]);
+
+  const channelScores = channels.scores || { push: 50, whatsapp: 50, email: 50, voice: 50 };
+  const stressLevel = churn.churn_probability >= 0.7 ? "high" : churn.churn_probability >= 0.4 ? "moderate" : "normal";
+  const motivationType = churn.risk_level === "critical" ? "loss_aversion" : churn.risk_level === "high" ? "social_proof" : "achievement";
+
+  const profile = {
+    user_id: userId,
+    engagement_score: Math.round((1 - churn.churn_probability) * 100),
+    channel_preference: channelScores,
+    churn_risk_score: churn.churn_probability,
+    motivation_type: motivationType,
+    stress_level: stressLevel,
+    best_send_hour: sendTime.optimal_hour,
+    best_send_day: sendTime.optimal_day || 1,
+    notification_fatigue_score: 0,
+    silence_mode_active: false,
+    dopamine_strategy: motivationType === "loss_aversion" ? "scarcity" : motivationType === "social_proof" ? "social_proof" : "curiosity",
+    habit_loop_stage: churn.churn_probability < 0.2 ? "reinforcement" : churn.churn_probability < 0.5 ? "reward" : "cue",
+    rank_war_eligible: false,
+    last_computed_at: new Date().toISOString(),
+  };
+
+  await supabase.from("behavioral_profiles").upsert(profile, { onConflict: "user_id" });
+  return profile;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 12. ANALYTICS DASHBOARD DATA
+// ═══════════════════════════════════════════════════════════════
+
+async function getNotificationAnalytics(supabase: any, data: any) {
+  const days = data?.days || 30;
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+
+  const [deliveryRes, churnRes, escalationRes, bundleRes, channelRes] = await Promise.all([
+    supabase.from("notification_delivery_log").select("status, channel, created_at").gte("created_at", since),
+    supabase.from("churn_predictions").select("risk_level, resolved, churn_probability").gte("created_at", since),
+    supabase.from("notification_escalations").select("current_escalation_level, resolved").gte("created_at", since),
+    supabase.from("notification_bundles").select("status, item_count").gte("created_at", since),
+    supabase.from("channel_effectiveness").select("channel, effectiveness_score, total_sent, total_opened, total_clicked, total_ignored"),
+  ]);
+
+  const deliveries = deliveryRes.data || [];
+  const totalSent = deliveries.length;
+  const delivered = deliveries.filter((d: any) => d.status === "delivered").length;
+  const channelBreakdown: Record<string, number> = {};
+  for (const d of deliveries) {
+    channelBreakdown[d.channel] = (channelBreakdown[d.channel] || 0) + 1;
+  }
+
+  const churns = churnRes.data || [];
+  const churnPrevented = churns.filter((c: any) => c.resolved).length;
+  const highRisk = churns.filter((c: any) => c.risk_level === "critical" || c.risk_level === "high").length;
+
+  const escalations = escalationRes.data || [];
+  const totalEscalated = escalations.length;
+  const resolvedEscalations = escalations.filter((e: any) => e.resolved).length;
+
+  const bundles = bundleRes.data || [];
+  const totalBundled = bundles.reduce((s: number, b: any) => s + (b.item_count || 0), 0);
+
+  const channels = channelRes.data || [];
+
+  return {
+    total_sent: totalSent,
+    total_delivered: delivered,
+    delivery_rate: totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0,
+    channel_breakdown: channelBreakdown,
+    churn_prevented: churnPrevented,
+    high_risk_users: highRisk,
+    total_escalated: totalEscalated,
+    resolved_escalations: resolvedEscalations,
+    total_bundled: totalBundled,
+    channel_effectiveness: channels,
+    period_days: days,
+  };
+}
+
+async function getDashboardData(supabase: any) {
+  const [profilesRes, churnRes, escalationsRes, abTestsRes] = await Promise.all([
+    supabase.from("behavioral_profiles").select("engagement_score, churn_risk_score, motivation_type, dopamine_strategy, stress_level, silence_mode_active, habit_loop_stage").limit(500),
+    supabase.from("churn_predictions").select("risk_level, resolved").order("created_at", { ascending: false }).limit(200),
+    supabase.from("notification_escalations").select("current_escalation_level, resolved, event_type").eq("resolved", false).limit(50),
+    supabase.from("notification_ab_tests").select("*").eq("is_active", true).limit(10),
+  ]);
+
+  const profiles = profilesRes.data || [];
+  const avgEngagement = profiles.length > 0 ? Math.round(profiles.reduce((s: number, p: any) => s + (p.engagement_score || 0), 0) / profiles.length) : 0;
+  const avgChurnRisk = profiles.length > 0 ? Math.round(profiles.reduce((s: number, p: any) => s + (p.churn_risk_score || 0) * 100, 0) / profiles.length) : 0;
+  const silenceModeCount = profiles.filter((p: any) => p.silence_mode_active).length;
+
+  const motivationDist: Record<string, number> = {};
+  const strategyDist: Record<string, number> = {};
+  const stressDist: Record<string, number> = {};
+  const habitDist: Record<string, number> = {};
+  for (const p of profiles) {
+    motivationDist[p.motivation_type] = (motivationDist[p.motivation_type] || 0) + 1;
+    strategyDist[p.dopamine_strategy] = (strategyDist[p.dopamine_strategy] || 0) + 1;
+    stressDist[p.stress_level] = (stressDist[p.stress_level] || 0) + 1;
+    habitDist[p.habit_loop_stage] = (habitDist[p.habit_loop_stage] || 0) + 1;
+  }
+
+  const churns = churnRes.data || [];
+  const churnByLevel: Record<string, number> = {};
+  for (const c of churns) {
+    churnByLevel[c.risk_level] = (churnByLevel[c.risk_level] || 0) + 1;
+  }
+
+  return {
+    total_profiles: profiles.length,
+    avg_engagement: avgEngagement,
+    avg_churn_risk: avgChurnRisk,
+    silence_mode_count: silenceModeCount,
+    motivation_distribution: motivationDist,
+    strategy_distribution: strategyDist,
+    stress_distribution: stressDist,
+    habit_distribution: habitDist,
+    churn_by_level: churnByLevel,
+    active_escalations: escalationsRes.data || [],
+    active_ab_tests: abTestsRes.data || [],
+  };
 }
 
 // ─── Helpers ───

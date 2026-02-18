@@ -409,6 +409,66 @@ export type Database = {
           },
         ]
       }
+      behavioral_profiles: {
+        Row: {
+          best_send_day: number | null
+          best_send_hour: number | null
+          channel_preference: Json | null
+          churn_risk_score: number | null
+          created_at: string
+          dopamine_strategy: string | null
+          engagement_score: number | null
+          habit_loop_stage: string | null
+          id: string
+          last_computed_at: string | null
+          motivation_type: string | null
+          notification_fatigue_score: number | null
+          rank_war_eligible: boolean | null
+          silence_mode_active: boolean | null
+          stress_level: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          best_send_day?: number | null
+          best_send_hour?: number | null
+          channel_preference?: Json | null
+          churn_risk_score?: number | null
+          created_at?: string
+          dopamine_strategy?: string | null
+          engagement_score?: number | null
+          habit_loop_stage?: string | null
+          id?: string
+          last_computed_at?: string | null
+          motivation_type?: string | null
+          notification_fatigue_score?: number | null
+          rank_war_eligible?: boolean | null
+          silence_mode_active?: boolean | null
+          stress_level?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          best_send_day?: number | null
+          best_send_hour?: number | null
+          channel_preference?: Json | null
+          churn_risk_score?: number | null
+          created_at?: string
+          dopamine_strategy?: string | null
+          engagement_score?: number | null
+          habit_loop_stage?: string | null
+          id?: string
+          last_computed_at?: string | null
+          motivation_type?: string | null
+          notification_fatigue_score?: number | null
+          rank_war_eligible?: boolean | null
+          silence_mode_active?: boolean | null
+          stress_level?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       brain_missions: {
         Row: {
           completed_at: string | null
@@ -2236,6 +2296,60 @@ export type Database = {
           variant_b_sent?: number
           variant_b_template?: string
           winner?: string | null
+        }
+        Relationships: []
+      }
+      notification_analytics: {
+        Row: {
+          avg_decision_ms: number | null
+          channel_breakdown: Json | null
+          churn_prevented: number | null
+          created_at: string
+          date: string
+          dopamine_strategy_breakdown: Json | null
+          engagement_lift_pct: number | null
+          id: string
+          retention_lift_pct: number | null
+          total_bundled: number | null
+          total_clicked: number | null
+          total_escalated: number | null
+          total_opened: number | null
+          total_sent: number | null
+          total_suppressed: number | null
+        }
+        Insert: {
+          avg_decision_ms?: number | null
+          channel_breakdown?: Json | null
+          churn_prevented?: number | null
+          created_at?: string
+          date?: string
+          dopamine_strategy_breakdown?: Json | null
+          engagement_lift_pct?: number | null
+          id?: string
+          retention_lift_pct?: number | null
+          total_bundled?: number | null
+          total_clicked?: number | null
+          total_escalated?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          total_suppressed?: number | null
+        }
+        Update: {
+          avg_decision_ms?: number | null
+          channel_breakdown?: Json | null
+          churn_prevented?: number | null
+          created_at?: string
+          date?: string
+          dopamine_strategy_breakdown?: Json | null
+          engagement_lift_pct?: number | null
+          id?: string
+          retention_lift_pct?: number | null
+          total_bundled?: number | null
+          total_clicked?: number | null
+          total_escalated?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          total_suppressed?: number | null
         }
         Relationships: []
       }
