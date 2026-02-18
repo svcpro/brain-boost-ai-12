@@ -9,7 +9,7 @@ import { setCache, getCache } from "@/lib/offlineCache";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import DailyGoalTracker from "./DailyGoalTracker";
-import StreakTracker from "./StreakTracker";
+
 import ReviewQueue from "./ReviewQueue";
 import { notifyFeedback, triggerHaptic } from "@/lib/feedback";
 import { useVoice } from "@/pages/AppDashboard";
@@ -35,6 +35,7 @@ import RiskDigestCard from "./RiskDigestCard";
 import AIRiskReductionEngine from "./AIRiskReductionEngine";
 import TodaysMission from "./TodaysMission";
 import QuickMicroActions from "./QuickMicroActions";
+import MomentumSection from "./MomentumSection";
 import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
 import RLPolicyCard from "./RLPolicyCard";
@@ -553,16 +554,16 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* ─── SECTION 4: Progress & Streak Momentum ─── */}
       {hasTopics && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="space-y-3"
-        >
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-1">Momentum</p>
+        <>
+          <MomentumSection
+            streakData={streakData}
+            overallHealth={overallHealth}
+            rankPredicted={rankData?.predicted_rank ?? null}
+            rankPercentile={rankData?.percentile ?? null}
+            hasTopics={hasTopics}
+          />
 
           {isEnabled('home_daily_goal') && <DailyGoalTracker />}
-          {isEnabled('home_streak') && <StreakTracker />}
           {isEnabled('home_streak_milestone') && <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />}
           {isEnabled('home_streak_recovery') && (
             <StreakRecoveryCard
@@ -573,9 +574,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             />
           )}
 
-          {/* Brain Missions */}
           {isEnabled('home_brain_missions') && <PlanGateWrapper featureKey="brain_missions"><BrainMissionsCard /></PlanGateWrapper>}
-        </motion.section>
+        </>
       )}
 
       {/* ─── SECTION 5: Collapsible Deep Analytics ─── */}
