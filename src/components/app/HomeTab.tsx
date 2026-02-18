@@ -35,6 +35,7 @@ import RiskDigestCard from "./RiskDigestCard";
 import AIRiskReductionEngine from "./AIRiskReductionEngine";
 import TodaysMission from "./TodaysMission";
 import QuickMicroActions from "./QuickMicroActions";
+import BrainFeed from "./BrainFeed";
 import MomentumSection from "./MomentumSection";
 import DeepAnalyticsSection from "./DeepAnalyticsSection";
 import BrainMissionsCard from "./BrainMissionsCard";
@@ -542,6 +543,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           openSignalWithPrefill(subject, topic, minutes);
         }}
       />
+
+      {/* ─── SECTION 2.5: Brain Feed (Second Brain Feed) ─── */}
+      <BrainFeed hasTopics={hasTopics} />
 
       {/* ─── SECTION 3: Quick Micro Actions ─── */}
       {hasTopics && (
