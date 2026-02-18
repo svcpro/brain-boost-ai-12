@@ -76,6 +76,23 @@ export async function emitDynamicReward(data: {
 }
 
 /**
+ * Check and emit referral trigger on milestones.
+ */
+export async function emitReferralTrigger(milestoneType: string): Promise<{ trigger: boolean; message?: string }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { trigger: false };
+
+    const res = await supabase.functions.invoke("growth-engine", {
+      body: { action: "check_referral_trigger", user_id: user.id, data: { milestone_type: milestoneType } },
+    });
+    return res.data || { trigger: false };
+  } catch {
+    return { trigger: false };
+  }
+}
+
+/**
  * Admin broadcast – sends to multiple users (service-role only via edge function).
  */
 export async function emitAdminEvent(

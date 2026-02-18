@@ -1675,6 +1675,129 @@ export type Database = {
         }
         Relationships: []
       }
+      growth_analytics: {
+        Row: {
+          churn_reduction: number | null
+          click_rate: number | null
+          conversion_rate: number | null
+          created_at: string
+          dau: number | null
+          id: string
+          metric_date: string
+          notifications_opened: number | null
+          notifications_sent: number | null
+          open_rate: number | null
+          referral_count: number | null
+          retention_rate: number | null
+          revenue_uplift: number | null
+          segment_key: string | null
+        }
+        Insert: {
+          churn_reduction?: number | null
+          click_rate?: number | null
+          conversion_rate?: number | null
+          created_at?: string
+          dau?: number | null
+          id?: string
+          metric_date?: string
+          notifications_opened?: number | null
+          notifications_sent?: number | null
+          open_rate?: number | null
+          referral_count?: number | null
+          retention_rate?: number | null
+          revenue_uplift?: number | null
+          segment_key?: string | null
+        }
+        Update: {
+          churn_reduction?: number | null
+          click_rate?: number | null
+          conversion_rate?: number | null
+          created_at?: string
+          dau?: number | null
+          id?: string
+          metric_date?: string
+          notifications_opened?: number | null
+          notifications_sent?: number | null
+          open_rate?: number | null
+          referral_count?: number | null
+          retention_rate?: number | null
+          revenue_uplift?: number | null
+          segment_key?: string | null
+        }
+        Relationships: []
+      }
+      growth_journeys: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          id: string
+          journey_key: string
+          last_step_at: string | null
+          started_at: string
+          status: string
+          step_history: Json | null
+          total_steps: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          journey_key?: string
+          last_step_at?: string | null
+          started_at?: string
+          status?: string
+          step_history?: Json | null
+          total_steps?: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          journey_key?: string
+          last_step_at?: string | null
+          started_at?: string
+          status?: string
+          step_history?: Json | null
+          total_steps?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      growth_trigger_log: {
+        Row: {
+          channel: string | null
+          created_at: string
+          id: string
+          outcome: string | null
+          trigger_data: Json | null
+          trigger_type: string
+          user_id: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          trigger_data?: Json | null
+          trigger_type: string
+          user_id: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          trigger_data?: Json | null
+          trigger_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hybrid_predictions: {
         Row: {
           computed_at: string
@@ -2534,6 +2657,33 @@ export type Database = {
           read?: boolean
           title?: string
           type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_segments: {
+        Row: {
+          assigned_at: string
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          segment_key: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          segment_key: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          segment_key?: string
           user_id?: string
         }
         Relationships: []
