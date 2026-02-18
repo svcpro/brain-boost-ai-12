@@ -289,6 +289,87 @@ ${cognitiveContext}`
       });
     }
 
+    if (action === "brain_feed") {
+      const feedCount = Math.min(reqCount || 5, 8);
+      const feedTopics = topics.slice(0, 15);
+
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            {
+              role: "system",
+              content: `You are ACRY, an AI tutor generating a micro-learning feed. Generate exactly ${feedCount} bite-sized concept cards for exam preparation. Each card has ONE key concept (1-2 sentences) and ONE quick recall question with 4 options. Pick from the student's weakest/highest-weight topics. Keep concepts ultra-concise and exam-relevant. memory_boost should be 1-4 based on topic weakness.`
+            },
+            {
+              role: "user",
+              content: `${cognitiveContext}\n\nTopics available: ${feedTopics.map(t => `${t.name} (${Math.round(Number(t.memory_strength))}%, subject: ${subjectMap.get(t.subject_id) || "Unknown"})`).join(", ")}\n\nGenerate ${feedCount} micro concept cards.`
+            }
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "brain_feed",
+              description: "Generate micro-learning feed cards",
+              parameters: {
+                type: "object",
+                properties: {
+                  cards: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        topic_name: { type: "string" },
+                        subject_name: { type: "string" },
+                        concept: { type: "string", description: "1-2 sentence micro concept" },
+                        recall_question: { type: "string", description: "Short recall question" },
+                        options: { type: "array", items: { type: "string" }, description: "4 answer options" },
+                        correct_index: { type: "number", description: "Index 0-3 of correct answer" },
+                        memory_boost: { type: "number", description: "Expected memory boost 1-4" },
+                      },
+                      required: ["topic_name", "subject_name", "concept", "recall_question", "options", "correct_index", "memory_boost"],
+                    }
+                  }
+                },
+                required: ["cards"],
+              }
+            }
+          }],
+          tool_choice: { type: "function", function: { name: "brain_feed" } },
+        }),
+      });
+
+      if (!aiResp.ok) {
+        if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (aiResp.status === 402) return new Response(JSON.stringify({ error: "Credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        throw new Error("AI gateway error");
+      }
+
+      const aiData = await aiResp.json();
+      trackAI();
+      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      let result = { cards: [] };
+      if (toolCall?.function?.arguments) {
+        const parsed = JSON.parse(toolCall.function.arguments);
+        // Enrich with memory_strength from actual data
+        result = {
+          cards: (parsed.cards || []).map((c: any) => {
+            const t = topics.find(tp => tp.name === c.topic_name);
+            return { ...c, memory_strength: t ? Number(t.memory_strength) : 50 };
+          })
+        };
+      }
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "mission_questions") {
       const qCount = Math.min(reqCount || 4, 5);
       const diff = reqDifficulty || "medium";
