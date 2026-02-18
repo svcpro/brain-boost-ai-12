@@ -72,15 +72,58 @@ serve(async (req) => {
       }
     }
 
-    const channels: string[] = rule.channels || PRIORITY_MAP[rule.priority] || ["push"];
+    let channels: string[] = rule.channels || PRIORITY_MAP[rule.priority] || ["push"];
     const fallbackChannels: string[] = rule.fallback_channels || [];
-    const title = payload.title || data.title || rule.display_name;
-    const body = payload.body || data.body || "";
+    let title = payload.title || data.title || rule.display_name;
+    let body = payload.body || data.body || "";
 
     let totalDelivered = 0;
     let totalFailed = 0;
 
     for (const userId of userIds) {
+      // ── BEHAVIORAL INTELLIGENCE LAYER ──
+
+      // A. Dopamine Copy Generation
+      if (rule.use_dopamine_copy && !payload.title) {
+        try {
+          const dcRes = await callEngine(SUPABASE_URL, SERVICE_KEY, {
+            action: "generate_dopamine_copy", user_id: userId, event_type, data,
+          });
+          if (dcRes?.title) { title = dcRes.title; body = dcRes.body || body; }
+        } catch { /* fallback to original */ }
+      }
+
+      // B. Smart Channel Selection (auto-learning)
+      if (rule.use_smart_timing) {
+        try {
+          const scRes = await callEngine(SUPABASE_URL, SERVICE_KEY, {
+            action: "get_smart_channels", user_id: userId,
+          });
+          if (scRes?.source === "learned" && scRes.channels?.length > 0) {
+            // Merge learned priority with rule channels
+            channels = scRes.channels.filter((c: string) => channels.includes(c) || rule.priority === "critical");
+            if (channels.length === 0) channels = rule.channels || ["push"];
+          }
+        } catch { /* fallback */ }
+      }
+
+      // C. Escalation Check
+      if (rule.escalation_enabled) {
+        try {
+          const escRes = await callEngine(SUPABASE_URL, SERVICE_KEY, {
+            action: "check_escalation", user_id: userId, event_type,
+          });
+          if (escRes?.escalated && escRes.channels) {
+            channels = escRes.channels;
+          }
+        } catch { /* fallback */ }
+      }
+
+      // D. Track engagement for send-time learning
+      callEngine(SUPABASE_URL, SERVICE_KEY, {
+        action: "track_engagement", user_id: userId, data: { type: "notification_received" },
+      }).catch(() => {});
+
       // 1. Log the event
       const { data: eventRow } = await supabase
         .from("event_log")
@@ -130,6 +173,12 @@ serve(async (req) => {
 
         if (deliveryResult.success) {
           totalDelivered++;
+          // Track channel effectiveness (non-blocking)
+          callEngine(SUPABASE_URL, SERVICE_KEY, {
+            action: "update_channel_effectiveness",
+            user_id: userId,
+            data: { channel, outcome: "sent" },
+          }).catch(() => {});
         } else {
           totalFailed++;
           // Try fallback
@@ -301,6 +350,17 @@ async function sendVoice(
   });
   const result = await res.json();
   return { success: result.success || (result.queued || 0) > 0, retryCount: 0, error: result.error };
+}
+
+// ─── Call Intelligent Engine ───
+
+async function callEngine(url: string, key: string, body: Record<string, any>) {
+  const res = await fetch(`${url}/functions/v1/intelligent-notify-engine`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.ok ? await res.json() : null;
 }
 
 // ─── Helpers ───

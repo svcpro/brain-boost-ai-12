@@ -179,3 +179,9 @@ verify_jwt = false
 
 [functions.omnichannel-notify]
 verify_jwt = false
+
+[functions.intelligent-notify-engine]
+verify_jwt = false
+
+[functions.behavioral-notify-cron]
+verify_jwt = false

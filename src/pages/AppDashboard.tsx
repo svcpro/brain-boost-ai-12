@@ -58,6 +58,13 @@ const AppDashboard = () => {
   useScheduledVoiceReminder();
   useWeakQuestionReminder();
 
+  // Track engagement for send-time optimization (non-blocking)
+  useEffect(() => {
+    import("@/lib/eventBus").then(({ trackEngagement }) => {
+      trackEngagement("app_open");
+    });
+  }, []);
+
   // Listen for tab switch events from notification clicks
   useEffect(() => {
     const handler = (e: Event) => {
