@@ -57,6 +57,18 @@ const AppDashboard = () => {
   useScheduledVoiceReminder();
   useWeakQuestionReminder();
 
+  // Listen for tab switch events from notification clicks
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (tab && tabs.some((t) => t.id === tab)) {
+        setActiveTab(tab);
+      }
+    };
+    window.addEventListener("switch-dashboard-tab", handler);
+    return () => window.removeEventListener("switch-dashboard-tab", handler);
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     const fetchCount = async () => {
