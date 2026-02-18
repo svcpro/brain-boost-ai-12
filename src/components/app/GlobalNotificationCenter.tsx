@@ -154,9 +154,41 @@ const GlobalNotificationCenter = ({ unreadCount, setUnreadCount }: GlobalNotific
 
   const handleClick = (n: Notification) => {
     if (!n.read) markRead(n.id);
+    // Map notification type to dashboard tab
+    const typeToTab: Record<string, string> = {
+      ai_brain: "brain",
+      memory_risk: "brain",
+      study_reminder: "action",
+      rank_update: "progress",
+      community: "community",
+      subscription: "you",
+      security: "you",
+      admin_broadcast: "home",
+      system: "home",
+      weekly_insight: "progress",
+      streak_milestone: "home",
+      freeze_gift: "home",
+      achievement: "progress",
+      warning: "home",
+      reminder: "action",
+      general: "home",
+      voice: "action",
+    };
+
+    setOpen(false);
+
     if (n.action_url) {
-      window.location.href = n.action_url;
-      setOpen(false);
+      // If action_url is a relative path starting with /, use native navigation for hash support
+      if (n.action_url.startsWith("/")) {
+        window.location.href = n.action_url;
+      } else {
+        window.location.href = n.action_url;
+      }
+    } else {
+      // Switch to the relevant dashboard tab based on notification type
+      const targetTab = typeToTab[n.type || "general"] || "home";
+      // Dispatch a custom event that AppDashboard listens for
+      window.dispatchEvent(new CustomEvent("switch-dashboard-tab", { detail: targetTab }));
     }
   };
 
