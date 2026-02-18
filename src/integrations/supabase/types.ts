@@ -653,6 +653,51 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_effectiveness: {
+        Row: {
+          channel: string
+          effectiveness_score: number | null
+          id: string
+          is_disabled: boolean
+          last_failed_at: string | null
+          last_successful_at: string | null
+          total_clicked: number
+          total_ignored: number
+          total_opened: number
+          total_sent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          effectiveness_score?: number | null
+          id?: string
+          is_disabled?: boolean
+          last_failed_at?: string | null
+          last_successful_at?: string | null
+          total_clicked?: number
+          total_ignored?: number
+          total_opened?: number
+          total_sent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          effectiveness_score?: number | null
+          id?: string
+          is_disabled?: boolean
+          last_failed_at?: string | null
+          last_successful_at?: string | null
+          total_clicked?: number
+          total_ignored?: number
+          total_opened?: number
+          total_sent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_admin_config: {
         Row: {
           active_model: string
@@ -733,6 +778,54 @@ export type Database = {
           status?: string
           tokens_input?: number | null
           tokens_output?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      churn_predictions: {
+        Row: {
+          churn_probability: number
+          computed_at: string
+          created_at: string
+          days_until_predicted_churn: number | null
+          id: string
+          intervention_channels: string[] | null
+          interventions_sent: number
+          last_intervention_at: string | null
+          resolved: boolean
+          resolved_at: string | null
+          risk_factors: Json | null
+          risk_level: string
+          user_id: string
+        }
+        Insert: {
+          churn_probability?: number
+          computed_at?: string
+          created_at?: string
+          days_until_predicted_churn?: number | null
+          id?: string
+          intervention_channels?: string[] | null
+          interventions_sent?: number
+          last_intervention_at?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          risk_factors?: Json | null
+          risk_level?: string
+          user_id: string
+        }
+        Update: {
+          churn_probability?: number
+          computed_at?: string
+          created_at?: string
+          days_until_predicted_churn?: number | null
+          id?: string
+          intervention_channels?: string[] | null
+          interventions_sent?: number
+          last_intervention_at?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          risk_factors?: Json | null
+          risk_level?: string
           user_id?: string
         }
         Relationships: []
@@ -2092,6 +2185,99 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_ab_tests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          variant_a_clicked: number
+          variant_a_opened: number
+          variant_a_sent: number
+          variant_a_template: string
+          variant_b_clicked: number
+          variant_b_opened: number
+          variant_b_sent: number
+          variant_b_template: string
+          winner: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          variant_a_clicked?: number
+          variant_a_opened?: number
+          variant_a_sent?: number
+          variant_a_template: string
+          variant_b_clicked?: number
+          variant_b_opened?: number
+          variant_b_sent?: number
+          variant_b_template: string
+          winner?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          variant_a_clicked?: number
+          variant_a_opened?: number
+          variant_a_sent?: number
+          variant_a_template?: string
+          variant_b_clicked?: number
+          variant_b_opened?: number
+          variant_b_sent?: number
+          variant_b_template?: string
+          winner?: string | null
+        }
+        Relationships: []
+      }
+      notification_bundles: {
+        Row: {
+          bundle_type: string
+          channel: string
+          created_at: string
+          id: string
+          item_count: number
+          items: Json
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          bundle_type?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          item_count?: number
+          items?: Json
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          bundle_type?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          item_count?: number
+          items?: Json
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_delivery_log: {
         Row: {
           body: string | null
@@ -2160,6 +2346,48 @@ export type Database = {
           },
         ]
       }
+      notification_escalations: {
+        Row: {
+          created_at: string
+          current_escalation_level: number
+          escalation_channels: string[] | null
+          event_type: string
+          id: string
+          ignore_count: number
+          last_escalated_at: string | null
+          resolved: boolean
+          resolved_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_escalation_level?: number
+          escalation_channels?: string[] | null
+          event_type: string
+          id?: string
+          ignore_count?: number
+          last_escalated_at?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_escalation_level?: number
+          escalation_channels?: string[] | null
+          event_type?: string
+          id?: string
+          ignore_count?: number
+          last_escalated_at?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_history: {
         Row: {
           action_url: string | null
@@ -2198,6 +2426,8 @@ export type Database = {
       }
       omnichannel_rules: {
         Row: {
+          ab_test_id: string | null
+          bundleable: boolean
           category: string
           channels: Database["public"]["Enums"]["notification_channel"][]
           condition_expression: Json | null
@@ -2205,6 +2435,7 @@ export type Database = {
           created_at: string
           delay_seconds: number
           display_name: string
+          escalation_enabled: boolean
           event_type: string
           fallback_channels:
             | Database["public"]["Enums"]["notification_channel"][]
@@ -2212,14 +2443,20 @@ export type Database = {
           id: string
           is_enabled: boolean
           last_triggered_at: string | null
+          max_escalation_level: number
           priority: Database["public"]["Enums"]["notification_priority"]
           retry_count: number
+          smart_silence_enabled: boolean
           total_delivered: number
           total_failed: number
           total_triggered: number
           updated_at: string
+          use_dopamine_copy: boolean
+          use_smart_timing: boolean
         }
         Insert: {
+          ab_test_id?: string | null
+          bundleable?: boolean
           category?: string
           channels?: Database["public"]["Enums"]["notification_channel"][]
           condition_expression?: Json | null
@@ -2227,6 +2464,7 @@ export type Database = {
           created_at?: string
           delay_seconds?: number
           display_name: string
+          escalation_enabled?: boolean
           event_type: string
           fallback_channels?:
             | Database["public"]["Enums"]["notification_channel"][]
@@ -2234,14 +2472,20 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           last_triggered_at?: string | null
+          max_escalation_level?: number
           priority?: Database["public"]["Enums"]["notification_priority"]
           retry_count?: number
+          smart_silence_enabled?: boolean
           total_delivered?: number
           total_failed?: number
           total_triggered?: number
           updated_at?: string
+          use_dopamine_copy?: boolean
+          use_smart_timing?: boolean
         }
         Update: {
+          ab_test_id?: string | null
+          bundleable?: boolean
           category?: string
           channels?: Database["public"]["Enums"]["notification_channel"][]
           condition_expression?: Json | null
@@ -2249,6 +2493,7 @@ export type Database = {
           created_at?: string
           delay_seconds?: number
           display_name?: string
+          escalation_enabled?: boolean
           event_type?: string
           fallback_channels?:
             | Database["public"]["Enums"]["notification_channel"][]
@@ -2256,12 +2501,16 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           last_triggered_at?: string | null
+          max_escalation_level?: number
           priority?: Database["public"]["Enums"]["notification_priority"]
           retry_count?: number
+          smart_silence_enabled?: boolean
           total_delivered?: number
           total_failed?: number
           total_triggered?: number
           updated_at?: string
+          use_dopamine_copy?: boolean
+          use_smart_timing?: boolean
         }
         Relationships: []
       }
@@ -3640,6 +3889,48 @@ export type Database = {
           feature_labels?: Json
           id?: string
           similarity_group?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_engagement_patterns: {
+        Row: {
+          avg_response_time_seconds: number | null
+          click_rate: number | null
+          day_of_week: number
+          engagement_count: number
+          engagement_type: string
+          hour_of_day: number
+          id: string
+          last_engaged_at: string | null
+          open_rate: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_response_time_seconds?: number | null
+          click_rate?: number | null
+          day_of_week: number
+          engagement_count?: number
+          engagement_type?: string
+          hour_of_day: number
+          id?: string
+          last_engaged_at?: string | null
+          open_rate?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_response_time_seconds?: number | null
+          click_rate?: number | null
+          day_of_week?: number
+          engagement_count?: number
+          engagement_type?: string
+          hour_of_day?: number
+          id?: string
+          last_engaged_at?: string | null
+          open_rate?: number | null
           updated_at?: string
           user_id?: string
         }
