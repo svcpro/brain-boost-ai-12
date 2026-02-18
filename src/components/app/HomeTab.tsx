@@ -545,7 +545,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       />
 
       {/* ─── SECTION 2.5: Brain Feed (Second Brain Feed) ─── */}
-      <BrainFeed hasTopics={hasTopics} />
+      {/* <BrainFeed hasTopics={hasTopics} /> */}
 
       {/* ─── SECTION 3: Quick Micro Actions ─── */}
       {hasTopics && (
