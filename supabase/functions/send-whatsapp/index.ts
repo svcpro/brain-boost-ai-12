@@ -12,6 +12,8 @@ interface SendWhatsAppRequest {
   message?: string;
   template_name?: string;
   template_params?: Record<string, string>;
+  content_sid?: string;
+  content_variables?: Record<string, string>;
   media_url?: string;
   user_id?: string;
   category?: string;
@@ -25,17 +27,31 @@ async function sendTwilioWhatsApp(
   authToken: string,
   from: string,
   to: string,
-  body: string,
-  mediaUrl?: string,
+  options: {
+    body?: string;
+    contentSid?: string;
+    contentVariables?: Record<string, string>;
+    mediaUrl?: string;
+  },
 ): Promise<{ sid: string; status: string; error_code?: string; error_message?: string }> {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
 
   const formData = new URLSearchParams();
   formData.append("From", `whatsapp:${from}`);
   formData.append("To", `whatsapp:${to}`);
-  formData.append("Body", body);
-  if (mediaUrl) {
-    formData.append("MediaUrl", mediaUrl);
+
+  // Use ContentSid for approved templates, Body for freeform
+  if (options.contentSid) {
+    formData.append("ContentSid", options.contentSid);
+    if (options.contentVariables && Object.keys(options.contentVariables).length > 0) {
+      formData.append("ContentVariables", JSON.stringify(options.contentVariables));
+    }
+  } else if (options.body) {
+    formData.append("Body", options.body);
+  }
+
+  if (options.mediaUrl) {
+    formData.append("MediaUrl", options.mediaUrl);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -87,7 +103,6 @@ serve(async (req) => {
         throw res;
       }
 
-      // Require admin role for sending WhatsApp messages
       try {
         await requireAdmin(auth.userId);
       } catch (res) {
@@ -112,7 +127,6 @@ serve(async (req) => {
     const body: SendWhatsAppRequest | SendWhatsAppRequest[] = await req.json();
     const requests = Array.isArray(body) ? body : [body];
 
-    // Limit batch size
     if (requests.length > 100) {
       return errorResponse("Batch size exceeds maximum of 100", 400);
     }
@@ -121,7 +135,6 @@ serve(async (req) => {
 
     for (const item of requests) {
       try {
-        // Normalize phone number: strip spaces
         const normalizedTo = (item.to || "").replace(/\s+/g, "");
         if (!normalizedTo || !PHONE_REGEX.test(normalizedTo)) {
           results.push({ to: normalizedTo || "unknown", status: "failed", error: "Invalid phone number format" });
@@ -129,35 +142,55 @@ serve(async (req) => {
         }
 
         let messageBody = item.message || "";
+        let contentSid = item.content_sid || "";
+        let contentVariables = item.content_variables || {};
 
         // Resolve template if provided
-        if (item.template_name && !messageBody) {
+        if (item.template_name) {
           const { data: tmpl } = await supabase
             .from("whatsapp_templates")
-            .select("body_template, variables")
+            .select("body_template, variables, twilio_content_sid")
             .eq("name", item.template_name)
             .eq("is_active", true)
             .maybeSingle();
 
           if (tmpl) {
-            messageBody = tmpl.body_template;
-            const vars = tmpl.variables as string[] || [];
-            const params = item.template_params || {};
-            vars.forEach((v: string, i: number) => {
-              messageBody = messageBody.replace(`{{${i + 1}}}`, params[v] || `{{${v}}}`);
-            });
+            // If template has a Twilio Content SID, use approved template sending
+            if (tmpl.twilio_content_sid) {
+              contentSid = tmpl.twilio_content_sid;
+              // Map template variables to ContentVariables (numbered keys)
+              const vars = tmpl.variables as string[] || [];
+              const params = item.template_params || {};
+              const mappedVars: Record<string, string> = {};
+              vars.forEach((v: string, i: number) => {
+                mappedVars[String(i + 1)] = params[v] || `{{${v}}}`;
+              });
+              contentVariables = mappedVars;
+              console.log(`Using Twilio Content Template: ${contentSid} for "${item.template_name}"`);
+            } else {
+              // Fallback: build freeform body from template
+              if (!messageBody) {
+                messageBody = tmpl.body_template;
+                const vars = tmpl.variables as string[] || [];
+                const params = item.template_params || {};
+                vars.forEach((v: string, i: number) => {
+                  messageBody = messageBody.replace(`{{${i + 1}}}`, params[v] || `{{${v}}}`);
+                });
+              }
+            }
           } else {
-            messageBody = `Template "${item.template_name}" not found.`;
+            messageBody = messageBody || `Template "${item.template_name}" not found.`;
           }
         }
 
-        if (!messageBody) {
-          results.push({ to: item.to, status: "failed", error: "No message content" });
+        // Validate: must have either contentSid or messageBody
+        if (!contentSid && !messageBody) {
+          results.push({ to: item.to, status: "failed", error: "No message content or template" });
           continue;
         }
 
-        // Truncate message to WhatsApp limit
-        if (messageBody.length > 4096) {
+        // Truncate freeform body to WhatsApp limit
+        if (!contentSid && messageBody.length > 4096) {
           messageBody = messageBody.slice(0, 4096);
         }
 
@@ -167,16 +200,20 @@ serve(async (req) => {
           TWILIO_AUTH_TOKEN,
           TWILIO_WHATSAPP_NUMBER,
           normalizedTo,
-          messageBody,
-          item.media_url,
+          {
+            body: contentSid ? undefined : messageBody,
+            contentSid: contentSid || undefined,
+            contentVariables: contentSid ? contentVariables : undefined,
+            mediaUrl: item.media_url,
+          },
         );
 
         // Log to database
         await supabase.from("whatsapp_messages").insert({
           user_id: item.user_id || null,
           to_number: normalizedTo,
-          message_type: item.media_url ? "media" : item.template_name ? "template" : "text",
-          content: messageBody,
+          message_type: contentSid ? "template" : item.media_url ? "media" : item.template_name ? "template" : "text",
+          content: contentSid ? `[Template: ${item.template_name || contentSid}]` : messageBody,
           template_name: item.template_name || null,
           template_params: item.template_params || null,
           media_url: item.media_url || null,
@@ -194,7 +231,6 @@ serve(async (req) => {
           error: result.error_message,
         });
 
-        // Rate limiting between messages
         if (requests.length > 1) {
           await new Promise(r => setTimeout(r, 200));
         }
