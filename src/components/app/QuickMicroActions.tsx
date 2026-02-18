@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { TopicPrediction } from "@/hooks/useMemoryEngine";
 import SmartRecallOverlay from "./SmartRecallOverlay";
 import RiskShieldOverlay from "./RiskShieldOverlay";
+import RankBoostOverlay from "./RankBoostOverlay";
 
 interface QuickMicroActionsProps {
   atRisk: TopicPrediction[];
@@ -33,6 +34,7 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
   const [showRecall, setShowRecall] = useState(false);
   const [recallTopic, setRecallTopic] = useState<{ topic?: string; subject?: string }>({});
   const [showShield, setShowShield] = useState(false);
+  const [showRankBoost, setShowRankBoost] = useState(false);
   // Dynamic reordering based on user state
   const actions = useMemo<MicroAction[]>(() => {
     const items: MicroAction[] = [
@@ -98,20 +100,9 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
       }
 
       if (id === "rank-boost") {
-        // Generate a competitive MCQ via AI
-        const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
-          body: {
-            action: "chat",
-            message: "Generate exactly 1 quick competitive MCQ question from my weakest topic. Format: Question, then A) B) C) D) options, then the correct answer letter. Keep it challenging but fair.",
-          },
-        });
-        if (error) throw error;
-        const reply = data?.reply || "Couldn't generate question. Try again!";
-        toast({
-          title: "🏆 Rank Boost MCQ",
-          description: reply.slice(0, 200) + (reply.length > 200 ? "…" : ""),
-          duration: 15000,
-        });
+        setShowRankBoost(true);
+        setLoadingId(null);
+        return;
       }
     } catch {
       toast({ title: "Something went wrong", variant: "destructive" });
@@ -177,6 +168,13 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
             atRisk={atRisk}
             onClose={() => setShowShield(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Rank Boost Overlay */}
+      <AnimatePresence>
+        {showRankBoost && (
+          <RankBoostOverlay onClose={() => setShowRankBoost(false)} />
         )}
       </AnimatePresence>
     </motion.section>
