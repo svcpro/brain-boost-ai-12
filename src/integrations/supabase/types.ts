@@ -2376,6 +2376,7 @@ export type Database = {
           created_at: string
           daily_study_goal_minutes: number
           display_name: string | null
+          email: string | null
           email_notifications_enabled: boolean
           email_study_reminders: boolean
           email_weekly_reports: boolean
@@ -2385,6 +2386,7 @@ export type Database = {
           is_banned: boolean
           last_brain_update_at: string | null
           opt_in_leaderboard: boolean
+          phone: string | null
           push_notification_prefs: Json
           push_notifications_enabled: boolean
           study_preferences: Json | null
@@ -2404,6 +2406,7 @@ export type Database = {
           created_at?: string
           daily_study_goal_minutes?: number
           display_name?: string | null
+          email?: string | null
           email_notifications_enabled?: boolean
           email_study_reminders?: boolean
           email_weekly_reports?: boolean
@@ -2413,6 +2416,7 @@ export type Database = {
           is_banned?: boolean
           last_brain_update_at?: string | null
           opt_in_leaderboard?: boolean
+          phone?: string | null
           push_notification_prefs?: Json
           push_notifications_enabled?: boolean
           study_preferences?: Json | null
@@ -2432,6 +2436,7 @@ export type Database = {
           created_at?: string
           daily_study_goal_minutes?: number
           display_name?: string | null
+          email?: string | null
           email_notifications_enabled?: boolean
           email_study_reminders?: boolean
           email_weekly_reports?: boolean
@@ -2441,6 +2446,7 @@ export type Database = {
           is_banned?: boolean
           last_brain_update_at?: string | null
           opt_in_leaderboard?: boolean
+          phone?: string | null
           push_notification_prefs?: Json
           push_notifications_enabled?: boolean
           study_preferences?: Json | null

@@ -16,6 +16,8 @@ import { format, formatDistanceToNow } from "date-fns";
 interface UserProfile {
   id: string;
   display_name: string | null;
+  email: string | null;
+  phone: string | null;
   exam_type: string | null;
   exam_date: string | null;
   daily_study_goal_minutes: number;
@@ -133,11 +135,11 @@ const UserManagement = () => {
 
     let query = supabase
       .from("profiles")
-      .select("id, display_name, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes, created_at, updated_at, avatar_url, opt_in_leaderboard, email_notifications_enabled, is_banned, banned_at, ban_reason", { count: "exact" });
+      .select("id, display_name, email, phone, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes, created_at, updated_at, avatar_url, opt_in_leaderboard, email_notifications_enabled, is_banned, banned_at, ban_reason", { count: "exact" });
 
     // Server-side search filter
     if (debouncedSearch) {
-      query = query.or(`display_name.ilike.%${debouncedSearch}%,id.eq.${debouncedSearch.match(/^[0-9a-f-]{36}$/i) ? debouncedSearch : "00000000-0000-0000-0000-000000000000"}`);
+      query = query.or(`display_name.ilike.%${debouncedSearch}%,email.ilike.%${debouncedSearch}%,phone.ilike.%${debouncedSearch}%,id.eq.${debouncedSearch.match(/^[0-9a-f-]{36}$/i) ? debouncedSearch : "00000000-0000-0000-0000-000000000000"}`);
     }
 
     // Server-side status filter
@@ -271,12 +273,14 @@ const UserManagement = () => {
   const { totalUsers, paidUsers, totalRevenue, newThisWeek } = summaryStats;
 
   const exportCSV = () => {
-    const headers = ["ID", "Display Name", "Exam Type", "Exam Date", "Daily Goal (min)", "Weekly Goal (min)", "Plan", "Plan Status", "Amount", "Banned", "Ban Reason", "Joined", "Last Updated"];
+    const headers = ["ID", "Display Name", "Email", "Phone", "Exam Type", "Exam Date", "Daily Goal (min)", "Weekly Goal (min)", "Plan", "Plan Status", "Amount", "Banned", "Ban Reason", "Joined", "Last Updated"];
     const rows = users.map(u => {
       const { planName, sub } = getUserPlan(u.id);
       return [
         u.id,
         u.display_name || "",
+        u.email || "",
+        u.phone || "",
         u.exam_type || "",
         u.exam_date || "",
         u.daily_study_goal_minutes,
@@ -452,6 +456,7 @@ const UserManagement = () => {
                     <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${PLAN_COLORS[planKey] || PLAN_COLORS.free}`}>{planName}</span>
                     {u.is_banned && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">Banned</span>}
                   </div>
+                  <p className="text-[10px] text-muted-foreground truncate">{u.email || "No email"}{u.phone ? ` · ${u.phone}` : ""}</p>
                   <p className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"} · Goal: {u.daily_study_goal_minutes}min/day · Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</p>
                 </div>
                 <MiniSparkline data={studyActivity[u.id] || []} />
@@ -726,9 +731,10 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-foreground">{user.display_name || "Anonymous"}</h2>
-            {isBanned && <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-destructive/15 text-destructive">BANNED</span>}
-          </div>
-          <p className="text-[10px] text-muted-foreground font-mono">{user.id}</p>
+                     {isBanned && <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-destructive/15 text-destructive">BANNED</span>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{user.email || "No email"}{user.phone ? ` · ${user.phone}` : ""}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono">{user.id}</p>
         </div>
         {!editing ? (
           <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-secondary rounded-lg text-xs font-medium text-foreground hover:bg-secondary/80 transition-colors flex items-center gap-1.5">
@@ -795,6 +801,8 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
+              { label: "Email", value: user.email || "Not set" },
+              { label: "Phone", value: user.phone || "Not set" },
               { label: "Exam Type", value: user.exam_type || "Not set" },
               { label: "Exam Date", value: user.exam_date ? format(new Date(user.exam_date), "MMM d, yyyy") : "Not set" },
               { label: "Daily Goal", value: `${user.daily_study_goal_minutes} min` },
