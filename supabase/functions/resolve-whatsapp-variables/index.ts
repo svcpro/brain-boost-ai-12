@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { format, formatDistanceToNow } from "https://esm.sh/date-fns@3";
+import { resolveTemplate, sanitizeMessage } from "../_shared/variableResolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -201,17 +202,20 @@ serve(async (req) => {
       };
     }
 
-    // If template_message provided, return resolved messages per user
+    // If template_message provided, return resolved messages per user with UVR validation
     if (template_message) {
       const resolved: Record<string, string> = {};
+      const validation_warnings: Record<string, string[]> = {};
       for (const [uid, vars] of Object.entries(result)) {
-        let msg = template_message;
-        for (const [key, value] of Object.entries(vars)) {
-          msg = msg.split(`{{${key}}}`).join(value);
+        const { resolved: msg, warnings } = resolveTemplate(template_message, vars);
+        // Final sanitization pass
+        const { cleaned, issues } = sanitizeMessage(msg);
+        resolved[uid] = cleaned;
+        if (warnings.length > 0 || issues.length > 0) {
+          validation_warnings[uid] = [...warnings, ...issues];
         }
-        resolved[uid] = msg;
       }
-      return new Response(JSON.stringify({ success: true, resolved_messages: resolved, variables: result }), {
+      return new Response(JSON.stringify({ success: true, resolved_messages: resolved, variables: result, validation_warnings }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

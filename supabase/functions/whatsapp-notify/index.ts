@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sanitizeMessage } from "../_shared/variableResolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -220,9 +221,19 @@ serve(async (req) => {
         messageText = template.buildMessage({ ...data, name: p.display_name });
       }
 
+      // ── UVR Sanitization Gate ──
+      const { cleaned, issues, hasBlank } = sanitizeMessage(messageText);
+      if (hasBlank && cleaned.length < 5) {
+        console.warn(`[UVR] Blocked blank WhatsApp message for user ${p.id}, event ${event_type}:`, issues);
+        continue;
+      }
+      if (issues.length > 0) {
+        console.warn(`[UVR] WhatsApp variable warnings for ${p.id}:`, issues);
+      }
+
       messages.push({
         to: p.whatsapp_number!,
-        message: messageText,
+        message: cleaned,
         user_id: p.id,
         category: event_type,
       });

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sanitizeMessage } from "../_shared/variableResolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,7 +88,10 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const spokenText = aiData.choices?.[0]?.message?.content?.trim() || "Your ACRY brain is active.";
+    const rawText = aiData.choices?.[0]?.message?.content?.trim() || "Your ACRY brain is active.";
+    // UVR: Sanitize AI-generated text before TTS
+    const { cleaned: spokenText, issues } = sanitizeMessage(rawText);
+    if (issues.length > 0) console.warn("[UVR] Voice text sanitization:", issues);
 
     // Track Lovable AI usage (fire-and-forget)
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
