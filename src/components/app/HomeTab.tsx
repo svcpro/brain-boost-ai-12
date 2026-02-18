@@ -36,6 +36,7 @@ import AIRiskReductionEngine from "./AIRiskReductionEngine";
 import TodaysMission from "./TodaysMission";
 import QuickMicroActions from "./QuickMicroActions";
 import MomentumSection from "./MomentumSection";
+import DeepAnalyticsSection from "./DeepAnalyticsSection";
 import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
 import RLPolicyCard from "./RLPolicyCard";
@@ -73,7 +74,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const [recoverySessionOpen, setRecoverySessionOpen] = useState(false);
   const [showComeback, setShowComeback] = useState(false);
   const lastScrollY = useRef(0);
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  
 
   // Hide FAB on scroll down, show on scroll up
   useEffect(() => {
@@ -580,113 +581,81 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* ─── SECTION 5: Collapsible Deep Analytics ─── */}
       {hasTopics && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Collapsible open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
-            <CollapsibleTrigger className="w-full flex items-center justify-between px-1 py-2 group">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Deep Analytics</p>
-              <motion.div
-                animate={{ rotate: analyticsOpen ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-              </motion.div>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-3 pt-2"
-              >
-                {/* AI Risk Reduction Engine */}
-                {isEnabled('home_forget_risk') && (
-                  <AIRiskReductionEngine atRisk={atRisk} hasTopics={hasTopics} onStudyTopic={openSignalWithPrefill} />
-                )}
+        <DeepAnalyticsSection
+          atRisk={atRisk}
+          allTopics={prediction?.topics || []}
+          overallHealth={overallHealth}
+          streakDays={streakData?.currentStreak ?? 0}
+          rankPredicted={rankData?.predicted_rank ?? null}
+          rankPercentile={rankData?.percentile ?? null}
+        />
+      )}
 
-                {/* Cognitive Embedding */}
-                {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
-
-                {/* Risk Digest */}
-                {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
-
-                {/* Daily Quote */}
-                {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
-
-                {/* Recently Studied */}
-                {isEnabled('home_recently_studied') && <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />}
-
-                {/* Daily Study Tip */}
-                {isEnabled('home_daily_tip') && <DailyStudyTip />}
-
-                {/* Weekly Reminder */}
-                {isEnabled('home_weekly_reminder') && <PlanGateWrapper featureKey="weekly_reminder"><WeeklyReminderSummary /></PlanGateWrapper>}
-
-                {/* Study Insights */}
-                {isEnabled('home_study_insights') && (
-                  <PlanGateWrapper featureKey="study_insights">
-                    <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => { setInsightReviewSubject(subject); setInsightReviewTopic(topic); }} />
-                  </PlanGateWrapper>
-                )}
-
-                {/* Review Queue */}
-                {isEnabled('home_review_queue') && <PlanGateWrapper featureKey="review_queue"><ReviewQueue /></PlanGateWrapper>}
-
-                {/* RL Policy */}
-                {isEnabled('home_rl_policy') && <PlanGateWrapper featureKey="rl_policy"><RLPolicyCard /></PlanGateWrapper>}
-
-                {/* Recommendations */}
-                {isEnabled('home_recommendations') && recommendations.length > 0 && (
-                  <PlanGateWrapper featureKey="ai_recommendations">
-                    <div ref={recsRef} className="rounded-2xl border border-border bg-card p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Brain className="w-4 h-4 text-primary" />
-                        <h2 className="font-semibold text-foreground text-sm">AI Recommendations</h2>
+      {/* Additional analytics (feature-flagged) */}
+      {hasTopics && (
+        <div className="space-y-3">
+          {isEnabled('home_forget_risk') && (
+            <AIRiskReductionEngine atRisk={atRisk} hasTopics={hasTopics} onStudyTopic={openSignalWithPrefill} />
+          )}
+          {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
+          {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
+          {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
+          {isEnabled('home_recently_studied') && <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />}
+          {isEnabled('home_daily_tip') && <DailyStudyTip />}
+          {isEnabled('home_weekly_reminder') && <PlanGateWrapper featureKey="weekly_reminder"><WeeklyReminderSummary /></PlanGateWrapper>}
+          {isEnabled('home_study_insights') && (
+            <PlanGateWrapper featureKey="study_insights">
+              <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => { setInsightReviewSubject(subject); setInsightReviewTopic(topic); }} />
+            </PlanGateWrapper>
+          )}
+          {isEnabled('home_review_queue') && <PlanGateWrapper featureKey="review_queue"><ReviewQueue /></PlanGateWrapper>}
+          {isEnabled('home_rl_policy') && <PlanGateWrapper featureKey="rl_policy"><RLPolicyCard /></PlanGateWrapper>}
+          {isEnabled('home_recommendations') && recommendations.length > 0 && (
+            <PlanGateWrapper featureKey="ai_recommendations">
+              <div ref={recsRef} className="rounded-2xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Brain className="w-4 h-4 text-primary" />
+                  <h2 className="font-semibold text-foreground text-sm">AI Recommendations</h2>
+                </div>
+                <div className="space-y-2">
+                  {recommendations.map((rec: any) => (
+                    <motion.div
+                      key={rec.id}
+                      whileTap={{ scale: 0.96 }}
+                      onClick={async () => {
+                        if (navigator.vibrate) navigator.vibrate(20);
+                        const el = document.getElementById(`rec-${rec.id}`);
+                        if (el) { el.style.transition = "all 0.4s ease"; el.style.opacity = "0"; el.style.transform = "translateX(60px) scale(0.95)"; }
+                        await new Promise((r) => setTimeout(r, 350));
+                        await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
+                        loadRecommendations();
+                        triggerHaptic(30);
+                        toast({
+                          title: "✅ Done!",
+                          description: rec.title,
+                          action: React.createElement(ToastAction, {
+                            altText: "Undo",
+                            className: "px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold",
+                            onClick: async () => { await supabase.from("ai_recommendations").update({ completed: false }).eq("id", rec.id); loadRecommendations(); },
+                          }, "Undo") as any,
+                        });
+                      }}
+                      id={`rec-${rec.id}`}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 transition-all group"
+                    >
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${rec.priority === "critical" ? "bg-destructive animate-pulse" : rec.priority === "high" ? "bg-warning" : "bg-primary"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-foreground font-medium truncate">{rec.title}</p>
+                        <p className="text-[10px] text-muted-foreground capitalize">{rec.type} • {rec.priority}</p>
                       </div>
-                      <div className="space-y-2">
-                        {recommendations.map((rec: any) => (
-                          <motion.div
-                            key={rec.id}
-                            whileTap={{ scale: 0.96 }}
-                            onClick={async () => {
-                              if (navigator.vibrate) navigator.vibrate(20);
-                              const el = document.getElementById(`rec-${rec.id}`);
-                              if (el) { el.style.transition = "all 0.4s ease"; el.style.opacity = "0"; el.style.transform = "translateX(60px) scale(0.95)"; }
-                              await new Promise((r) => setTimeout(r, 350));
-                              await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
-                              loadRecommendations();
-                              triggerHaptic(30);
-                              toast({
-                                title: "✅ Done!",
-                                description: rec.title,
-                                action: React.createElement(ToastAction, {
-                                  altText: "Undo",
-                                  className: "px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold",
-                                  onClick: async () => { await supabase.from("ai_recommendations").update({ completed: false }).eq("id", rec.id); loadRecommendations(); },
-                                }, "Undo") as any,
-                              });
-                            }}
-                            id={`rec-${rec.id}`}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 transition-all group"
-                          >
-                            <div className={`w-2 h-2 rounded-full shrink-0 ${rec.priority === "critical" ? "bg-destructive animate-pulse" : rec.priority === "high" ? "bg-warning" : "bg-primary"}`} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-foreground font-medium truncate">{rec.title}</p>
-                              <p className="text-[10px] text-muted-foreground capitalize">{rec.type} • {rec.priority}</p>
-                            </div>
-                            <CheckCircle className="w-4 h-4 text-muted-foreground/30 group-hover:text-success transition-colors shrink-0" />
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  </PlanGateWrapper>
-                )}
-              </motion.div>
-            </CollapsibleContent>
-          </Collapsible>
-        </motion.section>
+                      <CheckCircle className="w-4 h-4 text-muted-foreground/30 group-hover:text-success transition-colors shrink-0" />
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </PlanGateWrapper>
+          )}
+        </div>
       )}
 
       {/* Brain Update Hero */}
