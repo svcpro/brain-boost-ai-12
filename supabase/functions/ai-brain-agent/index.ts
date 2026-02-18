@@ -223,6 +223,71 @@ ${cognitiveContext}`
       });
     }
 
+    if (action === "daily_mission") {
+      // Generate a single AI-decided mission for today
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: `You are ACRY, an AI tutor that picks ONE most impactful micro-study action for today. Consider forget risk, weak topics, upcoming exam urgency, recent activity patterns, and streak risk. The mission must be completable in 3-6 minutes and produce measurable brain improvement.`
+            },
+            {
+              role: "user",
+              content: `${cognitiveContext}\n\nGenerate exactly ONE mission for today. Pick the single highest-impact action.`
+            }
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "daily_mission",
+              description: "Generate one AI-decided daily mission",
+              parameters: {
+                type: "object",
+                properties: {
+                  title: { type: "string", description: "Short mission title (max 8 words)" },
+                  description: { type: "string", description: "1-2 sentence explanation of why this matters today" },
+                  topic_name: { type: "string", description: "The specific topic to study, or empty if general" },
+                  subject_name: { type: "string", description: "The subject the topic belongs to, or empty" },
+                  estimated_minutes: { type: "number", description: "Estimated completion time in minutes (3-6)" },
+                  brain_improvement_pct: { type: "number", description: "Expected brain stability improvement percentage (1-15)" },
+                  urgency: { type: "string", enum: ["critical", "high", "medium"], description: "Mission urgency level" },
+                  reasoning: { type: "string", description: "Brief AI reasoning for choosing this mission (1 sentence)" },
+                  mission_type: { type: "string", enum: ["recall", "review", "practice", "strengthen"], description: "Type of study action" },
+                },
+                required: ["title", "description", "estimated_minutes", "brain_improvement_pct", "urgency", "reasoning", "mission_type"],
+              }
+            }
+          }],
+          tool_choice: { type: "function", function: { name: "daily_mission" } },
+        }),
+      });
+
+      if (!aiResp.ok) {
+        if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (aiResp.status === 402) return new Response(JSON.stringify({ error: "Credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        throw new Error("AI gateway error");
+      }
+
+      const aiData = await aiResp.json();
+      trackAI();
+      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      let mission = {};
+      if (toolCall?.function?.arguments) {
+        mission = JSON.parse(toolCall.function.arguments);
+      }
+
+      return new Response(JSON.stringify(mission), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

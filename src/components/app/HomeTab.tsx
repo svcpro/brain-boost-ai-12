@@ -33,6 +33,7 @@ import ComebackCelebration from "./ComebackCelebration";
 import ExplainButton from "./ExplainButton";
 import RiskDigestCard from "./RiskDigestCard";
 import AIRiskReductionEngine from "./AIRiskReductionEngine";
+import TodaysMission from "./TodaysMission";
 import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
 import RLPolicyCard from "./RLPolicyCard";
@@ -531,65 +532,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </PlanGateWrapper>
       )}
 
-      {/* ─── SECTION 2: Today's Mission (Single Primary Action) ─── */}
-      {hasTopics && topMission && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">Today's Mission</p>
-          <motion.div
-            whileTap={{ scale: 0.98 }}
-            className="relative rounded-2xl border border-primary/20 overflow-hidden"
-            style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--card)))" }}
-          >
-            {/* Glow accent */}
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
-            <div className="relative z-10 p-5">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-                  <Target className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-foreground leading-tight">{topMission.title}</h3>
-                  {topMission.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{topMission.description}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <Clock className="w-3 h-3" /> ~5 min
-                    </span>
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                      topMission.priority === "critical" ? "bg-destructive/15 text-destructive" :
-                      topMission.priority === "high" ? "bg-warning/15 text-warning" :
-                      "bg-primary/15 text-primary"
-                    }`}>
-                      {topMission.priority}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  triggerHaptic(30);
-                  if ((topMission as any)._riskTopic) {
-                    openSignalWithPrefill((topMission as any)._riskTopic.subject_name, (topMission as any)._riskTopic.name, 5);
-                  } else {
-                    openSignalWithPrefill(undefined, undefined, 5);
-                  }
-                }}
-                className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.97] transition-all shadow-lg"
-                style={{ boxShadow: "0 4px 20px hsl(var(--primary) / 0.3)" }}
-              >
-                <Zap className="w-4 h-4" />
-                Start Now
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </motion.div>
-        </motion.section>
-      )}
+      {/* ─── SECTION 2: Today's Mission (AI-Powered Single Action) ─── */}
+      <TodaysMission
+        hasTopics={hasTopics}
+        onStartMission={(subject, topic, minutes) => {
+          openSignalWithPrefill(subject, topic, minutes);
+        }}
+      />
 
       {/* ─── SECTION 3: Quick Micro Actions (3 compact cards) ─── */}
       {hasTopics && (
