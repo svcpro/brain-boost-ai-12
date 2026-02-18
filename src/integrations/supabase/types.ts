@@ -2055,27 +2055,33 @@ export type Database = {
       }
       notification_history: {
         Row: {
+          action_url: string | null
           body: string | null
           created_at: string
           id: string
+          priority: string
           read: boolean
           title: string
           type: string | null
           user_id: string
         }
         Insert: {
+          action_url?: string | null
           body?: string | null
           created_at?: string
           id?: string
+          priority?: string
           read?: boolean
           title: string
           type?: string | null
           user_id: string
         }
         Update: {
+          action_url?: string | null
           body?: string | null
           created_at?: string
           id?: string
+          priority?: string
           read?: boolean
           title?: string
           type?: string | null
