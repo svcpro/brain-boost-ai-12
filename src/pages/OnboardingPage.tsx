@@ -61,8 +61,6 @@ const OnboardingPage = () => {
   const [newTopic, setNewTopic] = useState("");
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [studyMode, setStudyMode] = useState("");
-  const [whatsappNumber, setWhatsappNumber] = useState("+91 ");
-  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
 
@@ -77,7 +75,7 @@ const OnboardingPage = () => {
     if (name) setDisplayName(name);
   });
 
-  const totalSteps = 7;
+  const totalSteps = 6;
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
@@ -164,7 +162,7 @@ const OnboardingPage = () => {
     if (step === 3) return subjects.length > 0;
     if (step === 4) return true; // topics are optional
     if (step === 5) return studyMode !== "";
-    if (step === 6) return whatsappNumber.replace(/\s/g, "").length >= 13; // +91 + 10 digits
+    return false;
     return false;
   };
 
@@ -190,11 +188,6 @@ const OnboardingPage = () => {
         study_preferences: { mode: studyMode, onboarded: true },
       };
 
-      // Save WhatsApp number if provided
-      if (whatsappNumber.trim()) {
-        profileUpdate.whatsapp_number = whatsappNumber.trim();
-        profileUpdate.whatsapp_opted_in = whatsappOptIn;
-      }
 
       const { error: profileErr } = await supabase
         .from("profiles")
@@ -597,58 +590,6 @@ const OnboardingPage = () => {
                     </div>
                   </button>
                 ))}
-              </div>
-            </motion.div>
-          )}
-          {/* Step 6: WhatsApp Number (Optional) */}
-          {step === 6 && (
-            <motion.div key="whatsapp" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="w-5 h-5 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">WhatsApp notifications</h1>
-              </div>
-              <p className="text-muted-foreground text-sm mb-6">
-                Get study reminders, risk digests, and streak alerts on WhatsApp.
-              </p>
-
-              <div className="space-y-4">
-                <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="tel"
-                    placeholder="+91 98765 43210"
-                    value={whatsappNumber}
-                    onChange={e => setWhatsappNumber(e.target.value)}
-                    maxLength={20}
-                    className="w-full rounded-xl bg-secondary border border-border pl-10 pr-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                  />
-                </div>
-
-                <p className="text-[10px] text-muted-foreground">
-                  Enter your 10-digit WhatsApp number to receive study alerts.
-                </p>
-
-                {whatsappNumber.trim().length >= 10 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-3 rounded-xl glass border border-border"
-                  >
-                    <button
-                      onClick={() => setWhatsappOptIn(!whatsappOptIn)}
-                      className={`w-10 h-6 rounded-full transition-all relative flex-shrink-0 ${whatsappOptIn ? "bg-primary" : "bg-secondary"}`}
-                    >
-                      <motion.div
-                        className="w-4 h-4 rounded-full bg-white absolute top-1"
-                        animate={{ left: whatsappOptIn ? 22 : 4 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    </button>
-                    <span className="text-xs text-foreground">
-                      Enable WhatsApp notifications
-                    </span>
-                  </motion.div>
-                )}
               </div>
             </motion.div>
           )}

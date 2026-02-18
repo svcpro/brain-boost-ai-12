@@ -38,14 +38,14 @@ import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
 import FinanceManagement from "@/components/admin/FinanceManagement";
 import CommunityManagement from "@/components/admin/CommunityManagement";
 import SEOManagement from "@/components/admin/SEOManagement";
-import WhatsAppManagement from "@/components/admin/WhatsAppManagement";
+
 import EmailManagement from "@/components/admin/EmailManagement";
 import PushNotificationManagement from "@/components/admin/PushNotificationManagement";
 import VoiceNotificationManagement from "@/components/admin/VoiceNotificationManagement";
 import NotificationIntelligence from "@/components/admin/NotificationIntelligence";
 import GrowthControlCenter from "@/components/admin/GrowthControlCenter";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "email" | "push" | "voice" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -107,7 +107,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
       { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
       { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
-      { key: "whatsapp", label: "WhatsApp", icon: MessageSquare, roles: ["super_admin", "admin"] },
+      
     ],
   },
   {
@@ -462,7 +462,7 @@ const AdminPanel = () => {
               {section === "services" && <ThirdPartyServices />}
               {section === "finance" && <FinanceManagement />}
               {section === "campaigns" && <CampaignManager />}
-              {section === "whatsapp" && <WhatsAppManagement />}
+              
               {section === "push" && <PushNotificationManagement />}
               {section === "voice" && <VoiceNotificationManagement />}
               {section === "email" && <EmailManagement />}

@@ -48,43 +48,6 @@ serve(async (req) => {
       console.error("Email error:", e);
     }
 
-    // ─── 2. WHATSAPP via whatsapp-notify (Meta-approved templates) ───
-    try {
-      // Check if user has WhatsApp number in profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("whatsapp_number, whatsapp_opted_in")
-        .eq("id", user_id)
-        .maybeSingle();
-
-      if (profile?.whatsapp_number && profile?.whatsapp_opted_in === true) {
-        const waResp = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-notify`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            event_type: "signup",
-            user_id,
-            data: {
-              name: userName,
-              email,
-              first_topic: "Your First Topic",
-              community_count: "10,000",
-            },
-          }),
-        });
-        const waResult = await waResp.json();
-        results.whatsapp = { status: waResp.ok ? "triggered" : "failed", ...waResult };
-        console.log("WhatsApp result:", JSON.stringify(results.whatsapp));
-      } else {
-        results.whatsapp = { status: "skipped", reason: "no_whatsapp_number_or_not_opted_in" };
-      }
-    } catch (e) {
-      results.whatsapp = { status: "error", message: e instanceof Error ? e.message : "unknown" };
-      console.error("WhatsApp error:", e);
-    }
 
     // ─── 3. PUSH NOTIFICATION (enabled by default) ───
     try {

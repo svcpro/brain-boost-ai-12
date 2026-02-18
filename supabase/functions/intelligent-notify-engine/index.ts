@@ -296,7 +296,7 @@ async function bundleNotifications(supabase: any, userId: string) {
 // 5. BRAIN RISK ESCALATION PROTOCOL
 // ═══════════════════════════════════════════════════════════════
 
-const ESCALATION_LADDER = ["push", "whatsapp", "email", "voice"];
+const ESCALATION_LADDER = ["push", "email", "voice"];
 
 async function checkEscalation(supabase: any, userId: string, eventType: string) {
   const { data: existing } = await supabase
@@ -458,7 +458,7 @@ async function getSmartChannels(supabase: any, userId: string) {
     .order("effectiveness_score", { ascending: false });
 
   if (!channels || channels.length === 0) {
-    return { channels: ["push", "whatsapp", "email"], source: "default" };
+    return { channels: ["push", "email"], source: "default" };
   }
 
   return {
@@ -540,7 +540,7 @@ async function computeBehavioralProfile(supabase: any, userId: string) {
     predictChurn(supabase, userId),
   ]);
 
-  const channelScores = channels.scores || { push: 50, whatsapp: 50, email: 50, voice: 50 };
+  const channelScores = channels.scores || { push: 50, email: 50, voice: 50 };
   const stressLevel = churn.churn_probability >= 0.7 ? "high" : churn.churn_probability >= 0.4 ? "moderate" : "normal";
   const motivationType = churn.risk_level === "critical" ? "loss_aversion" : churn.risk_level === "high" ? "social_proof" : "achievement";
 

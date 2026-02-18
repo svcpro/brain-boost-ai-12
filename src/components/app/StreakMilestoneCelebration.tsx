@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, X, Flame, Star, Crown } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWhatsAppPreview } from "@/hooks/useWhatsAppPreview";
-import WhatsAppPreviewModal from "@/components/app/WhatsAppPreviewModal";
 
 interface StreakMilestoneProps {
   currentStreak: number;
@@ -36,7 +34,7 @@ const StreakMilestoneCelebration = ({ currentStreak }: StreakMilestoneProps) => 
   const { user } = useAuth();
   const [visible, setVisible] = useState(false);
   const [milestone, setMilestone] = useState<typeof MILESTONES[0] | null>(null);
-  const { previewState, showPreview, confirmSend, cancelSend } = useWhatsAppPreview();
+  
 
   useEffect(() => {
     if (currentStreak <= 0) return;
@@ -50,10 +48,6 @@ const StreakMilestoneCelebration = ({ currentStreak }: StreakMilestoneProps) => 
     if (hit) {
       setMilestone(hit);
       setVisible(true);
-      // Send WhatsApp streak milestone notification
-      if (user) {
-        showPreview("streak_milestone", { user_id: user.id, data: { days: hit.days } });
-      }
     }
   }, [currentStreak, user]);
 
@@ -146,14 +140,6 @@ const StreakMilestoneCelebration = ({ currentStreak }: StreakMilestoneProps) => 
         </motion.div>
       )}
     </AnimatePresence>
-    <WhatsAppPreviewModal
-      open={previewState.open}
-      message={previewState.message}
-      eventType={previewState.eventType}
-      onConfirm={confirmSend}
-      onCancel={cancelSend}
-      sending={previewState.sending}
-    />
     </>
   );
 };

@@ -8,8 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import confetti from "canvas-confetti";
 import { emitEvent } from "@/lib/eventBus";
-import { useWhatsAppPreview } from "@/hooks/useWhatsAppPreview";
-import WhatsAppPreviewModal from "@/components/app/WhatsAppPreviewModal";
 
 const PRESETS = [15, 25, 45, 60];
 const POMODORO_WORK = 25;
@@ -57,7 +55,7 @@ const FocusModeSession = ({ open, onClose, onSessionComplete, initialSubject, in
   const [pomodoroCycle, setPomodoroCycle] = useState(1);
   const [totalCyclesCompleted, setTotalCyclesCompleted] = useState(0);
   const [logging, setLogging] = useState(false);
-  const { previewState, showPreview, confirmSend, cancelSend } = useWhatsAppPreview();
+  
   const [confidence, setConfidence] = useState<"low" | "medium" | "high">("high");
   const [sessionNotes, setSessionNotes] = useState("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -277,13 +275,6 @@ const FocusModeSession = ({ open, onClose, onSessionComplete, initialSubject, in
       })
     );
     
-    // WhatsApp notification preview for focus session completion
-    if (user && summary) {
-      showPreview("focus_session_completed", {
-        user_id: user.id,
-        data: { minutes: summary.elapsedMinutes, topic_name: summary.topic || summary.subject },
-      });
-    }
     
     callback();
   };
@@ -800,14 +791,6 @@ const FocusModeSession = ({ open, onClose, onSessionComplete, initialSubject, in
         </motion.div>
       </motion.div>
     </AnimatePresence>
-    <WhatsAppPreviewModal
-      open={previewState.open}
-      message={previewState.message}
-      eventType={previewState.eventType}
-      onConfirm={confirmSend}
-      onCancel={cancelSend}
-      sending={previewState.sending}
-    />
     </>
   );
 };
