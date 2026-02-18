@@ -564,7 +564,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             hasTopics={hasTopics}
           />
 
-          {isEnabled('home_daily_goal') && <DailyGoalTracker />}
+          {/* DailyGoalTracker hidden - consolidated into MomentumSection */}
           {isEnabled('home_streak_milestone') && <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />}
           {isEnabled('home_streak_recovery') && (
             <StreakRecoveryCard
