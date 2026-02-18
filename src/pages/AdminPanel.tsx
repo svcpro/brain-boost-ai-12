@@ -42,8 +42,9 @@ import WhatsAppManagement from "@/components/admin/WhatsAppManagement";
 import EmailManagement from "@/components/admin/EmailManagement";
 import PushNotificationManagement from "@/components/admin/PushNotificationManagement";
 import VoiceNotificationManagement from "@/components/admin/VoiceNotificationManagement";
+import NotificationIntelligence from "@/components/admin/NotificationIntelligence";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "email" | "push" | "voice" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "campaigns" | "email" | "push" | "voice" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -99,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Messaging",
     icon: Mail,
     items: [
+      { key: "notify_intelligence", label: "🧠 AI Intelligence", icon: Brain, roles: ["super_admin", "admin"], badge: "NEW" },
       { key: "campaigns", label: "Campaigns", icon: Megaphone, roles: ["super_admin", "admin"] },
       { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
       { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
@@ -462,6 +464,7 @@ const AdminPanel = () => {
               {section === "push" && <PushNotificationManagement />}
               {section === "voice" && <VoiceNotificationManagement />}
               {section === "email" && <EmailManagement />}
+              {section === "notify_intelligence" && <NotificationIntelligence />}
               {section === "monitoring" && <SystemMonitor />}
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}
