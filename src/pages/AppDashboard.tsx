@@ -243,11 +243,6 @@ const AppDashboard = () => {
                         {pendingGifts > 9 ? "9+" : pendingGifts}
                       </span>
                     )}
-                    {tab.id === "you" && unreadNotifs > 0 && (
-                      <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-warning text-warning-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
-                        {unreadNotifs > 9 ? "9+" : unreadNotifs}
-                      </span>
-                    )}
                   </div>
                   <span className="text-[10px] font-medium">{tab.label}</span>
                   {active && (
