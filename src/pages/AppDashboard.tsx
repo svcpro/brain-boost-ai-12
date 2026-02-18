@@ -148,11 +148,17 @@ const AppDashboard = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Fetch current plan
+  // Fetch current plan (resolve UUID to plan_key)
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
-      if (data?.plan_id) setCurrentPlan(data.plan_id);
+    supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(async ({ data }) => {
+      if (!data?.plan_id) { setCurrentPlan("none"); return; }
+      let planKey = data.plan_id;
+      if (planKey.includes("-") && planKey.length > 10) {
+        const { data: planData } = await supabase.from("subscription_plans").select("plan_key").eq("id", planKey).maybeSingle();
+        planKey = planData?.plan_key || "none";
+      }
+      setCurrentPlan(planKey);
     });
   }, [user]);
 
