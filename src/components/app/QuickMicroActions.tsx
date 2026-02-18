@@ -1,0 +1,161 @@
+import React, { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { Brain, Shield, Trophy, Zap, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { triggerHaptic } from "@/lib/feedback";
+import { useToast } from "@/hooks/use-toast";
+import type { TopicPrediction } from "@/hooks/useMemoryEngine";
+
+interface QuickMicroActionsProps {
+  atRisk: TopicPrediction[];
+  overallHealth: number;
+  streakDays: number;
+  onStartRecall: (subject?: string, topic?: string, minutes?: number) => void;
+}
+
+interface MicroAction {
+  id: string;
+  icon: typeof Brain;
+  label: string;
+  reward: string;
+  color: string;
+  bg: string;
+  priority: number;
+}
+
+export default function QuickMicroActions({ atRisk, overallHealth, streakDays, onStartRecall }: QuickMicroActionsProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  // Dynamic reordering based on user state
+  const actions = useMemo<MicroAction[]>(() => {
+    const items: MicroAction[] = [
+      {
+        id: "smart-recall",
+        icon: Brain,
+        label: "Smart Recall",
+        reward: "+3% memory",
+        color: "text-primary",
+        bg: "bg-primary/10",
+        // Higher priority when memory health is low
+        priority: overallHealth < 60 ? 100 : overallHealth < 80 ? 60 : 30,
+      },
+      {
+        id: "risk-shield",
+        icon: Shield,
+        label: "Risk Shield",
+        reward: atRisk.length > 0 ? `${atRisk.length} saved` : "All safe",
+        color: "text-warning",
+        bg: "bg-warning/10",
+        // Higher priority when many topics are at risk
+        priority: atRisk.length >= 3 ? 90 : atRisk.length > 0 ? 50 : 10,
+      },
+      {
+        id: "rank-boost",
+        icon: Trophy,
+        label: "Rank Boost",
+        reward: "+1 rank",
+        color: "text-accent",
+        bg: "bg-accent/10",
+        // Higher priority for users with active streaks (competitive)
+        priority: streakDays >= 3 ? 70 : 40,
+      },
+    ];
+    return items.sort((a, b) => b.priority - a.priority);
+  }, [atRisk.length, overallHealth, streakDays]);
+
+  const handleAction = async (id: string) => {
+    triggerHaptic(20);
+    setLoadingId(id);
+
+    try {
+      if (id === "smart-recall") {
+        // Pick highest-risk topic for a 1-2 min recall sprint
+        const target = atRisk[0];
+        if (target) {
+          onStartRecall(target.subject_name ?? undefined, target.name, 2);
+        } else {
+          // No at-risk topics — pick a random topic for maintenance recall
+          onStartRecall(undefined, undefined, 2);
+        }
+        toast({ title: "⚡ Smart Recall started", description: "1–2 min sprint for maximum retention" });
+      }
+
+      if (id === "risk-shield") {
+        if (atRisk.length === 0) {
+          toast({ title: "🎉 All clear!", description: "No at-risk topics right now." });
+          setLoadingId(null);
+          return;
+        }
+        // Auto-protect: trigger quick recall for the most critical topic
+        const critical = atRisk[0];
+        onStartRecall(critical.subject_name ?? undefined, critical.name, 2);
+        toast({ title: "🛡️ Risk Shield activated", description: `Protecting: ${critical.name}` });
+      }
+
+      if (id === "rank-boost") {
+        // Generate a competitive MCQ via AI
+        const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
+          body: {
+            action: "chat",
+            message: "Generate exactly 1 quick competitive MCQ question from my weakest topic. Format: Question, then A) B) C) D) options, then the correct answer letter. Keep it challenging but fair.",
+          },
+        });
+        if (error) throw error;
+        const reply = data?.reply || "Couldn't generate question. Try again!";
+        toast({
+          title: "🏆 Rank Boost MCQ",
+          description: reply.slice(0, 200) + (reply.length > 200 ? "…" : ""),
+          duration: 15000,
+        });
+      }
+    } catch {
+      toast({ title: "Something went wrong", variant: "destructive" });
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+    >
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">
+        Quick Actions
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {actions.map((item, i) => {
+          const isLoading = loadingId === item.id;
+          return (
+            <motion.button
+              key={item.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 + i * 0.05 }}
+              whileTap={{ scale: 0.93 }}
+              onClick={() => handleAction(item.id)}
+              disabled={isLoading}
+              className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-3 flex flex-col items-center gap-1.5 hover:border-primary/20 transition-all disabled:opacity-60"
+            >
+              <div className={`w-8 h-8 rounded-lg ${item.bg} flex items-center justify-center`}>
+                {isLoading ? (
+                  <Loader2 className={`w-3.5 h-3.5 ${item.color} animate-spin`} />
+                ) : (
+                  <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                )}
+              </div>
+              <p className="text-[10px] font-semibold text-foreground leading-tight">{item.label}</p>
+              <span className={`text-[8px] font-medium ${item.color} opacity-80`}>
+                {item.reward}
+              </span>
+            </motion.button>
+          );
+        })}
+      </div>
+    </motion.section>
+  );
+}
