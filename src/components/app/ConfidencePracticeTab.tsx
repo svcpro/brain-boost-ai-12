@@ -42,6 +42,7 @@ const ConfidencePracticeTab = () => {
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [sessionAnswers, setSessionAnswers] = useState<boolean[]>([]);
   const [userExamLoaded, setUserExamLoaded] = useState(false);
+  const [userExamType, setUserExamType] = useState("");
 
   // Filters
   const [selExam, setSelExam] = useState("");
@@ -54,13 +55,18 @@ const ConfidencePracticeTab = () => {
   useEffect(() => {
     fetchUserExam().then(exam => {
       if (exam) {
-        // Map profile exam_type to our examTypes list (case-insensitive match)
         const matched = examTypes.find(e => e.toLowerCase() === exam.toLowerCase()) || "";
-        if (matched) setSelExam(matched);
+        if (matched) {
+          setSelExam(matched);
+          setUserExamType(matched);
+        }
       }
       setUserExamLoaded(true);
     });
   }, [fetchUserExam]);
+
+  // Only show the user's onboarded exam type
+  const availableExamTypes = userExamType ? [userExamType] : examTypes;
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
@@ -294,7 +300,7 @@ const ConfidencePracticeTab = () => {
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Exam Type</label>
             <div className="flex flex-wrap gap-2">
-              {examTypes.map(e => (
+              {availableExamTypes.map(e => (
                 <button key={e} onClick={() => setSelExam(selExam === e ? "" : e)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selExam === e ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
                 >{e}</button>
