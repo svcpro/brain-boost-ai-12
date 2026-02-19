@@ -120,12 +120,8 @@ Total topics: ${topics.length}`;
 
         let recommendations = "";
         try {
-          const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
+          const { aiFetch } = await import("../_shared/aiFetch.ts");
+          const aiResp = await aiFetch({
             body: JSON.stringify({
               model: "google/gemini-2.5-flash-lite",
               messages: [

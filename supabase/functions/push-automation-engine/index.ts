@@ -286,9 +286,8 @@ Context: ${JSON.stringify(variables)}
 ${categoryPrompts[triggerKey] || "Write a relevant, personalized notification."}
 Return ONLY a JSON object with "title" (max 50 chars, with emoji) and "body" (max 150 chars, personal and actionable). No markdown.`;
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+  const { aiFetch } = await import("../_shared/aiFetch.ts");
+  const response = await aiFetch({
     body: JSON.stringify({
       model: "google/gemini-2.5-flash-lite",
       messages: [{ role: "user", content: prompt }],

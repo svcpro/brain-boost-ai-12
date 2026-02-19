@@ -270,12 +270,8 @@ ${cognitiveContext}
     const maxTokens = chatConfig?.max_tokens || 1024;
     const temperature = chatConfig?.temperature ? Number(chatConfig.temperature) : 0.7;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+    const { aiFetch } = await import("../_shared/aiFetch.ts");
+    const aiResp = await aiFetch({
       body: JSON.stringify({
         model: activeModel,
         messages: aiMessages,

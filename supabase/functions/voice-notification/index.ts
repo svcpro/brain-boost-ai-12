@@ -90,24 +90,6 @@ serve(async (req) => {
         if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
       }
     }
-        if (aiResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (aiResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        // For 500 errors, wait and retry
-        console.warn(`AI gateway attempt ${attempt + 1} failed with status ${aiResponse.status}`);
-        if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-      } catch (fetchErr) {
-        console.warn(`AI gateway fetch error attempt ${attempt + 1}:`, fetchErr);
-        if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-      }
-    }
 
     // Fallback text if AI gateway is completely down
     const fallbackTexts: Record<string, string> = {
