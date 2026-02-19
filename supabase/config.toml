@@ -194,3 +194,6 @@ verify_jwt = false
 
 [functions.exam-domination-engine]
 verify_jwt = false
+
+[functions.confidence-practice]
+verify_jwt = false
