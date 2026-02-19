@@ -209,14 +209,19 @@ serve(async (req) => {
       if (rateLimited) break;
     }
 
+    const alreadyComplete = totalInserted === 0 && !rateLimited;
+
     return new Response(JSON.stringify({
       success: true,
       totalInserted,
       rateLimited,
+      alreadyComplete,
       results,
       message: rateLimited
         ? `Inserted ${totalInserted} questions before hitting rate limit. Run again to continue.`
-        : `Successfully inserted ${totalInserted} questions across ${examsToProcess.length} exam(s).`,
+        : alreadyComplete
+        ? `Question bank is already fully populated for ${examsToProcess.join(", ")}. All ${questions_per_subject_per_year} questions per subject per year are present.`
+        : `Successfully inserted ${totalInserted} new questions across ${examsToProcess.length} exam(s).`,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("fetch-pyqs error:", e);
