@@ -6,7 +6,6 @@ const AIAssistantButton = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Hide on chat page itself
   if (location.pathname === "/chat") return null;
 
   return (
@@ -16,7 +15,7 @@ const AIAssistantButton = () => {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0, opacity: 0 }}
         onClick={() => navigate("/chat")}
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground flex items-center justify-center transition-all duration-300 shadow-[0_0_25px_hsl(var(--primary)/0.4),0_0_50px_hsl(var(--primary)/0.15)]"
+        className="fixed bottom-24 right-5 z-[60] flex items-center gap-2.5 rounded-full bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground px-5 py-3.5 transition-all duration-300 shadow-[0_0_25px_hsl(var(--primary)/0.4),0_0_50px_hsl(var(--primary)/0.15)]"
       >
         {/* Outer orbital ring */}
         <motion.div
@@ -38,21 +37,32 @@ const AIAssistantButton = () => {
           animate={{ scale: [1, 1.5, 1], opacity: [0.4, 0, 0.4] }}
           transition={{ repeat: Infinity, duration: 3, ease: "easeInOut", delay: 0.5 }}
         />
+
         {/* Brain icon */}
         <div className="relative z-10">
           <motion.div
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
           >
-            <Brain className="w-7 h-7 drop-shadow-[0_0_6px_hsl(var(--primary))]" />
+            <Brain className="w-5 h-5 drop-shadow-[0_0_6px_hsl(var(--primary))]" />
           </motion.div>
           {/* Online dot */}
           <motion.div
-            className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-background"
+            className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-background"
             animate={{ scale: [1, 1.3, 1], boxShadow: ["0 0 0px #4ade80", "0 0 8px #4ade80", "0 0 0px #4ade80"] }}
             transition={{ repeat: Infinity, duration: 2 }}
           />
         </div>
+
+        {/* Label */}
+        <motion.span
+          className="relative z-10 text-xs font-bold tracking-wide whitespace-nowrap"
+          animate={{ opacity: [0.9, 1, 0.9] }}
+          transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+        >
+          Feed Your Brain
+        </motion.span>
+
         {/* Sparkle particles */}
         {[0, 1, 2].map(i => (
           <motion.div
