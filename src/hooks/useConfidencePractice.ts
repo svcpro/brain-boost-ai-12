@@ -116,5 +116,32 @@ export function useConfidencePractice() {
     return "";
   }, [user]);
 
-  return { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, fetchUserExam, setQuestions };
+  const [populatingPYQs, setPopulatingPYQs] = useState(false);
+  const [pyqProgress, setPyqProgress] = useState("");
+
+  const populateQuestionBank = useCallback(async (examType?: string) => {
+    if (!user) return null;
+    setPopulatingPYQs(true);
+    setPyqProgress("Generating questions using AI... This may take a few minutes.");
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-pyqs", {
+        body: { exam_type: examType || undefined, questions_per_subject_per_year: 5 }
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+        return data;
+      }
+      toast({ title: "Question Bank Updated!", description: data.message || `${data.totalInserted} questions added.` });
+      return data;
+    } catch (e: any) {
+      toast({ title: "Error populating questions", description: e.message, variant: "destructive" });
+      return null;
+    } finally {
+      setPopulatingPYQs(false);
+      setPyqProgress("");
+    }
+  }, [user]);
+
+  return { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, fetchUserExam, setQuestions, populatingPYQs, pyqProgress, populateQuestionBank };
 }
