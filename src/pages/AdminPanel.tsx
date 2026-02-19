@@ -44,8 +44,9 @@ import PushNotificationManagement from "@/components/admin/PushNotificationManag
 import VoiceNotificationManagement from "@/components/admin/VoiceNotificationManagement";
 import NotificationIntelligence from "@/components/admin/NotificationIntelligence";
 import GrowthControlCenter from "@/components/admin/GrowthControlCenter";
+import ExamCountdownConfig from "@/components/admin/ExamCountdownConfig";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -116,6 +117,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
       { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
+      { key: "exam_countdown", label: "Exam Countdown", icon: Clock, roles: ["super_admin", "admin"], badge: "NEW" },
       { key: "finance", label: "Finance & Costs", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
     ],
   },
@@ -458,6 +460,7 @@ const AdminPanel = () => {
               {section === "seo" && <SEOManagement />}
               {section === "subscriptions" && <SubscriptionsSection />}
               {section === "plan_gating" && <PlanGatingManagement />}
+              {section === "exam_countdown" && <ExamCountdownConfig />}
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
               {section === "finance" && <FinanceManagement />}
