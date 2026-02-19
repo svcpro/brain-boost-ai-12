@@ -5,7 +5,8 @@ import {
   SkipForward, Clock, BookOpen, Brain, TrendingUp,
   Sparkles, Loader2, Target, Volume2, VolumeX,
   Zap, Trophy, ArrowRight, Star, Flame, BarChart3,
-  ChevronRight, CloudRain, Music, Radio, CheckCircle
+  ChevronRight, CloudRain, Music, Radio, CheckCircle,
+  RefreshCw, Award, Rocket
 } from "lucide-react";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +25,16 @@ interface FocusModeSessionProps {
   autoStart?: boolean;
 }
 
-type FocusStep = "preparing" | "summary" | "execution" | "complete" | "next-action";
+type FocusStep = "preparing" | "summary" | "execution" | "phase-reward" | "complete" | "next-action";
+
+interface SessionPhase {
+  type: "recall" | "reinforcement" | "mcq" | "review";
+  title: string;
+  description: string;
+  duration: number;
+  difficulty: "easy" | "medium" | "hard";
+  completed: boolean;
+}
 
 interface AISessionPlan {
   subject: string;
@@ -32,18 +42,10 @@ interface AISessionPlan {
   subtopic: string;
   duration: number;
   difficulty: "easy" | "medium" | "hard";
-  questionType: "mcq" | "recall" | "mixed";
   expectedGain: string;
   rankImpact: string;
   stability: number;
-  phases: Array<{
-    type: "concept" | "recall" | "mcq";
-    title: string;
-    description: string;
-    duration: number;
-    difficulty: "easy" | "medium" | "hard";
-    completed: boolean;
-  }>;
+  phases: SessionPhase[];
 }
 
 interface MCQQuestion {
@@ -53,12 +55,32 @@ interface MCQQuestion {
   explanation: string;
 }
 
-// Preparation animation messages
 const PREP_MESSAGES = [
   { text: "Scanning your brain data...", icon: Brain },
-  { text: "Analyzing weak topics...", icon: Target },
-  { text: "Calculating optimal difficulty...", icon: BarChart3 },
-  { text: "Building your session...", icon: Sparkles },
+  { text: "Selecting optimal topic...", icon: Target },
+  { text: "Calibrating difficulty...", icon: BarChart3 },
+  { text: "Designing session structure...", icon: Sparkles },
+];
+
+const PHASE_ICONS = {
+  recall: Brain,
+  reinforcement: RefreshCw,
+  mcq: Target,
+  review: BookOpen,
+};
+
+const PHASE_COLORS = {
+  recall: { bg: "bg-primary/15", text: "text-primary" },
+  reinforcement: { bg: "bg-warning/15", text: "text-warning" },
+  mcq: { bg: "bg-success/15", text: "text-success" },
+  review: { bg: "bg-accent/15", text: "text-accent-foreground" },
+};
+
+const MICRO_REWARDS = [
+  { emoji: "🧠", title: "Recall Mastered!", subtitle: "Memory pathways activated" },
+  { emoji: "💪", title: "Concepts Locked In!", subtitle: "Neural connections strengthened" },
+  { emoji: "🎯", title: "Assessment Cleared!", subtitle: "Knowledge validated" },
+  { emoji: "⭐", title: "Review Complete!", subtitle: "Long-term retention secured" },
 ];
 
 const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSessionProps) => {
@@ -83,14 +105,14 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
   const [adaptiveDifficulty, setAdaptiveDifficulty] = useState<"easy" | "medium" | "hard">("medium");
 
   // Completion state
-  const [stabilityBefore, setStabilityBefore] = useState<number>(0);
+  const [stabilityBefore, setStabilityBefore] = useState(0);
   const [stabilityAfter, setStabilityAfter] = useState<number | null>(null);
   const [focusQuality, setFocusQuality] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
-  // ═══ Reset on open → immediately start AI preparation ═══
+  // ═══ Reset on open ═══
   useEffect(() => {
     if (open) {
       setStep("preparing");
@@ -112,14 +134,11 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
     }
   }, [open]);
 
-  // ═══ Preparation animation ticker ═══
+  // ═══ Prep animation ═══
   useEffect(() => {
     if (step !== "preparing") return;
     const t = setInterval(() => {
-      setPrepIndex(prev => {
-        if (prev < PREP_MESSAGES.length - 1) return prev + 1;
-        return prev;
-      });
+      setPrepIndex(prev => prev < PREP_MESSAGES.length - 1 ? prev + 1 : prev);
     }, 900);
     return () => clearInterval(t);
   }, [step]);
@@ -146,145 +165,127 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
   // ═══════════════════════════════════════════════════
   const startAIPreparation = async () => {
     if (!user) return;
+    const prepStart = Date.now();
 
     try {
-      // Fetch weakest topic
-      const { data: weakTopic } = await (supabase as any)
-        .from("topics")
-        .select("id, name, memory_strength, subjects(name)")
-        .eq("user_id", user.id)
-        .eq("deleted", false)
-        .order("memory_strength", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      const [topicRes, examRes, featuresRes] = await Promise.all([
+        (supabase as any)
+          .from("topics")
+          .select("id, name, memory_strength, subjects(name)")
+          .eq("user_id", user.id)
+          .is("deleted_at", null)
+          .order("memory_strength", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("exam_results")
+          .select("score, total_questions, difficulty")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+        (supabase as any)
+          .from("user_features")
+          .select("recall_success_rate, knowledge_stability, subject_strength_score")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
 
-      // Fetch recent exam performance for difficulty calibration
-      const { data: recentExams } = await supabase
-        .from("exam_results")
-        .select("score, total_questions, difficulty")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+      const weakTopic = topicRes.data;
+      const recentExams = examRes.data || [];
+      const features = featuresRes.data;
 
-      // Fetch user features for personalization
-      const { data: features } = await (supabase as any)
-        .from("user_features")
-        .select("recall_success_rate, knowledge_stability, subject_strength_score")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      // ── Determine parameters ──
       const topicName = weakTopic?.name || "General Review";
       const subjectName = (weakTopic?.subjects as any)?.name || "General";
-      const memoryStrength = weakTopic ? Math.round((weakTopic.memory_strength ?? 0) * 100) : 50;
+      const memoryStrength = weakTopic ? Math.round(Number(weakTopic.memory_strength ?? 0) * 100) : 50;
 
-      // Difficulty from performance
-      const exams = recentExams || [];
+      // Difficulty calibration
       let avgAccuracy = 0.5;
-      if (exams.length > 0) {
-        avgAccuracy = exams.reduce((s: number, e: any) => s + (e.score / Math.max(1, e.total_questions)), 0) / exams.length;
+      if (recentExams.length > 0) {
+        avgAccuracy = recentExams.reduce((s: number, e: any) => s + (e.score / Math.max(1, e.total_questions)), 0) / recentExams.length;
       }
       const recallRate = features?.recall_success_rate ?? 0.5;
-      const stability = features?.knowledge_stability ?? 50;
 
       const difficulty: "easy" | "medium" | "hard" =
         avgAccuracy > 0.75 && recallRate > 0.7 ? "hard" :
         avgAccuracy < 0.45 || recallRate < 0.35 ? "easy" : "medium";
 
-      // Duration based on stability
-      const duration = memoryStrength < 30 ? 25 : memoryStrength < 60 ? 20 : 15;
+      // Duration: 20–30 min based on stability
+      const duration = memoryStrength < 30 ? 30 : memoryStrength < 50 ? 25 : 20;
 
-      // Expected gain
-      const expectedGain = memoryStrength < 30 ? "+8-12%" : memoryStrength < 60 ? "+4-8%" : "+2-4%";
-
-      // Rank impact
+      const expectedGain = memoryStrength < 30 ? "+8-12%" : memoryStrength < 60 ? "+5-8%" : "+2-4%";
       const rankImpact = memoryStrength < 40 ? "+150-300 ranks" : memoryStrength < 70 ? "+50-150 ranks" : "+10-50 ranks";
 
-      // Build phases
-      const conceptTime = Math.max(3, Math.round(duration * 0.4));
-      const recallTime = Math.max(2, Math.round(duration * 0.3));
-      const mcqTime = Math.max(2, Math.round(duration * 0.3));
+      // 4-phase structure: Recall → Reinforcement → MCQ → Review
+      const recallTime = Math.round(duration * 0.25);
+      const reinforceTime = Math.round(duration * 0.3);
+      const mcqTime = Math.round(duration * 0.3);
+      const reviewTime = duration - recallTime - reinforceTime - mcqTime;
 
       const sessionPlan: AISessionPlan = {
         subject: subjectName,
         topic: topicName,
-        subtopic: topicName, // Will be refined by AI if available
+        subtopic: topicName,
         duration,
         difficulty,
-        questionType: difficulty === "easy" ? "recall" : "mixed",
         expectedGain,
         rankImpact,
         stability: memoryStrength,
         phases: [
           {
-            type: "concept",
-            title: "Concept Deep Dive",
-            description: `Study and understand core concepts of ${topicName}. Build mental models and annotate key ideas.`,
-            duration: conceptTime,
-            completed: false,
+            type: "recall",
+            title: "Active Recall",
+            description: `Close all materials. Write down everything you remember about ${topicName}. Activate memory pathways.`,
+            duration: recallTime,
             difficulty,
+            completed: false,
           },
           {
-            type: "recall",
-            title: "Active Recall Challenge",
-            description: `Close materials and recall everything about ${topicName}. Write key points from memory.`,
-            duration: recallTime,
-            completed: false,
+            type: "reinforcement",
+            title: "Concept Reinforcement",
+            description: `Review and strengthen the concepts of ${topicName}. Fill gaps from the recall phase.`,
+            duration: reinforceTime,
             difficulty,
+            completed: false,
           },
           {
             type: "mcq",
             title: "Adaptive Assessment",
             description: `AI-generated questions that adapt to your performance in real-time.`,
             duration: mcqTime,
-            completed: false,
             difficulty,
+            completed: false,
+          },
+          {
+            type: "review",
+            title: "Consolidation Review",
+            description: `Quick review of key takeaways. Lock in what you've learned for long-term retention.`,
+            duration: reviewTime,
+            difficulty,
+            completed: false,
           },
         ],
       };
-
-      // Try to get AI-generated subtopic
-      try {
-        const { data: aiData } = await supabase.functions.invoke("ai-brain-agent", {
-          body: {
-            type: "study_plan",
-            subject: subjectName,
-            topic: topicName,
-            duration,
-            difficulty,
-          },
-        });
-        if (aiData?.subtopic) sessionPlan.subtopic = aiData.subtopic;
-      } catch { /* fallback to topic name */ }
 
       setPlan(sessionPlan);
       setStabilityBefore(memoryStrength);
       setAdaptiveDifficulty(difficulty);
 
-      // Wait for prep animation to finish (minimum ~3.5s)
-      const elapsed = Date.now();
-      const minPrepTime = 3500;
-      const remaining = minPrepTime - (Date.now() - elapsed);
-      if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
+      // Ensure minimum prep animation time
+      const elapsed = Date.now() - prepStart;
+      if (elapsed < 3500) await new Promise(r => setTimeout(r, 3500 - elapsed));
 
       setStep("summary");
     } catch (err) {
       console.error("AI preparation error:", err);
-      // Fallback plan
       const fallbackPlan: AISessionPlan = {
-        subject: "General",
-        topic: "Quick Review",
-        subtopic: "Mixed Topics",
-        duration: 15,
-        difficulty: "medium",
-        questionType: "mixed",
-        expectedGain: "+3-6%",
-        rankImpact: "+50-100 ranks",
-        stability: 50,
+        subject: "General", topic: "Quick Review", subtopic: "Mixed Topics",
+        duration: 20, difficulty: "medium", expectedGain: "+3-6%",
+        rankImpact: "+50-100 ranks", stability: 50,
         phases: [
-          { type: "concept", title: "Concept Review", description: "Review core concepts.", duration: 6, completed: false, difficulty: "medium" },
-          { type: "recall", title: "Active Recall", description: "Recall key points.", duration: 5, completed: false, difficulty: "medium" },
-          { type: "mcq", title: "Quick Assessment", description: "Test your understanding.", duration: 4, completed: false, difficulty: "medium" },
+          { type: "recall", title: "Active Recall", description: "Recall key points from memory.", duration: 5, difficulty: "medium", completed: false },
+          { type: "reinforcement", title: "Reinforcement", description: "Review and strengthen concepts.", duration: 6, difficulty: "medium", completed: false },
+          { type: "mcq", title: "Assessment", description: "Test your understanding.", duration: 6, difficulty: "medium", completed: false },
+          { type: "review", title: "Review", description: "Consolidate your learning.", duration: 3, difficulty: "medium", completed: false },
         ],
       };
       setPlan(fallbackPlan);
@@ -305,7 +306,7 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
   };
 
   useEffect(() => {
-    if (secondsLeft === 0 && step === "execution" && !isPaused && plan) {
+    if (secondsLeft === 0 && step === "execution" && !isPaused && plan && startTimeRef.current > 0) {
       handlePhaseComplete();
     }
   }, [secondsLeft, step, isPaused]);
@@ -313,28 +314,66 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
   const handlePhaseComplete = () => {
     if (!plan) return;
     clearTimer();
+
     const updated = { ...plan, phases: plan.phases.map((p, i) => i === currentPhaseIndex ? { ...p, completed: true } : p) };
     setPlan(updated);
 
     const nextIndex = currentPhaseIndex + 1;
     if (nextIndex < plan.phases.length) {
-      setCurrentPhaseIndex(nextIndex);
-      if (plan.phases[nextIndex].type === "mcq") generateMCQ();
-      startCountdown(plan.phases[nextIndex].duration * 60);
+      // Show micro reward before next phase
+      setStep("phase-reward");
+
+      // Mini confetti burst
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 }, colors: ["#22c55e", "#6366f1", "#f59e0b"] });
     } else {
       handleSessionComplete();
     }
   };
 
-  // ═══════════════════════════════════════════════════
-  //  ADAPTIVE MCQ
-  // ═══════════════════════════════════════════════════
-  const generateMCQ = () => {
-    const topic = plan?.topic || "this topic";
-    const difficultyLabel = { easy: "basic", medium: "applied", hard: "advanced" };
+  const continueToNextPhase = () => {
+    if (!plan) return;
+    const nextIndex = currentPhaseIndex + 1;
+    setCurrentPhaseIndex(nextIndex);
+    setStep("execution");
+    if (plan.phases[nextIndex].type === "mcq") fetchAIMCQ();
+    startCountdown(plan.phases[nextIndex].duration * 60);
+  };
 
+  // ═══════════════════════════════════════════════════
+  //  ADAPTIVE MCQ — AI-generated
+  // ═══════════════════════════════════════════════════
+  const fetchAIMCQ = async () => {
+    const topic = plan?.topic || "this topic";
+    try {
+      const { data } = await supabase.functions.invoke("ai-brain-agent", {
+        body: {
+          action: "mission_questions",
+          topic_name: topic,
+          subject_name: plan?.subject,
+          difficulty: adaptiveDifficulty,
+          count: 1,
+        },
+      });
+      const q = data?.questions?.[0];
+      if (q) {
+        setCurrentMCQ({
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correct_index,
+          explanation: q.explanation,
+        });
+        setSelectedAnswer(null);
+        setShowExplanation(false);
+        return;
+      }
+    } catch { /* fallback */ }
+    generateFallbackMCQ();
+  };
+
+  const generateFallbackMCQ = () => {
+    const topic = plan?.topic || "this topic";
     setCurrentMCQ({
-      question: `[${difficultyLabel[adaptiveDifficulty]}] Which of the following best describes a key concept in ${topic}?`,
+      question: `Which of the following best describes a key concept in ${topic}?`,
       options: [
         "A fundamental principle that forms the foundation",
         "A secondary concept with limited application",
@@ -342,7 +381,7 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
         "A deprecated concept no longer relevant",
       ],
       correctIndex: 0,
-      explanation: `The correct answer focuses on fundamental principles. Understanding foundations of ${topic} is critical for building deeper knowledge.`,
+      explanation: `Understanding the fundamental principles of ${topic} is critical for building deeper knowledge.`,
     });
     setSelectedAnswer(null);
     setShowExplanation(false);
@@ -364,6 +403,8 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
     }
   };
 
+  const nextMCQ = () => fetchAIMCQ();
+
   // ═══════════════════════════════════════════════════
   //  COMPLETION
   // ═══════════════════════════════════════════════════
@@ -373,15 +414,14 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
     ambient.stop();
     setStep("complete");
 
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 }, colors: ["#22c55e", "#6366f1", "#f59e0b", "#14b8a6"] });
-    setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.4, x: 0.3 } }), 300);
-    setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.4, x: 0.7 } }), 500);
+    confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 }, colors: ["#22c55e", "#6366f1", "#f59e0b", "#14b8a6"] });
+    setTimeout(() => confetti({ particleCount: 80, spread: 110, origin: { y: 0.4, x: 0.25 } }), 400);
+    setTimeout(() => confetti({ particleCount: 80, spread: 110, origin: { y: 0.4, x: 0.75 } }), 700);
 
     const elapsedMs = Date.now() - startTimeRef.current;
     const elapsed = Math.max(1, Math.round(elapsedMs / 60000));
     const accuracy = totalAnswered > 0 ? correctAnswers / totalAnswered : 0.5;
 
-    // Focus quality score (0-100)
     const quality = Math.round(
       (accuracy * 40) +
       (Math.min(elapsed / plan.duration, 1) * 35) +
@@ -397,16 +437,15 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
       studyMode: "focus",
     });
 
-    // Fetch updated stability
     if (user && plan.topic) {
       const { data } = await (supabase as any)
         .from("topics")
         .select("memory_strength")
         .eq("user_id", user.id)
         .eq("name", plan.topic)
-        .eq("deleted", false)
+        .is("deleted_at", null)
         .maybeSingle();
-      setStabilityAfter(data ? Math.round((data.memory_strength ?? 0) * 100) : null);
+      setStabilityAfter(data ? Math.round(Number(data.memory_strength ?? 0) * 100) : null);
     }
 
     onSessionComplete?.();
@@ -437,6 +476,7 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
   const overallProgress = plan ? ((currentPhaseIndex + (phaseProgress / 100)) / plan.phases.length) * 100 : 0;
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const ss = String(secondsLeft % 60).padStart(2, "0");
+  const completedPhases = plan?.phases.filter(p => p.completed).length || 0;
 
   if (!open) return null;
 
@@ -448,8 +488,8 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex items-center justify-center bg-background/98 backdrop-blur-xl"
       >
-        {/* Overall progress bar during execution */}
-        {step === "execution" && (
+        {/* Overall progress bar */}
+        {(step === "execution" || step === "phase-reward") && (
           <div className="fixed top-0 left-0 right-0 h-1 bg-secondary z-[60]">
             <motion.div className="h-full bg-primary" style={{ width: `${overallProgress}%` }} transition={{ duration: 0.5 }} />
           </div>
@@ -469,12 +509,9 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
             </button>
           )}
 
-          {/* ═══════════════════════════════════════════════════
-              STEP 1: AI Preparation Animation
-             ═══════════════════════════════════════════════════ */}
+          {/* ═══ STEP 1: AI Preparation Animation ═══ */}
           {step === "preparing" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 flex flex-col items-center gap-6">
-              {/* Pulsing brain */}
               <motion.div
                 animate={{ scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }}
                 transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
@@ -484,17 +521,13 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                 <Brain className="w-10 h-10 text-primary" />
               </motion.div>
 
-              {/* Animated status messages */}
               <div className="space-y-3 w-full max-w-xs">
                 {PREP_MESSAGES.map((msg, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, x: -20 }}
-                    animate={{
-                      opacity: i <= prepIndex ? 1 : 0.2,
-                      x: i <= prepIndex ? 0 : -20,
-                    }}
-                    transition={{ duration: 0.4, delay: i <= prepIndex ? 0 : 0 }}
+                    animate={{ opacity: i <= prepIndex ? 1 : 0.2, x: i <= prepIndex ? 0 : -20 }}
+                    transition={{ duration: 0.4 }}
                     className="flex items-center gap-3"
                   >
                     {i < prepIndex ? (
@@ -506,34 +539,28 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                     ) : (
                       <div className="w-4 h-4 rounded-full border border-border shrink-0" />
                     )}
-                    <span className={`text-sm ${i <= prepIndex ? "text-foreground" : "text-muted-foreground/40"}`}>
-                      {msg.text}
-                    </span>
+                    <span className={`text-sm ${i <= prepIndex ? "text-foreground" : "text-muted-foreground/40"}`}>{msg.text}</span>
                   </motion.div>
                 ))}
               </div>
-
-              <p className="text-[10px] text-muted-foreground">AI is optimizing your session — zero effort needed</p>
+              <p className="text-[10px] text-muted-foreground">AI is building your optimal session — zero setup needed</p>
             </motion.div>
           )}
 
-          {/* ═══════════════════════════════════════════════════
-              STEP 2: Session Summary (AI-determined)
-             ═══════════════════════════════════════════════════ */}
+          {/* ═══ STEP 2: AI Session Blueprint ═══ */}
           {step === "summary" && plan && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-              {/* Header */}
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/15">
                   <Crosshair className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <h2 className="font-bold text-foreground text-lg">Your AI Session</h2>
-                  <p className="text-xs text-muted-foreground">Optimized for maximum brain growth</p>
+                  <p className="text-xs text-muted-foreground">4-phase deep work blueprint</p>
                 </div>
               </div>
 
-              {/* Topic & Subject card */}
+              {/* Topic card */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -543,30 +570,29 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-primary mb-1">AI Selected Topic</p>
                   <h3 className="text-lg font-bold text-foreground">{plan.topic}</h3>
-                  <p className="text-xs text-muted-foreground">{plan.subject} · {plan.subtopic}</p>
+                  <p className="text-xs text-muted-foreground">{plan.subject}</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg bg-background/50 p-2.5 text-center">
-                    <Clock className="w-3.5 h-3.5 text-primary mx-auto mb-1" />
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-background/50 p-2 text-center">
+                    <Clock className="w-3.5 h-3.5 text-primary mx-auto mb-0.5" />
                     <p className="text-sm font-bold text-foreground">{plan.duration}m</p>
                     <p className="text-[9px] text-muted-foreground">Duration</p>
                   </div>
-                  <div className="rounded-lg bg-background/50 p-2.5 text-center">
-                    <Target className="w-3.5 h-3.5 text-primary mx-auto mb-1" />
+                  <div className="rounded-lg bg-background/50 p-2 text-center">
+                    <Target className="w-3.5 h-3.5 text-primary mx-auto mb-0.5" />
                     <p className="text-sm font-bold text-foreground capitalize">{plan.difficulty}</p>
                     <p className="text-[9px] text-muted-foreground">Difficulty</p>
+                  </div>
+                  <div className="rounded-lg bg-background/50 p-2 text-center">
+                    <Zap className="w-3.5 h-3.5 text-primary mx-auto mb-0.5" />
+                    <p className="text-sm font-bold text-foreground">4</p>
+                    <p className="text-[9px] text-muted-foreground">Phases</p>
                   </div>
                 </div>
               </motion.div>
 
               {/* Expected outcomes */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="space-y-2.5"
-              >
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Expected Outcomes</p>
                 {[
                   { icon: TrendingUp, label: "Stability Gain", value: plan.expectedGain, color: "text-success" },
@@ -581,76 +607,73 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                 ))}
               </motion.div>
 
-              {/* Session structure */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+              {/* 4-phase structure */}
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
                 className="rounded-xl border border-border bg-secondary/20 p-4 space-y-2.5"
               >
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Session Structure</span>
-                {plan.phases.map((phase, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    {phase.type === "concept" ? <BookOpen className="w-4 h-4 text-primary" /> :
-                     phase.type === "recall" ? <Brain className="w-4 h-4 text-warning" /> :
-                     <Target className="w-4 h-4 text-success" />}
-                    <span className="text-xs text-foreground flex-1">{phase.title}</span>
-                    <span className="text-[10px] text-muted-foreground">{phase.duration}m</span>
-                  </div>
-                ))}
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Session Phases</span>
+                {plan.phases.map((phase, i) => {
+                  const Icon = PHASE_ICONS[phase.type];
+                  const colors = PHASE_COLORS[phase.type];
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded-lg ${colors.bg} flex items-center justify-center`}>
+                        <Icon className={`w-3.5 h-3.5 ${colors.text}`} />
+                      </div>
+                      <span className="text-xs text-foreground flex-1">{phase.title}</span>
+                      <span className="text-[10px] text-muted-foreground">{phase.duration}m</span>
+                    </div>
+                  );
+                })}
               </motion.div>
 
-              {/* Enter Focus Mode CTA */}
+              {/* CTA */}
               <motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                 onClick={handleEnterFocusMode}
                 className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-all"
                 style={{ boxShadow: "0 4px 24px hsl(var(--primary) / 0.35)" }}
               >
-                <Zap className="w-5 h-5" />
+                <Rocket className="w-5 h-5" />
                 Enter Focus Mode
               </motion.button>
             </motion.div>
           )}
 
-          {/* ═══════════════════════════════════════════════════
-              STEP 3: Guided Execution (Distraction-free)
-             ═══════════════════════════════════════════════════ */}
+          {/* ═══ STEP 3: Guided Execution ═══ */}
           {step === "execution" && currentPhase && plan && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
               {/* Phase dots */}
-              <div className="flex items-center gap-2">
-                {plan.phases.map((_, i) => (
+              <div className="flex items-center gap-1.5">
+                {plan.phases.map((p, i) => (
                   <div key={i} className={`flex-1 h-1.5 rounded-full transition-all ${
-                    i < currentPhaseIndex ? "bg-primary" : i === currentPhaseIndex ? "bg-primary/60" : "bg-secondary"
+                    p.completed ? "bg-primary" : i === currentPhaseIndex ? "bg-primary/60" : "bg-secondary"
                   }`} />
                 ))}
               </div>
 
               {/* Phase header */}
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${
-                  currentPhase.type === "concept" ? "bg-primary/15" :
-                  currentPhase.type === "recall" ? "bg-warning/15" : "bg-success/15"
-                }`}>
-                  {currentPhase.type === "concept" ? <BookOpen className="w-5 h-5 text-primary" /> :
-                   currentPhase.type === "recall" ? <Brain className="w-5 h-5 text-warning" /> :
-                   <Target className="w-5 h-5 text-success" />}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-foreground text-sm">{currentPhase.title}</h3>
-                  <p className="text-[10px] text-muted-foreground">Phase {currentPhaseIndex + 1}/{plan.phases.length} · {plan.topic}</p>
-                </div>
-                <span className={`text-[9px] font-semibold uppercase px-2 py-0.5 rounded-full ${
-                  adaptiveDifficulty === "easy" ? "bg-success/15 text-success" :
-                  adaptiveDifficulty === "medium" ? "bg-warning/15 text-warning" :
-                  "bg-destructive/15 text-destructive"
-                }`}>{adaptiveDifficulty}</span>
-              </div>
+              {(() => {
+                const Icon = PHASE_ICONS[currentPhase.type];
+                const colors = PHASE_COLORS[currentPhase.type];
+                return (
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${colors.bg}`}>
+                      <Icon className={`w-5 h-5 ${colors.text}`} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-foreground text-sm">{currentPhase.title}</h3>
+                      <p className="text-[10px] text-muted-foreground">Phase {currentPhaseIndex + 1}/4 · {plan.topic}</p>
+                    </div>
+                    <span className={`text-[9px] font-semibold uppercase px-2 py-0.5 rounded-full ${
+                      adaptiveDifficulty === "easy" ? "bg-success/15 text-success" :
+                      adaptiveDifficulty === "medium" ? "bg-warning/15 text-warning" :
+                      "bg-destructive/15 text-destructive"
+                    }`}>{adaptiveDifficulty}</span>
+                  </div>
+                );
+              })()}
 
               {/* Focus banner */}
               <div className="flex items-center gap-2 p-3 rounded-xl border border-primary/20 bg-primary/5">
@@ -704,7 +727,7 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                       <p className="text-[11px] text-muted-foreground leading-relaxed">{currentMCQ.explanation}</p>
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-muted-foreground">Score: {correctAnswers}/{totalAnswered} · {adaptiveDifficulty}</span>
-                        <button onClick={generateMCQ} className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+                        <button onClick={nextMCQ} className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
                           Next <ChevronRight className="w-3 h-3" />
                         </button>
                       </div>
@@ -713,7 +736,7 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                 </motion.div>
               )}
 
-              {/* Ambient sound (minimal) */}
+              {/* Ambient sound */}
               <div className="flex items-center gap-2">
                 {([
                   { type: "rain" as AmbientSoundType, icon: CloudRain },
@@ -759,12 +782,62 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
             </motion.div>
           )}
 
-          {/* ═══════════════════════════════════════════════════
-              STEP 4: Completion — Stability, Rank, Quality
-             ═══════════════════════════════════════════════════ */}
+          {/* ═══ PHASE REWARD (micro-reward between phases) ═══ */}
+          {step === "phase-reward" && plan && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="py-8 flex flex-col items-center gap-5"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 12, delay: 0.1 }}
+                className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center"
+                style={{ boxShadow: "0 0 40px hsl(var(--primary) / 0.25)" }}
+              >
+                <span className="text-4xl">{MICRO_REWARDS[currentPhaseIndex]?.emoji || "✅"}</span>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                className="text-center space-y-1"
+              >
+                <h3 className="text-lg font-bold text-foreground">{MICRO_REWARDS[currentPhaseIndex]?.title || "Phase Complete!"}</h3>
+                <p className="text-xs text-muted-foreground">{MICRO_REWARDS[currentPhaseIndex]?.subtitle || "Keep going!"}</p>
+              </motion.div>
+
+              {/* Phase completion meter */}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+                className="w-full space-y-2"
+              >
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>Session Progress</span>
+                  <span className="font-semibold text-primary">{completedPhases}/4 phases</span>
+                </div>
+                <div className="flex gap-1.5">
+                  {plan.phases.map((p, i) => (
+                    <div key={i} className={`flex-1 h-2 rounded-full transition-all ${p.completed ? "bg-primary" : "bg-secondary"}`} />
+                  ))}
+                </div>
+              </motion.div>
+
+              <motion.button
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={continueToNextPhase}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm"
+                style={{ boxShadow: "0 4px 24px hsl(var(--primary) / 0.3)" }}
+              >
+                <ArrowRight className="w-4 h-4" />
+                Continue to {plan.phases[currentPhaseIndex + 1]?.title || "Next Phase"}
+              </motion.button>
+            </motion.div>
+          )}
+
+          {/* ═══ STEP 5: Completion ═══ */}
           {step === "complete" && plan && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-5">
-              {/* Trophy */}
               <div className="flex flex-col items-center gap-3 pt-4">
                 <motion.div
                   initial={{ scale: 0, rotate: -180 }}
@@ -781,7 +854,7 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                   className="text-xs text-muted-foreground">{plan.topic} — outstanding execution</motion.p>
               </div>
 
-              {/* Stats */}
+              {/* Stats grid */}
               <div className="grid grid-cols-2 gap-2.5">
                 {[
                   { icon: Brain, label: "Stability", value: stabilityAfter !== null ? `${stabilityAfter}%` : `${stabilityBefore}%`, color: "text-primary" },
@@ -802,31 +875,21 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                 ))}
               </div>
 
-              {/* Animated reward bar */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
-                className="space-y-1.5"
-              >
+              {/* Focus Quality bar */}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-muted-foreground">Focus Quality Score</span>
                   <span className="text-sm font-bold text-primary">{focusQuality}%</span>
                 </div>
                 <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${focusQuality}%` }}
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${focusQuality}%` }}
                     transition={{ delay: 1.2, duration: 1, ease: "easeOut" }}
                     className="h-full rounded-full bg-primary"
                   />
                 </div>
               </motion.div>
 
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.3 }}
+              <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setStep("next-action")}
                 className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
@@ -837,9 +900,7 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
             </motion.div>
           )}
 
-          {/* ═══════════════════════════════════════════════════
-              STEP 5: Next Micro Action
-             ═══════════════════════════════════════════════════ */}
+          {/* ═══ STEP 6: Next Micro Action ═══ */}
           {step === "next-action" && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
               <div className="flex items-center gap-3">
@@ -855,8 +916,8 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                   { icon: Brain, title: "Quick Recall Test", desc: "5-min recall on what you just studied", time: "5 min",
                     action: () => { onClose(); toast({ title: "🧠 Quick Recall", description: "Opening AI Revision Mode..." }); } },
                   { icon: BookOpen, title: "Review Weak Areas", desc: "Focus on topics below 40% stability", time: "10 min",
-                    action: () => { onClose(); setTimeout(() => { /* re-open fresh */ }, 300); } },
-                  { icon: Star, title: "Start Another AI Session", desc: "Let AI pick your next optimal topic", time: "15-25 min",
+                    action: () => { onClose(); } },
+                  { icon: Star, title: "Start Another AI Session", desc: "Let AI pick your next optimal topic", time: "20-30 min",
                     action: () => { setStep("preparing"); setPrepIndex(0); setPlan(null); startAIPreparation(); } },
                   { icon: BarChart3, title: "Check Your Progress", desc: "View brain health and stability trends", time: "2 min",
                     action: onClose },
