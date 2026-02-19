@@ -29,15 +29,13 @@ const MILESTONE_CONFIG: Record<number, { icon: typeof Star; label: string; emoji
 };
 
 const StreakTracker = () => {
-  const { streak, loading, loadStreak } = useStudyStreak();
+  const { streak, loading } = useStudyStreak();
   const { user } = useAuth();
   const voice = useVoice();
   const streakVoiceFiredRef = useRef(false);
   const [celebration, setCelebration] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadStreak();
-  }, [loadStreak]);
+  // Streak auto-loads via realtime subscription in useStudyStreak
 
   // Voice alert on streak milestone
   useEffect(() => {
