@@ -117,7 +117,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
       { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
-      { key: "exam_countdown", label: "Exam Countdown", icon: Clock, roles: ["super_admin", "admin"], badge: "NEW" },
+      { key: "exam_countdown", label: "Exam AI Control", icon: Brain, roles: ["super_admin", "admin"], badge: "AI" },
       { key: "finance", label: "Finance & Costs", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
     ],
   },

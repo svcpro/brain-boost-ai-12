@@ -1,216 +1,226 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Shield, Save, Clock, Lock, Zap, AlertTriangle, Crown } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Brain, Clock, Lock, Shield, Sparkles, TrendingUp, Users, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const STUDY_MODES = [
-  { id: "focus", label: "Focus Study Mode" },
-  { id: "revision", label: "AI Revision Mode" },
-  { id: "mock", label: "Mock Practice Mode" },
-  { id: "emergency", label: "Emergency Rescue Mode" },
-];
+interface UserPrediction {
+  id: string;
+  user_id: string;
+  exam_date: string;
+  predicted_acceleration_days: number;
+  predicted_lockdown_days: number;
+  locked_modes_acceleration: string[];
+  locked_modes_lockdown: string[];
+  recommended_mode_acceleration: string;
+  recommended_mode_lockdown: string;
+  ai_reasoning: string;
+  confidence_score: number;
+  factors: any;
+  computed_at: string;
+}
+
+const MODE_LABELS: Record<string, string> = {
+  focus: "Focus Study",
+  revision: "AI Revision",
+  mock: "Mock Practice",
+  emergency: "Emergency Rescue",
+};
 
 const ExamCountdownConfig = () => {
-  const { toast } = useToast();
+  const [predictions, setPredictions] = useState<UserPrediction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [config, setConfig] = useState<any>(null);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data } = await (supabase as any).from("exam_countdown_config").select("*").limit(1).maybeSingle();
-      if (data) setConfig(data);
-      setLoading(false);
-    };
-    fetch();
+    fetchPredictions();
   }, []);
 
-  const save = async () => {
-    if (!config) return;
-    setSaving(true);
-    // Safety: always strip "pro" from bypass to prevent accidental lockdown bypass
-    const safeBypasses = (config.bypass_plan_keys || []).filter((k: string) => k !== "pro");
-    const { id, created_at, ...updates } = { ...config, bypass_plan_keys: safeBypasses };
-    const { error } = await (supabase as any).from("exam_countdown_config").update(updates).eq("id", config.id);
-    setSaving(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Saved", description: "Exam countdown config updated." });
+  const fetchPredictions = async () => {
+    setLoading(true);
+    const { data } = await (supabase as any)
+      .from("exam_countdown_predictions")
+      .select("*")
+      .order("computed_at", { ascending: false })
+      .limit(50);
+
+    if (data) {
+      setPredictions(data);
+      // Fetch user names
+      const userIds = data.map((p: any) => p.user_id);
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, display_name, email")
+          .in("id", userIds);
+        if (profiles) {
+          const names: Record<string, string> = {};
+          profiles.forEach((p: any) => {
+            names[p.id] = p.display_name || p.email || "Unknown";
+          });
+          setUserNames(names);
+        }
+      }
     }
+    setLoading(false);
   };
 
-  const toggleMode = (phase: string, modeId: string) => {
-    const key = `${phase}_locked_modes`;
-    const current: string[] = config[key] || [];
-    const next = current.includes(modeId)
-      ? current.filter((m: string) => m !== modeId)
-      : [...current, modeId];
-    setConfig({ ...config, [key]: next });
+  const getPhaseForUser = (p: UserPrediction) => {
+    const days = Math.ceil((new Date(p.exam_date).getTime() - Date.now()) / 86400000);
+    if (days < 0) return { phase: "passed", days, color: "text-muted-foreground" };
+    if (days <= p.predicted_lockdown_days) return { phase: "lockdown", days, color: "text-destructive" };
+    if (days <= p.predicted_acceleration_days) return { phase: "acceleration", days, color: "text-warning" };
+    return { phase: "normal", days, color: "text-success" };
   };
 
-  const toggleBypassPlan = (planKey: string) => {
-    const current: string[] = config.bypass_plan_keys || [];
-    const next = current.includes(planKey)
-      ? current.filter((p: string) => p !== planKey)
-      : [...current, planKey];
-    setConfig({ ...config, bypass_plan_keys: next });
-  };
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading AI predictions...</div>;
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
-  if (!config) return <div className="p-8 text-center text-muted-foreground">No config found.</div>;
+  const phaseStats = {
+    normal: predictions.filter(p => getPhaseForUser(p).phase === "normal").length,
+    acceleration: predictions.filter(p => getPhaseForUser(p).phase === "acceleration").length,
+    lockdown: predictions.filter(p => getPhaseForUser(p).phase === "lockdown").length,
+    passed: predictions.filter(p => getPhaseForUser(p).phase === "passed").length,
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-destructive/15 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-destructive" />
+          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+            <Brain className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-foreground">Exam Countdown Mode Control</h2>
-            <p className="text-xs text-muted-foreground">Configure phase thresholds, locked modes, and plan overrides</p>
+            <h2 className="text-lg font-bold text-foreground">AI Exam Countdown Intelligence</h2>
+            <p className="text-xs text-muted-foreground">AI automatically predicts optimal phase transitions per student</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">System Enabled</span>
-            <Switch checked={config.is_enabled} onCheckedChange={(v) => setConfig({ ...config, is_enabled: v })} />
-          </div>
-          <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 hover:opacity-90 disabled:opacity-50">
-            <Save className="w-4 h-4" />
-            {saving ? "Saving..." : "Save"}
-          </button>
+        <button
+          onClick={fetchPredictions}
+          className="p-2 rounded-lg hover:bg-secondary/50 transition-colors"
+          title="Refresh"
+        >
+          <RefreshCw className="w-4 h-4 text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Info Banner */}
+      <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 flex items-start gap-3">
+        <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium text-foreground">Fully AI-Driven</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Phase thresholds, locked modes, and recommendations are computed per-user based on memory strength, 
+            weak topics, study patterns, brain evolution, and learning efficiency. Predictions refresh every 24 hours.
+          </p>
         </div>
       </div>
 
-      {/* Phase Thresholds */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Phase Thresholds (Days Before Exam)</h3>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { key: "normal_mode_min_days", label: "Normal Mode ≥", icon: <Zap className="w-3 h-3 text-success" /> },
-            { key: "acceleration_mode_min_days", label: "Acceleration ≥", icon: <AlertTriangle className="w-3 h-3 text-warning" /> },
-            { key: "lockdown_mode_min_days", label: "Lockdown ≥", icon: <Lock className="w-3 h-3 text-destructive" /> },
-          ].map((t) => (
-            <div key={t.key} className="space-y-1.5">
-              <label className="text-xs text-muted-foreground flex items-center gap-1.5">{t.icon}{t.label}</label>
-              <Input
-                type="number"
-                value={config[t.key]}
-                onChange={(e) => setConfig({ ...config, [t.key]: parseInt(e.target.value) || 0 })}
-                className="h-9"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Locked Modes Per Phase */}
-      {["normal", "acceleration", "lockdown"].map((phase) => {
-        const lockedKey = `${phase}_locked_modes`;
-        const locked: string[] = config[lockedKey] || [];
-        const phaseColors: Record<string, string> = {
-          normal: "text-success",
-          acceleration: "text-warning",
-          lockdown: "text-destructive",
-        };
-        return (
-          <div key={phase} className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h3 className={`text-sm font-bold capitalize ${phaseColors[phase]}`}>
-              {phase === "normal" ? "🟢" : phase === "acceleration" ? "🟡" : "🔴"} {phase} Phase — Locked Modes
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {STUDY_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => toggleMode(phase, m.id)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                    locked.includes(m.id)
-                      ? "bg-destructive/15 border-destructive/30 text-destructive"
-                      : "bg-card border-border text-muted-foreground hover:bg-secondary/30"
-                  }`}
-                >
-                  <Lock className={`w-3.5 h-3.5 ${locked.includes(m.id) ? "text-destructive" : "text-muted-foreground/30"}`} />
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Lock Messages */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <h3 className="text-sm font-bold text-foreground">Lock Messages</h3>
-        {["acceleration", "lockdown"].map((phase) => (
-          <div key={phase} className="space-y-1.5">
-            <label className="text-xs text-muted-foreground capitalize">{phase} Phase Message</label>
-            <Textarea
-              value={config[`${phase}_lock_message`] || ""}
-              onChange={(e) => setConfig({ ...config, [`${phase}_lock_message`]: e.target.value })}
-              rows={2}
-              className="text-xs"
-            />
+      {/* Phase Distribution */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: "Normal", count: phaseStats.normal, icon: "🟢", color: "text-success" },
+          { label: "Acceleration", count: phaseStats.acceleration, icon: "🟡", color: "text-warning" },
+          { label: "Lockdown", count: phaseStats.lockdown, icon: "🔴", color: "text-destructive" },
+          { label: "Passed", count: phaseStats.passed, icon: "⚫", color: "text-muted-foreground" },
+        ].map(s => (
+          <div key={s.label} className="rounded-xl border border-border bg-card p-4 text-center">
+            <span className="text-lg">{s.icon}</span>
+            <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.count}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Recommended Modes */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <h3 className="text-sm font-bold text-foreground">Recommended Modes Per Phase</h3>
-        <div className="grid grid-cols-2 gap-4">
-          {["acceleration", "lockdown"].map((phase) => (
-            <div key={phase} className="space-y-1.5">
-              <label className="text-xs text-muted-foreground capitalize">{phase} Phase</label>
-              <select
-                value={config[`${phase}_recommended_mode`] || "focus"}
-                onChange={(e) => setConfig({ ...config, [`${phase}_recommended_mode`]: e.target.value })}
-                className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs"
-              >
-                {STUDY_MODES.map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
-              </select>
-            </div>
-          ))}
+      {/* Per-User Predictions */}
+      <div className="rounded-xl border border-border bg-card">
+        <div className="p-4 border-b border-border flex items-center gap-2">
+          <Users className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-bold text-foreground">Per-User AI Predictions</h3>
+          <Badge variant="secondary" className="ml-auto text-[10px]">{predictions.length} users</Badge>
         </div>
-      </div>
 
-      {/* Plan Bypass */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-        <div className="flex items-center gap-2">
-          <Crown className="w-4 h-4 text-warning" />
-          <h3 className="text-sm font-bold text-foreground">Plan-Based Bypass</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">Users on these plans can bypass all mode locks.</p>
-        <div className="flex gap-2">
-          {["pro", "ultra"].map((plan) => (
-            <button
-              key={plan}
-              onClick={() => toggleBypassPlan(plan)}
-              className={`px-4 py-2 rounded-lg border text-xs font-medium capitalize transition-all ${
-                (config.bypass_plan_keys || []).includes(plan)
-                  ? "bg-primary/15 border-primary/30 text-primary"
-                  : "bg-card border-border text-muted-foreground hover:bg-secondary/30"
-              }`}
-            >
-              {plan}
-            </button>
-          ))}
-        </div>
-        {(config.bypass_plan_keys || []).includes("pro") && (
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/20">
-            <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
-            <p className="text-[11px] text-warning">Warning: Enabling Pro bypass means most paid users will skip all mode restrictions, defeating the lockdown purpose.</p>
+        {predictions.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground text-sm">
+            No predictions yet. Predictions are generated when users with exam dates visit the app.
+          </div>
+        ) : (
+          <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
+            {predictions.map(p => {
+              const { phase, days, color } = getPhaseForUser(p);
+              const factors = p.factors || {};
+              return (
+                <div key={p.id} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        phase === "lockdown" ? "bg-destructive" : phase === "acceleration" ? "bg-warning" : phase === "normal" ? "bg-success" : "bg-muted-foreground"
+                      }`} />
+                      <span className="text-sm font-medium text-foreground">{userNames[p.user_id] || p.user_id.slice(0, 8)}</span>
+                      <Badge variant="outline" className={`text-[10px] ${color}`}>
+                        {phase.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      {days > 0 ? `${days}d left` : "Passed"}
+                    </div>
+                  </div>
+
+                  {/* AI Decision Details */}
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="rounded-lg bg-secondary/30 p-2">
+                      <p className="text-muted-foreground">Accel. trigger</p>
+                      <p className="font-medium text-foreground">{p.predicted_acceleration_days} days before</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/30 p-2">
+                      <p className="text-muted-foreground">Lockdown trigger</p>
+                      <p className="font-medium text-foreground">{p.predicted_lockdown_days} days before</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/30 p-2">
+                      <p className="text-muted-foreground">Locked (Accel.)</p>
+                      <p className="font-medium text-foreground">
+                        {p.locked_modes_acceleration?.length > 0 
+                          ? p.locked_modes_acceleration.map(m => MODE_LABELS[m] || m).join(", ")
+                          : "None"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/30 p-2">
+                      <p className="text-muted-foreground">Locked (Lockdown)</p>
+                      <p className="font-medium text-foreground">
+                        {p.locked_modes_lockdown?.length > 0 
+                          ? p.locked_modes_lockdown.map(m => MODE_LABELS[m] || m).join(", ")
+                          : "None"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* AI Reasoning */}
+                  {p.ai_reasoning && (
+                    <div className="flex items-start gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
+                      <Brain className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{p.ai_reasoning}</p>
+                    </div>
+                  )}
+
+                  {/* Confidence + Factors */}
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      Confidence: {(p.confidence_score * 100).toFixed(0)}%
+                    </span>
+                    {factors.avg_memory !== undefined && (
+                      <span>Memory: {(factors.avg_memory * 100).toFixed(0)}%</span>
+                    )}
+                    {factors.weak_topics !== undefined && (
+                      <span>Weak: {factors.weak_topics}</span>
+                    )}
+                    <span className="ml-auto">
+                      Updated: {new Date(p.computed_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
