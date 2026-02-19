@@ -63,7 +63,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const { toast } = useToast();
   const voice = useVoice();
   const [burnoutData, setBurnoutData] = useState<{ burnout_score: number; risk_level: string; recommendations: string[] } | null>(null);
-  const { streak: streakData, loadStreak } = useStudyStreak();
+  const { streak: streakData } = useStudyStreak();
   const [latestCompletionRate, setLatestCompletionRate] = useState<number>(50);
   const [recommendations, setRecommendations] = useState<any[]>(() => getCache("home-recommendations") || []);
   const [examDaysLeft, setExamDaysLeft] = useState<number | null>(() => getCache("home-exam-days"));
@@ -111,7 +111,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       if (data) setBurnoutData(data);
     }).catch(() => {});
     loadExamDate();
-    loadStreak();
+    // Streak auto-updates via realtime in useStudyStreak
     if (user) {
       supabase.from("plan_quality_logs").select("overall_completion_rate").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).then(({ data }) => {
         if (data?.[0]?.overall_completion_rate != null) setLatestCompletionRate(data[0].overall_completion_rate * 100);
@@ -695,7 +695,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <FocusModeSession
         open={recoverySessionOpen}
         onClose={() => setRecoverySessionOpen(false)}
-        onSessionComplete={() => { setRecoverySessionOpen(false); setShowComeback(true); loadStreak(); }}
+        onSessionComplete={() => { setRecoverySessionOpen(false); setShowComeback(true); }}
         autoStart
       />
 

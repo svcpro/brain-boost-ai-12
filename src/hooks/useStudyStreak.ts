@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -195,6 +195,34 @@ export function useStudyStreak() {
       setLoading(false);
     }
   }, [user]);
+
+  // Auto-refresh streak when study_logs change (realtime)
+  useEffect(() => {
+    if (!user) return;
+
+    // Initial load
+    loadStreak();
+
+    const channel = supabase
+      .channel(`streak-realtime-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'study_logs',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadStreak();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, loadStreak]);
 
   return { streak, loading, loadStreak };
 }
