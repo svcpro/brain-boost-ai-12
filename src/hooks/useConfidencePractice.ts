@@ -21,6 +21,16 @@ export interface PracticeQuestion {
   probability_score?: number;
   trend_reason?: string;
   trend_weight?: number;
+  trend_strength?: string;
+  ml_confidence?: string;
+  score_breakdown?: {
+    topic_frequency: number;
+    repetition: number;
+    recent_trend: number;
+    difficulty_match: number;
+    language_similarity: number;
+  };
+  similar_pyq_years?: number[];
 }
 
 export interface ProgressStats {

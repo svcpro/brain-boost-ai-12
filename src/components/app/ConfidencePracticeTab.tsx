@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Sparkles, Heart, Shield, ChevronRight,
   Check, X, Clock, ArrowLeft, Play, RotateCcw,
-  Timer, Zap, Brain, ChevronDown, Loader2, Download, Target
+  Timer, Zap, Brain, ChevronDown, Loader2, Download, Target,
+  BarChart3, TrendingUp, Eye, Info
 } from "lucide-react";
 import { useConfidencePractice, PracticeQuestion } from "@/hooks/useConfidencePractice";
 import { Progress } from "@/components/ui/progress";
@@ -41,6 +42,7 @@ const ConfidencePracticeTab = () => {
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [encourageIdx, setEncourageIdx] = useState(0);
   const [source, setSource] = useState<"bank" | "predicted">("bank");
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [sessionAnswers, setSessionAnswers] = useState<boolean[]>([]);
@@ -690,33 +692,131 @@ const ConfidencePracticeTab = () => {
         {/* Progress */}
         <Progress value={progress} className="h-1.5" />
 
-        {/* Prediction badge for AI predicted questions */}
-        {source === "predicted" && q.probability_score && (
-          <motion.div
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl p-3 border border-primary/20 bg-primary/5 space-y-1.5"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                  (q.probability_score || 0) >= 80 ? "bg-primary/20 text-primary" :
-                  (q.probability_score || 0) >= 60 ? "bg-accent/20 text-accent-foreground" :
-                  "bg-secondary text-muted-foreground"
-                }`}>
-                  🎯 {q.probability_level || "Predicted"}
+        {/* ─── Authentic Prediction Card ─── */}
+        {source === "predicted" && q.probability_score && (() => {
+          const pScore = q.probability_score || 65;
+          const scoreColor = pScore >= 75 ? "hsl(var(--success))" : pScore >= 65 ? "hsl(var(--primary))" : "hsl(var(--warning))";
+          const scoreBg = pScore >= 75 ? "bg-success/10 border-success/25" : pScore >= 65 ? "bg-primary/10 border-primary/25" : "bg-warning/10 border-warning/25";
+          const scoreTextClass = pScore >= 75 ? "text-success" : pScore >= 65 ? "text-primary" : "text-warning";
+          const mlBadgeClass = q.ml_confidence === "Strong" ? "bg-success/15 text-success" : q.ml_confidence === "Moderate" ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning";
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className={`rounded-2xl p-4 border ${scoreBg} space-y-3 relative overflow-hidden`}
+            >
+              {/* Subtle glow */}
+              <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: scoreColor }} />
+
+              {/* Main score row */}
+              <div className="flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center relative"
+                    style={{ background: `${scoreColor}20`, border: `1px solid ${scoreColor}40` }}
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <span className={`text-lg font-extrabold ${scoreTextClass}`}>{pScore}%</span>
+                  </motion.div>
+                  <div>
+                    <p className={`text-sm font-bold ${scoreTextClass}`}>🔥 Match Prediction</p>
+                    <p className="text-[10px] text-muted-foreground">📚 Based on 5-Year Analysis</p>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-foreground">{q.probability_score}% match</span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold ${mlBadgeClass}`}>
+                    🧠 ML: {q.ml_confidence || "Moderate"}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold bg-secondary text-muted-foreground">
+                    📈 {q.trend_strength || "Medium"}
+                  </span>
+                </div>
               </div>
-              <span className="text-[10px] text-muted-foreground">Based on 5-year PYQ analysis</span>
-            </div>
-            {q.trend_reason && (
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                📊 {q.trend_reason}
-              </p>
-            )}
-          </motion.div>
-        )}
+
+              {/* Trend reason */}
+              {q.trend_reason && (
+                <p className="text-[10px] text-muted-foreground leading-relaxed relative z-10">
+                  📊 {q.trend_reason}
+                </p>
+              )}
+
+              {/* Similar PYQ years */}
+              {q.similar_pyq_years && q.similar_pyq_years.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap relative z-10">
+                  <span className="text-[9px] text-muted-foreground">Similar in:</span>
+                  {q.similar_pyq_years.map(y => (
+                    <span key={y} className="px-1.5 py-0.5 rounded bg-secondary text-[9px] font-medium text-foreground">{y}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* View Analysis toggle */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowAnalysis(!showAnalysis); }}
+                className="flex items-center gap-1.5 text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors relative z-10"
+              >
+                <Eye className="w-3 h-3" />
+                {showAnalysis ? "Hide Analysis" : "View Analysis"}
+                <ChevronDown className={`w-3 h-3 transition-transform ${showAnalysis ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* Expandable analysis breakdown */}
+              <AnimatePresence>
+                {showAnalysis && q.score_breakdown && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-2.5 relative z-10 overflow-hidden"
+                  >
+                    <div className="rounded-xl p-3 bg-background/50 border border-border/50 space-y-2">
+                      <p className="text-[10px] font-bold text-foreground flex items-center gap-1.5">
+                        <BarChart3 className="w-3 h-3 text-primary" /> Prediction Formula Breakdown
+                      </p>
+                      {[
+                        { label: "Topic Frequency", value: q.score_breakdown.topic_frequency, weight: "30%", icon: "📊" },
+                        { label: "Repetition Score", value: q.score_breakdown.repetition, weight: "20%", icon: "🔁" },
+                        { label: "Recent Trend", value: q.score_breakdown.recent_trend, weight: "20%", icon: "📈" },
+                        { label: "Difficulty Match", value: q.score_breakdown.difficulty_match, weight: "15%", icon: "🎯" },
+                        { label: "Language Similarity", value: q.score_breakdown.language_similarity, weight: "15%", icon: "🔤" },
+                      ].map((item) => (
+                        <div key={item.label} className="space-y-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-muted-foreground">{item.icon} {item.label} ({item.weight})</span>
+                            <span className="text-[9px] font-bold text-foreground">{item.value}/100</span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
+                            <motion.div
+                              className="h-full rounded-full"
+                              style={{
+                                background: item.value >= 70 ? "hsl(var(--success))" : item.value >= 40 ? "hsl(var(--primary))" : "hsl(var(--warning))",
+                              }}
+                              initial={{ width: "0%" }}
+                              animate={{ width: `${item.value}%` }}
+                              transition={{ duration: 0.8, delay: 0.1 }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Disclaimer */}
+                    <div className="flex items-start gap-1.5 px-2">
+                      <Info className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+                      <p className="text-[8px] text-muted-foreground leading-relaxed italic">
+                        Prediction based on statistical analysis of last 5 years patterns. Not a guarantee.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })()}
 
         {/* Previous year tag for bank */}
         {source === "bank" && q.previous_year_tag && (
