@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { Home, Zap, Brain, TrendingUp, User, AlertTriangle, X, Shield, Users } from "lucide-react";
+import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -34,7 +34,7 @@ const tabs = [
   { id: "action", label: "Action", icon: Zap },
   { id: "brain", label: "Brain", icon: Brain },
   { id: "community", label: "Community", icon: Users },
-  { id: "progress", label: "Progress", icon: TrendingUp },
+  { id: "progress", label: "SureShot", icon: Crosshair },
   { id: "you", label: "You", icon: User },
 ];
 
