@@ -48,18 +48,22 @@ serve(async (req) => {
 
     const aiPrompt = promptMap[type] || promptMap.test;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          {
-            role: "system",
-            content: `You are ACRY, an AI Second Brain voice assistant. Rules:
+    // Retry-aware AI call with fallback
+    let aiResponse: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              {
+                role: "system",
+                content: `You are ACRY, an AI Second Brain voice assistant. Rules:
 1. Output ONLY the spoken text — no quotes, no labels, no formatting, no asterisks.
 2. Keep it 1-2 sentences, natural and conversational.
 3. For Hindi: Write in Devanagari script. Use simple English loanwords naturally (like "focus", "topic", "minutes") but keep the sentence structure Hindi.
@@ -67,31 +71,51 @@ serve(async (req) => {
 5. Never start with "Hey" or "Hi" every time — vary openings naturally.
 6. Pronounce numbers as words (e.g., "twenty" not "20").
 7. Avoid abbreviations, symbols, or special characters.`
-          },
-          { role: "user", content: aiPrompt }
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
+              { role: "user", content: aiPrompt }
+            ],
+          }),
         });
+        if (aiResponse.ok) break;
+        if (aiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (aiResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // For 500 errors, wait and retry
+        console.warn(`AI gateway attempt ${attempt + 1} failed with status ${aiResponse.status}`);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      } catch (fetchErr) {
+        console.warn(`AI gateway fetch error attempt ${attempt + 1}:`, fetchErr);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error(`AI gateway error: ${aiResponse.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    const rawText = aiData.choices?.[0]?.message?.content?.trim() || "Your ACRY brain is active.";
-    // UVR: Sanitize AI-generated text before TTS
-    const { cleaned: spokenText, issues } = sanitizeMessage(rawText);
-    if (issues.length > 0) console.warn("[UVR] Voice text sanitization:", issues);
+    // Fallback text if AI gateway is completely down
+    const fallbackTexts: Record<string, string> = {
+      daily_reminder: `${userName ? userName + ", time" : "Time"} to study! Open your focus session and keep building your brain.`,
+      forget_risk: `${context?.topic || "A topic"} needs a quick review — your memory is fading. A five minute refresh will help.`,
+      exam_countdown: `${context?.exam_days ?? 7} days until your exam. Stay focused and keep practicing.`,
+      motivation: `Great progress! Keep up the momentum and your brain will thank you.`,
+      test: `Your ACRY voice notifications are working perfectly.`,
+    };
+
+    let spokenText: string;
+    if (!aiResponse || !aiResponse.ok) {
+      console.warn("AI gateway unavailable after retries, using fallback text");
+      spokenText = fallbackTexts[type] || fallbackTexts.test;
+    } else {
+      const aiData = await aiResponse.json();
+      const rawText = aiData.choices?.[0]?.message?.content?.trim() || "Your ACRY brain is active.";
+      const { cleaned, issues } = sanitizeMessage(rawText);
+      if (issues.length > 0) console.warn("[UVR] Voice text sanitization:", issues);
+      spokenText = cleaned;
+    }
 
     // Track Lovable AI usage (fire-and-forget)
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
