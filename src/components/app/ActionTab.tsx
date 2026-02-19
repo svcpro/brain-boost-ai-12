@@ -4,7 +4,7 @@ import {
   Crosshair, AlertOctagon,
   Brain, ArrowRight, Sparkles,
   Clock, TrendingUp, ChevronDown, BookOpen,
-  Zap, Target, BarChart3, Play, Timer, Flame
+  Zap, Target, Play, Timer
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import FocusModeSession from "./FocusModeSession";
 import EmergencyRecoverySession from "./EmergencyRecoverySession";
 import MockPracticeSession from "./MockPracticeSession";
 import FocusSessionHistory from "./FocusSessionHistory";
+import TodaysGains from "./TodaysGains";
 import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ActiveTaskEngine from "./ActiveTaskEngine";
@@ -82,8 +83,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
 
 
   // ─── Session history state ───
-  const [todayStats, setTodayStats] = useState({ studyMinutes: 0, sessionsCompleted: 0, stabilityGain: 0 });
-
+  // (Today stats now handled by TodaysGains component)
   // ─── Topic explorer state ───
   const [topicExplorerOpen, setTopicExplorerOpen] = useState(false);
 
@@ -114,29 +114,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     fetchRec();
   }, [user]);
 
-  // Fetch today's study stats
-  useEffect(() => {
-    if (!user) return;
-    const fetchStats = async () => {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      try {
-        const { data } = await (supabase as any)
-          .from("study_sessions")
-          .select("duration_minutes, created_at")
-          .eq("user_id", user.id)
-          .gte("created_at", todayStart.toISOString());
-        const rows = (data || []) as any[];
-        const totalMin = rows.reduce((sum: number, s: any) => sum + (s.duration_minutes || 0), 0);
-        setTodayStats({
-          studyMinutes: totalMin,
-          sessionsCompleted: rows.length,
-          stabilityGain: Math.min((rows.length * 2.5), 15),
-        });
-      } catch { /* ignore */ }
-    };
-    fetchStats();
-  }, [user]);
+
+
 
 
   const openStudyMode = (modeId: string) => {
@@ -339,73 +318,20 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       )}
 
       {/* ═══════════════════════════════════════════════════
-          SECTION 5: Session History & Daily Gains
+          SECTION 5: Today's Gains — Reward Reinforcement Engine
          ═══════════════════════════════════════════════════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
-      >
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
-            <BarChart3 className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-foreground">Today's Gains</h3>
-            <p className="text-[10px] text-muted-foreground">Your daily execution summary</p>
-          </div>
-        </div>
+      <TodaysGains />
 
-        <div className="grid grid-cols-3 gap-2.5">
-          {[
-            {
-              icon: Clock,
-              label: "Study Time",
-              value: `${todayStats.studyMinutes}m`,
-              sub: todayStats.studyMinutes >= 30 ? "Great pace!" : "Keep going",
-            },
-            {
-              icon: TrendingUp,
-              label: "Stability",
-              value: `+${todayStats.stabilityGain.toFixed(1)}%`,
-              sub: "Brain growth",
-            },
-            {
-              icon: Flame,
-              label: "Sessions",
-              value: `${todayStats.sessionsCompleted}`,
-              sub: todayStats.sessionsCompleted >= 3 ? "On fire!" : "Focus more",
-            },
-          ].map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.45 + i * 0.07, duration: 0.4, ease: "easeOut" }}
-              className="rounded-2xl border border-border bg-card p-3.5 text-center"
-            >
-              <div className="w-8 h-8 rounded-lg bg-primary/10 mx-auto flex items-center justify-center mb-2">
-                <stat.icon className="w-4 h-4 text-primary" />
-              </div>
-              <p className="text-lg font-bold text-foreground leading-none tabular-nums">{stat.value}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">{stat.label}</p>
-              <p className="text-[9px] text-primary font-medium mt-0.5">{stat.sub}</p>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Focus History */}
-        {isEnabled("action_focus_history") && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55 }}
-            className="mt-4"
-          >
-            <FocusSessionHistory />
-          </motion.div>
-        )}
-      </motion.section>
+      {/* Focus History */}
+      {isEnabled("action_focus_history") && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+        >
+          <FocusSessionHistory />
+        </motion.div>
+      )}
 
       {/* ═══ Modals ═══ */}
       <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
