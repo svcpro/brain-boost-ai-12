@@ -27,7 +27,8 @@ serve(async (req) => {
       });
     }
 
-    const { action, exam_type, subject, topic, year, difficulty, mode, count } = await req.json();
+    const body = await req.json();
+    const { action, exam_type, subject, topic, year, difficulty, mode, count } = body;
 
     if (action === "generate_predicted") {
       // Use AI to generate predicted questions
@@ -133,113 +134,62 @@ Generate exactly ${count || 10} questions.`
       });
     }
 
-    if (action === "get_bank_questions") {
-      // AI-generate previous year style questions based on user's exam selection
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
-      const targetExam = exam_type || "competitive exam";
-      const targetSubject = subject || "mixed subjects";
-      const targetYear = year || "last 5 years (2020-2024)";
-      const targetDifficulty = difficulty || "mixed";
-      const targetTopic = topic || "all topics";
-      const qCount = count || 20;
-
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert exam paper setter for Indian competitive exams. Generate authentic previous year exam-style questions that closely match real ${targetExam} exam patterns.
-
-Rules:
-- Questions MUST feel like real previous year questions from ${targetExam}
-- Each question should have a realistic "previous_year_tag" like "${targetExam} ${typeof targetYear === 'number' ? targetYear : '2023'}" 
-- Include 4 options (A, B, C, D) with exactly one correct answer (index 0-3)
-- Provide a brief, clear explanation for each answer
-- Vary difficulty levels realistically
-- Cover important topics that frequently appear in ${targetExam}
-- If a specific year is given, style questions to match that year's paper pattern
-- If a subject is given, all questions must be from that subject
-
-Generate exactly ${qCount} questions.`
-            },
-            {
-              role: "user",
-              content: `Generate ${qCount} previous year style questions for:
-- Exam: ${targetExam}
-- Subject: ${targetSubject}
-- Year style: ${targetYear}
-- Difficulty: ${targetDifficulty}
-- Topic focus: ${targetTopic}
-
-Make them feel exactly like real ${targetExam} previous year papers.`
-            }
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "return_bank_questions",
-              description: "Return previous year style exam questions",
-              parameters: {
-                type: "object",
-                properties: {
-                  questions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        question: { type: "string" },
-                        options: { type: "array", items: { type: "string" } },
-                        correct_answer: { type: "integer" },
-                        explanation: { type: "string" },
-                        topic: { type: "string" },
-                        difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
-                        exam_type: { type: "string" },
-                        subject: { type: "string" },
-                        year: { type: "integer" },
-                        previous_year_tag: { type: "string" }
-                      },
-                      required: ["question", "options", "correct_answer", "explanation", "topic", "difficulty", "exam_type", "subject", "year", "previous_year_tag"]
-                    }
-                  }
-                },
-                required: ["questions"]
-              }
-            }
-          }],
-          tool_choice: { type: "function", function: { name: "return_bank_questions" } }
-        }),
+    if (action === "get_user_exam") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("exam_type")
+        .eq("id", user.id)
+        .maybeSingle();
+      return new Response(JSON.stringify({ exam_type: profile?.exam_type || "" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
+    }
 
-      if (!aiResponse.ok) {
-        const status = aiResponse.status;
-        if (status === 429) return new Response(JSON.stringify({ error: "Rate limited, please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        throw new Error(`AI error: ${status}`);
+    if (action === "get_bank_questions") {
+      // Fetch real questions from question_bank using pagination
+      const batchSize = 1000;
+      let allQuestions: any[] = [];
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        let query = supabase.from("question_bank").select("*");
+        if (exam_type) query = query.eq("exam_type", exam_type);
+        if (subject) query = query.eq("subject", subject);
+        if (topic) query = query.ilike("topic", `%${topic}%`);
+        if (year) query = query.eq("year", year);
+        if (difficulty) query = query.eq("difficulty", difficulty);
+        query = query.range(offset, offset + batchSize - 1);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allQuestions = allQuestions.concat(data);
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
       }
 
-      const aiData = await aiResponse.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      let questions = [];
-      if (toolCall?.function?.arguments) {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        questions = parsed.questions || [];
+      // If count specified, randomly pick that many; otherwise return all
+      let result = allQuestions;
+      if (count && count > 0 && allQuestions.length > count) {
+        for (let i = allQuestions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+        }
+        result = allQuestions.slice(0, count);
       }
 
-      return new Response(JSON.stringify({ questions, totalAvailable: questions.length }), {
+      return new Response(JSON.stringify({ questions: result, totalAvailable: allQuestions.length }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
     if (action === "save_progress") {
-      const { question_id, question_source, is_correct, selected_answer, time_taken_seconds } = await req.json();
+      const { question_id, question_source, is_correct, selected_answer, time_taken_seconds } = body;
       const { error } = await supabase.from("practice_progress").insert({
         user_id: user.id,
         question_id,
