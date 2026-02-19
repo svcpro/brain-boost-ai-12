@@ -237,19 +237,40 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
 
     // Smart Recall (3m or 5m)
     setFixingId(topic.id);
+    setSelectedTopic(null);
     try {
       const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
         body: {
           action: "chat",
-          message: `Generate exactly 3 quick recall questions for "${topic.name}" (subject: ${topic.subject_name || "unknown"}). Memory strength: ${Math.round(topic.memory_strength)}%. Format: Q: question. Keep concise.`,
+          message: `Generate exactly 3 quick recall questions for "${topic.name}" (subject: ${topic.subject_name || "unknown"}). Memory strength: ${Math.round(topic.memory_strength)}%. Format each question on its own line starting with "Q: ". Keep concise.`,
         },
       });
       if (error) throw error;
-      const questions = (data?.reply || "").split("\n").filter((l: string) => l.trim().startsWith("Q:") || l.trim().match(/^\d+[\.\)]/)).map((l: string) => l.replace(/^(Q:\s*|\d+[\.\)]\s*)/, "").trim()).filter((q: string) => q.length > 10).slice(0, 3).map((q: string) => ({ question: q, topic_name: topic.name }));
-      if (questions.length > 0) { setRecallQuestions(questions); setSelectedTopic(null); }
-      else onStudyTopic?.(topic.subject_name, topic.name, duration);
-    } catch {
-      onStudyTopic?.(topic.subject_name, topic.name, duration);
+      const reply = data?.reply || "";
+      const questions = reply.split("\n")
+        .filter((l: string) => l.trim().startsWith("Q:") || l.trim().match(/^\d+[\.\)]/))
+        .map((l: string) => l.replace(/^(Q:\s*|\d+[\.\)]\s*)/, "").trim())
+        .filter((q: string) => q.length > 10)
+        .slice(0, 3)
+        .map((q: string) => ({ question: q, topic_name: topic.name }));
+      if (questions.length > 0) {
+        setRecallQuestions(questions);
+      } else {
+        // Fallback: generate simple recall prompts locally
+        setRecallQuestions([
+          { question: `What are the key concepts in ${topic.name}?`, topic_name: topic.name },
+          { question: `Explain ${topic.name} in your own words.`, topic_name: topic.name },
+          { question: `What is the most important thing to remember about ${topic.name}?`, topic_name: topic.name },
+        ]);
+      }
+    } catch (err) {
+      console.warn("Recall generation failed, using fallback:", err);
+      // Fallback: generate simple recall prompts locally instead of opening popup
+      setRecallQuestions([
+        { question: `What are the key concepts in ${topic.name}?`, topic_name: topic.name },
+        { question: `Explain ${topic.name} in your own words.`, topic_name: topic.name },
+        { question: `What is the most important thing to remember about ${topic.name}?`, topic_name: topic.name },
+      ]);
     } finally { setFixingId(null); }
   }, [user, toast, fixedToday, onStudyTopic]);
 
