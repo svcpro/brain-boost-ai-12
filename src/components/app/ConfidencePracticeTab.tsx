@@ -30,6 +30,9 @@ type Section = "menu" | "bank_setup" | "predicted_setup" | "practice" | "result"
 const ConfidencePracticeTab = () => {
   const { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, fetchUserExam, setQuestions, populatingPYQs, pyqProgress, populateQuestionBank } = useConfidencePractice();
 
+  const [pyqResult, setPyqResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [pyqProgressPercent, setPyqProgressPercent] = useState(0);
+
   const [section, setSection] = useState<Section>("menu");
   const [mode, setMode] = useState<PracticeMode>("calm");
   const [currentQ, setCurrentQ] = useState(0);
@@ -189,8 +192,68 @@ const ConfidencePracticeTab = () => {
 
         {/* Populate Question Bank */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+          {/* Success/Error Alert */}
+          <AnimatePresence>
+            {pyqResult && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className={`mb-3 rounded-xl p-3.5 border flex items-start gap-3 ${
+                  pyqResult.success
+                    ? "bg-green-500/10 border-green-500/30 dark:bg-green-500/5"
+                    : "bg-destructive/10 border-destructive/30"
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  pyqResult.success ? "bg-green-500/20" : "bg-destructive/20"
+                }`}>
+                  {pyqResult.success ? (
+                    <Check className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <X className="w-4 h-4 text-destructive" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold ${pyqResult.success ? "text-green-500" : "text-destructive"}`}>
+                    {pyqResult.success ? "PYQs Generated Successfully! 🎉" : "Generation Failed"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{pyqResult.message}</p>
+                </div>
+                <button onClick={() => setPyqResult(null)} className="text-muted-foreground hover:text-foreground transition-colors p-0.5">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <button
-            onClick={() => populateQuestionBank(selExam || undefined)}
+            onClick={async () => {
+              setPyqResult(null);
+              setPyqProgressPercent(0);
+              // Simulate progress animation
+              const interval = setInterval(() => {
+                setPyqProgressPercent(prev => {
+                  if (prev >= 90) { clearInterval(interval); return 90; }
+                  return prev + Math.random() * 8 + 2;
+                });
+              }, 800);
+              const result = await populateQuestionBank(selExam || undefined);
+              clearInterval(interval);
+              setPyqProgressPercent(100);
+              setTimeout(() => {
+                setPyqProgressPercent(0);
+                if (result?.error) {
+                  setPyqResult({ success: false, message: result.error });
+                } else {
+                  setPyqResult({
+                    success: true,
+                    message: result?.message || `${result?.totalInserted || 0} questions added to your question bank.`
+                  });
+                }
+              }, 500);
+            }}
             disabled={populatingPYQs}
             className="w-full rounded-xl p-3.5 text-left bg-card border border-dashed border-primary/30 hover:border-primary/50 transition-all flex items-center gap-3 disabled:opacity-60"
           >
@@ -203,9 +266,28 @@ const ConfidencePracticeTab = () => {
               <p className="text-sm font-semibold text-foreground">
                 {populatingPYQs ? "Generating PYQs..." : "Fetch Last 5 Years PYQs"}
               </p>
-              <p className="text-[10px] text-muted-foreground">
-                {populatingPYQs ? pyqProgress : "AI generates authentic exam questions for all subjects & years"}
-              </p>
+              {populatingPYQs ? (
+                <div className="mt-2 space-y-1.5">
+                  <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-primary via-primary/80 to-primary"
+                      initial={{ width: "0%" }}
+                      animate={{ width: `${Math.min(pyqProgressPercent, 100)}%` }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {pyqProgressPercent < 30 ? "Initializing AI generation..." :
+                     pyqProgressPercent < 60 ? "Generating questions for subjects..." :
+                     pyqProgressPercent < 90 ? "Saving to question bank..." :
+                     "Finalizing... ✨"}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">
+                  AI generates authentic exam questions for all subjects & years
+                </p>
+              )}
             </div>
           </button>
         </motion.div>
