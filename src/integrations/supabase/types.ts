@@ -3176,6 +3176,87 @@ export type Database = {
         }
         Relationships: []
       }
+      practice_progress: {
+        Row: {
+          id: string
+          is_correct: boolean | null
+          practiced_at: string
+          question_id: string
+          question_source: string
+          selected_answer: number | null
+          time_taken_seconds: number | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_correct?: boolean | null
+          practiced_at?: string
+          question_id: string
+          question_source?: string
+          selected_answer?: number | null
+          time_taken_seconds?: number | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_correct?: boolean | null
+          practiced_at?: string
+          question_id?: string
+          question_source?: string
+          selected_answer?: number | null
+          time_taken_seconds?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      predicted_questions: {
+        Row: {
+          correct_answer: number
+          created_at: string
+          difficulty: string
+          exam_type: string
+          explanation: string | null
+          id: string
+          options: Json
+          probability_level: string
+          probability_score: number
+          question: string
+          subject: string
+          topic: string | null
+          trend_weight: number | null
+        }
+        Insert: {
+          correct_answer: number
+          created_at?: string
+          difficulty?: string
+          exam_type: string
+          explanation?: string | null
+          id?: string
+          options?: Json
+          probability_level?: string
+          probability_score?: number
+          question: string
+          subject: string
+          topic?: string | null
+          trend_weight?: number | null
+        }
+        Update: {
+          correct_answer?: number
+          created_at?: string
+          difficulty?: string
+          exam_type?: string
+          explanation?: string | null
+          id?: string
+          options?: Json
+          probability_level?: string
+          probability_score?: number
+          question?: string
+          subject?: string
+          topic?: string | null
+          trend_weight?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           auto_use_streak_freeze: boolean
@@ -3551,6 +3632,51 @@ export type Database = {
           id?: string
           p256dh?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      question_bank: {
+        Row: {
+          correct_answer: number
+          created_at: string
+          difficulty: string
+          exam_type: string
+          explanation: string | null
+          id: string
+          options: Json
+          previous_year_tag: string | null
+          question: string
+          subject: string
+          topic: string | null
+          year: number
+        }
+        Insert: {
+          correct_answer: number
+          created_at?: string
+          difficulty?: string
+          exam_type: string
+          explanation?: string | null
+          id?: string
+          options?: Json
+          previous_year_tag?: string | null
+          question: string
+          subject: string
+          topic?: string | null
+          year: number
+        }
+        Update: {
+          correct_answer?: number
+          created_at?: string
+          difficulty?: string
+          exam_type?: string
+          explanation?: string | null
+          id?: string
+          options?: Json
+          previous_year_tag?: string | null
+          question?: string
+          subject?: string
+          topic?: string | null
+          year?: number
         }
         Relationships: []
       }
