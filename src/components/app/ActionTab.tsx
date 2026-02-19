@@ -68,10 +68,9 @@ const studyModes = [
 
 interface ActionTabProps {
   onNavigateToBrain?: () => void;
-  onOpenConfidencePractice?: () => void;
 }
 
-const ActionTab = ({ onNavigateToBrain, onOpenConfidencePractice }: ActionTabProps) => {
+const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const { isEnabled } = useFeatureFlagContext();
   const [lazyModeOpen, setLazyModeOpen] = useState(false);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
@@ -458,36 +457,6 @@ const ActionTab = ({ onNavigateToBrain, onOpenConfidencePractice }: ActionTabPro
         </motion.section>
       )}
 
-      {/* ═══════════════════════════════════════════════════
-          CONFIDENCE PRACTICE MODE — Panic-Free Practice
-         ═══════════════════════════════════════════════════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
-      >
-        <button
-          onClick={onOpenConfidencePractice}
-          className="w-full rounded-2xl p-5 text-left bg-card border border-primary/20 hover:border-primary/40 transition-all group relative overflow-hidden"
-        >
-          <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-          <div className="flex items-start gap-4 relative z-10">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Shield className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-foreground text-sm">Confidence Practice Mode</h3>
-                <span className="px-1.5 py-0.5 rounded bg-primary/15 text-[9px] font-bold text-primary">NEW</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                Last 5 years questions + AI predicted questions. No pressure, no ranks — just focused practice.
-              </p>
-            </div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
-          </div>
-        </button>
-      </motion.section>
 
       {/* ═══════════════════════════════════════════════════
           SECTION 3: AI Task Engine
