@@ -74,16 +74,29 @@ export function useConfidencePractice() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("confidence-practice", {
-        body: { action: "generate_predicted", ...filters }
+        body: { action: "generate_predicted", count: filters.count || 5, ...filters }
       });
-      if (error) throw error;
+      // supabase.functions.invoke throws FunctionsHttpError for non-2xx
+      // but the error object may contain the response body
+      if (error) {
+        // Try to extract body from the error
+        let msg = error.message || "Unknown error";
+        try {
+          if ((error as any).context?.body) {
+            const body = await (error as any).context.json();
+            msg = body?.error || msg;
+          }
+        } catch {}
+        toast({ title: "Error generating questions", description: msg, variant: "destructive" });
+        return;
+      }
       if (data?.error) {
         toast({ title: "AI Error", description: data.error, variant: "destructive" });
         return;
       }
       setQuestions(data?.questions || []);
     } catch (e: any) {
-      toast({ title: "Error generating questions", description: e.message, variant: "destructive" });
+      toast({ title: "Error generating questions", description: e.message || "Please try again", variant: "destructive" });
     }
     setLoading(false);
   }, [user]);
