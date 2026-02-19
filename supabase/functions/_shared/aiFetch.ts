@@ -121,8 +121,9 @@ async function callGeminiDirect(apiKey: string, parsed: any, timeoutMs: number):
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   const endpoint = isStream ? "streamGenerateContent?alt=sse" : "generateContent";
+  const separator = endpoint.includes("?") ? "&" : "?";
   const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:${endpoint}&key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:${endpoint}${separator}key=${apiKey}`,
     {
       method: "POST",
       signal: controller.signal,
