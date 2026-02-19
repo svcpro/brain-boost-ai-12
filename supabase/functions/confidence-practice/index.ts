@@ -225,66 +225,107 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
         }
       ];
 
-      // Model fallback chain — try multiple models if credits exhausted or errors
+      // ── AI Call with Lovable Gateway + Direct Gemini API fallback ──
+      let aiData: any = null;
+      let lastError = "";
+
+      // Step 1: Try Lovable AI gateway models
       const modelsToTry = [
         "google/gemini-2.5-flash",
         "google/gemini-2.5-flash-lite",
         "openai/gpt-5-nano",
-        "openai/gpt-5-mini",
       ];
-
-      let aiData: any = null;
-      let lastError = "";
 
       for (const model of modelsToTry) {
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 50000);
-
+          const timeout = setTimeout(() => controller.abort(), 45000);
           const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
+            headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
             body: JSON.stringify({ model, messages: aiMessages, response_format: { type: "json_object" } }),
             signal: controller.signal,
           });
           clearTimeout(timeout);
 
-          if (aiResponse.status === 429) {
-            lastError = "Rate limited";
-            console.error(`Model ${model}: rate limited, trying next...`);
+          if (aiResponse.status === 429 || aiResponse.status === 402) {
+            lastError = aiResponse.status === 429 ? "Rate limited" : "Credits exhausted";
+            console.error(`Lovable ${model}: ${lastError}`);
             continue;
           }
-          if (aiResponse.status === 402) {
-            lastError = "Credits exhausted";
-            console.error(`Model ${model}: credits exhausted, trying next...`);
-            continue;
-          }
-
           if (!aiResponse.ok) {
             lastError = `Status ${aiResponse.status}`;
-            const body = await aiResponse.text();
-            console.error(`Model ${model} failed:`, lastError, body);
+            await aiResponse.text();
             continue;
           }
-
           aiData = await aiResponse.json();
-          console.log(`Model ${model} succeeded`);
+          console.log(`Lovable ${model} succeeded`);
           break;
         } catch (e: any) {
-          lastError = e.name === "AbortError" ? "Request timed out" : (e.message || "Unknown error");
-          console.error(`Model ${model} error:`, lastError);
-          continue;
+          lastError = e.name === "AbortError" ? "Timeout" : (e.message || "Error");
+          console.error(`Lovable ${model}: ${lastError}`);
+        }
+      }
+
+      // Step 2: Fallback to direct Google Gemini API if Lovable gateway failed
+      if (!aiData) {
+        const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_API_KEY");
+        if (GEMINI_KEY) {
+          console.log("Falling back to direct Gemini API...");
+          const geminiModels = ["gemini-2.5-flash", "gemini-2.0-flash"];
+          for (const gModel of geminiModels) {
+            try {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 50000);
+              const geminiResponse = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${GEMINI_KEY}`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    contents: [
+                      { role: "user", parts: [{ text: aiMessages[0].content + "\n\n" + aiMessages[1].content }] }
+                    ],
+                    generationConfig: {
+                      responseMimeType: "application/json",
+                      temperature: 0.7,
+                    },
+                  }),
+                  signal: controller.signal,
+                }
+              );
+              clearTimeout(timeout);
+
+              if (!geminiResponse.ok) {
+                const errBody = await geminiResponse.text();
+                lastError = `Gemini ${gModel}: ${geminiResponse.status}`;
+                console.error(lastError, errBody);
+                continue;
+              }
+
+              const geminiData = await geminiResponse.json();
+              const textContent = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (textContent) {
+                // Parse the JSON from Gemini's text response
+                const parsed = JSON.parse(textContent);
+                aiData = {
+                  choices: [{ message: { content: JSON.stringify(parsed) } }]
+                };
+                console.log(`Direct Gemini ${gModel} succeeded`);
+                break;
+              }
+            } catch (e: any) {
+              lastError = e.name === "AbortError" ? "Gemini timeout" : (e.message || "Gemini error");
+              console.error(`Gemini ${gModel}: ${lastError}`);
+            }
+          }
+        } else {
+          console.error("No GOOGLE_GEMINI_API_KEY configured for fallback");
         }
       }
 
       if (!aiData) {
-        const userMessage = lastError.includes("Credits exhausted") || lastError.includes("Rate limited")
-          ? "AI usage limit reached for today. Your credits will refresh shortly — please try again in a few minutes."
-          : `AI service temporarily unavailable. Please try again in a moment.`;
-        return new Response(JSON.stringify({ error: userMessage }), {
+        return new Response(JSON.stringify({ error: "AI service temporarily unavailable. Please try again in a moment." }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
