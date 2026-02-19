@@ -180,14 +180,17 @@ const ConfidencePracticeTab = () => {
                 <BookOpen className="w-6 h-6 text-primary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-foreground text-base">Last 5 Years Question Bank</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-foreground text-base">Last 5 Years Question Bank</h3>
+                  <span className="px-1.5 py-0.5 rounded bg-primary/15 text-[9px] font-bold text-primary">AI</span>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Practice real previous year questions from UPSC, SSC, Banking, JEE, NEET & more. Filter by exam, subject, year, and difficulty.
+                  AI generates authentic previous year style questions matching your selected exam. Just pick your exam & start.
                 </p>
                 <div className="flex items-center gap-2 mt-3">
                   <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">Year-wise</span>
                   <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">Topic-wise</span>
-                  <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">Mixed Mode</span>
+                  <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">Auto-Generated</span>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
@@ -248,8 +251,8 @@ const ConfidencePracticeTab = () => {
         </button>
 
         <div className="space-y-1">
-          <h2 className="text-lg font-bold text-foreground">{isPredicted ? "AI Predicted Questions" : "Question Bank Setup"}</h2>
-          <p className="text-xs text-muted-foreground">{isPredicted ? "AI will generate high-probability questions" : "Filter questions from last 5 years"}</p>
+          <h2 className="text-lg font-bold text-foreground">{isPredicted ? "AI Predicted Questions" : "AI Question Bank"}</h2>
+          <p className="text-xs text-muted-foreground">{isPredicted ? "AI will generate high-probability questions" : "AI generates previous year style questions for your exam"}</p>
         </div>
 
         {/* Filters */}
@@ -303,17 +306,14 @@ const ConfidencePracticeTab = () => {
 
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Questions Count {totalAvailable > 0 && <span className="text-primary font-normal">({totalAvailable} available)</span>}
+              Questions Count
             </label>
             <div className="flex flex-wrap gap-2">
-              {[10, 20, 30, 50, 100].map(n => (
+              {[10, 20, 30, 50].map(n => (
                 <button key={n} onClick={() => setSelCount(n)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selCount === n ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
                 >{n}</button>
               ))}
-              <button onClick={() => setSelCount(0)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selCount === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-              >All</button>
             </div>
           </div>
         </div>
@@ -350,7 +350,7 @@ const ConfidencePracticeTab = () => {
           className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          {loading ? "Loading Questions..." : "Start Practice"}
+          {loading ? "AI is generating questions..." : "Start Practice"}
         </motion.button>
       </div>
     );
