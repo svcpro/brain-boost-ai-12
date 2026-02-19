@@ -22,13 +22,26 @@ export interface PracticeQuestion {
   trend_reason?: string;
   trend_weight?: number;
   trend_strength?: string;
+  trend_direction?: "rising" | "stable" | "declining" | "comeback";
+  trend_momentum?: number;
+  volatility_index?: number;
+  pattern_stability?: number;
+  difficulty_evolution?: string;
+  framing_change?: string;
   ml_confidence?: string;
   score_breakdown?: {
-    topic_frequency: number;
-    repetition: number;
-    recent_trend: number;
-    difficulty_match: number;
-    language_similarity: number;
+    trend_momentum: number;
+    time_series_forecast: number;
+    historical_frequency: number;
+    difficulty_alignment: number;
+    semantic_similarity: number;
+    examiner_behavior: number;
+    // Legacy support
+    topic_frequency?: number;
+    repetition?: number;
+    recent_trend?: number;
+    difficulty_match?: number;
+    language_similarity?: number;
   };
   similar_pyq_years?: number[];
 }
