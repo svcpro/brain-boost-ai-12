@@ -124,6 +124,8 @@ export const useExamCountdown = (): ExamCountdownState => {
   }, [phase, prediction]);
 
   const isModeBlocked = useCallback((modeId: string) => {
+    // Emergency Rescue Mode is always accessible, especially within 7 days of exam
+    if (modeId === "emergency") return false;
     return lockedModes.includes(modeId);
   }, [lockedModes]);
 
