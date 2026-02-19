@@ -97,6 +97,87 @@ const BrainNode = ({ topic, index, onClick }: { topic: RiskTopic; index: number;
   );
 };
 
+// ─── Begin Mission Modal ─────────────────────────────────────
+const BeginMissionModal = ({ topic, duration, onBegin, onClose }: { topic: RiskTopic; duration: 3 | 5; onBegin: () => void; onClose: () => void }) => {
+  const tier = getTier(topic.memory_strength);
+  const cfg = tierConfig[tier];
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ scale: 0.9, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 30 }} className="w-full max-w-sm glass rounded-2xl neural-border p-6 space-y-5">
+        {/* Icon */}
+        <div className="flex flex-col items-center gap-3">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
+            className={`w-16 h-16 rounded-2xl ${cfg.bg} border ${cfg.border} flex items-center justify-center`}
+          >
+            <Brain className={`w-8 h-8 ${cfg.color}`} />
+          </motion.div>
+          <motion.h3
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-base font-display font-bold text-foreground text-center"
+          >
+            {duration}-min Recall Mission
+          </motion.h3>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-xs text-muted-foreground text-center"
+          >
+            Reinforce <span className="font-semibold text-foreground">{topic.name}</span> with targeted questions
+          </motion.p>
+        </div>
+
+        {/* Stats row */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="flex items-center justify-center gap-4"
+        >
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/30 border border-border/20">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[10px] font-semibold text-foreground">{duration} min</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 border border-success/15">
+            <TrendingUp className="w-3 h-3 text-success" />
+            <span className="text-[10px] font-semibold text-success">+{topic.improvement_estimate}%</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/15">
+            <Target className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-semibold text-primary">3 Qs</span>
+          </div>
+        </motion.div>
+
+        {/* Begin button */}
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onBegin}
+          className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+        >
+          <Play className="w-4 h-4" />
+          Begin Mission
+        </motion.button>
+
+        <button
+          onClick={onClose}
+          className="w-full text-center text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Not now
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 // ─── Recall Loop Modal ───────────────────────────────────────
 const RecallLoop = ({ questions, onComplete, onClose }: { questions: RecallQuestion[]; onComplete: () => void; onClose: () => void }) => {
   const [current, setCurrent] = useState(0);
@@ -162,6 +243,7 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
 
   const [recallQuestions, setRecallQuestions] = useState<RecallQuestion[] | null>(null);
   const [fixingId, setFixingId] = useState<string | null>(null);
+  const [pendingMission, setPendingMission] = useState<{ topic: RiskTopic; duration: 3 | 5 } | null>(null);
   const [autoShield, setAutoShield] = useState(() => localStorage.getItem("stability-auto-shield") === "true");
   const [focusSession, setFocusSession] = useState<{ subject?: string; topic?: string } | null>(null);
   const [shieldStreak, setShieldStreak] = useState(() => getCache<number>("risk-shield-streak") || 0);
@@ -215,29 +297,47 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
     }
   }, [autoShield, enriched, user]);
 
-  const handleFix = useCallback(async (topic: RiskTopic, duration: FixDuration) => {
+  const updateShieldStreak = useCallback(() => {
+    const today = new Date().toDateString();
+    const last = localStorage.getItem("risk-shield-last-date");
+    let ns = shieldStreak;
+    if (last !== today) { ns = last ? shieldStreak + 1 : 1; localStorage.setItem("risk-shield-last-date", today); setShieldStreak(ns); setCache("risk-shield-streak", ns); }
+  }, [shieldStreak]);
+
+  const handleFix = useCallback((topic: RiskTopic, duration: FixDuration) => {
     if (duration === "auto") {
       // Auto Shield — update memory + schedule recall silently
       setFixingId(topic.id);
-      try {
-        if (user) {
-          await supabase.from("topics").update({
-            memory_strength: Math.min(100, topic.memory_strength + 10),
-            next_predicted_drop_date: new Date(Date.now() + 86400000).toISOString(),
-          }).eq("user_id", user.id).eq("id", topic.id);
-        }
-        const nf = new Set(fixedToday); nf.add(topic.id); setFixedToday(nf); setCache("risk-fixed-today", Array.from(nf));
-        triggerHaptic([15, 30, 15]);
-        notifyFeedback();
-        updateShieldStreak();
-        toast({ title: "🛡️ Auto Shield activated", description: `${topic.name} recall scheduled for tomorrow` });
-      } finally { setFixingId(null); setSelectedTopic(null); }
+      (async () => {
+        try {
+          if (user) {
+            await supabase.from("topics").update({
+              memory_strength: Math.min(100, topic.memory_strength + 10),
+              next_predicted_drop_date: new Date(Date.now() + 86400000).toISOString(),
+            }).eq("user_id", user.id).eq("id", topic.id);
+          }
+          const nf = new Set(fixedToday); nf.add(topic.id); setFixedToday(nf); setCache("risk-fixed-today", Array.from(nf));
+          triggerHaptic([15, 30, 15]);
+          notifyFeedback();
+          updateShieldStreak();
+          toast({ title: "🛡️ Auto Shield activated", description: `${topic.name} recall scheduled for tomorrow` });
+        } finally { setFixingId(null); setSelectedTopic(null); }
+      })();
       return;
     }
 
-    // Smart Recall (3m or 5m)
-    setFixingId(topic.id);
+    // Show Begin Mission popup for 3-min or 5-min
     setSelectedTopic(null);
+    setPendingMission({ topic, duration: duration as 3 | 5 });
+    triggerHaptic(20);
+  }, [user, toast, fixedToday, updateShieldStreak]);
+
+  const handleBeginMission = useCallback(async () => {
+    if (!pendingMission) return;
+    const { topic } = pendingMission;
+    setPendingMission(null);
+    setFixingId(topic.id);
+
     try {
       const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
         body: {
@@ -256,7 +356,6 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
       if (questions.length > 0) {
         setRecallQuestions(questions);
       } else {
-        // Fallback: generate simple recall prompts locally
         setRecallQuestions([
           { question: `What are the key concepts in ${topic.name}?`, topic_name: topic.name },
           { question: `Explain ${topic.name} in your own words.`, topic_name: topic.name },
@@ -265,21 +364,15 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
       }
     } catch (err) {
       console.warn("Recall generation failed, using fallback:", err);
-      // Fallback: generate simple recall prompts locally instead of opening popup
       setRecallQuestions([
         { question: `What are the key concepts in ${topic.name}?`, topic_name: topic.name },
         { question: `Explain ${topic.name} in your own words.`, topic_name: topic.name },
         { question: `What is the most important thing to remember about ${topic.name}?`, topic_name: topic.name },
       ]);
     } finally { setFixingId(null); }
-  }, [user, toast, fixedToday, onStudyTopic]);
+  }, [pendingMission]);
 
-  const updateShieldStreak = useCallback(() => {
-    const today = new Date().toDateString();
-    const last = localStorage.getItem("risk-shield-last-date");
-    let ns = shieldStreak;
-    if (last !== today) { ns = last ? shieldStreak + 1 : 1; localStorage.setItem("risk-shield-last-date", today); setShieldStreak(ns); setCache("risk-shield-streak", ns); }
-  }, [shieldStreak]);
+
 
   const handleRecallComplete = useCallback(() => {
     setRecallQuestions(null);
@@ -574,6 +667,18 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
               </motion.button>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Begin Mission Popup */}
+      <AnimatePresence>
+        {pendingMission && (
+          <BeginMissionModal
+            topic={pendingMission.topic}
+            duration={pendingMission.duration}
+            onBegin={handleBeginMission}
+            onClose={() => setPendingMission(null)}
+          />
         )}
       </AnimatePresence>
 
