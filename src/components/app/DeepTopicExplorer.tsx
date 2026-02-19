@@ -347,13 +347,16 @@ const DeepTopicExplorer = () => {
 
                           return (
                             <div key={topic.id} className="rounded-xl border border-border/50 bg-background/50 overflow-hidden">
-                              {/* Topic row */}
-                              <button
+                              {/* Topic row - use div + onClick only on header */}
+                              <div
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => {
                                   setShowActions(isActionsOpen ? null : topic.id);
                                   setSelectedTopic(isHealthOpen ? null : topic);
                                 }}
-                                className="w-full flex items-center gap-2.5 p-3 hover:bg-secondary/20 transition-colors text-left group"
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowActions(isActionsOpen ? null : topic.id); setSelectedTopic(isHealthOpen ? null : topic); }}}
+                                className="w-full flex items-center gap-2.5 p-3 hover:bg-secondary/20 transition-colors text-left group cursor-pointer"
                               >
                                 {/* Stability dot */}
                                 <div className={`w-2 h-2 rounded-full shrink-0 ${stabilityBg(topic.memory_strength)}`} />
@@ -377,7 +380,7 @@ const DeepTopicExplorer = () => {
                                 <motion.div animate={{ rotate: isActionsOpen ? 90 : 0 }} transition={{ duration: 0.15 }}>
                                   <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
                                 </motion.div>
-                              </button>
+                              </div>
 
                               {/* Expanded: Health + Actions */}
                               <AnimatePresence>
