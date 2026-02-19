@@ -49,15 +49,11 @@ serve(async (req) => {
     const aiPrompt = promptMap[type] || promptMap.test;
 
     // Retry-aware AI call with fallback
+    const { aiFetch } = await import("../_shared/aiFetch.ts");
     let aiResponse: Response | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
+        aiResponse = await aiFetch({
           body: JSON.stringify({
             model: "google/gemini-2.5-flash-lite",
             messages: [
@@ -66,10 +62,10 @@ serve(async (req) => {
                 content: `You are ACRY, an AI Second Brain voice assistant. Rules:
 1. Output ONLY the spoken text — no quotes, no labels, no formatting, no asterisks.
 2. Keep it 1-2 sentences, natural and conversational.
-3. For Hindi: Write in Devanagari script. Use simple English loanwords naturally (like "focus", "topic", "minutes") but keep the sentence structure Hindi.
-4. For English: Use clear, flowing sentences. Avoid overly formal or stilted phrasing.
+3. For Hindi: Write in Devanagari script. Use simple English loanwords naturally.
+4. For English: Use clear, flowing sentences.
 5. Never start with "Hey" or "Hi" every time — vary openings naturally.
-6. Pronounce numbers as words (e.g., "twenty" not "20").
+6. Pronounce numbers as words.
 7. Avoid abbreviations, symbols, or special characters.`
               },
               { role: "user", content: aiPrompt }
@@ -77,6 +73,23 @@ serve(async (req) => {
           }),
         });
         if (aiResponse.ok) break;
+        if (aiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (aiResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        console.warn(`AI attempt ${attempt + 1} failed with status ${aiResponse.status}`);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      } catch (fetchErr) {
+        console.warn(`AI fetch error attempt ${attempt + 1}:`, fetchErr);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
         if (aiResponse.status === 429) {
           return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },

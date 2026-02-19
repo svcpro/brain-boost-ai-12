@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiFetch } from "../_shared/aiFetch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,8 +17,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -31,8 +31,7 @@ serve(async (req) => {
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const userId = claimsData.claims.sub;
@@ -42,8 +41,7 @@ serve(async (req) => {
 
     if (!imageFile) {
       return new Response(JSON.stringify({ error: "No image file provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -59,14 +57,6 @@ serve(async (req) => {
     const base64 = btoa(binary);
     const mimeType = imageFile.type || "image/jpeg";
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const { data: existingSubjects } = await supabase
       .from("subjects")
       .select("id, name")
@@ -76,97 +66,72 @@ serve(async (req) => {
 
     console.log("Sending image to AI for topic extraction...");
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+    const aiResponse = await aiFetch({
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           {
             role: "system",
             content: `You are ACRY, an AI study assistant. Extract study subjects and topics from photos of handwritten or printed notes, textbook pages, whiteboards, or any study material.
 The user already has these subjects: ${existingSubjectNames || "none"}.
 If the content fits an existing subject, use that exact name. Otherwise suggest a new subject name.
-Each topic should be a specific, reviewable concept. Read all text carefully including handwritten notes.`,
+Each topic should be a specific, reviewable concept.`,
           },
           {
             role: "user",
             content: [
-              {
-                type: "text",
-                text: "Extract all study subjects and topics from this image of study material. Read any text (handwritten or printed) and identify specific topics a student should review.",
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${base64}`,
-                },
-              },
+              { type: "text", text: "Extract all study subjects and topics from this image of study material." },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
             ],
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "extract_topics",
-              description: "Extract subjects and topics from the image",
-              parameters: {
-                type: "object",
-                properties: {
-                  subjects: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string", description: "Subject name" },
-                        topics: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              name: { type: "string", description: "Specific topic name" },
-                              importance: { type: "string", enum: ["high", "medium", "low"] },
-                            },
-                            required: ["name", "importance"],
-                            additionalProperties: false,
+        tools: [{
+          type: "function",
+          function: {
+            name: "extract_topics",
+            description: "Extract subjects and topics from the image",
+            parameters: {
+              type: "object",
+              properties: {
+                subjects: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      topics: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            importance: { type: "string", enum: ["high", "medium", "low"] },
                           },
+                          required: ["name", "importance"],
+                          additionalProperties: false,
                         },
                       },
-                      required: ["name", "topics"],
-                      additionalProperties: false,
                     },
+                    required: ["name", "topics"],
+                    additionalProperties: false,
                   },
                 },
-                required: ["subjects"],
-                additionalProperties: false,
               },
+              required: ["subjects"],
+              additionalProperties: false,
             },
           },
-        ],
+        }],
         tool_choice: { type: "function", function: { name: "extract_topics" } },
       }),
     });
 
     if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (aiResponse.status === 429) return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (aiResponse.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const errText = await aiResponse.text();
       console.error("AI error:", aiResponse.status, errText);
-      return new Response(JSON.stringify({ error: "AI processing failed" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "AI processing failed" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const aiData = await aiResponse.json();
@@ -184,31 +149,19 @@ Each topic should be a specific, reviewable concept. Read all text carefully inc
 
     for (const subj of extracted.subjects || []) {
       let subjectId: string;
-      const existing = (existingSubjects || []).find(
-        (s: any) => s.name.toLowerCase() === subj.name.toLowerCase()
-      );
+      const existing = (existingSubjects || []).find((s: any) => s.name.toLowerCase() === subj.name.toLowerCase());
 
       if (existing) {
         subjectId = existing.id;
       } else {
         const { data: newSubject, error: subjErr } = await supabase
-          .from("subjects")
-          .insert({ name: subj.name, user_id: userId })
-          .select("id")
-          .single();
+          .from("subjects").insert({ name: subj.name, user_id: userId }).select("id").single();
         if (subjErr || !newSubject) { console.error("Subject create error:", subjErr); continue; }
         subjectId = newSubject.id;
       }
 
-      const { data: existingTopics } = await supabase
-        .from("topics")
-        .select("name")
-        .eq("user_id", userId)
-        .eq("subject_id", subjectId);
-
-      const existingTopicNames = new Set(
-        (existingTopics || []).map((t: any) => t.name.toLowerCase())
-      );
+      const { data: existingTopics } = await supabase.from("topics").select("name").eq("user_id", userId).eq("subject_id", subjectId);
+      const existingTopicNames = new Set((existingTopics || []).map((t: any) => t.name.toLowerCase()));
 
       const createdTopics: string[] = [];
       for (const topic of subj.topics || []) {

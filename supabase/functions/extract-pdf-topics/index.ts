@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiFetch } from "../_shared/aiFetch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,18 +38,15 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    // Parse the multipart form data
     const formData = await req.formData();
     const pdfFile = formData.get("pdf") as File | null;
 
     if (!pdfFile) {
       return new Response(JSON.stringify({ error: "No PDF file provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Read PDF as base64 for AI processing
     const arrayBuffer = await pdfFile.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     let binary = "";
@@ -60,15 +58,6 @@ serve(async (req) => {
     }
     const base64 = btoa(binary);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get existing subjects for the user
     const { data: existingSubjects } = await supabase
       .from("subjects")
       .select("id, name")
@@ -78,88 +67,62 @@ serve(async (req) => {
 
     console.log("Sending PDF to AI for topic extraction...");
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+    const aiResponse = await aiFetch({
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           {
             role: "system",
             content: `You are ACRY, an AI study assistant. Extract study subjects and topics from uploaded PDF documents. 
-Identify the main subject area and break the content into specific study topics.
 The user already has these subjects: ${existingSubjectNames || "none"}.
 If the PDF content fits an existing subject, use that exact name. Otherwise suggest a new subject name.
-Each topic should be a specific, reviewable concept (not too broad, not too narrow).`,
+Each topic should be a specific, reviewable concept.`,
           },
           {
             role: "user",
             content: [
-              {
-                type: "text",
-                text: `Extract all study subjects and topics from this PDF document. Identify the main subject and list all specific topics/concepts that a student should study and review.`,
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${base64}`,
-                },
-              },
+              { type: "text", text: "Extract all study subjects and topics from this PDF document." },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
             ],
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "extract_topics",
-              description: "Extract subjects and topics from the document",
-              parameters: {
-                type: "object",
-                properties: {
-                  subjects: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: {
-                          type: "string",
-                          description: "Subject name (e.g. Physics, Biology, History)",
-                        },
-                        topics: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              name: {
-                                type: "string",
-                                description: "Specific topic name (e.g. Newton's Laws, Photosynthesis)",
-                              },
-                              importance: {
-                                type: "string",
-                                enum: ["high", "medium", "low"],
-                                description: "How important this topic is for exams",
-                              },
-                            },
-                            required: ["name", "importance"],
-                            additionalProperties: false,
+        tools: [{
+          type: "function",
+          function: {
+            name: "extract_topics",
+            description: "Extract subjects and topics from the document",
+            parameters: {
+              type: "object",
+              properties: {
+                subjects: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      topics: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            importance: { type: "string", enum: ["high", "medium", "low"] },
                           },
+                          required: ["name", "importance"],
+                          additionalProperties: false,
                         },
                       },
-                      required: ["name", "topics"],
-                      additionalProperties: false,
                     },
+                    required: ["name", "topics"],
+                    additionalProperties: false,
                   },
                 },
-                required: ["subjects"],
-                additionalProperties: false,
               },
+              required: ["subjects"],
+              additionalProperties: false,
             },
           },
-        ],
+        }],
         tool_choice: { type: "function", function: { name: "extract_topics" } },
       }),
     });
@@ -167,21 +130,18 @@ Each topic should be a specific, reviewable concept (not too broad, not too narr
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const errText = await aiResponse.text();
       console.error("AI error:", aiResponse.status, errText);
       return new Response(JSON.stringify({ error: "AI processing failed" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -190,8 +150,7 @@ Each topic should be a specific, reviewable concept (not too broad, not too narr
 
     if (!toolCall?.function?.arguments) {
       return new Response(JSON.stringify({ error: "AI could not extract topics from this PDF" }), {
-        status: 422,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -200,7 +159,6 @@ Each topic should be a specific, reviewable concept (not too broad, not too narr
     let totalTopicsCreated = 0;
 
     for (const subj of extracted.subjects || []) {
-      // Find or create subject
       let subjectId: string;
       const existing = (existingSubjects || []).find(
         (s: any) => s.name.toLowerCase() === subj.name.toLowerCase()
@@ -214,15 +172,10 @@ Each topic should be a specific, reviewable concept (not too broad, not too narr
           .insert({ name: subj.name, user_id: userId })
           .select("id")
           .single();
-
-        if (subjErr || !newSubject) {
-          console.error("Failed to create subject:", subjErr);
-          continue;
-        }
+        if (subjErr || !newSubject) { console.error("Subject create error:", subjErr); continue; }
         subjectId = newSubject.id;
       }
 
-      // Get existing topics for this subject to avoid duplicates
       const { data: existingTopics } = await supabase
         .from("topics")
         .select("name")
@@ -234,47 +187,27 @@ Each topic should be a specific, reviewable concept (not too broad, not too narr
       );
 
       const createdTopics: string[] = [];
-
       for (const topic of subj.topics || []) {
         if (existingTopicNames.has(topic.name.toLowerCase())) continue;
-
         const weight = topic.importance === "high" ? 3 : topic.importance === "medium" ? 2 : 1;
-
         const { error: topicErr } = await supabase.from("topics").insert({
-          name: topic.name,
-          subject_id: subjectId,
-          user_id: userId,
-          memory_strength: 0,
-          marks_impact_weight: weight,
+          name: topic.name, subject_id: subjectId, user_id: userId,
+          memory_strength: 0, marks_impact_weight: weight,
         });
-
-        if (!topicErr) {
-          createdTopics.push(topic.name);
-          totalTopicsCreated++;
-        }
+        if (!topicErr) { createdTopics.push(topic.name); totalTopicsCreated++; }
       }
-
       results.push({ subject: subj.name, topics: createdTopics });
     }
 
     console.log(`Extracted ${totalTopicsCreated} topics from PDF`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        totalTopicsCreated,
-        results,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, totalTopicsCreated, results }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("extract-pdf-topics error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
