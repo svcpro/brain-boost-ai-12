@@ -169,12 +169,8 @@ ${scenarios.map((s: any, i: number) => `
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+    const { aiFetch } = await import("../_shared/aiFetch.ts");
+    const aiResp = await aiFetch({
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [

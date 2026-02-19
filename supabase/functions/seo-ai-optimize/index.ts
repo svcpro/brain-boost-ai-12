@@ -21,12 +21,8 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const callAI = async (systemPrompt: string, userPrompt: string) => {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+      const { aiFetch } = await import("../_shared/aiFetch.ts");
+      const response = await aiFetch({
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
@@ -116,12 +112,8 @@ Generate:
         },
       }];
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+      const { aiFetch } = await import("../_shared/aiFetch.ts");
+      const response = await aiFetch({
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [

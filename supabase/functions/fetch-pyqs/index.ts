@@ -26,12 +26,8 @@ async function generateBatch(
   year: number,
   count: number
 ): Promise<any[]> {
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+  const { aiFetch } = await import("../_shared/aiFetch.ts");
+  const response = await aiFetch({
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [

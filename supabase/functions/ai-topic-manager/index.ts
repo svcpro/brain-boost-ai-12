@@ -29,12 +29,8 @@ serve(async (req) => {
       // AI generates full subject + topic tree based on exam type
       const examLabel = exam_type || "general";
 
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+      const { aiFetch } = await import("../_shared/aiFetch.ts");
+      const aiResp = await aiFetch({
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
@@ -179,12 +175,8 @@ serve(async (req) => {
         marks_impact_weight: t.marks_impact_weight,
       }));
 
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+      const { aiFetch } = await import("../_shared/aiFetch.ts");
+      const aiResp = await aiFetch({
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
@@ -275,12 +267,8 @@ serve(async (req) => {
       const examType = profileRes.data?.exam_type || "general";
       const subjectMap = new Map(subjects.map((s: any) => [s.id, s.name]));
 
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+      const { aiFetch } = await import("../_shared/aiFetch.ts");
+      const aiResp = await aiFetch({
         body: JSON.stringify({
           model: "google/gemini-2.5-flash-lite",
           messages: [

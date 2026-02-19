@@ -108,12 +108,8 @@ Rules:
 
 Respond using the tool provided.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+    const { aiFetch } = await import("../_shared/aiFetch.ts");
+    const aiResponse = await aiFetch({
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: aiPrompt }],

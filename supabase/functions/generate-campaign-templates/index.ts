@@ -181,12 +181,8 @@ CRITICAL: Every data point in the message MUST be a {{variable_name}} placeholde
 
 No markdown fences, no explanation, just the JSON.`;
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+  const { aiFetch } = await import("../_shared/aiFetch.ts");
+  const response = await aiFetch({
     body: JSON.stringify({
       model: "google/gemini-2.5-flash-lite",
       messages: [{ role: "user", content: prompt }],

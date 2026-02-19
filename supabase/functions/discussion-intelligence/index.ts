@@ -57,9 +57,8 @@ ${commentsText ? `Replies:\n${commentsText}` : "No replies yet."}
 
 Return a JSON object using this exact tool call.`;
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      const { aiFetch } = await import("../_shared/aiFetch.ts");
+      const response = await aiFetch({
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [

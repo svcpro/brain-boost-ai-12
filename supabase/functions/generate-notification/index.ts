@@ -63,12 +63,8 @@ ${typeInstructions[notificationType] || typeInstructions.general}
 
 Return ONLY a JSON object with "title" (max 60 chars, punchy) and "body" (max 200 chars, personal and actionable). Use their name if available. No markdown, no code fences.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+    const { aiFetch } = await import("../_shared/aiFetch.ts");
+    const response = await aiFetch({
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
         messages: [

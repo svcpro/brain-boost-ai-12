@@ -289,12 +289,8 @@ serve(async (req) => {
         `- ${t.name} (${t.subjects?.name}): ${t.memory_strength}% strength, drops below 50% at ${t.next_predicted_drop_date}`
       ).join("\n");
 
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+      const { aiFetch } = await import("../_shared/aiFetch.ts");
+      const aiResponse = await aiFetch({
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
