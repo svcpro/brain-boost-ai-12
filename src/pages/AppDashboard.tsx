@@ -11,9 +11,6 @@ import BrainTab from "@/components/app/BrainTab";
 import ProgressTab from "@/components/app/ProgressTab";
 import YouTab from "@/components/app/YouTab";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
-import { lazy, Suspense } from "react";
-
-const ConfidencePracticeTab = lazy(() => import("@/components/app/ConfidencePracticeTab"));
 
 import GlobalNotificationCenter from "@/components/app/GlobalNotificationCenter";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
@@ -43,7 +40,7 @@ const AppDashboard = () => {
   const [autoOpenVoice, setAutoOpenVoice] = useState(false);
   const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
   const [autoOpenNotifHistory, setAutoOpenNotifHistory] = useState(false);
-  const [showConfidencePractice, setShowConfidencePractice] = useState(false);
+  
   const { user } = useAuth();
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
@@ -160,10 +157,7 @@ const AppDashboard = () => {
     switch (activeTab) {
       case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} onNavigateToBrain={() => setActiveTab("brain")} onNavigateToYou={() => setActiveTab("you")} />;
       case "action": 
-        if (showConfidencePractice) {
-          return <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>}><ConfidencePracticeTab /></Suspense>;
-        }
-        return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} onOpenConfidencePractice={() => setShowConfidencePractice(true)} />;
+        return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
       case "community": { navigate("/community"); return null; }
       case "progress": return <ProgressTab />;
@@ -240,7 +234,7 @@ const AppDashboard = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setShowConfidencePractice(false); }}
+                  onClick={() => { setActiveTab(tab.id); }}
                   className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 ${
                     active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   }`}
