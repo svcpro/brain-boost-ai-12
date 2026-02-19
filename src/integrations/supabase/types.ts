@@ -3680,6 +3680,30 @@ export type Database = {
         }
         Relationships: []
       }
+      question_bank_tags: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          tag: string
+          tagged_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          tag: string
+          tagged_by: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          tag?: string
+          tagged_by?: string
+        }
+        Relationships: []
+      }
       question_performance: {
         Row: {
           correct_index: number
@@ -4252,6 +4276,102 @@ export type Database = {
           trial_days?: number | null
           updated_at?: string
           yearly_price?: number | null
+        }
+        Relationships: []
+      }
+      sureshot_admin_config: {
+        Row: {
+          calm_mode_enabled: boolean
+          dataset_size: number
+          display_threshold: number
+          exam_mode_enabled: boolean
+          id: string
+          last_retrain_at: string | null
+          model_version: string
+          prediction_accuracy: number | null
+          prediction_max_score: number
+          prediction_min_score: number
+          rapid_mode_enabled: boolean
+          retrain_interval_days: number
+          show_research_button: boolean
+          updated_at: string
+          updated_by: string | null
+          weight_difficulty_alignment: number
+          weight_examiner_behavior: number
+          weight_historical_frequency: number
+          weight_semantic_similarity: number
+          weight_time_series: number
+          weight_trend_momentum: number
+        }
+        Insert: {
+          calm_mode_enabled?: boolean
+          dataset_size?: number
+          display_threshold?: number
+          exam_mode_enabled?: boolean
+          id?: string
+          last_retrain_at?: string | null
+          model_version?: string
+          prediction_accuracy?: number | null
+          prediction_max_score?: number
+          prediction_min_score?: number
+          rapid_mode_enabled?: boolean
+          retrain_interval_days?: number
+          show_research_button?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          weight_difficulty_alignment?: number
+          weight_examiner_behavior?: number
+          weight_historical_frequency?: number
+          weight_semantic_similarity?: number
+          weight_time_series?: number
+          weight_trend_momentum?: number
+        }
+        Update: {
+          calm_mode_enabled?: boolean
+          dataset_size?: number
+          display_threshold?: number
+          exam_mode_enabled?: boolean
+          id?: string
+          last_retrain_at?: string | null
+          model_version?: string
+          prediction_accuracy?: number | null
+          prediction_max_score?: number
+          prediction_min_score?: number
+          rapid_mode_enabled?: boolean
+          retrain_interval_days?: number
+          show_research_button?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          weight_difficulty_alignment?: number
+          weight_examiner_behavior?: number
+          weight_historical_frequency?: number
+          weight_semantic_similarity?: number
+          weight_time_series?: number
+          weight_trend_momentum?: number
+        }
+        Relationships: []
+      }
+      sureshot_prediction_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          details: Json | null
+          id: string
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
         }
         Relationships: []
       }

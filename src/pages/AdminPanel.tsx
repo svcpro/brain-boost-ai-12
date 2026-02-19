@@ -8,7 +8,7 @@ import {
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Sparkles, MessageSquare, Globe,
-  Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio
+  Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio, Target
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -45,8 +45,9 @@ import VoiceNotificationManagement from "@/components/admin/VoiceNotificationMan
 import NotificationIntelligence from "@/components/admin/NotificationIntelligence";
 import GrowthControlCenter from "@/components/admin/GrowthControlCenter";
 import ExamCountdownConfig from "@/components/admin/ExamCountdownConfig";
+import SureShotAdminPanel from "@/components/admin/SureShotAdminPanel";
 
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -118,6 +119,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
       { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
       { key: "exam_countdown", label: "Exam AI Control", icon: Brain, roles: ["super_admin", "admin"], badge: "AI" },
+      { key: "sureshot", label: "SureShot AI Lab", icon: Target, roles: ["super_admin", "admin", "ai_admin"], badge: "ML" },
       { key: "finance", label: "Finance & Costs", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
     ],
   },
@@ -461,6 +463,7 @@ const AdminPanel = () => {
               {section === "subscriptions" && <SubscriptionsSection />}
               {section === "plan_gating" && <PlanGatingManagement />}
               {section === "exam_countdown" && <ExamCountdownConfig />}
+              {section === "sureshot" && <SureShotAdminPanel />}
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
               {section === "finance" && <FinanceManagement />}
