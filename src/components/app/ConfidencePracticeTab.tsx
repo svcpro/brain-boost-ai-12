@@ -38,6 +38,35 @@ const difficulties = ["easy", "medium", "hard"];
 type PracticeMode = "calm" | "exam" | "rapid";
 type Section = "menu" | "bank_setup" | "predicted_setup" | "practice" | "result";
 
+const LoadingStageText = ({ isPredicted }: { isPredicted: boolean }) => {
+  const [stageIdx, setStageIdx] = useState(0);
+  const stages = isPredicted
+    ? ["Scanning 5-year exam patterns...", "Running ML trend analysis...", "Computing 6-factor scores...", "Generating predicted questions...", "Applying difficulty alignment...", "Finalizing AI predictions..."]
+    : ["Connecting to question bank...", "Applying your filters...", "Loading questions from database...", "Randomizing question order...", "Preparing practice session..."];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStageIdx(prev => (prev + 1) % stages.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [stages.length]);
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.p
+        key={stageIdx}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.3 }}
+        className="text-[11px] text-muted-foreground"
+      >
+        {stages[stageIdx]}
+      </motion.p>
+    </AnimatePresence>
+  );
+};
+
 const ConfidencePracticeTab = () => {
   const { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, fetchUserExam, setQuestions, populatingPYQs, pyqProgress, populateQuestionBank } = useConfidencePractice();
 
@@ -662,19 +691,122 @@ const ConfidencePracticeTab = () => {
           ))}
         </div>
 
-        {/* Start Button */}
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={async () => {
-            if (isPredicted) await loadPredictedQuestions();
-            else await loadBankQuestions();
-          }}
-          disabled={loading}
-          className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          {loading ? (isPredicted ? "AI is generating questions..." : "Loading questions...") : "Start Practice"}
-        </motion.button>
+        {/* Start Button with Animated Progress */}
+        {loading ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%)",
+              border: "1px solid hsl(var(--primary) / 0.3)",
+            }}
+          >
+            <div className="p-5 space-y-4">
+              {/* Animated Icon */}
+              <div className="flex justify-center">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.05))",
+                    border: "1px solid hsl(var(--primary) / 0.3)",
+                    boxShadow: "0 0 30px hsl(var(--primary) / 0.15)",
+                  }}
+                >
+                  {isPredicted ? (
+                    <motion.div animate={{ opacity: [0.6, 1, 0.6] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                      <Sparkles className="w-7 h-7 text-primary" />
+                    </motion.div>
+                  ) : (
+                    <motion.div animate={{ rotateY: [0, 360] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
+                      <BookOpen className="w-7 h-7 text-primary" />
+                    </motion.div>
+                  )}
+                </motion.div>
+              </div>
+
+              {/* Status Text */}
+              <div className="text-center space-y-1">
+                <motion.p
+                  animate={{ opacity: [0.7, 1, 0.7] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-sm font-bold text-foreground"
+                >
+                  {isPredicted ? "🧠 AI Research Engine Active" : "📚 Loading Question Bank"}
+                </motion.p>
+                <LoadingStageText isPredicted={isPredicted} />
+              </div>
+
+              {/* Animated Progress Bar */}
+              <div className="space-y-2">
+                <div className="w-full h-3 rounded-full bg-secondary/80 overflow-hidden relative">
+                  <motion.div
+                    className="absolute inset-0 opacity-30"
+                    style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary) / 0.3), transparent)" }}
+                    animate={{ x: ["-100%", "200%"] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  />
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.8), hsl(var(--primary)))" }}
+                    initial={{ width: "0%" }}
+                    animate={{ width: ["0%", "30%", "55%", "70%", "85%", "92%"] }}
+                    transition={{ duration: 12, times: [0, 0.1, 0.3, 0.5, 0.7, 1], ease: "easeOut" }}
+                  />
+                </div>
+                <div className="flex justify-between">
+                  {(isPredicted
+                    ? ["Analyzing", "ML Model", "Trends", "Generating"]
+                    : ["Connecting", "Filtering", "Loading", "Preparing"]
+                  ).map((stage, i) => (
+                    <motion.span
+                      key={stage}
+                      initial={{ opacity: 0.3 }}
+                      animate={{ opacity: [0.3, 1, 0.5] }}
+                      transition={{ duration: 2, delay: i * 2.5, repeat: Infinity }}
+                      className="text-[9px] text-muted-foreground font-medium"
+                    >
+                      {stage}
+                    </motion.span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Floating dots */}
+              <div className="flex justify-center gap-1.5">
+                {[0, 1, 2, 3, 4].map(i => (
+                  <motion.div
+                    key={i}
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "hsl(var(--primary))" }}
+                    animate={{ y: [0, -8, 0], opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1, delay: i * 0.15, repeat: Infinity }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="px-5 py-2.5 border-t border-border/30" style={{ background: "hsl(var(--secondary) / 0.5)" }}>
+              <p className="text-[9px] text-muted-foreground text-center italic">
+                {isPredicted ? "⚡ Analyzing 5-year patterns with 6-factor hybrid model..." : "📦 Fetching authentic previous year questions..."}
+              </p>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={async () => {
+              if (isPredicted) await loadPredictedQuestions();
+              else await loadBankQuestions();
+            }}
+            className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2"
+          >
+            <Play className="w-4 h-4" />
+            Start Practice
+          </motion.button>
+        )}
       </div>
     );
   }
