@@ -129,7 +129,7 @@ const VoiceBrainCapture = () => {
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         let silentSince: number | null = null;
         const SILENCE_THRESHOLD = 15;
-        const SILENCE_DURATION_MS = 3000;
+        const SILENCE_DURATION_MS = 5000;
         const MIN_RECORD_MS = 3000;
 
         silenceCheckRef.current = setInterval(() => {
@@ -445,7 +445,7 @@ const VoiceBrainCapture = () => {
                 </motion.p>
               </AnimatePresence>
 
-              <p className="text-[9px] text-muted-foreground">Tap mic to stop · auto-stops after 3s silence</p>
+              <p className="text-[9px] text-muted-foreground">Tap mic to stop · auto-stops after 5s silence</p>
             </motion.div>
           )}
 
