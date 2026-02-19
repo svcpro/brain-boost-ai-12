@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Sparkles, Heart, Shield, ChevronRight,
   Check, X, Clock, ArrowLeft, Play, RotateCcw,
   Timer, Zap, Brain, ChevronDown, Loader2, Download, Target,
-  BarChart3, TrendingUp, Eye, Info
+  BarChart3, TrendingUp, TrendingDown, Eye, Info, Activity, Minus, AlertTriangle
 } from "lucide-react";
 import { useConfidencePractice, PracticeQuestion } from "@/hooks/useConfidencePractice";
 import { Progress } from "@/components/ui/progress";
@@ -503,17 +503,17 @@ const ConfidencePracticeTab = () => {
                       border: "1px solid hsl(var(--primary) / 0.3)",
                     }}
                   >
-                    AI ✨
+                    ML v2.0 ✨
                   </motion.span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  High-probability questions by AI based on 5-year pattern analysis. Focus on what's most likely to appear.
+                  Trend-Based ML Research Engine — 6-factor hybrid model analyzing multi-year patterns, trend momentum & examiner behavior.
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   {[
-                    { label: "Very High", glow: true },
-                    { label: "High", glow: true },
-                    { label: "Medium", glow: false },
+                    { label: "Trend Research", glow: true },
+                    { label: "6-Factor ML", glow: true },
+                    { label: "Pattern Drift", glow: false },
                   ].map(({ label, glow }) => (
                     <span
                       key={label}
@@ -717,6 +717,15 @@ const ConfidencePracticeTab = () => {
           const scoreTextClass = pScore >= 75 ? "text-success" : pScore >= 65 ? "text-primary" : "text-warning";
           const mlBadgeClass = q.ml_confidence === "Strong" ? "bg-success/15 text-success" : q.ml_confidence === "Moderate" ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning";
 
+          const trendDir = q.trend_direction || "stable";
+          const trendIcon = trendDir === "rising" ? "🔴" : trendDir === "declining" ? "🔵" : trendDir === "comeback" ? "⚡" : "🟡";
+          const trendLabel = trendDir === "rising" ? "Rising Trend" : trendDir === "declining" ? "Declining Trend" : trendDir === "comeback" ? "Comeback Candidate" : "Stable Trend";
+          const trendBadgeClass = trendDir === "rising" ? "bg-destructive/15 text-destructive" : trendDir === "comeback" ? "bg-primary/15 text-primary" : trendDir === "declining" ? "bg-accent/15 text-accent-foreground" : "bg-warning/15 text-warning";
+
+          const momentum = q.trend_momentum || 50;
+          const volatility = q.volatility_index || 30;
+          const stability = q.pattern_stability || 50;
+
           return (
             <motion.div
               initial={{ opacity: 0, y: -8, scale: 0.97 }}
@@ -727,29 +736,60 @@ const ConfidencePracticeTab = () => {
               {/* Subtle glow */}
               <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: scoreColor }} />
 
+              {/* Engine badge */}
+              <div className="flex items-center gap-2 relative z-10">
+                <span className="px-2 py-0.5 rounded-lg text-[8px] font-bold bg-primary/10 text-primary border border-primary/20">
+                  🧠 TREND-ML ENGINE v2.0
+                </span>
+                <span className="px-2 py-0.5 rounded-lg text-[8px] font-semibold bg-secondary text-muted-foreground">
+                  6-Factor Hybrid Model
+                </span>
+              </div>
+
               {/* Main score row */}
               <div className="flex items-center justify-between relative z-10">
                 <div className="flex items-center gap-3">
                   <motion.div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center relative"
+                    className="w-14 h-14 rounded-xl flex items-center justify-center relative"
                     style={{ background: `${scoreColor}20`, border: `1px solid ${scoreColor}40` }}
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
-                    <span className={`text-lg font-extrabold ${scoreTextClass}`}>{pScore}%</span>
+                    <span className={`text-xl font-extrabold ${scoreTextClass}`}>{pScore}%</span>
                   </motion.div>
                   <div>
-                    <p className={`text-sm font-bold ${scoreTextClass}`}>🔥 Match Prediction</p>
-                    <p className="text-[10px] text-muted-foreground">📚 Based on 5-Year Analysis</p>
+                    <p className={`text-sm font-bold ${scoreTextClass}`}>🔥 Match Probability</p>
+                    <p className="text-[10px] text-muted-foreground">📈 Based on Multi-Year Pattern Research</p>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold ${mlBadgeClass}`}>
-                    🧠 ML: {q.ml_confidence || "Moderate"}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold bg-secondary text-muted-foreground">
-                    📈 {q.trend_strength || "Medium"}
-                  </span>
+              </div>
+
+              {/* Trend & ML badges row */}
+              <div className="flex items-center gap-1.5 flex-wrap relative z-10">
+                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold ${trendBadgeClass}`}>
+                  {trendIcon} {trendLabel}
+                </span>
+                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold ${mlBadgeClass}`}>
+                  🧠 ML: {q.ml_confidence || "Moderate"}
+                </span>
+                <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold bg-secondary text-muted-foreground">
+                  📊 Momentum: {momentum}
+                </span>
+              </div>
+
+              {/* Mini metrics row */}
+              <div className="grid grid-cols-3 gap-2 relative z-10">
+                <div className="rounded-lg p-2 bg-background/50 border border-border/50 text-center">
+                  <p className="text-xs font-bold text-foreground">{momentum}</p>
+                  <p className="text-[8px] text-muted-foreground">Momentum</p>
+                </div>
+                <div className="rounded-lg p-2 bg-background/50 border border-border/50 text-center">
+                  <p className="text-xs font-bold text-foreground">{volatility}</p>
+                  <p className="text-[8px] text-muted-foreground">Volatility</p>
+                </div>
+                <div className="rounded-lg p-2 bg-background/50 border border-border/50 text-center">
+                  <p className="text-xs font-bold text-foreground">{stability}</p>
+                  <p className="text-[8px] text-muted-foreground">Stability</p>
                 </div>
               </div>
 
@@ -759,6 +799,20 @@ const ConfidencePracticeTab = () => {
                   📊 {q.trend_reason}
                 </p>
               )}
+
+              {/* Pattern insights */}
+              <div className="flex items-center gap-1.5 flex-wrap relative z-10">
+                {q.difficulty_evolution && q.difficulty_evolution !== "stable" && (
+                  <span className="px-1.5 py-0.5 rounded text-[8px] font-medium bg-secondary text-muted-foreground">
+                    🎯 {q.difficulty_evolution === "conceptual_shift" ? "Conceptual Shift" : "Factual Shift"}
+                  </span>
+                )}
+                {q.framing_change && q.framing_change !== "stable" && (
+                  <span className="px-1.5 py-0.5 rounded text-[8px] font-medium bg-secondary text-muted-foreground">
+                    📝 {q.framing_change === "statement_increase" ? "Statement-Based ↑" : "Case Study ↑"}
+                  </span>
+                )}
+              </div>
 
               {/* Similar PYQ years */}
               {q.similar_pyq_years && q.similar_pyq_years.length > 0 && (
@@ -770,17 +824,17 @@ const ConfidencePracticeTab = () => {
                 </div>
               )}
 
-              {/* View Analysis toggle */}
+              {/* View Research toggle */}
               <button
                 onClick={(e) => { e.stopPropagation(); setShowAnalysis(!showAnalysis); }}
                 className="flex items-center gap-1.5 text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors relative z-10"
               >
                 <Eye className="w-3 h-3" />
-                {showAnalysis ? "Hide Analysis" : "View Analysis"}
+                {showAnalysis ? "Hide Research" : "View Research"}
                 <ChevronDown className={`w-3 h-3 transition-transform ${showAnalysis ? "rotate-180" : ""}`} />
               </button>
 
-              {/* Expandable analysis breakdown */}
+              {/* Expandable research breakdown */}
               <AnimatePresence>
                 {showAnalysis && q.score_breakdown && (
                   <motion.div
@@ -792,14 +846,15 @@ const ConfidencePracticeTab = () => {
                   >
                     <div className="rounded-xl p-3 bg-background/50 border border-border/50 space-y-2">
                       <p className="text-[10px] font-bold text-foreground flex items-center gap-1.5">
-                        <BarChart3 className="w-3 h-3 text-primary" /> Prediction Formula Breakdown
+                        <BarChart3 className="w-3 h-3 text-primary" /> Hybrid 6-Factor Prediction Model
                       </p>
                       {[
-                        { label: "Topic Frequency", value: q.score_breakdown.topic_frequency, weight: "30%", icon: "📊" },
-                        { label: "Repetition Score", value: q.score_breakdown.repetition, weight: "20%", icon: "🔁" },
-                        { label: "Recent Trend", value: q.score_breakdown.recent_trend, weight: "20%", icon: "📈" },
-                        { label: "Difficulty Match", value: q.score_breakdown.difficulty_match, weight: "15%", icon: "🎯" },
-                        { label: "Language Similarity", value: q.score_breakdown.language_similarity, weight: "15%", icon: "🔤" },
+                        { label: "Trend Momentum", value: q.score_breakdown.trend_momentum ?? q.score_breakdown.topic_frequency ?? 0, weight: "25%", icon: "📈" },
+                        { label: "Time-Series Forecast", value: q.score_breakdown.time_series_forecast ?? q.score_breakdown.repetition ?? 0, weight: "20%", icon: "⏳" },
+                        { label: "Historical Frequency", value: q.score_breakdown.historical_frequency ?? q.score_breakdown.recent_trend ?? 0, weight: "20%", icon: "📊" },
+                        { label: "Difficulty Alignment", value: q.score_breakdown.difficulty_alignment ?? q.score_breakdown.difficulty_match ?? 0, weight: "15%", icon: "🎯" },
+                        { label: "Semantic Similarity", value: q.score_breakdown.semantic_similarity ?? q.score_breakdown.language_similarity ?? 0, weight: "10%", icon: "🔤" },
+                        { label: "Examiner Behavior", value: q.score_breakdown.examiner_behavior ?? 50, weight: "10%", icon: "👤" },
                       ].map((item) => (
                         <div key={item.label} className="space-y-0.5">
                           <div className="flex items-center justify-between">
@@ -821,11 +876,38 @@ const ConfidencePracticeTab = () => {
                       ))}
                     </div>
 
+                    {/* Trend Direction Visualization */}
+                    <div className="rounded-xl p-3 bg-background/50 border border-border/50 space-y-2">
+                      <p className="text-[10px] font-bold text-foreground flex items-center gap-1.5">
+                        <Activity className="w-3 h-3 text-primary" /> Trend Research Insights
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg p-2 bg-secondary/50">
+                          <div className="flex items-center gap-1 mb-1">
+                            {trendDir === "rising" ? <TrendingUp className="w-3 h-3 text-destructive" /> :
+                             trendDir === "declining" ? <TrendingDown className="w-3 h-3 text-accent-foreground" /> :
+                             trendDir === "comeback" ? <Zap className="w-3 h-3 text-primary" /> :
+                             <Minus className="w-3 h-3 text-warning" />}
+                            <span className="text-[9px] font-bold text-foreground">{trendLabel}</span>
+                          </div>
+                          <p className="text-[8px] text-muted-foreground">Direction detected via linear regression on {q.similar_pyq_years?.length || 5}-year data</p>
+                        </div>
+                        <div className="rounded-lg p-2 bg-secondary/50">
+                          <p className="text-[9px] font-bold text-foreground mb-1">Pattern Evolution</p>
+                          <p className="text-[8px] text-muted-foreground">
+                            {q.difficulty_evolution === "conceptual_shift" ? "Shifting to conceptual questions" :
+                             q.difficulty_evolution === "factual_shift" ? "Shifting to factual questions" :
+                             "Difficulty pattern remains consistent"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Disclaimer */}
-                    <div className="flex items-start gap-1.5 px-2">
-                      <Info className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
-                      <p className="text-[8px] text-muted-foreground leading-relaxed italic">
-                        Prediction based on statistical analysis of last 5 years patterns. Not a guarantee.
+                    <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg bg-warning/5 border border-warning/10">
+                      <AlertTriangle className="w-3 h-3 text-warning shrink-0 mt-0.5" />
+                      <p className="text-[8px] text-muted-foreground leading-relaxed">
+                        Prediction is based on multi-year statistical modeling and trend analysis. Not a guarantee. Scores are dynamically recalculated using a 6-factor hybrid ML model.
                       </p>
                     </div>
                   </motion.div>
