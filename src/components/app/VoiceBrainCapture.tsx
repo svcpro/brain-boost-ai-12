@@ -73,11 +73,16 @@ const VoiceBrainCapture = () => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef(0);
   const hintTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const silenceCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (hintTimerRef.current) clearInterval(hintTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (silenceCheckRef.current) clearInterval(silenceCheckRef.current);
       if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
     };
   }, []);
@@ -100,12 +105,51 @@ const VoiceBrainCapture = () => {
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = () => { stream.getTracks().forEach((t) => t.stop()); if (timerRef.current) clearInterval(timerRef.current); processAudio(); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (silenceCheckRef.current) clearInterval(silenceCheckRef.current);
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        processAudio();
+      };
       recorder.start();
       startTimeRef.current = Date.now();
       setPhase("recording"); setElapsed(0); setHintIndex(0);
       triggerHaptic([15]);
       timerRef.current = setInterval(() => { const secs = Math.floor((Date.now() - startTimeRef.current) / 1000); setElapsed(secs); if (secs >= MAX_DURATION) recorder.stop(); }, 250);
+
+      // Silence detection: auto-stop after 3s of silence (only after at least 3s of recording)
+      try {
+        const audioCtx = new AudioContext();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let silentSince: number | null = null;
+        const SILENCE_THRESHOLD = 15;
+        const SILENCE_DURATION_MS = 3000;
+        const MIN_RECORD_MS = 3000;
+
+        silenceCheckRef.current = setInterval(() => {
+          if (mediaRecorderRef.current?.state !== "recording") return;
+          analyser.getByteFrequencyData(dataArray);
+          const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          const recordedMs = Date.now() - startTimeRef.current;
+          if (avg < SILENCE_THRESHOLD && recordedMs > MIN_RECORD_MS) {
+            if (!silentSince) silentSince = Date.now();
+            else if (Date.now() - silentSince > SILENCE_DURATION_MS) {
+              recorder.stop();
+              audioCtx.close();
+            }
+          } else {
+            silentSince = null;
+          }
+        }, 200);
+      } catch {
+        // AudioContext not supported — no silence detection, manual stop only
+      }
     } catch {
       setError("Microphone access denied"); setPhase("idle");
     }
@@ -270,11 +314,22 @@ const VoiceBrainCapture = () => {
                         ))}
                       </div>
 
-                      {/* Example */}
+                      {/* English example */}
                       <div className="rounded-xl bg-secondary/20 border border-border/20 px-3 py-2.5 mx-auto max-w-[280px]">
-                        <p className="text-[9px] text-muted-foreground mb-1">Example:</p>
+                        <p className="text-[9px] text-muted-foreground mb-1">🇬🇧 English example:</p>
                         <p className="text-[10px] text-foreground italic leading-relaxed">
                           "I revised <span className="text-primary font-medium">Physics</span>, <span className="text-primary font-medium">Newton's Third Law</span>, did practice problems, feeling <span className="text-primary font-medium">confident</span>"
+                        </p>
+                      </div>
+
+                      {/* Hindi example */}
+                      <div className="rounded-xl bg-primary/5 border border-primary/15 px-3 py-2.5 mx-auto max-w-[280px]">
+                        <p className="text-[9px] text-muted-foreground mb-1">🇮🇳 Hindi / हिंदी example:</p>
+                        <p className="text-[10px] text-foreground italic leading-relaxed">
+                          "मैंने <span className="text-primary font-medium">Chemistry</span> पढ़ा, <span className="text-primary font-medium">Organic Reactions</span> revise किया, practice भी की"
+                        </p>
+                        <p className="text-[8px] text-muted-foreground mt-1">
+                          ↑ AI will auto-translate this to English
                         </p>
                       </div>
 
@@ -390,7 +445,7 @@ const VoiceBrainCapture = () => {
                 </motion.p>
               </AnimatePresence>
 
-              <p className="text-[9px] text-muted-foreground">Tap mic to stop</p>
+              <p className="text-[9px] text-muted-foreground">Tap mic to stop · auto-stops after 3s silence</p>
             </motion.div>
           )}
 
