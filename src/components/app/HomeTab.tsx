@@ -38,6 +38,7 @@ import QuickMicroActions from "./QuickMicroActions";
 import BrainFeed from "./BrainFeed";
 import VoiceBrainCapture from "./VoiceBrainCapture";
 import MomentumSection from "./MomentumSection";
+import BrainStabilityControlCenter from "./BrainStabilityControlCenter";
 import DeepAnalyticsSection from "./DeepAnalyticsSection";
 import BrainMissionsCard from "./BrainMissionsCard";
 import CognitiveEmbeddingCard from "./CognitiveEmbeddingCard";
@@ -558,6 +559,16 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           overallHealth={overallHealth}
           streakDays={streakData?.currentStreak ?? 0}
           onStartRecall={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
+        />
+      )}
+
+      {/* ─── SECTION 3.5: Brain Stability Control Center ─── */}
+      {hasTopics && (
+        <BrainStabilityControlCenter
+          atRisk={atRisk}
+          hasTopics={hasTopics}
+          overallHealth={overallHealth}
+          onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
         />
       )}
 
