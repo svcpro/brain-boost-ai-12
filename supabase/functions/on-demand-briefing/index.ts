@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiFetch } from "../_shared/aiFetch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,12 +76,7 @@ Burnout risk: ${features?.burnout_risk_score ?? "N/A"}%
 Consistency: ${features?.study_consistency_score ?? "N/A"}%
 Fatigue: ${features?.fatigue_indicator ?? "N/A"}%`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+    const aiResp = await aiFetch({
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
         messages: [
