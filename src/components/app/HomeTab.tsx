@@ -710,24 +710,6 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         autoStart
       />
 
-      {/* Floating Action Button */}
-      <motion.div
-        initial={{ scale: 0, opacity: 0 }}
-        animate={fabVisible ? { scale: 1, opacity: 1, y: 0 } : { scale: 1, opacity: 0, y: 80 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        className="fixed bottom-20 right-5 z-50"
-        style={{ pointerEvents: fabVisible ? "auto" : "none" }}
-      >
-        <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" />
-        <button
-          onClick={() => openSignalWithPrefill()}
-          className="relative w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-transform"
-          style={{ boxShadow: "0 4px 24px hsl(var(--primary) / 0.4)" }}
-          aria-label="Log study session"
-        >
-          <Zap className="w-6 h-6" />
-        </button>
-      </motion.div>
     </div>
   );
 };
