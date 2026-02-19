@@ -375,16 +375,22 @@ ${cognitiveContext}`
       const diff = reqDifficulty || "medium";
       const topicCtx = topic_name ? `Focus on the topic "${topic_name}"${subject_name ? ` (subject: ${subject_name})` : ""}.` : "Pick from the student's weakest topics.";
 
+      // Use trimmed context for question generation to avoid truncation
+      const trimmedContext = `Student: ${profile?.display_name || "Student"}, Exam: ${profile?.exam_type || "General"}${daysToExam ? ` in ${daysToExam} days` : ""}.
+Weak topics: ${criticalTopics.slice(0, 5).map(t => t.name).join(", ") || "None"}.
+At-risk topics: ${atRiskTopics.slice(0, 5).map(t => t.name).join(", ") || "None"}.`;
+
       const requestBody = JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: 4000,
         messages: [
           {
             role: "system",
-            content: `You are ACRY, an AI tutor generating recall questions for exam preparation. Generate exactly ${qCount} multiple-choice questions at "${diff}" difficulty. ${topicCtx} Each question must test recall and understanding, not just definitions. Make questions progressively harder if difficulty is "hard", or simpler if "easy".`
+            content: `You are ACRY, an AI tutor. Generate exactly ${qCount} MCQs at "${diff}" difficulty. ${topicCtx} Each question tests recall/understanding. Keep explanations to 1 sentence. Return via the tool call.`
           },
           {
             role: "user",
-            content: `${cognitiveContext}\n\nGenerate ${qCount} recall questions at ${diff} difficulty.`
+            content: `${trimmedContext}\n\nGenerate ${qCount} ${diff} recall questions.`
           }
         ],
         tools: [{
@@ -400,10 +406,10 @@ ${cognitiveContext}`
                   items: {
                     type: "object",
                     properties: {
-                      question: { type: "string", description: "The question text" },
-                      options: { type: "array", items: { type: "string" }, description: "4 answer options" },
-                      correct_index: { type: "number", description: "Index (0-3) of the correct answer" },
-                      explanation: { type: "string", description: "Brief explanation of why the answer is correct (1-2 sentences)" },
+                      question: { type: "string" },
+                      options: { type: "array", items: { type: "string" }, description: "4 options" },
+                      correct_index: { type: "number", description: "0-3" },
+                      explanation: { type: "string" },
                       difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
                     },
                     required: ["question", "options", "correct_index", "explanation", "difficulty"],
@@ -446,12 +452,45 @@ ${cognitiveContext}`
         const content = aiData.choices?.[0]?.message?.content || "";
         if (content) {
           try {
-            const jsonMatch = content.match(/\{[\s\S]*"questions"[\s\S]*\}/);
-            if (jsonMatch) {
-              result = JSON.parse(jsonMatch[0]);
+            // Clean markdown fences
+            let cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+            // Try to find JSON array or object
+            const arrStart = cleaned.indexOf("[");
+            const objStart = cleaned.indexOf("{");
+            let parsed: any;
+            if (arrStart !== -1 && (objStart === -1 || arrStart < objStart)) {
+              const arrEnd = cleaned.lastIndexOf("]");
+              if (arrEnd > arrStart) {
+                parsed = JSON.parse(cleaned.substring(arrStart, arrEnd + 1));
+                if (Array.isArray(parsed)) {
+                  result = { questions: parsed };
+                }
+              }
+            } else if (objStart !== -1) {
+              const objEnd = cleaned.lastIndexOf("}");
+              if (objEnd > objStart) {
+                parsed = JSON.parse(cleaned.substring(objStart, objEnd + 1));
+                result = parsed.questions ? parsed : { questions: [parsed] };
+              }
             }
-          } catch {}
+          } catch (e) {
+            console.error("Fallback JSON parse failed:", e);
+          }
         }
+      }
+
+      // Normalize: convert "answer" text to "correct_index" number if needed
+      if (result.questions?.length) {
+        result.questions = result.questions.map((q: any) => {
+          if (q.correct_index === undefined && q.answer !== undefined) {
+            const idx = q.options?.findIndex((o: string) => o === q.answer || o.includes(q.answer) || q.answer.includes(o));
+            q.correct_index = idx >= 0 ? idx : 0;
+            delete q.answer;
+          }
+          if (!q.difficulty) q.difficulty = "medium";
+          if (!q.explanation) q.explanation = "";
+          return q;
+        });
       }
 
       if (!result.questions?.length) {
