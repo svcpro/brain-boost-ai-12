@@ -203,6 +203,7 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
 
       const allQuestions: MCQQuestion[] = [];
       for (const target of targets) {
+        let gotAIQuestions = false;
         try {
           const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
             body: {
@@ -213,22 +214,40 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
               count: MCQ_PER_TOPIC,
             },
           });
-          if (!error && data?.questions) {
-            allQuestions.push(...data.questions.map((q: any) => ({ ...q, _topic: target.name })));
+          if (!error && data?.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+            allQuestions.push(...data.questions.map((q: any) => ({
+              question: q.question || `Question about ${target.name}`,
+              options: Array.isArray(q.options) && q.options.length >= 2 ? q.options : [
+                { text: "Core foundational principle", isCorrect: true },
+                { text: "Secondary application", isCorrect: false },
+                { text: "Unrelated concept", isCorrect: false },
+                { text: "Advanced extension", isCorrect: false },
+              ],
+              explanation: q.explanation || `Review ${target.name} for better retention.`,
+              difficulty: q.difficulty || "medium",
+            })));
+            gotAIQuestions = true;
           }
-        } catch {
-          // Fallback question
-          allQuestions.push({
-            question: `Which concept is most critical for "${target.name}"?`,
-            options: [
-              { text: "Core foundational principle", isCorrect: true },
-              { text: "Secondary application", isCorrect: false },
-              { text: "Unrelated concept", isCorrect: false },
-              { text: "Advanced extension", isCorrect: false },
-            ],
-            explanation: `Understanding the core principle of ${target.name} is essential for retention.`,
-            difficulty: "medium",
-          });
+        } catch (e) {
+          console.error("AI MCQ generation failed for", target.name, e);
+        }
+        if (!gotAIQuestions) {
+          // Always add fallback questions so the sprint is never empty
+          for (let i = 0; i < MCQ_PER_TOPIC; i++) {
+            allQuestions.push({
+              question: i === 0
+                ? `Which concept is most critical for "${target.name}"?`
+                : `What is a key principle of "${target.name}" in ${target.subject}?`,
+              options: [
+                { text: "Core foundational principle", isCorrect: true },
+                { text: "Secondary application", isCorrect: false },
+                { text: "Unrelated concept", isCorrect: false },
+                { text: "Advanced extension", isCorrect: false },
+              ],
+              explanation: `Understanding the core principle of ${target.name} is essential for retention.`,
+              difficulty: "medium",
+            });
+          }
         }
       }
       setMcqQuestions(allQuestions);
