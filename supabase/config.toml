@@ -188,3 +188,6 @@ verify_jwt = false
 
 [functions.growth-engine]
 verify_jwt = false
+
+[functions.exam-countdown-predict]
+verify_jwt = false

@@ -1595,6 +1595,66 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_countdown_predictions: {
+        Row: {
+          acceleration_message: string | null
+          ai_reasoning: string | null
+          computed_at: string
+          confidence_score: number | null
+          created_at: string
+          exam_date: string
+          factors: Json | null
+          id: string
+          lockdown_message: string | null
+          locked_modes_acceleration: string[] | null
+          locked_modes_lockdown: string[] | null
+          predicted_acceleration_days: number
+          predicted_lockdown_days: number
+          recommended_mode_acceleration: string | null
+          recommended_mode_lockdown: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acceleration_message?: string | null
+          ai_reasoning?: string | null
+          computed_at?: string
+          confidence_score?: number | null
+          created_at?: string
+          exam_date: string
+          factors?: Json | null
+          id?: string
+          lockdown_message?: string | null
+          locked_modes_acceleration?: string[] | null
+          locked_modes_lockdown?: string[] | null
+          predicted_acceleration_days?: number
+          predicted_lockdown_days?: number
+          recommended_mode_acceleration?: string | null
+          recommended_mode_lockdown?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acceleration_message?: string | null
+          ai_reasoning?: string | null
+          computed_at?: string
+          confidence_score?: number | null
+          created_at?: string
+          exam_date?: string
+          factors?: Json | null
+          id?: string
+          lockdown_message?: string | null
+          locked_modes_acceleration?: string[] | null
+          locked_modes_lockdown?: string[] | null
+          predicted_acceleration_days?: number
+          predicted_lockdown_days?: number
+          recommended_mode_acceleration?: string | null
+          recommended_mode_lockdown?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       exam_results: {
         Row: {
           created_at: string
