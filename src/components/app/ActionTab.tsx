@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import LazyModeSession from "./LazyModeSession";
 import FocusModeSession from "./FocusModeSession";
 import EmergencyRecoverySession from "./EmergencyRecoverySession";
+import MockPracticeSession from "./MockPracticeSession";
 import FocusSessionHistory from "./FocusSessionHistory";
 import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -70,6 +71,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [lazyModeOpen, setLazyModeOpen] = useState(false);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
+  const [mockOpen, setMockOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -172,7 +174,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     switch (modeId) {
       case "focus": setFocusModeOpen(true); break;
       case "revision": setLazyModeOpen(true); break;
-      case "mock": toast({ title: "Mock Practice 🎯", description: "Starting mock exam session..." }); break;
+      case "mock": setMockOpen(true); break;
       case "emergency": setEmergencyOpen(true); break;
     }
   };
@@ -518,6 +520,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} />
+      <MockPracticeSession open={mockOpen} onClose={() => setMockOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
     </div>
   );
 };
