@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import AITopicManager from "./AITopicManager";
+import DeepTopicExplorer from "./DeepTopicExplorer";
 
 import LazyModeSession from "./LazyModeSession";
 import FocusModeSession from "./FocusModeSession";
@@ -313,7 +313,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                     <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                       Deep Topic Explorer
                     </h3>
-                    <p className="text-[10px] text-muted-foreground">Subject → Topic → Subtopic navigation</p>
+                    <p className="text-[10px] text-muted-foreground">Subject → Topic health, strategy & AI actions</p>
                   </div>
                 </div>
                 <motion.div
@@ -331,9 +331,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                 transition={{ duration: 0.3 }}
                 className="mt-2"
               >
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <AITopicManager mode="user" onDone={() => {}} />
-                </div>
+                <DeepTopicExplorer />
               </motion.div>
             </CollapsibleContent>
           </Collapsible>
