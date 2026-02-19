@@ -118,37 +118,47 @@ const VoiceBrainCapture = () => {
       triggerHaptic([15]);
       timerRef.current = setInterval(() => { const secs = Math.floor((Date.now() - startTimeRef.current) / 1000); setElapsed(secs); if (secs >= MAX_DURATION) recorder.stop(); }, 250);
 
-      // Silence detection: auto-stop after 3s of silence (only after at least 3s of recording)
+      // Silence detection: auto-stop after 5s of silence (only after at least 3s of recording)
       try {
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 512;
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.3;
         source.connect(analyser);
         analyserRef.current = analyser;
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const dataArray = new Uint8Array(analyser.fftSize);
         let silentSince: number | null = null;
-        const SILENCE_THRESHOLD = 15;
+        const SILENCE_THRESHOLD = 5; // RMS threshold for silence
         const SILENCE_DURATION_MS = 5000;
         const MIN_RECORD_MS = 3000;
 
         silenceCheckRef.current = setInterval(() => {
           if (mediaRecorderRef.current?.state !== "recording") return;
-          analyser.getByteFrequencyData(dataArray);
-          const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          // Use time-domain data for reliable volume detection
+          analyser.getByteTimeDomainData(dataArray);
+          // Calculate RMS (root mean square) for accurate volume level
+          let sumSquares = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            const normalized = (dataArray[i] - 128) / 128;
+            sumSquares += normalized * normalized;
+          }
+          const rms = Math.sqrt(sumSquares / dataArray.length) * 100;
           const recordedMs = Date.now() - startTimeRef.current;
-          if (avg < SILENCE_THRESHOLD && recordedMs > MIN_RECORD_MS) {
+
+          if (rms < SILENCE_THRESHOLD && recordedMs > MIN_RECORD_MS) {
             if (!silentSince) silentSince = Date.now();
-            else if (Date.now() - silentSince > SILENCE_DURATION_MS) {
+            else if (Date.now() - silentSince >= SILENCE_DURATION_MS) {
+              console.log("Auto-stopping: 5s silence detected");
               recorder.stop();
               audioCtx.close();
             }
           } else {
             silentSince = null;
           }
-        }, 200);
-      } catch {
-        // AudioContext not supported — no silence detection, manual stop only
+        }, 150);
+      } catch (e) {
+        console.warn("Silence detection not available:", e);
       }
     } catch {
       setError("Microphone access denied"); setPhase("idle");
