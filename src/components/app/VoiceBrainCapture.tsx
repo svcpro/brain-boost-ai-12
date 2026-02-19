@@ -225,7 +225,7 @@ const VoiceBrainCapture = () => {
               <div>
                 <p className="text-sm font-display font-semibold text-foreground flex items-center justify-center gap-1.5">
                   <Brain className="w-4 h-4 text-primary" />
-                  Feed Your Brain
+                  What I Studied ?
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed">
                   Tap to speak — AI extracts topics & maps your memory
