@@ -192,12 +192,10 @@ serve(async (req) => {
 
       const questionCount = Math.min(count || 5, 10);
 
-      const aiPayload = JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert Indian competitive exam analyst for ${targetExam}. You have analyzed ${totalPYQs} PYQs from last ${maxYears} years.
+      const aiMessages = [
+        {
+          role: "system",
+          content: `You are an expert Indian competitive exam analyst for ${targetExam}. You have analyzed ${totalPYQs} PYQs from last ${maxYears} years.
 
 COMPUTED PREDICTION SCORES (using weighted formula):
 ${topicScoreMap || "No historical data — use general exam patterns."}
@@ -216,26 +214,32 @@ CRITICAL RULES:
 - For each question, provide score_breakdown with the 5 component weights.
 - Generate exam-level questions that feel genuinely likely to appear.
 - Return VALID JSON only.`
-            },
-            {
-              role: "user",
-              content: `Generate exactly ${questionCount} predicted questions for ${targetExam}, subject: ${targetSubject}.
+        },
+        {
+          role: "user",
+          content: `Generate exactly ${questionCount} predicted questions for ${targetExam}, subject: ${targetSubject}.
 User's weak areas: ${topicContext}.
 Prioritize high-score topics from the analysis.
 
 Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct_answer":0,"explanation":"...","topic":"...","difficulty":"easy|medium|hard","probability_score":55-85,"probability_level":"Very High|High|Medium","trend_strength":"High|Medium|Emerging","ml_confidence":"Strong|Moderate|Fair","trend_reason":"...","score_breakdown":{"topic_frequency":0-100,"repetition":0-100,"recent_trend":0-100,"difficulty_match":0-100,"language_similarity":0-100},"similar_pyq_years":[2020,2021]}]}`
-            }
-          ],
-          response_format: { type: "json_object" },
-      });
+        }
+      ];
 
-      // Retry logic with exponential backoff
+      // Model fallback chain — try multiple models if credits exhausted or errors
+      const modelsToTry = [
+        "google/gemini-2.5-flash",
+        "google/gemini-2.5-flash-lite",
+        "openai/gpt-5-nano",
+        "openai/gpt-5-mini",
+      ];
+
       let aiData: any = null;
       let lastError = "";
-      for (let attempt = 0; attempt < 3; attempt++) {
+
+      for (const model of modelsToTry) {
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 50000); // 50s timeout
+          const timeout = setTimeout(() => controller.abort(), 50000);
 
           const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
@@ -243,38 +247,41 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
               Authorization: `Bearer ${LOVABLE_API_KEY}`,
               "Content-Type": "application/json",
             },
-            body: aiPayload,
+            body: JSON.stringify({ model, messages: aiMessages, response_format: { type: "json_object" } }),
             signal: controller.signal,
           });
           clearTimeout(timeout);
 
           if (aiResponse.status === 429) {
-            return new Response(JSON.stringify({ error: "Rate limited, please try again shortly." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            lastError = "Rate limited";
+            console.error(`Model ${model}: rate limited, trying next...`);
+            continue;
           }
           if (aiResponse.status === 402) {
-            return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            lastError = "Credits exhausted";
+            console.error(`Model ${model}: credits exhausted, trying next...`);
+            continue;
           }
 
           if (!aiResponse.ok) {
-            lastError = `AI returned status ${aiResponse.status}`;
+            lastError = `Status ${aiResponse.status}`;
             const body = await aiResponse.text();
-            console.error(`Attempt ${attempt + 1} failed:`, lastError, body);
-            if (attempt < 2) { await new Promise(r => setTimeout(r, (attempt + 1) * 2000)); continue; }
-            throw new Error(lastError);
+            console.error(`Model ${model} failed:`, lastError, body);
+            continue;
           }
 
           aiData = await aiResponse.json();
+          console.log(`Model ${model} succeeded`);
           break;
         } catch (e: any) {
-          lastError = e.message || "Unknown error";
-          console.error(`Attempt ${attempt + 1} error:`, lastError);
-          if (e.name === "AbortError") lastError = "Request timed out";
-          if (attempt < 2) { await new Promise(r => setTimeout(r, (attempt + 1) * 2000)); continue; }
+          lastError = e.name === "AbortError" ? "Request timed out" : (e.message || "Unknown error");
+          console.error(`Model ${model} error:`, lastError);
+          continue;
         }
       }
 
       if (!aiData) {
-        return new Response(JSON.stringify({ error: `AI service unavailable: ${lastError}. Please try again.` }), {
+        return new Response(JSON.stringify({ error: `AI service unavailable (${lastError}). Please try again later.` }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
