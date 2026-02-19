@@ -228,41 +228,149 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           </div>
 
           <div className="space-y-2.5">
-            {studyModes.map((mode, i) => (
-              <motion.button
-                key={mode.id}
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.15 + i * 0.07, duration: 0.4, ease: "easeOut" }}
-                onClick={() => openStudyMode(mode.id)}
-                className="w-full rounded-2xl border border-border bg-card p-4 hover:bg-secondary/30 transition-all duration-300 text-left group active:scale-[0.98]"
-              >
-                <div className="flex items-start gap-3.5">
-                  <div className={`p-2.5 rounded-xl ${mode.bgClass} shrink-0`}>
-                    <mode.icon className={`w-5 h-5 ${mode.color}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-foreground text-[13px] mb-0.5 group-hover:text-primary transition-colors">
-                      {mode.title}
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
-                      {mode.desc}
-                    </p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <Timer className="w-3 h-3" />
-                        {mode.duration}
-                      </span>
-                      <span className="flex items-center gap-1 text-[10px] text-primary font-medium">
-                        <TrendingUp className="w-3 h-3" />
-                        {mode.gain}
-                      </span>
+            {studyModes.map((mode, i) => {
+              const isEmergency = mode.id === "emergency";
+
+              if (isEmergency) {
+                return (
+                  <motion.button
+                    key={mode.id}
+                    initial={{ opacity: 0, x: -16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.15 + i * 0.07, duration: 0.4, ease: "easeOut" }}
+                    onClick={() => openStudyMode(mode.id)}
+                    className="w-full rounded-2xl p-[1px] text-left group active:scale-[0.98] relative overflow-hidden"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(0 75% 55%), hsl(35 90% 55%), hsl(0 70% 45%))",
+                    }}
+                  >
+                    {/* Animated border shimmer */}
+                    <motion.div
+                      className="absolute inset-0 opacity-60"
+                      style={{
+                        background: "linear-gradient(90deg, transparent, hsl(35 90% 60% / 0.4), transparent)",
+                      }}
+                      animate={{ x: ["-100%", "200%"] }}
+                      transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1, ease: "easeInOut" }}
+                    />
+
+                    <div
+                      className="relative rounded-[calc(1rem-1px)] p-4 overflow-hidden"
+                      style={{
+                        background: "linear-gradient(135deg, hsl(0 50% 8%), hsl(0 40% 6%), hsl(var(--card)))",
+                      }}
+                    >
+                      {/* Emergency ambient glow */}
+                      <div
+                        className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl pointer-events-none"
+                        style={{ background: "hsl(0 70% 50% / 0.12)" }}
+                      />
+                      <motion.div
+                        className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full blur-2xl pointer-events-none"
+                        style={{ background: "hsl(35 80% 50% / 0.08)" }}
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 3, repeat: Infinity }}
+                      />
+
+                      <div className="flex items-start gap-3.5 relative z-10">
+                        {/* Pulsing icon container */}
+                        <div className="relative shrink-0">
+                          <motion.div
+                            className="p-2.5 rounded-xl"
+                            style={{
+                              background: "linear-gradient(135deg, hsl(0 60% 20% / 0.8), hsl(0 50% 15% / 0.6))",
+                              border: "1px solid hsl(0 60% 40% / 0.3)",
+                              boxShadow: "0 0 20px hsl(0 70% 50% / 0.15)",
+                            }}
+                            animate={{ scale: [1, 1.08, 1] }}
+                            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          >
+                            <mode.icon className="w-5 h-5" style={{ color: "hsl(0 80% 65%)" }} />
+                          </motion.div>
+                          {/* Pulse ring */}
+                          <motion.div
+                            className="absolute inset-0 rounded-xl"
+                            style={{ border: "1.5px solid hsl(0 70% 55% / 0.3)" }}
+                            animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <h4 className="font-bold text-[13px]" style={{ color: "hsl(0 80% 70%)" }}>
+                              {mode.title}
+                            </h4>
+                            <motion.div
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ background: "hsl(0 80% 55%)" }}
+                              animate={{ opacity: [1, 0.3, 1], scale: [1, 0.8, 1] }}
+                              transition={{ duration: 1.2, repeat: Infinity }}
+                            />
+                          </div>
+                          <p className="text-[11px] leading-relaxed line-clamp-2" style={{ color: "hsl(0 20% 55%)" }}>
+                            {mode.desc}
+                          </p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="flex items-center gap-1 text-[10px]" style={{ color: "hsl(35 70% 55%)" }}>
+                              <Timer className="w-3 h-3" />
+                              {mode.duration}
+                            </span>
+                            <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: "hsl(0 80% 65%)" }}>
+                              <Zap className="w-3 h-3" />
+                              {mode.gain}
+                            </span>
+                          </div>
+                        </div>
+
+                        <motion.div
+                          animate={{ x: [0, 3, 0] }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          <ArrowRight className="w-4 h-4 shrink-0 mt-1" style={{ color: "hsl(0 60% 55%)" }} />
+                        </motion.div>
+                      </div>
                     </div>
+                  </motion.button>
+                );
+              }
+
+              return (
+                <motion.button
+                  key={mode.id}
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.15 + i * 0.07, duration: 0.4, ease: "easeOut" }}
+                  onClick={() => openStudyMode(mode.id)}
+                  className="w-full rounded-2xl border border-border bg-card p-4 hover:bg-secondary/30 transition-all duration-300 text-left group active:scale-[0.98]"
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div className={`p-2.5 rounded-xl ${mode.bgClass} shrink-0`}>
+                      <mode.icon className={`w-5 h-5 ${mode.color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-foreground text-[13px] mb-0.5 group-hover:text-primary transition-colors">
+                        {mode.title}
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                        {mode.desc}
+                      </p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Timer className="w-3 h-3" />
+                          {mode.duration}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-primary font-medium">
+                          <TrendingUp className="w-3 h-3" />
+                          {mode.gain}
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
                   </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
-                </div>
-              </motion.button>
-            ))}
+                </motion.button>
+              );
+            })}
           </div>
         </motion.section>
       )}
