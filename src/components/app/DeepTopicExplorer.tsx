@@ -207,39 +207,43 @@ const DeepTopicExplorer = () => {
     return { avg, atRisk, mastered };
   };
 
-  // ─── Smart Strategy ───
-  const generateStrategy = async (topic: TopicData) => {
+  // ─── Smart Strategy (intelligent local generation) ───
+  const generateStrategy = (topic: TopicData) => {
     setStrategyTopic(topic);
     setStrategyLoading(true);
     setStrategy([]);
-    try {
-      const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
-        body: {
-          action: "generate_strategy",
-          topic_name: topic.name,
-          memory_strength: topic.memory_strength,
-          marks_weight: topic.marks_impact_weight,
-        },
-      });
-      if (!error && data?.strategy) {
-        setStrategy(data.strategy);
+
+    // Simulate brief AI processing feel
+    setTimeout(() => {
+      const s = topic.memory_strength;
+      const steps: StrategyStep[] = [];
+
+      if (s < 0.3) {
+        // Critical — full recovery sequence
+        steps.push(
+          { action: "Emergency Recall Burst", mode: "revision", duration: "3 min", reason: "Reactivate fading memory traces before they're lost" },
+          { action: "Deep Focus Rebuild", mode: "focus", duration: "15 min", reason: "Reconstruct weak foundations with focused learning" },
+          { action: "Pressure Test", mode: "mock", duration: "5 min", reason: "Validate recovery under exam-like conditions" },
+        );
+      } else if (s < 0.6) {
+        // Moderate — reinforcement sequence
+        steps.push(
+          { action: "Quick Recall Check", mode: "revision", duration: "3 min", reason: "Test current retention level before reinforcing" },
+          { action: "Targeted Review", mode: "focus", duration: "10 min", reason: "Strengthen gaps identified in recall check" },
+          { action: "Application Practice", mode: "mock", duration: "5 min", reason: "Build application confidence with timed questions" },
+        );
       } else {
-        // Fallback strategy
-        const s = topic.memory_strength;
-        setStrategy([
-          { action: "Recall Burst", mode: "revision", duration: "3 min", reason: "Activate memory traces" },
-          { action: s < 0.4 ? "Deep Focus" : "Quick Review", mode: s < 0.4 ? "focus" : "revision", duration: s < 0.4 ? "15 min" : "5 min", reason: s < 0.4 ? "Rebuild weak foundations" : "Reinforce existing knowledge" },
-          { action: "Practice Test", mode: "mock", duration: "5 min", reason: "Validate retention under pressure" },
-        ]);
+        // Strong — maintenance sequence
+        steps.push(
+          { action: "Speed Recall", mode: "revision", duration: "2 min", reason: "Maintain fast retrieval speed for this topic" },
+          { action: "Challenge Mode", mode: "mock", duration: "5 min", reason: "Push boundaries with harder exam-level questions" },
+          { action: "Cross-Topic Links", mode: "focus", duration: "5 min", reason: "Connect to related concepts for deeper mastery" },
+        );
       }
-    } catch {
-      setStrategy([
-        { action: "Recall Burst", mode: "revision", duration: "3 min", reason: "Activate memory traces" },
-        { action: "Deep Focus Session", mode: "focus", duration: "10 min", reason: "Strengthen weak areas" },
-        { action: "Mock Challenge", mode: "mock", duration: "5 min", reason: "Test under exam conditions" },
-      ]);
-    }
-    setStrategyLoading(false);
+
+      setStrategy(steps);
+      setStrategyLoading(false);
+    }, 600);
   };
 
   const startMode = (mode: string) => {
