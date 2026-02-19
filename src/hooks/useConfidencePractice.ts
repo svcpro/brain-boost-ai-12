@@ -105,5 +105,16 @@ export function useConfidencePractice() {
     } catch { /* ignore */ }
   }, [user]);
 
-  return { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, setQuestions };
+  const fetchUserExam = useCallback(async (): Promise<string> => {
+    if (!user) return "";
+    try {
+      const { data, error } = await supabase.functions.invoke("confidence-practice", {
+        body: { action: "get_user_exam" }
+      });
+      if (!error && data?.exam_type) return data.exam_type;
+    } catch { /* ignore */ }
+    return "";
+  }, [user]);
+
+  return { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, fetchUserExam, setQuestions };
 }

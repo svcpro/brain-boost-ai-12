@@ -29,7 +29,7 @@ type PracticeMode = "calm" | "exam" | "rapid";
 type Section = "menu" | "bank_setup" | "predicted_setup" | "practice" | "result";
 
 const ConfidencePracticeTab = () => {
-  const { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, setQuestions } = useConfidencePractice();
+  const { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, fetchUserExam, setQuestions } = useConfidencePractice();
 
   const [section, setSection] = useState<Section>("menu");
   const [mode, setMode] = useState<PracticeMode>("calm");
@@ -42,6 +42,7 @@ const ConfidencePracticeTab = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [sessionAnswers, setSessionAnswers] = useState<boolean[]>([]);
+  const [userExamLoaded, setUserExamLoaded] = useState(false);
 
   // Filters
   const [selExam, setSelExam] = useState("");
@@ -49,6 +50,18 @@ const ConfidencePracticeTab = () => {
   const [selYear, setSelYear] = useState<number | "">("");
   const [selDifficulty, setSelDifficulty] = useState("");
   const [selCount, setSelCount] = useState(20);
+
+  // Fetch user's exam type from profile on mount
+  useEffect(() => {
+    fetchUserExam().then(exam => {
+      if (exam) {
+        // Map profile exam_type to our examTypes list (case-insensitive match)
+        const matched = examTypes.find(e => e.toLowerCase() === exam.toLowerCase()) || "";
+        if (matched) setSelExam(matched);
+      }
+      setUserExamLoaded(true);
+    });
+  }, [fetchUserExam]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
@@ -182,15 +195,14 @@ const ConfidencePracticeTab = () => {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-foreground text-base">Last 5 Years Question Bank</h3>
-                  <span className="px-1.5 py-0.5 rounded bg-primary/15 text-[9px] font-bold text-primary">AI</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  AI generates authentic previous year style questions matching your selected exam. Just pick your exam & start.
+                  Practice real previous year questions from UPSC, SSC, Banking, JEE, NEET & more. Actual exam questions for authentic preparation.
                 </p>
                 <div className="flex items-center gap-2 mt-3">
                   <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">Year-wise</span>
                   <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">Topic-wise</span>
-                  <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">Auto-Generated</span>
+                  <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">Real PYQs</span>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
@@ -251,8 +263,8 @@ const ConfidencePracticeTab = () => {
         </button>
 
         <div className="space-y-1">
-          <h2 className="text-lg font-bold text-foreground">{isPredicted ? "AI Predicted Questions" : "AI Question Bank"}</h2>
-          <p className="text-xs text-muted-foreground">{isPredicted ? "AI will generate high-probability questions" : "AI generates previous year style questions for your exam"}</p>
+          <h2 className="text-lg font-bold text-foreground">{isPredicted ? "AI Predicted Questions" : "Question Bank Setup"}</h2>
+          <p className="text-xs text-muted-foreground">{isPredicted ? "AI will generate high-probability questions" : "Select filters to practice real previous year questions"}</p>
         </div>
 
         {/* Filters */}
@@ -350,7 +362,7 @@ const ConfidencePracticeTab = () => {
           className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          {loading ? "AI is generating questions..." : "Start Practice"}
+          {loading ? (isPredicted ? "AI is generating questions..." : "Loading questions...") : "Start Practice"}
         </motion.button>
       </div>
     );
