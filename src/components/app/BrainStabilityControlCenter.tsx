@@ -465,10 +465,14 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
                       {!isFixed && (
                         <motion.button
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => setSelectedTopic(topic as RiskTopic)}
-                          className="text-[9px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFix(topic as RiskTopic, 3);
+                          }}
+                          disabled={fixingId === topic.id}
+                          className="text-[9px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50"
                         >
-                          Fix
+                          {fixingId === topic.id ? "..." : "Fix"}
                         </motion.button>
                       )}
                       {isFixed && <CheckCircle className="w-3 h-3 text-success shrink-0" />}
