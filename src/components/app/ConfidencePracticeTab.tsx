@@ -21,7 +21,17 @@ const encouragements = [
 ];
 
 const examTypes = ["UPSC", "SSC", "Banking", "JEE", "NEET", "State PSC"];
-const subjects = ["General Knowledge", "Mathematics", "Reasoning", "English", "Science", "History", "Geography", "Polity", "Economy", "Physics", "Chemistry", "Biology"];
+
+const examSubjectsMap: Record<string, string[]> = {
+  "UPSC": ["General Knowledge", "History", "Geography", "Polity", "Economy", "Science", "English", "Mathematics", "Reasoning"],
+  "SSC": ["General Knowledge", "Mathematics", "Reasoning", "English"],
+  "Banking": ["General Knowledge", "Mathematics", "Reasoning", "English"],
+  "JEE": ["Physics", "Chemistry", "Mathematics"],
+  "NEET": ["Physics", "Chemistry", "Biology"],
+  "State PSC": ["General Knowledge", "History", "Geography", "Polity", "Economy", "Science", "English", "Mathematics", "Reasoning"],
+};
+
+const allSubjects = ["General Knowledge", "Mathematics", "Reasoning", "English", "Science", "History", "Geography", "Polity", "Economy", "Physics", "Chemistry", "Biology"];
 const years = [2024, 2023, 2022, 2021, 2020];
 const difficulties = ["easy", "medium", "hard"];
 
@@ -566,8 +576,15 @@ const ConfidencePracticeTab = () => {
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Exam Type</label>
             <div className="flex flex-wrap gap-2">
-              {availableExamTypes.map(e => (
-                <button key={e} onClick={() => setSelExam(selExam === e ? "" : e)}
+               {availableExamTypes.map(e => (
+                <button key={e} onClick={() => {
+                  const newExam = selExam === e ? "" : e;
+                  setSelExam(newExam);
+                  // Clear subject if not valid for new exam
+                  if (newExam && examSubjectsMap[newExam] && selSubject && !examSubjectsMap[newExam].includes(selSubject)) {
+                    setSelSubject("");
+                  }
+                }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selExam === e ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
                 >{e}</button>
               ))}
@@ -577,7 +594,7 @@ const ConfidencePracticeTab = () => {
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Subject</label>
             <div className="flex flex-wrap gap-2">
-              {subjects.map(s => (
+              {(selExam && examSubjectsMap[selExam] ? examSubjectsMap[selExam] : allSubjects).map(s => (
                 <button key={s} onClick={() => setSelSubject(selSubject === s ? "" : s)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selSubject === s ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
                 >{s}</button>
