@@ -102,6 +102,7 @@ Rules:
 - locked_modes_lockdown: Which modes to lock during lockdown. Options: focus, revision, mock, emergency.
 - During acceleration, typically lock "revision" to push toward mock/focus.
 - During lockdown, typically lock "revision" and sometimes "focus" to push emergency + mock.
+- HARD RULE: "emergency" mode must NEVER be in any locked list. Emergency Rescue Mode must always remain accessible, especially within 7 days of the exam.
 - recommended_mode_acceleration: Best mode during acceleration (usually "mock" or "focus").
 - recommended_mode_lockdown: Best mode during lockdown (usually "emergency" or "mock").
 
@@ -161,6 +162,11 @@ Respond using the tool provided.`;
     // Clamp values
     const accDays = Math.max(5, Math.min(60, prediction.acceleration_days));
     const lockDays = Math.max(2, Math.min(accDays - 1, prediction.lockdown_days));
+
+    // HARD CONSTRAINT: Emergency mode must never be locked
+    const sanitizeModes = (modes: string[]) => (modes || []).filter((m: string) => m !== "emergency");
+    prediction.locked_modes_acceleration = sanitizeModes(prediction.locked_modes_acceleration);
+    prediction.locked_modes_lockdown = sanitizeModes(prediction.locked_modes_lockdown);
 
     // Upsert prediction
     const record = {
@@ -232,7 +238,7 @@ async function fallbackPrediction(adminClient: any, userId: string, examDate: st
     predicted_acceleration_days: accDays,
     predicted_lockdown_days: lockDays,
     locked_modes_acceleration: ["revision"],
-    locked_modes_lockdown: ["revision", "focus"],
+    locked_modes_lockdown: ["revision"],
     recommended_mode_acceleration: "mock",
     recommended_mode_lockdown: "emergency",
     acceleration_message: "Your exam is approaching. AI recommends focusing on mock practice.",
