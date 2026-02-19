@@ -4,7 +4,7 @@ import {
   X, Zap, Brain, Loader2, CheckCircle,
   ShieldAlert, Shield, HeartPulse, Trophy, ArrowRight,
   Clock, Target, TrendingUp, Sparkles, Wind,
-  Calendar, Flame, Volume2, VolumeX
+  Calendar, Flame, Volume2, VolumeX, Activity
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,14 +47,14 @@ type Stage =
 const RECALL_DURATION_SEC = 45;
 const MCQ_PER_TOPIC = 2;
 
-const STAGE_META: Record<Stage, { label: string; color: string }> = {
-  detection: { label: "Crisis Detection", color: "text-destructive" },
-  "emotional-reset": { label: "Emotional Reset", color: "text-primary" },
-  "phase1-recall": { label: "Phase 1 · Critical Recall", color: "text-warning" },
-  "phase2-mcq": { label: "Phase 2 · High-Impact MCQ", color: "text-destructive" },
-  "phase3-confidence": { label: "Phase 3 · Confidence Lock", color: "text-primary" },
-  "stability-recovery": { label: "Stability Recovery", color: "text-success" },
-  "recovery-plan": { label: "Mission Complete", color: "text-success" },
+const STAGE_META: Record<Stage, { label: string; emoji: string }> = {
+  detection: { label: "Crisis Detection", emoji: "🔴" },
+  "emotional-reset": { label: "Emotional Reset", emoji: "🧘" },
+  "phase1-recall": { label: "Phase 1 · Critical Recall", emoji: "⚡" },
+  "phase2-mcq": { label: "Phase 2 · High-Impact MCQ", emoji: "🎯" },
+  "phase3-confidence": { label: "Phase 3 · Confidence Lock", emoji: "🛡️" },
+  "stability-recovery": { label: "Stability Recovery", emoji: "💚" },
+  "recovery-plan": { label: "Mission Complete", emoji: "🏆" },
 };
 
 const STAGE_ORDER: Stage[] = [
@@ -73,6 +73,61 @@ const getCrisisIntensity = (targets: CrisisTarget[]): "severe" | "moderate" | "m
   if (avg < 20) return "severe";
   if (avg < 40) return "moderate";
   return "mild";
+};
+
+// ─── Animated Background ───
+const EmergencyBackground = ({ stage }: { stage: Stage }) => {
+  const isRecovery = stage === "stability-recovery" || stage === "recovery-plan";
+  const isCalm = stage === "emotional-reset";
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Base gradient */}
+      <div
+        className="absolute inset-0 transition-all duration-1000"
+        style={{
+          background: isRecovery
+            ? "radial-gradient(ellipse at 50% 30%, hsl(142 40% 8% / 0.6) 0%, transparent 70%)"
+            : isCalm
+            ? "radial-gradient(ellipse at 50% 50%, hsl(220 40% 10% / 0.4) 0%, transparent 70%)"
+            : "radial-gradient(ellipse at 50% 20%, hsl(0 60% 12% / 0.5) 0%, transparent 60%)",
+        }}
+      />
+
+      {/* Pulsing danger glow - only in active crisis stages */}
+      {!isRecovery && !isCalm && (
+        <>
+          <motion.div
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px]"
+            style={{
+              background: "radial-gradient(ellipse, hsl(0 80% 50% / 0.06) 0%, transparent 70%)",
+            }}
+            animate={{ opacity: [0.3, 0.7, 0.3], scale: [1, 1.05, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          />
+          {/* Scan line effect */}
+          <motion.div
+            className="absolute left-0 right-0 h-px"
+            style={{ background: "linear-gradient(90deg, transparent, hsl(0 70% 50% / 0.15), transparent)" }}
+            animate={{ top: ["0%", "100%"] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          />
+        </>
+      )}
+
+      {/* Recovery glow */}
+      {isRecovery && (
+        <motion.div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[500px] h-[400px]"
+          style={{
+            background: "radial-gradient(ellipse, hsl(142 60% 40% / 0.08) 0%, transparent 70%)",
+          }}
+          animate={{ opacity: [0.4, 0.8, 0.4] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        />
+      )}
+    </div>
+  );
 };
 
 // ─── Component ───
@@ -191,7 +246,6 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
       setStabilityBefore(Math.round(avg));
       setCrisisIntensity(getCrisisIntensity(crisisTargets));
 
-      // Fetch rescue streak
       try {
         const today = new Date();
         const weekAgo = new Date(today);
@@ -370,7 +424,6 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
     const after = Math.min(100, stabilityBefore + gain);
     setStabilityAfter(after);
 
-    // Log session
     if (user) {
       try {
         await (supabase as any).from("study_sessions").insert({
@@ -389,7 +442,6 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
     setLockingConfidence(false);
     speak("Confidence locked. Viewing recovery.");
 
-    // Generate recovery plan
     const plan: string[] = [];
     for (const t of targets) {
       if (t.memory_strength < 30) plan.push(`Deep review: ${t.name} (${t.subject})`);
@@ -415,7 +467,7 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
       current += 1;
       if (current >= target) {
         setStabilityAnimValue(target);
-        confetti({ particleCount: 100, spread: 80, origin: { y: 0.55 } });
+        confetti({ particleCount: 100, spread: 80, origin: { y: 0.55 }, colors: ["#22c55e", "#10b981", "#059669"] });
         return;
       }
       setStabilityAnimValue(current);
@@ -427,10 +479,9 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
   const goToRecoveryPlan = () => {
     speak("Your recovery plan is ready.");
     setStage("recovery-plan");
-    confetti({ particleCount: 140, spread: 100, origin: { y: 0.45 } });
+    confetti({ particleCount: 140, spread: 100, origin: { y: 0.45 }, colors: ["#22c55e", "#f59e0b", "#3b82f6"] });
   };
 
-  // ─── Finish ───
   const handleClose = () => {
     if (recallIntervalRef.current) clearInterval(recallIntervalRef.current);
     speechSynthesis?.cancel?.();
@@ -443,37 +494,7 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
   const correctCount = mcqResults.filter(r => r.correct).length;
   const accuracy = mcqResults.length > 0 ? Math.round((correctCount / mcqResults.length) * 100) : 0;
   const currentStageMeta = STAGE_META[stage];
-
-  // ─── Render Helpers ───
-  const renderProgressBar = () => (
-    <div className="absolute top-0 left-0 right-0 h-1 bg-secondary">
-      <motion.div
-        className="h-full bg-gradient-to-r from-destructive via-warning to-success"
-        animate={{ width: `${stageProgress}%` }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-      />
-    </div>
-  );
-
-  const renderHeader = () => (
-    <div className="absolute top-4 left-0 right-0 flex items-center justify-between px-5">
-      <span className={`text-[10px] font-semibold uppercase tracking-widest ${currentStageMeta.color}`}>
-        {currentStageMeta.label}
-      </span>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setVoiceEnabled(v => !v)}
-          className="p-1.5 rounded-lg hover:bg-secondary/50 transition-colors"
-          aria-label="Toggle voice"
-        >
-          {voiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-primary" /> : <VolumeX className="w-3.5 h-3.5 text-muted-foreground" />}
-        </button>
-        <button onClick={handleClose} className="p-1.5 rounded-lg hover:bg-secondary/50 transition-colors">
-          <X className="w-4 h-4 text-muted-foreground" />
-        </button>
-      </div>
-    </div>
-  );
+  const isRecoveryPhase = stage === "stability-recovery" || stage === "recovery-plan";
 
   return (
     <AnimatePresence>
@@ -481,200 +502,360 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-background/98 backdrop-blur-xl"
+        className="fixed inset-0 z-50 flex items-center justify-center"
+        style={{ background: "hsl(var(--background))" }}
       >
-        {renderProgressBar()}
-        {renderHeader()}
+        <EmergencyBackground stage={stage} />
 
-        <div className="w-full max-w-sm mx-4 max-h-[85vh] overflow-y-auto pt-10">
+        {/* ── Progress bar ── */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-secondary/50">
+          <motion.div
+            className="h-full"
+            style={{
+              background: isRecoveryPhase
+                ? "linear-gradient(90deg, hsl(142 70% 45%), hsl(160 60% 40%))"
+                : "linear-gradient(90deg, hsl(0 75% 55%), hsl(35 90% 55%), hsl(142 70% 45%))",
+            }}
+            animate={{ width: `${stageProgress}%` }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          />
+          {/* Glow on tip */}
+          <motion.div
+            className="absolute top-0 h-1 w-8 blur-sm"
+            style={{
+              background: isRecoveryPhase ? "hsl(142 80% 50%)" : "hsl(35 90% 55%)",
+              left: `calc(${stageProgress}% - 16px)`,
+            }}
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+        </div>
 
-          {/* ═══ Stage: Crisis Detection ═══ */}
+        {/* ── Header ── */}
+        <div className="absolute top-4 left-0 right-0 flex items-center justify-between px-5 z-10">
+          <div className="flex items-center gap-2">
+            <motion.span
+              animate={{ opacity: [0.6, 1, 0.6] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-sm"
+            >
+              {currentStageMeta.emoji}
+            </motion.span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-destructive">
+              {currentStageMeta.label}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setVoiceEnabled(v => !v)}
+              className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
+              aria-label="Toggle voice"
+            >
+              {voiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-destructive" /> : <VolumeX className="w-3.5 h-3.5 text-muted-foreground/50" />}
+            </button>
+            <button onClick={handleClose} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
+              <X className="w-4 h-4 text-muted-foreground/50" />
+            </button>
+          </div>
+        </div>
+
+        <div className="relative w-full max-w-sm mx-4 max-h-[85vh] overflow-y-auto pt-10 z-10">
+
+          {/* ═══ STAGE: CRISIS DETECTION ═══ */}
           {stage === "detection" && (
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
+              initial={{ scale: 0.7, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="flex flex-col items-center justify-center text-center py-16 gap-6"
+              transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              className="flex flex-col items-center justify-center text-center py-16 gap-7"
             >
-              <motion.div
-                animate={{ scale: [1, 1.15, 1], rotate: [0, 3, -3, 0] }}
-                transition={{ duration: 1.8, repeat: Infinity }}
-                className="relative p-5 rounded-2xl bg-destructive/10 border border-destructive/25"
-              >
-                <ShieldAlert className="w-12 h-12 text-destructive" />
-                {/* Pulse rings */}
+              {/* Danger icon with triple pulse rings */}
+              <div className="relative">
                 <motion.div
-                  className="absolute inset-0 rounded-2xl border-2 border-destructive/20"
-                  animate={{ scale: [1, 1.4], opacity: [0.5, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-              </motion.div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">Crisis Stabilization</h2>
-                <p className="text-sm text-muted-foreground mt-2">Scanning memory for critical risks...</p>
+                  animate={{ scale: [1, 1.12, 1], rotate: [0, 2, -2, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="relative p-6 rounded-2xl"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(0 60% 15% / 0.6), hsl(0 50% 10% / 0.4))",
+                    border: "1px solid hsl(0 60% 40% / 0.3)",
+                    boxShadow: "0 0 40px hsl(0 70% 50% / 0.15), inset 0 1px 0 hsl(0 60% 60% / 0.1)",
+                  }}
+                >
+                  <ShieldAlert className="w-14 h-14" style={{ color: "hsl(0 75% 60%)" }} />
+                </motion.div>
+                {/* Triple expanding rings */}
+                {[0, 0.5, 1].map((delay, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute inset-0 rounded-2xl"
+                    style={{ border: "2px solid hsl(0 60% 50% / 0.2)" }}
+                    animate={{ scale: [1, 1.6], opacity: [0.4, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, delay }}
+                  />
+                ))}
               </div>
-              <div className="flex items-center gap-2 text-destructive">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-xs font-medium">Analyzing cognitive patterns</span>
+
+              <div>
+                <h2 className="text-2xl font-black text-foreground tracking-tight">CRISIS STABILIZATION</h2>
+                <p className="text-sm text-muted-foreground mt-2">Scanning your brain for critical memory risks...</p>
+              </div>
+
+              {/* Loading indicators */}
+              <div className="space-y-3 w-full max-w-[200px]">
+                <div className="flex items-center gap-2.5 justify-center" style={{ color: "hsl(0 70% 60%)" }}>
+                  <Activity className="w-4 h-4 animate-pulse" />
+                  <span className="text-xs font-semibold tracking-wide">Analyzing patterns</span>
+                </div>
+                <div className="h-1 rounded-full bg-secondary/50 overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: "linear-gradient(90deg, hsl(0 70% 55%), hsl(35 80% 55%))" }}
+                    animate={{ width: ["0%", "70%", "100%"] }}
+                    transition={{ duration: 2.5, ease: "easeInOut" }}
+                  />
+                </div>
               </div>
             </motion.div>
           )}
 
-          {/* ═══ Stage: Emotional Reset ═══ */}
+          {/* ═══ STAGE: EMOTIONAL RESET ═══ */}
           {stage === "emotional-reset" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center py-10 gap-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center py-8 gap-7">
               {/* Intensity badge */}
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${
-                  crisisIntensity === "severe"
-                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring" }}
+                className="px-5 py-2 rounded-full text-xs font-black uppercase tracking-[0.2em]"
+                style={{
+                  background: crisisIntensity === "severe"
+                    ? "linear-gradient(135deg, hsl(0 60% 15% / 0.8), hsl(0 50% 20% / 0.6))"
                     : crisisIntensity === "moderate"
-                    ? "border-warning/30 bg-warning/10 text-warning"
-                    : "border-primary/30 bg-primary/10 text-primary"
-                }`}
+                    ? "linear-gradient(135deg, hsl(35 60% 15% / 0.8), hsl(35 50% 20% / 0.6))"
+                    : "linear-gradient(135deg, hsl(220 40% 15% / 0.8), hsl(220 30% 20% / 0.6))",
+                  border: `1px solid ${crisisIntensity === "severe" ? "hsl(0 60% 40% / 0.4)" : crisisIntensity === "moderate" ? "hsl(35 60% 40% / 0.4)" : "hsl(220 40% 40% / 0.4)"}`,
+                  color: crisisIntensity === "severe" ? "hsl(0 80% 65%)" : crisisIntensity === "moderate" ? "hsl(35 90% 60%)" : "hsl(220 70% 65%)",
+                  boxShadow: `0 0 20px ${crisisIntensity === "severe" ? "hsl(0 70% 50% / 0.15)" : "hsl(35 70% 50% / 0.15)"}`,
+                }}
               >
                 {crisisIntensity} intensity
               </motion.div>
 
               <div>
-                <h2 className="text-lg font-bold text-foreground mb-1">Take a breath</h2>
+                <h2 className="text-xl font-bold text-foreground mb-1">Take a breath</h2>
                 <p className="text-xs text-muted-foreground">Let's calm your mind before we begin.</p>
               </div>
 
-              {/* Breathing circle */}
+              {/* Breathing orb */}
               <div className="relative">
                 <motion.div
                   animate={{
-                    scale: breathIdx % 4 === 0 ? 1.3 : breathIdx % 4 === 2 ? 0.8 : 1,
+                    scale: breathIdx % 4 === 0 ? 1.35 : breathIdx % 4 === 2 ? 0.75 : 1.05,
                   }}
-                  transition={{ duration: 1.8, ease: "easeInOut" }}
-                  className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center"
+                  transition={{ duration: 2, ease: "easeInOut" }}
+                  className="w-32 h-32 rounded-full flex items-center justify-center"
+                  style={{
+                    background: "radial-gradient(circle, hsl(220 50% 25% / 0.5), hsl(220 40% 15% / 0.3))",
+                    border: "1px solid hsl(220 50% 40% / 0.2)",
+                    boxShadow: "0 0 50px hsl(220 60% 50% / 0.1), inset 0 0 30px hsl(220 50% 50% / 0.05)",
+                  }}
                 >
-                  <Wind className="w-8 h-8 text-primary/60" />
+                  <Wind className="w-8 h-8" style={{ color: "hsl(220 50% 60% / 0.7)" }} />
                 </motion.div>
                 <motion.p
                   key={breathIdx}
-                  initial={{ opacity: 0, y: 5 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-sm font-medium text-primary mt-4"
+                  className="text-sm font-semibold mt-5"
+                  style={{ color: "hsl(220 50% 65%)" }}
                 >
                   {BREATHING_STEPS[breathIdx % BREATHING_STEPS.length]}
                 </motion.p>
               </div>
 
-              {/* Crisis targets preview */}
+              {/* Crisis targets */}
               <div className="w-full space-y-2">
                 {targets.map((t, i) => (
                   <motion.div
                     key={t.id}
-                    initial={{ opacity: 0, x: -10 }}
+                    initial={{ opacity: 0, x: -15 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + i * 0.1 }}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card"
+                    transition={{ delay: 0.3 + i * 0.12, type: "spring" }}
+                    className="flex items-center gap-3 p-3.5 rounded-xl"
+                    style={{
+                      background: "hsl(var(--card) / 0.6)",
+                      border: `1px solid ${t.risk_level === "critical" ? "hsl(0 50% 40% / 0.3)" : "hsl(var(--border))"}`,
+                      boxShadow: t.risk_level === "critical" ? "0 0 15px hsl(0 60% 50% / 0.05)" : "none",
+                    }}
                   >
-                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                      t.risk_level === "critical" ? "bg-destructive animate-pulse" : t.risk_level === "high" ? "bg-warning" : "bg-primary"
-                    }`} />
-                    <span className="text-sm text-foreground flex-1 truncate">{t.name}</span>
-                    <span className="text-xs font-bold text-destructive">{t.memory_strength}%</span>
+                    <motion.div
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{
+                        background: t.risk_level === "critical" ? "hsl(0 75% 55%)" : t.risk_level === "high" ? "hsl(35 85% 55%)" : "hsl(var(--primary))",
+                      }}
+                      animate={t.risk_level === "critical" ? { scale: [1, 1.4, 1], opacity: [1, 0.6, 1] } : {}}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                    <span className="text-sm text-foreground flex-1 truncate font-medium">{t.name}</span>
+                    <span className="text-xs font-black" style={{ color: "hsl(0 70% 60%)" }}>{t.memory_strength}%</span>
                   </motion.div>
                 ))}
               </div>
 
               <motion.button
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
                 onClick={skipReset}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
-                style={{ boxShadow: "0 4px 20px hsl(var(--primary) / 0.3)" }}
+                className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl font-bold text-sm text-white"
+                style={{
+                  background: "linear-gradient(135deg, hsl(0 65% 50%), hsl(25 80% 50%))",
+                  boxShadow: "0 4px 25px hsl(0 70% 50% / 0.3), 0 0 0 1px hsl(0 60% 55% / 0.2)",
+                }}
               >
-                <Zap className="w-4 h-4" /> Begin Stabilization
+                <Zap className="w-4.5 h-4.5" /> Begin Stabilization
               </motion.button>
             </motion.div>
           )}
 
-          {/* ═══ Phase 1: Critical Recall ═══ */}
+          {/* ═══ PHASE 1: CRITICAL RECALL ═══ */}
           {stage === "phase1-recall" && targets[currentRecallIdx] && (
             <motion.div
               key={`recall-${currentRecallIdx}`}
-              initial={{ opacity: 0, x: 30 }}
+              initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
               className="py-8 space-y-6"
             >
               <div className="text-center">
-                <span className="text-[10px] text-warning font-semibold uppercase tracking-wider">
-                  Recall {currentRecallIdx + 1}/{targets.length}
-                </span>
-                <h3 className="text-lg font-bold text-foreground mt-1">{targets[currentRecallIdx].name}</h3>
-                <p className="text-xs text-muted-foreground">{targets[currentRecallIdx].subject}</p>
+                <motion.span
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-[10px] font-black uppercase tracking-[0.2em]"
+                  style={{ color: "hsl(35 90% 55%)" }}
+                >
+                  ⚡ Recall {currentRecallIdx + 1}/{targets.length}
+                </motion.span>
+                <h3 className="text-xl font-black text-foreground mt-2 tracking-tight">{targets[currentRecallIdx].name}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{targets[currentRecallIdx].subject}</p>
               </div>
 
               {/* Timer arc */}
               <div className="flex justify-center">
-                <div className="relative w-28 h-28">
+                <div className="relative w-32 h-32">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="44" fill="none" strokeWidth="6" className="stroke-secondary" />
+                    <circle cx="50" cy="50" r="44" fill="none" strokeWidth="5" stroke="hsl(var(--secondary))" strokeOpacity="0.3" />
                     <motion.circle
-                      cx="50" cy="50" r="44" fill="none" strokeWidth="6"
-                      className="stroke-warning"
+                      cx="50" cy="50" r="44" fill="none" strokeWidth="5"
+                      stroke={recallTimer < 10 ? "hsl(0 75% 55%)" : "hsl(35 90% 55%)"}
                       strokeLinecap="round"
                       strokeDasharray={276.5}
                       animate={{ strokeDashoffset: 276.5 * (1 - recallTimer / RECALL_DURATION_SEC) }}
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold text-foreground">{recallTimer}</span>
-                    <span className="text-[10px] text-muted-foreground">seconds</span>
+                    <span className={`text-3xl font-black ${recallTimer < 10 ? "text-destructive" : "text-foreground"}`}>{recallTimer}</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider">seconds</span>
                   </div>
+                  {/* Timer glow */}
+                  {recallTimer < 10 && (
+                    <motion.div
+                      className="absolute inset-0 rounded-full"
+                      style={{ boxShadow: "0 0 20px hsl(0 70% 50% / 0.2)" }}
+                      animate={{ opacity: [0, 0.6, 0] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                    />
+                  )}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 text-center">
-                <p className="text-sm text-foreground font-medium">Recall everything you know about this topic.</p>
+              <div
+                className="rounded-xl p-4 text-center"
+                style={{
+                  background: "hsl(35 50% 12% / 0.3)",
+                  border: "1px solid hsl(35 50% 40% / 0.15)",
+                }}
+              >
+                <p className="text-sm text-foreground font-semibold">Recall everything about this topic.</p>
                 <p className="text-xs text-muted-foreground mt-1">Key concepts, formulas, connections.</p>
               </div>
 
-              <button
+              <motion.button
+                whileTap={{ scale: 0.97 }}
                 onClick={skipRecall}
-                className="w-full py-3 rounded-xl border border-border bg-card text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="w-full py-3.5 rounded-xl font-semibold text-sm transition-colors"
+                style={{
+                  background: "hsl(var(--card) / 0.6)",
+                  border: "1px solid hsl(35 50% 40% / 0.2)",
+                  color: "hsl(35 90% 60%)",
+                }}
               >
                 Done — Next →
-              </button>
+              </motion.button>
             </motion.div>
           )}
 
-          {/* ═══ Phase 2: High-Impact MCQ ═══ */}
+          {/* ═══ PHASE 2: HIGH-IMPACT MCQ ═══ */}
           {stage === "phase2-mcq" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-6 space-y-5">
               {mcqLoading ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-4">
-                  <Loader2 className="w-8 h-8 text-destructive animate-spin" />
-                  <p className="text-sm text-muted-foreground">Generating crisis questions...</p>
+                <div className="flex flex-col items-center justify-center py-16 gap-5">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Loader2 className="w-10 h-10" style={{ color: "hsl(0 70% 55%)" }} />
+                  </motion.div>
+                  <p className="text-sm text-muted-foreground font-medium">Generating crisis questions...</p>
+                  <div className="h-1 w-32 rounded-full bg-secondary/40 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: "linear-gradient(90deg, hsl(0 70% 55%), hsl(35 80% 55%))" }}
+                      animate={{ width: ["20%", "80%", "60%", "100%"] }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                    />
+                  </div>
                 </div>
               ) : mcqQuestions[currentMcqIdx] ? (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-destructive font-semibold uppercase tracking-wider">
-                      Q{currentMcqIdx + 1}/{mcqQuestions.length}
+                    <span className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: "hsl(0 70% 60%)" }}>
+                      🎯 Q{currentMcqIdx + 1}/{mcqQuestions.length}
                     </span>
-                    <span className="text-[10px] text-muted-foreground font-medium">
-                      {correctCount}/{mcqResults.length} correct
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-muted-foreground">
+                        {correctCount}/{mcqResults.length}
+                      </span>
+                      <CheckCircle className="w-3 h-3 text-success" />
+                    </div>
                   </div>
 
                   {/* Progress dots */}
                   <div className="flex gap-1.5 justify-center flex-wrap">
                     {mcqQuestions.map((_, i) => (
-                      <div key={i} className={`w-2 h-2 rounded-full transition-colors ${
-                        i < mcqResults.length
-                          ? mcqResults[i]?.correct ? "bg-success" : "bg-destructive"
-                          : i === currentMcqIdx ? "bg-warning animate-pulse" : "bg-secondary"
-                      }`} />
+                      <motion.div
+                        key={i}
+                        className="w-2 h-2 rounded-full transition-all"
+                        style={{
+                          background: i < mcqResults.length
+                            ? mcqResults[i]?.correct ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)"
+                            : i === currentMcqIdx ? "hsl(35 90% 55%)" : "hsl(var(--secondary))",
+                          boxShadow: i === currentMcqIdx ? "0 0 8px hsl(35 90% 55% / 0.5)" : "none",
+                        }}
+                        animate={i === currentMcqIdx ? { scale: [1, 1.3, 1] } : {}}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
                     ))}
                   </div>
 
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-sm font-medium text-foreground leading-relaxed">
+                  <div
+                    className="rounded-xl p-5"
+                    style={{
+                      background: "hsl(var(--card) / 0.7)",
+                      border: "1px solid hsl(0 40% 40% / 0.15)",
+                      boxShadow: "0 2px 15px hsl(0 50% 50% / 0.05)",
+                    }}
+                  >
+                    <p className="text-sm font-semibold text-foreground leading-relaxed">
                       {mcqQuestions[currentMcqIdx].question}
                     </p>
                   </div>
@@ -683,31 +864,46 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
                     {mcqQuestions[currentMcqIdx].options.map((opt, oIdx) => {
                       const isSelected = selectedAnswer === oIdx;
                       const isCorrect = opt.isCorrect;
-                      let cls = "border-border bg-card hover:border-primary/30";
+                      let bg = "hsl(var(--card) / 0.5)";
+                      let border = "hsl(var(--border))";
+                      let opacity = "1";
+
                       if (answerRevealed) {
-                        if (isCorrect) cls = "border-success/50 bg-success/10";
-                        else if (isSelected && !isCorrect) cls = "border-destructive/50 bg-destructive/10";
-                        else cls = "border-border bg-card opacity-40";
+                        if (isCorrect) {
+                          bg = "hsl(142 50% 15% / 0.4)";
+                          border = "hsl(142 60% 40% / 0.4)";
+                        } else if (isSelected) {
+                          bg = "hsl(0 50% 15% / 0.4)";
+                          border = "hsl(0 60% 40% / 0.4)";
+                        } else {
+                          opacity = "0.35";
+                        }
                       }
+
                       return (
                         <motion.button
                           key={oIdx}
                           whileTap={!answerRevealed ? { scale: 0.98 } : {}}
                           onClick={() => handleMcqAnswer(oIdx)}
                           disabled={answerRevealed}
-                          className={`w-full text-left p-3.5 rounded-xl border transition-all ${cls}`}
+                          className="w-full text-left p-4 rounded-xl transition-all"
+                          style={{ background: bg, border: `1px solid ${border}`, opacity }}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                              answerRevealed && isCorrect ? "bg-success text-success-foreground"
-                                : answerRevealed && isSelected ? "bg-destructive text-destructive-foreground"
-                                : "bg-secondary text-muted-foreground"
-                            }`}>
+                            <div
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
+                              style={{
+                                background: answerRevealed && isCorrect
+                                  ? "hsl(142 60% 45%)"
+                                  : answerRevealed && isSelected
+                                  ? "hsl(0 60% 50%)"
+                                  : "hsl(var(--secondary))",
+                                color: answerRevealed && (isCorrect || isSelected) ? "white" : "hsl(var(--muted-foreground))",
+                              }}
+                            >
                               {String.fromCharCode(65 + oIdx)}
                             </div>
-                            <span className={`text-sm ${answerRevealed && !isCorrect && !isSelected ? "text-muted-foreground" : "text-foreground"}`}>
-                              {opt.text}
-                            </span>
+                            <span className="text-sm text-foreground font-medium">{opt.text}</span>
                           </div>
                         </motion.button>
                       );
@@ -715,18 +911,34 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
                   </div>
 
                   {answerRevealed && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                      <div
+                        className="rounded-xl p-4"
+                        style={{
+                          background: "hsl(var(--card) / 0.4)",
+                          border: "1px solid hsl(var(--border) / 0.5)",
+                        }}
+                      >
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           {mcqQuestions[currentMcqIdx].explanation}
                         </p>
                       </div>
-                      <button
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
                         onClick={nextMcq}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
+                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white"
+                        style={{
+                          background: currentMcqIdx < mcqQuestions.length - 1
+                            ? "linear-gradient(135deg, hsl(0 65% 50%), hsl(25 80% 50%))"
+                            : "linear-gradient(135deg, hsl(220 60% 50%), hsl(250 60% 55%))",
+                          boxShadow: "0 4px 20px hsl(0 60% 50% / 0.2)",
+                        }}
                       >
-                        {currentMcqIdx < mcqQuestions.length - 1 ? <>Next <ArrowRight className="w-3.5 h-3.5" /></> : <>Lock Confidence <Shield className="w-3.5 h-3.5" /></>}
-                      </button>
+                        {currentMcqIdx < mcqQuestions.length - 1
+                          ? <>Next <ArrowRight className="w-3.5 h-3.5" /></>
+                          : <>Lock Confidence <Shield className="w-3.5 h-3.5" /></>
+                        }
+                      </motion.button>
                     </motion.div>
                   )}
                 </>
@@ -736,39 +948,63 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
             </motion.div>
           )}
 
-          {/* ═══ Phase 3: Confidence Lock ═══ */}
+          {/* ═══ PHASE 3: CONFIDENCE LOCK ═══ */}
           {stage === "phase3-confidence" && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="py-8 space-y-6">
+            <motion.div initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring" }} className="py-8 space-y-6">
               <div className="text-center">
-                <div className="inline-flex p-3 rounded-xl bg-primary/10 border border-primary/20 mb-3">
-                  <Shield className="w-6 h-6 text-primary" />
-                </div>
-                <h2 className="text-lg font-bold text-foreground">Confidence Lock</h2>
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="inline-flex p-4 rounded-2xl mb-4"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(220 50% 15% / 0.6), hsl(250 40% 12% / 0.4))",
+                    border: "1px solid hsl(220 50% 40% / 0.25)",
+                    boxShadow: "0 0 30px hsl(220 60% 50% / 0.1)",
+                  }}
+                >
+                  <Shield className="w-7 h-7" style={{ color: "hsl(220 70% 65%)" }} />
+                </motion.div>
+                <h2 className="text-xl font-black text-foreground tracking-tight">Confidence Lock</h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   {correctCount}/{mcqResults.length} correct · {accuracy}% accuracy
                 </p>
               </div>
 
-              {/* Results summary */}
+              {/* Results */}
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {mcqResults.map((r, i) => (
-                  <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${
-                    r.correct ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5"
-                  }`}>
-                    {r.correct ? <CheckCircle className="w-4 h-4 text-success shrink-0" /> : <X className="w-4 h-4 text-destructive shrink-0" />}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-foreground truncate">{r.topic}</p>
-                    </div>
-                  </div>
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                    className="flex items-center gap-3 p-3 rounded-xl"
+                    style={{
+                      background: r.correct ? "hsl(142 40% 12% / 0.3)" : "hsl(0 40% 12% / 0.3)",
+                      border: `1px solid ${r.correct ? "hsl(142 50% 40% / 0.2)" : "hsl(0 50% 40% / 0.2)"}`,
+                    }}
+                  >
+                    {r.correct
+                      ? <CheckCircle className="w-4 h-4 shrink-0" style={{ color: "hsl(142 70% 50%)" }} />
+                      : <X className="w-4 h-4 shrink-0" style={{ color: "hsl(0 70% 55%)" }} />
+                    }
+                    <p className="text-xs font-medium text-foreground truncate flex-1">{r.topic}</p>
+                  </motion.div>
                 ))}
               </div>
 
               <motion.button
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
                 onClick={lockConfidence}
                 disabled={lockingConfidence || confidenceLocked}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-60"
-                style={{ boxShadow: "0 4px 20px hsl(var(--primary) / 0.3)" }}
+                className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl font-bold text-sm text-white disabled:opacity-50"
+                style={{
+                  background: confidenceLocked
+                    ? "linear-gradient(135deg, hsl(142 60% 40%), hsl(160 50% 35%))"
+                    : "linear-gradient(135deg, hsl(220 60% 50%), hsl(250 60% 55%))",
+                  boxShadow: "0 4px 25px hsl(220 60% 50% / 0.25)",
+                }}
               >
                 {lockingConfidence ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Locking...</>
@@ -781,121 +1017,178 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
             </motion.div>
           )}
 
-          {/* ═══ Stability Recovery Animation ═══ */}
+          {/* ═══ STABILITY RECOVERY ═══ */}
           {stage === "stability-recovery" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8 space-y-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8 space-y-7">
               <div className="text-center">
-                <h2 className="text-lg font-bold text-foreground">Stability Recovering</h2>
+                <h2 className="text-xl font-black text-foreground tracking-tight">Stability Recovering</h2>
                 <p className="text-xs text-muted-foreground mt-1">Your memory is being reinforced</p>
               </div>
 
               {/* Animated stability arc */}
               <div className="flex justify-center">
-                <div className="relative w-40 h-40">
+                <div className="relative w-44 h-44">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" fill="none" strokeWidth="7" className="stroke-secondary" />
-                    {/* Before (ghost) */}
+                    <circle cx="50" cy="50" r="42" fill="none" strokeWidth="6" stroke="hsl(var(--secondary))" strokeOpacity="0.2" />
+                    {/* Ghost (before) */}
                     <circle
-                      cx="50" cy="50" r="42" fill="none" strokeWidth="7"
-                      className="stroke-destructive/15"
+                      cx="50" cy="50" r="42" fill="none" strokeWidth="6"
+                      stroke="hsl(0 60% 50%)" strokeOpacity="0.12"
                       strokeDasharray={264}
                       strokeDashoffset={264 * (1 - stabilityBefore / 100)}
                     />
-                    {/* Animated recovery */}
+                    {/* Recovery arc */}
                     <motion.circle
-                      cx="50" cy="50" r="42" fill="none" strokeWidth="7"
+                      cx="50" cy="50" r="42" fill="none" strokeWidth="6"
                       strokeLinecap="round"
-                      className="stroke-success"
+                      stroke="hsl(142 70% 50%)"
                       strokeDasharray={264}
                       animate={{ strokeDashoffset: 264 * (1 - stabilityAnimValue / 100) }}
                       transition={{ duration: 0.05 }}
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-bold text-foreground">{stabilityAnimValue}%</span>
+                    <span className="text-4xl font-black text-foreground">{stabilityAnimValue}%</span>
                     <motion.span
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-xs font-semibold text-success"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-sm font-bold"
+                      style={{ color: "hsl(142 70% 50%)" }}
                     >
                       +{stabilityAfter - stabilityBefore}%
                     </motion.span>
                   </div>
+                  {/* Glow ring */}
+                  <motion.div
+                    className="absolute inset-2 rounded-full"
+                    style={{ boxShadow: "0 0 30px hsl(142 60% 50% / 0.15)" }}
+                    animate={{ opacity: [0.3, 0.7, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
                 </div>
               </div>
 
-              {/* Before/After cards */}
+              {/* Before/After */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-border bg-card p-3 text-center">
-                  <p className="text-[10px] text-muted-foreground">Before</p>
-                  <p className="text-lg font-bold text-destructive">{stabilityBefore}%</p>
+                <div
+                  className="rounded-xl p-4 text-center"
+                  style={{
+                    background: "hsl(0 40% 12% / 0.3)",
+                    border: "1px solid hsl(0 50% 40% / 0.15)",
+                  }}
+                >
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Before</p>
+                  <p className="text-xl font-black mt-1" style={{ color: "hsl(0 70% 60%)" }}>{stabilityBefore}%</p>
                 </div>
-                <div className="rounded-xl border border-success/20 bg-success/5 p-3 text-center">
-                  <p className="text-[10px] text-muted-foreground">After</p>
-                  <p className="text-lg font-bold text-success">{stabilityAfter}%</p>
+                <div
+                  className="rounded-xl p-4 text-center"
+                  style={{
+                    background: "hsl(142 40% 12% / 0.3)",
+                    border: "1px solid hsl(142 50% 40% / 0.15)",
+                  }}
+                >
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">After</p>
+                  <p className="text-xl font-black mt-1" style={{ color: "hsl(142 70% 50%)" }}>{stabilityAfter}%</p>
                 </div>
               </div>
 
-              <button
+              <motion.button
+                whileTap={{ scale: 0.97 }}
                 onClick={goToRecoveryPlan}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-success to-primary text-primary-foreground font-semibold text-sm"
+                className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl font-bold text-sm text-white"
+                style={{
+                  background: "linear-gradient(135deg, hsl(142 60% 40%), hsl(160 50% 35%))",
+                  boxShadow: "0 4px 25px hsl(142 60% 40% / 0.25)",
+                }}
               >
                 <Sparkles className="w-4 h-4" /> View Recovery Plan
-              </button>
+              </motion.button>
             </motion.div>
           )}
 
-          {/* ═══ Recovery Plan (Mission Complete) ═══ */}
+          {/* ═══ RECOVERY PLAN (MISSION COMPLETE) ═══ */}
           {stage === "recovery-plan" && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="py-8 space-y-6">
+            <motion.div initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring" }} className="py-8 space-y-6">
               <div className="text-center">
                 <motion.div
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{ duration: 2.5, repeat: Infinity }}
-                  className="inline-flex p-4 rounded-2xl bg-success/10 border border-success/20 mb-4"
+                  animate={{ scale: [1, 1.08, 1], rotate: [0, 3, -3, 0] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                  className="inline-flex p-5 rounded-2xl mb-4"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(142 40% 15% / 0.5), hsl(50 40% 15% / 0.3))",
+                    border: "1px solid hsl(142 50% 40% / 0.2)",
+                    boxShadow: "0 0 40px hsl(142 60% 50% / 0.1)",
+                  }}
                 >
-                  <Trophy className="w-8 h-8 text-success" />
+                  <Trophy className="w-9 h-9" style={{ color: "hsl(45 90% 55%)" }} />
                 </motion.div>
-                <h2 className="text-xl font-bold text-foreground">Crisis Stabilized</h2>
+                <h2 className="text-2xl font-black text-foreground tracking-tight">Crisis Stabilized</h2>
                 <p className="text-sm text-muted-foreground mt-1">Your memory has been rescued and reinforced.</p>
               </div>
 
               {/* Stats row */}
               <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-xl border border-border bg-card p-3 text-center">
-                  <Clock className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-                  <p className="text-sm font-bold text-foreground">{crisisIntensity === "severe" ? 8 : crisisIntensity === "moderate" ? 6 : 5}m</p>
-                  <p className="text-[10px] text-muted-foreground">Duration</p>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-3 text-center">
-                  <Target className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-                  <p className="text-sm font-bold text-foreground">{accuracy}%</p>
-                  <p className="text-[10px] text-muted-foreground">Accuracy</p>
-                </div>
-                <div className="rounded-xl border border-success/20 bg-success/5 p-3 text-center">
-                  <TrendingUp className="w-4 h-4 text-success mx-auto mb-1" />
-                  <p className="text-sm font-bold text-success">+{stabilityAfter - stabilityBefore}%</p>
-                  <p className="text-[10px] text-muted-foreground">Stability</p>
-                </div>
+                {[
+                  { icon: Clock, value: `${crisisIntensity === "severe" ? 8 : crisisIntensity === "moderate" ? 6 : 5}m`, label: "Duration", color: "hsl(var(--muted-foreground))" },
+                  { icon: Target, value: `${accuracy}%`, label: "Accuracy", color: "hsl(var(--muted-foreground))" },
+                  { icon: TrendingUp, value: `+${stabilityAfter - stabilityBefore}%`, label: "Stability", color: "hsl(142 70% 50%)" },
+                ].map((stat, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="rounded-xl p-3 text-center"
+                    style={{
+                      background: i === 2 ? "hsl(142 40% 12% / 0.3)" : "hsl(var(--card) / 0.5)",
+                      border: `1px solid ${i === 2 ? "hsl(142 50% 40% / 0.15)" : "hsl(var(--border) / 0.5)"}`,
+                    }}
+                  >
+                    <stat.icon className="w-4 h-4 mx-auto mb-1" style={{ color: stat.color }} />
+                    <p className="text-sm font-black" style={{ color: stat.color }}>{stat.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+                  </motion.div>
+                ))}
               </div>
 
               {/* Rescue Shield Streak */}
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Flame className="w-5 h-5 text-primary" />
-                </div>
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+                className="rounded-xl p-4 flex items-center gap-3"
+                style={{
+                  background: "linear-gradient(135deg, hsl(25 50% 12% / 0.4), hsl(0 40% 10% / 0.3))",
+                  border: "1px solid hsl(25 60% 40% / 0.2)",
+                  boxShadow: "0 0 20px hsl(25 60% 50% / 0.05)",
+                }}
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.15, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="p-2.5 rounded-lg"
+                  style={{ background: "hsl(25 50% 20% / 0.5)", border: "1px solid hsl(25 60% 40% / 0.2)" }}
+                >
+                  <Flame className="w-5 h-5" style={{ color: "hsl(25 90% 55%)" }} />
+                </motion.div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-foreground">Rescue Shield Streak</p>
+                  <p className="text-sm font-bold text-foreground">Rescue Shield Streak</p>
                   <p className="text-xs text-muted-foreground">{rescueStreak + 1} rescue{rescueStreak > 0 ? "s" : ""} this week</p>
                 </div>
-                <span className="text-xl font-bold text-primary">{rescueStreak + 1}</span>
-              </div>
+                <span className="text-2xl font-black" style={{ color: "hsl(25 90% 55%)" }}>{rescueStreak + 1}</span>
+              </motion.div>
 
               {/* Next-day Recovery Plan */}
-              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div
+                className="rounded-xl p-4 space-y-3"
+                style={{
+                  background: "hsl(var(--card) / 0.5)",
+                  border: "1px solid hsl(var(--border) / 0.5)",
+                }}
+              >
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <p className="text-sm font-semibold text-foreground">Tomorrow's Recovery Plan</p>
+                  <Calendar className="w-4 h-4" style={{ color: "hsl(220 60% 60%)" }} />
+                  <p className="text-sm font-bold text-foreground">Tomorrow's Recovery Plan</p>
                 </div>
                 <div className="space-y-2">
                   {recoveryPlan.map((item, i) => (
@@ -903,11 +1196,14 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
                       key={i}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
+                      transition={{ delay: 0.4 + i * 0.08 }}
                       className="flex items-center gap-2.5"
                     >
-                      <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <span className="text-[9px] font-bold text-primary">{i + 1}</span>
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                        style={{ background: "hsl(220 50% 20% / 0.5)", border: "1px solid hsl(220 50% 40% / 0.2)" }}
+                      >
+                        <span className="text-[9px] font-black" style={{ color: "hsl(220 60% 65%)" }}>{i + 1}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">{item}</p>
                     </motion.div>
@@ -916,9 +1212,15 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
               </div>
 
               {/* AI note */}
-              <div className="rounded-xl border border-border bg-secondary/30 p-3.5">
+              <div
+                className="rounded-xl p-4"
+                style={{
+                  background: "hsl(var(--card) / 0.3)",
+                  border: "1px solid hsl(var(--border) / 0.3)",
+                }}
+              >
                 <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                  <Brain className="w-3.5 h-3.5 inline mr-1 text-primary" />
+                  <Brain className="w-3.5 h-3.5 inline mr-1" style={{ color: "hsl(220 60% 60%)" }} />
                   {accuracy >= 80
                     ? "Excellent rescue! Your at-risk topics are now stabilized. Tomorrow's plan will reinforce today's gains."
                     : accuracy >= 50
@@ -928,12 +1230,17 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
                 </p>
               </div>
 
-              <button
+              <motion.button
+                whileTap={{ scale: 0.97 }}
                 onClick={handleClose}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-success to-primary text-primary-foreground font-semibold text-sm transition-all"
+                className="w-full py-4 rounded-xl font-bold text-sm text-white transition-all"
+                style={{
+                  background: "linear-gradient(135deg, hsl(142 60% 40%), hsl(160 50% 35%))",
+                  boxShadow: "0 4px 25px hsl(142 60% 40% / 0.25)",
+                }}
               >
                 Done
-              </button>
+              </motion.button>
             </motion.div>
           )}
         </div>
