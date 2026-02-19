@@ -246,10 +246,15 @@ const ConfidencePracticeTab = () => {
                 setPyqProgressPercent(0);
                 if (result?.error) {
                   setPyqResult({ success: false, message: result.error });
+                } else if (result?.alreadyComplete) {
+                  setPyqResult({
+                    success: true,
+                    message: result.message || "Question bank is already fully populated!"
+                  });
                 } else {
                   setPyqResult({
                     success: true,
-                    message: result?.message || `${result?.totalInserted || 0} questions added to your question bank.`
+                    message: result?.message || `${result?.totalInserted || 0} new questions added to your question bank.`
                   });
                 }
               }, 500);
