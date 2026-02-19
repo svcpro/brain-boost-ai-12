@@ -60,7 +60,7 @@ const AIAssistantButton = () => {
           animate={{ opacity: [0.9, 1, 0.9] }}
           transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
         >
-          Feed Your Brain
+          What I Studied ?
         </motion.span>
 
         {/* Sparkle particles */}
