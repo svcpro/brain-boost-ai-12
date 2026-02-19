@@ -224,8 +224,7 @@ const AppDashboard = () => {
         {/* Voice Notification Overlay */}
         <VoiceNotificationOverlay playing={voice.playing} subtitle={voice.subtitle} />
 
-        {/* AI Assistant Floating Button - controlled by feature flag */}
-        {isTabEnabled('home_ai_assistant') && <AIAssistantButton />}
+        {/* AI Assistant Floating Button - hidden */}
 
         {/* Bottom Nav */}
         <nav className="fixed bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
