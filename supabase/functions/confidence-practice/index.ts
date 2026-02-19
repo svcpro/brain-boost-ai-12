@@ -281,7 +281,10 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
       }
 
       if (!aiData) {
-        return new Response(JSON.stringify({ error: `AI service unavailable (${lastError}). Please try again later.` }), {
+        const userMessage = lastError.includes("Credits exhausted") || lastError.includes("Rate limited")
+          ? "AI usage limit reached for today. Your credits will refresh shortly — please try again in a few minutes."
+          : `AI service temporarily unavailable. Please try again in a moment.`;
+        return new Response(JSON.stringify({ error: userMessage }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
