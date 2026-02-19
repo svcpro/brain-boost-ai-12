@@ -165,7 +165,7 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
         .from("topics")
         .select("id, name, memory_strength, subjects(name)")
         .eq("user_id", user.id)
-        .eq("deleted", false)
+        .is("deleted_at", null)
         .order("memory_strength", { ascending: true })
         .limit(3);
 
