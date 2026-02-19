@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Crosshair, AlertOctagon, CheckCircle2,
-  Loader2, Brain, ArrowRight, Sparkles,
-  Clock, TrendingUp, ChevronDown, BookOpen, CheckCircle,
+  Crosshair, AlertOctagon,
+  Brain, ArrowRight, Sparkles,
+  Clock, TrendingUp, ChevronDown, BookOpen,
   Zap, Target, BarChart3, Play, Timer, Flame
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AITopicManager from "./AITopicManager";
-import { useToast } from "@/hooks/use-toast";
+
 import LazyModeSession from "./LazyModeSession";
 import FocusModeSession from "./FocusModeSession";
 import EmergencyRecoverySession from "./EmergencyRecoverySession";
@@ -17,6 +17,7 @@ import MockPracticeSession from "./MockPracticeSession";
 import FocusSessionHistory from "./FocusSessionHistory";
 import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import ActiveTaskEngine from "./ActiveTaskEngine";
 
 // ─── Study mode definitions ───
 const studyModes = [
@@ -72,16 +73,13 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
-  const { toast } = useToast();
+  
   const { user } = useAuth();
 
   // ─── Recommended topic state ───
   const [recommendedTopic, setRecommendedTopic] = useState<{ name: string; subject: string; stability: number } | null>(null);
   const [loadingRec, setLoadingRec] = useState(true);
 
-  // ─── Active tasks state ───
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(true);
 
   // ─── Session history state ───
   const [todayStats, setTodayStats] = useState({ studyMinutes: 0, sessionsCompleted: 0, stabilityGain: 0 });
@@ -116,26 +114,6 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     fetchRec();
   }, [user]);
 
-  // Fetch pending AI tasks
-  useEffect(() => {
-    if (!user) return;
-    const fetchTasks = async () => {
-      setLoadingTasks(true);
-      try {
-        const { data } = await supabase
-          .from("ai_recommendations")
-          .select("id, title, description, priority, completed, type")
-          .eq("user_id", user.id)
-          .eq("completed", false)
-          .order("created_at", { ascending: false })
-          .limit(8);
-        setTasks(data || []);
-      } catch { /* ignore */ }
-      setLoadingTasks(false);
-    };
-    fetchTasks();
-  }, [user]);
-
   // Fetch today's study stats
   useEffect(() => {
     if (!user) return;
@@ -160,15 +138,6 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     fetchStats();
   }, [user]);
 
-  // Toggle task completion
-  const toggleTask = async (taskId: string, currentCompleted: boolean) => {
-    const newVal = !currentCompleted;
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, completed: newVal } : t)));
-    await supabase.from("ai_recommendations").update({ completed: newVal }).eq("id", taskId);
-    if (newVal) {
-      toast({ title: "✅ Task completed!", description: "Great execution. Keep going!" });
-    }
-  };
 
   const openStudyMode = (modeId: string) => {
     switch (modeId) {
@@ -320,85 +289,9 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       )}
 
       {/* ═══════════════════════════════════════════════════
-          SECTION 3: Active Task Queue
+          SECTION 3: AI Task Engine
          ═══════════════════════════════════════════════════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
-      >
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
-            <CheckCircle className="w-4 h-4 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-bold text-foreground">Active Tasks</h3>
-            <p className="text-[10px] text-muted-foreground">AI-recommended actions</p>
-          </div>
-          {tasks.filter((t) => !t.completed).length > 0 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
-              {tasks.filter((t) => !t.completed).length}
-            </span>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          {loadingTasks ? (
-            <div className="p-6 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 text-primary animate-spin" />
-            </div>
-          ) : tasks.length === 0 ? (
-            <div className="p-6 text-center space-y-2">
-              <div className="w-10 h-10 rounded-full bg-primary/10 mx-auto flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                No pending tasks. Study more to get AI recommendations!
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border/50">
-              {tasks.map((task, i) => (
-                <motion.div
-                  key={task.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.04 }}
-                  className={`flex items-start gap-3 px-4 py-3.5 group hover:bg-secondary/30 transition-colors ${task.completed ? 'opacity-50' : ''}`}
-                >
-                  <button
-                    onClick={() => toggleTask(task.id, task.completed)}
-                    className="mt-0.5 shrink-0"
-                  >
-                    <div className={`w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
-                      task.completed
-                        ? 'bg-primary border-primary'
-                        : 'border-muted-foreground/40 hover:border-primary'
-                    }`}>
-                      {task.completed && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
-                    </div>
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-medium leading-snug ${task.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                      {task.title}
-                    </p>
-                    {task.description && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
-                    )}
-                  </div>
-                  <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0 mt-0.5 ${
-                    task.priority === 'high' || task.priority === 'critical' ? 'bg-destructive/15 text-destructive' :
-                    task.priority === 'medium' ? 'bg-warning/15 text-warning' :
-                    'bg-secondary text-muted-foreground'
-                  }`}>
-                    {task.priority}
-                  </span>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      </motion.section>
+      <ActiveTaskEngine />
 
       {/* ═══════════════════════════════════════════════════
           SECTION 4: Deep Topic Explorer (collapsible)
