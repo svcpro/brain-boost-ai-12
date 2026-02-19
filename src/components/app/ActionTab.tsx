@@ -17,12 +17,6 @@ import FocusSessionHistory from "./FocusSessionHistory";
 import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-// ─── Animation variants ───
-const sectionVariant = (i: number) => ({
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0, transition: { delay: 0.08 * i, duration: 0.45, ease: [0.22, 1, 0.36, 1] as const } },
-});
-
 // ─── Study mode definitions ───
 const studyModes = [
   {
@@ -33,8 +27,7 @@ const studyModes = [
     duration: "25-50 min",
     gain: "+8-12% stability",
     color: "text-primary",
-    glowClass: "shadow-[0_0_20px_hsl(var(--primary)/0.15)]",
-    bgClass: "bg-primary/8",
+    bgClass: "bg-primary/15",
   },
   {
     id: "revision",
@@ -43,9 +36,8 @@ const studyModes = [
     desc: "AI picks your weakest topics for rapid micro-review. Smart spaced repetition at work.",
     duration: "5-15 min",
     gain: "+3-6% recall",
-    color: "text-accent-foreground",
-    glowClass: "shadow-[0_0_20px_hsl(175,80%,50%,0.12)]",
-    bgClass: "neural-gradient",
+    color: "text-primary",
+    bgClass: "bg-primary/15",
   },
   {
     id: "mock",
@@ -55,8 +47,7 @@ const studyModes = [
     duration: "15-30 min",
     gain: "+5-10% readiness",
     color: "text-primary",
-    glowClass: "shadow-[0_0_20px_hsl(var(--primary)/0.12)]",
-    bgClass: "bg-primary/8",
+    bgClass: "bg-primary/15",
   },
   {
     id: "emergency",
@@ -66,8 +57,7 @@ const studyModes = [
     duration: "20-40 min",
     gain: "Max crisis recovery",
     color: "text-destructive",
-    glowClass: "shadow-[0_0_20px_hsl(var(--destructive)/0.15)]",
-    bgClass: "bg-destructive/8",
+    bgClass: "bg-destructive/15",
   },
 ];
 
@@ -192,71 +182,79 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     : "15 min session";
 
   return (
-    <div className="px-5 py-6 space-y-6 pb-8">
+    <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
 
       {/* ═══════════════════════════════════════════════════
           SECTION 1: Focus Mode Header — Hero CTA
          ═══════════════════════════════════════════════════ */}
-      <motion.section {...sectionVariant(0)}>
-        <div className="glass rounded-2xl neural-border p-6 relative overflow-hidden">
-          {/* Ambient glow */}
-          <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full bg-primary/8 blur-2xl pointer-events-none" />
+      <motion.section
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="relative overflow-hidden rounded-2xl p-6"
+        style={{
+          background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
+          border: "1px solid hsl(var(--border))",
+        }}
+      >
+        {/* Ambient glow */}
+        <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full bg-primary/8 blur-2xl pointer-events-none" />
 
-          <div className="relative z-10 space-y-4">
-            {/* Label */}
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
-                Recommended Next
-              </span>
-            </div>
-
-            {/* Topic info */}
-            {loadingRec ? (
-              <div className="space-y-2">
-                <div className="h-6 w-48 rounded-lg bg-secondary/50 animate-pulse" />
-                <div className="h-4 w-32 rounded-lg bg-secondary/30 animate-pulse" />
-              </div>
-            ) : recommendedTopic ? (
-              <>
-                <h2 className="text-xl font-bold text-foreground leading-tight">
-                  {recommendedTopic.name}
-                </h2>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-xs text-muted-foreground px-2.5 py-1 rounded-full bg-secondary/50 border border-border/30">
-                    {recommendedTopic.subject}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${recommendedTopic.stability < 40 ? 'bg-destructive' : recommendedTopic.stability < 70 ? 'bg-warning' : 'bg-success'}`} />
-                    <span className="text-xs text-muted-foreground">
-                      {recommendedTopic.stability}% stable
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    {estimatedTime}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-1">
-                <h2 className="text-xl font-bold text-foreground">Ready to study?</h2>
-                <p className="text-sm text-muted-foreground">Add topics in your Brain tab to get AI recommendations.</p>
-              </div>
-            )}
-
-            {/* CTA */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setFocusModeOpen(true)}
-              className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2.5 shadow-[0_4px_20px_hsl(var(--primary)/0.3)] hover:shadow-[0_6px_28px_hsl(var(--primary)/0.4)] transition-all duration-300"
-            >
-              <Play className="w-4.5 h-4.5" />
-              Start Focus Session
-            </motion.button>
+        <div className="relative z-10 space-y-4">
+          {/* Label */}
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+              Recommended Next
+            </span>
           </div>
+
+          {/* Topic info */}
+          {loadingRec ? (
+            <div className="space-y-2">
+              <div className="h-6 w-48 rounded-lg bg-secondary/50 animate-pulse" />
+              <div className="h-4 w-32 rounded-lg bg-secondary/30 animate-pulse" />
+            </div>
+          ) : recommendedTopic ? (
+            <>
+              <h2 className="text-xl font-bold text-foreground leading-tight">
+                {recommendedTopic.name}
+              </h2>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs text-muted-foreground px-2.5 py-1 rounded-full bg-background/50 backdrop-blur-sm border border-border/50">
+                  {recommendedTopic.subject}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full ${recommendedTopic.stability < 40 ? 'bg-destructive' : recommendedTopic.stability < 70 ? 'bg-warning' : 'bg-success'}`} />
+                  <span className="text-xs text-muted-foreground">
+                    {recommendedTopic.stability}% stable
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  {estimatedTime}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold text-foreground">Ready to study?</h2>
+              <p className="text-sm text-muted-foreground">Add topics in your Brain tab to get AI recommendations.</p>
+            </div>
+          )}
+
+          {/* CTA */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setFocusModeOpen(true)}
+            className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2.5 hover:opacity-90 transition-all active:scale-[0.98]"
+            style={{ boxShadow: "0 4px 20px hsl(var(--primary) / 0.3)" }}
+          >
+            <Play className="w-4 h-4" />
+            Start Focus Session
+          </motion.button>
         </div>
       </motion.section>
 
@@ -264,10 +262,19 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           SECTION 2: Structured Study Modes
          ═══════════════════════════════════════════════════ */}
       {isEnabled("action_study_modes") && (
-        <motion.section {...sectionVariant(1)}>
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}
+        >
           <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Study Modes</h3>
+            <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Study Modes</h3>
+              <p className="text-[10px] text-muted-foreground">Choose your execution style</p>
+            </div>
           </div>
 
           <div className="space-y-2.5">
@@ -276,12 +283,12 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                 key={mode.id}
                 initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.15 + i * 0.07, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ delay: 0.15 + i * 0.07, duration: 0.4, ease: "easeOut" }}
                 onClick={() => openStudyMode(mode.id)}
-                className={`w-full glass rounded-xl p-4 neural-border hover:glow-primary transition-all duration-300 text-left group active:scale-[0.98] ${mode.glowClass}`}
+                className="w-full rounded-2xl border border-border bg-card p-4 hover:bg-secondary/30 transition-all duration-300 text-left group active:scale-[0.98]"
               >
                 <div className="flex items-start gap-3.5">
-                  <div className={`p-2.5 rounded-xl ${mode.bgClass} neural-border shrink-0`}>
+                  <div className={`p-2.5 rounded-xl ${mode.bgClass} shrink-0`}>
                     <mode.icon className={`w-5 h-5 ${mode.color}`} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -302,7 +309,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                       </span>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                  <ArrowRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
                 </div>
               </motion.button>
             ))}
@@ -313,20 +320,27 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       {/* ═══════════════════════════════════════════════════
           SECTION 3: Active Task Queue
          ═══════════════════════════════════════════════════ */}
-      <motion.section {...sectionVariant(2)}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
             <CheckCircle className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Active Tasks</h3>
-            {tasks.filter((t) => !t.completed).length > 0 && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
-                {tasks.filter((t) => !t.completed).length}
-              </span>
-            )}
           </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-bold text-foreground">Active Tasks</h3>
+            <p className="text-[10px] text-muted-foreground">AI-recommended actions</p>
+          </div>
+          {tasks.filter((t) => !t.completed).length > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+              {tasks.filter((t) => !t.completed).length}
+            </span>
+          )}
         </div>
 
-        <div className="glass rounded-xl neural-border overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
           {loadingTasks ? (
             <div className="p-6 flex items-center justify-center">
               <Loader2 className="w-5 h-5 text-primary animate-spin" />
@@ -341,7 +355,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/50">
               {tasks.map((task, i) => (
                 <motion.div
                   key={task.id}
@@ -371,7 +385,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                     )}
                   </div>
                   <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0 mt-0.5 ${
-                    task.priority === 'high' ? 'bg-destructive/15 text-destructive' :
+                    task.priority === 'high' || task.priority === 'critical' ? 'bg-destructive/15 text-destructive' :
                     task.priority === 'medium' ? 'bg-warning/15 text-warning' :
                     'bg-secondary text-muted-foreground'
                   }`}>
@@ -388,16 +402,20 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           SECTION 4: Deep Topic Explorer (collapsible)
          ═══════════════════════════════════════════════════ */}
       {isEnabled("action_ai_topic_manager") && (
-        <motion.section {...sectionVariant(3)}>
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5, ease: "easeOut" }}
+        >
           <Collapsible open={topicExplorerOpen} onOpenChange={setTopicExplorerOpen}>
             <CollapsibleTrigger asChild>
-              <button className="w-full flex items-center justify-between glass rounded-xl neural-border p-4 hover:glow-primary transition-all duration-300 group">
+              <button className="w-full flex items-center justify-between rounded-2xl border border-border bg-card p-4 hover:bg-secondary/30 transition-all duration-300 group">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-primary/8 neural-border">
+                  <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
                     <BookOpen className="w-4 h-4 text-primary" />
                   </div>
                   <div className="text-left">
-                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                    <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                       Deep Topic Explorer
                     </h3>
                     <p className="text-[10px] text-muted-foreground">Subject → Topic → Subtopic navigation</p>
@@ -418,7 +436,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                 transition={{ duration: 0.3 }}
                 className="mt-2"
               >
-                <div className="glass rounded-xl neural-border p-4">
+                <div className="rounded-2xl border border-border bg-card p-4">
                   <AITopicManager mode="user" onDone={() => {}} />
                 </div>
               </motion.div>
@@ -430,10 +448,19 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       {/* ═══════════════════════════════════════════════════
           SECTION 5: Session History & Daily Gains
          ═══════════════════════════════════════════════════ */}
-      <motion.section {...sectionVariant(4)}>
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
+      >
         <div className="flex items-center gap-2 mb-3">
-          <BarChart3 className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Today's Gains</h3>
+          <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
+            <BarChart3 className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Today's Gains</h3>
+            <p className="text-[10px] text-muted-foreground">Your daily execution summary</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2.5">
@@ -443,39 +470,33 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
               label: "Study Time",
               value: `${todayStats.studyMinutes}m`,
               sub: todayStats.studyMinutes >= 30 ? "Great pace!" : "Keep going",
-              color: "text-primary",
-              bg: "bg-primary/8",
             },
             {
               icon: TrendingUp,
               label: "Stability",
               value: `+${todayStats.stabilityGain.toFixed(1)}%`,
               sub: "Brain growth",
-              color: "text-success",
-              bg: "bg-success/8",
             },
             {
               icon: Flame,
               label: "Sessions",
               value: `${todayStats.sessionsCompleted}`,
               sub: todayStats.sessionsCompleted >= 3 ? "On fire!" : "Focus more",
-              color: "text-primary",
-              bg: "bg-primary/8",
             },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.4 + i * 0.07, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="glass rounded-xl neural-border p-3.5 text-center"
+              transition={{ delay: 0.45 + i * 0.07, duration: 0.4, ease: "easeOut" }}
+              className="rounded-2xl border border-border bg-card p-3.5 text-center"
             >
-              <div className={`w-8 h-8 rounded-lg ${stat.bg} mx-auto flex items-center justify-center mb-2`}>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+              <div className="w-8 h-8 rounded-lg bg-primary/10 mx-auto flex items-center justify-center mb-2">
+                <stat.icon className="w-4 h-4 text-primary" />
               </div>
-              <p className="text-lg font-bold text-foreground leading-none">{stat.value}</p>
+              <p className="text-lg font-bold text-foreground leading-none tabular-nums">{stat.value}</p>
               <p className="text-[10px] text-muted-foreground mt-1">{stat.label}</p>
-              <p className="text-[9px] text-primary/70 font-medium mt-0.5">{stat.sub}</p>
+              <p className="text-[9px] text-primary font-medium mt-0.5">{stat.sub}</p>
             </motion.div>
           ))}
         </div>
