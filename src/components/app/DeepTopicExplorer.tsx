@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, ChevronDown, ChevronRight, Brain, Crosshair,
@@ -44,36 +44,43 @@ interface StrategyStep {
 }
 
 // ─── Helpers ───
-const stabilityColor = (s: number) =>
-  s < 0.3 ? "text-destructive" : s < 0.6 ? "text-warning" : "text-success";
+// Normalize memory_strength: could be 0-1 or 0-100 scale
+const norm = (s: number) => s > 1 ? s / 100 : s;
 
-const stabilityBg = (s: number) =>
-  s < 0.3 ? "bg-destructive" : s < 0.6 ? "bg-warning" : "bg-success";
+const stabilityColor = (s: number) => {
+  const n = norm(s);
+  return n < 0.3 ? "text-destructive" : n < 0.6 ? "text-warning" : "text-success";
+};
 
-const riskLabel = (s: number) =>
-  s < 0.3 ? "Critical" : s < 0.5 ? "At Risk" : s < 0.7 ? "Moderate" : "Stable";
+const stabilityBg = (s: number) => {
+  const n = norm(s);
+  return n < 0.3 ? "bg-destructive" : n < 0.6 ? "bg-warning" : "bg-success";
+};
+
+const riskLabel = (s: number) => {
+  const n = norm(s);
+  return n < 0.3 ? "Critical" : n < 0.5 ? "At Risk" : n < 0.7 ? "Moderate" : "Stable";
+};
 
 const riskBadge = (s: number) => {
-  if (s < 0.3) return "bg-destructive/15 text-destructive";
-  if (s < 0.5) return "bg-warning/15 text-warning";
-  if (s < 0.7) return "bg-primary/15 text-primary";
+  const n = norm(s);
+  if (n < 0.3) return "bg-destructive/15 text-destructive";
+  if (n < 0.5) return "bg-warning/15 text-warning";
+  if (n < 0.7) return "bg-primary/15 text-primary";
   return "bg-success/15 text-success";
 };
 
 const computeHealth = (t: TopicData): TopicHealth => {
-  const s = t.memory_strength;
-  const daysSinceRevision = t.last_revision_date
-    ? Math.floor((Date.now() - new Date(t.last_revision_date).getTime()) / 86400000)
-    : 999;
+  const n = norm(t.memory_strength);
   const daysUntilDrop = t.next_predicted_drop_date
     ? Math.max(0, Math.floor((new Date(t.next_predicted_drop_date).getTime() - Date.now()) / 86400000))
     : 0;
 
-  const conceptClarity = Math.min(100, Math.round(s * 100));
-  const applicationStrength = Math.min(100, Math.round(s * 85 + (t.marks_impact_weight || 0) * 5));
-  const errorPattern = s < 0.3 ? "Frequent recall failures" : s < 0.6 ? "Occasional gaps in application" : "Minimal errors detected";
+  const conceptClarity = Math.min(100, Math.round(n * 100));
+  const applicationStrength = Math.min(100, Math.round(n * 85 + (t.marks_impact_weight || 0) * 5));
+  const errorPattern = n < 0.3 ? "Frequent recall failures" : n < 0.6 ? "Occasional gaps in application" : "Minimal errors detected";
   const decayPrediction = daysUntilDrop <= 1 ? "Decaying now" : daysUntilDrop <= 3 ? `Dropping in ${daysUntilDrop}d` : `Stable for ${daysUntilDrop}d`;
-  const riskLevel: TopicHealth["riskLevel"] = s < 0.3 ? "critical" : s < 0.5 ? "high" : s < 0.7 ? "medium" : "low";
+  const riskLevel: TopicHealth["riskLevel"] = n < 0.3 ? "critical" : n < 0.5 ? "high" : n < 0.7 ? "medium" : "low";
 
   return { conceptClarity, applicationStrength, errorPattern, decayPrediction, riskLevel };
 };
@@ -147,6 +154,7 @@ const DeepTopicExplorer = () => {
   const [focusOpen, setFocusOpen] = useState(false);
   const [revisionOpen, setRevisionOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
+  const strategyRef = useRef<HTMLDivElement>(null);
 
   // Smart Strategy
   const [strategyTopic, setStrategyTopic] = useState<TopicData | null>(null);
@@ -201,9 +209,9 @@ const DeepTopicExplorer = () => {
   const getSubjectStats = (sub: SubjectData) => {
     const count = sub.topics.length;
     if (count === 0) return { avg: 0, atRisk: 0, mastered: 0 };
-    const avg = sub.topics.reduce((s, t) => s + t.memory_strength, 0) / count;
-    const atRisk = sub.topics.filter(t => t.memory_strength < 0.4).length;
-    const mastered = sub.topics.filter(t => t.memory_strength >= 0.8).length;
+    const avg = sub.topics.reduce((s, t) => s + norm(t.memory_strength), 0) / count;
+    const atRisk = sub.topics.filter(t => norm(t.memory_strength) < 0.4).length;
+    const mastered = sub.topics.filter(t => norm(t.memory_strength) >= 0.8).length;
     return { avg, atRisk, mastered };
   };
 
@@ -215,25 +223,24 @@ const DeepTopicExplorer = () => {
 
     // Simulate brief AI processing feel
     setTimeout(() => {
-      const s = topic.memory_strength;
+      // Normalize: memory_strength may be 0-1 or 0-100
+      const raw = topic.memory_strength;
+      const s = raw > 1 ? raw / 100 : raw;
       const steps: StrategyStep[] = [];
 
       if (s < 0.3) {
-        // Critical — full recovery sequence
         steps.push(
           { action: "Emergency Recall Burst", mode: "revision", duration: "3 min", reason: "Reactivate fading memory traces before they're lost" },
           { action: "Deep Focus Rebuild", mode: "focus", duration: "15 min", reason: "Reconstruct weak foundations with focused learning" },
           { action: "Pressure Test", mode: "mock", duration: "5 min", reason: "Validate recovery under exam-like conditions" },
         );
       } else if (s < 0.6) {
-        // Moderate — reinforcement sequence
         steps.push(
           { action: "Quick Recall Check", mode: "revision", duration: "3 min", reason: "Test current retention level before reinforcing" },
           { action: "Targeted Review", mode: "focus", duration: "10 min", reason: "Strengthen gaps identified in recall check" },
           { action: "Application Practice", mode: "mock", duration: "5 min", reason: "Build application confidence with timed questions" },
         );
       } else {
-        // Strong — maintenance sequence
         steps.push(
           { action: "Speed Recall", mode: "revision", duration: "2 min", reason: "Maintain fast retrieval speed for this topic" },
           { action: "Challenge Mode", mode: "mock", duration: "5 min", reason: "Push boundaries with harder exam-level questions" },
@@ -243,6 +250,11 @@ const DeepTopicExplorer = () => {
 
       setStrategy(steps);
       setStrategyLoading(false);
+
+      // Auto-scroll to strategy panel
+      setTimeout(() => {
+        strategyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
     }, 600);
   };
 
@@ -341,7 +353,7 @@ const DeepTopicExplorer = () => {
                         <p className="text-xs text-muted-foreground text-center py-3">No topics in this subject</p>
                       ) : (
                         sub.topics.map((topic) => {
-                          const pct = Math.round(topic.memory_strength * 100);
+                          const pct = Math.round(norm(topic.memory_strength) * 100);
                           const isActionsOpen = showActions === topic.id;
                           const isHealthOpen = selectedTopic?.id === topic.id;
 
@@ -453,6 +465,7 @@ const DeepTopicExplorer = () => {
       <AnimatePresence>
         {strategyTopic && (
           <motion.div
+            ref={strategyRef}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
