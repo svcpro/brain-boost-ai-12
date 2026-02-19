@@ -26,10 +26,11 @@ const SPEAKING_STEPS = [
 
 const RECORDING_HINTS = [
   "💡 \"I studied Organic Chemistry, Alkenes, revision, feeling good\"",
+  "🇮🇳 Hindi में बोलो! \"मैंने Physics पढ़ा, Newton's Laws revise किया\"",
   "🎯 Mention the subject first, then the specific topic",
   "📝 Say what you did — revised, practiced, read, solved",
   "⭐ Add how confident you feel — optional but helpful",
-  "🧠 Keep it natural — AI understands everyday language",
+  "🧠 Speak in Hindi or English — AI auto-translates to English",
   "📚 You can mention multiple topics at once",
 ];
 
@@ -228,7 +229,7 @@ const VoiceBrainCapture = () => {
                   What I Studied ?
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed">
-                  Tap to speak — AI extracts topics & maps your memory
+                  Tap to speak in Hindi or English — AI auto-translates & maps your memory
                 </p>
               </div>
 
