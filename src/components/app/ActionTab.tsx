@@ -54,9 +54,9 @@ const studyModes = [
     id: "emergency",
     icon: AlertOctagon,
     title: "Emergency Rescue Mode",
-    desc: "Exam in <7 days? AI creates a rapid rescue plan targeting your critical weak points.",
-    duration: "20-40 min",
-    gain: "Max crisis recovery",
+    desc: "Memory crisis? AI runs rapid recall bursts + high-impact MCQ sprints to stabilize critical topics.",
+    duration: "5-8 min",
+    gain: "Emergency stabilization",
     color: "text-destructive",
     bgClass: "bg-destructive/15",
   },
@@ -519,7 +519,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       {/* ═══ Modals ═══ */}
       <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
-      <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} />
+      <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <MockPracticeSession open={mockOpen} onClose={() => setMockOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
     </div>
   );
