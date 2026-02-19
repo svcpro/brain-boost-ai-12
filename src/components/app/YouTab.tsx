@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, VolumeX, Mic, Mail, Trash2, BellRing, Sparkles, Camera, Loader2, Cpu, MessageSquare } from "lucide-react";
 import {
@@ -109,6 +110,7 @@ const SoundPreviewButton = ({ label, onPlay, duration }: { label: string; onPlay
 const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscription, onSubscriptionOpened, autoOpenNotifHistory, onNotifHistoryOpened }: YouTabProps) => {
   const { isEnabled } = useFeatureFlagContext();
   const { user, signOut } = useAuth();
+  const { streak: streakData } = useStudyStreak();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -646,7 +648,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning/10 border border-warning/20"
             >
               <Flame className="w-3.5 h-3.5 text-warning" />
-              <span className="text-xs font-semibold text-foreground">7 Day Streak</span>
+              <span className="text-xs font-semibold text-foreground">{streakData?.currentStreak ?? 0} Day Streak</span>
               <span className="text-sm">🔥</span>
             </motion.div>
             <motion.button
