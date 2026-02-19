@@ -384,51 +384,64 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
         }
       }
 
-      // Fallback to direct Google Gemini API
+      // Fallback to direct Google Gemini API with expanded model list & retry
       if (!aiData) {
         const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_API_KEY");
         if (GEMINI_KEY) {
           console.log("Falling back to direct Gemini API...");
-          const geminiModels = ["gemini-2.5-flash", "gemini-2.0-flash"];
+          const geminiModels = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
           for (const gModel of geminiModels) {
-            try {
-              const controller = new AbortController();
-              const timeout = setTimeout(() => controller.abort(), 50000);
-              const geminiResponse = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${GEMINI_KEY}`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    contents: [
-                      { role: "user", parts: [{ text: aiMessages[0].content + "\n\n" + aiMessages[1].content }] }
-                    ],
-                    generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
-                  }),
-                  signal: controller.signal,
+            // Retry each model up to 2 times with delay for rate limits
+            for (let attempt = 0; attempt < 2; attempt++) {
+              if (attempt > 0) {
+                console.log(`Retrying ${gModel} after delay...`);
+                await new Promise(r => setTimeout(r, 3000));
+              }
+              try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 55000);
+                const geminiResponse = await fetch(
+                  `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${GEMINI_KEY}`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      contents: [
+                        { role: "user", parts: [{ text: aiMessages[0].content + "\n\n" + aiMessages[1].content }] }
+                      ],
+                      generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
+                    }),
+                    signal: controller.signal,
+                  }
+                );
+                clearTimeout(timeout);
+
+                if (geminiResponse.status === 429) {
+                  lastError = `Gemini ${gModel}: rate limited`;
+                  console.error(lastError);
+                  continue; // retry with delay
                 }
-              );
-              clearTimeout(timeout);
+                if (!geminiResponse.ok) {
+                  const errBody = await geminiResponse.text();
+                  lastError = `Gemini ${gModel}: ${geminiResponse.status}`;
+                  console.error(lastError, errBody);
+                  break; // move to next model for non-429 errors
+                }
 
-              if (!geminiResponse.ok) {
-                const errBody = await geminiResponse.text();
-                lastError = `Gemini ${gModel}: ${geminiResponse.status}`;
-                console.error(lastError, errBody);
-                continue;
+                const geminiData = await geminiResponse.json();
+                const textContent = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (textContent) {
+                  const parsed = JSON.parse(textContent);
+                  aiData = { choices: [{ message: { content: JSON.stringify(parsed) } }] };
+                  console.log(`Direct Gemini ${gModel} succeeded (attempt ${attempt + 1})`);
+                  break;
+                }
+              } catch (e: any) {
+                lastError = e.name === "AbortError" ? "Gemini timeout" : (e.message || "Gemini error");
+                console.error(`Gemini ${gModel} attempt ${attempt + 1}: ${lastError}`);
               }
-
-              const geminiData = await geminiResponse.json();
-              const textContent = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (textContent) {
-                const parsed = JSON.parse(textContent);
-                aiData = { choices: [{ message: { content: JSON.stringify(parsed) } }] };
-                console.log(`Direct Gemini ${gModel} succeeded`);
-                break;
-              }
-            } catch (e: any) {
-              lastError = e.name === "AbortError" ? "Gemini timeout" : (e.message || "Gemini error");
-              console.error(`Gemini ${gModel}: ${lastError}`);
             }
+            if (aiData) break;
           }
         } else {
           console.error("No GOOGLE_GEMINI_API_KEY configured for fallback");
@@ -436,7 +449,12 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
       }
 
       if (!aiData) {
-        return new Response(JSON.stringify({ error: "AI service temporarily unavailable. Please try again in a moment." }), {
+        const hint = lastError.includes("429") || lastError.includes("rate")
+          ? "AI service is rate limited. Please wait 30 seconds and try again."
+          : lastError.includes("402") || lastError.includes("Credit")
+          ? "AI credits exhausted. Please try again later or contact support."
+          : "AI service temporarily unavailable. Please try again in a moment.";
+        return new Response(JSON.stringify({ error: hint }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
