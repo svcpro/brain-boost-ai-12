@@ -513,20 +513,32 @@ const ConfidencePracticeTab = () => {
         {/* Progress */}
         <Progress value={progress} className="h-1.5" />
 
-        {/* Probability badge for predicted */}
-        {source === "predicted" && q.probability_level && (
-          <div className="flex items-center gap-2">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              q.probability_level === "Very High" ? "bg-primary/20 text-primary" :
-              q.probability_level === "High" ? "bg-primary/10 text-primary" :
-              "bg-secondary text-muted-foreground"
-            }`}>
-              {q.probability_level} Probability
-            </span>
-            {q.probability_score && (
-              <span className="text-[10px] text-muted-foreground">{q.probability_score}% confidence</span>
+        {/* Prediction badge for AI predicted questions */}
+        {source === "predicted" && q.probability_score && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl p-3 border border-primary/20 bg-primary/5 space-y-1.5"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                  (q.probability_score || 0) >= 80 ? "bg-primary/20 text-primary" :
+                  (q.probability_score || 0) >= 60 ? "bg-accent/20 text-accent-foreground" :
+                  "bg-secondary text-muted-foreground"
+                }`}>
+                  🎯 {q.probability_level || "Predicted"}
+                </div>
+                <span className="text-xs font-bold text-foreground">{q.probability_score}% match</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">Based on 5-year PYQ analysis</span>
+            </div>
+            {q.trend_reason && (
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                📊 {q.trend_reason}
+              </p>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* Previous year tag for bank */}
