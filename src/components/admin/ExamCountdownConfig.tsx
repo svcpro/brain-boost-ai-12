@@ -205,6 +205,12 @@ const ExamCountdownConfig = () => {
             </button>
           ))}
         </div>
+        {(config.bypass_plan_keys || []).includes("pro") && (
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/20">
+            <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
+            <p className="text-[11px] text-warning">Warning: Enabling Pro bypass means most paid users will skip all mode restrictions, defeating the lockdown purpose.</p>
+          </div>
+        )}
       </div>
     </div>
   );
