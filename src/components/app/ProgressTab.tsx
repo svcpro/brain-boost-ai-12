@@ -1,467 +1,601 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock, Users, SlidersHorizontal, RefreshCw, Flame, Award, Trophy, Star, Zap, Medal, HeartCrack, PartyPopper, Snowflake, Globe, AlertTriangle } from "lucide-react";
-import confetti from "canvas-confetti";
-import { useRankPrediction } from "@/hooks/useRankPrediction";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast, useToast } from "@/hooks/use-toast";
-import { setCache, getCache } from "@/lib/offlineCache";
-import WeeklyReportCard from "./WeeklyReportCard";
-import LeaderboardCard from "./LeaderboardCard";
-import WeeklyFocusChart from "./WeeklyFocusChart";
-import MonthlyFocusTrend from "./MonthlyFocusTrend";
-import MonthlyHeatmap from "./MonthlyHeatmap";
-import BrainEvolution from "./BrainEvolution";
-import CompetitionIntel from "./CompetitionIntel";
-import ExamSimulator from "./ExamSimulator";
-import ExamHistory from "./ExamHistory";
-import WeakQuestions from "./WeakQuestions";
-import WeeklyReportAI from "./WeeklyReportAI";
-import ConfidenceTrendChart from "./ConfidenceTrendChart";
-import ConfidenceGoalTracker from "./ConfidenceGoalTracker";
-import StreakFreezeCard from "./StreakFreezeCard";
-import FreezeGiftInbox from "./FreezeGiftInbox";
-import ConsistencyScore from "./ConsistencyScore";
-import PushNotificationToggle from "./PushNotificationToggle";
-import BadgeGallery from "./BadgeGallery";
-import WeeklyDigestPreview from "./WeeklyDigestPreview";
-import PredictionDashboard from "./PredictionDashboard";
-import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
+import { useEffect, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Brain, Zap, Target, Shield, TrendingUp, BarChart3, Radar,
+  AlertTriangle, Trophy, Flame, RefreshCw, ChevronDown, ChevronUp,
+  Crosshair, Atom, Activity, Gauge, BookOpen, Clock, Star,
+  ArrowUpRight, ArrowDownRight, Minus, Sparkles, Layers
+} from "lucide-react";
+import { useExamDomination, ExamDominationData } from "@/hooks/useExamDomination";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
-type DayStatus = "studied" | "frozen" | "none";
-
-interface StreakData {
-  currentStreak: number;
-  longestStreak: number;
-  last30Days: DayStatus[];
-  todayStudied: boolean;
-  brokenStreak: number; // streak length before it was broken (0 if not broken)
-  isComeback: boolean; // true if user just restarted after a 3+ day broken streak
-}
-
-const MILESTONES = [
-  { days: 3, label: "3-Day Starter", icon: Zap, emoji: "⚡", color: "text-primary", ring: "border-primary/60", glow: "glow-primary" },
-  { days: 5, label: "5-Day Shield", icon: Award, emoji: "🛡️", color: "text-warning", ring: "border-warning/60", glow: "" },
-  { days: 7, label: "7-Day Streak", icon: Award, emoji: "🔥", color: "text-warning", ring: "border-warning/60", glow: "" },
-  { days: 14, label: "14-Day Warrior", icon: Star, emoji: "⭐", color: "text-primary", ring: "border-primary/60", glow: "" },
-  { days: 30, label: "30-Day Legend", icon: Trophy, emoji: "🏆", color: "text-success", ring: "border-success/60", glow: "" },
-];
-
-const ProgressTab = () => {
-  const { user } = useAuth();
-  const { isEnabled } = useFeatureFlagContext();
-  const { data, loading, predictRank } = useRankPrediction();
-  const [streak, setStreak] = useState<StreakData | null>(() => getCache("progress-streak"));
-  const [showBrainEvo, setShowBrainEvo] = useState(false);
-  const [showCompIntel, setShowCompIntel] = useState(false);
-  const [showExamSim, setShowExamSim] = useState(false);
-  const [retryQuestions, setRetryQuestions] = useState<any[] | undefined>(undefined);
-  const [showWeeklyAI, setShowWeeklyAI] = useState(false);
-  const [showPredictions, setShowPredictions] = useState(false);
-  const notifiedRef = useRef(false);
-  const [freezeData, setFreezeData] = useState<{ available: number; usedToday: boolean }>({ available: 0, usedToday: false });
-  const [checkingBenchmark, setCheckingBenchmark] = useState(false);
-
-  const loadStreak = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      // Fetch study logs from last 90 days to compute streaks
-      const since = new Date();
-      since.setDate(since.getDate() - 90);
-
-      const { data: logs } = await supabase
-        .from("study_logs")
-        .select("created_at")
-        .eq("user_id", user.id)
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: true });
-
-      // Fetch streak freezes
-      const { data: freezes } = await (supabase as any)
-        .from("streak_freezes")
-        .select("id, used_date")
-        .eq("user_id", user.id);
-
-      const frozenDays = new Set<string>();
-      let availableFreezes = 0;
-      const todayDate = new Date().toISOString().split("T")[0];
-      let usedFreezeToday = false;
-      if (freezes) {
-        for (const f of freezes) {
-          if (f.used_date) {
-            frozenDays.add(f.used_date);
-            if (f.used_date === todayDate) usedFreezeToday = true;
-          } else {
-            availableFreezes++;
-          }
-        }
-      }
-      setFreezeData({ available: availableFreezes, usedToday: usedFreezeToday });
-
-      if (!logs) return;
-
-      // Build a set of study dates (YYYY-MM-DD)
-      const studyDays = new Set<string>();
-      for (const log of logs) {
-        const d = new Date(log.created_at);
-        studyDays.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-      }
-
-      const today = new Date();
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      const todayStudied = studyDays.has(todayStr);
-
-      // Count streak considering frozen days as "studied"
-      let currentStreak = 0;
-      const checkDate = new Date(today);
-      if (!todayStudied && !frozenDays.has(todayStr)) {
-        checkDate.setDate(checkDate.getDate() - 1);
-      }
-      while (true) {
-        const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
-        if (studyDays.has(key) || frozenDays.has(key)) {
-          currentStreak++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else break;
-      }
-
-      // Compute broken streak and comeback status
-      let brokenStreak = 0;
-      let isComeback = false;
-
-      // Check for comeback: currentStreak is 1 (just today) and yesterday was a gap after a 3+ streak
-      if (currentStreak === 1 && todayStudied) {
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
-        if (!studyDays.has(yKey)) {
-          // Walk back from 2 days ago to find previous streak
-          const walkBack = new Date(today);
-          walkBack.setDate(walkBack.getDate() - 2);
-          let gapDays = 1;
-          while (gapDays < 30) {
-            const key = `${walkBack.getFullYear()}-${String(walkBack.getMonth() + 1).padStart(2, "0")}-${String(walkBack.getDate()).padStart(2, "0")}`;
-            if (studyDays.has(key)) {
-              let prevStreak = 0;
-              const countDate = new Date(walkBack);
-              while (true) {
-                const k = `${countDate.getFullYear()}-${String(countDate.getMonth() + 1).padStart(2, "0")}-${String(countDate.getDate()).padStart(2, "0")}`;
-                if (studyDays.has(k)) { prevStreak++; countDate.setDate(countDate.getDate() - 1); } else break;
-              }
-              if (prevStreak >= 3) { brokenStreak = prevStreak; isComeback = true; }
-              break;
-            }
-            walkBack.setDate(walkBack.getDate() - 1);
-            gapDays++;
-          }
-        }
-      }
-
-      // If not a comeback, check for broken streak (no study today)
-      if (!isComeback && currentStreak === 0 && !todayStudied) {
-        const walkBack = new Date(today);
-        walkBack.setDate(walkBack.getDate() - 1);
-        let gapDays = 1;
-        while (gapDays < 30) {
-          const key = `${walkBack.getFullYear()}-${String(walkBack.getMonth() + 1).padStart(2, "0")}-${String(walkBack.getDate()).padStart(2, "0")}`;
-          if (studyDays.has(key)) {
-            let prevStreak = 0;
-            const countDate = new Date(walkBack);
-            while (true) {
-              const k = `${countDate.getFullYear()}-${String(countDate.getMonth() + 1).padStart(2, "0")}-${String(countDate.getDate()).padStart(2, "0")}`;
-              if (studyDays.has(k)) { prevStreak++; countDate.setDate(countDate.getDate() - 1); } else break;
-            }
-            if (prevStreak >= 3) brokenStreak = prevStreak;
-            break;
-          }
-          walkBack.setDate(walkBack.getDate() - 1);
-          gapDays++;
-        }
-      }
-
-      let longestStreak = 0;
-      let tempStreak = 0;
-      const iterDate = new Date(since);
-      while (iterDate <= today) {
-        const key = `${iterDate.getFullYear()}-${String(iterDate.getMonth() + 1).padStart(2, "0")}-${String(iterDate.getDate()).padStart(2, "0")}`;
-        if (studyDays.has(key) || frozenDays.has(key)) {
-          tempStreak++;
-          longestStreak = Math.max(longestStreak, tempStreak);
-        } else {
-          tempStreak = 0;
-        }
-        iterDate.setDate(iterDate.getDate() + 1);
-      }
-
-      const last30Days: DayStatus[] = [];
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        const dateOnly = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        if (studyDays.has(key)) last30Days.push("studied");
-        else if (frozenDays.has(dateOnly)) last30Days.push("frozen");
-        else last30Days.push("none");
-      }
-
-      const result = { currentStreak, longestStreak, last30Days, todayStudied, brokenStreak, isComeback };
-      setStreak(result);
-      setCache("progress-streak", result);
-    } catch {
-      // offline – cached data already loaded via initial state
-    }
-  }, [user]);
-
-  // Show toast notification for milestone achievements, streak recovery, or comeback
-  useEffect(() => {
-    if (!streak || notifiedRef.current) return;
-    notifiedRef.current = true;
-
-    // Comeback celebration
-    if (streak.isComeback) {
-      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-      toast({
-        title: "🎉 Welcome back!",
-        description: "You're back on track — your new streak starts now!",
-      });
-      return;
-    }
-
-    // Streak recovery nudge
-    if (streak.brokenStreak >= 3) {
-      toast({
-        title: `💔 ${streak.brokenStreak}-day streak broken`,
-        description: "One session today can restart your momentum!",
-      });
-      return;
-    }
-
-    const hit = MILESTONES.filter((m) => streak.currentStreak >= m.days);
-    const highest = hit.length > 0 ? hit[hit.length - 1] : null;
-    // Only notify if streak exactly matches a milestone (celebrate the moment)
-    const exact = MILESTONES.find((m) => streak.currentStreak === m.days);
-    if (exact) {
-      toast({
-        title: `${exact.emoji} ${exact.label} Unlocked!`,
-        description: `You've studied ${exact.days} days in a row. Keep it up!`,
-      });
-      // Award scaled streak freezes at milestones
-      if (user) {
-        const freezeRewards: Record<number, number> = { 3: 0, 5: 1, 7: 1, 14: 2, 30: 3 };
-        const reward = freezeRewards[exact.days];
-        if (reward && reward > 0) {
-          const inserts = Array.from({ length: reward }, () => ({ user_id: user.id }));
-          (supabase as any)
-            .from("streak_freezes")
-            .insert(inserts)
-            .then(() => {
-              toast({
-                title: `❄️ ${reward} streak freeze${reward > 1 ? "s" : ""} earned!`,
-                description: `${exact.days}-day milestone reward — skip ${reward > 1 ? "days" : "a day"} without breaking your streak.`,
-              });
-              loadStreak();
-            });
-        }
-      }
-    }
-  }, [streak]);
-
-  const runBenchmarkCheck = useCallback(async () => {
-    if (!user || checkingBenchmark) return;
-    setCheckingBenchmark(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke("benchmark-deviation-check", {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      const result = res.data;
-      if (result?.alerts?.length > 0) {
-        const negCount = result.alerts.filter((a: any) => a.severity === "negative").length;
-        const posCount = result.alerts.filter((a: any) => a.severity === "positive").length;
-        toast({
-          title: `📊 Benchmark Analysis Complete`,
-          description: `${negCount > 0 ? `${negCount} area${negCount > 1 ? "s" : ""} need attention` : ""}${negCount > 0 && posCount > 0 ? " · " : ""}${posCount > 0 ? `${posCount} area${posCount > 1 ? "s" : ""} above average` : ""}. Check notifications for details.`,
-        });
-      } else {
-        toast({
-          title: "✅ On Track",
-          description: result?.message || "No significant deviations from global benchmarks.",
-        });
-      }
-    } catch (e) {
-      toast({ title: "Error", description: "Could not run benchmark check." });
-    } finally {
-      setCheckingBenchmark(false);
-    }
-  }, [user, checkingBenchmark]);
-
-  useEffect(() => {
-    predictRank();
-    loadStreak();
-  }, []);
-
-  const predictedRank = data?.predicted_rank;
-  const percentile = data?.percentile;
-  const rankChange = data?.rank_change ?? 0;
-  const weeklyData = data?.weekly_data ?? [];
-  const weekTotalHours = data?.week_total_hours ?? 0;
-  const history = data?.history ?? [];
-  const factors = data?.factors;
-  const hasData = predictedRank !== null && predictedRank !== undefined;
-
+// Sub-components
+const GlowingMetric = ({ label, value, suffix = "%", icon: Icon, color = "primary", size = "default" }: {
+  label: string; value: number; suffix?: string; icon: any; color?: string; size?: "default" | "large";
+}) => {
+  const colorMap: Record<string, string> = {
+    primary: "from-primary/20 to-primary/5 text-primary border-primary/30",
+    success: "from-success/20 to-success/5 text-success border-success/30",
+    warning: "from-warning/20 to-warning/5 text-warning border-warning/30",
+    destructive: "from-destructive/20 to-destructive/5 text-destructive border-destructive/30",
+  };
   return (
-    <div className="px-6 py-6 space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Progress Intelligence</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {hasData ? "AI-powered rank prediction active." : "Log study sessions to activate predictions."}
-          </p>
-        </div>
-        <button onClick={predictRank} disabled={loading} className="p-2 rounded-lg neural-gradient neural-border hover:glow-primary transition-all disabled:opacity-50">
-          <RefreshCw className={`w-4 h-4 text-primary ${loading ? "animate-spin" : ""}`} />
-        </button>
-      </motion.div>
-
-      {/* Study Streak - placeholder removed */}
-
-      {/* Streak Freeze */}
-      {isEnabled("progress_streak_freeze") && (
-      <StreakFreezeCard
-        availableFreezes={freezeData.available}
-        usedToday={freezeData.usedToday}
-        canUseToday={!!(streak && !streak.todayStudied && streak.currentStreak > 0)}
-        onFreezeUsed={loadStreak}
-      />
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className={cn(
+        "relative overflow-hidden rounded-xl border bg-gradient-to-br p-4",
+        colorMap[color] || colorMap.primary
       )}
+    >
+      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-current/5 to-transparent rounded-bl-full" />
+      <Icon className={cn("w-4 h-4 mb-2 opacity-70", size === "large" && "w-5 h-5")} />
+      <div className={cn("font-black", size === "large" ? "text-3xl" : "text-2xl")}>
+        {Math.round(value)}{suffix}
+      </div>
+      <div className="text-[10px] uppercase tracking-wider opacity-60 mt-1 font-medium">{label}</div>
+    </motion.div>
+  );
+};
 
-      {/* Freeze Gift Inbox */}
-      {isEnabled("progress_gifts") && <FreezeGiftInbox />}
+const DominationBadge = ({ level }: { level: string }) => {
+  const config: Record<string, { bg: string; text: string; label: string; icon: any }> = {
+    dominating: { bg: "bg-success/20 border-success/40", text: "text-success", label: "DOMINATING", icon: Trophy },
+    strong: { bg: "bg-primary/20 border-primary/40", text: "text-primary", label: "STRONG", icon: Flame },
+    building: { bg: "bg-warning/20 border-warning/40", text: "text-warning", label: "BUILDING", icon: TrendingUp },
+    needs_work: { bg: "bg-warning/20 border-warning/40", text: "text-warning", label: "NEEDS WORK", icon: AlertTriangle },
+    critical: { bg: "bg-destructive/20 border-destructive/40", text: "text-destructive", label: "CRITICAL", icon: AlertTriangle },
+  };
+  const c = config[level] || config.building;
+  const Icon = c.icon;
+  return (
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold tracking-wider", c.bg, c.text)}
+    >
+      <Icon className="w-3.5 h-3.5" />
+      {c.label}
+    </motion.div>
+  );
+};
 
-      {/* Badge Gallery */}
-      {isEnabled("progress_badges") && <BadgeGallery />}
+const SectionHeader = ({ icon: Icon, title, subtitle, action }: { icon: any; title: string; subtitle?: string; action?: React.ReactNode }) => (
+  <div className="flex items-center justify-between mb-3">
+    <div className="flex items-center gap-2">
+      <div className="p-1.5 rounded-lg bg-primary/10">
+        <Icon className="w-4 h-4 text-primary" />
+      </div>
+      <div>
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        {subtitle && <p className="text-[10px] text-muted-foreground">{subtitle}</p>}
+      </div>
+    </div>
+    {action}
+  </div>
+);
 
-      {/* Push Notification Toggle */}
-      {isEnabled("progress_push_notif") && <PushNotificationToggle />}
-
-      {/* Comeback Celebration - kept inline with streak */}
-      {streak && streak.isComeback && (
+// Competition Meter
+const CompetitionMeter = ({ intensity }: { intensity: string }) => {
+  const levels = ["low", "moderate", "high", "extreme"];
+  const idx = levels.indexOf(intensity);
+  const colors = ["bg-success", "bg-primary", "bg-warning", "bg-destructive"];
+  return (
+    <div className="flex gap-1 items-end h-6">
+      {levels.map((l, i) => (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className="glass rounded-xl p-5 neural-border border-success/30 relative overflow-hidden"
-        >
-          <motion.div className="absolute inset-0 bg-gradient-to-br from-success/5 to-primary/5" animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 2, repeat: Infinity }} />
-          <div className="relative flex items-start gap-3">
-            <motion.div className="p-2 rounded-lg bg-success/10 shrink-0" animate={{ rotate: [0, -10, 10, -10, 0] }} transition={{ duration: 0.6, delay: 0.3 }}>
-              <PartyPopper className="w-5 h-5 text-success" />
-            </motion.div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">🎉 You're back!</h3>
-              <p className="text-xs text-muted-foreground mt-1">After a break from your {streak.brokenStreak}-day streak, you've jumped right back in.</p>
-              <div className="flex items-center gap-2 mt-3">
-                <span className="text-[10px] text-success font-medium px-2 py-1 rounded-full bg-success/10">🔥 New streak: Day 1</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Streak Recovery Nudge */}
-      {streak && !streak.isComeback && streak.brokenStreak >= 3 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-5 neural-border border-warning/30">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-warning/10 shrink-0"><HeartCrack className="w-5 h-5 text-warning" /></div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Your {streak.brokenStreak}-day streak ended</h3>
-              <p className="text-xs text-muted-foreground mt-1">You were on a great run! Studies show that resuming quickly preserves most of your memory gains.</p>
-              <div className="flex items-center gap-2 mt-3">
-                <span className="text-[10px] text-warning font-medium px-2 py-1 rounded-full bg-warning/10">🔥 Study today to start a new streak</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Weekly Report Card */}
-      {isEnabled("progress_weekly_report") && <WeeklyReportCard />}
-
-      {/* Weekly Brain Digest Preview */}
-      {isEnabled("progress_weekly_digest") && <WeeklyDigestPreview />}
-
-      {/* Consistency Score */}
-      {isEnabled("progress_consistency") && <ConsistencyScore />}
-
-      {/* Weekly Focus Chart */}
-      {isEnabled("progress_weekly_focus") && <WeeklyFocusChart />}
-
-      {/* Confidence Trend */}
-      {isEnabled("progress_confidence") && (
-        <>
-          <ConfidenceTrendChart />
-          <ConfidenceGoalTracker />
-        </>
-      )}
-
-      {/* Monthly Charts */}
-      {isEnabled("progress_monthly") && (
-        <>
-          <MonthlyFocusTrend />
-          <MonthlyHeatmap />
-        </>
-      )}
-
-      {/* Rank Prediction - placeholder removed */}
-
-      {/* Leaderboard */}
-      {isEnabled("progress_leaderboard") && <LeaderboardCard />}
-
-      {/* Features - placeholder removed */}
-
-      {/* Quick Exam */}
-      {isEnabled("progress_exam") && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl neural-border p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Quick Exam</h3>
-          </div>
-          <p className="text-xs text-muted-foreground">Test your knowledge with an AI-generated exam based on your study topics.</p>
-          <button
-            onClick={() => { setRetryQuestions(undefined); setShowExamSim(true); }}
-            className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity active:scale-[0.98] flex items-center justify-center gap-2"
-          >
-            <Zap className="w-4 h-4" />
-            Start Quick Exam
-          </button>
-        </motion.div>
-      )}
-
-      {/* Exam History */}
-      {isEnabled("progress_exam") && (
-      <ExamHistory onRetryMistakes={(questions) => {
-        setRetryQuestions(questions);
-        setShowExamSim(true);
-      }} />
-      )}
-
-      {/* Weak Questions */}
-      {isEnabled("progress_weak_questions") && (
-      <WeakQuestions onRetryWeak={(questions) => {
-        setRetryQuestions(questions);
-        setShowExamSim(true);
-      }} />
-      )}
-
-      {showBrainEvo && <BrainEvolution onClose={() => setShowBrainEvo(false)} />}
-      {showCompIntel && <CompetitionIntel onClose={() => setShowCompIntel(false)} />}
-      {showExamSim && <ExamSimulator onClose={() => { setShowExamSim(false); setRetryQuestions(undefined); }} retryQuestions={retryQuestions} />}
-      {showWeeklyAI && <WeeklyReportAI onClose={() => setShowWeeklyAI(false)} />}
-      {showPredictions && <PredictionDashboard onClose={() => setShowPredictions(false)} />}
+          key={l}
+          initial={{ scaleY: 0 }}
+          animate={{ scaleY: 1 }}
+          transition={{ delay: i * 0.1 }}
+          className={cn(
+            "w-3 rounded-t-sm origin-bottom transition-colors",
+            i <= idx ? colors[idx] : "bg-muted"
+          )}
+          style={{ height: `${(i + 1) * 25}%` }}
+        />
+      ))}
     </div>
   );
 };
+
+// Cutoff Risk Badge
+const CutoffBadge = ({ risk }: { risk: string }) => {
+  const config: Record<string, { color: string; label: string }> = {
+    safe: { color: "bg-success/20 text-success border-success/30", label: "SAFE" },
+    borderline: { color: "bg-warning/20 text-warning border-warning/30", label: "BORDERLINE" },
+    at_risk: { color: "bg-destructive/20 text-destructive border-destructive/30", label: "AT RISK" },
+    below: { color: "bg-destructive/30 text-destructive border-destructive/50", label: "BELOW CUTOFF" },
+  };
+  const c = config[risk] || config.borderline;
+  return <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", c.color)}>{c.label}</span>;
+};
+
+// Mastery Heatmap Bar
+const MasteryBar = ({ topic, mastery }: { topic: string; mastery: number }) => {
+  const getColor = (v: number) => {
+    if (v >= 80) return "bg-success";
+    if (v >= 60) return "bg-primary";
+    if (v >= 40) return "bg-warning";
+    return "bg-destructive";
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] text-muted-foreground w-24 truncate">{topic}</span>
+      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${mastery}%` }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className={cn("h-full rounded-full", getColor(mastery))}
+        />
+      </div>
+      <span className="text-[10px] font-mono text-foreground w-8 text-right">{mastery}%</span>
+    </div>
+  );
+};
+
+const ProgressTab = () => {
+  const { data, loading, error, analyze } = useExamDomination();
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    intelligence: true,
+    questions: false,
+    competition: true,
+    strategy: false,
+    syllabus: false,
+    metrics: true,
+  });
+
+  useEffect(() => {
+    if (!data) analyze();
+  }, []);
+
+  useEffect(() => {
+    if (error) toast({ title: "Analysis Error", description: error, variant: "destructive" });
+  }, [error]);
+
+  const toggleSection = (key: string) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const trendIcon = (trend: string) => {
+    if (trend === "rising") return <ArrowUpRight className="w-3 h-3 text-success" />;
+    if (trend === "declining") return <ArrowDownRight className="w-3 h-3 text-destructive" />;
+    return <Minus className="w-3 h-3 text-muted-foreground" />;
+  };
+
+  const priorityColor = (p: string) => {
+    if (p === "critical") return "text-destructive bg-destructive/10 border-destructive/30";
+    if (p === "high") return "text-warning bg-warning/10 border-warning/30";
+    if (p === "medium") return "text-primary bg-primary/10 border-primary/30";
+    return "text-muted-foreground bg-muted border-border";
+  };
+
+  return (
+    <div className="px-4 py-6 space-y-4 pb-24">
+      {/* Hero Header */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-5">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-accent/10 to-transparent rounded-tr-full" />
+        
+        <div className="relative">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <motion.div
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="p-2 rounded-xl bg-primary/10 border border-primary/20"
+              >
+                <Atom className="w-5 h-5 text-primary" />
+              </motion.div>
+              <div>
+                <h1 className="text-lg font-black text-foreground tracking-tight">ACRY ULTRA</h1>
+                <p className="text-[10px] text-muted-foreground tracking-widest uppercase">AI Exam Domination Engine</p>
+              </div>
+            </div>
+            <button
+              onClick={() => analyze()}
+              disabled={loading}
+              className="p-2 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={cn("w-4 h-4 text-primary", loading && "animate-spin")} />
+            </button>
+          </div>
+
+          {data && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <DominationBadge level={data.domination_level} />
+                {data.days_to_exam !== null && (
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    {data.days_to_exam}d to {data.exam_type}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{data.overall_verdict}</p>
+            </div>
+          )}
+
+          {loading && !data && (
+            <div className="flex items-center gap-3 mt-2">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }} className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
+              <span className="text-xs text-muted-foreground">Analyzing your cognitive data...</span>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {data && (
+        <>
+          {/* Ultra Metrics Grid */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 gap-3">
+            <GlowingMetric label="Exam Intelligence" value={data.ultra_metrics.exam_intelligence_score} icon={Brain} color="primary" />
+            <GlowingMetric label="Crack Probability" value={data.competition_simulation.crack_probability} icon={Target} color={data.competition_simulation.crack_probability >= 60 ? "success" : data.competition_simulation.crack_probability >= 30 ? "warning" : "destructive"} />
+            <GlowingMetric label="Performance Accel." value={data.ultra_metrics.performance_acceleration} icon={Zap} color="success" />
+            <GlowingMetric label="ML Confidence" value={data.ultra_metrics.ml_confidence} icon={Sparkles} color="primary" />
+          </motion.div>
+
+          {/* Competition Simulation */}
+          <CollapsibleSection
+            title="Competition Simulation"
+            subtitle={`${(data.competition_simulation.virtual_students_simulated || 10000).toLocaleString()} virtual students`}
+            icon={Trophy}
+            isOpen={expandedSections.competition}
+            onToggle={() => toggleSection("competition")}
+          >
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="glass rounded-xl p-3 neural-border">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Expected Rank</div>
+                  <div className="text-xl font-black text-foreground mt-1">
+                    {data.competition_simulation.expected_rank_min.toLocaleString()}-{data.competition_simulation.expected_rank_max.toLocaleString()}
+                  </div>
+                </div>
+                <div className="glass rounded-xl p-3 neural-border">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Percentile</div>
+                  <div className="text-xl font-black text-primary mt-1">{data.competition_simulation.percentile}th</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between glass rounded-xl p-3 neural-border">
+                <div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Competition Intensity</div>
+                  <div className="text-sm font-bold text-foreground mt-0.5 capitalize">{data.competition_simulation.competition_intensity}</div>
+                </div>
+                <CompetitionMeter intensity={data.competition_simulation.competition_intensity} />
+              </div>
+              <div className="flex items-center justify-between glass rounded-xl p-3 neural-border">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Cutoff Risk</div>
+                <CutoffBadge risk={data.competition_simulation.cutoff_risk} />
+              </div>
+              {/* Rank Probability Distribution */}
+              {data.ultra_metrics.rank_probability_data.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Rank Probability Distribution</div>
+                  {data.ultra_metrics.rank_probability_data.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground w-20 truncate">{r.rank_range}</span>
+                      <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${r.probability}%` }}
+                          transition={{ duration: 0.6, delay: i * 0.1 }}
+                          className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono text-foreground w-8 text-right">{r.probability}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* Exam Intelligence */}
+          <CollapsibleSection
+            title="Exam Intelligence Engine"
+            subtitle={`Score: ${data.exam_intelligence.overall_score}%`}
+            icon={Brain}
+            isOpen={expandedSections.intelligence}
+            onToggle={() => toggleSection("intelligence")}
+          >
+            <div className="space-y-3">
+              {/* High Probability Topics */}
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">High Probability Topics</div>
+              {data.exam_intelligence.high_probability_topics.map((t, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex items-center gap-2 glass rounded-lg p-2.5 neural-border"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-foreground">{t.name}</span>
+                      {trendIcon(t.trend)}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border", priorityColor(t.impact))}>{t.impact.toUpperCase()}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-black text-primary">{t.probability}%</div>
+                    <div className="text-[9px] text-muted-foreground">probability</div>
+                  </div>
+                </motion.div>
+              ))}
+
+              {/* Emerging & Declining */}
+              {data.exam_intelligence.emerging_topics.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-success uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <ArrowUpRight className="w-3 h-3" /> Emerging Trends
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {data.exam_intelligence.emerging_topics.map((t, i) => (
+                      <span key={i} className="text-[10px] bg-success/10 text-success border border-success/20 px-2 py-0.5 rounded-full">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {data.exam_intelligence.declining_topics.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <ArrowDownRight className="w-3 h-3" /> Declining Topics
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {data.exam_intelligence.declining_topics.map((t, i) => (
+                      <span key={i} className="text-[10px] bg-muted text-muted-foreground border border-border px-2 py-0.5 rounded-full">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* Predicted Questions */}
+          <CollapsibleSection
+            title="Predicted Questions"
+            subtitle={`${data.predicted_questions.length} AI-generated predictions`}
+            icon={Crosshair}
+            isOpen={expandedSections.questions}
+            onToggle={() => toggleSection("questions")}
+          >
+            <div className="space-y-3">
+              {data.predicted_questions.map((q, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                  className="glass rounded-xl p-3 neural-border space-y-2"
+                >
+                  <p className="text-xs text-foreground leading-relaxed">{q.question}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                      {q.probability}% likely
+                    </span>
+                    <span className={cn(
+                      "text-[9px] font-bold px-2 py-0.5 rounded-full border",
+                      q.difficulty === "hard" ? "text-destructive bg-destructive/10 border-destructive/20" :
+                        q.difficulty === "medium" ? "text-warning bg-warning/10 border-warning/20" :
+                          "text-success bg-success/10 border-success/20"
+                    )}>
+                      {q.difficulty.toUpperCase()}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground">{q.topic}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Relevance: {q.relevance_score}%</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </CollapsibleSection>
+
+          {/* Adaptive Strategy */}
+          <CollapsibleSection
+            title="AI Strategy Engine"
+            subtitle={data.adaptive_strategy.strategy_summary.slice(0, 50) + "..."}
+            icon={Gauge}
+            isOpen={expandedSections.strategy}
+            onToggle={() => toggleSection("strategy")}
+          >
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">{data.adaptive_strategy.strategy_summary}</p>
+
+              {/* Daily Plan */}
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Today's Optimized Plan</div>
+              {data.adaptive_strategy.daily_plan.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 glass rounded-lg p-2.5 neural-border">
+                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border", priorityColor(p.priority))}>
+                    {p.priority[0].toUpperCase()}
+                  </span>
+                  <span className="text-xs text-foreground flex-1">{p.topic}</span>
+                  <span className="text-xs font-mono text-primary">{p.minutes}m</span>
+                </div>
+              ))}
+
+              {/* Weak Areas */}
+              {data.adaptive_strategy.weak_areas.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-destructive uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Weak Areas
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {data.adaptive_strategy.weak_areas.map((w, i) => (
+                      <span key={i} className="text-[10px] bg-destructive/10 text-destructive border border-destructive/20 px-2 py-0.5 rounded-full">{w}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="glass rounded-lg p-2.5 neural-border">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Time Allocation</div>
+                <p className="text-xs text-foreground mt-1">{data.adaptive_strategy.time_allocation_advice}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">Difficulty:</span>
+                <span className={cn(
+                  "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                  data.adaptive_strategy.difficulty_recommendation === "increase" ? "text-success bg-success/10 border-success/20" :
+                    data.adaptive_strategy.difficulty_recommendation === "decrease" ? "text-warning bg-warning/10 border-warning/20" :
+                      "text-primary bg-primary/10 border-primary/20"
+                )}>
+                  {data.adaptive_strategy.difficulty_recommendation.toUpperCase()}
+                </span>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* Syllabus Domination */}
+          <CollapsibleSection
+            title="Syllabus Domination"
+            subtitle={`${data.syllabus_domination.coverage_percentage}% coverage`}
+            icon={BookOpen}
+            isOpen={expandedSections.syllabus}
+            onToggle={() => toggleSection("syllabus")}
+          >
+            <div className="space-y-3">
+              {/* Coverage Bar */}
+              <div>
+                <div className="flex justify-between text-[10px] mb-1">
+                  <span className="text-muted-foreground uppercase tracking-wider">Syllabus Coverage</span>
+                  <span className="font-bold text-foreground">{data.syllabus_domination.coverage_percentage}%</span>
+                </div>
+                <Progress value={data.syllabus_domination.coverage_percentage} className="h-3" />
+              </div>
+
+              {/* High ROI */}
+              {data.syllabus_domination.high_roi_topics.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-success uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <Star className="w-3 h-3" /> High ROI Topics
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {data.syllabus_domination.high_roi_topics.map((t, i) => (
+                      <span key={i} className="text-[10px] bg-success/10 text-success border border-success/20 px-2 py-0.5 rounded-full">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Uncovered */}
+              {data.syllabus_domination.uncovered_topics.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-destructive uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Uncovered Topics
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {data.syllabus_domination.uncovered_topics.map((t, i) => (
+                      <span key={i} className="text-[10px] bg-destructive/10 text-destructive border border-destructive/20 px-2 py-0.5 rounded-full">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Revision Priority */}
+              {data.syllabus_domination.revision_priority.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Revision Priority</div>
+                  {data.syllabus_domination.revision_priority.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className={cn(
+                        "w-2 h-2 rounded-full",
+                        r.urgency === "immediate" ? "bg-destructive" : r.urgency === "soon" ? "bg-warning" : "bg-success"
+                      )} />
+                      <span className="text-xs text-foreground flex-1">{r.topic}</span>
+                      <span className="text-[9px] text-muted-foreground capitalize">{r.urgency.replace("_", " ")}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* Topic Mastery Heatmap */}
+          <CollapsibleSection
+            title="Mastery Heatmap"
+            subtitle={`${data.ultra_metrics.mastery_heatmap.length} topics analyzed`}
+            icon={Layers}
+            isOpen={expandedSections.metrics}
+            onToggle={() => toggleSection("metrics")}
+          >
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 mb-2">
+                <GlowingMetric label="Weakness Index" value={data.ultra_metrics.weakness_exposure} suffix="%" icon={Activity} color={data.ultra_metrics.weakness_exposure > 50 ? "destructive" : "warning"} size="default" />
+              </div>
+              {data.ultra_metrics.mastery_heatmap.map((m, i) => (
+                <MasteryBar key={i} topic={m.topic} mastery={m.mastery} />
+              ))}
+            </div>
+          </CollapsibleSection>
+
+          {/* Footer Stats */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="glass rounded-xl neural-border p-3 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+              <span>{data.total_topics} topics</span>
+              <span>{data.total_study_hours}h studied</span>
+            </div>
+            <div className="text-[9px] text-muted-foreground/50">
+              Updated {new Date(data.generated_at).toLocaleTimeString()}
+            </div>
+          </motion.div>
+        </>
+      )}
+
+      {!data && !loading && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 space-y-4">
+          <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20">
+            <Atom className="w-8 h-8 text-primary" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-foreground">ACRY ULTRA</h2>
+            <p className="text-xs text-muted-foreground mt-1">AI Exam Domination Engine</p>
+          </div>
+          <button
+            onClick={analyze}
+            className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+          >
+            Launch Analysis
+          </button>
+        </motion.div>
+      )}
+    </div>
+  );
+};
+
+// Collapsible Section Component
+const CollapsibleSection = ({ title, subtitle, icon, isOpen, onToggle, children }: {
+  title: string; subtitle?: string; icon: any; isOpen: boolean; onToggle: () => void; children: React.ReactNode;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="glass rounded-xl neural-border overflow-hidden"
+  >
+    <button onClick={onToggle} className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+      <SectionHeader icon={icon} title={title} subtitle={subtitle} />
+      {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+    </button>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="px-4 pb-4"
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </motion.div>
+);
 
 export default ProgressTab;

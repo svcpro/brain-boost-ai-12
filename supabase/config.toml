@@ -191,3 +191,6 @@ verify_jwt = false
 
 [functions.exam-countdown-predict]
 verify_jwt = false
+
+[functions.exam-domination-engine]
+verify_jwt = false
