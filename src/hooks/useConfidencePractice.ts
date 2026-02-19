@@ -19,6 +19,7 @@ export interface PracticeQuestion {
   // Predicted-specific
   probability_level?: string;
   probability_score?: number;
+  trend_reason?: string;
   trend_weight?: number;
 }
 
