@@ -32,7 +32,9 @@ const ExamCountdownConfig = () => {
   const save = async () => {
     if (!config) return;
     setSaving(true);
-    const { id, created_at, ...updates } = config;
+    // Safety: always strip "pro" from bypass to prevent accidental lockdown bypass
+    const safeBypasses = (config.bypass_plan_keys || []).filter((k: string) => k !== "pro");
+    const { id, created_at, ...updates } = { ...config, bypass_plan_keys: safeBypasses };
     const { error } = await (supabase as any).from("exam_countdown_config").update(updates).eq("id", config.id);
     setSaving(false);
     if (error) {
