@@ -4,7 +4,7 @@ import {
   Crosshair, AlertOctagon,
   Brain, ArrowRight, Sparkles,
   Clock, TrendingUp, ChevronDown, BookOpen,
-  Zap, Target, Play, Timer
+  Zap, Target, Play, Timer, Lock, ShieldAlert
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,8 @@ import TodaysGains from "./TodaysGains";
 import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ActiveTaskEngine from "./ActiveTaskEngine";
+import { useExamCountdown } from "@/hooks/useExamCountdown";
+import ExamLockModal from "./ExamLockModal";
 
 // ─── Study mode definitions ───
 const studyModes = [
@@ -74,8 +76,11 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
+  const [lockModalOpen, setLockModalOpen] = useState(false);
+  const [lockedModeName, setLockedModeName] = useState("");
   
   const { user } = useAuth();
+  const examCountdown = useExamCountdown();
 
   // ─── Recommended topic state ───
   const [recommendedTopic, setRecommendedTopic] = useState<{ name: string; subject: string; stability: number } | null>(null);
@@ -118,7 +123,20 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
 
 
 
+  const MODE_LABELS: Record<string, string> = {
+    focus: "Focus Study Mode",
+    revision: "AI Revision Mode",
+    mock: "Mock Practice Mode",
+    emergency: "Emergency Rescue Mode",
+  };
+
   const openStudyMode = (modeId: string) => {
+    // Check if mode is blocked by exam countdown
+    if (examCountdown.isModeBlocked(modeId)) {
+      setLockedModeName(MODE_LABELS[modeId] || modeId);
+      setLockModalOpen(true);
+      return;
+    }
     switch (modeId) {
       case "focus": setFocusModeOpen(true); break;
       case "revision": setLazyModeOpen(true); break;
@@ -134,6 +152,35 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   return (
     <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
 
+      {/* ═══ Exam Phase Banner ═══ */}
+      {examCountdown.phase !== "no_exam" && examCountdown.phase !== "normal" && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl p-3 flex items-center gap-3 border"
+          style={{
+            background: examCountdown.phase === "lockdown"
+              ? "linear-gradient(135deg, hsl(0 50% 10%), hsl(0 40% 8%))"
+              : "linear-gradient(135deg, hsl(35 40% 10%), hsl(35 30% 8%))",
+            borderColor: examCountdown.phase === "lockdown" ? "hsl(0 60% 30% / 0.3)" : "hsl(35 60% 30% / 0.3)",
+          }}
+        >
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <ShieldAlert className="w-5 h-5" style={{ color: examCountdown.phase === "lockdown" ? "hsl(0 80% 60%)" : "hsl(35 80% 55%)" }} />
+          </motion.div>
+          <div className="flex-1">
+            <p className="text-xs font-bold" style={{ color: examCountdown.phase === "lockdown" ? "hsl(0 80% 65%)" : "hsl(35 80% 60%)" }}>
+              {examCountdown.phase === "lockdown" ? "🔴 LOCKDOWN MODE" : "🟡 ACCELERATION MODE"} — {examCountdown.daysRemaining} days left
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {examCountdown.lockedModes.length > 0 ? `${examCountdown.lockedModes.length} mode(s) restricted` : "All modes available"}
+            </p>
+          </div>
+        </motion.div>
+      )}
       {/* ═══════════════════════════════════════════════════
           SECTION 1: Focus Mode Header — Hero CTA
          ═══════════════════════════════════════════════════ */}
@@ -230,6 +277,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
           <div className="space-y-2.5">
             {studyModes.map((mode, i) => {
               const isEmergency = mode.id === "emergency";
+              const isLocked = examCountdown.isModeBlocked(mode.id);
 
               if (isEmergency) {
                 return (
@@ -239,7 +287,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.15 + i * 0.07, duration: 0.4, ease: "easeOut" }}
                     onClick={() => openStudyMode(mode.id)}
-                    className="w-full rounded-2xl p-[1px] text-left group active:scale-[0.98] relative overflow-hidden"
+                    className={`w-full rounded-2xl p-[1px] text-left group active:scale-[0.98] relative overflow-hidden ${isLocked ? "opacity-60" : ""}`}
                     style={{
                       background: "linear-gradient(135deg, hsl(0 75% 55%), hsl(35 90% 55%), hsl(0 70% 45%))",
                     }}
@@ -260,6 +308,22 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                         background: "linear-gradient(135deg, hsl(0 50% 8%), hsl(0 40% 6%), hsl(var(--card)))",
                       }}
                     >
+                      {/* Lock overlay for emergency */}
+                      {isLocked && (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[calc(1rem-1px)]" style={{ background: "hsl(0 30% 5% / 0.7)", backdropFilter: "blur(2px)" }}>
+                          <motion.div
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl"
+                            style={{ background: "hsl(0 60% 15% / 0.9)", border: "1px solid hsl(0 60% 40% / 0.3)" }}
+                            animate={{ scale: [1, 1.03, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          >
+                            <Lock className="w-4 h-4 text-destructive" />
+                            <span className="text-xs font-bold text-destructive">
+                              {examCountdown.phase === "lockdown" ? "LOCKDOWN" : "RESTRICTED"}
+                            </span>
+                          </motion.div>
+                        </div>
+                      )}
                       {/* Emergency ambient glow */}
                       <div
                         className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl pointer-events-none"
@@ -335,6 +399,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                 );
               }
 
+
               return (
                 <motion.button
                   key={mode.id}
@@ -342,8 +407,25 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.15 + i * 0.07, duration: 0.4, ease: "easeOut" }}
                   onClick={() => openStudyMode(mode.id)}
-                  className="w-full rounded-2xl border border-border bg-card p-4 hover:bg-secondary/30 transition-all duration-300 text-left group active:scale-[0.98]"
+                  className={`w-full rounded-2xl border border-border bg-card p-4 hover:bg-secondary/30 transition-all duration-300 text-left group active:scale-[0.98] relative overflow-hidden ${isLocked ? "opacity-60" : ""}`}
                 >
+                  {/* Lock overlay */}
+                  {isLocked && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl" style={{ background: "hsl(var(--card) / 0.6)", backdropFilter: "blur(2px)" }}>
+                      <motion.div
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl"
+                        style={{ background: "hsl(0 60% 15% / 0.9)", border: "1px solid hsl(0 60% 40% / 0.3)" }}
+                        animate={{ scale: [1, 1.03, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <Lock className="w-4 h-4 text-destructive" />
+                        <span className="text-xs font-bold text-destructive">
+                          {examCountdown.phase === "lockdown" ? "LOCKDOWN" : "RESTRICTED"}
+                        </span>
+                      </motion.div>
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-3.5">
                     <div className={`p-2.5 rounded-xl ${mode.bgClass} shrink-0`}>
                       <mode.icon className={`w-5 h-5 ${mode.color}`} />
@@ -446,6 +528,17 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <MockPracticeSession open={mockOpen} onClose={() => setMockOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
+      <ExamLockModal
+        open={lockModalOpen}
+        onClose={() => setLockModalOpen(false)}
+        phase={examCountdown.phase}
+        daysRemaining={examCountdown.daysRemaining}
+        lockMessage={examCountdown.lockMessage}
+        recommendedMode={examCountdown.recommendedMode}
+        lockedModeName={lockedModeName}
+        onSwitchMode={openStudyMode}
+        canBypass={examCountdown.canBypass}
+      />
     </div>
   );
 };

@@ -1541,6 +1541,60 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_countdown_config: {
+        Row: {
+          acceleration_lock_message: string | null
+          acceleration_locked_modes: string[]
+          acceleration_mode_min_days: number
+          acceleration_recommended_mode: string | null
+          bypass_plan_keys: string[]
+          id: string
+          is_enabled: boolean
+          lockdown_lock_message: string | null
+          lockdown_locked_modes: string[]
+          lockdown_mode_min_days: number
+          lockdown_recommended_mode: string | null
+          normal_locked_modes: string[]
+          normal_mode_min_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          acceleration_lock_message?: string | null
+          acceleration_locked_modes?: string[]
+          acceleration_mode_min_days?: number
+          acceleration_recommended_mode?: string | null
+          bypass_plan_keys?: string[]
+          id?: string
+          is_enabled?: boolean
+          lockdown_lock_message?: string | null
+          lockdown_locked_modes?: string[]
+          lockdown_mode_min_days?: number
+          lockdown_recommended_mode?: string | null
+          normal_locked_modes?: string[]
+          normal_mode_min_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          acceleration_lock_message?: string | null
+          acceleration_locked_modes?: string[]
+          acceleration_mode_min_days?: number
+          acceleration_recommended_mode?: string | null
+          bypass_plan_keys?: string[]
+          id?: string
+          is_enabled?: boolean
+          lockdown_lock_message?: string | null
+          lockdown_locked_modes?: string[]
+          lockdown_mode_min_days?: number
+          lockdown_recommended_mode?: string | null
+          normal_locked_modes?: string[]
+          normal_mode_min_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       exam_results: {
         Row: {
           created_at: string
