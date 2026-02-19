@@ -11,7 +11,7 @@ import BrainTab from "@/components/app/BrainTab";
 import ProgressTab from "@/components/app/ProgressTab";
 import YouTab from "@/components/app/YouTab";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
-import AIAssistantButton from "@/components/app/AIAssistantButton";
+
 import GlobalNotificationCenter from "@/components/app/GlobalNotificationCenter";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
@@ -223,8 +223,6 @@ const AppDashboard = () => {
 
         {/* Voice Notification Overlay */}
         <VoiceNotificationOverlay playing={voice.playing} subtitle={voice.subtitle} />
-
-        {/* AI Assistant Floating Button - hidden */}
 
         {/* Bottom Nav */}
         <nav className="fixed bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
