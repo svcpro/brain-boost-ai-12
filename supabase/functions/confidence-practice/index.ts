@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -190,14 +190,10 @@ serve(async (req) => {
         `"${topic}": { score: ${s.finalScore}, trend: "${s.trendStrength}", freq_weight: ${s.topicFreqWeight}, repetition: ${s.repetitionScore}, recent_trend: ${s.recentTrendWeight}, difficulty_match: ${s.difficultyPatternMatch}, lang_similarity: ${s.languageSimilarityScore} }`
       ).join(",\n");
 
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+      const questionCount = Math.min(count || 5, 10);
+
+      const aiPayload = JSON.stringify({
+          model: "google/gemini-2.5-flash",
           messages: [
             {
               role: "system",
@@ -218,82 +214,97 @@ CRITICAL RULES:
 - trend_strength must be: "High", "Medium", or "Emerging"
 - ml_confidence must be: "Strong" (score 75+), "Moderate" (65-74), or "Fair" (55-64)
 - For each question, provide score_breakdown with the 5 component weights.
-- Generate exam-level questions that feel genuinely likely to appear.`
+- Generate exam-level questions that feel genuinely likely to appear.
+- Return VALID JSON only.`
             },
             {
               role: "user",
-              content: `Generate ${count || 10} predicted questions for ${targetExam}, subject: ${targetSubject}.
+              content: `Generate exactly ${questionCount} predicted questions for ${targetExam}, subject: ${targetSubject}.
 User's weak areas: ${topicContext}.
-Prioritize high-score topics from the analysis.`
+Prioritize high-score topics from the analysis.
+
+Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct_answer":0,"explanation":"...","topic":"...","difficulty":"easy|medium|hard","probability_score":55-85,"probability_level":"Very High|High|Medium","trend_strength":"High|Medium|Emerging","ml_confidence":"Strong|Moderate|Fair","trend_reason":"...","score_breakdown":{"topic_frequency":0-100,"repetition":0-100,"recent_trend":0-100,"difficulty_match":0-100,"language_similarity":0-100},"similar_pyq_years":[2020,2021]}]}`
             }
           ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "return_questions",
-              description: "Return predicted exam questions with authentic pattern-based prediction scores",
-              parameters: {
-                type: "object",
-                properties: {
-                  questions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        question: { type: "string" },
-                        options: { type: "array", items: { type: "string" } },
-                        correct_answer: { type: "integer" },
-                        explanation: { type: "string" },
-                        topic: { type: "string" },
-                        difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
-                        probability_score: { type: "integer", minimum: 55, maximum: 85, description: "Match prediction percentage based on formula" },
-                        probability_level: { type: "string", enum: ["Very High", "High", "Medium"] },
-                        trend_strength: { type: "string", enum: ["High", "Medium", "Emerging"], description: "Trend strength indicator" },
-                        ml_confidence: { type: "string", enum: ["Strong", "Moderate", "Fair"], description: "ML model confidence level" },
-                        trend_reason: { type: "string", description: "Evidence-based reason, e.g. 'Appeared in 4/5 years (2020-2024), 12 total occurrences, increasing trend'" },
-                        score_breakdown: {
-                          type: "object",
-                          properties: {
-                            topic_frequency: { type: "integer", description: "Topic frequency weight 0-100" },
-                            repetition: { type: "integer", description: "Year repetition score 0-100" },
-                            recent_trend: { type: "integer", description: "Recent trend weight 0-100" },
-                            difficulty_match: { type: "integer", description: "Difficulty pattern match 0-100" },
-                            language_similarity: { type: "integer", description: "Language structure similarity 0-100" }
-                          },
-                          required: ["topic_frequency", "repetition", "recent_trend", "difficulty_match", "language_similarity"]
-                        },
-                        similar_pyq_years: { type: "array", items: { type: "integer" }, description: "Years when similar questions appeared" }
-                      },
-                      required: ["question", "options", "correct_answer", "explanation", "topic", "difficulty", "probability_score", "probability_level", "trend_strength", "ml_confidence", "trend_reason", "score_breakdown", "similar_pyq_years"]
-                    }
-                  }
-                },
-                required: ["questions"]
-              }
-            }
-          }],
-          tool_choice: { type: "function", function: { name: "return_questions" } }
-        }),
+          response_format: { type: "json_object" },
       });
 
-      if (!aiResponse.ok) {
-        const status = aiResponse.status;
-        if (status === 429) return new Response(JSON.stringify({ error: "Rate limited, please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        throw new Error(`AI error: ${status}`);
+      // Retry logic with exponential backoff
+      let aiData: any = null;
+      let lastError = "";
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 50000); // 50s timeout
+
+          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: aiPayload,
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+
+          if (aiResponse.status === 429) {
+            return new Response(JSON.stringify({ error: "Rate limited, please try again shortly." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          if (aiResponse.status === 402) {
+            return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+
+          if (!aiResponse.ok) {
+            lastError = `AI returned status ${aiResponse.status}`;
+            const body = await aiResponse.text();
+            console.error(`Attempt ${attempt + 1} failed:`, lastError, body);
+            if (attempt < 2) { await new Promise(r => setTimeout(r, (attempt + 1) * 2000)); continue; }
+            throw new Error(lastError);
+          }
+
+          aiData = await aiResponse.json();
+          break;
+        } catch (e: any) {
+          lastError = e.message || "Unknown error";
+          console.error(`Attempt ${attempt + 1} error:`, lastError);
+          if (e.name === "AbortError") lastError = "Request timed out";
+          if (attempt < 2) { await new Promise(r => setTimeout(r, (attempt + 1) * 2000)); continue; }
+        }
       }
 
-      const aiData = await aiResponse.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      let questions = [];
-      if (toolCall?.function?.arguments) {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        questions = (parsed.questions || []).map((q: any) => ({
-          ...q,
-          // Enforce score cap
-          probability_score: Math.max(55, Math.min(85, q.probability_score || 65)),
-        }));
+      if (!aiData) {
+        return new Response(JSON.stringify({ error: `AI service unavailable: ${lastError}. Please try again.` }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
+
+      let questions: any[] = [];
+      try {
+        // Try tool_calls format first
+        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          const parsed = JSON.parse(toolCall.function.arguments);
+          questions = parsed.questions || [];
+        } else {
+          // Try direct content JSON
+          const content = aiData.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+            questions = parsed.questions || [];
+          }
+        }
+      } catch (parseErr: any) {
+        console.error("Parse error:", parseErr.message);
+        return new Response(JSON.stringify({ error: "Failed to parse AI response. Please try again." }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      questions = questions.map((q: any) => ({
+        ...q,
+        probability_score: Math.max(55, Math.min(85, q.probability_score || 65)),
+      }));
 
       return new Response(JSON.stringify({
         questions,
@@ -407,7 +418,7 @@ Prioritize high-score topics from the analysis.`
   } catch (e) {
     console.error("confidence-practice error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 });
