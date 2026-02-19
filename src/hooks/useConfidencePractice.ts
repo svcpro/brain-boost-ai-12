@@ -28,12 +28,14 @@ export interface ProgressStats {
   accuracy: number;
   bankCount: number;
   predictedCount: number;
+  totalAvailable?: number;
 }
 
 export function useConfidencePractice() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
+  const [totalAvailable, setTotalAvailable] = useState(0);
   const [stats, setStats] = useState<ProgressStats | null>(null);
 
   const fetchBankQuestions = useCallback(async (filters: {
@@ -47,6 +49,7 @@ export function useConfidencePractice() {
       });
       if (error) throw error;
       setQuestions(data?.questions || []);
+      setTotalAvailable(data?.totalAvailable || data?.questions?.length || 0);
     } catch (e: any) {
       toast({ title: "Error loading questions", description: e.message, variant: "destructive" });
     }
@@ -102,5 +105,5 @@ export function useConfidencePractice() {
     } catch { /* ignore */ }
   }, [user]);
 
-  return { loading, questions, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, setQuestions };
+  return { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, setQuestions };
 }

@@ -134,18 +134,45 @@ Generate exactly ${count || 10} questions.`
     }
 
     if (action === "get_bank_questions") {
-      let query = supabase.from("question_bank").select("*");
-      if (exam_type) query = query.eq("exam_type", exam_type);
-      if (subject) query = query.eq("subject", subject);
-      if (topic) query = query.ilike("topic", `%${topic}%`);
-      if (year) query = query.eq("year", year);
-      if (difficulty) query = query.eq("difficulty", difficulty);
-      query = query.limit(count || 50);
+      // Fetch all matching questions using pagination to avoid 1000-row limit
+      const batchSize = 1000;
+      let allQuestions: any[] = [];
+      let offset = 0;
+      let hasMore = true;
 
-      const { data, error } = await query;
-      if (error) throw error;
+      while (hasMore) {
+        let query = supabase.from("question_bank").select("*");
+        if (exam_type) query = query.eq("exam_type", exam_type);
+        if (subject) query = query.eq("subject", subject);
+        if (topic) query = query.ilike("topic", `%${topic}%`);
+        if (year) query = query.eq("year", year);
+        if (difficulty) query = query.eq("difficulty", difficulty);
+        query = query.range(offset, offset + batchSize - 1);
 
-      return new Response(JSON.stringify({ questions: data || [] }), {
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allQuestions = allQuestions.concat(data);
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // If count specified, randomly pick that many; otherwise return all
+      let result = allQuestions;
+      if (count && count > 0 && allQuestions.length > count) {
+        // Shuffle and pick
+        for (let i = allQuestions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+        }
+        result = allQuestions.slice(0, count);
+      }
+
+      return new Response(JSON.stringify({ questions: result, totalAvailable: allQuestions.length }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }

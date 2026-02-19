@@ -29,7 +29,7 @@ type PracticeMode = "calm" | "exam" | "rapid";
 type Section = "menu" | "bank_setup" | "predicted_setup" | "practice" | "result";
 
 const ConfidencePracticeTab = () => {
-  const { loading, questions, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, setQuestions } = useConfidencePractice();
+  const { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, setQuestions } = useConfidencePractice();
 
   const [section, setSection] = useState<Section>("menu");
   const [mode, setMode] = useState<PracticeMode>("calm");
@@ -125,7 +125,7 @@ const ConfidencePracticeTab = () => {
       subject: selSubject || undefined,
       year: selYear ? Number(selYear) : undefined,
       difficulty: selDifficulty || undefined,
-      count: selCount,
+      count: selCount || undefined,
     });
   };
 
@@ -302,13 +302,18 @@ const ConfidencePracticeTab = () => {
           )}
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Questions Count</label>
-            <div className="flex gap-2">
-              {[10, 20, 30, 50].map(n => (
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+              Questions Count {totalAvailable > 0 && <span className="text-primary font-normal">({totalAvailable} available)</span>}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[10, 20, 30, 50, 100].map(n => (
                 <button key={n} onClick={() => setSelCount(n)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selCount === n ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
                 >{n}</button>
               ))}
+              <button onClick={() => setSelCount(0)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selCount === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+              >All</button>
             </div>
           </div>
         </div>
