@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  BookOpen, Sparkles, Heart, Shield, ChevronRight,
+import { BookOpen, Sparkles, Heart, Shield, ChevronRight,
   Check, X, Clock, ArrowLeft, Play, RotateCcw,
-  Timer, Zap, Brain, ChevronDown, Loader2
+  Timer, Zap, Brain, ChevronDown, Loader2, Download
 } from "lucide-react";
 import { useConfidencePractice, PracticeQuestion } from "@/hooks/useConfidencePractice";
 import { Progress } from "@/components/ui/progress";
@@ -29,7 +28,7 @@ type PracticeMode = "calm" | "exam" | "rapid";
 type Section = "menu" | "bank_setup" | "predicted_setup" | "practice" | "result";
 
 const ConfidencePracticeTab = () => {
-  const { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, fetchUserExam, setQuestions } = useConfidencePractice();
+  const { loading, questions, totalAvailable, stats, fetchBankQuestions, generatePredicted, saveProgress, fetchStats, fetchUserExam, setQuestions, populatingPYQs, pyqProgress, populateQuestionBank } = useConfidencePractice();
 
   const [section, setSection] = useState<Section>("menu");
   const [mode, setMode] = useState<PracticeMode>("calm");
@@ -181,6 +180,29 @@ const ConfidencePracticeTab = () => {
             <p className="text-xs text-muted-foreground mt-1.5">{stats.accuracy}% accuracy • Keep it up!</p>
           </motion.div>
         )}
+
+        {/* Populate Question Bank */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+          <button
+            onClick={() => populateQuestionBank(selExam || undefined)}
+            disabled={populatingPYQs}
+            className="w-full rounded-xl p-3.5 text-left bg-card border border-dashed border-primary/30 hover:border-primary/50 transition-all flex items-center gap-3 disabled:opacity-60"
+          >
+            {populatingPYQs ? (
+              <Loader2 className="w-5 h-5 text-primary animate-spin shrink-0" />
+            ) : (
+              <Download className="w-5 h-5 text-primary shrink-0" />
+            )}
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {populatingPYQs ? "Generating PYQs..." : "Fetch Last 5 Years PYQs"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {populatingPYQs ? pyqProgress : "AI generates authentic exam questions for all subjects & years"}
+              </p>
+            </div>
+          </button>
+        </motion.div>
 
         {/* Section A: Question Bank */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
