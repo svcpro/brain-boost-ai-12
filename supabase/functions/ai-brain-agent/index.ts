@@ -375,67 +375,87 @@ ${cognitiveContext}`
       const diff = reqDifficulty || "medium";
       const topicCtx = topic_name ? `Focus on the topic "${topic_name}"${subject_name ? ` (subject: ${subject_name})` : ""}.` : "Pick from the student's weakest topics.";
 
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            {
-              role: "system",
-              content: `You are ACRY, an AI tutor generating recall questions for exam preparation. Generate exactly ${qCount} multiple-choice questions at "${diff}" difficulty. ${topicCtx} Each question must test recall and understanding, not just definitions. Make questions progressively harder if difficulty is "hard", or simpler if "easy".`
-            },
-            {
-              role: "user",
-              content: `${cognitiveContext}\n\nGenerate ${qCount} recall questions at ${diff} difficulty.`
-            }
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "mission_questions",
-              description: "Generate recall questions for a micro mission",
-              parameters: {
-                type: "object",
-                properties: {
-                  questions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        question: { type: "string", description: "The question text" },
-                        options: { type: "array", items: { type: "string" }, description: "4 answer options" },
-                        correct_index: { type: "number", description: "Index (0-3) of the correct answer" },
-                        explanation: { type: "string", description: "Brief explanation of why the answer is correct (1-2 sentences)" },
-                        difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
-                      },
-                      required: ["question", "options", "correct_index", "explanation", "difficulty"],
-                    }
+      const requestBody = JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          {
+            role: "system",
+            content: `You are ACRY, an AI tutor generating recall questions for exam preparation. Generate exactly ${qCount} multiple-choice questions at "${diff}" difficulty. ${topicCtx} Each question must test recall and understanding, not just definitions. Make questions progressively harder if difficulty is "hard", or simpler if "easy".`
+          },
+          {
+            role: "user",
+            content: `${cognitiveContext}\n\nGenerate ${qCount} recall questions at ${diff} difficulty.`
+          }
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "mission_questions",
+            description: "Generate recall questions for a micro mission",
+            parameters: {
+              type: "object",
+              properties: {
+                questions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      question: { type: "string", description: "The question text" },
+                      options: { type: "array", items: { type: "string" }, description: "4 answer options" },
+                      correct_index: { type: "number", description: "Index (0-3) of the correct answer" },
+                      explanation: { type: "string", description: "Brief explanation of why the answer is correct (1-2 sentences)" },
+                      difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                    },
+                    required: ["question", "options", "correct_index", "explanation", "difficulty"],
                   }
-                },
-                required: ["questions"],
-              }
+                }
+              },
+              required: ["questions"],
             }
-          }],
-          tool_choice: { type: "function", function: { name: "mission_questions" } },
-        }),
+          }
+        }],
+        tool_choice: { type: "function", function: { name: "mission_questions" } },
       });
 
+      const { aiFetch } = await import("../_shared/aiFetch.ts");
+      const aiResp = await aiFetch({ body: requestBody });
+
       if (!aiResp.ok) {
-        if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (aiResp.status === 402) return new Response(JSON.stringify({ error: "Credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        throw new Error("AI gateway error");
+        const status = aiResp.status;
+        if (status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (status === 402) return new Response(JSON.stringify({ error: "Credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const errText = await aiResp.text().catch(() => "");
+        console.error("mission_questions AI error:", status, errText);
+        throw new Error(`AI error: ${status}`);
       }
 
       const aiData = await aiResp.json();
       trackAI();
       const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      let result = { questions: [] };
+      let result = { questions: [] as any[] };
       if (toolCall?.function?.arguments) {
-        result = JSON.parse(toolCall.function.arguments);
+        try {
+          result = JSON.parse(toolCall.function.arguments);
+        } catch (parseErr) {
+          console.error("Failed to parse tool_calls arguments:", parseErr);
+        }
+      }
+
+      // Fallback: try parsing content directly if tool_calls failed
+      if (!result.questions?.length) {
+        const content = aiData.choices?.[0]?.message?.content || "";
+        if (content) {
+          try {
+            const jsonMatch = content.match(/\{[\s\S]*"questions"[\s\S]*\}/);
+            if (jsonMatch) {
+              result = JSON.parse(jsonMatch[0]);
+            }
+          } catch {}
+        }
+      }
+
+      if (!result.questions?.length) {
+        console.error("No questions extracted from AI response:", JSON.stringify(aiData).slice(0, 500));
       }
 
       return new Response(JSON.stringify(result), {
