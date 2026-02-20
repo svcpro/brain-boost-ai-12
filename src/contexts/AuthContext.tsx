@@ -24,10 +24,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const signupHandledRef = useRef<Set<string>>(new Set());
-  const initializedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
+    let initialLoadDone = false;
 
     const handleSignupNotifications = async (newUser: User) => {
       if (signupHandledRef.current.has(newUser.id)) return;
@@ -68,53 +69,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       trackEngagement("app_open");
     };
 
-    // Get initial session first, then set up listener
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!isMounted) return;
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (e) {
-        console.error("Auth initialization error:", e);
-      } finally {
-        if (isMounted) {
-          initializedRef.current = true;
-          setLoading(false);
-        }
+    const applySession = (s: Session | null) => {
+      if (!isMounted) return;
+      const newUserId = s?.user?.id ?? null;
+
+      // Only update user state if the user actually changed
+      if (newUserId !== currentUserIdRef.current) {
+        currentUserIdRef.current = newUserId;
+        setUser(s?.user ?? null);
       }
+      // Always update session (token may have refreshed)
+      setSession(s);
     };
 
-    initializeAuth();
-
-    // Set up listener for SUBSEQUENT auth changes only (sign in/out/token refresh)
+    // 1. Set up the auth state listener FIRST (Supabase recommendation)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!isMounted) return;
 
-        // Skip the initial events that fire before/during getSession
-        if (!initializedRef.current) return;
+        applySession(newSession);
 
-        // Only update state if the user actually changed
-        const newUserId = newSession?.user?.id ?? null;
-        const currentUserId = user?.id ?? null;
-        
-        if (event === "SIGNED_OUT") {
-          setSession(null);
-          setUser(null);
-        } else if (event === "TOKEN_REFRESHED") {
-          // Just update session/token, don't trigger full re-render cascade
-          setSession(newSession);
-        } else if (newUserId !== currentUserId) {
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
+        // Mark loading done on the first event if getSession hasn't finished yet
+        if (!initialLoadDone) {
+          initialLoadDone = true;
+          setLoading(false);
         }
 
         if (event === "SIGNED_IN" && newSession?.user) {
           setTimeout(() => handleSignupNotifications(newSession.user), 0);
         }
+
+        if (event === "SIGNED_OUT") {
+          currentUserIdRef.current = null;
+          setUser(null);
+          setSession(null);
+        }
       }
     );
+
+    // 2. Then get initial session as a fallback (in case listener is slow)
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (!isMounted) return;
+      applySession(s);
+      if (!initialLoadDone) {
+        initialLoadDone = true;
+        setLoading(false);
+      }
+    }).catch((e) => {
+      console.error("Auth initialization error:", e);
+      if (isMounted && !initialLoadDone) {
+        initialLoadDone = true;
+        setLoading(false);
+      }
+    });
 
     return () => {
       isMounted = false;
