@@ -35,7 +35,28 @@ const strengthClass = (s: number) =>
 export default function InteractiveMemoryMap({ subjectHealth, onReview }: InteractiveMemoryMapProps) {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
 
-  if (subjectHealth.length === 0) return null;
+  if (subjectHealth.length === 0) {
+    return (
+      <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
+            <Network className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Memory Map</h3>
+            <p className="text-[10px] text-muted-foreground">Subject &amp; topic stability network</p>
+          </div>
+        </div>
+        <div className="rounded-2xl p-6 text-center" style={{
+          background: "linear-gradient(135deg, hsl(var(--card)), hsl(var(--secondary) / 0.3))",
+          border: "1px solid hsl(var(--border))",
+        }}>
+          <Network className="w-8 h-8 text-primary/30 mx-auto mb-2" />
+          <p className="text-xs text-muted-foreground">Add subjects to see your memory map</p>
+        </div>
+      </motion.section>
+    );
+  }
 
   return (
     <motion.section
