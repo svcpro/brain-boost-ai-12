@@ -474,38 +474,6 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         )}
       </AnimatePresence>
 
-      {/* Onboarding for new users */}
-      {!hasTopics && (
-        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-5 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-foreground">Get Started in 3 Steps</h3>
-              <p className="text-[10px] text-muted-foreground">Activate your AI brain</p>
-            </div>
-          </div>
-          <div className="space-y-2.5">
-            {[
-              { step: 1, icon: BookOpen, title: "Add your first subject" },
-              { step: 2, icon: Plus, title: "Add topics under it" },
-              { step: 3, icon: Zap, title: "Log a study session" },
-            ].map((item) => (
-              <div key={item.step} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
-                <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-primary">{item.step}</span>
-                </div>
-                <p className="text-xs font-medium text-foreground flex-1">{item.title}</p>
-                <item.icon className="w-4 h-4 text-muted-foreground" />
-              </div>
-            ))}
-          </div>
-          <button onClick={() => onNavigateToBrain?.()} className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity active:scale-[0.98] flex items-center justify-center gap-2">
-            <Plus className="w-4 h-4" /> Add Your First Subject
-          </button>
-        </motion.section>
-      )}
 
       {/* Exam urgency banner */}
       {examDaysLeft !== null && examDaysLeft <= 3 && (
