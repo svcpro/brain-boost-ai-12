@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // INITIAL_SESSION and SIGNED_IN in quick succession.
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       if (!isMounted) return;
+      console.log("[Auth] getSession resolved, user:", initialSession?.user?.id ?? "none");
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);
@@ -79,7 +80,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (initialSession?.user) {
         setTimeout(() => handleSignupNotifications(initialSession.user), 0);
       }
-    }).catch(() => {
+    }).catch((e) => {
+      console.error("[Auth] getSession error:", e);
       if (isMounted) setLoading(false);
     });
 
@@ -88,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!isMounted) return;
-
+        console.log("[Auth] onAuthStateChange:", event, "user:", newSession?.user?.id ?? "none");
         if (event === "SIGNED_OUT") {
           setSession(null);
           setUser(null);
