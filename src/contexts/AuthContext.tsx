@@ -68,30 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       trackEngagement("app_open");
     };
 
-    // Set up listener FIRST (before getSession) for ongoing changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!isMounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        // Only set loading false from listener if initial load already done
-        if (initializedRef.current) {
-          // Already initialized, just update state
-        } else {
-          // Initial event from listener — mark initialized and stop loading
-          initializedRef.current = true;
-          setLoading(false);
-        }
-
-        if (event === "SIGNED_IN" && session?.user) {
-          setTimeout(() => handleSignupNotifications(session.user), 0);
-        }
-      }
-    );
-
-    // Then get initial session
+    // Get initial session first, then set up listener
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -109,6 +86,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initializeAuth();
+
+    // Set up listener for SUBSEQUENT auth changes only (sign in/out/token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        if (!isMounted) return;
+
+        // Skip the initial events that fire before/during getSession
+        if (!initializedRef.current) return;
+
+        // Only update state if the user actually changed
+        const newUserId = newSession?.user?.id ?? null;
+        const currentUserId = user?.id ?? null;
+        
+        if (event === "SIGNED_OUT") {
+          setSession(null);
+          setUser(null);
+        } else if (event === "TOKEN_REFRESHED") {
+          // Just update session/token, don't trigger full re-render cascade
+          setSession(newSession);
+        } else if (newUserId !== currentUserId) {
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+        }
+
+        if (event === "SIGNED_IN" && newSession?.user) {
+          setTimeout(() => handleSignupNotifications(newSession.user), 0);
+        }
+      }
+    );
 
     return () => {
       isMounted = false;

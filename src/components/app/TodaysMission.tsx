@@ -80,7 +80,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       }
     } catch (e: any) {
       console.error("Mission generation failed:", e);
-      toast({ title: "Couldn't generate mission", description: "Using fallback mission.", variant: "destructive" });
+      // Silently fail — mission card simply won't show if no cached mission
     } finally {
       setLoading(false);
     }
