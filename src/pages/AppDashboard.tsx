@@ -247,11 +247,6 @@ const AppDashboard = () => {
                 >
                   <div className="relative">
                     <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""} ${tab.id === "community" ? "animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
-                    {tab.id === "progress" && (
-                      <span className="absolute -top-2.5 -right-2 px-1 py-px rounded-full bg-destructive text-destructive-foreground text-[7px] font-bold leading-none">
-                        New
-                      </span>
-                    )}
                     {tab.id === "progress" && pendingGifts > 0 && (
                       <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
                         {pendingGifts > 9 ? "9+" : pendingGifts}
