@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Clock, Zap, AlertTriangle, XCircle, Sparkles, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
+import { Clock, AlertTriangle, XCircle, Crown, ChevronRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { usePlanGatingContext } from "@/hooks/usePlanGating";
 import SubscriptionPlan from "@/components/app/SubscriptionPlan";
@@ -10,7 +10,6 @@ const TrialBanner = () => {
   const { isTrialActive, trialDaysLeft, currentPlan, subscription, refetch } = usePlanGatingContext();
   const [showPlanModal, setShowPlanModal] = useState(false);
 
-  // Only show for trial users or expired trials
   const isTrialExpired =
     subscription?.is_trial &&
     subscription?.trial_end_date &&
@@ -18,12 +17,10 @@ const TrialBanner = () => {
 
   if (!isTrialActive && !isTrialExpired) return null;
 
-  // Calculate progress (15 day total)
   const totalDays = 15;
   const elapsed = totalDays - trialDaysLeft;
   const progress = isTrialExpired ? 100 : Math.min(100, (elapsed / totalDays) * 100);
 
-  // Urgency level
   const urgency: "normal" | "warning" | "urgent" | "expired" = isTrialExpired
     ? "expired"
     : trialDaysLeft <= 1
@@ -38,36 +35,32 @@ const TrialBanner = () => {
       border: "border-primary/20",
       icon: Clock,
       iconColor: "text-primary",
-      progressColor: "bg-primary",
-      title: `Pro Trial – ${trialDaysLeft} days left`,
-      subtitle: "Upgrade to Ultra for unlimited AI power.",
+      title: `Premium Trial – ${trialDaysLeft} days left`,
+      subtitle: "You have full AI access unlocked.",
     },
     warning: {
       bg: "from-amber-500/15 via-amber-500/5 to-transparent",
       border: "border-amber-500/30",
       icon: AlertTriangle,
       iconColor: "text-amber-500",
-      progressColor: "bg-amber-500",
       title: `⚠️ Trial ending in ${trialDaysLeft} day${trialDaysLeft > 1 ? "s" : ""}!`,
-      subtitle: "Don't lose your study progress. Upgrade now.",
+      subtitle: "Don't lose your study progress. Subscribe now.",
     },
     urgent: {
       bg: "from-destructive/15 via-destructive/5 to-transparent",
       border: "border-destructive/30",
       icon: XCircle,
       iconColor: "text-destructive",
-      progressColor: "bg-destructive",
       title: "🔴 Last day of your trial!",
-      subtitle: "Features lock tomorrow. Upgrade to keep access.",
+      subtitle: "Features lock tomorrow. Subscribe to keep access.",
     },
     expired: {
       bg: "from-destructive/20 via-destructive/10 to-transparent",
       border: "border-destructive/40",
       icon: XCircle,
       iconColor: "text-destructive",
-      progressColor: "bg-destructive",
-      title: "Trial expired",
-      subtitle: "Your Pro features are now locked. Subscribe to continue.",
+      title: "Your AI Brain Trial Has Ended",
+      subtitle: "Subscribe to ACRY Premium to continue.",
     },
   }[urgency];
 
@@ -100,21 +93,16 @@ const TrialBanner = () => {
           </div>
         </div>
 
-        {/* Progress bar */}
         {!isTrialExpired && (
           <div className="space-y-1">
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>Day {elapsed} of {totalDays}</span>
               <span>{trialDaysLeft} days remaining</span>
             </div>
-            <Progress
-              value={progress}
-              className="h-2 bg-secondary/60"
-            />
+            <Progress value={progress} className="h-2 bg-secondary/60" />
           </div>
         )}
 
-        {/* CTA Button */}
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => setShowPlanModal(true)}
@@ -126,8 +114,8 @@ const TrialBanner = () => {
                 : "bg-primary text-primary-foreground hover:bg-primary/90"
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          {isTrialExpired ? "Subscribe Now" : "Upgrade to Ultra"}
+          <Crown className="w-3.5 h-3.5" />
+          {isTrialExpired ? "Subscribe to ACRY Premium" : "Subscribe Now · ₹149/mo"}
           <ChevronRight className="w-3.5 h-3.5" />
         </motion.button>
       </motion.div>

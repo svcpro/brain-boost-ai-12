@@ -1,185 +1,181 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Shield, Loader2, RefreshCw, Search, Zap, Sparkles, Brain, Check, X, Filter } from "lucide-react";
+import { Shield, Loader2, RefreshCw, Search, Crown, Check, X, Filter, Users, Calendar, Settings, ToggleLeft, ToggleRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { PlanFeatureGate } from "@/hooks/usePlanGating";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  home: "Home Tab",
-  action: "Action Tab",
-  brain: "Brain Tab",
-  progress: "Progress Tab",
-  settings: "Settings",
-  general: "General",
-};
-
-const CATEGORY_ICONS: Record<string, typeof Brain> = {
-  home: Brain,
-  action: Zap,
-  brain: Brain,
-  progress: Brain,
-  settings: Shield,
-  general: Shield,
-};
 
 const PlanGatingManagement = () => {
   const { toast } = useToast();
-  const [gates, setGates] = useState<PlanFeatureGate[]>([]);
+  const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [saving, setSaving] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [stats, setStats] = useState({ active: 0, trial: 0, expired: 0, totalRevenue: 0 });
 
-  const fetchGates = useCallback(async () => {
+  // Editable fields
+  const [planName, setPlanName] = useState("");
+  const [monthlyPrice, setMonthlyPrice] = useState(149);
+  const [yearlyPrice, setYearlyPrice] = useState(1499);
+  const [trialDays, setTrialDays] = useState(15);
+  const [trialEnabled, setTrialEnabled] = useState(true);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("plan_feature_gates")
-      .select("*")
-      .order("sort_order");
-    setGates((data as any[]) || []);
+    const [planRes, subsRes] = await Promise.all([
+      supabase.from("subscription_plans").select("*").eq("plan_key", "premium").maybeSingle(),
+      supabase.from("user_subscriptions").select("status, is_trial, amount"),
+    ]);
+
+    const p = planRes.data;
+    if (p) {
+      setPlan(p);
+      setPlanName(p.name || "ACRY Premium");
+      setMonthlyPrice(p.price || 149);
+      setYearlyPrice(p.yearly_price || 1499);
+      setTrialDays(p.trial_days || 15);
+      setTrialEnabled(p.trial_days > 0);
+    }
+
+    const subs = subsRes.data || [];
+    setStats({
+      active: subs.filter((s: any) => s.status === "active" && !s.is_trial).length,
+      trial: subs.filter((s: any) => s.status === "active" && s.is_trial).length,
+      expired: subs.filter((s: any) => s.status === "expired" || s.status === "cancelled").length,
+      totalRevenue: subs.filter((s: any) => s.status === "active" && !s.is_trial).reduce((sum: number, s: any) => sum + (s.amount || 0), 0),
+    });
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchGates(); }, [fetchGates]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const toggleGate = async (id: string, field: "free_enabled" | "pro_enabled" | "ultra_enabled", value: boolean) => {
-    setSaving(id);
+  const handleSave = async () => {
+    if (!plan) return;
+    setSaving(true);
     const { error } = await supabase
-      .from("plan_feature_gates")
-      .update({ [field]: value, updated_at: new Date().toISOString() } as any)
-      .eq("id", id);
+      .from("subscription_plans")
+      .update({
+        name: planName,
+        price: monthlyPrice,
+        yearly_price: yearlyPrice,
+        trial_days: trialEnabled ? trialDays : 0,
+      } as any)
+      .eq("id", plan.id);
+
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      setGates(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
+      toast({ title: "Plan Updated", description: "Changes saved successfully." });
+      fetchData();
     }
-    setSaving(null);
+    setSaving(false);
   };
-
-  const categories = [...new Set(gates.map(g => g.feature_category))];
-  const filtered = gates.filter(g => {
-    if (categoryFilter !== "all" && g.feature_category !== categoryFilter) return false;
-    if (search && !g.feature_label.toLowerCase().includes(search.toLowerCase()) && !g.feature_key.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
-  const groupedByCategory = filtered.reduce<Record<string, PlanFeatureGate[]>>((acc, g) => {
-    if (!acc[g.feature_category]) acc[g.feature_category] = [];
-    acc[g.feature_category].push(g);
-    return acc;
-  }, {});
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Shield className="w-5 h-5 text-primary" />
-          Plan Feature Gating
+          <Crown className="w-5 h-5 text-primary" />
+          Premium Plan Management
         </h2>
-        <button onClick={fetchGates} className="p-2 rounded-lg hover:bg-secondary transition-colors">
+        <button onClick={fetchData} className="p-2 rounded-lg hover:bg-secondary transition-colors">
           <RefreshCw className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Control which features are available on each subscription plan. Changes take effect immediately for all users.
+        Manage the single ACRY Premium plan. All features are included for subscribers.
       </p>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { plan: "Free", icon: Brain, count: gates.filter(g => g.free_enabled).length, total: gates.length, color: "text-muted-foreground" },
-          { plan: "Pro", icon: Zap, count: gates.filter(g => g.pro_enabled).length, total: gates.length, color: "text-primary" },
-          { plan: "Ultra", icon: Sparkles, count: gates.filter(g => g.ultra_enabled).length, total: gates.length, color: "text-accent" },
-        ].map(p => (
-          <motion.div key={p.plan} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-4 neural-border text-center">
-            <p.icon className={`w-5 h-5 mx-auto mb-1.5 ${p.color}`} />
-            <p className={`text-lg font-bold ${p.color}`}>{p.count}/{p.total}</p>
-            <p className="text-[10px] text-muted-foreground">{p.plan} Features</p>
+          { label: "Active Subscribers", value: stats.active, icon: Users, color: "text-success" },
+          { label: "Trial Users", value: stats.trial, icon: Calendar, color: "text-primary" },
+          { label: "Expired/Cancelled", value: stats.expired, icon: X, color: "text-destructive" },
+          { label: "Total Revenue", value: `₹${stats.totalRevenue.toLocaleString()}`, icon: Crown, color: "text-warning" },
+        ].map(s => (
+          <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="glass rounded-xl p-4 neural-border text-center">
+            <s.icon className={`w-5 h-5 mx-auto mb-1.5 ${s.color}`} />
+            <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-[10px] text-muted-foreground">{s.label}</p>
           </motion.div>
         ))}
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search features..."
-            className="w-full pl-9 pr-3 py-2.5 bg-secondary/50 rounded-lg text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none"
-          />
+      {/* Plan Configuration */}
+      <div className="glass rounded-xl neural-border p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Settings className="w-4 h-4 text-primary" />
+          Plan Configuration
+        </h3>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Plan Name</label>
+            <input
+              value={planName}
+              onChange={e => setPlanName(e.target.value)}
+              className="w-full px-3 py-2.5 bg-secondary/50 rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Monthly Price (₹)</label>
+            <input
+              type="number"
+              value={monthlyPrice}
+              onChange={e => setMonthlyPrice(Number(e.target.value))}
+              className="w-full px-3 py-2.5 bg-secondary/50 rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Yearly Price (₹)</label>
+            <input
+              type="number"
+              value={yearlyPrice}
+              onChange={e => setYearlyPrice(Number(e.target.value))}
+              className="w-full px-3 py-2.5 bg-secondary/50 rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Trial Days</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                value={trialDays}
+                onChange={e => setTrialDays(Number(e.target.value))}
+                disabled={!trialEnabled}
+                className="flex-1 px-3 py-2.5 bg-secondary/50 rounded-lg text-sm text-foreground border border-border focus:border-primary outline-none disabled:opacity-50"
+              />
+              <button
+                onClick={() => setTrialEnabled(!trialEnabled)}
+                className={`p-2 rounded-lg transition-colors ${trialEnabled ? "text-success" : "text-muted-foreground"}`}
+              >
+                {trialEnabled ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-1 items-center flex-wrap">
-          <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-          <button onClick={() => setCategoryFilter("all")}
-            className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors ${categoryFilter === "all" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-            All
-          </button>
-          {categories.map(cat => (
-            <button key={cat} onClick={() => setCategoryFilter(cat)}
-              className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors capitalize ${categoryFilter === cat ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-              {CATEGORY_LABELS[cat] || cat}
-            </button>
-          ))}
-        </div>
+
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          {saving ? "Saving..." : "Save Changes"}
+        </motion.button>
       </div>
 
-      {/* Feature Gates Table */}
-      {Object.entries(groupedByCategory).map(([category, features]) => {
-        const CatIcon = CATEGORY_ICONS[category] || Shield;
-        return (
-          <motion.div key={category} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-            <div className="flex items-center gap-2 px-1">
-              <CatIcon className="w-3.5 h-3.5 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">{CATEGORY_LABELS[category] || category}</h3>
-              <span className="text-[10px] text-muted-foreground">({features.length})</span>
-            </div>
-
-            <div className="glass rounded-xl neural-border overflow-hidden">
-              {/* Header */}
-              <div className="grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-2.5 bg-secondary/30 border-b border-border">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase">Feature</span>
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase text-center">Free</span>
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase text-center">Pro</span>
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase text-center">Ultra</span>
-              </div>
-
-              {features.map((gate, i) => (
-                <div key={gate.id} className={`grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-3 items-center ${i < features.length - 1 ? "border-b border-border/50" : ""} hover:bg-secondary/20 transition-colors`}>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{gate.feature_label}</p>
-                    <p className="text-[10px] text-muted-foreground font-mono">{gate.feature_key}</p>
-                  </div>
-                  {(["free_enabled", "pro_enabled", "ultra_enabled"] as const).map(field => (
-                    <div key={field} className="flex justify-center">
-                      <button
-                        onClick={() => toggleGate(gate.id, field, !(gate as any)[field])}
-                        disabled={saving === gate.id}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                          (gate as any)[field]
-                            ? "bg-success/15 text-success hover:bg-success/25"
-                            : "bg-secondary/50 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-                        } ${saving === gate.id ? "opacity-50" : ""}`}
-                      >
-                        {(gate as any)[field] ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        );
-      })}
-
-      {filtered.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-8">No features match your search.</p>
-      )}
+      {/* Features included notice */}
+      <div className="glass rounded-xl neural-border p-4">
+        <p className="text-xs text-muted-foreground text-center">
+          <Shield className="w-3.5 h-3.5 inline mr-1" />
+          Single plan model — all features are included for all subscribers. No feature gating needed.
+        </p>
+      </div>
     </div>
   );
 };

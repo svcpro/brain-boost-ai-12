@@ -1,58 +1,48 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
-import { Zap, Crown, Check, X, Sparkles, Shield, Brain } from "lucide-react";
+import { Crown, Check, Sparkles, Shield, Brain, Zap, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+
+const FEATURES = [
+  "AI Second Brain",
+  "Focus Study Mode",
+  "AI Revision Mode",
+  "Mock Practice Mode",
+  "Emergency Rescue Mode",
+  "Neural Memory Map",
+  "Decay Forecast Engine",
+  "AI Strategy Optimization",
+  "Voice + Push Notifications",
+  "Community Access",
+  "Unlimited Usage",
+];
 
 const PricingSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [yearly, setYearly] = useState(false);
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plan, setPlan] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from("subscription_plans")
         .select("*")
+        .eq("plan_key", "premium")
         .eq("is_active", true)
-        .order("sort_order");
-      setPlans(data || []);
+        .maybeSingle();
+      setPlan(data);
     })();
   }, []);
 
-  const proPlan = plans.find((p) => p.plan_key === "pro");
-  const ultraPlan = plans.find((p) => p.plan_key === "ultra");
-
-  const getPrice = (plan: any) => (yearly ? plan?.yearly_price : plan?.price) || 0;
-  const getSavings = (plan: any) => {
-    if (!plan) return 0;
-    const monthlyTotal = plan.price * 12;
-    const yearlyTotal = plan.yearly_price;
-    return monthlyTotal > 0 ? Math.round(((monthlyTotal - yearlyTotal) / monthlyTotal) * 100) : 0;
-  };
-
-  const comparison = [
-    { feature: "Subjects & Topics", pro: "Unlimited", ultra: "Unlimited" },
-    { feature: "AI Exam Simulator", pro: true, ultra: true },
-    { feature: "Advanced Analytics", pro: true, ultra: true },
-    { feature: "Voice Notifications", pro: true, ultra: true },
-    { feature: "Weekly AI Reports", pro: true, ultra: true },
-    { feature: "AI Study Coach (1-on-1)", pro: false, ultra: true },
-    { feature: "Custom Study Plans", pro: false, ultra: true },
-    { feature: "Peer Competition Insights", pro: false, ultra: true },
-    { feature: "Full Community Access", pro: false, ultra: true },
-    
-    { feature: "Knowledge Graph", pro: false, ultra: true },
-    { feature: "Cognitive Twin", pro: false, ultra: true },
-    { feature: "Data Export & Backup", pro: false, ultra: true },
-    { feature: "Early Access Features", pro: false, ultra: true },
-    { feature: "15-Day Free Trial", pro: true, ultra: false },
-  ];
+  const monthlyPrice = plan?.price || 149;
+  const yearlyPrice = plan?.yearly_price || 1499;
+  const monthlySavings = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100);
 
   return (
     <section ref={ref} className="relative py-32 px-6" id="pricing">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -60,10 +50,10 @@ const PricingSection = () => {
           className="text-center mb-12"
         >
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-            Choose Your <span className="gradient-text">Brain Level</span>
+            One Plan. <span className="gradient-text">Full Power.</span>
           </h2>
           <p className="text-muted-foreground text-lg mb-8">
-            Unlock the full power of your AI Second Brain.
+            No tiers. No confusion. Everything unlocked.
           </p>
 
           {/* Billing toggle */}
@@ -84,138 +74,98 @@ const PricingSection = () => {
             >
               Yearly
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-success/20 text-success">
-                Save {getSavings(ultraPlan)}%
+                Save {monthlySavings}%
               </span>
             </button>
           </div>
         </motion.div>
 
-        {/* Plan Cards */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto mb-20">
-          {/* Pro Plan */}
-          {proPlan && (
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.2 }}
-              className="glass rounded-2xl p-8 border border-border relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl bg-success/20 text-success text-[10px] font-bold">
-                15-DAY FREE TRIAL
-              </div>
-              <div className="p-3 rounded-xl neural-gradient neural-border w-fit mb-6">
-                <Zap className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-1">{proPlan.name}</h3>
-              <p className="text-xs text-muted-foreground mb-4">For serious learners</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-foreground">₹{getPrice(proPlan)}</span>
-                <span className="text-muted-foreground">/{yearly ? "year" : "mo"}</span>
-                {yearly && (
-                  <p className="text-xs text-success mt-1">
-                    Save {getSavings(proPlan)}% vs monthly
-                  </p>
-                )}
-              </div>
-              <ul className="space-y-3 mb-8">
-                {(proPlan.features as string[])?.map((f: string, j: number) => (
-                  <li key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/auth"
-                className="block text-center py-3 rounded-xl font-semibold glass neural-border text-foreground hover:bg-secondary/50 transition-all duration-300"
-              >
-                Start Free Trial
-              </Link>
-            </motion.div>
-          )}
-
-          {/* Ultra Plan */}
-          {ultraPlan && (
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.35 }}
-              className="glass rounded-2xl p-8 neural-border glow-primary relative overflow-hidden"
-            >
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                Recommended
-              </div>
-              <div className="p-3 rounded-xl neural-gradient neural-border w-fit mb-6 mt-2">
-                <Crown className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-1">{ultraPlan.name}</h3>
-              <p className="text-xs text-muted-foreground mb-4">Maximum brain power</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-foreground">₹{getPrice(ultraPlan)}</span>
-                <span className="text-muted-foreground">/{yearly ? "year" : "mo"}</span>
-                {yearly && (
-                  <p className="text-xs text-success mt-1">
-                    Save {getSavings(ultraPlan)}% vs monthly
-                  </p>
-                )}
-              </div>
-              <ul className="space-y-3 mb-8">
-                {(ultraPlan.features as string[])?.map((f: string, j: number) => (
-                  <li key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/auth"
-                className="block text-center py-3 rounded-xl font-semibold bg-primary text-primary-foreground glow-primary hover:glow-primary-strong hover:scale-105 transition-all duration-300"
-              >
-                Subscribe Now
-              </Link>
-            </motion.div>
-          )}
-        </div>
-
-        {/* Comparison Table */}
+        {/* Single Premium Plan Card */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.2 }}
+          className="glass rounded-3xl p-8 md:p-10 neural-border glow-primary relative overflow-hidden"
         >
-          <h3 className="text-2xl font-bold text-center text-foreground mb-8">
-            Plan Comparison
-          </h3>
-          <div className="glass rounded-2xl neural-border overflow-hidden">
-            <div className="grid grid-cols-3 gap-0">
-              <div className="p-4 border-b border-border font-semibold text-muted-foreground text-sm">Feature</div>
-              <div className="p-4 border-b border-border text-center font-semibold text-foreground text-sm">Pro Brain</div>
-              <div className="p-4 border-b border-border text-center font-semibold text-primary text-sm">Ultra Brain</div>
-              {comparison.map((row, i) => (
-                <>
-                  <div key={`f-${i}`} className="p-3.5 border-b border-border/50 text-sm text-muted-foreground">{row.feature}</div>
-                  <div key={`p-${i}`} className="p-3.5 border-b border-border/50 text-center">
-                    {typeof row.pro === "string" ? (
-                      <span className="text-sm text-foreground">{row.pro}</span>
-                    ) : row.pro ? (
-                      <Check className="w-4 h-4 text-success mx-auto" />
-                    ) : (
-                      <X className="w-4 h-4 text-muted-foreground/40 mx-auto" />
-                    )}
-                  </div>
-                  <div key={`u-${i}`} className="p-3.5 border-b border-border/50 text-center">
-                    {typeof row.ultra === "string" ? (
-                      <span className="text-sm text-primary font-medium">{row.ultra}</span>
-                    ) : row.ultra ? (
-                      <Check className="w-4 h-4 text-primary mx-auto" />
-                    ) : (
-                      <X className="w-4 h-4 text-muted-foreground/40 mx-auto" />
-                    )}
-                  </div>
-                </>
-              ))}
-            </div>
+          {/* Badge */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-5 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1.5">
+            <Crown className="w-3.5 h-3.5" />
+            ACRY Premium
           </div>
+
+          {/* Trial badge */}
+          <div className="absolute top-4 right-4 px-3 py-1 rounded-xl bg-success/20 text-success text-[10px] font-bold">
+            15-DAY FREE TRIAL
+          </div>
+
+          <div className="text-center mt-4 mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl neural-gradient neural-border mb-5">
+              <Crown className="w-8 h-8 text-primary" />
+            </div>
+
+            <div className="mb-2">
+              <span className="text-5xl md:text-6xl font-bold text-foreground">
+                ₹{yearly ? yearlyPrice : monthlyPrice}
+              </span>
+              <span className="text-muted-foreground text-lg">/{yearly ? "year" : "mo"}</span>
+            </div>
+
+            {yearly && (
+              <p className="text-sm text-success font-medium">
+                That's ₹{Math.round(yearlyPrice / 12)}/mo · Save {monthlySavings}%
+              </p>
+            )}
+          </div>
+
+          {/* Features grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+            {FEATURES.map((f, i) => (
+              <motion.div
+                key={f}
+                initial={{ opacity: 0, x: -10 }}
+                animate={isInView ? { opacity: 1, x: 0 } : {}}
+                transition={{ delay: 0.3 + i * 0.04 }}
+                className="flex items-center gap-2.5 text-sm text-foreground/90"
+              >
+                <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                  <Check className="w-3 h-3 text-primary" />
+                </div>
+                {f}
+              </motion.div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <Link
+            to="/auth?splash=1"
+            className="block text-center py-4 rounded-2xl font-bold text-lg bg-primary text-primary-foreground glow-primary hover:glow-primary-strong hover:scale-[1.02] transition-all duration-300"
+          >
+            Start 15-Day Free Trial
+          </Link>
+
+          <p className="text-center text-xs text-muted-foreground mt-3 flex items-center justify-center gap-1.5">
+            <Shield className="w-3 h-3" />
+            No credit card required · Cancel anytime
+          </p>
+        </motion.div>
+
+        {/* Trust elements */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ delay: 0.6 }}
+          className="flex items-center justify-center gap-6 mt-8 text-muted-foreground"
+        >
+          {[
+            { icon: Shield, text: "Secure Payments" },
+            { icon: Star, text: "Premium Support" },
+            { icon: Zap, text: "Instant Access" },
+          ].map(t => (
+            <div key={t.text} className="flex items-center gap-1.5 text-xs">
+              <t.icon className="w-3.5 h-3.5" />
+              {t.text}
+            </div>
+          ))}
         </motion.div>
       </div>
     </section>
