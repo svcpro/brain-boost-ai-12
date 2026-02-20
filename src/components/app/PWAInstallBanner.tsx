@@ -68,20 +68,25 @@ const PWAInstallBanner = () => {
   }, []);
 
   const handleInstall = async () => {
+    console.log("[PWA] Install clicked, deferredPrompt exists:", !!deferredPrompt);
     if (!deferredPrompt) {
-      // Fallback: no native prompt available, show manual instructions
+      // No native prompt — switch UI to show manual instructions
       setDeferredPrompt(null);
       return;
     }
     try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") {
+      console.log("[PWA] Calling prompt()...");
+      const promptResult = deferredPrompt.prompt();
+      console.log("[PWA] prompt() called, awaiting userChoice...");
+      const choiceResult = await deferredPrompt.userChoice;
+      console.log("[PWA] userChoice outcome:", choiceResult.outcome);
+      if (choiceResult.outcome === "accepted") {
         setShowBanner(false);
         localStorage.setItem(DISMISSED_KEY, Date.now().toString());
       }
-    } catch (err) {
-      console.warn("PWA install prompt failed:", err);
+    } catch (err: any) {
+      console.error("[PWA] Install prompt error:", err?.message || err);
+      // Prompt failed — clear it so UI switches to manual instructions
     }
     setDeferredPrompt(null);
   };
