@@ -201,12 +201,17 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
     setPhase("mapping"); triggerHaptic([10, 20]);
     let boost = 0;
     if (data.totalTopicsCreated > 0) {
-      // Look up subject_id for the first extracted subject
+      // Find or create subject for the first extracted result
       let subjectId: string | null = null;
       const firstSubject = data.results?.[0]?.subject;
       if (firstSubject) {
         const { data: subRow } = await supabase.from("subjects").select("id").eq("user_id", user.id).eq("name", firstSubject).maybeSingle();
-        subjectId = subRow?.id || null;
+        if (subRow) {
+          subjectId = subRow.id;
+        } else {
+          const { data: newSub } = await supabase.from("subjects").insert({ user_id: user.id, name: firstSubject }).select("id").single();
+          subjectId = newSub?.id || null;
+        }
       }
 
       for (const res of data.results || []) {
@@ -220,16 +225,18 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
       }
       boost = Math.min(8, data.totalTopicsCreated * 2);
 
-      // Insert study log with correct column names
+      // Insert study log — subject_id can be null, so omit it if not found
       const confLevel = selectedConfidence === "High" ? "high" : selectedConfidence === "Medium" ? "medium" : selectedConfidence === "Low" ? "low" : "medium";
-      await supabase.from("study_logs").insert({
+      const logPayload: any = {
         user_id: user.id,
-        subject_id: subjectId,
         duration_minutes: Math.max(1, Math.ceil(elapsed / 60)),
         confidence_level: confLevel,
         study_mode: selectedStudyType?.toLowerCase() || "voice_capture",
         notes: `${data.totalTopicsCreated} topics extracted via voice`,
-      });
+      };
+      if (subjectId) logPayload.subject_id = subjectId;
+      const { error: logErr } = await supabase.from("study_logs").insert(logPayload);
+      if (logErr) console.error("Study log insert failed:", logErr);
 
       // Fire confetti + toast
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, zIndex: 9999 });
