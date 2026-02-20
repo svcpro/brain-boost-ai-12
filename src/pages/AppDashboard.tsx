@@ -163,7 +163,7 @@ const AppDashboard = () => {
         return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
       case "community": return <CommunityPage inline />;
-      case "progress": return <ProgressTab />;
+      case "progress": return <ProgressTab onUpgrade={() => { setAutoOpenSubscription(true); setActiveTab("you"); }} />;
       case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
       default: return null;
     }
