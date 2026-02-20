@@ -25,11 +25,20 @@ const PWAInstallBanner = () => {
     setIsIOS(ios);
 
     if (ios) {
-      // Show manual install instructions on iOS after short delay
       const timer = setTimeout(() => setShowBanner(true), 3000);
       return () => clearTimeout(timer);
     }
 
+    // Check if the event was already captured globally before this component mounted
+    const earlyPrompt = (window as any).__pwaInstallPrompt;
+    if (earlyPrompt) {
+      setDeferredPrompt(earlyPrompt as BeforeInstallPromptEvent);
+      (window as any).__pwaInstallPrompt = null;
+      setTimeout(() => setShowBanner(true), 2000);
+      return;
+    }
+
+    // Otherwise listen for the event (in case it hasn't fired yet)
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
