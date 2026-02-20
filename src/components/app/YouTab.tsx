@@ -33,7 +33,7 @@ import PlanGateWrapper from "./PlanGateWrapper";
 import { usePlanGatingContext } from "@/hooks/usePlanGating";
 
 // New identity sections
-import PersonalGrowthSnapshot from "./you/PersonalGrowthSnapshot";
+import IdentityCommandCenter from "./you/IdentityCommandCenter";
 import LearningIdentitySummary from "./you/LearningIdentitySummary";
 import AIPersonalStrategy from "./you/AIPersonalStrategy";
 import AchievementWall from "./you/AchievementWall";
@@ -561,7 +561,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
       {/* ═══ SECTION 1: Personal Growth Snapshot ═══ */}
       {isEnabled("you_level_plan") && (
-        <PersonalGrowthSnapshot
+        <IdentityCommandCenter
           totalXp={totalXp}
           currentLevel={currentLevel}
           nextThreshold={nextThreshold}
