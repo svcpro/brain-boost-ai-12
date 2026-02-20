@@ -40,7 +40,9 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
   const { toast } = useToast();
   const [mission, setMission] = useState<DailyMission | null>(() => {
     const cached = getCache<DailyMission>(CACHE_KEY);
-    if (cached && cached.generated_date === new Date().toISOString().slice(0, 10)) return cached;
+    const now = new Date();
+    const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (cached && cached.generated_date === localToday) return cached;
     return null;
   });
   const [loading, setLoading] = useState(false);
@@ -48,7 +50,8 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
   const [showConfetti, setShowConfetti] = useState(false);
   const [showMissionFlow, setShowMissionFlow] = useState(false);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const generateMission = useCallback(async () => {
     if (!user) return;
@@ -58,8 +61,19 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
         body: { action: "daily_mission" },
       });
       if (error) throw error;
-      if (data?.title) {
-        const missionData: DailyMission = { ...data, generated_date: today };
+      if (data?.title || data?.mission) {
+        const missionData: DailyMission = {
+          title: data.title || data.mission?.slice(0, 60) || "AI Mission",
+          description: data.description || data.mission || "",
+          topic_name: data.topic_name || data.topic || undefined,
+          subject_name: data.subject_name || data.subject || undefined,
+          estimated_minutes: data.estimated_minutes || data.duration || 5,
+          brain_improvement_pct: data.brain_improvement_pct || 5,
+          urgency: data.urgency || "medium",
+          reasoning: data.reasoning || data.reason || "",
+          mission_type: data.mission_type || data.type || "review",
+          generated_date: today,
+        };
         setMission(missionData);
         setCache(CACHE_KEY, missionData);
         setCompleted(false);
