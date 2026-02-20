@@ -228,7 +228,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
   }
 
   return (
-    <div className={inline ? "" : "min-h-screen bg-background"}>
+    <div className={inline ? "" : "min-h-screen bg-background max-w-[430px] mx-auto"}>
       {/* Premium Header - only show when standalone */}
       {!inline && (
         <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">

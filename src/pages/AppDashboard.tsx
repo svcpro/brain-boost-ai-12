@@ -174,107 +174,113 @@ const AppDashboard = () => {
     <FeatureFlagContext.Provider value={{ isEnabled: isTabEnabled }}>
     <PlanGatingContext.Provider value={planGating}>
     <VoiceContext.Provider value={voice}>
-      <div className="min-h-screen bg-background flex flex-col">
-        {/* Expiry Warning Banner */}
-        {expiryWarning && !dismissedWarning && (
-          <div className="bg-warning/15 border-b border-warning/30 px-4 py-2.5 flex items-center gap-2 text-sm z-50 relative">
-            <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
-            <span className="text-warning font-medium flex-1">
-              Your {expiryWarning.plan === "ultra" ? "Ultra Brain" : "Pro Brain"} plan expires
-              {expiryWarning.daysLeft === 0 ? " today" : ` in ${expiryWarning.daysLeft} day${expiryWarning.daysLeft > 1 ? "s" : ""}`}!
-              Renew to keep your benefits.
-            </span>
-            <button
-              onClick={() => { setAutoOpenSubscription(true); setActiveTab("you"); setDismissedWarning(true); }}
-              className="px-3 py-1 rounded-full bg-warning text-warning-foreground text-xs font-semibold whitespace-nowrap hover:bg-warning/90 transition-colors"
-            >
-              Renew Now
-            </button>
-            <button onClick={() => setDismissedWarning(true)} className="text-muted-foreground hover:text-foreground p-0.5">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-        {/* Header */}
-        <header className="glass-strong border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-40">
-          <ACRYLogo variant="navbar" animate={false} />
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <GlobalNotificationCenter
-              unreadCount={unreadNotifs}
-              setUnreadCount={setUnreadNotifs}
-            />
-            {isAdmin && (
-              <button onClick={() => navigate("/admin")} className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Admin Panel">
-                <Shield className="w-4 h-4 text-primary" />
+      {/* Desktop ambient background */}
+      <div className="app-shell-bg fixed inset-0 hidden md:block" />
+
+      {/* Device Frame Container */}
+      <div className="app-device-frame">
+        <div className="app-device-inner">
+          {/* Expiry Warning Banner */}
+          {expiryWarning && !dismissedWarning && (
+            <div className="bg-warning/15 border-b border-warning/30 px-4 py-2.5 flex items-center gap-2 text-sm z-50 relative">
+              <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+              <span className="text-warning font-medium flex-1">
+                Your {expiryWarning.plan === "ultra" ? "Ultra Brain" : "Pro Brain"} plan expires
+                {expiryWarning.daysLeft === 0 ? " today" : ` in ${expiryWarning.daysLeft} day${expiryWarning.daysLeft > 1 ? "s" : ""}`}!
+                Renew to keep your benefits.
+              </span>
+              <button
+                onClick={() => { setAutoOpenSubscription(true); setActiveTab("you"); setDismissedWarning(true); }}
+                className="px-3 py-1 rounded-full bg-warning text-warning-foreground text-xs font-semibold whitespace-nowrap hover:bg-warning/90 transition-colors"
+              >
+                Renew Now
               </button>
-            )}
-            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-              currentPlan === "none" ? "bg-destructive/15 text-destructive" : "neural-gradient neural-border text-primary"
-            }`}>
-              {currentPlan === "ultra" ? "Ultra Brain" : currentPlan === "pro" ? "Pro Brain" : "No Plan"}
+              <button onClick={() => setDismissedWarning(true)} className="text-muted-foreground hover:text-foreground p-0.5">
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-          </div>
-        </header>
+          )}
 
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto pb-24">
-          {renderTab()}
-        </main>
-
-        {/* Voice Notification Overlay */}
-        <VoiceNotificationOverlay playing={voice.playing} subtitle={voice.subtitle} />
-
-        {/* App Tour */}
-        {showTour && <AppTour onComplete={() => setShowTour(false)} />}
-
-        {/* Bottom Nav */}
-        <nav className="fixed bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
-          <div className="flex items-center justify-around py-2 max-w-lg mx-auto">
-            {tabs.filter(tab => isTabEnabled(`tab_${tab.id}`)).map((tab) => {
-              const active = activeTab === tab.id;
-              const isSureShot = tab.id === "progress";
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); }}
-                  className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 relative ${
-                    isSureShot
-                      ? "text-transparent"
-                      : active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <div className="relative">
-                    {isSureShot ? (
-                      <div className="relative">
-                        <div className="absolute inset-0 rounded-full animate-[glow-ring_2s_ease-in-out_infinite]" />
-                        <tab.icon className={`w-5 h-5 sureshot-icon-glow animate-[flame-flicker_1.5s_ease-in-out_infinite]`} style={{ color: 'hsl(15, 100%, 55%)' }} />
-                        {/* HOT badge */}
-                        <span className="absolute -top-3 -right-4 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[7px] font-black leading-none animate-[hot-badge-pulse_1.5s_ease-in-out_infinite] sureshot-glow"
-                          style={{ background: 'linear-gradient(135deg, hsl(0,85%,50%), hsl(330,100%,55%))', color: 'white' }}>
-                          🔥 HOT
-                        </span>
-                      </div>
-                    ) : (
-                      <>
-                        <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""} ${tab.id === "community" ? "animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
-                        {tab.id === "progress" && pendingGifts > 0 && (
-                          <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
-                            {pendingGifts > 9 ? "9+" : pendingGifts}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <span className={`text-[10px] font-bold ${isSureShot ? "sureshot-gradient-text" : "font-medium"}`}>{tab.label}</span>
-                  {active && (
-                    <div className={`w-1 h-1 rounded-full ${isSureShot ? "" : "bg-primary"}`} style={isSureShot ? { background: 'hsl(15, 100%, 55%)' } : {}} />
-                  )}
+          {/* Header */}
+          <header className="glass-strong border-b border-border px-5 py-3 flex items-center justify-between sticky top-0 z-40">
+            <ACRYLogo variant="navbar" animate={false} />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <GlobalNotificationCenter
+                unreadCount={unreadNotifs}
+                setUnreadCount={setUnreadNotifs}
+              />
+              {isAdmin && (
+                <button onClick={() => navigate("/admin")} className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Admin Panel">
+                  <Shield className="w-4 h-4 text-primary" />
                 </button>
-              );
-            })}
-          </div>
-        </nav>
+              )}
+              <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                currentPlan === "none" ? "bg-destructive/15 text-destructive" : "neural-gradient neural-border text-primary"
+              }`}>
+                {currentPlan === "ultra" ? "Ultra" : currentPlan === "pro" ? "Pro" : "Free"}
+              </div>
+            </div>
+          </header>
+
+          {/* Content */}
+          <main className="flex-1 overflow-y-auto pb-20">
+            {renderTab()}
+          </main>
+
+          {/* Voice Notification Overlay */}
+          <VoiceNotificationOverlay playing={voice.playing} subtitle={voice.subtitle} />
+
+          {/* App Tour */}
+          {showTour && <AppTour onComplete={() => setShowTour(false)} />}
+
+          {/* Bottom Nav — contained inside device frame */}
+          <nav className="absolute bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
+            <div className="flex items-center justify-around py-1.5 safe-area-bottom">
+              {tabs.filter(tab => isTabEnabled(`tab_${tab.id}`)).map((tab) => {
+                const active = activeTab === tab.id;
+                const isSureShot = tab.id === "progress";
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id); }}
+                    className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-300 relative ${
+                      isSureShot
+                        ? "text-transparent"
+                        : active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <div className="relative">
+                      {isSureShot ? (
+                        <div className="relative">
+                          <div className="absolute inset-0 rounded-full animate-[glow-ring_2s_ease-in-out_infinite]" />
+                          <tab.icon className={`w-5 h-5 sureshot-icon-glow animate-[flame-flicker_1.5s_ease-in-out_infinite]`} style={{ color: 'hsl(15, 100%, 55%)' }} />
+                          <span className="absolute -top-2.5 -right-3.5 flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[6px] font-black leading-none animate-[hot-badge-pulse_1.5s_ease-in-out_infinite] sureshot-glow"
+                            style={{ background: 'linear-gradient(135deg, hsl(0,85%,50%), hsl(330,100%,55%))', color: 'white' }}>
+                            🔥
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""} ${tab.id === "community" ? "animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
+                          {tab.id === "progress" && pendingGifts > 0 && (
+                            <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
+                              {pendingGifts > 9 ? "9+" : pendingGifts}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <span className={`text-[9px] ${isSureShot ? "font-bold sureshot-gradient-text" : active ? "font-bold" : "font-medium"}`}>{tab.label}</span>
+                    {active && !isSureShot && (
+                      <div className="w-1 h-1 rounded-full bg-primary" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        </div>
       </div>
     </VoiceContext.Provider>
     </PlanGatingContext.Provider>

@@ -286,6 +286,49 @@
   100% { background-position: 200% center; }
 }
 
+/* ═══ Premium App Device Frame ═══ */
+.app-shell-bg {
+  background: radial-gradient(ellipse 80% 50% at 50% 20%, hsl(228 50% 5%), hsl(228 50% 3%));
+}
+
+.app-device-frame {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.app-device-inner {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--background));
+  overflow: hidden;
+}
+
+/* On desktop, show a phone-like frame with rounded corners & shadow */
+@media (min-width: 768px) {
+  .app-device-inner {
+    height: min(95dvh, 920px);
+    border-radius: 2.5rem;
+    border: 1px solid hsl(var(--border) / 0.4);
+    box-shadow:
+      0 0 0 1px hsl(var(--border) / 0.15),
+      0 25px 80px -12px hsl(0 0% 0% / 0.6),
+      0 0 120px hsl(var(--primary) / 0.06);
+  }
+}
+
+/* Safe area padding for bottom nav */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 4px);
+}
+
 @keyframes spark-float {
   0% { transform: translateY(0) scale(1); opacity: 1; }
   100% { transform: translateY(-20px) scale(0); opacity: 0; }
