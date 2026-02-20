@@ -146,7 +146,10 @@ const BrainTab = () => {
       />
 
       {/* ═══ SECTION 3: Decay Forecast Timeline ═══ */}
-      <DecayForecastTimeline subjectHealth={subjectHealth} />
+      <DecayForecastTimeline
+        subjectHealth={subjectHealth}
+        onPreventDecay={(s, t) => setReviewSession({ subject: s, topic: t })}
+      />
 
       {/* ═══ SECTION 4: AI Intelligence Insights ═══ */}
       <AIIntelligenceInsights />
