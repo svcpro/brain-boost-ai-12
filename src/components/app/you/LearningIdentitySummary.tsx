@@ -57,14 +57,14 @@ const LearningIdentitySummary = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Load exam config
-    (supabase as any).from("exam_countdown_config")
-      .select("exam_name, exam_date")
-      .eq("user_id", user.id)
+    // Load exam config from profiles
+    supabase.from("profiles")
+      .select("exam_type, exam_date")
+      .eq("id", user.id)
       .maybeSingle()
-      .then(({ data }: any) => {
+      .then(({ data }) => {
         if (data) {
-          setExamName(data.exam_name || null);
+          setExamName(data.exam_type || null);
           if (data.exam_date) {
             const days = Math.ceil((new Date(data.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
             setDaysRemaining(days > 0 ? days : null);
