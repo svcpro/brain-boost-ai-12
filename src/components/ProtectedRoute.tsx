@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,12 +9,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
+  const checkedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user) {
       setCheckingOnboarding(false);
+      checkedUserIdRef.current = null;
       return;
     }
+
+    // Skip re-check if we already checked this user
+    if (checkedUserIdRef.current === user.id) return;
+
     const checkProfile = async () => {
       try {
         const { data } = await supabase
@@ -25,6 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         const prefs = data?.study_preferences as Record<string, unknown> | null;
         setNeedsOnboarding(!prefs?.onboarded);
         setIsBanned(!!(data as any)?.is_banned);
+        checkedUserIdRef.current = user.id;
       } catch (e) {
         console.error("ProtectedRoute profile check error:", e);
       } finally {
