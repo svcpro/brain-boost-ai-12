@@ -86,28 +86,34 @@ const AppDashboard = () => {
   useEffect(() => {
     if (!user) return;
     const fetchCount = async () => {
-      const { count } = await supabase
-        .from("ai_recommendations")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("completed", false);
-      setRecCount(count ?? 0);
+      try {
+        const { count } = await supabase
+          .from("ai_recommendations")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("completed", false);
+        setRecCount(count ?? 0);
+      } catch (e) { console.error("fetchCount error:", e); }
     };
     const fetchGifts = async () => {
-      const { count } = await (supabase as any)
-        .from("freeze_gifts")
-        .select("*", { count: "exact", head: true })
-        .eq("recipient_id", user.id)
-        .eq("status", "pending");
-      setPendingGifts(count ?? 0);
+      try {
+        const { count } = await (supabase as any)
+          .from("freeze_gifts")
+          .select("*", { count: "exact", head: true })
+          .eq("recipient_id", user.id)
+          .eq("status", "pending");
+        setPendingGifts(count ?? 0);
+      } catch (e) { console.error("fetchGifts error:", e); }
     };
     const fetchUnreadNotifs = async () => {
-      const { count } = await (supabase as any)
-        .from("notification_history")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("read", false);
-      setUnreadNotifs(count ?? 0);
+      try {
+        const { count } = await (supabase as any)
+          .from("notification_history")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("read", false);
+        setUnreadNotifs(count ?? 0);
+      } catch (e) { console.error("fetchUnreadNotifs error:", e); }
     };
     fetchCount();
     fetchGifts();
@@ -117,34 +123,40 @@ const AppDashboard = () => {
   // Fetch current plan (resolve UUID to plan_key)
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(async ({ data }) => {
-      if (!data?.plan_id) { setCurrentPlan("none"); return; }
-      let planKey = data.plan_id;
-      if (planKey.includes("-") && planKey.length > 10) {
-        const { data: planData } = await supabase.from("subscription_plans").select("plan_key").eq("id", planKey).maybeSingle();
-        planKey = planData?.plan_key || "none";
-      }
-      setCurrentPlan(planKey);
-    });
+    const fetchPlan = async () => {
+      try {
+        const { data } = await supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (!data?.plan_id) { setCurrentPlan("none"); return; }
+        let planKey = data.plan_id;
+        if (planKey.includes("-") && planKey.length > 10) {
+          const { data: planData } = await supabase.from("subscription_plans").select("plan_key").eq("id", planKey).maybeSingle();
+          planKey = planData?.plan_key || "none";
+        }
+        setCurrentPlan(planKey);
+      } catch (e) { console.error("fetchPlan error:", e); setCurrentPlan("free"); }
+    };
+    fetchPlan();
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
     const checkExpiry = async () => {
-      const { data } = await supabase
-        .from("user_subscriptions")
-        .select("plan_id, expires_at")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .neq("plan_id", "free")
-        .order("created_at", { ascending: false })
-        .maybeSingle();
-      if (data?.expires_at) {
-        const daysLeft = Math.ceil((new Date(data.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-        if (daysLeft <= 3 && daysLeft >= 0) {
-          setExpiryWarning({ plan: data.plan_id, daysLeft });
+      try {
+        const { data } = await supabase
+          .from("user_subscriptions")
+          .select("plan_id, expires_at")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .neq("plan_id", "free")
+          .order("created_at", { ascending: false })
+          .maybeSingle();
+        if (data?.expires_at) {
+          const daysLeft = Math.ceil((new Date(data.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          if (daysLeft <= 3 && daysLeft >= 0) {
+            setExpiryWarning({ plan: data.plan_id, daysLeft });
+          }
         }
-      }
+      } catch (e) { console.error("checkExpiry error:", e); }
     };
     checkExpiry();
   }, [user]);

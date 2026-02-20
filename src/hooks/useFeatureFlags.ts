@@ -21,11 +21,13 @@ export const useFeatureFlags = () => {
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(async () => {
-    const { data } = await supabase
-      .from("feature_flags")
-      .select("*")
-      .order("flag_key");
-    setFlags((data as any[]) || []);
+    try {
+      const { data } = await supabase
+        .from("feature_flags")
+        .select("*")
+        .order("flag_key");
+      setFlags((data as any[]) || []);
+    } catch (e) { console.error("useFeatureFlags fetch error:", e); }
     setLoading(false);
   }, []);
 
