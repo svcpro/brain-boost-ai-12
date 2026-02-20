@@ -229,6 +229,48 @@ const AppTour = ({ onComplete }: AppTourProps) => {
               className="absolute inset-0 z-10 cursor-pointer"
               onClick={() => setStep(1)}
             />
+
+            {/* Loading state while waiting for spotlight target */}
+            {!spotlightRect && (
+              <motion.div
+                className="absolute inset-0 flex flex-col items-center justify-center gap-6 z-20"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <div className="relative">
+                  <NeuralPulse size={100} />
+                  <motion.div
+                    className="w-14 h-14 rounded-full flex items-center justify-center z-10 relative"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(187 100% 50% / 0.25), hsl(262 100% 65% / 0.15))",
+                      border: "1px solid hsl(187 100% 50% / 0.4)",
+                    }}
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    <Mic className="w-6 h-6 text-primary" />
+                  </motion.div>
+                </div>
+                <p className="text-lg font-display font-bold text-foreground text-center">
+                  Setting up your Brain...
+                </p>
+                <motion.div
+                  className="flex items-center gap-1"
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  {[...Array(3)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-1.5 h-1.5 rounded-full bg-primary/60"
+                      animate={{ scale: [1, 1.4, 1] }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+                    />
+                  ))}
+                </motion.div>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
