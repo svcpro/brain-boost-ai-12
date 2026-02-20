@@ -65,6 +65,56 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
 
   // safeStr and safeNum imported from @/lib/safeRender
 
+  const parseMissionResponse = (data: any): DailyMission | null => {
+    // The AI may return the mission as a nested object in data.title, data.mission, or directly in data
+    // Normalize: find the actual mission object
+    let src = data;
+    if (typeof data.title === "object" && data.title !== null) {
+      src = data.title; // The whole mission was stuffed into .title
+    } else if (typeof data.mission === "object" && data.mission !== null) {
+      src = data.mission;
+    }
+
+    // Extract topic/action for building a human-readable title
+    const topic = safeStr(src.topic_name || src.topic || data.topic_name || data.topic, "");
+    const actionType = safeStr(src.action_type || src.mission_type || data.action_type || data.mission_type || data.type || src.type, "Review");
+    
+    // Build a readable title — prefer an explicit string title, otherwise compose from topic+action
+    let title = "";
+    if (typeof data.title === "string" && data.title.length > 0 && !data.title.startsWith("{")) {
+      title = data.title;
+    } else if (typeof src.title === "string" && src.title.length > 0 && !src.title.startsWith("{")) {
+      title = src.title;
+    } else if (topic) {
+      title = `${actionType}: ${topic}`;
+    } else {
+      title = safeStr(data.title, "AI Mission");
+    }
+
+    // Build description
+    let description = "";
+    if (typeof data.description === "string" && data.description.length > 0 && !data.description.startsWith("{")) {
+      description = data.description;
+    } else if (typeof src.description === "string" && src.description.length > 0 && !src.description.startsWith("{")) {
+      description = src.description;
+    } else if (topic) {
+      description = `Focus on ${topic} with a ${actionType.toLowerCase()} session to strengthen your memory.`;
+    }
+
+    return {
+      title: title.slice(0, 80),
+      description,
+      topic_name: topic || undefined,
+      subject_name: safeStr(src.subject_name || src.subject || data.subject_name || data.subject) || undefined,
+      estimated_minutes: safeNum(src.estimated_minutes || src.duration_minutes || src.duration || data.estimated_minutes || data.duration, 5),
+      brain_improvement_pct: safeNum(src.brain_improvement_pct || data.brain_improvement_pct, 5),
+      urgency: (["critical", "high", "medium"].includes(src.urgency || data.urgency) ? (src.urgency || data.urgency) : "medium") as DailyMission["urgency"],
+      reasoning: safeStr(src.reasoning || src.reason || data.reasoning || data.reason, "Personalized by your AI brain agent."),
+      mission_type: safeStr(src.mission_type || src.type || data.mission_type || data.type, "review") as DailyMission["mission_type"],
+      generated_date: today,
+    };
+  };
+
   const generateMission = useCallback(async () => {
     if (!user || !session) return;
     setLoading(true);
@@ -74,22 +124,20 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
         body: { action: "daily_mission" },
       });
       if (fnError) throw fnError;
-      if (data?.title || data?.mission) {
-        const missionData: DailyMission = {
-          title: safeStr(data.title, safeStr(data.mission, "AI Mission")).slice(0, 80),
-          description: safeStr(data.description, safeStr(data.mission, "")),
-          topic_name: safeStr(data.topic_name || data.topic) || undefined,
-          subject_name: safeStr(data.subject_name || data.subject) || undefined,
-          estimated_minutes: safeNum(data.estimated_minutes || data.duration, 5),
-          brain_improvement_pct: safeNum(data.brain_improvement_pct, 5),
-          urgency: (["critical","high","medium"].includes(data.urgency) ? data.urgency : "medium") as DailyMission["urgency"],
-          reasoning: safeStr(data.reasoning || data.reason, "Personalized by your AI brain agent."),
-          mission_type: safeStr(data.mission_type || data.type, "review") as DailyMission["mission_type"],
-          generated_date: today,
-        };
+      
+      const missionData = parseMissionResponse(data);
+      if (missionData && missionData.title !== "AI Mission") {
         setMission(missionData);
         setCache(cacheKey, missionData);
         setCompleted(false);
+      } else if (data) {
+        // Fallback: still try to show something
+        const fallback = parseMissionResponse(data);
+        if (fallback) {
+          setMission(fallback);
+          setCache(cacheKey, fallback);
+          setCompleted(false);
+        }
       }
     } catch (e: any) {
       console.error("Mission generation failed:", e);
