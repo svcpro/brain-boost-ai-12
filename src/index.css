@@ -309,6 +309,7 @@
   flex-direction: column;
   background: hsl(var(--background));
   overflow: hidden;
+  overflow-x: hidden;
 }
 
 /* On desktop, show a phone-like frame with rounded corners & shadow */

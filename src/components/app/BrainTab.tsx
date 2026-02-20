@@ -108,7 +108,7 @@ const BrainTab = () => {
   const totalTopics = subjectHealth.reduce((acc, s) => acc + s.topicCount, 0);
 
   return (
-    <div className="px-5 py-6 space-y-6 max-w-lg mx-auto">
+    <div className="px-5 py-6 space-y-6 max-w-lg mx-auto overflow-x-hidden">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>

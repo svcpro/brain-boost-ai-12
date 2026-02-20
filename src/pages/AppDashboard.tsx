@@ -227,7 +227,7 @@ const AppDashboard = () => {
           </header>
 
           {/* Content */}
-          <main className="flex-1 overflow-y-auto pb-20">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20">
             <Suspense fallback={
               <div className="flex items-center justify-center py-20">
                 <ACRYLogo variant="icon" animate={true} className="w-8 h-8 animate-pulse" />

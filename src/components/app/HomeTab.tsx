@@ -296,7 +296,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const healthLabel = overallHealth > 70 ? "Strong" : overallHealth > 50 ? "Needs care" : "Critical";
 
   return (
-    <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
+    <div className="px-5 py-6 space-y-5 max-w-lg mx-auto overflow-x-hidden">
       {/* ─── SECTION 1: Hero Brain Stability Score ─── */}
       <motion.section
         initial={{ opacity: 0, y: 30 }}
