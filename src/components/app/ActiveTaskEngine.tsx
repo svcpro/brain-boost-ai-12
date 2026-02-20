@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Zap, Loader2, Sparkles, Clock, TrendingUp,
+  Zap, Sparkles, Clock, TrendingUp,
   ChevronRight, Flame, Trophy, CheckCircle2, Star
 } from "lucide-react";
+import AIProgressBar from "./AIProgressBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -211,8 +212,8 @@ const ActiveTaskEngine = () => {
         {/* Task Cards */}
         <div className="space-y-2.5">
           {loading ? (
-            <div className="rounded-2xl border border-border bg-card p-8 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            <div className="rounded-2xl border border-border bg-card px-4">
+              <AIProgressBar label="Loading AI tasks" compact estimatedSeconds={4} />
             </div>
           ) : tasks.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card p-6 text-center space-y-2">

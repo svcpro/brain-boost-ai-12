@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, X, Loader2 } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
+import AIProgressBar from "./AIProgressBar";
 import { useAIAgent } from "@/hooks/useAIAgent";
 
 interface ExplainButtonProps {
@@ -40,7 +41,7 @@ const ExplainButton = ({ predictionType, predictionData, label = "Explain" }: Ex
         className="flex items-center gap-1 text-[9px] text-primary/80 hover:text-primary transition-colors mt-1 disabled:opacity-50"
       >
         {loading ? (
-          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+          <div className="w-2.5 h-2.5 rounded-full border border-primary border-t-transparent animate-spin" />
         ) : (
           <Sparkles className="w-2.5 h-2.5" />
         )}
@@ -63,10 +64,7 @@ const ExplainButton = ({ predictionType, predictionData, label = "Explain" }: Ex
                 <X className="w-3 h-3" />
               </button>
               {loading ? (
-                <div className="flex items-center gap-2 py-1">
-                  <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                  <span className="text-[10px] text-muted-foreground">AI is analyzing…</span>
-                </div>
+                <AIProgressBar label="AI is analyzing" compact estimatedSeconds={6} />
               ) : (
                 <p className="text-[10px] leading-relaxed text-foreground/80 pr-4">
                   {explanation}

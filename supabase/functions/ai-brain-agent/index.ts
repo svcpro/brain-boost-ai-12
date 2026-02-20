@@ -168,7 +168,7 @@ ${ranks.length > 0 ? `Current rank: ${ranks[0].predicted_rank} (${ranks[0].perce
 
     if (action === "chat") {
       const aiResp = await callAI({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
@@ -219,7 +219,7 @@ ${cognitiveContext}`
 
     if (action === "daily_mission") {
       const aiResp = await callAI({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",

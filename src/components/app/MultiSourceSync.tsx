@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileText, Camera, Mic, X, Upload, Loader2, CheckCircle2 } from "lucide-react";
+import { FileText, Camera, Mic, X, Upload, CheckCircle2 } from "lucide-react";
+import AIProgressBar from "./AIProgressBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -148,6 +149,14 @@ const MultiSourceSync = ({ onClose, onSynced }: MultiSourceSyncProps) => {
 
         <p className="text-xs text-muted-foreground">Import topics from multiple sources into your brain.</p>
 
+        {loading && (
+          <AIProgressBar
+            label={activeSource === "pdf" ? "Extracting from PDF" : activeSource === "image" ? "Analyzing image" : "Processing voice"}
+            sublabel="AI is identifying topics and subjects"
+            estimatedSeconds={10}
+          />
+        )}
+
         <div className="space-y-3">
           {sources.map(s => (
             <button
@@ -157,7 +166,7 @@ const MultiSourceSync = ({ onClose, onSynced }: MultiSourceSyncProps) => {
               className="w-full flex items-center gap-3 p-4 rounded-xl glass neural-border hover:glow-primary transition-all text-left disabled:opacity-50"
             >
               {loading && activeSource === s.id ? (
-                <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               ) : (
                 <s.icon className="w-5 h-5 text-primary" />
               )}
