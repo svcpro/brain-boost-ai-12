@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ACRYLogo from "@/components/landing/ACRYLogo";
+import SplashScreen from "@/components/splash/SplashScreen";
 
 const AuthPage = () => {
+  const [searchParams] = useSearchParams();
+  const skipSplash = searchParams.get("skip") === "1";
+  const [showSplash, setShowSplash] = useState(() => {
+    if (skipSplash) return false;
+    const seen = sessionStorage.getItem("acry_splash_seen");
+    return !seen;
+  });
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,6 +24,17 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  if (showSplash) {
+    return (
+      <SplashScreen
+        onComplete={() => {
+          sessionStorage.setItem("acry_splash_seen", "1");
+          setShowSplash(false);
+        }}
+      />
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
