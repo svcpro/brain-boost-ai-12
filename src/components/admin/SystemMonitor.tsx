@@ -485,6 +485,87 @@ const SystemMonitor = () => {
           </div>
         </div>
       )}
+
+      {/* Scalability & Performance Section */}
+      <div className="glass rounded-2xl p-5 neural-border">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+          <Gauge className="w-4 h-4 text-primary" />
+          Scalability & Performance Optimizations
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Caching Status */}
+          <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Database className="w-4 h-4 text-primary" />
+              <span className="text-xs font-semibold text-foreground">Query Caching</span>
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success font-medium">Active</span>
+            </div>
+            <div className="space-y-2">
+              {[
+                { label: "Leaderboard", ttl: "30s TTL", type: "In-Memory" },
+                { label: "Study Insights", ttl: "60s TTL", type: "In-Memory" },
+                { label: "Brain Briefings", ttl: "120s TTL", type: "Stale-While-Revalidate" },
+              ].map(c => (
+                <div key={c.label} className="flex items-center justify-between text-[10px]">
+                  <span className="text-muted-foreground">{c.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-foreground font-medium">{c.ttl}</span>
+                    <span className="text-muted-foreground">{c.type}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Rate Limiting Status */}
+          <div className="p-4 rounded-xl bg-gradient-to-br from-warning/10 to-warning/5 border border-warning/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-4 h-4 text-warning" />
+              <span className="text-xs font-semibold text-foreground">Rate Limiting</span>
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success font-medium">Active</span>
+            </div>
+            <div className="space-y-2">
+              {[
+                { fn: "AI Brain Agent", limit: "15 req/min" },
+                { fn: "AI Chat", limit: "20 req/min" },
+                { fn: "Voice Notification", limit: "5 req/min" },
+                { fn: "Cognitive Twin", limit: "5 req/min" },
+                { fn: "Leaderboard", limit: "30 req/min" },
+              ].map(r => (
+                <div key={r.fn} className="flex items-center justify-between text-[10px]">
+                  <span className="text-muted-foreground">{r.fn}</span>
+                  <span className="text-foreground font-medium">{r.limit}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Scale Readiness */}
+          <div className="p-4 rounded-xl bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-success" />
+              <span className="text-xs font-semibold text-foreground">Scale Readiness</span>
+            </div>
+            <div className="space-y-2.5">
+              {[
+                { label: "CDN Static Assets", status: true },
+                { label: "Serverless Auto-Scale", status: true },
+                { label: "DB Query Caching", status: true },
+                { label: "Per-User Rate Limits", status: true },
+                { label: "AI Multi-Model Fallback", status: true },
+                { label: "Retry + Backoff", status: true },
+                { label: "Code Splitting", status: true },
+                { label: "PWA + Offline", status: true },
+              ].map(s => (
+                <div key={s.label} className="flex items-center gap-2 text-[10px]">
+                  <CheckCircle2 className={`w-3 h-3 ${s.status ? "text-success" : "text-muted-foreground"}`} />
+                  <span className={s.status ? "text-foreground" : "text-muted-foreground"}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
