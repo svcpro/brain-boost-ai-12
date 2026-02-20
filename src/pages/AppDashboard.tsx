@@ -7,6 +7,7 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { usePlanGating, PlanGatingContext } from "@/hooks/usePlanGating";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
+import SectionErrorBoundary from "@/components/SectionErrorBoundary";
 
 
 // Lazy load all tab components for fast initial load
@@ -257,7 +258,9 @@ const AppDashboard = () => {
                 <ACRYLogo variant="icon" animate={true} className="w-8 h-8 animate-pulse" />
               </div>
             }>
-              {renderTab()}
+              <SectionErrorBoundary name="active-tab">
+                {renderTab()}
+              </SectionErrorBoundary>
             </Suspense>
           </main>
 

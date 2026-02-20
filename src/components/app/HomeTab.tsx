@@ -512,12 +512,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       )}
 
       {/* ─── SECTION 2: Today's Mission (AI-Powered Single Action) ─── */}
-      <TodaysMission
-        hasTopics={hasTopics}
-        onStartMission={(subject, topic, minutes) => {
-          openSignalWithPrefill(subject, topic, minutes);
-        }}
-      />
+      <SectionErrorBoundary name="todays-mission">
+        <TodaysMission
+          hasTopics={hasTopics}
+          onStartMission={(subject, topic, minutes) => {
+            openSignalWithPrefill(subject, topic, minutes);
+          }}
+        />
+      </SectionErrorBoundary>
 
       {/* ─── SECTION 2.5: Voice Brain Capture ─── */}
       <SectionErrorBoundary name="voice-brain-capture">
@@ -528,22 +530,26 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* ─── SECTION 3: Quick Micro Actions ─── */}
       {hasTopics && (
-        <QuickMicroActions
-          atRisk={atRisk}
-          overallHealth={overallHealth}
-          streakDays={streakData?.currentStreak ?? 0}
-          onStartRecall={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
-        />
+        <SectionErrorBoundary name="quick-micro-actions">
+          <QuickMicroActions
+            atRisk={atRisk}
+            overallHealth={overallHealth}
+            streakDays={streakData?.currentStreak ?? 0}
+            onStartRecall={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
+          />
+        </SectionErrorBoundary>
       )}
 
       {/* ─── SECTION 3.5: Brain Stability Control Center ─── */}
       {hasTopics && (
-        <BrainStabilityControlCenter
-          atRisk={atRisk}
-          hasTopics={hasTopics}
-          overallHealth={overallHealth}
-          onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
-        />
+        <SectionErrorBoundary name="brain-stability">
+          <BrainStabilityControlCenter
+            atRisk={atRisk}
+            hasTopics={hasTopics}
+            overallHealth={overallHealth}
+            onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
+          />
+        </SectionErrorBoundary>
       )}
 
       {/* ─── SECTION 4: Progress & Streak Momentum ─── */}
@@ -576,79 +582,83 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* ─── SECTION 5: Collapsible Deep Analytics ─── */}
       {hasTopics && (
-        <DeepAnalyticsSection
-          atRisk={atRisk}
-          allTopics={prediction?.topics || []}
-          overallHealth={overallHealth}
-          streakDays={streakData?.currentStreak ?? 0}
-          rankPredicted={rankData?.predicted_rank ?? null}
-          rankPercentile={rankData?.percentile ?? null}
-        />
+        <SectionErrorBoundary name="deep-analytics">
+          <DeepAnalyticsSection
+            atRisk={atRisk}
+            allTopics={prediction?.topics || []}
+            overallHealth={overallHealth}
+            streakDays={streakData?.currentStreak ?? 0}
+            rankPredicted={rankData?.predicted_rank ?? null}
+            rankPercentile={rankData?.percentile ?? null}
+          />
+        </SectionErrorBoundary>
       )}
 
       {/* Additional analytics (feature-flagged) */}
       {hasTopics && (
-        <div className="space-y-3">
-          {/* AIRiskReductionEngine hidden — functionality consolidated into MomentumSection */}
-          {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
-          {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
-          {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
-          {isEnabled('home_recently_studied') && <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />}
-          {isEnabled('home_daily_tip') && <DailyStudyTip />}
-          {isEnabled('home_weekly_reminder') && <PlanGateWrapper featureKey="weekly_reminder"><WeeklyReminderSummary /></PlanGateWrapper>}
-          {isEnabled('home_study_insights') && (
-            <PlanGateWrapper featureKey="study_insights">
-              <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => { setInsightReviewSubject(subject); setInsightReviewTopic(topic); }} />
-            </PlanGateWrapper>
-          )}
-          {isEnabled('home_review_queue') && <PlanGateWrapper featureKey="review_queue"><ReviewQueue /></PlanGateWrapper>}
-          {isEnabled('home_rl_policy') && <PlanGateWrapper featureKey="rl_policy"><RLPolicyCard /></PlanGateWrapper>}
-          {isEnabled('home_recommendations') && recommendations.length > 0 && (
-            <PlanGateWrapper featureKey="ai_recommendations">
-              <div ref={recsRef} className="rounded-2xl border border-border bg-card p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Brain className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-foreground text-sm">AI Recommendations</h2>
+        <SectionErrorBoundary name="analytics-widgets">
+          <div className="space-y-3">
+            {/* AIRiskReductionEngine hidden — functionality consolidated into MomentumSection */}
+            {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
+            {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
+            {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
+            {isEnabled('home_recently_studied') && <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />}
+            {isEnabled('home_daily_tip') && <DailyStudyTip />}
+            {isEnabled('home_weekly_reminder') && <PlanGateWrapper featureKey="weekly_reminder"><WeeklyReminderSummary /></PlanGateWrapper>}
+            {isEnabled('home_study_insights') && (
+              <PlanGateWrapper featureKey="study_insights">
+                <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => { setInsightReviewSubject(subject); setInsightReviewTopic(topic); }} />
+              </PlanGateWrapper>
+            )}
+            {isEnabled('home_review_queue') && <PlanGateWrapper featureKey="review_queue"><ReviewQueue /></PlanGateWrapper>}
+            {isEnabled('home_rl_policy') && <PlanGateWrapper featureKey="rl_policy"><RLPolicyCard /></PlanGateWrapper>}
+            {isEnabled('home_recommendations') && recommendations.length > 0 && (
+              <PlanGateWrapper featureKey="ai_recommendations">
+                <div ref={recsRef} className="rounded-2xl border border-border bg-card p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Brain className="w-4 h-4 text-primary" />
+                    <h2 className="font-semibold text-foreground text-sm">AI Recommendations</h2>
+                  </div>
+                  <div className="space-y-2">
+                    {recommendations.map((rec: any) => (
+                      <motion.div
+                        key={rec.id}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={async () => {
+                          if (navigator.vibrate) navigator.vibrate(20);
+                          const el = document.getElementById(`rec-${rec.id}`);
+                          if (el) { el.style.transition = "all 0.4s ease"; el.style.opacity = "0"; el.style.transform = "translateX(60px) scale(0.95)"; }
+                          await new Promise((r) => setTimeout(r, 350));
+                          await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
+                          loadRecommendations();
+                          triggerHaptic(30);
+                          toast({
+                            title: "✅ Done!",
+                            description: String(rec.title || ""),
+                            action: React.createElement(ToastAction, {
+                              altText: "Undo",
+                              className: "px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold",
+                              onClick: async () => { await supabase.from("ai_recommendations").update({ completed: false }).eq("id", rec.id); loadRecommendations(); },
+                            }, "Undo") as any,
+                          });
+                        }}
+                        id={`rec-${rec.id}`}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 transition-all group"
+                      >
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${rec.priority === "critical" ? "bg-destructive animate-pulse" : rec.priority === "high" ? "bg-warning" : "bg-primary"}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-foreground font-medium truncate">{String(rec.title || "")}</p>
+                          <p className="text-[10px] text-muted-foreground capitalize">{String(rec.type || "")} • {String(rec.priority || "")}</p>
+                        </div>
+                        <CheckCircle className="w-4 h-4 text-muted-foreground/30 group-hover:text-success transition-colors shrink-0" />
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {recommendations.map((rec: any) => (
-                    <motion.div
-                      key={rec.id}
-                      whileTap={{ scale: 0.96 }}
-                      onClick={async () => {
-                        if (navigator.vibrate) navigator.vibrate(20);
-                        const el = document.getElementById(`rec-${rec.id}`);
-                        if (el) { el.style.transition = "all 0.4s ease"; el.style.opacity = "0"; el.style.transform = "translateX(60px) scale(0.95)"; }
-                        await new Promise((r) => setTimeout(r, 350));
-                        await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
-                        loadRecommendations();
-                        triggerHaptic(30);
-                        toast({
-                          title: "✅ Done!",
-                          description: rec.title,
-                          action: React.createElement(ToastAction, {
-                            altText: "Undo",
-                            className: "px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold",
-                            onClick: async () => { await supabase.from("ai_recommendations").update({ completed: false }).eq("id", rec.id); loadRecommendations(); },
-                          }, "Undo") as any,
-                        });
-                      }}
-                      id={`rec-${rec.id}`}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 transition-all group"
-                    >
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${rec.priority === "critical" ? "bg-destructive animate-pulse" : rec.priority === "high" ? "bg-warning" : "bg-primary"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-foreground font-medium truncate">{rec.title}</p>
-                        <p className="text-[10px] text-muted-foreground capitalize">{rec.type} • {rec.priority}</p>
-                      </div>
-                      <CheckCircle className="w-4 h-4 text-muted-foreground/30 group-hover:text-success transition-colors shrink-0" />
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </PlanGateWrapper>
-          )}
-        </div>
+              </PlanGateWrapper>
+            )}
+          </div>
+        </SectionErrorBoundary>
       )}
 
       {/* Brain Update Hero */}
