@@ -35,14 +35,22 @@ const AppTour = ({ onComplete }: AppTourProps) => {
     setTimeout(onComplete, 400);
   }, [onComplete]);
 
-  // Find and scroll to VoiceBrainCapture on step 0
+  // Find and scroll to VoiceBrainCapture on step 0 (retry until found)
   useEffect(() => {
     if (step !== 0) return;
     let cancelled = false;
+    let attempts = 0;
 
     const findAndScroll = () => {
+      if (cancelled) return;
       const el = document.querySelector("[data-tour-id='voice-brain-capture']") as HTMLElement | null;
-      if (!el) return;
+      if (!el) {
+        attempts++;
+        if (attempts < 20) {
+          setTimeout(findAndScroll, 500);
+        }
+        return;
+      }
 
       // Scroll into view first
       el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -59,13 +67,14 @@ const AppTour = ({ onComplete }: AppTourProps) => {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [step]);
 
-  // Auto-advance
+  // Auto-advance (wait for spotlight on step 0)
   useEffect(() => {
     if (step >= TOTAL_STEPS - 1) return;
+    if (step === 0 && !spotlightRect) return; // Don't advance until spotlight visible
     const duration = step === 0 ? SPOTLIGHT_STEP_MS : AUTO_ADVANCE_MS;
     const timer = setTimeout(() => setStep((s) => s + 1), duration);
     return () => clearTimeout(timer);
-  }, [step]);
+  }, [step, spotlightRect]);
 
   // Refresh spotlight rect on scroll/resize
   useEffect(() => {
