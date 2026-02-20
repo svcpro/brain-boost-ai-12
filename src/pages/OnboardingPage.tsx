@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, GraduationCap, BookOpen, Calendar as CalendarIcon, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2, MessageSquare, Phone } from "lucide-react";
+import { Brain, GraduationCap, BookOpen, Calendar as CalendarIcon, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,7 +68,6 @@ const OnboardingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Prefill name from auth metadata (Google/Apple provide full_name or name)
   useState(() => {
     const meta = user?.user_metadata;
     const name = meta?.full_name || meta?.name || meta?.display_name || "";
@@ -88,39 +87,26 @@ const OnboardingPage = () => {
 
   const removeSubject = (s: string) => {
     setSubjects(subjects.filter(x => x !== s));
-    setTopicsBySubject(prev => {
-      const copy = { ...prev };
-      delete copy[s];
-      return copy;
-    });
+    setTopicsBySubject(prev => { const copy = { ...prev }; delete copy[s]; return copy; });
     if (activeSubject === s) setActiveSubject(null);
   };
 
   const addTopic = (subject: string) => {
     const trimmed = newTopic.trim();
     if (trimmed && !(topicsBySubject[subject] || []).includes(trimmed)) {
-      setTopicsBySubject(prev => ({
-        ...prev,
-        [subject]: [...(prev[subject] || []), trimmed],
-      }));
+      setTopicsBySubject(prev => ({ ...prev, [subject]: [...(prev[subject] || []), trimmed] }));
       setNewTopic("");
     }
   };
 
   const addSuggestedTopic = (subject: string, topic: string) => {
     if (!(topicsBySubject[subject] || []).includes(topic)) {
-      setTopicsBySubject(prev => ({
-        ...prev,
-        [subject]: [...(prev[subject] || []), topic],
-      }));
+      setTopicsBySubject(prev => ({ ...prev, [subject]: [...(prev[subject] || []), topic] }));
     }
   };
 
   const removeTopic = (subject: string, topic: string) => {
-    setTopicsBySubject(prev => ({
-      ...prev,
-      [subject]: (prev[subject] || []).filter(t => t !== topic),
-    }));
+    setTopicsBySubject(prev => ({ ...prev, [subject]: (prev[subject] || []).filter(t => t !== topic) }));
   };
 
   const handleAIGenerate = async () => {
@@ -136,13 +122,10 @@ const OnboardingPage = () => {
         const newSubjects: string[] = [];
         const newTopics: Record<string, string[]> = { ...topicsBySubject };
         for (const sub of curriculum.subjects) {
-          if (!subjects.includes(sub.name) && !newSubjects.includes(sub.name)) {
-            newSubjects.push(sub.name);
-          }
-          const subName = sub.name;
-          const existingTopics = newTopics[subName] || [];
+          if (!subjects.includes(sub.name) && !newSubjects.includes(sub.name)) newSubjects.push(sub.name);
+          const existingTopics = newTopics[sub.name] || [];
           const aiTopics = (sub.topics || []).map(t => t.name).filter(t => !existingTopics.includes(t));
-          newTopics[subName] = [...existingTopics, ...aiTopics];
+          newTopics[sub.name] = [...existingTopics, ...aiTopics];
         }
         setSubjects(prev => [...prev, ...newSubjects]);
         setTopicsBySubject(newTopics);
@@ -160,17 +143,13 @@ const OnboardingPage = () => {
     if (step === 1) return examType !== "";
     if (step === 2) return examDate !== "";
     if (step === 3) return subjects.length > 0;
-    if (step === 4) return true; // topics are optional
+    if (step === 4) return true;
     if (step === 5) return studyMode !== "";
-    return false;
     return false;
   };
 
-  // Initialize activeSubject when entering topics step
   const handleNext = () => {
-    if (step === 3 && subjects.length > 0 && !activeSubject) {
-      setActiveSubject(subjects[0]);
-    }
+    if (step === 3 && subjects.length > 0 && !activeSubject) setActiveSubject(subjects[0]);
     if (step < totalSteps - 1) setStep(step + 1);
     else handleFinish();
   };
@@ -180,40 +159,23 @@ const OnboardingPage = () => {
     setLoading(true);
     try {
       const finalExam = examType === "other" ? customExam || "Custom Exam" : examType.toUpperCase();
-
-      const profileUpdate: any = {
+      const { error: profileErr } = await supabase.from("profiles").update({
         display_name: displayName.trim(),
         exam_type: finalExam,
         exam_date: examDate,
         study_preferences: { mode: studyMode, onboarded: true },
-      };
-
-
-      const { error: profileErr } = await supabase
-        .from("profiles")
-        .update(profileUpdate)
-        .eq("id", user.id);
+      }).eq("id", user.id);
       if (profileErr) throw profileErr;
 
-      // Create subjects and their topics
       for (const name of subjects) {
-        const { data: subData, error: subErr } = await supabase
-          .from("subjects")
-          .insert({ name, user_id: user.id })
-          .select("id")
-          .single();
+        const { data: subData, error: subErr } = await supabase.from("subjects").insert({ name, user_id: user.id }).select("id").single();
         if (subErr) throw subErr;
-
-        const topics = topicsBySubject[name] || [];
-        for (const topicName of topics) {
-          const { error: topicErr } = await supabase
-            .from("topics")
-            .insert({ name: topicName, subject_id: subData.id, user_id: user.id });
+        for (const topicName of (topicsBySubject[name] || [])) {
+          const { error: topicErr } = await supabase.from("topics").insert({ name: topicName, subject_id: subData.id, user_id: user.id });
           if (topicErr) throw topicErr;
         }
       }
 
-      // Emit profile & exam setup events
       const { emitEvent } = await import("@/lib/eventBus");
       emitEvent("profile_completed", { exam_type: finalExam, subjects: subjects.length }, { title: "Profile Set Up!", body: "Your brain is configured." });
       emitEvent("exam_setup", { exam_type: finalExam, exam_date: examDate }, { title: "Exam Target Set!", body: `Preparing for ${finalExam}` });
@@ -235,54 +197,99 @@ const OnboardingPage = () => {
 
   const totalTopics = Object.values(topicsBySubject).reduce((s, t) => s + t.length, 0);
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative">
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px]" />
-      </div>
+  const stepIcons = [Sparkles, GraduationCap, CalendarIcon, BookOpen, Hash, Sparkles];
+  const StepIcon = stepIcons[step] || Sparkles;
 
-      <div className="relative z-10 w-full max-w-md">
-        {/* Progress */}
-        <div className="flex gap-2 mb-8">
+  return (
+    <div className="min-h-screen bg-background px-5 py-6 max-w-lg mx-auto flex flex-col">
+      {/* ─── Hero Card with Progress (matches HomeTab Section 1) ─── */}
+      <motion.section
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="relative overflow-hidden rounded-3xl p-6 text-center mb-5"
+        style={{
+          background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
+          border: "1px solid hsl(var(--border))",
+        }}
+      >
+        {/* Decorative glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "hsl(var(--primary))" }} />
+
+        {/* Circular Progress Ring */}
+        <div className="relative z-10 mx-auto w-24 h-24 mb-4">
+          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
+            <motion.circle
+              cx="50" cy="50" r="42" fill="none"
+              stroke="hsl(var(--primary))"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 42}
+              initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
+              animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - (step + 1) / totalSteps) }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              style={{ filter: "drop-shadow(0 0 8px hsl(var(--primary)))" }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <motion.div
+              key={step}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 200 }}
+            >
+              <StepIcon className="w-6 h-6 text-primary mb-0.5" />
+            </motion.div>
+            <span className="text-[10px] font-medium text-muted-foreground">{step + 1}/{totalSteps}</span>
+          </div>
+        </div>
+
+        <p className="relative z-10 text-xs text-muted-foreground">Setting Up Your Brain</p>
+
+        {/* Progress Bar */}
+        <div className="relative z-10 flex gap-1.5 mt-4">
           {Array.from({ length: totalSteps }).map((_, i) => (
-            <div
+            <motion.div
               key={i}
-              className={`h-1 flex-1 rounded-full transition-all duration-500 ${
-                i <= step ? "bg-primary glow-primary" : "bg-secondary"
-              }`}
+              className="h-1 flex-1 rounded-full"
+              animate={{
+                background: i <= step ? "hsl(var(--primary))" : "hsl(var(--border))",
+                boxShadow: i <= step ? "0 0 8px hsl(var(--primary) / 0.4)" : "none",
+              }}
+              transition={{ duration: 0.4, delay: i * 0.05 }}
             />
           ))}
         </div>
+      </motion.section>
 
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl neural-gradient neural-border flex items-center justify-center">
-            <Brain className="w-5 h-5 text-primary" />
-          </div>
-          <span className="font-display font-bold text-xl text-foreground">ACRY Setup</span>
-        </div>
-
+      {/* ─── Step Content Card ─── */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+        className="rounded-3xl p-5 mb-5 flex-1"
+        style={{
+          background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%)",
+          border: "1px solid hsl(var(--border))",
+        }}
+      >
         <AnimatePresence mode="wait">
-          {/* Step 0: Your Name */}
+          {/* Step 0: Name */}
           {step === 0 && (
             <motion.div key="name" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">What should we call you?</h1>
+                <h1 className="text-xl font-bold text-foreground">What should we call you?</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-6">ACRY will use your name across the app — greetings, voice alerts, and more.</p>
-
+              <p className="text-muted-foreground text-sm mb-5">ACRY will use your name across the app.</p>
               <input
-                type="text"
-                placeholder="Enter your name"
-                value={displayName}
+                type="text" placeholder="Enter your name" value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && canProceed()) handleNext(); }}
-                autoFocus
-                maxLength={50}
-                className="w-full rounded-xl bg-secondary border border-border px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                autoFocus maxLength={50}
+                className="w-full rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
-
               {displayName.trim().length >= 2 && (
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-muted-foreground">
                   Welcome, <span className="text-primary font-semibold">{displayName.trim()}</span> 👋
@@ -296,34 +303,27 @@ const OnboardingPage = () => {
             <motion.div key="exam" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <GraduationCap className="w-5 h-5 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">What exam are you preparing for?</h1>
+                <h1 className="text-xl font-bold text-foreground">Your exam?</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-6">This helps ACRY optimize your study strategy.</p>
-
+              <p className="text-muted-foreground text-sm mb-5">Helps ACRY optimize your study strategy.</p>
               <div className="grid grid-cols-2 gap-3">
                 {EXAM_TYPES.map(exam => (
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
                     key={exam.id}
                     onClick={() => setExamType(exam.id)}
                     className={`p-4 rounded-xl text-left transition-all duration-300 ${
-                      examType === exam.id
-                        ? "neural-gradient neural-border glow-primary"
-                        : "glass border border-border hover:border-primary/30"
+                      examType === exam.id ? "neural-gradient neural-border glow-primary" : "bg-background/50 backdrop-blur-sm border border-border hover:border-primary/30"
                     }`}
                   >
                     <p className="font-semibold text-foreground text-sm">{exam.label}</p>
                     <p className="text-[10px] text-muted-foreground">{exam.desc}</p>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
-
               {examType === "other" && (
-                <input
-                  type="text"
-                  placeholder="Enter your exam name"
-                  value={customExam}
-                  onChange={e => setCustomExam(e.target.value)}
-                  className="w-full mt-3 rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                <input type="text" placeholder="Enter your exam name" value={customExam} onChange={e => setCustomExam(e.target.value)}
+                  className="w-full mt-3 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               )}
             </motion.div>
@@ -334,41 +334,29 @@ const OnboardingPage = () => {
             <motion.div key="date" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <CalendarIcon className="w-5 h-5 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">When's the exam?</h1>
+                <h1 className="text-xl font-bold text-foreground">When's the exam?</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-6">ACRY will build a countdown and pace your revision.</p>
-
+              <p className="text-muted-foreground text-sm mb-5">ACRY will build a countdown and pace your revision.</p>
               <Popover>
                 <PopoverTrigger asChild>
-                  <button
-                    className={cn(
-                      "w-full flex items-center gap-3 rounded-xl bg-secondary border border-border px-4 py-3.5 text-sm text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50",
-                      examDate ? "text-foreground" : "text-muted-foreground"
-                    )}
-                  >
+                  <button className={cn(
+                    "w-full flex items-center gap-3 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-3.5 text-sm text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50",
+                    examDate ? "text-foreground" : "text-muted-foreground"
+                  )}>
                     <CalendarIcon className="w-4 h-4 text-muted-foreground" />
                     {examDate ? format(new Date(examDate), "PPP") : "Pick your exam date"}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-card border-border z-50" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={examDate ? new Date(examDate) : undefined}
-                    onSelect={(date) => {
-                      if (date) setExamDate(date.toISOString().split("T")[0]);
-                    }}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
+                  <Calendar mode="single" selected={examDate ? new Date(examDate) : undefined}
+                    onSelect={(date) => { if (date) setExamDate(date.toISOString().split("T")[0]); }}
+                    disabled={(date) => date < new Date()} initialFocus className={cn("p-3 pointer-events-auto")}
                   />
                 </PopoverContent>
               </Popover>
-
               {examDate && (
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-muted-foreground">
-                  That's <span className="text-primary font-semibold">
-                    {Math.ceil((new Date(examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
-                  </span> away. Let's make them count.
+                  That's <span className="text-primary font-semibold">{Math.ceil((new Date(examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days</span> away. Let's make them count.
                 </motion.p>
               )}
             </motion.div>
@@ -377,210 +365,131 @@ const OnboardingPage = () => {
           {/* Step 3: Subjects */}
           {step === 3 && (
             <motion.div key="subjects" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                  <h1 className="text-2xl font-bold text-foreground">Add your subjects</h1>
-                </div>
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                <h1 className="text-xl font-bold text-foreground">Add your subjects</h1>
               </div>
               <p className="text-muted-foreground text-sm mb-4">You'll add topics for each subject next.</p>
 
-              {/* AI Generate Button */}
-              <button
-                onClick={handleAIGenerate}
-                disabled={aiGenerating}
+              <motion.button whileTap={{ scale: 0.97 }} onClick={handleAIGenerate} disabled={aiGenerating}
                 className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-xl border border-dashed border-primary/40 text-primary hover:bg-primary/10 transition-all disabled:opacity-50"
               >
-                {aiGenerating ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Generating with AI...</>
-                ) : (
-                  <><Wand2 className="w-4 h-4" /> Auto-Generate Subjects & Topics with AI</>
-                )}
-              </button>
+                {aiGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Wand2 className="w-4 h-4" /> AI Generate Subjects & Topics</>}
+              </motion.button>
 
               {SUGGESTED_SUBJECTS[examType] && (
                 <div className="mb-4">
-                  <p className="text-xs text-muted-foreground mb-2">Suggested for {EXAM_TYPES.find(e => e.id === examType)?.label}:</p>
+                  <p className="text-xs text-muted-foreground mb-2">Suggested:</p>
                   <div className="flex flex-wrap gap-2">
-                    {SUGGESTED_SUBJECTS[examType]
-                      .filter(s => !subjects.includes(s))
-                      .map(s => (
-                        <button
-                          key={s}
-                          onClick={() => {
-                            setSubjects(prev => [...prev, s]);
-                            setTopicsBySubject(prev => ({ ...prev, [s]: [] }));
-                          }}
-                          className="px-3 py-1.5 rounded-full border border-dashed border-primary/40 text-xs text-primary hover:bg-primary/10 transition-all"
-                        >
-                          + {s}
-                        </button>
-                      ))}
-                    {SUGGESTED_SUBJECTS[examType].every(s => subjects.includes(s)) && (
-                      <span className="text-xs text-muted-foreground">All suggested subjects added ✓</span>
-                    )}
+                    {SUGGESTED_SUBJECTS[examType].filter(s => !subjects.includes(s)).map(s => (
+                      <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: [] })); }}
+                        className="px-3 py-1.5 rounded-full border border-dashed border-primary/40 text-xs text-primary hover:bg-primary/10 transition-all"
+                      >+ {s}</button>
+                    ))}
                   </div>
                 </div>
               )}
 
               <div className="flex gap-2 mb-4">
-                <input
-                  type="text"
-                  placeholder="e.g. Physics, Biology..."
-                  value={newSubject}
-                  onChange={e => setNewSubject(e.target.value)}
+                <input type="text" placeholder="e.g. Physics..." value={newSubject} onChange={e => setNewSubject(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addSubject())}
-                  className="flex-1 rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className="flex-1 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-                <button
-                  onClick={addSubject}
-                  disabled={!newSubject.trim()}
-                  className="px-4 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-30 transition-all"
-                >
+                <button onClick={addSubject} disabled={!newSubject.trim()} className="px-4 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-30 transition-all">
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 {subjects.map(s => (
-                  <motion.span
-                    key={s}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
+                  <motion.span key={s} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full neural-gradient neural-border text-sm text-foreground"
                   >
                     {s}
-                    <button onClick={() => removeSubject(s)} className="text-muted-foreground hover:text-destructive transition-colors">
-                      <X className="w-3 h-3" />
-                    </button>
+                    <button onClick={() => removeSubject(s)} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-3 h-3" /></button>
                   </motion.span>
                 ))}
               </div>
-
-              {subjects.length === 0 && (
-                <p className="text-xs text-muted-foreground mt-4 text-center">Add at least one subject to continue.</p>
-              )}
+              {subjects.length === 0 && <p className="text-xs text-muted-foreground mt-4 text-center">Add at least one subject to continue.</p>}
             </motion.div>
           )}
 
-          {/* Step 4: Topics per Subject */}
+          {/* Step 4: Topics */}
           {step === 4 && (
             <motion.div key="topics" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <Hash className="w-5 h-5 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">Add topics</h1>
+                <h1 className="text-xl font-bold text-foreground">Add topics</h1>
               </div>
               <p className="text-muted-foreground text-sm mb-4">
-                Add key topics for each subject. {totalTopics > 0 && <span className="text-primary">{totalTopics} topics added</span>}
+                Key topics for each subject. {totalTopics > 0 && <span className="text-primary">{totalTopics} added</span>}
               </p>
 
-              {/* Subject tabs */}
               <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
                 {subjects.map(s => {
                   const count = (topicsBySubject[s] || []).length;
                   return (
-                    <button
-                      key={s}
-                      onClick={() => { setActiveSubject(s); setNewTopic(""); }}
+                    <button key={s} onClick={() => { setActiveSubject(s); setNewTopic(""); }}
                       className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                        activeSubject === s
-                          ? "bg-primary text-primary-foreground"
-                          : "glass border border-border text-muted-foreground hover:text-foreground"
+                        activeSubject === s ? "bg-primary text-primary-foreground" : "bg-background/50 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground"
                       }`}
-                    >
-                      {s} {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
-                    </button>
+                    >{s} {count > 0 && <span className="ml-1 opacity-70">({count})</span>}</button>
                   );
                 })}
               </div>
 
               {activeSubject && (
                 <div className="space-y-3">
-                  {/* Suggested topics */}
                   {SUGGESTED_TOPICS[activeSubject] && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-2">Suggested topics:</p>
+                      <p className="text-xs text-muted-foreground mb-2">Suggested:</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {SUGGESTED_TOPICS[activeSubject]
-                          .filter(t => !(topicsBySubject[activeSubject] || []).includes(t))
-                          .map(t => (
-                            <button
-                              key={t}
-                              onClick={() => addSuggestedTopic(activeSubject, t)}
-                              className="px-2.5 py-1 rounded-full border border-dashed border-primary/40 text-[11px] text-primary hover:bg-primary/10 transition-all"
-                            >
-                              + {t}
-                            </button>
-                          ))}
-                        {SUGGESTED_TOPICS[activeSubject].every(t => (topicsBySubject[activeSubject] || []).includes(t)) && (
-                          <span className="text-[11px] text-muted-foreground">All added ✓</span>
-                        )}
+                        {SUGGESTED_TOPICS[activeSubject].filter(t => !(topicsBySubject[activeSubject] || []).includes(t)).map(t => (
+                          <button key={t} onClick={() => addSuggestedTopic(activeSubject, t)}
+                            className="px-2.5 py-1 rounded-full border border-dashed border-primary/40 text-[11px] text-primary hover:bg-primary/10 transition-all"
+                          >+ {t}</button>
+                        ))}
                       </div>
                     </div>
                   )}
-
-                  {/* Add custom topic */}
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder={`Add topic to ${activeSubject}...`}
-                      value={newTopic}
-                      onChange={e => setNewTopic(e.target.value)}
+                    <input type="text" placeholder={`Add topic to ${activeSubject}...`} value={newTopic} onChange={e => setNewTopic(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTopic(activeSubject))}
-                      className="flex-1 rounded-xl bg-secondary border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      className="flex-1 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     />
-                    <button
-                      onClick={() => addTopic(activeSubject)}
-                      disabled={!newTopic.trim()}
-                      className="px-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-30 transition-all"
-                    >
+                    <button onClick={() => addTopic(activeSubject)} disabled={!newTopic.trim()} className="px-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-30 transition-all">
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
-
-                  {/* Added topics */}
                   <div className="flex flex-wrap gap-1.5">
                     {(topicsBySubject[activeSubject] || []).map(t => (
-                      <motion.span
-                        key={t}
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
+                      <motion.span key={t} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full neural-gradient neural-border text-xs text-foreground"
                       >
                         {t}
-                        <button onClick={() => removeTopic(activeSubject, t)} className="text-muted-foreground hover:text-destructive transition-colors">
-                          <X className="w-2.5 h-2.5" />
-                        </button>
+                        <button onClick={() => removeTopic(activeSubject, t)} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-2.5 h-2.5" /></button>
                       </motion.span>
                     ))}
                   </div>
-
-                  {(topicsBySubject[activeSubject] || []).length === 0 && (
-                    <p className="text-[11px] text-muted-foreground text-center">No topics yet — add some or skip to continue.</p>
-                  )}
+                  {(topicsBySubject[activeSubject] || []).length === 0 && <p className="text-[11px] text-muted-foreground text-center">No topics yet — add some or skip.</p>}
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* Step 5: Study Preferences */}
+          {/* Step 5: Study Style */}
           {step === 5 && (
             <motion.div key="prefs" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">Pick your study style</h1>
+                <h1 className="text-xl font-bold text-foreground">Your study style</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-6">ACRY will adapt its recommendations to your pace.</p>
-
+              <p className="text-muted-foreground text-sm mb-5">ACRY adapts recommendations to your pace.</p>
               <div className="space-y-3">
                 {STUDY_MODES.map(mode => (
-                  <button
-                    key={mode.id}
-                    onClick={() => setStudyMode(mode.id)}
+                  <motion.button whileTap={{ scale: 0.97 }} key={mode.id} onClick={() => setStudyMode(mode.id)}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-300 ${
-                      studyMode === mode.id
-                        ? "neural-gradient neural-border glow-primary"
-                        : "glass border border-border hover:border-primary/30"
+                      studyMode === mode.id ? "neural-gradient neural-border glow-primary" : "bg-background/50 backdrop-blur-sm border border-border hover:border-primary/30"
                     }`}
                   >
                     <span className="text-2xl">{mode.emoji}</span>
@@ -588,36 +497,36 @@ const OnboardingPage = () => {
                       <p className="font-semibold text-foreground text-sm">{mode.label}</p>
                       <p className="text-[10px] text-muted-foreground">{mode.desc}</p>
                     </div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+      </motion.section>
 
-        {/* Navigation */}
-        <div className="flex gap-3 mt-8">
-          {step > 0 && (
-            <button
-              onClick={() => setStep(step - 1)}
-              className="px-6 py-3 rounded-xl glass neural-border text-foreground text-sm font-medium hover:bg-secondary/50 transition-all"
-            >
-              Back
-            </button>
+      {/* ─── Navigation Card ─── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="flex gap-3"
+      >
+        {step > 0 && (
+          <motion.button whileTap={{ scale: 0.96 }} onClick={() => setStep(step - 1)}
+            className="px-6 py-3 rounded-xl bg-background/50 backdrop-blur-sm border border-border text-foreground text-sm font-medium hover:border-primary/30 transition-all"
+          >Back</motion.button>
+        )}
+        <motion.button whileTap={{ scale: 0.97 }} onClick={handleNext} disabled={!canProceed() || loading}
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          {loading ? "Setting up..." : step < totalSteps - 1 ? (
+            <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-4 h-4" /></>
+          ) : (
+            <>Launch ACRY <Sparkles className="w-4 h-4" /></>
           )}
-          <button
-            onClick={handleNext}
-            disabled={!canProceed() || loading}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            {loading ? "Setting up..." : step < totalSteps - 1 ? (
-              <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-4 h-4" /></>
-            ) : (
-              <>Launch ACRY <Sparkles className="w-4 h-4" /></>
-            )}
-          </button>
-        </div>
-      </div>
+        </motion.button>
+      </motion.div>
     </div>
   );
 };
