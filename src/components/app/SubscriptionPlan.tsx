@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Check, Loader2, Clock, Shield, Sparkles, Zap, Brain, Star, X } from "lucide-react";
+import { Crown, Check, Loader2, Clock, Shield, Sparkles, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,83 +11,6 @@ interface SubscriptionPlanProps {
   currentPlan?: string;
   onPlanChanged?: () => void;
 }
-
-/* ── floating particle field ── */
-const FloatingParticles = () => {
-  const particles = Array.from({ length: 18 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: 1 + Math.random() * 2.5,
-    dur: 6 + Math.random() * 8,
-    delay: Math.random() * 3,
-    color: i % 4 === 0 ? "#00E5FF" : i % 4 === 1 ? "#7C4DFF" : i % 4 === 2 ? "#00FF94" : "#FFD700",
-  }));
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full"
-          style={{ width: p.size, height: p.size, left: `${p.x}%`, top: `${p.y}%`, background: p.color, boxShadow: `0 0 ${p.size * 4}px ${p.color}40` }}
-          animate={{ y: [0, -15, 0], opacity: [0.1, 0.5, 0.1] }}
-          transition={{ duration: p.dur, delay: p.delay, repeat: Infinity, ease: "easeInOut" }}
-        />
-      ))}
-    </div>
-  );
-};
-
-/* ── animated crown icon ── */
-const AnimatedCrown = () => (
-  <motion.div
-    className="relative w-20 h-20 mx-auto mb-2 flex items-center justify-center"
-    initial={{ scale: 0, rotate: -30 }}
-    animate={{ scale: 1, rotate: 0 }}
-    transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.2 }}
-  >
-    {/* Outer ring pulse */}
-    <motion.div
-      className="absolute inset-0 rounded-full"
-      style={{ border: "2px solid #FFD70030" }}
-      animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0, 0.4] }}
-      transition={{ duration: 2, repeat: Infinity }}
-    />
-    <motion.div
-      className="absolute inset-1 rounded-full"
-      style={{ background: "radial-gradient(circle, #FFD70015 0%, transparent 70%)" }}
-      animate={{ scale: [1, 1.15, 1] }}
-      transition={{ duration: 2.5, repeat: Infinity }}
-    />
-    <motion.div
-      className="w-14 h-14 rounded-2xl flex items-center justify-center"
-      style={{ background: "linear-gradient(135deg, #FFD70020, #FF850020)", border: "1px solid #FFD70025" }}
-      animate={{ rotate: [0, 3, -3, 0] }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-    >
-      <Crown className="w-7 h-7" style={{ color: "#FFD700", filter: "drop-shadow(0 0 8px #FFD70060)" }} />
-    </motion.div>
-  </motion.div>
-);
-
-/* ── feature row with stagger ── */
-const FeatureRow = ({ text, icon: Icon, index }: { text: string; icon: any; index: number }) => (
-  <motion.div
-    className="flex items-center gap-2.5 py-1.5"
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    transition={{ delay: 0.5 + index * 0.06, duration: 0.3 }}
-  >
-    <motion.div
-      className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
-      style={{ background: "linear-gradient(135deg, #00FF9415, #00E5FF15)", border: "1px solid #00FF9420" }}
-      whileHover={{ scale: 1.2, rotate: 10 }}
-    >
-      <Icon className="w-2.5 h-2.5" style={{ color: "#00FF94" }} />
-    </motion.div>
-    <span className="text-[11px] text-foreground/80 font-medium">{text}</span>
-  </motion.div>
-);
 
 const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: SubscriptionPlanProps) => {
   const { toast } = useToast();
@@ -218,144 +141,129 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
   const isExpired = subscription?.status === "expired" || subscription?.status === "cancelled" ||
     (subscription?.is_trial && subscription?.trial_end_date && new Date(subscription.trial_end_date) < new Date());
 
-  const features = [
-    { text: "AI Second Brain Engine", icon: Brain },
-    { text: "Focus & Deep Study Mode", icon: Zap },
-    { text: "AI Revision & Mock Practice", icon: Star },
-    { text: "Emergency Rescue Mode", icon: Shield },
-    { text: "Neural Memory Map", icon: Sparkles },
-    { text: "Decay Forecast Engine", icon: Clock },
-    { text: "AI Strategy Optimization", icon: Crown },
-    { text: "Voice + Push Notifications", icon: Zap },
-    { text: "Community Access", icon: Star },
-    { text: "Unlimited AI Usage", icon: Sparkles },
-  ];
-
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
-        {/* Backdrop with blur */}
+        {/* Backdrop */}
         <motion.div
-          className="absolute inset-0"
-          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)" }}
+          className="absolute inset-0 bg-black/80 backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         />
 
-        {/* Card */}
+        {/* Card – bottom sheet on mobile, centered on desktop */}
         <motion.div
-          className="relative w-full max-w-[380px] max-h-[90vh] overflow-y-auto rounded-3xl"
+          className="relative w-full sm:max-w-[380px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden"
           style={{
-            background: "linear-gradient(180deg, #0F1629 0%, #0B0F1A 100%)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            boxShadow: "0 40px 100px -20px rgba(0,0,0,0.8), 0 0 80px rgba(0,229,255,0.06), 0 0 80px rgba(124,77,255,0.04)",
+            background: "linear-gradient(180deg, hsl(230 40% 10%) 0%, hsl(230 50% 6%) 100%)",
+            border: "1px solid hsl(0 0% 100% / 0.06)",
+            boxShadow: "0 -20px 60px -10px rgba(0,0,0,0.6), 0 0 60px rgba(0,229,255,0.05)",
           }}
-          initial={{ opacity: 0, scale: 0.85, y: 40 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ type: "spring", damping: 20, stiffness: 260 }}
+          initial={{ opacity: 0, y: 100 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 100 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
         >
-          <FloatingParticles />
+          {/* Top accent */}
+          <motion.div
+            className="absolute top-0 left-0 right-0 h-[2px]"
+            style={{ background: "linear-gradient(90deg, #00E5FF, #7C4DFF, #FFD700)" }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          />
 
-          {/* Close button */}
+          {/* Drag indicator on mobile */}
+          <div className="flex justify-center pt-3 sm:hidden">
+            <div className="w-10 h-1 rounded-full bg-white/10" />
+          </div>
+
+          {/* Close */}
           <motion.button
             onClick={onClose}
-            className="absolute top-4 right-4 z-50 w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-            whileHover={{ scale: 1.1, background: "rgba(255,255,255,0.1)" }}
+            className="absolute top-4 right-4 z-50 w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10"
+            whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
             <X className="w-3.5 h-3.5 text-muted-foreground" />
           </motion.button>
 
-          {/* Top gradient accent line */}
-          <motion.div
-            className="absolute top-0 left-0 right-0 h-[2px] rounded-t-3xl"
-            style={{ background: "linear-gradient(90deg, #00E5FF, #7C4DFF, #FFD700, #00FF94)" }}
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-          />
-
-          <div className="relative z-10 p-6 pt-8">
-            {/* Crown */}
-            <AnimatedCrown />
-
-            {/* Title */}
-            <motion.div className="text-center mb-5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <h2 className="text-xl font-bold mb-1">
+          <div className="relative z-10 px-6 pt-4 pb-6 sm:pt-6">
+            {/* Crown + Title */}
+            <motion.div
+              className="flex flex-col items-center mb-4"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <motion.div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mb-2"
+                style={{ background: "linear-gradient(135deg, #FFD70018, #FF850018)", border: "1px solid #FFD70020" }}
+                animate={{ rotate: [0, 3, -3, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Crown className="w-6 h-6" style={{ color: "#FFD700", filter: "drop-shadow(0 0 6px #FFD70060)" }} />
+              </motion.div>
+              <h2 className="text-lg font-bold">
                 <span style={{ background: "linear-gradient(135deg, #FFD700, #FF8500)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                   ACRY Premium
                 </span>
               </h2>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mt-0.5">
                 Unlock Your Full Potential
               </p>
             </motion.div>
 
-            {/* Trial / Active / Expired banners */}
+            {/* Status banners */}
             {isTrialActive && (
-              <motion.div
-                className="flex items-center gap-2 p-3 rounded-xl mb-4"
-                style={{ background: "#00FF9410", border: "1px solid #00FF9425" }}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-              >
-                <Clock className="w-4 h-4 shrink-0" style={{ color: "#00FF94" }} />
-                <span className="text-xs font-semibold" style={{ color: "#00FF94" }}>
-                  Trial Active — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} remaining
+              <motion.div className="flex items-center gap-2 p-2.5 rounded-xl mb-3" style={{ background: "#00FF9410", border: "1px solid #00FF9420" }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
+                <Clock className="w-3.5 h-3.5 shrink-0" style={{ color: "#00FF94" }} />
+                <span className="text-[11px] font-semibold" style={{ color: "#00FF94" }}>
+                  Trial Active — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} left
                 </span>
               </motion.div>
             )}
-
             {isPaid && (
-              <motion.div
-                className="flex items-center gap-2 p-3 rounded-xl mb-4"
-                style={{ background: "#00E5FF10", border: "1px solid #00E5FF25" }}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-              >
-                <Check className="w-4 h-4 shrink-0" style={{ color: "#00E5FF" }} />
-                <span className="text-xs font-semibold" style={{ color: "#00E5FF" }}>
+              <motion.div className="flex items-center gap-2 p-2.5 rounded-xl mb-3" style={{ background: "#00E5FF10", border: "1px solid #00E5FF20" }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
+                <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#00E5FF" }} />
+                <span className="text-[11px] font-semibold" style={{ color: "#00E5FF" }}>
                   Premium Active{subscription.expires_at && ` · Renews ${format(new Date(subscription.expires_at), "MMM d, yyyy")}`}
                 </span>
               </motion.div>
             )}
-
             {isExpired && (
-              <motion.div
-                className="p-4 rounded-xl mb-4 text-center"
-                style={{ background: "#FF445510", border: "1px solid #FF445525" }}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-              >
+              <motion.div className="p-3 rounded-xl mb-3 text-center" style={{ background: "#FF445510", border: "1px solid #FF445520" }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
                 <p className="text-sm font-bold text-foreground">Your Trial Has Ended</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Subscribe to unlock all features again.</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Subscribe to unlock all features.</p>
               </motion.div>
             )}
 
             {plansLoading ? (
-              <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
             ) : (
               <>
-                {/* Billing Toggle */}
+                {/* Billing toggle */}
                 <motion.div
-                  className="flex items-center justify-center gap-1 p-1 rounded-full mx-auto w-fit mb-5"
+                  className="flex items-center justify-center gap-1 p-1 rounded-full mx-auto w-fit mb-4"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.38 }}
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
                 >
                   {(["monthly", "yearly"] as const).map((cycle) => (
                     <motion.button
                       key={cycle}
                       onClick={() => setBillingCycle(cycle)}
                       className="relative px-5 py-2 rounded-full text-xs font-semibold transition-colors"
-                      style={{
-                        color: billingCycle === cycle ? "#0B0F1A" : "rgba(255,255,255,0.4)",
-                      }}
+                      style={{ color: billingCycle === cycle ? "#0B0F1A" : "rgba(255,255,255,0.4)" }}
                       whileTap={{ scale: 0.95 }}
                     >
                       {billingCycle === cycle && (
@@ -369,8 +277,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                       <span className="relative z-10 flex items-center gap-1">
                         {cycle === "monthly" ? "Monthly" : "Yearly"}
                         {cycle === "yearly" && savings > 0 && (
-                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold"
-                            style={{ background: "#00FF9420", color: "#00FF94" }}>
+                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "#00FF9420", color: "#00FF94" }}>
                             -{savings}%
                           </span>
                         )}
@@ -380,69 +287,35 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                 </motion.div>
 
                 {/* Price */}
-                <motion.div
-                  className="text-center mb-5"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.4, type: "spring", damping: 15 }}
-                  key={billingCycle}
+                <motion.div className="text-center mb-5" key={billingCycle}
+                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", damping: 15 }}
                 >
                   <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-lg text-muted-foreground/60 font-medium">₹</span>
+                    <span className="text-base text-muted-foreground/60 font-medium">₹</span>
                     <motion.span
                       className="text-5xl font-black tabular-nums"
-                      style={{ background: "linear-gradient(180deg, #ffffff, #ffffff80)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+                      style={{ background: "linear-gradient(180deg, #fff, #ffffff80)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
                       key={price}
-                      initial={{ y: 20, opacity: 0 }}
+                      initial={{ y: 15, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ type: "spring", damping: 15 }}
                     >
                       {price}
                     </motion.span>
-                    <span className="text-sm text-muted-foreground/50 font-medium">
-                      /{billingCycle === "yearly" ? "yr" : "mo"}
-                    </span>
+                    <span className="text-sm text-muted-foreground/50 font-medium">/{billingCycle === "yearly" ? "yr" : "mo"}</span>
                   </div>
                   {billingCycle === "yearly" && (
                     <motion.p className="text-[10px] mt-1 font-medium" style={{ color: "#00FF94" }}
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                       ₹{Math.round(yearlyPrice / 12)}/mo · Save {savings}%
                     </motion.p>
                   )}
                 </motion.div>
 
-                {/* Divider */}
-                <motion.div
-                  className="h-px mb-4"
-                  style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)" }}
-                  initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.45, duration: 0.5 }}
-                />
-
-                {/* Features */}
-                <div className="space-y-0.5 mb-5">
-                  <motion.p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50 font-semibold mb-2"
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.48 }}>
-                    Everything Included
-                  </motion.p>
-                  {features.map((f, i) => (
-                    <FeatureRow key={i} text={f.text} icon={f.icon} index={i} />
-                  ))}
-                </div>
-
-                {/* CTA Button */}
+                {/* CTA */}
                 {!isPaid && (
-                  <motion.div
-                    className="relative"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.1 }}
-                  >
-                    {/* Ripple effect */}
-                    <motion.div
-                      className="absolute inset-[-4px] rounded-2xl pointer-events-none"
-                      animate={{ boxShadow: ["0 0 0 0px #00E5FF20", "0 0 0 8px #00E5FF00"] }}
-                      transition={{ duration: 1.5, delay: 1.5, repeat: 3 }}
-                    />
+                  <motion.div className="relative" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
                     <motion.button
                       onClick={handleSubscribe}
                       disabled={loading}
@@ -468,7 +341,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                         className="absolute inset-0 pointer-events-none"
                         style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%)" }}
                         animate={{ x: ["-100%", "200%"] }}
-                        transition={{ duration: 2.5, delay: 2, repeat: Infinity, repeatDelay: 3 }}
+                        transition={{ duration: 2.5, delay: 1.5, repeat: Infinity, repeatDelay: 3 }}
                       />
                       {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                       <span className="relative z-10">
@@ -483,13 +356,10 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                   </motion.div>
                 )}
 
-                {/* Security badge */}
-                <motion.p
-                  className="text-center text-[9px] text-muted-foreground/40 flex items-center justify-center gap-1.5 mt-3"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }}
-                >
-                  <Shield className="w-3 h-3" />
-                  Secure payment · Cancel anytime · Instant access
+                {/* Security */}
+                <motion.p className="text-center text-[9px] text-muted-foreground/40 flex items-center justify-center gap-1.5 mt-3"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>
+                  <Shield className="w-3 h-3" /> Secure payment · Cancel anytime · Instant access
                 </motion.p>
               </>
             )}
@@ -499,8 +369,8 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
               <motion.button
                 onClick={handleCancel}
                 disabled={loading}
-                className="w-full py-2.5 mt-2 text-[10px] text-muted-foreground/40 hover:text-destructive/70 transition-colors font-medium"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}
+                className="w-full py-2 mt-1 text-[10px] text-muted-foreground/40 hover:text-destructive/70 transition-colors font-medium"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
               >
                 Cancel Subscription
               </motion.button>
