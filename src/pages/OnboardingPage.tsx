@@ -63,6 +63,8 @@ const OnboardingPage = () => {
   const [studyMode, setStudyMode] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiProgressLabel, setAiProgressLabel] = useState("");
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -112,11 +114,36 @@ const OnboardingPage = () => {
   const handleAIGenerate = async () => {
     const examLabel = examType === "other" ? customExam || "Custom Exam" : examType.toUpperCase();
     setAiGenerating(true);
+    setAiProgress(0);
+    setAiProgressLabel("Initializing AI...");
+
+    // Simulate progress steps while waiting for AI
+    const progressSteps = [
+      { target: 15, label: "Analyzing exam pattern...", delay: 400 },
+      { target: 35, label: "Mapping syllabus structure...", delay: 1200 },
+      { target: 55, label: "Generating subjects...", delay: 2500 },
+      { target: 70, label: "Creating topic hierarchy...", delay: 4000 },
+      { target: 85, label: "Assigning weightages...", delay: 6000 },
+    ];
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (const step of progressSteps) {
+      timers.push(setTimeout(() => {
+        setAiProgress(step.target);
+        setAiProgressLabel(step.label);
+      }, step.delay));
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke("ai-topic-manager", {
         body: { action: "generate_curriculum", exam_type: examLabel, custom_exam: customExam },
       });
       if (error) throw error;
+
+      // Complete progress
+      setAiProgress(95);
+      setAiProgressLabel("Processing results...");
+
       const curriculum = data as { subjects: { name: string; topics: { name: string }[] }[] };
       if (curriculum?.subjects?.length) {
         const newSubjects: string[] = [];
@@ -129,12 +156,19 @@ const OnboardingPage = () => {
         }
         setSubjects(prev => [...prev, ...newSubjects]);
         setTopicsBySubject(newTopics);
+        setAiProgress(100);
+        setAiProgressLabel("Done! ✨");
         toast({ title: "AI Curriculum Generated ✨", description: `Added ${newSubjects.length} subjects with topics.` });
       }
     } catch (e: any) {
       toast({ title: "AI generation failed", description: e.message || "Try again later", variant: "destructive" });
     } finally {
-      setAiGenerating(false);
+      timers.forEach(clearTimeout);
+      setTimeout(() => {
+        setAiGenerating(false);
+        setAiProgress(0);
+        setAiProgressLabel("");
+      }, 800);
     }
   };
 
@@ -430,11 +464,64 @@ const OnboardingPage = () => {
                 <p className="text-xs mb-3" style={{ color: "#ffffff40" }}>You'll add topics for each subject next.</p>
 
                 <motion.button whileTap={{ scale: 0.97 }} onClick={handleAIGenerate} disabled={aiGenerating}
-                  className="w-full flex items-center justify-center gap-2 py-2 mb-3 rounded-xl text-xs disabled:opacity-50 transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-2 mb-1 rounded-xl text-xs disabled:opacity-50 transition-all"
                   style={{ border: "1px dashed #00E5FF40", color: "#00E5FF", background: "#00E5FF06" }}
                 >
                   {aiGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Wand2 className="w-3.5 h-3.5" /> AI Generate Subjects & Topics</>}
                 </motion.button>
+
+                {/* AI Progress Bar */}
+                <AnimatePresence>
+                  {aiGenerating && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-3 rounded-xl overflow-hidden px-1"
+                    >
+                      <div className="relative h-2 rounded-full overflow-hidden" style={{ background: "#ffffff08" }}>
+                        <motion.div
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{
+                            background: "linear-gradient(90deg, #00E5FF, #7C4DFF, #00E5FF)",
+                            backgroundSize: "200% 100%",
+                          }}
+                          initial={{ width: "0%" }}
+                          animate={{
+                            width: `${aiProgress}%`,
+                            backgroundPosition: ["0% 0%", "100% 0%", "0% 0%"],
+                          }}
+                          transition={{
+                            width: { duration: 0.6, ease: "easeOut" },
+                            backgroundPosition: { duration: 2, repeat: Infinity, ease: "linear" },
+                          }}
+                        />
+                        {/* Shimmer effect */}
+                        <motion.div
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            background: "linear-gradient(90deg, transparent, #ffffff20, transparent)",
+                            backgroundSize: "50% 100%",
+                          }}
+                          animate={{ backgroundPosition: ["-100% 0%", "200% 0%"] }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5 mb-1">
+                        <motion.p
+                          key={aiProgressLabel}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-[10px] font-medium"
+                          style={{ color: "#00E5FFcc" }}
+                        >
+                          {aiProgressLabel}
+                        </motion.p>
+                        <span className="text-[10px] font-bold" style={{ color: "#00E5FF80" }}>{aiProgress}%</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {SUGGESTED_SUBJECTS[examType] && (
                   <div className="mb-3">

@@ -32,11 +32,11 @@ serve(async (req) => {
       const { aiFetch } = await import("../_shared/aiFetch.ts");
       const aiResp = await aiFetch({
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             {
               role: "system",
-              content: `You are an expert academic curriculum designer for Indian competitive exams. Generate a comprehensive, exam-specific subject and topic structure. Each topic should have a marks_impact_weight (0-10 scale, where 10 = highest exam weightage). Be thorough and cover the complete syllabus. Use real exam syllabus data.`
+              content: `You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely.`
             },
             {
               role: "user",
