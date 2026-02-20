@@ -283,7 +283,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   // Determine today's primary mission
   const topMission = recommendations[0] || (atRisk.length > 0 ? {
     id: "risk-" + atRisk[0]?.id,
-    title: `Review: ${atRisk[0]?.name}`,
+    title: `Review: ${String(atRisk[0]?.name || "")}`,
     description: `Memory at ${Math.round(atRisk[0]?.memory_strength ?? 0)}% — quick recall can save it`,
     type: "review",
     priority: atRisk[0]?.risk_level === "critical" ? "critical" : "high",
