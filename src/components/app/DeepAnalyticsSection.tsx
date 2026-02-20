@@ -46,6 +46,12 @@ const DeepAnalyticsSection: React.FC<DeepAnalyticsSectionProps> = ({
   const [examReadiness, setExamReadiness] = useState<ExamReadiness | null>(() => getCache<ExamReadiness>(`${CACHE_KEY}-exam`));
   const [aiInsights, setAiInsights] = useState<string[]>(() => getCache<string[]>(`${CACHE_KEY}-insights`) || []);
   const [loaded, setLoaded] = useState(false);
+  const topicsKey = allTopics.map(t => `${t.id}:${t.memory_strength}`).join(",");
+
+  // Reset loaded when topics data changes so analytics re-compute
+  useEffect(() => {
+    setLoaded(false);
+  }, [topicsKey]);
 
   const loadAnalytics = useCallback(async () => {
     if (!user || loaded) return;
