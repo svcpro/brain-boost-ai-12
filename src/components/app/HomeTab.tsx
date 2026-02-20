@@ -9,6 +9,7 @@ import { setCache, getCache } from "@/lib/offlineCache";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import DailyGoalTracker from "./DailyGoalTracker";
+import SectionErrorBoundary from "@/components/SectionErrorBoundary";
 
 import ReviewQueue from "./ReviewQueue";
 import { notifyFeedback, triggerHaptic } from "@/lib/feedback";
@@ -289,7 +290,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     _riskTopic: atRisk[0],
   } : null);
 
-  const userName = displayName || user?.user_metadata?.display_name || user?.email?.split("@")[0];
+  const userName = String(displayName || user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Student");
   const greeting = (() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })();
 
   const healthColor = overallHealth > 70 ? "hsl(var(--success))" : overallHealth > 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
@@ -494,6 +495,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* Burnout Warning */}
       {isEnabled('home_burnout_warning') && burnoutData && burnoutData.burnout_score >= 40 && (
+        <SectionErrorBoundary name="burnout">
         <PlanGateWrapper featureKey="burnout_warning">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`rounded-2xl border p-4 ${burnoutData.risk_level === "high" ? "border-destructive/30 bg-destructive/5" : "border-warning/30 bg-warning/5"}`}>
             <div className="flex items-center gap-2">
@@ -501,11 +503,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               <span className="text-sm font-semibold text-foreground">{burnoutData.risk_level === "high" ? "⚠️ High Burnout Risk" : "Moderate Fatigue"}</span>
               <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${burnoutData.risk_level === "high" ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"}`}>{burnoutData.burnout_score}/100</span>
             </div>
-            {burnoutData.recommendations.slice(0, 2).map((tip, i) => (
-              <p key={i} className="text-xs text-muted-foreground mt-1.5">• {tip}</p>
+            {Array.isArray(burnoutData.recommendations) && burnoutData.recommendations.slice(0, 2).map((tip, i) => (
+              <p key={i} className="text-xs text-muted-foreground mt-1.5">• {typeof tip === 'string' ? tip : JSON.stringify(tip)}</p>
             ))}
           </motion.div>
         </PlanGateWrapper>
+        </SectionErrorBoundary>
       )}
 
       {/* ─── SECTION 2: Today's Mission (AI-Powered Single Action) ─── */}
@@ -517,8 +520,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       />
 
       {/* ─── SECTION 2.5: Voice Brain Capture ─── */}
-      <VoiceBrainCapture />
-
+      <SectionErrorBoundary name="voice-brain-capture">
+        <VoiceBrainCapture />
+      </SectionErrorBoundary>
       {/* ─── SECTION 2.6: Brain Feed (Second Brain Feed) ─── */}
       {/* <BrainFeed hasTopics={hasTopics} /> */}
 
@@ -545,6 +549,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* ─── SECTION 4: Progress & Streak Momentum ─── */}
       {hasTopics && (
         <>
+          <SectionErrorBoundary name="momentum">
           <MomentumSection
             streakData={streakData}
             overallHealth={overallHealth}
@@ -552,6 +557,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             rankPercentile={rankData?.percentile ?? null}
             hasTopics={hasTopics}
           />
+          </SectionErrorBoundary>
 
           {/* DailyGoalTracker hidden - consolidated into MomentumSection */}
           {isEnabled('home_streak_milestone') && <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />}
