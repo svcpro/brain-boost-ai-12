@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import Footer from "@/components/landing/Footer";
+import ACRYLogo from "@/components/landing/ACRYLogo";
 
 interface StaticPageLayoutProps {
   title: string;
@@ -16,10 +17,7 @@ const StaticPageLayout = ({ title, subtitle, children, lastUpdated }: StaticPage
     <nav className="sticky top-0 z-50 glass-strong border-b border-border">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg neural-gradient neural-border flex items-center justify-center">
-            <span className="text-primary font-bold text-sm">A</span>
-          </div>
-          <span className="font-display font-bold text-xl text-foreground">ACRY</span>
+          <ACRYLogo variant="navbar" animate={false} />
         </Link>
         <Link
           to="/"
