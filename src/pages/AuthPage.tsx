@@ -80,8 +80,8 @@ const AuthPage = () => {
     <div className="fixed inset-0 flex items-center justify-center"
       style={{ background: "linear-gradient(180deg, #0B0F1A 0%, #111827 100%)" }}
     >
-      {/* Mobile frame */}
-      <div className="relative w-full max-w-[430px] h-[100dvh] overflow-hidden flex flex-col">
+      {/* Device frame */}
+      <div className="relative w-full max-w-[430px] h-[100dvh] overflow-hidden flex flex-col md:h-[min(95dvh,920px)] md:rounded-[2.5rem] md:border md:border-border/40 md:shadow-[0_25px_80px_-12px_hsl(0_0%_0%/0.6),0_0_120px_hsl(187_100%_50%/0.06)]">
 
         {/* Ambient background effects */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
