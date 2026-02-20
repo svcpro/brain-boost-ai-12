@@ -39,7 +39,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <ACRYLogo variant="navbar" animate={false} />
           <Link
-            to="/auth"
+            to="/auth?splash=1"
             className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold glow-primary hover:glow-primary-strong transition-all duration-300"
           >
             <Rocket className="w-3.5 h-3.5" />
