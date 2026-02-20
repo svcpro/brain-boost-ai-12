@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Lazy load all pages
 const Index = lazy(() => import("./pages/Index"));
@@ -52,7 +53,21 @@ const PageFallback = () => (
   </div>
 );
 
+const GlobalErrorCatcher = ({ children }: { children: React.ReactNode }) => {
+  useEffect(() => {
+    const handler = (e: PromiseRejectionEvent) => {
+      console.error("[Unhandled Rejection]", e.reason);
+      e.preventDefault();
+    };
+    window.addEventListener("unhandledrejection", handler);
+    return () => window.removeEventListener("unhandledrejection", handler);
+  }, []);
+  return <>{children}</>;
+};
+
 const App = () => (
+  <ErrorBoundary>
+  <GlobalErrorCatcher>
   <ThemeProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -116,6 +131,8 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
   </ThemeProvider>
+  </GlobalErrorCatcher>
+  </ErrorBoundary>
 );
 
 export default App;

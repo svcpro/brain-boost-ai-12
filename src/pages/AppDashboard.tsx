@@ -161,14 +161,26 @@ const AppDashboard = () => {
     checkExpiry();
   }, [user]);
 
-  const renderTab = () => {
+  // Fix: move tab-fallback logic into an effect instead of calling setState during render
+  useEffect(() => {
+    if (flagsLoading) return;
     if (!isTabEnabled(`tab_${activeTab}`)) {
-      // Fallback to first enabled tab
       const firstEnabled = tabs.find(t => isTabEnabled(`tab_${t.id}`));
-      if (firstEnabled && firstEnabled.id !== activeTab) {
+      if (firstEnabled) {
         setActiveTab(firstEnabled.id);
-        return null;
       }
+    }
+  }, [activeTab, flagsLoading, isTabEnabled]);
+
+  const renderTab = () => {
+    if (flagsLoading) {
+      return (
+        <div className="flex items-center justify-center py-20">
+          <ACRYLogo variant="icon" animate={true} className="w-8 h-8 animate-pulse" />
+        </div>
+      );
+    }
+    if (!isTabEnabled(`tab_${activeTab}`)) {
       return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">This section is currently disabled.</div>;
     }
     switch (activeTab) {
