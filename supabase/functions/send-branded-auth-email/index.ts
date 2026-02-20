@@ -127,26 +127,30 @@ serve(async (req) => {
       if (profile?.display_name) userName = profile.display_name;
     }
 
+    // Use the app's published URL as the brand redirect base
+    const BRAND_URL = "https://brain-boost-ai-12.lovable.app";
     let actionUrl = "";
 
     if (type === "confirm") {
-      // Generate a magic link for email confirmation
+      const finalRedirect = redirect_to || `${BRAND_URL}/app`;
       const { data, error } = await supabase.auth.admin.generateLink({
         type: "signup",
         email,
-        options: { redirectTo: redirect_to || `${SUPABASE_URL.replace('.supabase.co', '.supabase.co')}/auth/v1/verify?redirect_to=${encodeURIComponent(redirect_to || 'https://acry.ai/app')}` },
+        options: { redirectTo: finalRedirect },
       });
       if (error) throw error;
-      actionUrl = data?.properties?.action_link || redirect_to || "https://acry.ai/app";
+      // The generated action_link points to Supabase auth endpoint — keep it as-is
+      // because Supabase needs to verify the token, then it redirects to our brand URL
+      actionUrl = data?.properties?.action_link || finalRedirect;
     } else if (type === "reset") {
-      // Generate a password reset link
+      const finalRedirect = redirect_to || `${BRAND_URL}/reset-password`;
       const { data, error } = await supabase.auth.admin.generateLink({
         type: "recovery",
         email,
-        options: { redirectTo: redirect_to || "https://acry.ai/reset-password" },
+        options: { redirectTo: finalRedirect },
       });
       if (error) throw error;
-      actionUrl = data?.properties?.action_link || redirect_to || "https://acry.ai/reset-password";
+      actionUrl = data?.properties?.action_link || finalRedirect;
     } else {
       return new Response(JSON.stringify({ error: "Invalid type. Use 'confirm' or 'reset'" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
