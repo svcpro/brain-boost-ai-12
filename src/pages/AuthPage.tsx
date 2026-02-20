@@ -10,12 +10,8 @@ import SplashScreen from "@/components/splash/SplashScreen";
 
 const AuthPage = () => {
   const [searchParams] = useSearchParams();
-  const skipSplash = searchParams.get("skip") === "1";
-  const [showSplash, setShowSplash] = useState(() => {
-    if (skipSplash) return false;
-    const seen = sessionStorage.getItem("acry_splash_seen");
-    return !seen;
-  });
+  const showSplashParam = searchParams.get("splash") === "1";
+  const [showSplash, setShowSplash] = useState(showSplashParam);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
