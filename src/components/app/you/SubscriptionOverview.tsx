@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Crown, Check, ChevronRight, Sparkles, Zap, Lock, TrendingUp, Shield,
-  Loader2, Star, Gauge, BarChart3, ArrowUpRight, AlertTriangle, Award, Brain
+  Crown, Check, ChevronRight, Sparkles, Zap, Lock, Shield,
+  Loader2, Star, Gauge, BarChart3, ArrowUpRight, AlertTriangle, Award, Brain,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
