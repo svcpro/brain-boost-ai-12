@@ -19,12 +19,29 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+/**
+ * Detect if the current URL looks like an OAuth callback
+ * (has access_token/refresh_token in hash or code in query params).
+ */
+const isOAuthCallback = (): boolean => {
+  const hash = window.location.hash;
+  const search = window.location.search;
+  return (
+    hash.includes("access_token") ||
+    hash.includes("refresh_token") ||
+    search.includes("code=")
+  );
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const signupHandledRef = useRef<Set<string>>(new Set());
   const initializedRef = useRef(false);
+  // If we're landing on an OAuth callback, INITIAL_SESSION may fire with null
+  // before the token exchange finishes. We must wait for SIGNED_IN in that case.
+  const isOAuthRedirectRef = useRef(isOAuthCallback());
 
   useEffect(() => {
     let isMounted = true;
@@ -68,24 +85,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       trackEngagement("app_open");
     };
 
-    // Use onAuthStateChange as the SOLE source of truth.
-    // INITIAL_SESSION fires once and covers OAuth redirects properly,
-    // unlike getSession() which can resolve before the URL hash is processed.
+    const markReady = (newSession: Session | null) => {
+      if (initializedRef.current) return;
+      initializedRef.current = true;
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      setLoading(false);
+      if (newSession?.user) {
+        setTimeout(() => handleSignupNotifications(newSession.user), 0);
+      }
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!isMounted) return;
-        console.log("[Auth] onAuthStateChange:", event, "user:", newSession?.user?.id ?? "none");
+        console.log("[Auth] onAuthStateChange:", event, "user:", newSession?.user?.id ?? "none", "oauthRedirect:", isOAuthRedirectRef.current);
 
         if (event === "INITIAL_SESSION") {
-          // This is the definitive initial auth state — safe to stop loading
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-          initializedRef.current = true;
-          setLoading(false);
-
-          if (newSession?.user) {
-            setTimeout(() => handleSignupNotifications(newSession.user), 0);
+          if (!newSession && isOAuthRedirectRef.current) {
+            // OAuth callback: INITIAL_SESSION fired before token exchange.
+            // Do NOT set loading=false yet — wait for SIGNED_IN.
+            console.log("[Auth] OAuth redirect detected, waiting for SIGNED_IN...");
+            return;
           }
+          // Normal case (not OAuth, or OAuth already resolved with session)
+          markReady(newSession);
+          return;
+        }
+
+        if (event === "SIGNED_IN" && newSession?.user) {
+          setSession(newSession);
+          setUser(newSession.user);
+          // If we were waiting for this after an OAuth INITIAL_SESSION(null), unlock now
+          if (!initializedRef.current) {
+            initializedRef.current = true;
+            isOAuthRedirectRef.current = false;
+            setLoading(false);
+          }
+          setTimeout(() => handleSignupNotifications(newSession.user), 0);
           return;
         }
 
@@ -95,26 +132,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        // For TOKEN_REFRESHED, only update session to avoid re-render cascades
         if (event === "TOKEN_REFRESHED") {
           setSession(newSession);
           return;
         }
 
-        // For SIGNED_IN (e.g., OAuth redirect completing after initial), update both
-        if (event === "SIGNED_IN" && newSession?.user) {
-          setSession(newSession);
-          setUser(newSession.user);
-          // Ensure loading is false in case INITIAL_SESSION was missed
-          if (!initializedRef.current) {
-            initializedRef.current = true;
-            setLoading(false);
-          }
-          setTimeout(() => handleSignupNotifications(newSession.user), 0);
-          return;
-        }
-
-        // For any other events, sync session
+        // Any other event
         if (newSession) {
           setSession(newSession);
           setUser(newSession.user ?? null);
@@ -122,15 +145,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // Safety fallback: if INITIAL_SESSION never fires (shouldn't happen),
-    // unlock loading after 5s to prevent infinite loading screen
+    // Safety fallback: if neither INITIAL_SESSION nor SIGNED_IN unlock loading
+    // within 6 seconds (e.g. OAuth failed silently), unlock to prevent stuck screen
     const fallbackTimer = setTimeout(() => {
       if (isMounted && !initializedRef.current) {
-        console.warn("[Auth] Fallback: INITIAL_SESSION never fired, unlocking loading");
+        console.warn("[Auth] Fallback: auth never resolved, unlocking loading");
         initializedRef.current = true;
         setLoading(false);
       }
-    }, 5000);
+    }, 6000);
 
     return () => {
       isMounted = false;
