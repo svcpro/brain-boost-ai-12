@@ -30,7 +30,7 @@ export const PlanGatingContext = createContext<PlanGatingContextType>({
   currentPlan: "none",
   loading: true,
   canAccess: () => false,
-  getRequiredPlan: () => "pro",
+  getRequiredPlan: () => "premium",
   refetch: async () => {},
   isTrialActive: false,
   trialDaysLeft: 0,
@@ -85,9 +85,8 @@ export const usePlanGating = () => {
       return;
     }
 
-    // Resolve plan_id to plan_key — plan_id may be a UUID or a plan_key string
+    // Resolve plan_id to plan_key
     let planKey = data.plan_id || "none";
-    // If plan_id looks like a UUID, look up the plan_key from subscription_plans
     if (planKey.includes("-") && planKey.length > 10) {
       const { data: planData } = await supabase
         .from("subscription_plans")
@@ -110,25 +109,20 @@ export const usePlanGating = () => {
   }, [fetchGates, fetchPlan]);
 
   const canAccess = useCallback((featureKey: string) => {
-    if (currentPlan === "none") {
-      // Allow free-enabled features even without a plan
-      const gate = gates.find(g => g.feature_key === featureKey);
-      if (!gate) return false;
-      return gate.free_enabled;
+    // Premium plan (or legacy pro/ultra) gets access to everything
+    if (currentPlan === "premium" || currentPlan === "ultra" || currentPlan === "pro") {
+      return true;
     }
-    const gate = gates.find(g => g.feature_key === featureKey);
-    if (!gate) return true; // no gate = allowed
-    if (currentPlan === "ultra") return gate.ultra_enabled;
-    if (currentPlan === "pro") return gate.pro_enabled;
-    return gate.free_enabled;
-  }, [gates, currentPlan]);
+    // No plan = no access (no free tier)
+    if (currentPlan === "none") {
+      return false;
+    }
+    return false;
+  }, [currentPlan]);
 
-  const getRequiredPlan = useCallback((featureKey: string): string | null => {
-    const gate = gates.find(g => g.feature_key === featureKey);
-    if (!gate) return null;
-    if (gate.pro_enabled) return "pro";
-    return "ultra";
-  }, [gates]);
+  const getRequiredPlan = useCallback((_featureKey: string): string | null => {
+    return "premium";
+  }, []);
 
   const isTrialActive = subscription?.is_trial && subscription?.status === "active" && subscription?.trial_end_date && new Date(subscription.trial_end_date) > new Date();
   const trialDaysLeft = isTrialActive ? Math.ceil((new Date(subscription.trial_end_date).getTime() - Date.now()) / 86400000) : 0;

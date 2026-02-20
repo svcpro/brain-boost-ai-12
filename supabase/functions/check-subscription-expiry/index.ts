@@ -105,7 +105,7 @@ serve(async (req) => {
         const { data: { user } } = await adminClient.auth.admin.getUserById(sub.user_id);
         if (user?.email) {
           const daysLeft = Math.ceil((new Date(sub.expires_at!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          const planName = sub.plan_id === 'ultra' ? 'Ultra Brain' : 'Pro Brain';
+          const planName = 'ACRY Premium';
           await sendExpiryEmail(user.email, planName, daysLeft, sub.user_id);
           emailsSent++;
           
