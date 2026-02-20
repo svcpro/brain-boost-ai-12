@@ -11,6 +11,7 @@ import { getCache, setCache } from "@/lib/offlineCache";
 import { useToast } from "@/hooks/use-toast";
 import { notifyFeedback, triggerHaptic } from "@/lib/feedback";
 import FocusModeSession from "./FocusModeSession";
+import { safeStr } from "@/lib/safeRender";
 
 // ─── Types ───────────────────────────────────────────────────
 interface RiskTopic extends TopicPrediction {
@@ -84,13 +85,13 @@ const BrainNode = ({ topic, index, onClick }: { topic: RiskTopic; index: number;
       </svg>
 
       <span className={`relative z-10 text-[8px] font-bold ${cfg.color} leading-none text-center px-0.5 truncate max-w-[90%]`}>
-        {topic.name.length > 6 ? topic.name.slice(0, 6) + "…" : topic.name}
+        {safeStr(topic.name).length > 6 ? safeStr(topic.name).slice(0, 6) + "…" : safeStr(topic.name)}
       </span>
 
       {/* Tooltip on hover */}
       <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
         <div className="bg-card border border-border rounded-md px-2 py-0.5 text-[8px] text-foreground whitespace-nowrap shadow-lg">
-          {topic.name} · {Math.round(topic.memory_strength)}%
+          {safeStr(topic.name)} · {Math.round(topic.memory_strength)}%
         </div>
       </div>
     </motion.button>
@@ -513,7 +514,7 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
                   <Target className={`w-3.5 h-3.5 ${getTier(topPriority.memory_strength) === "critical" ? "text-destructive" : "text-warning"}`} />
                   <span className="text-[10px] font-bold text-foreground">AI Priority — Focus today</span>
                 </div>
-                <p className="text-xs font-semibold text-foreground mb-0.5">{topPriority.name}</p>
+                <p className="text-xs font-semibold text-foreground mb-0.5">{safeStr(topPriority.name)}</p>
                 <div className="flex items-center gap-3 text-[9px] text-muted-foreground mb-3">
                   <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" /> ~{(topPriority as RiskTopic).estimated_fix_minutes}m</span>
                   <span className="flex items-center gap-0.5 text-success"><TrendingUp className="w-2.5 h-2.5" /> +{(topPriority as RiskTopic).improvement_estimate}%</span>
@@ -570,7 +571,7 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
                     >
                       <div className={`w-1.5 h-1.5 rounded-full ${isFixed ? "bg-success" : tier === "critical" ? "bg-destructive animate-pulse" : tier === "moderate" ? "bg-warning" : "bg-success"}`} />
                       <span className={`text-[10px] font-medium flex-1 truncate ${isFixed ? "text-success line-through" : "text-foreground"}`}>
-                        {topic.name}
+                         {safeStr(topic.name)}
                       </span>
                       <span className="text-[9px] text-muted-foreground tabular-nums flex items-center gap-0.5">
                         <Clock className="w-2.5 h-2.5" />
@@ -630,8 +631,8 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
                   <Brain className={`w-5 h-5 ${tierConfig[getTier(selectedTopic.memory_strength)].color}`} />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-display font-bold text-foreground">{selectedTopic.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{selectedTopic.subject_name || "Unknown subject"}</p>
+                  <p className="text-sm font-display font-bold text-foreground">{safeStr(selectedTopic.name)}</p>
+                  <p className="text-[10px] text-muted-foreground">{safeStr(selectedTopic.subject_name, "Unknown subject")}</p>
                 </div>
                 <button onClick={() => setSelectedTopic(null)} className="p-1.5 rounded-lg hover:bg-secondary"><X className="w-4 h-4 text-muted-foreground" /></button>
               </div>

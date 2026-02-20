@@ -1,6 +1,6 @@
 const CACHE_PREFIX = "offline-cache:";
 const CACHE_VERSION_KEY = "offline-cache-version";
-const CURRENT_CACHE_VERSION = "v3"; // bump to invalidate all caches
+const CURRENT_CACHE_VERSION = "v4"; // bump to invalidate all caches
 
 // Auto-clear stale caches from previous versions
 try {
