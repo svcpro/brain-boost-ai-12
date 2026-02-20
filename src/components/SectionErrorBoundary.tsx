@@ -25,7 +25,11 @@ class SectionErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return null; // Silently hide the broken section
+      return (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-center">
+          <p className="text-xs text-muted-foreground">This section failed to load.</p>
+        </div>
+      );
     }
     return this.props.children;
   }
