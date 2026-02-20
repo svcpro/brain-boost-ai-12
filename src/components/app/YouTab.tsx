@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Flame, Crown, Settings, Database, Shield, ChevronRight, LogOut, BookOpen, Plus, X, Hash, ChevronDown, Pencil, Check, Bell, BellOff, Trophy, Volume2, VolumeX, Mic, Mail, Trash2, BellRing, Sparkles, Camera, Loader2, Cpu, MessageSquare } from "lucide-react";
+import { LogOut, Camera, Loader2, Check, X, Pencil, Sparkles } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,27 +12,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useStudyReminder } from "@/hooks/useStudyReminder";
-import { isFeedbackEnabled, setFeedbackEnabled, getFeedbackVolume, setFeedbackVolume, notifyFeedback, playNotificationSound, playInsightSound, playWarningSound } from "@/lib/feedback";
-import VoiceSettingsPanel from "./VoiceSettingsPanel";
-import DataBackup from "./DataBackup";
-import PrivacySecurity from "./PrivacySecurity";
-import TrashBin from "./TrashBin";
 import SubscriptionPlan from "./SubscriptionPlan";
-import NotificationPreferencesPanel from "./NotificationPreferencesPanel";
-import NotificationHistory from "./NotificationHistory";
-import { getVoiceSettings } from "@/hooks/useVoiceNotification";
-import MLAdminDashboard from "./MLAdminDashboard";
 import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 import PlanGateWrapper from "./PlanGateWrapper";
-import { usePlanGatingContext } from "@/hooks/usePlanGating";
 
-// New identity sections
+// Identity sections
 import IdentityCommandCenter from "./you/IdentityCommandCenter";
 import LearningIdentitySummary from "./you/LearningIdentitySummary";
 import AIPersonalStrategy from "./you/AIPersonalStrategy";
@@ -40,27 +28,7 @@ import AchievementWall from "./you/AchievementWall";
 import MonthlyPerformanceSnapshot from "./you/MonthlyPerformanceSnapshot";
 import SubscriptionOverview from "./you/SubscriptionOverview";
 import AIRecalibration from "./you/AIRecalibration";
-
-interface MenuItemData {
-  icon: any;
-  label: string;
-  value: string;
-  onClick: () => void;
-  isOpen: boolean;
-  gateKey?: string;
-}
-
-interface Topic {
-  id: string;
-  name: string;
-  memory_strength: number;
-}
-
-interface Subject {
-  id: string;
-  name: string;
-  topics: Topic[];
-}
+import AIPersonalizationControlCenter from "./you/AIPersonalizationControlCenter";
 
 interface YouTabProps {
   autoOpenVoiceSettings?: boolean;
@@ -70,50 +38,6 @@ interface YouTabProps {
   autoOpenNotifHistory?: boolean;
   onNotifHistoryOpened?: () => void;
 }
-
-const soundColorMap: Record<string, { bar: string; active: string; glow: string }> = {
-  "🔔 Standard": { bar: "bg-primary/40", active: "bg-primary", glow: "shadow-[0_0_8px_2px_hsl(var(--primary)/0.4)]" },
-  "✨ Insight": { bar: "bg-accent/40", active: "bg-accent", glow: "shadow-[0_0_8px_2px_hsl(var(--accent)/0.4)]" },
-  "⚠️ Nudge": { bar: "bg-destructive/40", active: "bg-destructive", glow: "shadow-[0_0_8px_2px_hsl(var(--destructive)/0.4)]" },
-};
-
-const SoundPreviewButton = ({ label, onPlay, duration }: { label: string; onPlay: () => void; duration: number }) => {
-  const [playing, setPlaying] = useState(false);
-  const bars = 5;
-  const colors = soundColorMap[label] || soundColorMap["🔔 Standard"];
-
-  const handleClick = () => {
-    onPlay();
-    setPlaying(true);
-    setTimeout(() => setPlaying(false), duration + 200);
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      className="flex-1 flex flex-col items-center gap-1.5 py-2 px-2 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground transition-colors"
-    >
-      <div className={`flex items-end gap-[2px] h-4 rounded-md px-1 transition-shadow duration-300 ${playing ? colors.glow : ""}`}>
-        {Array.from({ length: bars }).map((_, i) => (
-          <motion.div
-            key={i}
-            className={`w-[3px] rounded-full ${playing ? colors.active : colors.bar}`}
-            animate={playing ? {
-              height: [4, 12 + Math.random() * 4, 6, 14 + Math.random() * 2, 4],
-            } : { height: 4 }}
-            transition={playing ? {
-              duration: 0.4,
-              repeat: Math.ceil(duration / 400),
-              delay: i * 0.05,
-              ease: "easeInOut",
-            } : { duration: 0.2 }}
-          />
-        ))}
-      </div>
-      <span className="text-[10px]">{label}</span>
-    </button>
-  );
-};
 
 const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscription, onSubscriptionOpened, autoOpenNotifHistory, onNotifHistoryOpened }: YouTabProps) => {
   const { isEnabled } = useFeatureFlagContext();
@@ -130,6 +54,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [editNameValue, setEditNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
   const prevLevelRef = useRef<number | null>(null);
+  const [showSubscription, setShowSubscription] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState("free");
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
   const LEVEL_THRESHOLDS = useMemo(() => [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000], []);
 
@@ -156,72 +83,12 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     prevLevelRef.current = currentLevel;
   }, [currentLevel]);
 
-  const [showSubjects, setShowSubjects] = useState(false);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
-  const [newSubjectName, setNewSubjectName] = useState("");
-  const [newTopicName, setNewTopicName] = useState("");
-  const [addingTopicFor, setAddingTopicFor] = useState<string | null>(null);
-  const [editingSubject, setEditingSubject] = useState<string | null>(null);
-  const [editSubjectName, setEditSubjectName] = useState("");
-  const [editingTopic, setEditingTopic] = useState<string | null>(null);
-  const [editTopicName, setEditTopicName] = useState("");
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-  const [showReminders, setShowReminders] = useState(false);
-  const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderHour, setReminderHour] = useState(18);
-  const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
-  const [showLeaderboardSetting, setShowLeaderboardSetting] = useState(false);
-  const [feedbackOn, setFeedbackOn] = useState(() => isFeedbackEnabled());
-  const [volume, setVolume] = useState(() => getFeedbackVolume());
-  const preMuteVolumeRef = useRef(getFeedbackVolume() || 50);
-  const [showFeedbackSetting, setShowFeedbackSetting] = useState(false);
-  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
-  const [showDataBackup, setShowDataBackup] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
-  const [showSubscription, setShowSubscription] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState("free");
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [emailStudyReminders, setEmailStudyReminders] = useState(true);
-  const [emailWeeklyReports, setEmailWeeklyReports] = useState(true);
-  const [weeklyReportDay, setWeeklyReportDay] = useState(0);
-  const [weeklyReportHour, setWeeklyReportHour] = useState(7);
-  const [showEmailSetting, setShowEmailSetting] = useState(false);
-  const [showDisableAllDialog, setShowDisableAllDialog] = useState(false);
-  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
-  const [showTrash, setShowTrash] = useState(false);
-  const [trashCount, setTrashCount] = useState(0);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "subject" | "topic"; id: string; name: string } | null>(null);
-  const [showPushPrefs, setShowPushPrefs] = useState(false);
-  const [showNotifHistory, setShowNotifHistory] = useState(false);
-  const [showMLDashboard, setShowMLDashboard] = useState(false);
-
-  const voiceSettings = getVoiceSettings();
-  const { getPrefs, savePrefs, requestPermission } = useStudyReminder();
-
-  // Auto-open handlers
-  useEffect(() => {
-    if (autoOpenVoiceSettings) { setShowVoiceSettings(true); onVoiceSettingsOpened?.(); }
-  }, [autoOpenVoiceSettings, onVoiceSettingsOpened]);
-
+  // Auto-open subscription
   useEffect(() => {
     if (autoOpenSubscription) { setShowSubscription(true); onSubscriptionOpened?.(); }
   }, [autoOpenSubscription, onSubscriptionOpened]);
 
-  useEffect(() => {
-    if (autoOpenNotifHistory) { setShowNotifHistory(true); onNotifHistoryOpened?.(); }
-  }, [autoOpenNotifHistory, onNotifHistoryOpened]);
-
-  const loadTrashCount = useCallback(async () => {
-    if (!user) return;
-    const [{ count: sc }, { count: tc }] = await Promise.all([
-      supabase.from("subjects").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("deleted_at", "is", null),
-      supabase.from("topics").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("deleted_at", "is", null),
-    ]);
-    setTrashCount((sc ?? 0) + (tc ?? 0));
-  }, [user]);
-
-  // Load avatar URL and XP
+  // Load avatar URL, XP, and plan
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("avatar_url, display_name").eq("id", user.id).maybeSingle().then(({ data }) => {
@@ -231,6 +98,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     supabase.from("study_logs").select("duration_minutes").eq("user_id", user.id).then(({ data }) => {
       const xp = (data || []).reduce((sum, log) => sum + (log.duration_minutes || 0), 0);
       setTotalXp(xp);
+    });
+    supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
+      if (data) setCurrentPlan(data.plan_id);
     });
   }, [user]);
 
@@ -263,210 +133,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
     }
   };
 
-  useEffect(() => {
-    getPrefs().then((p) => {
-      setReminderEnabled(p.enabled);
-      setReminderHour(p.reminderHour);
-    });
-    if (user) {
-      supabase.from("profiles").select("opt_in_leaderboard, email_notifications_enabled, email_study_reminders, email_weekly_reports, weekly_report_day, weekly_report_hour").eq("id", user.id).maybeSingle().then(({ data }) => {
-        if (data) {
-          setLeaderboardOptIn(data.opt_in_leaderboard ?? false);
-          setEmailNotifications((data as any).email_notifications_enabled ?? true);
-          setEmailStudyReminders((data as any).email_study_reminders ?? true);
-          setEmailWeeklyReports((data as any).email_weekly_reports ?? true);
-          const offsetMin = new Date().getTimezoneOffset();
-          const storedUtcHour = (data as any).weekly_report_hour ?? 7;
-          const localH = ((storedUtcHour * 60 - offsetMin) / 60) % 24;
-          setWeeklyReportHour(localH < 0 ? localH + 24 : Math.floor(localH));
-          setWeeklyReportDay((data as any).weekly_report_day ?? 0);
-        }
-      });
-      supabase.from("user_subscriptions").select("plan_id").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
-        if (data) setCurrentPlan(data.plan_id);
-      });
-      loadTrashCount();
-    }
-  }, [getPrefs, user, loadTrashCount]);
-
-  const loadSubjects = async () => {
-    if (!user) return;
-    setLoadingSubjects(true);
-    const { data: subs } = await supabase.from("subjects").select("id, name").eq("user_id", user.id).is("deleted_at", null).order("name");
-    if (subs) {
-      const withTopics: Subject[] = [];
-      for (const sub of subs) {
-        const { data: topics } = await supabase.from("topics").select("id, name, memory_strength").eq("subject_id", sub.id).is("deleted_at", null).order("name");
-        withTopics.push({ ...sub, topics: topics || [] });
-      }
-      setSubjects(withTopics);
-    }
-    setLoadingSubjects(false);
-  };
-
-  useEffect(() => { if (showSubjects) loadSubjects(); }, [showSubjects]);
-
-  const addSubject = async () => {
-    const trimmed = newSubjectName.trim();
-    if (!trimmed || !user) return;
-    const { error } = await supabase.from("subjects").insert({ name: trimmed, user_id: user.id });
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    setNewSubjectName("");
-    loadSubjects();
-  };
-
-  const deleteSubject = async (id: string) => {
-    const subject = subjects.find(s => s.id === id);
-    if (!subject) return;
-    setSubjects(prev => prev.filter(s => s.id !== id));
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("subjects").update({ deleted_at: now } as any).eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); loadSubjects(); return; }
-    await supabase.from("topics").update({ deleted_at: now } as any).eq("subject_id", id).is("deleted_at", null);
-    toast({
-      title: `🗑️ "${subject.name}" moved to trash`,
-      description: `Subject and ${subject.topics.length} topic${subject.topics.length !== 1 ? "s" : ""} trashed.`,
-      action: (
-        <ToastAction altText="Undo delete" onClick={async () => {
-          await supabase.from("subjects").update({ deleted_at: null } as any).eq("id", id);
-          await supabase.from("topics").update({ deleted_at: null } as any).eq("subject_id", id);
-          loadSubjects();
-          toast({ title: "↩️ Restored", description: `"${subject.name}" has been restored.` });
-        }}>Undo</ToastAction>
-      ),
-      duration: 6000,
-    });
-  };
-
-  const addTopic = async (subjectId: string) => {
-    const trimmed = newTopicName.trim();
-    if (!trimmed || !user) return;
-    const { error } = await supabase.from("topics").insert({ name: trimmed, subject_id: subjectId, user_id: user.id });
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    setNewTopicName("");
-    setAddingTopicFor(null);
-    loadSubjects();
-  };
-
-  const deleteTopic = async (id: string) => {
-    let deletedTopicName = "";
-    setSubjects(prev => prev.map(sub => {
-      const topic = sub.topics.find(t => t.id === id);
-      if (topic) { deletedTopicName = topic.name; return { ...sub, topics: sub.topics.filter(t => t.id !== id) }; }
-      return sub;
-    }));
-    if (!deletedTopicName) return;
-    const { error } = await supabase.from("topics").update({ deleted_at: new Date().toISOString() } as any).eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); loadSubjects(); return; }
-    toast({
-      title: `🗑️ "${deletedTopicName}" moved to trash`,
-      description: "Topic has been trashed.",
-      action: (
-        <ToastAction altText="Undo delete" onClick={async () => {
-          await supabase.from("topics").update({ deleted_at: null } as any).eq("id", id);
-          loadSubjects();
-          toast({ title: "↩️ Restored", description: `"${deletedTopicName}" has been restored.` });
-        }}>Undo</ToastAction>
-      ),
-      duration: 6000,
-    });
-  };
-
-  const renameSubject = async (id: string) => {
-    const trimmed = editSubjectName.trim();
-    if (!trimmed) return;
-    const { error } = await supabase.from("subjects").update({ name: trimmed }).eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    setEditingSubject(null);
-    loadSubjects();
-  };
-
-  const renameTopic = async (id: string) => {
-    const trimmed = editTopicName.trim();
-    if (!trimmed) return;
-    const { error } = await supabase.from("topics").update({ name: trimmed }).eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    setEditingTopic(null);
-    loadSubjects();
-  };
-
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
   };
-
-  // Settings menu items
-  const settingsSection = [
-    { icon: BookOpen, label: "Subjects & Topics", value: `${subjects.length || "—"}`, onClick: () => setShowSubjects(!showSubjects), isOpen: showSubjects },
-    { icon: Trophy, label: "Leaderboard", value: leaderboardOptIn ? "Visible" : "Hidden", onClick: () => setShowLeaderboardSetting(!showLeaderboardSetting), isOpen: showLeaderboardSetting },
-    { icon: Bell, label: "Study Reminders", value: reminderEnabled ? "On" : "Off", onClick: () => setShowReminders(!showReminders), isOpen: showReminders },
-    { icon: BellRing, label: "Push Notifications", value: "", onClick: () => setShowPushPrefs(!showPushPrefs), isOpen: showPushPrefs },
-    { icon: Bell, label: "Notification History", value: "", onClick: () => setShowNotifHistory(!showNotifHistory), isOpen: showNotifHistory },
-    { icon: Mail, label: "Email Notifications", value: [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => v) ? "All On" : [emailNotifications, emailStudyReminders, emailWeeklyReports].every(v => !v) ? "All Off" : "Custom", onClick: () => setShowEmailSetting(!showEmailSetting), isOpen: showEmailSetting },
-    { icon: Volume2, label: "Sound & Haptics", value: feedbackOn ? "On" : "Off", onClick: () => setShowFeedbackSetting(!showFeedbackSetting), isOpen: showFeedbackSetting },
-    { icon: Mic, label: "Voice Notifications", value: voiceSettings.enabled ? "On" : "Off", onClick: () => setShowVoiceSettings(!showVoiceSettings), isOpen: showVoiceSettings, gateKey: "voice_notifications" },
-  ];
-
-  const dataSection = [
-    { icon: Cpu, label: "ML Control Panel", value: "", onClick: () => setShowMLDashboard(true), isOpen: false, gateKey: "ml_dashboard" },
-    { icon: Trash2, label: "Trash", value: "__trash__", onClick: () => setShowTrash(!showTrash), isOpen: showTrash },
-    { icon: Database, label: "Data Backup", value: "", onClick: () => setShowDataBackup(!showDataBackup), isOpen: showDataBackup, gateKey: "data_backup" },
-    { icon: Shield, label: "Privacy & Security", value: "", onClick: () => setShowPrivacy(!showPrivacy), isOpen: showPrivacy },
-  ];
-
-  const MenuItem = ({ item, index }: { item: MenuItemData; index: number }) => {
-    const { canAccess, getRequiredPlan } = usePlanGatingContext();
-    const gated = item.gateKey ? !canAccess(item.gateKey) : false;
-    const requiredPlan = item.gateKey ? getRequiredPlan(item.gateKey) : null;
-    return (
-      <motion.button
-        initial={{ opacity: 0, x: -12 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.05 * index, duration: 0.3 }}
-        onClick={gated ? () => setShowSubscription(true) : item.onClick}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-          gated ? "opacity-60" : item.isOpen ? "bg-primary/5 border border-primary/20" : "hover:bg-secondary/30"
-        }`}
-      >
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${item.isOpen ? "bg-primary/15" : "bg-secondary/50"}`}>
-          <item.icon className={`w-4 h-4 ${item.isOpen ? "text-primary" : "text-muted-foreground"}`} />
-        </div>
-        <span className="flex-1 text-left text-sm text-foreground font-medium">{item.label}</span>
-        {gated ? (
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
-            {requiredPlan === "ultra" ? "Ultra" : "Pro"}
-          </span>
-        ) : item.value === "__trash__" ? (
-          <AnimatePresence mode="wait">
-            {trashCount > 0 && (
-              <motion.span
-                key={trashCount}
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold px-1.5"
-              >
-                {trashCount}
-              </motion.span>
-            )}
-          </AnimatePresence>
-        ) : item.value ? (
-          <span className="text-[11px] text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-md">{item.value}</span>
-        ) : null}
-        <motion.div animate={{ rotate: item.isOpen ? 90 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </motion.div>
-      </motion.button>
-    );
-  };
-
-  const SectionLabel = ({ icon: Icon, label, delay }: { icon: any; label: string; delay: number }) => (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay }} className="flex items-center gap-2 px-1 pt-3 pb-1">
-      <Icon className="w-3.5 h-3.5 text-primary" />
-      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
-    </motion.div>
-  );
 
   return (
     <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
@@ -591,334 +261,14 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         <AIRecalibration />
       </PlanGateWrapper>
 
-      {/* ═══ SECTION 5: Settings & Controls ═══ */}
-      <div className="space-y-1">
-        <SectionLabel icon={Settings} label="Settings & Controls" delay={0.2} />
-        {settingsSection
-          .filter(item => {
-            const flagMap: Record<string, string> = {
-              "Subjects & Topics": "you_study_subjects",
-              "Leaderboard": "you_study_leaderboard",
-              "Study Reminders": "you_notif_study_reminders",
-              "Push Notifications": "you_notif_push",
-              "Notification History": "you_notif_history",
-              "Email Notifications": "you_notif_email",
-              "Sound & Haptics": "you_notif_sound",
-              "Voice Notifications": "you_notif_voice",
-            };
-            const flagKey = flagMap[item.label];
-            return !flagKey || isEnabled(flagKey);
-          })
-          .map((item, i) => (
-            <MenuItem key={item.label} item={item} index={i} />
-          ))}
-
-        {/* Subjects & Topics Panel */}
-        {isEnabled("you_study_subjects") && (
-          <AnimatePresence>
-            {showSubjects && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
-                <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
-                  {loadingSubjects ? (
-                    <p className="text-xs text-muted-foreground text-center py-4">Loading...</p>
-                  ) : (
-                    <>
-                      <div className="flex gap-2">
-                        <input type="text" placeholder="New subject..." value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} onKeyDown={e => e.key === "Enter" && addSubject()} className="flex-1 rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" />
-                        <button onClick={addSubject} disabled={!newSubjectName.trim()} className="px-3 rounded-lg bg-primary text-primary-foreground disabled:opacity-30 transition-all"><Plus className="w-4 h-4" /></button>
-                      </div>
-                      {subjects.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">No subjects yet.</p>}
-                      {subjects.map(sub => (
-                        <div key={sub.id} className="rounded-lg bg-secondary/30 border border-border overflow-hidden">
-                          <div className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-secondary/50 transition-all">
-                            <BookOpen className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                            {editingSubject === sub.id ? (
-                              <form onSubmit={e => { e.preventDefault(); renameSubject(sub.id); }} className="flex-1 flex items-center gap-1.5">
-                                <input type="text" value={editSubjectName} onChange={e => setEditSubjectName(e.target.value)} autoFocus className="flex-1 rounded bg-secondary border border-border px-2 py-0.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
-                                <button type="submit" className="p-0.5 text-primary"><Check className="w-3.5 h-3.5" /></button>
-                                <button type="button" onClick={() => setEditingSubject(null)} className="p-0.5 text-muted-foreground"><X className="w-3.5 h-3.5" /></button>
-                              </form>
-                            ) : (
-                              <>
-                                <button onClick={() => setExpandedSubject(expandedSubject === sub.id ? null : sub.id)} className="flex-1 text-left text-sm text-foreground font-medium truncate">{sub.name}</button>
-                                <span className="text-[10px] text-muted-foreground bg-secondary/60 rounded-full px-2 py-0.5">{sub.topics.length}</span>
-                                <button onClick={() => { setEditSubjectName(sub.name); setEditingSubject(sub.id); }} className="p-1 rounded hover:bg-secondary/80 text-muted-foreground"><Pencil className="w-3 h-3" /></button>
-                                <button onClick={() => setDeleteConfirm({ type: "subject", id: sub.id, name: sub.name })} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
-                                <motion.div animate={{ rotate: expandedSubject === sub.id ? 180 : 0 }}><ChevronDown className="w-3.5 h-3.5 text-muted-foreground cursor-pointer" onClick={() => setExpandedSubject(expandedSubject === sub.id ? null : sub.id)} /></motion.div>
-                              </>
-                            )}
-                          </div>
-                          <AnimatePresence>
-                            {expandedSubject === sub.id && (
-                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t border-border">
-                                <div className="px-3 py-2 space-y-1.5">
-                                  {sub.topics.map(topic => (
-                                    <div key={topic.id} className="flex items-center gap-2 py-1 pl-5">
-                                      <Hash className="w-3 h-3 text-muted-foreground" />
-                                      {editingTopic === topic.id ? (
-                                        <form onSubmit={e => { e.preventDefault(); renameTopic(topic.id); }} className="flex-1 flex items-center gap-1.5">
-                                          <input type="text" value={editTopicName} onChange={e => setEditTopicName(e.target.value)} autoFocus className="flex-1 rounded bg-secondary border border-border px-2 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
-                                          <button type="submit" className="p-0.5 text-primary"><Check className="w-3 h-3" /></button>
-                                          <button type="button" onClick={() => setEditingTopic(null)} className="p-0.5 text-muted-foreground"><X className="w-3 h-3" /></button>
-                                        </form>
-                                      ) : (
-                                        <>
-                                          <span className="flex-1 text-xs text-foreground truncate">{topic.name}</span>
-                                          <div className="w-10 h-1 rounded-full bg-secondary overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${topic.memory_strength}%` }} /></div>
-                                          <span className="text-[9px] text-muted-foreground w-7 text-right">{topic.memory_strength}%</span>
-                                          <button onClick={() => { setEditTopicName(topic.name); setEditingTopic(topic.id); }} className="p-0.5 rounded hover:bg-secondary/80 text-muted-foreground"><Pencil className="w-2.5 h-2.5" /></button>
-                                          <button onClick={() => setDeleteConfirm({ type: "topic", id: topic.id, name: topic.name })} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="w-2.5 h-2.5" /></button>
-                                        </>
-                                      )}
-                                    </div>
-                                  ))}
-                                  {addingTopicFor === sub.id ? (
-                                    <div className="flex gap-1.5 pl-5">
-                                      <input type="text" placeholder="New topic..." value={newTopicName} onChange={e => setNewTopicName(e.target.value)} onKeyDown={e => e.key === "Enter" && addTopic(sub.id)} autoFocus className="flex-1 rounded bg-secondary border border-border px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
-                                      <button onClick={() => addTopic(sub.id)} disabled={!newTopicName.trim()} className="px-2 rounded bg-primary text-primary-foreground text-xs disabled:opacity-30"><Plus className="w-3 h-3" /></button>
-                                      <button onClick={() => { setAddingTopicFor(null); setNewTopicName(""); }} className="p-1 text-muted-foreground"><X className="w-3 h-3" /></button>
-                                    </div>
-                                  ) : (
-                                    <button onClick={() => setAddingTopicFor(sub.id)} className="flex items-center gap-1.5 pl-5 py-1 text-xs text-primary hover:underline"><Plus className="w-3 h-3" /> Add topic</button>
-                                  )}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
-
-        {/* Leaderboard Settings Panel */}
-        {isEnabled("you_study_leaderboard") && (
-          <AnimatePresence>
-            {showLeaderboardSetting && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
-                <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Trophy className={`w-4 h-4 ${leaderboardOptIn ? "text-warning" : "text-muted-foreground"}`} />
-                      <span className="text-sm text-foreground">Show me on leaderboard</span>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const newVal = !leaderboardOptIn;
-                        setLeaderboardOptIn(newVal);
-                        if (user) await supabase.from("profiles").update({ opt_in_leaderboard: newVal } as any).eq("id", user.id);
-                        toast({ title: newVal ? "🏆 You're now on the leaderboard!" : "You've been hidden from the leaderboard" });
-                      }}
-                      className={`w-10 h-6 rounded-full transition-all relative ${leaderboardOptIn ? "bg-primary" : "bg-secondary"}`}
-                    >
-                      <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1" animate={{ left: leaderboardOptIn ? 22 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">{leaderboardOptIn ? "Your display name and stats are visible to other students." : "You're hidden from the leaderboard."}</p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
-
-        {/* Reminders Panel */}
-        {isEnabled("you_notif_study_reminders") && (
-          <AnimatePresence>
-            {showReminders && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
-                <div className="glass rounded-xl p-4 neural-border space-y-4 mt-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {reminderEnabled ? <Bell className="w-4 h-4 text-primary" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
-                      <span className="text-sm text-foreground">Daily Reminders</span>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        if (!reminderEnabled) {
-                          const granted = await requestPermission();
-                          if (!granted) { toast({ title: "Notifications blocked", description: "Please enable in browser settings.", variant: "destructive" }); return; }
-                        }
-                        const newVal = !reminderEnabled;
-                        setReminderEnabled(newVal);
-                        await savePrefs({ enabled: newVal, reminderHour });
-                        toast({ title: newVal ? "🔔 Reminders enabled" : "🔕 Reminders disabled" });
-                      }}
-                      className={`w-10 h-6 rounded-full transition-all relative ${reminderEnabled ? "bg-primary" : "bg-secondary"}`}
-                    >
-                      <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1" animate={{ left: reminderEnabled ? 22 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-                    </button>
-                  </div>
-                  {reminderEnabled && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-                      <p className="text-xs text-muted-foreground">Remind me at:</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[9, 12, 15, 18, 19, 20, 21, 22].map((h) => (
-                          <button key={h} onClick={async () => { setReminderHour(h); await savePrefs({ enabled: true, reminderHour: h }); }}
-                            className={`py-2 rounded-lg text-xs font-medium transition-all border ${reminderHour === h ? "border-primary bg-primary/15 text-primary" : "border-border bg-secondary/30 text-foreground hover:border-primary/50"}`}
-                          >{h > 12 ? `${h - 12} PM` : h === 12 ? "12 PM" : `${h} AM`}</button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
-
-        {/* Push Notification Preferences */}
-        {isEnabled("you_notif_push") && <AnimatePresence>{showPushPrefs && <NotificationPreferencesPanel />}</AnimatePresence>}
-
-        {/* Notification History */}
-        {isEnabled("you_notif_history") && <AnimatePresence>{showNotifHistory && <NotificationHistory />}</AnimatePresence>}
-
-        {/* Email Notifications */}
-        {isEnabled("you_notif_email") && (
-          <AnimatePresence>
-            {showEmailSetting && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
-                <div className="glass rounded-xl p-4 neural-border space-y-4 mt-1">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">All Email Notifications</span>
-                      <button
-                        onClick={() => {
-                          const allOn = emailNotifications && emailStudyReminders && emailWeeklyReports;
-                          if (allOn) { setShowDisableAllDialog(true); }
-                          else {
-                            setEmailNotifications(true); setEmailStudyReminders(true); setEmailWeeklyReports(true);
-                            if (user) supabase.from("profiles").update({ email_notifications_enabled: true, email_study_reminders: true, email_weekly_reports: true } as any).eq("id", user.id);
-                            toast({ title: "📧 All email notifications enabled" });
-                          }
-                        }}
-                        className={`w-10 h-6 rounded-full transition-all relative ${emailNotifications && emailStudyReminders && emailWeeklyReports ? "bg-primary" : "bg-secondary"}`}
-                      >
-                        <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1" animate={{ left: emailNotifications && emailStudyReminders && emailWeeklyReports ? 22 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="border-t border-border" />
-                  {[
-                    { label: "Subscription expiry alerts", desc: "Get notified when your plan is about to expire", value: emailNotifications, onChange: async (val: boolean) => { setEmailNotifications(val); if (user) await supabase.from("profiles").update({ email_notifications_enabled: val } as any).eq("id", user.id); toast({ title: val ? "📧 Expiry alerts enabled" : "Expiry alerts disabled" }); } },
-                    { label: "Daily study reminders", desc: "Receive emails when topics need revision", value: emailStudyReminders, onChange: async (val: boolean) => { setEmailStudyReminders(val); if (user) await supabase.from("profiles").update({ email_study_reminders: val } as any).eq("id", user.id); toast({ title: val ? "📚 Study reminders enabled" : "Study reminders disabled" }); } },
-                    { label: "Weekly progress reports", desc: "Get a summary of your study stats every week", value: emailWeeklyReports, onChange: async (val: boolean) => { setEmailWeeklyReports(val); if (user) await supabase.from("profiles").update({ email_weekly_reports: val } as any).eq("id", user.id); toast({ title: val ? "📊 Weekly reports enabled" : "Weekly reports disabled" }); } },
-                  ].map((item, i) => (
-                    <div key={i} className={`${i > 0 ? "border-t border-border pt-3" : ""}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-foreground">{item.label}</span>
-                        <button onClick={() => item.onChange(!item.value)} className={`w-10 h-6 rounded-full transition-all relative ${item.value ? "bg-primary" : "bg-secondary"}`}>
-                          <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1" animate={{ left: item.value ? 22 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">{item.desc}</p>
-                    </div>
-                  ))}
-                  {emailWeeklyReports && (
-                    <div className="border-t border-border pt-3 space-y-3">
-                      <p className="text-xs font-medium text-foreground">📅 Delivery schedule</p>
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <label className="text-[10px] text-muted-foreground mb-1 block">Day</label>
-                          <select value={weeklyReportDay} onChange={async (e) => { const val = Number(e.target.value); setWeeklyReportDay(val); if (user) await supabase.from("profiles").update({ weekly_report_day: val } as any).eq("id", user.id); toast({ title: "📅 Report day updated" }); }} className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50">
-                            {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => (<option key={i} value={i}>{d}</option>))}
-                          </select>
-                        </div>
-                        <div className="flex-1">
-                          <label className="text-[10px] text-muted-foreground mb-1 block">Time</label>
-                          <select value={weeklyReportHour} onChange={async (e) => { const localH = Number(e.target.value); setWeeklyReportHour(localH); const offsetMin = new Date().getTimezoneOffset(); const utcH = ((localH * 60 + offsetMin) / 60) % 24; const normalizedUtcH = utcH < 0 ? utcH + 24 : Math.floor(utcH); if (user) await supabase.from("profiles").update({ weekly_report_hour: normalizedUtcH } as any).eq("id", user.id); toast({ title: "🕐 Report time updated" }); }} className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50">
-                            {Array.from({ length: 24 }, (_, h) => (<option key={h} value={h}>{`${h.toString().padStart(2, "0")}:00`}</option>))}
-                          </select>
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">📍 Times shown in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})</p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
-
-        {/* Sound & Haptics */}
-        {isEnabled("you_notif_sound") && (
-          <AnimatePresence>
-            {showFeedbackSetting && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
-                <div className="glass rounded-xl p-4 neural-border space-y-3 mt-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Volume2 className={`w-4 h-4 ${feedbackOn ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className="text-sm text-foreground">Sound & haptic feedback</span>
-                    </div>
-                    <button onClick={() => { const newVal = !feedbackOn; setFeedbackOn(newVal); setFeedbackEnabled(newVal); if (newVal) notifyFeedback(); toast({ title: newVal ? "🔊 Sound enabled" : "🔇 Sound disabled" }); }}
-                      className={`w-10 h-6 rounded-full transition-all relative ${feedbackOn ? "bg-primary" : "bg-secondary"}`}
-                    >
-                      <motion.div className="w-4 h-4 rounded-full bg-white absolute top-1" animate={{ left: feedbackOn ? 22 : 4 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-                    </button>
-                  </div>
-                  {feedbackOn && (
-                    <div className="space-y-2 pt-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground">Volume</span>
-                          <button onClick={() => { if (volume > 0) { preMuteVolumeRef.current = volume; setVolume(0); setFeedbackVolume(0); } else { const restore = preMuteVolumeRef.current || 50; setVolume(restore); setFeedbackVolume(restore); playNotificationSound(); } }} className="p-0.5 rounded hover:bg-secondary/50 transition-colors">
-                            {volume > 0 ? <Volume2 className="w-3.5 h-3.5 text-primary" /> : <VolumeX className="w-3.5 h-3.5 text-muted-foreground" />}
-                          </button>
-                        </div>
-                        <span className="text-xs text-foreground font-medium">{volume}%</span>
-                      </div>
-                      <input type="range" min={0} max={100} step={5} value={volume} onChange={(e) => { const v = Number(e.target.value); setVolume(v); setFeedbackVolume(v); }} onMouseUp={() => playNotificationSound()} onTouchEnd={() => playNotificationSound()} className="slider-glass" style={{ background: `linear-gradient(90deg, hsl(175 80% 50% / 0.5) 0%, hsl(175 80% 45% / 0.35) ${volume}%, hsl(175 40% 25% / 0.15) ${volume}%, hsl(175 40% 25% / 0.08) 100%)` }} />
-                      <div className="pt-2 border-t border-border space-y-1.5">
-                        <span className="text-xs text-muted-foreground font-medium">Preview sounds</span>
-                        <div className="flex gap-2">
-                          {[
-                            { label: "🔔 Standard", fn: playNotificationSound, duration: 300 },
-                            { label: "✨ Insight", fn: playInsightSound, duration: 600 },
-                            { label: "⚠️ Nudge", fn: playWarningSound, duration: 350 },
-                          ].map((s) => <SoundPreviewButton key={s.label} label={s.label} onPlay={s.fn} duration={s.duration} />)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
-
-        {/* Voice Settings */}
-        {isEnabled("you_notif_voice") && (
-          <AnimatePresence>
-            {showVoiceSettings && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
-                <VoiceSettingsPanel />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
-      </div>
-
-      {/* Data & Account */}
-      {isEnabled("you_data") && (
-        <div className="space-y-1">
-          <SectionLabel icon={Database} label="Data & Account" delay={0.3} />
-          {dataSection
-            .filter(item => {
-              const flagMap: Record<string, string> = { "ML Control Panel": "you_data_ml_panel", "Trash": "you_data_trash", "Data Backup": "you_data_backup", "Privacy & Security": "you_data_privacy" };
-              const flagKey = flagMap[item.label];
-              return !flagKey || isEnabled(flagKey);
-            })
-            .map((item, i) => <MenuItem key={item.label} item={item} index={i} />)}
-          {isEnabled("you_data_trash") && <AnimatePresence>{showTrash && <TrashBin onTrashChanged={loadTrashCount} />}</AnimatePresence>}
-          {isEnabled("you_data_backup") && <AnimatePresence>{showDataBackup && <DataBackup />}</AnimatePresence>}
-          {isEnabled("you_data_ml_panel") && <AnimatePresence>{showMLDashboard && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><MLAdminDashboard onBack={() => setShowMLDashboard(false)} /></motion.div>}</AnimatePresence>}
-          {isEnabled("you_data_privacy") && <AnimatePresence>{showPrivacy && <PrivacySecurity />}</AnimatePresence>}
-        </div>
-      )}
+      {/* ═══ SECTION 5: AI Personalization Control Center ═══ */}
+      <AIPersonalizationControlCenter
+        onOpenSubscription={() => setShowSubscription(true)}
+        autoOpenVoiceSettings={autoOpenVoiceSettings}
+        onVoiceSettingsOpened={onVoiceSettingsOpened}
+        autoOpenNotifHistory={autoOpenNotifHistory}
+        onNotifHistoryOpened={onNotifHistoryOpened}
+      />
 
       {/* Subscription Plan Modal */}
       <AnimatePresence>
@@ -938,19 +288,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       </motion.div>
 
       {/* Dialogs */}
-      <AlertDialog open={showDisableAllDialog} onOpenChange={setShowDisableAllDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Disable all email notifications?</AlertDialogTitle>
-            <AlertDialogDescription>You won't receive any emails including study reminders, weekly reports, and subscription alerts.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => { setEmailNotifications(false); setEmailStudyReminders(false); setEmailWeeklyReports(false); if (user) await supabase.from("profiles").update({ email_notifications_enabled: false, email_study_reminders: false, email_weekly_reports: false } as any).eq("id", user.id); toast({ title: "All email notifications disabled" }); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Disable All</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -960,19 +297,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Sign Out</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Move to trash?</AlertDialogTitle>
-            <AlertDialogDescription>"{deleteConfirm?.name}" will be moved to trash. Restore within 30 days.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteConfirm?.type === "subject") deleteSubject(deleteConfirm.id); else if (deleteConfirm?.type === "topic") deleteTopic(deleteConfirm.id); setDeleteConfirm(null); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Move to Trash</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
