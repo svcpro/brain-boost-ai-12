@@ -292,7 +292,7 @@ const HeroSection = () => {
 
       <div className="relative z-10 max-w-4xl mx-auto w-full flex flex-col items-center text-center">
         {/* Animated Logo */}
-        <ACRYLogo variant="full" animate={true} />
+        <ACRYLogo variant="full" animate={true} className="mb-8" />
 
         {/* Badge */}
         <motion.div
