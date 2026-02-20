@@ -4,8 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import NeuralBackground from "@/components/landing/NeuralBackground";
 import HeroSection from "@/components/landing/HeroSection";
 import Footer from "@/components/landing/Footer";
+import ACRYLogo from "@/components/landing/ACRYLogo";
 import { Link } from "react-router-dom";
-import { Brain, Rocket } from "lucide-react";
+import { Rocket } from "lucide-react";
 
 // Lazy load below-fold sections
 const ProblemSection = lazy(() => import("@/components/landing/ProblemSection"));
@@ -35,12 +36,7 @@ const Index = () => {
       {/* Sticky Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-strong">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg neural-gradient neural-border flex items-center justify-center">
-              <span className="text-primary font-bold text-sm">A</span>
-            </div>
-            <span className="font-display font-bold text-xl text-foreground">ACRY</span>
-          </div>
+          <ACRYLogo variant="navbar" animate={false} />
           <Link
             to="/auth"
             className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold glow-primary hover:glow-primary-strong transition-all duration-300"

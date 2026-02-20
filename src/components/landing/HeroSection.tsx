@@ -1,5 +1,6 @@
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { Brain, Rocket, Play, Sparkles, Zap, Shield, TrendingUp } from "lucide-react";
+import { Rocket, Play, Sparkles, Zap, Shield, TrendingUp } from "lucide-react";
+import ACRYLogo from "./ACRYLogo";
 import { Link } from "react-router-dom";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 
@@ -290,88 +291,8 @@ const HeroSection = () => {
       />
 
       <div className="relative z-10 max-w-4xl mx-auto w-full flex flex-col items-center text-center">
-        {/* Animated Brain Icon */}
-        <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ duration: 1.2, type: "spring", bounce: 0.35 }}
-          className="relative mb-8"
-        >
-          {/* Outer pulsing rings */}
-          <motion.div
-            className="absolute inset-0 rounded-3xl"
-            animate={{
-              boxShadow: [
-                "0 0 0 0 hsl(187 100% 50% / 0.3)",
-                "0 0 0 20px hsl(187 100% 50% / 0)",
-              ],
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
-          <motion.div
-            className="absolute inset-0 rounded-3xl"
-            animate={{
-              boxShadow: [
-                "0 0 0 0 hsl(262 100% 65% / 0.2)",
-                "0 0 0 35px hsl(262 100% 65% / 0)",
-              ],
-            }}
-            transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
-          />
-
-          <motion.div
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="relative w-24 h-24 md:w-28 md:h-28 rounded-3xl flex items-center justify-center overflow-hidden"
-            style={{
-              background: "linear-gradient(135deg, hsl(187 100% 50% / 0.15), hsl(262 100% 65% / 0.1))",
-              border: "1px solid hsl(187 100% 50% / 0.3)",
-            }}
-          >
-            {/* Inner glow */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
-            
-            {/* Neural circuit lines */}
-            <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 100 100">
-              <motion.circle cx="20" cy="30" r="2" fill="hsl(187, 100%, 50%)"
-                animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity }} />
-              <motion.circle cx="80" cy="25" r="1.5" fill="hsl(262, 100%, 65%)"
-                animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }} />
-              <motion.circle cx="75" cy="75" r="2" fill="hsl(155, 100%, 50%)"
-                animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0.7 }} />
-              <motion.line x1="20" y1="30" x2="50" y2="50" stroke="hsl(187, 100%, 50%)" strokeWidth="0.5"
-                strokeOpacity="0.4" />
-              <motion.line x1="80" y1="25" x2="50" y2="50" stroke="hsl(262, 100%, 65%)" strokeWidth="0.5"
-                strokeOpacity="0.4" />
-              <motion.line x1="75" y1="75" x2="50" y2="50" stroke="hsl(155, 100%, 50%)" strokeWidth="0.5"
-                strokeOpacity="0.4" />
-            </svg>
-
-            <Brain className="w-12 h-12 md:w-14 md:h-14 text-primary relative z-10 drop-shadow-[0_0_15px_hsl(187_100%_50%/0.5)]" />
-          </motion.div>
-
-          {/* Orbiting mini icons */}
-          {[
-            { icon: "⚡", deg: 0, dist: 56, dur: 8 },
-            { icon: "🧠", deg: 120, dist: 60, dur: 10 },
-            { icon: "📊", deg: 240, dist: 54, dur: 9 },
-          ].map((orb, i) => (
-            <motion.div
-              key={i}
-              className="absolute top-1/2 left-1/2"
-              style={{ marginTop: -10, marginLeft: -10 }}
-              animate={{ rotate: [orb.deg, orb.deg + 360] }}
-              transition={{ duration: orb.dur, repeat: Infinity, ease: "linear" }}
-            >
-              <div
-                className="w-5 h-5 rounded-full glass neural-border flex items-center justify-center text-[8px]"
-                style={{ transform: `translateX(${orb.dist}px)` }}
-              >
-                {orb.icon}
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
+        {/* Animated Logo */}
+        <ACRYLogo variant="full" animate={true} />
 
         {/* Badge */}
         <motion.div
