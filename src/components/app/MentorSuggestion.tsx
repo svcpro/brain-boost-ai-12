@@ -133,19 +133,17 @@ const TONE_STYLES = {
 };
 
 const MentorSuggestion = (props: MentorSuggestionProps) => {
-  const [mentor, setMentor] = useState<MentorMessage | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
-    const msg = generateMentorMessage(props);
-    setMentor(msg);
-    // Staggered entrance
-    const t = setTimeout(() => setVisible(true), 600);
-    return () => clearTimeout(t);
-  }, [props.score, props.totalQuestions]);
+  const mentor = generateMentorMessage(props);
 
-  if (!mentor || !visible) return null;
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!visible) return null;
 
   const style = TONE_STYLES[mentor.tone];
   const MIcon = mentor.icon;
