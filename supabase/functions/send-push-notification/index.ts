@@ -15,15 +15,11 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
-async function importPrivateKey(base64: string) {
-  const raw = urlBase64ToUint8Array(base64);
-  return await crypto.subtle.importKey(
-    "pkcs8",
-    raw,
-    { name: "ECDSA", namedCurve: "P-256" },
-    false,
-    ["sign"]
-  );
+function uint8ArrayToBase64Url(arr: Uint8Array): string {
+  return btoa(String.fromCharCode(...arr))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 // Simplified Web Push sender using fetch + VAPID
@@ -61,52 +57,40 @@ async function sendWebPush(
 
   const unsignedToken = `${encodedHeader}.${encodedClaims}`;
 
-  // Import and sign with private key
-  // Handle both raw base64url and JWK-style VAPID private keys
+  // Import VAPID private key as JWK (most reliable in Deno edge runtime)
   let key: CryptoKey;
   try {
-    // First try: import as JWK (if the key is a raw 32-byte EC private scalar in base64url)
-    const rawKey = urlBase64ToUint8Array(vapidPrivateKey);
+    // Ensure the private key is in proper base64url format
+    const d = vapidPrivateKey.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     
-    if (rawKey.length === 32) {
-      // Raw 32-byte EC private key - wrap in PKCS8 structure
-      const pkcs8Header = new Uint8Array([
-        0x30, 0x41, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48,
-        0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03,
-        0x01, 0x07, 0x04, 0x27, 0x30, 0x25, 0x02, 0x01, 0x01, 0x04, 0x20,
-      ]);
-      const pkcs8Key = new Uint8Array(pkcs8Header.length + rawKey.length);
-      pkcs8Key.set(pkcs8Header);
-      pkcs8Key.set(rawKey, pkcs8Header.length);
-
-      key = await crypto.subtle.importKey(
-        "pkcs8",
-        pkcs8Key,
-        { name: "ECDSA", namedCurve: "P-256" },
-        false,
-        ["sign"]
-      );
+    // Decode public key (65 bytes uncompressed: 0x04 || x(32) || y(32))
+    const pubKeyBytes = urlBase64ToUint8Array(vapidPublicKey);
+    
+    let x: string;
+    let y: string;
+    
+    if (pubKeyBytes.length === 65 && pubKeyBytes[0] === 0x04) {
+      // Uncompressed EC point: skip the 0x04 prefix
+      x = uint8ArrayToBase64Url(pubKeyBytes.slice(1, 33));
+      y = uint8ArrayToBase64Url(pubKeyBytes.slice(33, 65));
+    } else if (pubKeyBytes.length === 64) {
+      // Raw x || y without prefix
+      x = uint8ArrayToBase64Url(pubKeyBytes.slice(0, 32));
+      y = uint8ArrayToBase64Url(pubKeyBytes.slice(32, 64));
     } else {
-      // Try importing as JWK directly
-      const d = vapidPrivateKey.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-      const x = vapidPublicKey.length > 65 
-        ? vapidPublicKey.substring(0, 43) 
-        : vapidPublicKey;
-      const y = vapidPublicKey.length > 65 
-        ? vapidPublicKey.substring(43, 86) 
-        : "";
-      
-      key = await crypto.subtle.importKey(
-        "jwk",
-        { kty: "EC", crv: "P-256", d, x, y, ext: true },
-        { name: "ECDSA", namedCurve: "P-256" },
-        false,
-        ["sign"]
-      );
+      throw new Error(`Unexpected public key length: ${pubKeyBytes.length}`);
     }
+
+    key = await crypto.subtle.importKey(
+      "jwk",
+      { kty: "EC", crv: "P-256", d, x, y, ext: true },
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["sign"]
+    );
   } catch (importErr) {
-    console.error("VAPID key import failed. Key length after decode:", urlBase64ToUint8Array(vapidPrivateKey).length, "Error:", importErr);
-    throw new Error("InvalidVAPIDKey: Could not import VAPID private key. Ensure it is a valid 32-byte base64url-encoded EC P-256 private key.");
+    console.error("VAPID key import failed:", importErr);
+    throw new Error("InvalidVAPIDKey: Could not import VAPID private key. Ensure VAPID_PUBLIC_KEY is the 65-byte uncompressed key and VAPID_PRIVATE_KEY is the 32-byte scalar, both base64url-encoded.");
   }
 
   const signature = await crypto.subtle.sign(
