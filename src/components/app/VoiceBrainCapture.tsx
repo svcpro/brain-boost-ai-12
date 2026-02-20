@@ -7,6 +7,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { triggerHaptic } from "@/lib/feedback";
+import { useToast } from "@/hooks/use-toast";
+import confetti from "canvas-confetti";
 
 interface ExtractedResult {
   subject: string;
@@ -56,6 +58,7 @@ const OrbitalRing = ({ delay = 0, size = 80, duration = 8 }: { delay?: number; s
 
 const VoiceBrainCapture = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [phase, setPhase] = useState<Phase>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [results, setResults] = useState<ExtractedResult[]>([]);
@@ -198,15 +201,37 @@ const VoiceBrainCapture = () => {
     setPhase("mapping"); triggerHaptic([10, 20]);
     let boost = 0;
     if (data.totalTopicsCreated > 0) {
+      // Look up subject_id for the first extracted subject
+      let subjectId: string | null = null;
+      const firstSubject = data.results?.[0]?.subject;
+      if (firstSubject) {
+        const { data: subRow } = await supabase.from("subjects").select("id").eq("user_id", user.id).eq("name", firstSubject).maybeSingle();
+        subjectId = subRow?.id || null;
+      }
+
       for (const res of data.results || []) {
         for (const topicName of res.topics) {
           await supabase.from("topics").update({ memory_strength: 25, next_predicted_drop_date: new Date(Date.now() + 86400000).toISOString() }).eq("user_id", user.id).eq("name", topicName);
         }
       }
       boost = Math.min(8, data.totalTopicsCreated * 2);
-      await supabase.from("study_logs").insert({ user_id: user.id, subject: data.results?.[0]?.subject || "Voice Capture", topic: `${data.totalTopicsCreated} topics extracted`, study_mode: selectedStudyType?.toLowerCase() || "voice_capture", duration_minutes: Math.max(1, Math.ceil(elapsed / 60)), quality_score: selectedConfidence === "High" ? 5 : selectedConfidence === "Medium" ? 3 : selectedConfidence === "Low" ? 2 : 4 });
-      const today = new Date().toISOString().split("T")[0];
-      await (supabase as any).from("study_streaks").upsert({ user_id: user.id, streak_date: today, minutes_studied: Math.max(1, Math.ceil(elapsed / 60)) }, { onConflict: "user_id,streak_date" });
+
+      // Insert study log with correct column names
+      const confLevel = selectedConfidence === "High" ? "high" : selectedConfidence === "Medium" ? "medium" : selectedConfidence === "Low" ? "low" : "medium";
+      await supabase.from("study_logs").insert({
+        user_id: user.id,
+        subject_id: subjectId,
+        duration_minutes: Math.max(1, Math.ceil(elapsed / 60)),
+        confidence_level: confLevel,
+        study_mode: selectedStudyType?.toLowerCase() || "voice_capture",
+        notes: `${data.totalTopicsCreated} topics extracted via voice`,
+      });
+
+      // Fire confetti + toast
+      confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, zIndex: 9999 });
+      toast({ title: "🧠 Brain Updated!", description: `${data.totalTopicsCreated} topic${data.totalTopicsCreated > 1 ? "s" : ""} mapped successfully!` });
+    } else {
+      toast({ title: "✅ Brain Synced", description: "Topics already exist in your brain." });
     }
     setStabilityBoost(boost); setPhase("done"); triggerHaptic([15, 30, 15]);
     setTimeout(() => { setPhase("idle"); setSelectedStudyType(null); setSelectedConfidence(null); }, 4500);
