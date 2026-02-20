@@ -25,7 +25,7 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   general: "from-secondary via-secondary/50 to-secondary/30",
 };
 
-const CommunityPage = () => {
+const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -212,46 +212,114 @@ const CommunityPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Premium Header */}
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="max-w-3xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate("/app")} className="p-2 hover:bg-secondary/80 rounded-xl transition-colors">
-              <ArrowLeft className="w-5 h-5 text-foreground" />
-            </button>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-foreground flex items-center gap-2.5">
-                <div className="relative">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-lg shadow-primary/20">
-                    <Users className="w-4 h-4 text-primary-foreground" />
+    <div className={inline ? "" : "min-h-screen bg-background"}>
+      {/* Premium Header - only show when standalone */}
+      {!inline && (
+        <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
+          <div className="max-w-3xl mx-auto px-4 py-3">
+            <div className="flex items-center gap-3">
+              <button onClick={() => navigate("/app")} className="p-2 hover:bg-secondary/80 rounded-xl transition-colors">
+                <ArrowLeft className="w-5 h-5 text-foreground" />
+              </button>
+              <div className="flex-1">
+                <h1 className="text-lg font-bold text-foreground flex items-center gap-2.5">
+                  <div className="relative">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+                      <Users className="w-4 h-4 text-primary-foreground" />
+                    </div>
+                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-background" />
                   </div>
-                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-background" />
-                </div>
-                Community
-                <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-primary/15 to-accent/15 text-primary font-semibold flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5" /> AI
-                </span>
-              </h1>
+                  Community
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-primary/15 to-accent/15 text-primary font-semibold flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" /> AI
+                  </span>
+                </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                {myKarma > 0 && (
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-warning/15 to-warning/5 border border-warning/20">
+                    <Award className="w-3.5 h-3.5 text-warning" />
+                    <span className="text-[10px] font-bold text-warning">{myKarma}</span>
+                  </motion.div>
+                )}
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowCreate(true)} className="p-2.5 bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
+                  <Plus className="w-4 h-4" />
+                </motion.button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {myKarma > 0 && (
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-warning/15 to-warning/5 border border-warning/20">
-                  <Award className="w-3.5 h-3.5 text-warning" />
-                  <span className="text-[10px] font-bold text-warning">{myKarma}</span>
-                </motion.div>
-              )}
-              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                onClick={() => setShowCreate(true)} className="p-2.5 bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
-                <Plus className="w-4 h-4" />
-              </motion.button>
+          </div>
+
+          {/* Premium Tab Bar */}
+          <div className="max-w-3xl mx-auto px-4 pb-2.5">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar p-1 bg-secondary/30 rounded-2xl">
+              {views.map(tab => (
+                <button key={tab.id} onClick={() => setActiveView(tab.id)}
+                  className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all duration-300 ${
+                    activeView === tab.id
+                      ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                  }`}>
+                  <tab.icon className={`w-3.5 h-3.5 ${activeView === tab.id && tab.glow ? "animate-pulse" : ""}`} />
+                  {tab.label}
+                  {tab.ai && (
+                    <span className={`w-1.5 h-1.5 rounded-full ${activeView === tab.id ? "bg-primary-foreground" : "bg-primary"} animate-pulse`} />
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         </div>
+      )}
 
-        {/* Premium Tab Bar */}
-        <div className="max-w-3xl mx-auto px-4 pb-2.5">
-          <div className="flex gap-1 overflow-x-auto no-scrollbar p-1 bg-secondary/30 rounded-2xl">
+      {/* Inline header with community title + tabs (matches HomeTab container) */}
+      {inline && (
+        <div className="px-5 pt-6 pb-2 max-w-lg mx-auto space-y-4">
+          {/* Community Hero - matching HomeTab section style */}
+          <motion.section
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative overflow-hidden rounded-3xl p-5 text-center"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
+              border: "1px solid hsl(var(--border))",
+            }}
+          >
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "hsl(var(--primary))" }} />
+            <div className="relative z-10 flex items-center justify-center gap-3 mb-3">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+                  <Users className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-background" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  Community
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-primary/15 to-accent/15 text-primary font-semibold flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" /> AI
+                  </span>
+                </h2>
+                <p className="text-xs text-muted-foreground">Learn together, grow faster</p>
+              </div>
+            </div>
+            <div className="relative z-10 flex items-center justify-center gap-3">
+              {myKarma > 0 && (
+                <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-warning/15 to-warning/5 border border-warning/20">
+                  <Award className="w-3.5 h-3.5 text-warning" />
+                  <span className="text-[10px] font-bold text-warning">{myKarma} karma</span>
+                </div>
+              )}
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-xl shadow-lg shadow-primary/20 text-xs font-bold">
+                <Plus className="w-3.5 h-3.5" /> New
+              </motion.button>
+            </div>
+          </motion.section>
+
+          {/* Tab bar matching HomeTab card style */}
+          <div className="flex gap-1 overflow-x-auto no-scrollbar p-1 rounded-2xl" style={{ background: "hsl(var(--secondary) / 0.3)" }}>
             {views.map(tab => (
               <button key={tab.id} onClick={() => setActiveView(tab.id)}
                 className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all duration-300 ${
@@ -268,9 +336,9 @@ const CommunityPage = () => {
             ))}
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-3 pb-24">
+      <div className={inline ? "px-5 py-4 space-y-3 max-w-lg mx-auto pb-24" : "max-w-3xl mx-auto px-4 py-4 space-y-3 pb-24"}>
         {/* FEED VIEW */}
         {activeView === "feed" && (
           <>
