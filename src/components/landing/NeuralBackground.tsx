@@ -53,7 +53,7 @@ const NeuralBackground = () => {
         if (node.y < 0 || node.y > h()) node.vy *= -1;
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "hsla(175, 80%, 50%, 0.5)";
+        ctx.fillStyle = "hsla(187, 100%, 50%, 0.5)";
         ctx.fill();
       }
       for (let i = 0; i < nodes.length; i++) {
@@ -66,7 +66,7 @@ const NeuralBackground = () => {
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
             ctx.lineTo(nodes[j].x, nodes[j].y);
-            ctx.strokeStyle = `hsla(175, 80%, 50%, ${0.12 * (1 - dist / maxDist)})`;
+            ctx.strokeStyle = `hsla(187, 100%, 50%, ${0.12 * (1 - dist / maxDist)})`;
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }

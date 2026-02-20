@@ -4,8 +4,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import NeuralBackground from "@/components/landing/NeuralBackground";
 import HeroSection from "@/components/landing/HeroSection";
 import Footer from "@/components/landing/Footer";
+import { Link } from "react-router-dom";
+import { Brain, Rocket } from "lucide-react";
 
 // Lazy load below-fold sections
+const ProblemSection = lazy(() => import("@/components/landing/ProblemSection"));
+const HowItWorksSection = lazy(() => import("@/components/landing/HowItWorksSection"));
+const BrainDemoSection = lazy(() => import("@/components/landing/BrainDemoSection"));
+const StudyModesSection = lazy(() => import("@/components/landing/StudyModesSection"));
+const SocialProofSection = lazy(() => import("@/components/landing/SocialProofSection"));
 const ForgettingCurveSection = lazy(() => import("@/components/landing/ForgettingCurveSection"));
 const RankSection = lazy(() => import("@/components/landing/RankSection"));
 const PricingSection = lazy(() => import("@/components/landing/PricingSection"));
@@ -25,26 +32,33 @@ const Index = () => {
     <div className="relative min-h-screen bg-background overflow-x-hidden">
       <NeuralBackground />
       
-      {/* Navbar */}
+      {/* Sticky Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-strong">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg neural-gradient neural-border flex items-center justify-center">
               <span className="text-primary font-bold text-sm">A</span>
             </div>
             <span className="font-display font-bold text-xl text-foreground">ACRY</span>
           </div>
-          <a
-            href="/auth"
-            className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold glow-primary hover:glow-primary-strong transition-all duration-300"
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold glow-primary hover:glow-primary-strong transition-all duration-300"
           >
-            Launch App
-          </a>
+            <Rocket className="w-3.5 h-3.5" />
+            Start Free
+          </Link>
         </div>
       </nav>
 
       <HeroSection />
-      <Suspense fallback={<div className="h-96" />}>
+
+      <Suspense fallback={<div className="h-48" />}>
+        <ProblemSection />
+        <HowItWorksSection />
+        <BrainDemoSection />
+        <StudyModesSection />
+        <SocialProofSection />
         <ForgettingCurveSection />
         <RankSection />
         <PricingSection />
