@@ -24,16 +24,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const signupHandledRef = useRef<Set<string>>(new Set());
+  const initializedRef = useRef(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const handleSignupNotifications = async (newUser: User) => {
-      // Prevent duplicate triggers per session
       if (signupHandledRef.current.has(newUser.id)) return;
       signupHandledRef.current.add(newUser.id);
 
       const createdAt = new Date(newUser.created_at).getTime();
       const now = Date.now();
-      const isNewUser = now - createdAt < 120_000; // within 2 minutes
+      const isNewUser = now - createdAt < 120_000;
 
       if (isNewUser) {
         const displayName =
@@ -43,13 +45,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           newUser.email?.split("@")[0] || "Student";
         const provider = newUser.app_metadata?.provider || "email";
 
-        // Emit signup event to omnichannel engine (non-blocking)
         emitEvent("signup", { method: provider, email: newUser.email }, {
           title: "Welcome to ACRY!",
           body: "Your AI Second Brain is ready.",
         });
 
-        // Trigger welcome notifications edge function (non-blocking)
         supabase.functions.invoke("signup-welcome-notifications", {
           body: {
             user_id: newUser.id,
@@ -59,38 +59,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           },
         }).catch(() => {});
       } else {
-        // Returning user login
         emitEvent("login", { method: newUser.app_metadata?.provider || "password" }, {
           title: "Welcome back!",
           body: "You logged in successfully.",
         });
       }
 
-      // Track engagement for send-time optimization (non-blocking)
       trackEngagement("app_open");
     };
 
+    // Set up listener FIRST (before getSession) for ongoing changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!isMounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
 
-        // Handle signup/login events for ALL auth methods (OAuth, email, etc.)
+        // Only set loading false from listener if initial load already done
+        if (initializedRef.current) {
+          // Already initialized, just update state
+        } else {
+          // Initial event from listener — mark initialized and stop loading
+          initializedRef.current = true;
+          setLoading(false);
+        }
+
         if (event === "SIGNED_IN" && session?.user) {
-          // Use setTimeout to avoid Supabase auth deadlock
           setTimeout(() => handleSignupNotifications(session.user), 0);
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Then get initial session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (e) {
+        console.error("Auth initialization error:", e);
+      } finally {
+        if (isMounted) {
+          initializedRef.current = true;
+          setLoading(false);
+        }
+      }
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
