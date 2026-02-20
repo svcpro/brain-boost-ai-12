@@ -238,7 +238,7 @@ const LiveStatBar = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 1.2, duration: 0.6 }}
-      className="flex flex-wrap justify-center lg:justify-start gap-5 mt-10"
+      className="flex flex-wrap justify-center gap-5 mt-10"
     >
       {stats.map((stat, i) => (
         <motion.div
@@ -289,90 +289,164 @@ const HeroSection = () => {
         }}
       />
 
-      <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-5 gap-12 items-center">
-        {/* Left content */}
-        <div className="lg:col-span-3 text-center lg:text-left">
-          {/* Badge */}
+      <div className="relative z-10 max-w-4xl mx-auto w-full flex flex-col items-center text-center">
+        {/* Animated Brain Icon */}
+        <motion.div
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ duration: 1.2, type: "spring", bounce: 0.35 }}
+          className="relative mb-8"
+        >
+          {/* Outer pulsing rings */}
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full neural-border neural-gradient mb-8"
+            className="absolute inset-0 rounded-3xl"
+            animate={{
+              boxShadow: [
+                "0 0 0 0 hsl(187 100% 50% / 0.3)",
+                "0 0 0 20px hsl(187 100% 50% / 0)",
+              ],
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+          <motion.div
+            className="absolute inset-0 rounded-3xl"
+            animate={{
+              boxShadow: [
+                "0 0 0 0 hsl(262 100% 65% / 0.2)",
+                "0 0 0 35px hsl(262 100% 65% / 0)",
+              ],
+            }}
+            transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
+          />
+
+          <motion.div
+            animate={{ y: [0, -8, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="relative w-24 h-24 md:w-28 md:h-28 rounded-3xl flex items-center justify-center overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, hsl(187 100% 50% / 0.15), hsl(262 100% 65% / 0.1))",
+              border: "1px solid hsl(187 100% 50% / 0.3)",
+            }}
           >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
-            </span>
-            <span className="text-xs font-semibold text-primary tracking-wider uppercase">AI-Powered Cognitive OS</span>
+            {/* Inner glow */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
+            
+            {/* Neural circuit lines */}
+            <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 100 100">
+              <motion.circle cx="20" cy="30" r="2" fill="hsl(187, 100%, 50%)"
+                animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity }} />
+              <motion.circle cx="80" cy="25" r="1.5" fill="hsl(262, 100%, 65%)"
+                animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }} />
+              <motion.circle cx="75" cy="75" r="2" fill="hsl(155, 100%, 50%)"
+                animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0.7 }} />
+              <motion.line x1="20" y1="30" x2="50" y2="50" stroke="hsl(187, 100%, 50%)" strokeWidth="0.5"
+                strokeOpacity="0.4" />
+              <motion.line x1="80" y1="25" x2="50" y2="50" stroke="hsl(262, 100%, 65%)" strokeWidth="0.5"
+                strokeOpacity="0.4" />
+              <motion.line x1="75" y1="75" x2="50" y2="50" stroke="hsl(155, 100%, 50%)" strokeWidth="0.5"
+                strokeOpacity="0.4" />
+            </svg>
+
+            <Brain className="w-12 h-12 md:w-14 md:h-14 text-primary relative z-10 drop-shadow-[0_0_15px_hsl(187_100%_50%/0.5)]" />
           </motion.div>
 
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.15, type: "spring", bounce: 0.2 }}
-            className="text-[2.5rem] md:text-6xl lg:text-[4.5rem] font-bold tracking-tight mb-3 leading-[1.08]"
-          >
-            <span className="text-foreground">Your AI Second Brain</span>
-            <br />
-            <span className="text-foreground">for </span>
-            <span className="gradient-text text-glow inline-block min-w-[140px] md:min-w-[200px] text-left">
-              {examWord}
-              <motion.span
-                animate={{ opacity: [1, 0] }}
-                transition={{ duration: 0.6, repeat: Infinity }}
-                className="inline-block w-[3px] h-[0.85em] bg-primary ml-0.5 align-middle rounded-full"
-              />
-            </span>
-          </motion.h1>
-
-          {/* Subheadline */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-lg md:text-xl text-muted-foreground max-w-xl mb-8 mx-auto lg:mx-0 leading-relaxed"
-          >
-            Study Less. Remember More. <span className="text-foreground font-semibold">Rank Higher.</span>
-          </motion.p>
-
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
-          >
-            <Link
-              to="/auth"
-              className="group relative inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-bold text-lg overflow-hidden transition-all duration-300 hover:scale-105"
+          {/* Orbiting mini icons */}
+          {[
+            { icon: "⚡", deg: 0, dist: 56, dur: 8 },
+            { icon: "🧠", deg: 120, dist: 60, dur: 10 },
+            { icon: "📊", deg: 240, dist: 54, dur: 9 },
+          ].map((orb, i) => (
+            <motion.div
+              key={i}
+              className="absolute top-1/2 left-1/2"
+              style={{ marginTop: -10, marginLeft: -10 }}
+              animate={{ rotate: [orb.deg, orb.deg + 360] }}
+              transition={{ duration: orb.dur, repeat: Infinity, ease: "linear" }}
             >
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              <Rocket className="w-5 h-5 relative z-10" />
-              <span className="relative z-10">Start Your AI Brain</span>
-              <div className="absolute inset-0 glow-primary-strong opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
-            </Link>
-            <button className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl glass neural-border font-medium text-foreground hover:bg-secondary/50 transition-all duration-300 group">
-              <motion.div
-                animate={{ scale: [1, 1.15, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors"
+              <div
+                className="w-5 h-5 rounded-full glass neural-border flex items-center justify-center text-[8px]"
+                style={{ transform: `translateX(${orb.dist}px)` }}
               >
-                <Play className="w-3.5 h-3.5 text-primary ml-0.5" />
-              </motion.div>
-              Watch 30s Demo
-            </button>
-          </motion.div>
+                {orb.icon}
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
 
-          {/* Live stats */}
-          <LiveStatBar />
-        </div>
+        {/* Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full neural-border neural-gradient mb-6"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
+          </span>
+          <span className="text-xs font-semibold text-primary tracking-wider uppercase">AI-Powered Cognitive OS</span>
+        </motion.div>
 
-        {/* Right – Brain Ring */}
-        <div className="lg:col-span-2 flex justify-center">
-          <BrainStabilityRing />
-        </div>
+        {/* Headline */}
+        <motion.h1
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.4, type: "spring", bounce: 0.2 }}
+          className="text-[2.5rem] md:text-6xl lg:text-[4.5rem] font-bold tracking-tight mb-4 leading-[1.08]"
+        >
+          <span className="text-foreground">Your AI Second Brain</span>
+          <br />
+          <span className="text-foreground">for </span>
+          <span className="gradient-text text-glow inline-block min-w-[140px] md:min-w-[200px]">
+            {examWord}
+            <motion.span
+              animate={{ opacity: [1, 0] }}
+              transition={{ duration: 0.6, repeat: Infinity }}
+              className="inline-block w-[3px] h-[0.85em] bg-primary ml-0.5 align-middle rounded-full"
+            />
+          </span>
+        </motion.h1>
+
+        {/* Subheadline */}
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
+          className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 leading-relaxed"
+        >
+          Study Less. Remember More. <span className="text-foreground font-semibold">Rank Higher.</span>
+        </motion.p>
+
+        {/* CTAs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.8 }}
+          className="flex flex-col sm:flex-row gap-4 justify-center"
+        >
+          <Link
+            to="/auth"
+            className="group relative inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-bold text-lg overflow-hidden transition-all duration-300 hover:scale-105"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+            <Rocket className="w-5 h-5 relative z-10" />
+            <span className="relative z-10">Start Your AI Brain</span>
+            <div className="absolute inset-0 glow-primary-strong opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+          </Link>
+          <button className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl glass neural-border font-medium text-foreground hover:bg-secondary/50 transition-all duration-300 group">
+            <motion.div
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors"
+            >
+              <Play className="w-3.5 h-3.5 text-primary ml-0.5" />
+            </motion.div>
+            Watch 30s Demo
+          </button>
+        </motion.div>
+
+        {/* Live stats */}
+        <LiveStatBar />
       </div>
 
       {/* Scroll indicator */}
