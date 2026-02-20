@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import NeuralBackground from "@/components/landing/NeuralBackground";
@@ -7,7 +7,7 @@ import Footer from "@/components/landing/Footer";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { Link } from "react-router-dom";
 import { Rocket } from "lucide-react";
-import SplashScreen from "@/components/splash/SplashScreen";
+
 
 // Lazy load below-fold sections
 const ProblemSection = lazy(() => import("@/components/landing/ProblemSection"));
@@ -23,26 +23,12 @@ const CTASection = lazy(() => import("@/components/landing/CTASection"));
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [showSplash, setShowSplash] = useState(() => {
-    // Show splash only once per session
-    return !sessionStorage.getItem("acry_splash_seen");
-  });
 
   useEffect(() => {
     if (!loading && user) {
       navigate("/app", { replace: true });
     }
   }, [user, loading, navigate]);
-
-  const handleSplashComplete = () => {
-    sessionStorage.setItem("acry_splash_seen", "1");
-    setShowSplash(false);
-    navigate("/auth");
-  };
-
-  if (showSplash && !user) {
-    return <SplashScreen onComplete={handleSplashComplete} />;
-  }
 
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden">
