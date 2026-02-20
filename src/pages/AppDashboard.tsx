@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
 import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import ACRYLogo from "@/components/landing/ACRYLogo";
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
@@ -196,12 +197,7 @@ const AppDashboard = () => {
         )}
         {/* Header */}
         <header className="glass-strong border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg neural-gradient neural-border flex items-center justify-center">
-              <span className="text-primary font-bold text-sm">A</span>
-            </div>
-            <span className="font-display font-bold text-lg text-foreground">ACRY</span>
-          </div>
+          <ACRYLogo variant="navbar" animate={false} />
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <GlobalNotificationCenter

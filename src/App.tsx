@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import ACRYLogo from "@/components/landing/ACRYLogo";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -37,9 +38,7 @@ const queryClient = new QueryClient();
 
 const PageFallback = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
-    <div className="w-8 h-8 rounded-lg neural-gradient neural-border flex items-center justify-center animate-pulse">
-      <span className="text-primary font-bold text-sm">A</span>
-    </div>
+    <ACRYLogo variant="icon" animate={true} className="w-10 h-10 animate-pulse" />
   </div>
 );
 
