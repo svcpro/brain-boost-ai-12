@@ -12,8 +12,8 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 2800);
-    const t2 = setTimeout(() => setPhase(2), 5600);
+    const t1 = setTimeout(() => setPhase(1), 1400);
+    const t2 = setTimeout(() => setPhase(2), 2800);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 

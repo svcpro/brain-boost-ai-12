@@ -6,16 +6,17 @@ import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { usePlanGating, PlanGatingContext } from "@/hooks/usePlanGating";
-import HomeTab from "@/components/app/HomeTab";
-import ActionTab from "@/components/app/ActionTab";
-import BrainTab from "@/components/app/BrainTab";
-import ProgressTab from "@/components/app/ProgressTab";
-import YouTab from "@/components/app/YouTab";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
 import AppTour, { TOUR_COMPLETED_KEY } from "@/components/app/tour/AppTour";
 
-import GlobalNotificationCenter from "@/components/app/GlobalNotificationCenter";
-import CommunityPage from "@/pages/CommunityPage";
+// Lazy load all tab components for fast initial load
+const HomeTab = lazy(() => import("@/components/app/HomeTab"));
+const ActionTab = lazy(() => import("@/components/app/ActionTab"));
+const BrainTab = lazy(() => import("@/components/app/BrainTab"));
+const ProgressTab = lazy(() => import("@/components/app/ProgressTab"));
+const YouTab = lazy(() => import("@/components/app/YouTab"));
+const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
+const GlobalNotificationCenter = lazy(() => import("@/components/app/GlobalNotificationCenter"));
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useVoiceNotification } from "@/hooks/useVoiceNotification";
@@ -206,10 +207,12 @@ const AppDashboard = () => {
             <ACRYLogo variant="navbar" animate={false} />
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <GlobalNotificationCenter
-                unreadCount={unreadNotifs}
-                setUnreadCount={setUnreadNotifs}
-              />
+              <Suspense fallback={null}>
+                <GlobalNotificationCenter
+                  unreadCount={unreadNotifs}
+                  setUnreadCount={setUnreadNotifs}
+                />
+              </Suspense>
               {isAdmin && (
                 <button onClick={() => navigate("/admin")} className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Admin Panel">
                   <Shield className="w-4 h-4 text-primary" />
@@ -225,7 +228,13 @@ const AppDashboard = () => {
 
           {/* Content */}
           <main className="flex-1 overflow-y-auto pb-20">
-            {renderTab()}
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-20">
+                <ACRYLogo variant="icon" animate={true} className="w-8 h-8 animate-pulse" />
+              </div>
+            }>
+              {renderTab()}
+            </Suspense>
           </main>
 
           {/* Voice Notification Overlay */}

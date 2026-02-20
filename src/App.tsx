@@ -35,7 +35,16 @@ const ComingSoonPage = lazy(() => import("./pages/ComingSoonPage"));
 const PWAInstallBanner = lazy(() => import("@/components/app/PWAInstallBanner"));
 const OfflineBanner = lazy(() => import("@/components/app/OfflineBanner"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 min — avoid redundant refetches
+      gcTime: 10 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const PageFallback = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
