@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
 import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +13,7 @@ import YouTab from "@/components/app/YouTab";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
 
 import GlobalNotificationCenter from "@/components/app/GlobalNotificationCenter";
+import CommunityPage from "@/pages/CommunityPage";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useVoiceNotification } from "@/hooks/useVoiceNotification";
@@ -159,7 +160,7 @@ const AppDashboard = () => {
       case "action": 
         return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
       case "brain": return <BrainTab />;
-      case "community": { navigate("/community"); return null; }
+      case "community": return <CommunityPage inline />;
       case "progress": return <ProgressTab />;
       case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
       default: return null;
