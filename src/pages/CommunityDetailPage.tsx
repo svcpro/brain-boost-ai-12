@@ -304,7 +304,7 @@ const CommunityDetailPage = () => {
     <div className="min-h-screen bg-background">
       {/* Premium Header */}
       <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-lg mx-auto px-5 py-3 flex items-center gap-3">
           <button onClick={() => navigate("/community")} className="p-2 hover:bg-secondary/80 rounded-xl transition-colors">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
@@ -335,7 +335,7 @@ const CommunityDetailPage = () => {
           )}
         </div>
         {/* Sort bar */}
-        <div className="max-w-3xl mx-auto px-4 pb-2.5">
+        <div className="max-w-lg mx-auto px-5 pb-2.5">
           <div className="flex items-center gap-1 p-1 bg-secondary/20 rounded-xl">
             {([
               { id: "hot" as const, label: "Hot", icon: Flame, color: "text-destructive" },
@@ -353,7 +353,7 @@ const CommunityDetailPage = () => {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-3 pb-24">
+      <div className="max-w-lg mx-auto px-5 py-4 space-y-3 pb-24">
         {/* Community Info Banner */}
         {community.description && (
           <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}

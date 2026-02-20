@@ -216,7 +216,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
       {/* Premium Header - only show when standalone */}
       {!inline && (
         <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
-          <div className="max-w-3xl mx-auto px-4 py-3">
+          <div className="max-w-lg mx-auto px-5 py-3">
             <div className="flex items-center gap-3">
               <button onClick={() => navigate("/app")} className="p-2 hover:bg-secondary/80 rounded-xl transition-colors">
                 <ArrowLeft className="w-5 h-5 text-foreground" />
@@ -251,7 +251,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
           </div>
 
           {/* Premium Tab Bar */}
-          <div className="max-w-3xl mx-auto px-4 pb-2.5">
+          <div className="max-w-lg mx-auto px-5 pb-2.5">
             <div className="flex gap-1 overflow-x-auto no-scrollbar p-1 bg-secondary/30 rounded-2xl">
               {views.map(tab => (
                 <button key={tab.id} onClick={() => setActiveView(tab.id)}
@@ -338,7 +338,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
         </div>
       )}
 
-      <div className={inline ? "px-5 py-4 space-y-3 max-w-lg mx-auto pb-24" : "max-w-3xl mx-auto px-4 py-4 space-y-3 pb-24"}>
+      <div className="px-5 py-4 space-y-3 max-w-lg mx-auto pb-24">
         {/* FEED VIEW */}
         {activeView === "feed" && (
           <>
