@@ -14,7 +14,7 @@ import BrainStabilityOverview from "./brain/BrainStabilityOverview";
 import InteractiveMemoryMap from "./brain/InteractiveMemoryMap";
 import DecayForecastTimeline from "./brain/DecayForecastTimeline";
 import AIIntelligenceInsights from "./brain/AIIntelligenceInsights";
-import BrainEvolutionHistory from "./brain/BrainEvolutionHistory";
+import GrowthIdentitySystem from "./brain/GrowthIdentitySystem";
 
 // Modals
 import FocusModeSession from "./FocusModeSession";
@@ -154,8 +154,8 @@ const BrainTab = () => {
       {/* ═══ SECTION 4: AI Intelligence Insights ═══ */}
       <AIIntelligenceInsights onAction={(s, t) => setReviewSession({ subject: s, topic: t })} />
 
-      {/* ═══ SECTION 5: Brain Evolution History ═══ */}
-      <BrainEvolutionHistory />
+      {/* ═══ SECTION 5: Growth Identity System ═══ */}
+      <GrowthIdentitySystem />
 
       {/* Empty state */}
       {!hasData && (
