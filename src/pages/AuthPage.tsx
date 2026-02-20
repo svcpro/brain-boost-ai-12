@@ -185,7 +185,9 @@ const AuthPage = () => {
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={async () => {
-            const { error } = await lovable.auth.signInWithOAuth("google");
+            const { error } = await lovable.auth.signInWithOAuth("google", {
+              redirect_uri: window.location.origin,
+            });
             if (error) toast({ title: "Error", description: String(error), variant: "destructive" });
           }}
           className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-card border border-border text-sm font-medium text-foreground hover:border-primary/30 transition-all"
@@ -201,7 +203,9 @@ const AuthPage = () => {
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={async () => {
-            const { error } = await lovable.auth.signInWithOAuth("apple");
+            const { error } = await lovable.auth.signInWithOAuth("apple", {
+              redirect_uri: window.location.origin,
+            });
             if (error) toast({ title: "Error", description: String(error), variant: "destructive" });
           }}
           className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-card border border-border text-sm font-medium text-foreground hover:border-primary/30 transition-all"
