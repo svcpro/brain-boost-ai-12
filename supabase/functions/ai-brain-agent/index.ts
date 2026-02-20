@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { authenticateRequest, handleCors, jsonResponse, errorResponse, securityHeaders } from "../_shared/auth.ts";
 import { aiFetch } from "../_shared/aiFetch.ts";
+import { rateLimitMiddleware } from "../_shared/rateLimit.ts";
+import { edgeCache } from "../_shared/cache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +16,10 @@ serve(async (req) => {
 
   try {
     const { userId, supabase } = await authenticateRequest(req);
+
+    // Rate limit AI-heavy endpoint
+    const rateLimited = await rateLimitMiddleware(userId, "ai-brain-agent");
+    if (rateLimited) return rateLimited;
 
     const body = await req.json();
     const { action, message, topic_name, subject_name, difficulty: reqDifficulty, count: reqCount } = body;

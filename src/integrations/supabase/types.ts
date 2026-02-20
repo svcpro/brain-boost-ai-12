@@ -1340,6 +1340,33 @@ export type Database = {
         }
         Relationships: []
       }
+      edge_function_rate_limits: {
+        Row: {
+          created_at: string
+          function_name: string
+          id: string
+          request_count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          function_name: string
+          id?: string
+          request_count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          created_at?: string
+          function_name?: string
+          id?: string
+          request_count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           bounced_at: string | null
@@ -5378,6 +5405,7 @@ export type Database = {
     }
     Functions: {
       accept_freeze_gift: { Args: { gift_id: string }; Returns: undefined }
+      cleanup_rate_limits: { Args: never; Returns: undefined }
       has_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean

@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { edgeCache } from "../_shared/cache.ts";
+import { rateLimitMiddleware } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +33,37 @@ serve(async (req) => {
       currentUserId = claimsData?.claims?.sub || null;
     }
 
+    // Rate limit check (if authenticated)
+    if (currentUserId) {
+      const rateLimited = await rateLimitMiddleware(currentUserId, "leaderboard");
+      if (rateLimited) return rateLimited;
+    }
+
+    // Cache leaderboard data for 30 seconds (hot endpoint)
+    const leaderboardData = await edgeCache.getOrFetch("leaderboard_full", 30, async () => {
+      return await fetchLeaderboardData(supabaseAdmin);
+    });
+
+    // Personalize with current user highlight (not cached)
+    const leaderboard = leaderboardData.map((e: any) => ({
+      ...e,
+      is_current_user: e.user_id === currentUserId,
+      display_name: e.user_id === currentUserId ? e.full_display_name : e.display_name,
+    }));
+
+    return new Response(JSON.stringify({ leaderboard, current_user_id: currentUserId }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=15" },
+    });
+  } catch (e) {
+    console.error("leaderboard error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
+
+async function fetchLeaderboardData(supabaseAdmin: any) {
     // Get latest rank prediction per user
     const { data: rankData } = await supabaseAdmin
       .from("rank_predictions")
@@ -118,16 +151,16 @@ serve(async (req) => {
       const rank = latestRanks.get(uid);
       const profile = profileMap.get(uid);
       const displayName = profile?.display_name || "Anonymous";
-      // Anonymize: show first 2 chars + asterisks
       const safeName = displayName.length > 2
         ? displayName.slice(0, 2) + "***"
         : displayName;
 
       return {
         user_id: uid,
-        display_name: uid === currentUserId ? (profile?.display_name || "You") : safeName,
+        display_name: safeName,
+        full_display_name: profile?.display_name || "You",
         avatar_url: profile?.avatar_url || null,
-        is_current_user: uid === currentUserId,
+        is_current_user: false,
         predicted_rank: rank?.predicted_rank || 99999,
         percentile: rank?.percentile || 0,
         streak: userStreaks.get(uid) || 0,
@@ -135,23 +168,10 @@ serve(async (req) => {
       };
     });
 
-    // Sort by predicted_rank (lower is better)
     entries.sort((a, b) => a.predicted_rank - b.predicted_rank);
 
-    // Assign position
-    const leaderboard = entries.slice(0, 50).map((e, i) => ({
+    return entries.slice(0, 50).map((e, i) => ({
       ...e,
       position: i + 1,
     }));
-
-    return new Response(JSON.stringify({ leaderboard, current_user_id: currentUserId }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    console.error("leaderboard error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-});
+}
