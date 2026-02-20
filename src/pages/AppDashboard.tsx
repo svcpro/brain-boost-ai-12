@@ -7,7 +7,7 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { usePlanGating, PlanGatingContext } from "@/hooks/usePlanGating";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
-import AppTour, { TOUR_COMPLETED_KEY } from "@/components/app/tour/AppTour";
+
 
 // Lazy load all tab components for fast initial load
 const HomeTab = lazy(() => import("@/components/app/HomeTab"));
@@ -44,7 +44,7 @@ const AppDashboard = () => {
   const [autoOpenVoice, setAutoOpenVoice] = useState(false);
   const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
   const [autoOpenNotifHistory, setAutoOpenNotifHistory] = useState(false);
-  const [showTour, setShowTour] = useState(() => !localStorage.getItem(TOUR_COMPLETED_KEY));
+  
   
   const { user } = useAuth();
   const { isAdmin } = useAdminRole();
@@ -252,8 +252,6 @@ const AppDashboard = () => {
           {/* Voice Notification Overlay */}
           <VoiceNotificationOverlay playing={voice.playing} subtitle={voice.subtitle} />
 
-          {/* App Tour */}
-          {showTour && <AppTour onComplete={() => setShowTour(false)} />}
 
           {/* Bottom Nav — contained inside device frame */}
           <nav className="absolute bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
