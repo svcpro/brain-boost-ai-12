@@ -17,7 +17,7 @@ import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import NextReminderIndicator from "./NextReminderIndicator";
 import FocusModeSession from "./FocusModeSession";
-import QuickStartStudy from "./QuickStartStudy";
+
 import BrainUpdateHero, { markBrainUpdated } from "./BrainUpdateHero";
 import QuickStudySignalModal from "./QuickStudySignalModal";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
@@ -682,7 +682,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* Weekly Summary */}
       {isEnabled('home_quick_start') && <WeeklySummaryNotification />}
-      {isEnabled('home_quick_start') && <QuickStartStudy />}
+      
 
       {/* Modals */}
       <QuickStudySignalModal
