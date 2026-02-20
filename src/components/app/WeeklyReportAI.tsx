@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, X, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { BarChart3, X, RefreshCw, Sparkles } from "lucide-react";
+import AIProgressBar from "./AIProgressBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -103,9 +104,8 @@ const WeeklyReportAI = ({ onClose }: WeeklyReportAIProps) => {
         )}
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Analyzing your study patterns...</p>
+          <div className="px-2 py-6">
+            <AIProgressBar label="Analyzing your study patterns" sublabel="Reviewing 7 days of activity" estimatedSeconds={12} />
           </div>
         )}
 

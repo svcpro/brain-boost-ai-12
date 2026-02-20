@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain, Clock, Zap, ArrowRight, CheckCircle2, XCircle,
-  TrendingUp, Sparkles, Loader2, X, Target, ChevronRight
+  TrendingUp, Sparkles, X, Target, ChevronRight
 } from "lucide-react";
+import AIProgressBar from "./AIProgressBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { triggerHaptic } from "@/lib/feedback";
@@ -276,14 +277,12 @@ export default function MicroMissionFlow({
               className="max-w-sm mx-auto"
             >
               {loading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                  <p className="text-sm text-muted-foreground">AI is crafting your questions...</p>
-                  {difficulty !== "medium" && (
-                    <span className="text-[10px] text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
-                      Adapting difficulty: {difficulty}
-                    </span>
-                  )}
+                <div className="py-12 px-4">
+                  <AIProgressBar
+                    label="AI is crafting your questions"
+                    sublabel={difficulty !== "medium" ? `Adapting difficulty: ${difficulty}` : "Personalizing to your level"}
+                    estimatedSeconds={8}
+                  />
                 </div>
               ) : questions.length > 0 ? (
                 <AnimatePresence mode="wait">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import AIProgressBar from "./AIProgressBar";
 import { CalendarDays, Sparkles, Clock, BookOpen, RotateCcw, ChevronDown, ChevronUp, Lightbulb, Zap, Save, CheckCircle, Circle, Trash2, History, Bell, BellOff, Brain, BarChart3, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -522,11 +523,18 @@ const StudyPlanGenerator = () => {
               {loading ? "Generating your plan..." : (plan || savedPlan) ? "Regenerate Study Plan" : "AI Study Plan Generator"}
             </h3>
             <p className="text-sm text-muted-foreground">
-              {loading ? "Analyzing forgetting curves & exam timeline..." : "Get a personalized 7-day schedule based on your memory data."}
+              {loading ? "" : "Get a personalized 7-day schedule based on your memory data."}
             </p>
           </div>
         </div>
       </motion.button>
+
+      {/* AI Progress when generating */}
+      {loading && (
+        <div className="glass rounded-xl neural-border px-4">
+          <AIProgressBar label="Generating your study plan" sublabel="Analyzing forgetting curves & exam timeline" estimatedSeconds={12} />
+        </div>
+      )}
 
       {/* Quick 15-min Plan */}
       <motion.button

@@ -4,6 +4,7 @@ import {
   Sparkles, Loader2, BookOpen, Target, AlertTriangle, CheckCircle2,
   ChevronDown, ChevronRight, Search, RefreshCw, Zap, BarChart3, Plus
 } from "lucide-react";
+import AIProgressBar from "./AIProgressBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -260,9 +261,12 @@ const AITopicManager = ({ mode, targetUserId, examType, onDone }: AITopicManager
               disabled={loading || !userExamType}
               className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              {loading ? "Generating..." : "Generate Full Curriculum"}
+              {loading && tab === "generate" ? null : <Sparkles className="w-4 h-4" />}
+              {loading && tab === "generate" ? null : "Generate Full Curriculum"}
             </button>
+            {loading && tab === "generate" && (
+              <AIProgressBar label="Generating full curriculum" sublabel={`Analyzing ${userExamType} syllabus`} estimatedSeconds={15} />
+            )}
           </div>
 
           {/* Generated Results */}
@@ -360,9 +364,12 @@ const AITopicManager = ({ mode, targetUserId, examType, onDone }: AITopicManager
               disabled={loading}
               className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              {loading ? "Analyzing..." : "Run Gap Analysis"}
+              {loading && tab === "gaps" ? null : <Search className="w-4 h-4" />}
+              {loading && tab === "gaps" ? null : "Run Gap Analysis"}
             </button>
+            {loading && tab === "gaps" && (
+              <AIProgressBar label="Scanning for gaps" sublabel="Comparing against full syllabus" estimatedSeconds={12} />
+            )}
           </div>
 
           <AnimatePresence>

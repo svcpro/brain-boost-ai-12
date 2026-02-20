@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Send, Sparkles, Zap, Clock, AlertTriangle, Heart, Brain, ChevronDown, Loader2, X } from "lucide-react";
 import { useAIAgent, BrainBriefing } from "@/hooks/useAIAgent";
+import AIProgressBar from "./AIProgressBar";
 
 const urgencyConfig = {
   immediate: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", label: "Now" },
@@ -123,9 +124,8 @@ export default function AIBrainAgent() {
         </div>
 
         {loading && !briefing && (
-          <div className="glass rounded-xl neural-border p-8 flex flex-col items-center gap-3">
-            <Loader2 className="w-6 h-6 text-primary animate-spin" />
-            <p className="text-xs text-muted-foreground">AI is analyzing your cognitive data…</p>
+          <div className="glass rounded-xl neural-border p-5">
+            <AIProgressBar label="Analyzing your cognitive data" sublabel="Deep brain scan in progress" estimatedSeconds={10} />
           </div>
         )}
 

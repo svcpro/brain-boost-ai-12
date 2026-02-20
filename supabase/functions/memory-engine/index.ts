@@ -706,7 +706,7 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: "You are ACRY, an AI study coach. Generate a concise weekly study report with sections: Summary, Strengths, Areas to Improve, and Next Week's Focus. Use markdown headers and bullet points. Be encouraging but honest." },
             { role: "user", content: `Weekly stats: ${stats.totalMinutes || 0} minutes studied, ${stats.totalSessions || 0} sessions, ${stats.avgStrength || 0}% avg memory strength, ${stats.topicCount || 0} topics across ${stats.subjectCount || 0} subjects. Weak topics: ${(stats.weakTopics || []).join(", ") || "none"}` }
