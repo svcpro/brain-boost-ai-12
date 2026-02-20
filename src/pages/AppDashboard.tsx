@@ -11,6 +11,7 @@ import BrainTab from "@/components/app/BrainTab";
 import ProgressTab from "@/components/app/ProgressTab";
 import YouTab from "@/components/app/YouTab";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
+import AppTour, { TOUR_COMPLETED_KEY } from "@/components/app/tour/AppTour";
 
 import GlobalNotificationCenter from "@/components/app/GlobalNotificationCenter";
 import CommunityPage from "@/pages/CommunityPage";
@@ -41,6 +42,7 @@ const AppDashboard = () => {
   const [autoOpenVoice, setAutoOpenVoice] = useState(false);
   const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
   const [autoOpenNotifHistory, setAutoOpenNotifHistory] = useState(false);
+  const [showTour, setShowTour] = useState(() => !localStorage.getItem(TOUR_COMPLETED_KEY));
   
   const { user } = useAuth();
   const { isAdmin } = useAdminRole();
@@ -226,6 +228,9 @@ const AppDashboard = () => {
 
         {/* Voice Notification Overlay */}
         <VoiceNotificationOverlay playing={voice.playing} subtitle={voice.subtitle} />
+
+        {/* App Tour */}
+        {showTour && <AppTour onComplete={() => setShowTour(false)} />}
 
         {/* Bottom Nav */}
         <nav className="fixed bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
