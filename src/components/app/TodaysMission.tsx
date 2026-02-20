@@ -7,6 +7,7 @@ import { setCache, getCache } from "@/lib/offlineCache";
 import { triggerHaptic } from "@/lib/feedback";
 import { useToast } from "@/hooks/use-toast";
 import MicroMissionFlow from "./MicroMissionFlow";
+import { safeStr, safeNum } from "@/lib/safeRender";
 
 interface DailyMission {
   title: string;
@@ -62,26 +63,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  const safeStr = (v: any, fallback = ""): string => {
-    if (v == null) return fallback;
-    if (typeof v === "string") return v || fallback;
-    if (typeof v === "number" || typeof v === "boolean") return String(v);
-    if (typeof v === "object") {
-      // Extract first string-like property from nested objects
-      for (const key of ["text", "value", "message", "title", "content", "name", "description"]) {
-        if (typeof v[key] === "string") return v[key];
-      }
-      // Try JSON as last resort, but never show [object Object]
-      try { const j = JSON.stringify(v); return j.length < 200 ? j : fallback; } catch { return fallback; }
-    }
-    return fallback;
-  };
-
-  const safeNum = (v: any, fallback: number): number => {
-    if (v == null) return fallback;
-    const n = Number(v);
-    return isNaN(n) ? fallback : n;
-  };
+  // safeStr and safeNum imported from @/lib/safeRender
 
   const generateMission = useCallback(async () => {
     if (!user || !session) return;

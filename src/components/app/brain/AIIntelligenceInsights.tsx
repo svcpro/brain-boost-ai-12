@@ -8,6 +8,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { setCache, getCache } from "@/lib/offlineCache";
+import { safeStr } from "@/lib/safeRender";
 
 /* ── Types ── */
 interface MentorInsight {
@@ -78,14 +79,14 @@ export default function AIIntelligenceInsights({ onAction }: Props) {
           const type = catMap[c.category] || types[i % types.length];
           return {
             id: `insight-${i}-${Date.now()}`,
-            title: c.title || "AI Insight",
-            insight: c.content || c.insight || "",
+            title: safeStr(c.title, "AI Insight"),
+            insight: safeStr(c.content || c.insight, ""),
             type,
             severity: c.priority === "high" ? "critical" : c.priority === "medium" ? "warning" : "info",
             actionLabel: type === "decay" ? "Prevent Decay" : type === "mistake" ? "Fix Pattern" : type === "timing" ? "Optimize Schedule" : type === "rank" ? "Boost Rank" : "Strengthen",
-            actionSubject: c.subject || undefined,
-            actionTopic: c.topic || undefined,
-            impactPreview: c.impact || (type === "decay" ? "+5% stability" : type === "performance" ? "+3% mastery" : "+2% brain health"),
+            actionSubject: safeStr(c.subject) || undefined,
+            actionTopic: safeStr(c.topic) || undefined,
+            impactPreview: safeStr(c.impact, type === "decay" ? "+5% stability" : type === "performance" ? "+3% mastery" : "+2% brain health"),
           };
         });
         setInsights(mapped);
@@ -96,12 +97,12 @@ export default function AIIntelligenceInsights({ onAction }: Props) {
       const tomorrowData = data?.tomorrow_strategy || data?.strategy;
       if (tomorrowData) {
         const s: TomorrowStrategy = {
-          focusArea: tomorrowData.focus_area || "Weakest topics",
-          optimalTime: tomorrowData.optimal_time || "Morning",
-          estimatedGain: tomorrowData.estimated_gain || "+4% stability",
-          missionTitle: tomorrowData.mission_title || "AI Recovery Mission",
-          missionDuration: tomorrowData.duration || "5 min",
-          reason: tomorrowData.reason || "Based on your decay patterns and study timing",
+          focusArea: safeStr(tomorrowData.focus_area, "Weakest topics"),
+          optimalTime: safeStr(tomorrowData.optimal_time, "Morning"),
+          estimatedGain: safeStr(tomorrowData.estimated_gain, "+4% stability"),
+          missionTitle: safeStr(tomorrowData.mission_title, "AI Recovery Mission"),
+          missionDuration: safeStr(tomorrowData.duration, "5 min"),
+          reason: safeStr(tomorrowData.reason, "Based on your decay patterns and study timing"),
         };
         setStrategy(s);
         setCache(STRATEGY_CACHE, s);

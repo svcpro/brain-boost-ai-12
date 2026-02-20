@@ -4,6 +4,7 @@ import { ShieldAlert, Zap, ChevronDown, ChevronUp, Clock, RefreshCw } from "luci
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCache, setCache } from "@/lib/offlineCache";
+import { safeStr } from "@/lib/safeRender";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RiskDigestCardProps {
@@ -262,10 +263,10 @@ const RiskDigestCard = ({ onStudyTopic }: RiskDigestCardProps) => {
 
                     {/* Topic info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-foreground truncate">{topic.name}</p>
+                      <p className="text-xs font-semibold text-foreground truncate">{safeStr(topic.name)}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {topic.subject_name && (
-                          <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">{topic.subject_name}</span>
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">{safeStr(topic.subject_name)}</span>
                         )}
                         {daysLeft !== null && daysLeft <= 3 && (
                           <span className="flex items-center gap-0.5 text-[10px] text-destructive font-medium">

@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
 import { setCache, getCache } from "@/lib/offlineCache";
+import { safeStr } from "@/lib/safeRender";
 
 import { isPast, isToday } from "date-fns";
 

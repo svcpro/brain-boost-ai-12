@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { TopicPrediction } from "@/hooks/useMemoryEngine";
 import { getCache, setCache } from "@/lib/offlineCache";
+import { safeStr } from "@/lib/safeRender";
 
 interface DeepAnalyticsSectionProps {
   atRisk: TopicPrediction[];
@@ -214,7 +215,7 @@ const DeepAnalyticsSection: React.FC<DeepAnalyticsSectionProps> = ({
                             topic.risk_level === "high" ? "bg-warning" :
                             topic.risk_level === "medium" ? "bg-accent" : "bg-success"
                           }`} />
-                          <span className="text-[10px] text-foreground truncate flex-1">{topic.name}</span>
+                          <span className="text-[10px] text-foreground truncate flex-1">{safeStr(topic.name)}</span>
                           <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
@@ -282,7 +283,7 @@ const DeepAnalyticsSection: React.FC<DeepAnalyticsSectionProps> = ({
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[10px] text-foreground font-medium truncate">{topic.name}</p>
+                              <p className="text-[10px] text-foreground font-medium truncate">{safeStr(topic.name)}</p>
                               <p className={`text-[9px] ${
                                 urgency === "critical" ? "text-destructive" : "text-muted-foreground"
                               }`}>

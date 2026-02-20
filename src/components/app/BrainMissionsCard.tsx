@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Target, CheckCircle, Clock, Zap, AlertTriangle, BookOpen, Brain, Sparkles, ChevronRight } from "lucide-react";
 import { useBrainMissions, BrainMission } from "@/hooks/useBrainMissions";
 import { Progress } from "@/components/ui/progress";
+import { safeStr, safeNum } from "@/lib/safeRender";
 
 const missionIcons: Record<string, React.ReactNode> = {
   rescue: <AlertTriangle className="w-4 h-4 text-destructive" />,
@@ -91,23 +92,23 @@ export default function BrainMissionsCard() {
                   {missionIcons[mission.mission_type] || <Target className="w-4 h-4 text-muted-foreground" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-foreground leading-tight">{mission.title}</p>
+                  <p className="text-xs font-semibold text-foreground leading-tight">{safeStr(mission.title, "Mission")}</p>
                   {mission.description && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{mission.description}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{safeStr(mission.description)}</p>
                   )}
                   {mission.target_value != null && mission.current_value != null && (
                     <div className="mt-1.5">
                       <Progress
-                        value={Math.min(100, (mission.current_value / mission.target_value) * 100)}
+                        value={Math.min(100, (safeNum(mission.current_value, 0) / safeNum(mission.target_value, 1)) * 100)}
                         className="h-1.5"
                       />
                       <p className="text-[9px] text-muted-foreground mt-0.5">
-                        {Math.round(mission.current_value)} / {Math.round(mission.target_value)}
+                        {Math.round(safeNum(mission.current_value, 0))} / {Math.round(safeNum(mission.target_value, 0))}
                       </p>
                     </div>
                   )}
                   {mission.reasoning && (
-                    <p className="text-[9px] text-muted-foreground/70 mt-1 italic">💡 {mission.reasoning}</p>
+                    <p className="text-[9px] text-muted-foreground/70 mt-1 italic">💡 {safeStr(mission.reasoning)}</p>
                   )}
                 </div>
                 <button
@@ -125,7 +126,7 @@ export default function BrainMissionsCard() {
                     Expires {new Date(mission.expires_at).toLocaleDateString()}
                   </span>
                 )}
-                <span className="text-[9px] text-primary font-medium">+{mission.reward_value} XP</span>
+                <span className="text-[9px] text-primary font-medium">+{safeNum(mission.reward_value, 0)} XP</span>
               </div>
             </motion.div>
           ))}
