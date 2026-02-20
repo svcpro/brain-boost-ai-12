@@ -119,18 +119,27 @@ const PWAInstallBanner = () => {
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-semibold text-foreground mb-0.5">Install ACRY App</h3>
 
-              {isIOS ? (
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Tap{" "}
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-secondary text-foreground text-[10px] font-medium">
-                    <Share className="w-3 h-3" /> Share
-                  </span>{" "}
-                  then{" "}
-                  <span className="inline-block px-1.5 py-0.5 rounded bg-secondary text-foreground text-[10px] font-medium">
-                    Add to Home Screen
-                  </span>{" "}
-                  to install.
-                </p>
+          {isIOS ? (
+                <>
+                  <p className="text-xs text-muted-foreground mb-2 leading-relaxed">
+                    Install ACRY for offline access & push reminders:
+                  </p>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50 border border-border/30">
+                    <span className="text-xs text-foreground">
+                      1. Tap{" "}
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                        <Share className="w-3 h-3" /> Share
+                      </span>
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-xs text-foreground">
+                      2.{" "}
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                        Add to Home Screen
+                      </span>
+                    </span>
+                  </div>
+                </>
               ) : deferredPrompt ? (
                 <>
                   <p className="text-xs text-muted-foreground mb-2.5">
@@ -144,23 +153,33 @@ const PWAInstallBanner = () => {
                   </button>
                 </>
               ) : isAndroid ? (
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Tap{" "}
-                  <span className="inline-block px-1.5 py-0.5 rounded bg-secondary text-foreground text-[10px] font-medium">
-                    ⋮ Menu
-                  </span>{" "}
-                  →{" "}
-                  <span className="inline-block px-1.5 py-0.5 rounded bg-secondary text-foreground text-[10px] font-medium">
-                    Install app
-                  </span>{" "}
-                  or{" "}
-                  <span className="inline-block px-1.5 py-0.5 rounded bg-secondary text-foreground text-[10px] font-medium">
-                    Add to Home screen
-                  </span>
-                </p>
+                <>
+                  <p className="text-xs text-muted-foreground mb-2 leading-relaxed">
+                    Install ACRY for the best experience:
+                  </p>
+                  <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-secondary/50 border border-border/30">
+                    <span className="text-xs text-foreground">
+                      1. Tap{" "}
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                        ⋮
+                      </span>{" "}
+                      (3 dots menu) at top-right
+                    </span>
+                    <span className="text-xs text-foreground">
+                      2. Select{" "}
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                        Install app
+                      </span>{" "}
+                      or{" "}
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                        Add to Home screen
+                      </span>
+                    </span>
+                  </div>
+                </>
               ) : (
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Use your browser menu to add this app to your home screen for the best experience.
+                  Use your browser's menu to install this app for the best experience.
                 </p>
               )}
             </div>
