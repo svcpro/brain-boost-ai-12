@@ -39,7 +39,22 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/, /^\/auth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         importScripts: ["/sw-push.js"],
+        // Ensure new service worker activates immediately and cleans old caches
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            // Always fetch navigation requests from network first,
+            // falling back to cache. Prevents stale index.html from
+            // referencing old JS chunks that no longer exist.
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "pages-cache",
+              networkTimeoutSeconds: 5,
+            },
+          },
           {
             // Cache static assets only, NOT Supabase API calls
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
