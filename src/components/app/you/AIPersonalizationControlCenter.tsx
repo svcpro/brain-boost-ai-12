@@ -477,7 +477,7 @@ const AIPersonalizationControlCenter = ({
                 {showNotifHistory ? "Close" : "View"}
               </button>
             } />
-            <AnimatePresence>{showNotifHistory && <NotificationHistory />}</AnimatePresence>
+            <AnimatePresence>{showNotifHistory && <NotificationHistory onClose={() => setShowNotifHistory(false)} />}</AnimatePresence>
           </>
         )}
 
