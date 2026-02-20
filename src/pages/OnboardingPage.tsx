@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, GraduationCap, BookOpen, Calendar as CalendarIcon, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2 } from "lucide-react";
+import { GraduationCap, BookOpen, Calendar as CalendarIcon, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,14 +9,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import ACRYLogo from "@/components/landing/ACRYLogo";
 
 const EXAM_TYPES = [
-  { id: "neet", label: "NEET", desc: "Medical entrance" },
-  { id: "jee", label: "JEE", desc: "Engineering entrance" },
+  { id: "neet", label: "NEET", desc: "Medical" },
+  { id: "jee", label: "JEE", desc: "Engineering" },
   { id: "upsc", label: "UPSC", desc: "Civil services" },
-  { id: "gate", label: "GATE", desc: "Graduate aptitude" },
-  { id: "cat", label: "CAT", desc: "Management entrance" },
-  { id: "other", label: "Other", desc: "Custom exam" },
+  { id: "gate", label: "GATE", desc: "Graduate" },
+  { id: "cat", label: "CAT", desc: "Management" },
+  { id: "other", label: "Other", desc: "Custom" },
 ];
 
 const SUGGESTED_SUBJECTS: Record<string, string[]> = {
@@ -190,85 +191,58 @@ const OnboardingPage = () => {
   };
 
   const slideVariants = {
-    enter: { x: 60, opacity: 0 },
+    enter: { x: 40, opacity: 0 },
     center: { x: 0, opacity: 1 },
-    exit: { x: -60, opacity: 0 },
+    exit: { x: -40, opacity: 0 },
   };
 
   const totalTopics = Object.values(topicsBySubject).reduce((s, t) => s + t.length, 0);
-
   const stepIcons = [Sparkles, GraduationCap, CalendarIcon, BookOpen, Hash, Sparkles];
   const StepIcon = stepIcons[step] || Sparkles;
 
   return (
-    <div className="min-h-screen bg-background px-5 py-6 max-w-lg mx-auto flex flex-col">
-      {/* ─── Hero Card with Progress (matches HomeTab Section 1) ─── */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
+    <div className="h-[100dvh] bg-background flex flex-col max-w-lg mx-auto px-5 py-4 overflow-hidden">
+      {/* Top bar — Logo + Progress */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="relative overflow-hidden rounded-3xl p-6 text-center mb-5"
-        style={{
-          background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
-          border: "1px solid hsl(var(--border))",
-        }}
+        className="flex items-center justify-between mb-3"
       >
-        {/* Decorative glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "hsl(var(--primary))" }} />
-
-        {/* Circular Progress Ring */}
-        <div className="relative z-10 mx-auto w-24 h-24 mb-4">
-          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-            <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
-            <motion.circle
-              cx="50" cy="50" r="42" fill="none"
-              stroke="hsl(var(--primary))"
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 42}
-              initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-              animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - (step + 1) / totalSteps) }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              style={{ filter: "drop-shadow(0 0 8px hsl(var(--primary)))" }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <motion.div
-              key={step}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 200 }}
-            >
-              <StepIcon className="w-6 h-6 text-primary mb-0.5" />
-            </motion.div>
-            <span className="text-[10px] font-medium text-muted-foreground">{step + 1}/{totalSteps}</span>
-          </div>
+        <ACRYLogo variant="navbar" animate={false} />
+        <div className="flex items-center gap-2">
+          <motion.div
+            key={step}
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 200 }}
+          >
+            <StepIcon className="w-4 h-4 text-primary" />
+          </motion.div>
+          <span className="text-xs font-medium text-muted-foreground">{step + 1}/{totalSteps}</span>
         </div>
+      </motion.div>
 
-        <p className="relative z-10 text-xs text-muted-foreground">Setting Up Your Brain</p>
+      {/* Progress bar */}
+      <div className="flex gap-1 mb-4">
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="h-1 flex-1 rounded-full"
+            animate={{
+              background: i <= step ? "hsl(var(--primary))" : "hsl(var(--border))",
+              boxShadow: i <= step ? "0 0 6px hsl(var(--primary) / 0.4)" : "none",
+            }}
+            transition={{ duration: 0.3, delay: i * 0.03 }}
+          />
+        ))}
+      </div>
 
-        {/* Progress Bar */}
-        <div className="relative z-10 flex gap-1.5 mt-4">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="h-1 flex-1 rounded-full"
-              animate={{
-                background: i <= step ? "hsl(var(--primary))" : "hsl(var(--border))",
-                boxShadow: i <= step ? "0 0 8px hsl(var(--primary) / 0.4)" : "none",
-              }}
-              transition={{ duration: 0.4, delay: i * 0.05 }}
-            />
-          ))}
-        </div>
-      </motion.section>
-
-      {/* ─── Step Content Card ─── */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
+      {/* Step Content — flex-1 with internal scroll only when needed */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-        className="rounded-3xl p-5 mb-5 flex-1"
+        transition={{ delay: 0.1 }}
+        className="flex-1 rounded-2xl p-4 overflow-y-auto min-h-0"
         style={{
           background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%)",
           border: "1px solid hsl(var(--border))",
@@ -277,21 +251,21 @@ const OnboardingPage = () => {
         <AnimatePresence mode="wait">
           {/* Step 0: Name */}
           {step === 0 && (
-            <motion.div key="name" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                <h1 className="text-xl font-bold text-foreground">What should we call you?</h1>
+            <motion.div key="name" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <h1 className="text-lg font-bold text-foreground">What should we call you?</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-5">ACRY will use your name across the app.</p>
+              <p className="text-muted-foreground text-xs mb-4">ACRY will use your name across the app.</p>
               <input
                 type="text" placeholder="Enter your name" value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && canProceed()) handleNext(); }}
                 autoFocus maxLength={50}
-                className="w-full rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
               {displayName.trim().length >= 2 && (
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-muted-foreground">
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2.5 text-xs text-muted-foreground">
                   Welcome, <span className="text-primary font-semibold">{displayName.trim()}</span> 👋
                 </motion.p>
               )}
@@ -300,30 +274,27 @@ const OnboardingPage = () => {
 
           {/* Step 1: Exam Type */}
           {step === 1 && (
-            <motion.div key="exam" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <GraduationCap className="w-5 h-5 text-primary" />
-                <h1 className="text-xl font-bold text-foreground">Your exam?</h1>
+            <motion.div key="exam" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <GraduationCap className="w-4 h-4 text-primary" />
+                <h1 className="text-lg font-bold text-foreground">Your exam?</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-5">Helps ACRY optimize your study strategy.</p>
-              <div className="grid grid-cols-2 gap-3">
+              <p className="text-muted-foreground text-xs mb-4">Helps ACRY optimize your study strategy.</p>
+              <div className="grid grid-cols-3 gap-2">
                 {EXAM_TYPES.map(exam => (
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
-                    key={exam.id}
-                    onClick={() => setExamType(exam.id)}
-                    className={`p-4 rounded-xl text-left transition-all duration-300 ${
+                  <motion.button whileTap={{ scale: 0.96 }} key={exam.id} onClick={() => setExamType(exam.id)}
+                    className={`p-3 rounded-xl text-center transition-all duration-300 ${
                       examType === exam.id ? "neural-gradient neural-border glow-primary" : "bg-background/50 backdrop-blur-sm border border-border hover:border-primary/30"
                     }`}
                   >
-                    <p className="font-semibold text-foreground text-sm">{exam.label}</p>
-                    <p className="text-[10px] text-muted-foreground">{exam.desc}</p>
+                    <p className="font-semibold text-foreground text-xs">{exam.label}</p>
+                    <p className="text-[9px] text-muted-foreground">{exam.desc}</p>
                   </motion.button>
                 ))}
               </div>
               {examType === "other" && (
                 <input type="text" placeholder="Enter your exam name" value={customExam} onChange={e => setCustomExam(e.target.value)}
-                  className="w-full mt-3 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className="w-full mt-3 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               )}
             </motion.div>
@@ -331,19 +302,19 @@ const OnboardingPage = () => {
 
           {/* Step 2: Exam Date */}
           {step === 2 && (
-            <motion.div key="date" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <CalendarIcon className="w-5 h-5 text-primary" />
-                <h1 className="text-xl font-bold text-foreground">When's the exam?</h1>
+            <motion.div key="date" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <CalendarIcon className="w-4 h-4 text-primary" />
+                <h1 className="text-lg font-bold text-foreground">When's the exam?</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-5">ACRY will build a countdown and pace your revision.</p>
+              <p className="text-muted-foreground text-xs mb-4">ACRY will build a countdown and pace your revision.</p>
               <Popover>
                 <PopoverTrigger asChild>
                   <button className={cn(
-                    "w-full flex items-center gap-3 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-3.5 text-sm text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50",
+                    "w-full flex items-center gap-3 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-2.5 text-sm text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50",
                     examDate ? "text-foreground" : "text-muted-foreground"
                   )}>
-                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
                     {examDate ? format(new Date(examDate), "PPP") : "Pick your exam date"}
                   </button>
                 </PopoverTrigger>
@@ -355,8 +326,8 @@ const OnboardingPage = () => {
                 </PopoverContent>
               </Popover>
               {examDate && (
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-muted-foreground">
-                  That's <span className="text-primary font-semibold">{Math.ceil((new Date(examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days</span> away. Let's make them count.
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2.5 text-xs text-muted-foreground">
+                  That's <span className="text-primary font-semibold">{Math.ceil((new Date(examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days</span> away.
                 </motion.p>
               )}
             </motion.div>
@@ -364,89 +335,89 @@ const OnboardingPage = () => {
 
           {/* Step 3: Subjects */}
           {step === 3 && (
-            <motion.div key="subjects" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <BookOpen className="w-5 h-5 text-primary" />
-                <h1 className="text-xl font-bold text-foreground">Add your subjects</h1>
+            <motion.div key="subjects" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <BookOpen className="w-4 h-4 text-primary" />
+                <h1 className="text-lg font-bold text-foreground">Add your subjects</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-4">You'll add topics for each subject next.</p>
+              <p className="text-muted-foreground text-xs mb-3">You'll add topics for each subject next.</p>
 
               <motion.button whileTap={{ scale: 0.97 }} onClick={handleAIGenerate} disabled={aiGenerating}
-                className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-xl border border-dashed border-primary/40 text-primary hover:bg-primary/10 transition-all disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-2 mb-3 rounded-xl border border-dashed border-primary/40 text-primary text-xs hover:bg-primary/10 transition-all disabled:opacity-50"
               >
-                {aiGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Wand2 className="w-4 h-4" /> AI Generate Subjects & Topics</>}
+                {aiGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Wand2 className="w-3.5 h-3.5" /> AI Generate Subjects & Topics</>}
               </motion.button>
 
               {SUGGESTED_SUBJECTS[examType] && (
-                <div className="mb-4">
-                  <p className="text-xs text-muted-foreground mb-2">Suggested:</p>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mb-3">
+                  <p className="text-[10px] text-muted-foreground mb-1.5">Suggested:</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {SUGGESTED_SUBJECTS[examType].filter(s => !subjects.includes(s)).map(s => (
                       <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: [] })); }}
-                        className="px-3 py-1.5 rounded-full border border-dashed border-primary/40 text-xs text-primary hover:bg-primary/10 transition-all"
+                        className="px-2.5 py-1 rounded-full border border-dashed border-primary/40 text-[10px] text-primary hover:bg-primary/10 transition-all"
                       >+ {s}</button>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="flex gap-2 mb-4">
+              <div className="flex gap-2 mb-3">
                 <input type="text" placeholder="e.g. Physics..." value={newSubject} onChange={e => setNewSubject(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addSubject())}
-                  className="flex-1 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className="flex-1 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-                <button onClick={addSubject} disabled={!newSubject.trim()} className="px-4 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-30 transition-all">
-                  <Plus className="w-4 h-4" />
+                <button onClick={addSubject} disabled={!newSubject.trim()} className="px-3 rounded-xl bg-primary text-primary-foreground font-semibold text-xs disabled:opacity-30 transition-all">
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {subjects.map(s => (
                   <motion.span key={s} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full neural-gradient neural-border text-sm text-foreground"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full neural-gradient neural-border text-xs text-foreground"
                   >
                     {s}
-                    <button onClick={() => removeSubject(s)} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-3 h-3" /></button>
+                    <button onClick={() => removeSubject(s)} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-2.5 h-2.5" /></button>
                   </motion.span>
                 ))}
               </div>
-              {subjects.length === 0 && <p className="text-xs text-muted-foreground mt-4 text-center">Add at least one subject to continue.</p>}
+              {subjects.length === 0 && <p className="text-[10px] text-muted-foreground mt-3 text-center">Add at least one subject to continue.</p>}
             </motion.div>
           )}
 
           {/* Step 4: Topics */}
           {step === 4 && (
-            <motion.div key="topics" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <Hash className="w-5 h-5 text-primary" />
-                <h1 className="text-xl font-bold text-foreground">Add topics</h1>
+            <motion.div key="topics" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Hash className="w-4 h-4 text-primary" />
+                <h1 className="text-lg font-bold text-foreground">Add topics</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-4">
+              <p className="text-muted-foreground text-xs mb-3">
                 Key topics for each subject. {totalTopics > 0 && <span className="text-primary">{totalTopics} added</span>}
               </p>
 
-              <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+              <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-hide">
                 {subjects.map(s => {
                   const count = (topicsBySubject[s] || []).length;
                   return (
                     <button key={s} onClick={() => { setActiveSubject(s); setNewTopic(""); }}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                        activeSubject === s ? "bg-primary text-primary-foreground" : "bg-background/50 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground"
+                      className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                        activeSubject === s ? "bg-primary text-primary-foreground" : "bg-background/50 border border-border text-muted-foreground"
                       }`}
-                    >{s} {count > 0 && <span className="ml-1 opacity-70">({count})</span>}</button>
+                    >{s} {count > 0 && `(${count})`}</button>
                   );
                 })}
               </div>
 
               {activeSubject && (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {SUGGESTED_TOPICS[activeSubject] && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-2">Suggested:</p>
-                      <div className="flex flex-wrap gap-1.5">
+                      <p className="text-[10px] text-muted-foreground mb-1.5">Suggested:</p>
+                      <div className="flex flex-wrap gap-1">
                         {SUGGESTED_TOPICS[activeSubject].filter(t => !(topicsBySubject[activeSubject] || []).includes(t)).map(t => (
                           <button key={t} onClick={() => addSuggestedTopic(activeSubject, t)}
-                            className="px-2.5 py-1 rounded-full border border-dashed border-primary/40 text-[11px] text-primary hover:bg-primary/10 transition-all"
+                            className="px-2 py-0.5 rounded-full border border-dashed border-primary/40 text-[9px] text-primary hover:bg-primary/10 transition-all"
                           >+ {t}</button>
                         ))}
                       </div>
@@ -455,23 +426,22 @@ const OnboardingPage = () => {
                   <div className="flex gap-2">
                     <input type="text" placeholder={`Add topic to ${activeSubject}...`} value={newTopic} onChange={e => setNewTopic(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTopic(activeSubject))}
-                      className="flex-1 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      className="flex-1 rounded-xl bg-background/60 backdrop-blur-sm border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     />
-                    <button onClick={() => addTopic(activeSubject)} disabled={!newTopic.trim()} className="px-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-30 transition-all">
-                      <Plus className="w-4 h-4" />
+                    <button onClick={() => addTopic(activeSubject)} disabled={!newTopic.trim()} className="px-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs disabled:opacity-30 transition-all">
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1">
                     {(topicsBySubject[activeSubject] || []).map(t => (
                       <motion.span key={t} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full neural-gradient neural-border text-xs text-foreground"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full neural-gradient neural-border text-[10px] text-foreground"
                       >
                         {t}
-                        <button onClick={() => removeTopic(activeSubject, t)} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-2.5 h-2.5" /></button>
+                        <button onClick={() => removeTopic(activeSubject, t)} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-2 h-2" /></button>
                       </motion.span>
                     ))}
                   </div>
-                  {(topicsBySubject[activeSubject] || []).length === 0 && <p className="text-[11px] text-muted-foreground text-center">No topics yet — add some or skip.</p>}
                 </div>
               )}
             </motion.div>
@@ -479,23 +449,23 @@ const OnboardingPage = () => {
 
           {/* Step 5: Study Style */}
           {step === 5 && (
-            <motion.div key="prefs" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                <h1 className="text-xl font-bold text-foreground">Your study style</h1>
+            <motion.div key="prefs" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <h1 className="text-lg font-bold text-foreground">Your study style</h1>
               </div>
-              <p className="text-muted-foreground text-sm mb-5">ACRY adapts recommendations to your pace.</p>
-              <div className="space-y-3">
+              <p className="text-muted-foreground text-xs mb-4">ACRY adapts recommendations to your pace.</p>
+              <div className="space-y-2">
                 {STUDY_MODES.map(mode => (
                   <motion.button whileTap={{ scale: 0.97 }} key={mode.id} onClick={() => setStudyMode(mode.id)}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-300 ${
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-300 ${
                       studyMode === mode.id ? "neural-gradient neural-border glow-primary" : "bg-background/50 backdrop-blur-sm border border-border hover:border-primary/30"
                     }`}
                   >
-                    <span className="text-2xl">{mode.emoji}</span>
+                    <span className="text-xl">{mode.emoji}</span>
                     <div>
-                      <p className="font-semibold text-foreground text-sm">{mode.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{mode.desc}</p>
+                      <p className="font-semibold text-foreground text-xs">{mode.label}</p>
+                      <p className="text-[9px] text-muted-foreground">{mode.desc}</p>
                     </div>
                   </motion.button>
                 ))}
@@ -503,27 +473,27 @@ const OnboardingPage = () => {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.section>
+      </motion.div>
 
-      {/* ─── Navigation Card ─── */}
+      {/* Bottom Nav */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="flex gap-3"
+        transition={{ delay: 0.2 }}
+        className="flex gap-2.5 mt-3 pt-1"
       >
         {step > 0 && (
           <motion.button whileTap={{ scale: 0.96 }} onClick={() => setStep(step - 1)}
-            className="px-6 py-3 rounded-xl bg-background/50 backdrop-blur-sm border border-border text-foreground text-sm font-medium hover:border-primary/30 transition-all"
+            className="px-5 py-2.5 rounded-xl bg-card border border-border text-foreground text-xs font-medium hover:border-primary/30 transition-all"
           >Back</motion.button>
         )}
         <motion.button whileTap={{ scale: 0.97 }} onClick={handleNext} disabled={!canProceed() || loading}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold glow-primary hover:glow-primary-strong transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold glow-primary hover:glow-primary-strong transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {loading ? "Setting up..." : step < totalSteps - 1 ? (
-            <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-4 h-4" /></>
+            <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-3.5 h-3.5" /></>
           ) : (
-            <>Launch ACRY <Sparkles className="w-4 h-4" /></>
+            <>Launch ACRY <Sparkles className="w-3.5 h-3.5" /></>
           )}
         </motion.button>
       </motion.div>
