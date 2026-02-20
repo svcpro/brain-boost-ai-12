@@ -56,6 +56,27 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
+  const safeStr = (v: any, fallback = ""): string => {
+    if (v == null) return fallback;
+    if (typeof v === "string") return v || fallback;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (typeof v === "object") {
+      // Extract first string-like property from nested objects
+      for (const key of ["text", "value", "message", "title", "content", "name", "description"]) {
+        if (typeof v[key] === "string") return v[key];
+      }
+      // Try JSON as last resort, but never show [object Object]
+      try { const j = JSON.stringify(v); return j.length < 200 ? j : fallback; } catch { return fallback; }
+    }
+    return fallback;
+  };
+
+  const safeNum = (v: any, fallback: number): number => {
+    if (v == null) return fallback;
+    const n = Number(v);
+    return isNaN(n) ? fallback : n;
+  };
+
   const generateMission = useCallback(async () => {
     if (!user || !session) return;
     setLoading(true);
@@ -67,15 +88,15 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       if (fnError) throw fnError;
       if (data?.title || data?.mission) {
         const missionData: DailyMission = {
-          title: String(data.title || data.mission?.slice(0, 60) || "AI Mission"),
-          description: String(data.description || data.mission || ""),
-          topic_name: data.topic_name || data.topic || undefined,
-          subject_name: data.subject_name || data.subject || undefined,
-          estimated_minutes: Number(data.estimated_minutes || data.duration || 5),
-          brain_improvement_pct: Number(data.brain_improvement_pct || 5),
-          urgency: data.urgency || "medium",
-          reasoning: String(data.reasoning || data.reason || ""),
-          mission_type: data.mission_type || data.type || "review",
+          title: safeStr(data.title, safeStr(data.mission, "AI Mission")).slice(0, 80),
+          description: safeStr(data.description, safeStr(data.mission, "")),
+          topic_name: safeStr(data.topic_name || data.topic) || undefined,
+          subject_name: safeStr(data.subject_name || data.subject) || undefined,
+          estimated_minutes: safeNum(data.estimated_minutes || data.duration, 5),
+          brain_improvement_pct: safeNum(data.brain_improvement_pct, 5),
+          urgency: (["critical","high","medium"].includes(data.urgency) ? data.urgency : "medium") as DailyMission["urgency"],
+          reasoning: safeStr(data.reasoning || data.reason, "Personalized by your AI brain agent."),
+          mission_type: safeStr(data.mission_type || data.type, "review") as DailyMission["mission_type"],
           generated_date: today,
         };
         setMission(missionData);
