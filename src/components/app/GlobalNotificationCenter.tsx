@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, BellOff, Check, CheckCheck, Trash2, Loader2,
@@ -69,6 +70,13 @@ const GlobalNotificationCenter = ({ unreadCount, setUnreadCount }: GlobalNotific
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  // Find the device frame container to portal into
+  useEffect(() => {
+    const el = document.querySelector('.app-device-inner') as HTMLElement;
+    if (el) setPortalTarget(el);
+  }, []);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -474,8 +482,8 @@ const GlobalNotificationCenter = ({ unreadCount, setUnreadCount }: GlobalNotific
         )}
       </button>
 
-      {/* Render panel inline within device frame */}
-      {panel}
+      {/* Render panel via portal into the device frame container */}
+      {portalTarget && createPortal(panel, portalTarget)}
     </>
   );
 };
