@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, BellOff, Check, CheckCheck, Trash2, Loader2,
@@ -221,23 +220,23 @@ const GlobalNotificationCenter = ({ unreadCount, setUnreadCount }: GlobalNotific
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - contained within device frame */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-background/70 backdrop-blur-md z-[9998]"
+            className="absolute inset-0 bg-background/70 backdrop-blur-md z-[9998]"
             onClick={() => setOpen(false)}
           />
 
-          {/* Panel - slides from right */}
+          {/* Panel - slides from right, contained in device frame */}
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed top-0 right-0 w-full max-w-[420px] h-full z-[9999] flex flex-col overflow-hidden"
+            className="absolute top-0 right-0 w-full h-full z-[9999] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Glassmorphism container */}
@@ -475,8 +474,8 @@ const GlobalNotificationCenter = ({ unreadCount, setUnreadCount }: GlobalNotific
         )}
       </button>
 
-      {/* Render panel via portal to avoid z-index conflicts */}
-      {createPortal(panel, document.body)}
+      {/* Render panel inline within device frame */}
+      {panel}
     </>
   );
 };
