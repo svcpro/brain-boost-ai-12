@@ -29,6 +29,7 @@ const PWAInstallBanner = () => {
 
     const ua = navigator.userAgent;
     const ios = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const android = /android/i.test(ua);
     setIsIOS(ios);
 
     if (ios) {
@@ -57,14 +58,16 @@ const PWAInstallBanner = () => {
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // Fallback: show manual instructions if no prompt fires
-    const fallbackTimer = setTimeout(() => {
-      setShowBanner(true);
-    }, 3000);
+    // On non-Android browsers (desktop etc), show generic instructions after timeout
+    // On Android, ONLY show banner when native prompt is captured (no fallback)
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
+    if (!android) {
+      fallbackTimer = setTimeout(() => setShowBanner(true), 3000);
+    }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
-      clearTimeout(fallbackTimer);
+      if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   }, []);
 
@@ -97,8 +100,6 @@ const PWAInstallBanner = () => {
   }, []);
 
   if (isStandalone) return null;
-
-  const isAndroid = /android/i.test(navigator.userAgent);
 
   return (
     <AnimatePresence>
@@ -156,31 +157,6 @@ const PWAInstallBanner = () => {
                   >
                     Install App
                   </button>
-                </>
-              ) : isAndroid ? (
-                <>
-                  <p className="text-xs text-muted-foreground mb-2 leading-relaxed">
-                    Install ACRY for the best experience:
-                  </p>
-                  <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-secondary/50 border border-border/30">
-                    <span className="text-xs text-foreground">
-                      1. Tap{" "}
-                      <span className="inline-block px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
-                        ⋮
-                      </span>{" "}
-                      (3 dots menu) at top-right
-                    </span>
-                    <span className="text-xs text-foreground">
-                      2. Select{" "}
-                      <span className="inline-block px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
-                        Install app
-                      </span>{" "}
-                      or{" "}
-                      <span className="inline-block px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
-                        Add to Home screen
-                      </span>
-                    </span>
-                  </div>
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground leading-relaxed">
