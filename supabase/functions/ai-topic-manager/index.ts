@@ -92,10 +92,27 @@ serve(async (req) => {
 
       const aiData = await aiResp.json();
       const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      let curriculum = { subjects: [], total_topics: 0, exam_summary: "" };
+      const contentText = aiData.choices?.[0]?.message?.content || "";
+      let curriculum = { subjects: [] as any[], total_topics: 0, exam_summary: `${examLabel} curriculum` };
+      
+      let rawParsed: any = null;
       if (toolCall?.function?.arguments) {
-        curriculum = JSON.parse(toolCall.function.arguments);
+        rawParsed = JSON.parse(toolCall.function.arguments);
+      } else if (contentText) {
+        try {
+          rawParsed = typeof contentText === "string" ? JSON.parse(contentText) : contentText;
+        } catch {
+          const match = contentText.match(/[\[\{][\s\S]*[\]\}]/);
+          if (match) {
+            try { rawParsed = JSON.parse(match[0]); } catch {}
+          }
+        }
       }
+      
+      if (rawParsed) {
+        curriculum = normalizeCurriculum(rawParsed, examLabel);
+      }
+      console.log("Curriculum result:", curriculum.subjects.length, "subjects,", curriculum.total_topics, "topics");
 
       // Track usage
       await admin.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}, () => {});
@@ -344,3 +361,45 @@ serve(async (req) => {
     });
   }
 });
+
+// Normalize various AI response formats into our expected curriculum structure
+function normalizeCurriculum(raw: any, examLabel: string) {
+  const result = { subjects: [] as any[], total_topics: 0, exam_summary: `${examLabel} curriculum` };
+  
+  let subjectArray: any[] = [];
+  
+  // Handle: { subjects: [...] } format
+  if (raw?.subjects && Array.isArray(raw.subjects)) {
+    subjectArray = raw.subjects;
+    if (raw.exam_summary) result.exam_summary = raw.exam_summary;
+  }
+  // Handle: direct array of subjects [...] 
+  else if (Array.isArray(raw)) {
+    subjectArray = raw;
+  }
+  // Handle: { subject_name: { topics: [...] } } or similar object
+  else if (typeof raw === "object" && !Array.isArray(raw)) {
+    subjectArray = Object.entries(raw)
+      .filter(([k]) => k !== "total_topics" && k !== "exam_summary")
+      .map(([name, val]: [string, any]) => ({
+        name,
+        topics: Array.isArray(val) ? val : (val?.topics || []),
+      }));
+  }
+  
+  result.subjects = subjectArray.map((sub: any) => {
+    const name = sub.name || sub.subject || sub.subject_name || "Unknown";
+    const rawTopics = sub.topics || sub.chapters || [];
+    const topics = rawTopics.map((t: any) => ({
+      name: t.name || t.topic_name || t.topic || "Unnamed",
+      marks_impact_weight: Number(t.marks_impact_weight ?? t.weight ?? t.importance ?? 5),
+      priority: t.priority || (Number(t.marks_impact_weight ?? 5) >= 8 ? "critical" : Number(t.marks_impact_weight ?? 5) >= 6 ? "high" : Number(t.marks_impact_weight ?? 5) >= 4 ? "medium" : "low"),
+    }));
+    return { name, topics };
+  });
+  
+  result.total_topics = result.subjects.reduce((sum, s) => sum + s.topics.length, 0);
+  if (raw?.total_topics) result.total_topics = raw.total_topics;
+  
+  return result;
+}
