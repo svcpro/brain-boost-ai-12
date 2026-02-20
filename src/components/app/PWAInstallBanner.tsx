@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, X, Share } from "lucide-react";
 
@@ -11,52 +11,53 @@ const DISMISSED_KEY = "pwa-install-dismissed";
 const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000; // Re-show after 24 hours
 
 const PWAInstallBanner = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+  const [hasNativePrompt, setHasNativePrompt] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    // Check if already running as installed PWA
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as any).standalone === true;
     setIsStandalone(standalone);
     if (standalone) return;
 
-    // Check if dismissed recently (within 24h)
     const dismissedAt = localStorage.getItem(DISMISSED_KEY);
     if (dismissedAt && Date.now() - parseInt(dismissedAt) < DISMISS_DURATION_MS) return;
 
-    // Detect iOS
     const ua = navigator.userAgent;
     const ios = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
     setIsIOS(ios);
 
     if (ios) {
-      // Always show install instructions on iOS Safari
       const timer = setTimeout(() => setShowBanner(true), 1500);
       return () => clearTimeout(timer);
     }
 
+    const capturePrompt = (e: BeforeInstallPromptEvent) => {
+      console.log("[PWA] beforeinstallprompt captured");
+      deferredPromptRef.current = e;
+      setHasNativePrompt(true);
+      setShowBanner(true);
+    };
+
     // Check if event was captured globally before this component mounted
     const earlyPrompt = (window as any).__pwaInstallPrompt;
     if (earlyPrompt) {
-      setDeferredPrompt(earlyPrompt as BeforeInstallPromptEvent);
+      capturePrompt(earlyPrompt as BeforeInstallPromptEvent);
       (window as any).__pwaInstallPrompt = null;
-      setTimeout(() => setShowBanner(true), 1500);
-      return;
     }
 
     // Listen for the event
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowBanner(true);
+      capturePrompt(e as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // On Android Chrome, if no prompt fires within 3s, show a manual instruction banner
+    // Fallback: show manual instructions if no prompt fires
     const fallbackTimer = setTimeout(() => {
       setShowBanner(true);
     }, 3000);
@@ -67,34 +68,33 @@ const PWAInstallBanner = () => {
     };
   }, []);
 
-  const handleInstall = async () => {
-    console.log("[PWA] Install clicked, deferredPrompt exists:", !!deferredPrompt);
-    if (!deferredPrompt) {
-      // No native prompt — switch UI to show manual instructions
-      setDeferredPrompt(null);
+  const handleInstall = useCallback(async () => {
+    const prompt = deferredPromptRef.current;
+    console.log("[PWA] Install clicked, prompt exists:", !!prompt);
+    if (!prompt) {
+      setHasNativePrompt(false);
       return;
     }
     try {
       console.log("[PWA] Calling prompt()...");
-      const promptResult = deferredPrompt.prompt();
-      console.log("[PWA] prompt() called, awaiting userChoice...");
-      const choiceResult = await deferredPrompt.userChoice;
-      console.log("[PWA] userChoice outcome:", choiceResult.outcome);
+      await prompt.prompt();
+      const choiceResult = await prompt.userChoice;
+      console.log("[PWA] userChoice:", choiceResult.outcome);
       if (choiceResult.outcome === "accepted") {
         setShowBanner(false);
         localStorage.setItem(DISMISSED_KEY, Date.now().toString());
       }
     } catch (err: any) {
-      console.error("[PWA] Install prompt error:", err?.message || err);
-      // Prompt failed — clear it so UI switches to manual instructions
+      console.error("[PWA] prompt() error:", err?.message || err);
     }
-    setDeferredPrompt(null);
-  };
+    deferredPromptRef.current = null;
+    setHasNativePrompt(false);
+  }, []);
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     setShowBanner(false);
     localStorage.setItem(DISMISSED_KEY, Date.now().toString());
-  };
+  }, []);
 
   if (isStandalone) return null;
 
@@ -145,7 +145,7 @@ const PWAInstallBanner = () => {
                     </span>
                   </div>
                 </>
-              ) : deferredPrompt ? (
+              ) : hasNativePrompt ? (
                 <>
                   <p className="text-xs text-muted-foreground mb-2.5">
                     Get push reminders, offline access & a faster experience.
