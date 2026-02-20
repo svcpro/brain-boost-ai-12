@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Loader2, ChevronDown } from "lucide-react";
+import { Upload, Loader2, ChevronDown, CheckCircle, Sparkles, Zap } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,7 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess, initialSubject, initi
   const [confidence, setConfidence] = useState("medium");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -141,13 +142,21 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess, initialSubject, initi
       if (success) {
         setSubmitProgress(100);
         notifyFeedback();
-        confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, zIndex: 9999 });
-        toast({ title: "🧠 Brain updated!", description: "Your study signal has been logged." });
+        
+        // Multi-burst confetti celebration
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.7 }, zIndex: 9999 });
+        setTimeout(() => confetti({ particleCount: 50, spread: 90, origin: { y: 0.5, x: 0.3 }, zIndex: 9999 }), 300);
+        setTimeout(() => confetti({ particleCount: 50, spread: 90, origin: { y: 0.5, x: 0.7 }, zIndex: 9999 }), 500);
+        
+        // Show animated success state
+        setShowSuccess(true);
+        
         import("@/lib/eventBus").then(({ emitEvent }) =>
           emitEvent("study_session_end", {
             mode: "brain_update", duration: parseInt(minutes), topic: finalTopic || finalSubject, confidence,
           }, { title: "Brain Updated!", body: `${minutes} min on ${finalTopic || finalSubject}` })
         );
+        
         setTimeout(() => {
           setSubject("");
           setTopic("");
@@ -158,9 +167,10 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess, initialSubject, initi
           setConfidence("");
           setSubmitting(false);
           setSubmitProgress(0);
+          setShowSuccess(false);
           onClose();
           onSuccess?.();
-        }, 800);
+        }, 2200);
         return;
       }
     } catch (e: any) {
@@ -266,7 +276,75 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess, initialSubject, initi
           </SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-3">
+        <AnimatePresence mode="wait">
+        {showSuccess ? (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="flex flex-col items-center text-center py-8 space-y-4"
+          >
+            {/* Success burst ring */}
+            <div className="relative w-20 h-20 flex items-center justify-center">
+              <motion.div
+                className="absolute inset-0 rounded-full bg-primary/15"
+                initial={{ scale: 0 }}
+                animate={{ scale: [0, 2, 1.6], opacity: [0.5, 0.1, 0] }}
+                transition={{ duration: 0.8 }}
+              />
+              <motion.div
+                className="absolute inset-0 rounded-full border-2 border-primary/30"
+                initial={{ scale: 0 }}
+                animate={{ scale: [0, 1.5], opacity: [0.6, 0] }}
+                transition={{ duration: 1, delay: 0.2 }}
+              />
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 15, delay: 0.1 }}
+              >
+                <CheckCircle className="w-10 h-10 text-primary" />
+              </motion.div>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-1"
+            >
+              <p className="text-lg font-display font-bold text-foreground flex items-center justify-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Brain Updated!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {minutes} min on {topicName || subjectName}
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.5 }}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20"
+            >
+              <Zap className="w-4 h-4 text-primary" />
+              <span className="text-xs font-semibold text-primary">Memory synced successfully</span>
+            </motion.div>
+
+            {/* Auto-dismiss bar */}
+            <div className="w-32 h-1 rounded-full bg-secondary overflow-hidden">
+              <motion.div
+                className="h-full bg-primary/40 rounded-full"
+                initial={{ width: "100%" }}
+                animate={{ width: "0%" }}
+                transition={{ duration: 2.2, ease: "linear" }}
+              />
+            </div>
+          </motion.div>
+        ) : (
+        <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
           {renderSubjectInput()}
           {renderTopicInput()}
 
@@ -383,7 +461,9 @@ const QuickStudySignalModal = ({ open, onClose, onSuccess, initialSubject, initi
               )}
             </AnimatePresence>
           </div>
-        </div>
+        </motion.div>
+        )}
+        </AnimatePresence>
       </SheetContent>
     </Sheet>
   );
