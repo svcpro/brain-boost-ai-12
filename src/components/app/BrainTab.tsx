@@ -135,6 +135,8 @@ const BrainTab = () => {
         totalAtRisk={totalAtRisk}
         totalSubjects={subjectHealth.length}
         hasData={hasData}
+        subjectHealth={subjectHealth}
+        onBoostSession={(s, t) => setReviewSession({ subject: s, topic: t })}
       />
 
       {/* ═══ SECTION 2: Interactive Memory Map ═══ */}
