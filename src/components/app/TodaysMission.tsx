@@ -26,7 +26,7 @@ interface TodaysMissionProps {
   onStartMission: (subject?: string, topic?: string, minutes?: number) => void;
 }
 
-const CACHE_KEY = "acry-daily-mission";
+const BASE_CACHE_KEY = "acry-daily-mission";
 
 const missionTypeConfig: Record<string, { icon: typeof Target; label: string }> = {
   recall: { icon: Brain, label: "Recall" },
@@ -38,9 +38,15 @@ const missionTypeConfig: Record<string, { icon: typeof Target; label: string }> 
 export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissionProps) {
   const { user, session } = useAuth();
   const { toast } = useToast();
+
+  // Per-user cache key so each user gets their own personalized mission
+  const cacheKey = user ? `${BASE_CACHE_KEY}-${user.id}` : BASE_CACHE_KEY;
+  const completedKey = user ? `acry-mission-completed-date-${user.id}` : "acry-mission-completed-date";
+
   const [mission, setMission] = useState<DailyMission | null>(() => {
+    if (!user) return null;
     try {
-      const cached = getCache<DailyMission>(CACHE_KEY);
+      const cached = getCache<DailyMission>(`${BASE_CACHE_KEY}-${user.id}`);
       const now = new Date();
       const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       if (cached && cached.generated_date === localToday) return cached;
@@ -100,7 +106,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
           generated_date: today,
         };
         setMission(missionData);
-        setCache(CACHE_KEY, missionData);
+        setCache(cacheKey, missionData);
         setCompleted(false);
       }
     } catch (e: any) {
@@ -119,7 +125,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
 
   // Check completion status from localStorage
   useEffect(() => {
-    const completedDate = localStorage.getItem("acry-mission-completed-date");
+    const completedDate = localStorage.getItem(completedKey);
     if (completedDate === today) setCompleted(true);
   }, [today]);
 
@@ -132,7 +138,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     triggerHaptic([30, 60, 30, 80]);
     setCompleted(true);
     setShowConfetti(true);
-    localStorage.setItem("acry-mission-completed-date", today);
+    localStorage.setItem(completedKey, today);
 
     try {
       const { default: confetti } = await import("canvas-confetti");
