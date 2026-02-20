@@ -62,26 +62,52 @@ async function sendWebPush(
   const unsignedToken = `${encodedHeader}.${encodedClaims}`;
 
   // Import and sign with private key
-  const privateKeyData = urlBase64ToUint8Array(vapidPrivateKey);
+  // Handle both raw base64url and JWK-style VAPID private keys
+  let key: CryptoKey;
+  try {
+    // First try: import as JWK (if the key is a raw 32-byte EC private scalar in base64url)
+    const rawKey = urlBase64ToUint8Array(vapidPrivateKey);
+    
+    if (rawKey.length === 32) {
+      // Raw 32-byte EC private key - wrap in PKCS8 structure
+      const pkcs8Header = new Uint8Array([
+        0x30, 0x41, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48,
+        0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03,
+        0x01, 0x07, 0x04, 0x27, 0x30, 0x25, 0x02, 0x01, 0x01, 0x04, 0x20,
+      ]);
+      const pkcs8Key = new Uint8Array(pkcs8Header.length + rawKey.length);
+      pkcs8Key.set(pkcs8Header);
+      pkcs8Key.set(rawKey, pkcs8Header.length);
 
-  // The VAPID private key is 32 bytes raw EC private key
-  // We need to construct a proper PKCS8 key
-  const pkcs8Header = new Uint8Array([
-    0x30, 0x41, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48,
-    0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03,
-    0x01, 0x07, 0x04, 0x27, 0x30, 0x25, 0x02, 0x01, 0x01, 0x04, 0x20,
-  ]);
-  const pkcs8Key = new Uint8Array(pkcs8Header.length + privateKeyData.length);
-  pkcs8Key.set(pkcs8Header);
-  pkcs8Key.set(privateKeyData, pkcs8Header.length);
-
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    pkcs8Key,
-    { name: "ECDSA", namedCurve: "P-256" },
-    false,
-    ["sign"]
-  );
+      key = await crypto.subtle.importKey(
+        "pkcs8",
+        pkcs8Key,
+        { name: "ECDSA", namedCurve: "P-256" },
+        false,
+        ["sign"]
+      );
+    } else {
+      // Try importing as JWK directly
+      const d = vapidPrivateKey.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      const x = vapidPublicKey.length > 65 
+        ? vapidPublicKey.substring(0, 43) 
+        : vapidPublicKey;
+      const y = vapidPublicKey.length > 65 
+        ? vapidPublicKey.substring(43, 86) 
+        : "";
+      
+      key = await crypto.subtle.importKey(
+        "jwk",
+        { kty: "EC", crv: "P-256", d, x, y, ext: true },
+        { name: "ECDSA", namedCurve: "P-256" },
+        false,
+        ["sign"]
+      );
+    }
+  } catch (importErr) {
+    console.error("VAPID key import failed. Key length after decode:", urlBase64ToUint8Array(vapidPrivateKey).length, "Error:", importErr);
+    throw new Error("InvalidVAPIDKey: Could not import VAPID private key. Ensure it is a valid 32-byte base64url-encoded EC P-256 private key.");
+  }
 
   const signature = await crypto.subtle.sign(
     { name: "ECDSA", hash: "SHA-256" },
@@ -259,9 +285,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Push notification error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Push notification error:", msg);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
