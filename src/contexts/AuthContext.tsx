@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const signupHandledRef = useRef<Set<string>>(new Set());
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -67,51 +68,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       trackEngagement("app_open");
     };
 
-    // Use getSession as the SOLE source of truth for initial load.
-    // This prevents the race condition where onAuthStateChange fires
-    // INITIAL_SESSION and SIGNED_IN in quick succession.
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      if (!isMounted) return;
-      console.log("[Auth] getSession resolved, user:", initialSession?.user?.id ?? "none");
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      setLoading(false);
-
-      if (initialSession?.user) {
-        setTimeout(() => handleSignupNotifications(initialSession.user), 0);
-      }
-    }).catch((e) => {
-      console.error("[Auth] getSession error:", e);
-      if (isMounted) setLoading(false);
-    });
-
-    // Listener handles ONLY subsequent changes (sign-out, token refresh, new sign-in).
-    // It does NOT control loading state.
+    // Use onAuthStateChange as the SOLE source of truth.
+    // INITIAL_SESSION fires once and covers OAuth redirects properly,
+    // unlike getSession() which can resolve before the URL hash is processed.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!isMounted) return;
         console.log("[Auth] onAuthStateChange:", event, "user:", newSession?.user?.id ?? "none");
+
+        if (event === "INITIAL_SESSION") {
+          // This is the definitive initial auth state — safe to stop loading
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+          initializedRef.current = true;
+          setLoading(false);
+
+          if (newSession?.user) {
+            setTimeout(() => handleSignupNotifications(newSession.user), 0);
+          }
+          return;
+        }
+
         if (event === "SIGNED_OUT") {
           setSession(null);
           setUser(null);
           return;
         }
 
-        // For TOKEN_REFRESHED, only update session (not user) to avoid re-render cascades
+        // For TOKEN_REFRESHED, only update session to avoid re-render cascades
         if (event === "TOKEN_REFRESHED") {
           setSession(newSession);
           return;
         }
 
-        // For SIGNED_IN (e.g., OAuth redirect completing), update both
+        // For SIGNED_IN (e.g., OAuth redirect completing after initial), update both
         if (event === "SIGNED_IN" && newSession?.user) {
           setSession(newSession);
           setUser(newSession.user);
+          // Ensure loading is false in case INITIAL_SESSION was missed
+          if (!initializedRef.current) {
+            initializedRef.current = true;
+            setLoading(false);
+          }
           setTimeout(() => handleSignupNotifications(newSession.user), 0);
           return;
         }
 
-        // For INITIAL_SESSION or other events, just sync session
+        // For any other events, sync session
         if (newSession) {
           setSession(newSession);
           setUser(newSession.user ?? null);
@@ -119,9 +122,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
+    // Safety fallback: if INITIAL_SESSION never fires (shouldn't happen),
+    // unlock loading after 5s to prevent infinite loading screen
+    const fallbackTimer = setTimeout(() => {
+      if (isMounted && !initializedRef.current) {
+        console.warn("[Auth] Fallback: INITIAL_SESSION never fired, unlocking loading");
+        initializedRef.current = true;
+        setLoading(false);
+      }
+    }, 5000);
+
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      clearTimeout(fallbackTimer);
     };
   }, []);
 
