@@ -139,7 +139,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
       { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
-      { key: "settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
       { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
     ],
   },
