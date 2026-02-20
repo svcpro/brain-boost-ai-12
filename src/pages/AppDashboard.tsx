@@ -237,25 +237,42 @@ const AppDashboard = () => {
           <div className="flex items-center justify-around py-2 max-w-lg mx-auto">
             {tabs.filter(tab => isTabEnabled(`tab_${tab.id}`)).map((tab) => {
               const active = activeTab === tab.id;
+              const isSureShot = tab.id === "progress";
               return (
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); }}
-                  className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 ${
-                    active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 relative ${
+                    isSureShot
+                      ? "text-transparent"
+                      : active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <div className="relative">
-                    <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""} ${tab.id === "community" ? "animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
-                    {tab.id === "progress" && pendingGifts > 0 && (
-                      <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
-                        {pendingGifts > 9 ? "9+" : pendingGifts}
-                      </span>
+                    {isSureShot ? (
+                      <div className="relative">
+                        <div className="absolute inset-0 rounded-full animate-[glow-ring_2s_ease-in-out_infinite]" />
+                        <tab.icon className={`w-5 h-5 sureshot-icon-glow animate-[flame-flicker_1.5s_ease-in-out_infinite]`} style={{ color: 'hsl(15, 100%, 55%)' }} />
+                        {/* HOT badge */}
+                        <span className="absolute -top-3 -right-4 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[7px] font-black leading-none animate-[hot-badge-pulse_1.5s_ease-in-out_infinite] sureshot-glow"
+                          style={{ background: 'linear-gradient(135deg, hsl(0,85%,50%), hsl(330,100%,55%))', color: 'white' }}>
+                          🔥 HOT
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""} ${tab.id === "community" ? "animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
+                        {tab.id === "progress" && pendingGifts > 0 && (
+                          <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center px-0.5 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
+                            {pendingGifts > 9 ? "9+" : pendingGifts}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
-                  <span className="text-[10px] font-medium">{tab.label}</span>
+                  <span className={`text-[10px] font-bold ${isSureShot ? "sureshot-gradient-text" : "font-medium"}`}>{tab.label}</span>
                   {active && (
-                    <div className="w-1 h-1 rounded-full bg-primary" />
+                    <div className={`w-1 h-1 rounded-full ${isSureShot ? "" : "bg-primary"}`} style={isSureShot ? { background: 'hsl(15, 100%, 55%)' } : {}} />
                   )}
                 </button>
               );
