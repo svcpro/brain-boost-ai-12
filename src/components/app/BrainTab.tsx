@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
 import { setCache, getCache } from "@/lib/offlineCache";
-import { useFeatureFlagContext } from "@/hooks/useFeatureFlags";
+
 import { isPast, isToday } from "date-fns";
 
 // Section components
@@ -37,7 +37,7 @@ interface SubjectHealthData {
 }
 
 const BrainTab = () => {
-  const { isEnabled } = useFeatureFlagContext();
+  
   const { toast } = useToast();
   const { user } = useAuth();
   const { prediction, loading, predict } = useMemoryEngine();
@@ -129,33 +129,25 @@ const BrainTab = () => {
       </motion.div>
 
       {/* ═══ SECTION 1: Brain Stability Overview ═══ */}
-      {isEnabled("brain_health_score") && (
-        <BrainStabilityOverview
-          overallHealth={hasData ? overallHealth : 0}
-          totalTopics={totalTopics}
-          totalAtRisk={totalAtRisk}
-          totalSubjects={subjectHealth.length}
-          hasData={hasData}
-        />
-      )}
+      <BrainStabilityOverview
+        overallHealth={hasData ? overallHealth : 0}
+        totalTopics={totalTopics}
+        totalAtRisk={totalAtRisk}
+        totalSubjects={subjectHealth.length}
+        hasData={hasData}
+      />
 
       {/* ═══ SECTION 2: Interactive Memory Map ═══ */}
-      {isEnabled("brain_subjects") && hasData && (
-        <InteractiveMemoryMap
-          subjectHealth={subjectHealth}
-          onReview={(s, t) => setReviewSession({ subject: s, topic: t })}
-        />
-      )}
+      <InteractiveMemoryMap
+        subjectHealth={subjectHealth}
+        onReview={(s, t) => setReviewSession({ subject: s, topic: t })}
+      />
 
       {/* ═══ SECTION 3: Decay Forecast Timeline ═══ */}
-      {hasData && (
-        <DecayForecastTimeline subjectHealth={subjectHealth} />
-      )}
+      <DecayForecastTimeline subjectHealth={subjectHealth} />
 
       {/* ═══ SECTION 4: AI Intelligence Insights ═══ */}
-      {isEnabled("brain_ai_agent") && (
-        <AIIntelligenceInsights />
-      )}
+      <AIIntelligenceInsights />
 
       {/* ═══ SECTION 5: Brain Evolution History ═══ */}
       <BrainEvolutionHistory />

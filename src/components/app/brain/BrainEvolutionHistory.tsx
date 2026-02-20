@@ -106,7 +106,28 @@ export default function BrainEvolutionHistory() {
   }
 
   const hasData = points.some(p => p.stability > 0);
-  if (!hasData) return null;
+  if (!hasData) {
+    return (
+      <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
+            <BarChart3 className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Brain Evolution</h3>
+            <p className="text-[10px] text-muted-foreground">7-day performance trend</p>
+          </div>
+        </div>
+        <div className="rounded-2xl p-6 text-center" style={{
+          background: "linear-gradient(135deg, hsl(var(--card)), hsl(var(--secondary) / 0.3))",
+          border: "1px solid hsl(var(--border))",
+        }}>
+          <BarChart3 className="w-8 h-8 text-primary/30 mx-auto mb-2" />
+          <p className="text-xs text-muted-foreground">Study to see your brain evolution trend</p>
+        </div>
+      </motion.section>
+    );
+  }
 
   const values = points.map(p => p.stability);
   const max = Math.max(...values, 100);
