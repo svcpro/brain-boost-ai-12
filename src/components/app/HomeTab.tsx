@@ -523,7 +523,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
       {/* ─── SECTION 2.5: Voice Brain Capture ─── */}
       <SectionErrorBoundary name="voice-brain-capture">
-        <VoiceBrainCapture />
+        <VoiceBrainCapture onSuccess={() => { predict(); setInsightsRefreshKey(k => k + 1); }} />
       </SectionErrorBoundary>
       {/* ─── SECTION 2.6: Brain Feed (Second Brain Feed) ─── */}
       {/* <BrainFeed hasTopics={hasTopics} /> */}

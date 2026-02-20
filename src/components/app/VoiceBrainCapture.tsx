@@ -56,7 +56,7 @@ const OrbitalRing = ({ delay = 0, size = 80, duration = 8 }: { delay?: number; s
   </motion.div>
 );
 
-const VoiceBrainCapture = () => {
+const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [phase, setPhase] = useState<Phase>("idle");
@@ -234,6 +234,8 @@ const VoiceBrainCapture = () => {
       toast({ title: "✅ Brain Synced", description: "Topics already exist in your brain." });
     }
     setStabilityBoost(boost); setPhase("done"); triggerHaptic([15, 30, 15]);
+    // Trigger parent refresh so Topic Stability list updates immediately
+    if (boost > 0) onSuccess?.();
     setTimeout(() => { setPhase("idle"); setSelectedStudyType(null); setSelectedConfidence(null); }, 4500);
   };
 
