@@ -29,8 +29,15 @@ const REACTIONS = [
   { type: "agree", emoji: "✅", label: "Agree" },
 ];
 
-const CommunityDetailPage = () => {
-  const { slug } = useParams<{ slug: string }>();
+interface CommunityDetailPageProps {
+  inlineSlug?: string;
+  onBack?: () => void;
+}
+
+const CommunityDetailPage = ({ inlineSlug, onBack }: CommunityDetailPageProps = {}) => {
+  const { slug: routeSlug } = useParams<{ slug: string }>();
+  const slug = inlineSlug || routeSlug;
+  const isInline = !!inlineSlug;
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -300,12 +307,17 @@ const CommunityDetailPage = () => {
     </div>
   );
 
+  const handleBack = () => {
+    if (onBack) onBack();
+    else navigate("/community");
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className={isInline ? "" : "min-h-screen bg-background"}>
       {/* Premium Header */}
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
+      <div className={isInline ? "sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border/50" : "sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50"}>
         <div className="max-w-lg mx-auto px-5 py-3 flex items-center gap-3">
-          <button onClick={() => navigate("/community")} className="p-2 hover:bg-secondary/80 rounded-xl transition-colors">
+          <button onClick={handleBack} className="p-2 hover:bg-secondary/80 rounded-xl transition-colors">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex-1 min-w-0">
