@@ -15,17 +15,23 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       setCheckingOnboarding(false);
       return;
     }
-    supabase
-      .from("profiles")
-      .select("study_preferences, is_banned")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
+    const checkProfile = async () => {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("study_preferences, is_banned")
+          .eq("id", user.id)
+          .maybeSingle();
         const prefs = data?.study_preferences as Record<string, unknown> | null;
         setNeedsOnboarding(!prefs?.onboarded);
         setIsBanned(!!(data as any)?.is_banned);
+      } catch (e) {
+        console.error("ProtectedRoute profile check error:", e);
+      } finally {
         setCheckingOnboarding(false);
-      });
+      }
+    };
+    checkProfile();
   }, [user]);
 
   if (loading || checkingOnboarding) {
