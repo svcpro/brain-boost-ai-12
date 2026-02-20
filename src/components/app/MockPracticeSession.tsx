@@ -6,6 +6,7 @@ import {
   CheckCircle, Star, Flame, Award, Swords,
   ChevronRight, Timer, Users, Crown, Medal
 } from "lucide-react";
+import MentorSuggestion from "./MentorSuggestion";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -826,6 +827,14 @@ const MockPracticeSession = ({ open, onClose, onSessionComplete }: MockPracticeS
                   </p>
                 </div>
               </motion.div>
+
+              <MentorSuggestion
+                score={finalScore}
+                totalQuestions={results.length}
+                correctCount={results.filter(r => r.correct).length}
+                context="mock"
+                topics={[...new Set(results.filter(r => !r.correct).map(r => r.question.topic))]}
+              />
 
               <motion.button
                 initial={{ opacity: 0 }}

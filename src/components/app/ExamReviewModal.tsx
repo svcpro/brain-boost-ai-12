@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { X, CheckCircle2, XCircle, Clock, Zap, Flame, Skull, Eye, RotateCcw } from "lucide-react";
+import MentorSuggestion from "./MentorSuggestion";
 import { format } from "date-fns";
 
 interface ReviewQuestion {
@@ -142,6 +143,15 @@ const ExamReviewModal = ({ onClose, onRetryMistakes, questions, score, totalQues
             );
           })}
         </div>
+
+        <MentorSuggestion
+          score={pct}
+          totalQuestions={totalQuestions}
+          correctCount={score}
+          difficulty={difficulty}
+          context="exam"
+          timeUsed={timeUsed}
+        />
 
         <div className="flex gap-2">
           {mistakes.length > 0 && onRetryMistakes && (
