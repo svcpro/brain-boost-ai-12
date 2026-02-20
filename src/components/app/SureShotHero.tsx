@@ -130,18 +130,6 @@ const SureShotHero = ({ onUpgrade }: { onUpgrade?: () => void }) => {
             <TrendingUp className="w-3 h-3" /> Trending Last 7 Days
           </span>
         </motion.div>
-
-        {/* Upgrade CTA */}
-        <motion.button
-          initial={{ y: 10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 1 }}
-          onClick={(e) => { e.stopPropagation(); onUpgrade?.(); }}
-          className="relative z-10 w-full py-3 rounded-2xl text-white text-sm font-bold sureshot-btn-gradient transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Lock className="w-4 h-4" />
-          Upgrade to Unlock Full Power
-        </motion.button>
       </div>
     </motion.div>
   );
