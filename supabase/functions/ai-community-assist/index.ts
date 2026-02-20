@@ -1,17 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { aiFetch } from "../_shared/aiFetch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const aiCall = async (key: string, messages: any[], maxTokens = 200, temp = 0.7) => {
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages, max_tokens: maxTokens, temperature: temp }),
-  });
-  if (!res.ok) throw new Error("AI request failed");
+const aiCall = async (_key: string, messages: any[], maxTokens = 200, temp = 0.7) => {
+  const body = JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages, max_tokens: maxTokens, temperature: temp });
+  const res = await aiFetch({ body });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "unknown");
+    console.error("AI call failed:", res.status, errText);
+    throw new Error(`AI request failed (${res.status})`);
+  }
   const data = await res.json();
   return data.choices?.[0]?.message?.content || "";
 };
