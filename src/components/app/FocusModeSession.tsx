@@ -8,6 +8,7 @@ import {
   ChevronRight, CloudRain, Music, Radio, CheckCircle,
   RefreshCw, Award, Rocket
 } from "lucide-react";
+import MentorSuggestion from "./MentorSuggestion";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
 import { useAmbientSound, type AmbientSoundType } from "@/hooks/useAmbientSound";
@@ -888,6 +889,14 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                   />
                 </div>
               </motion.div>
+
+              <MentorSuggestion
+                score={totalAnswered > 0 ? Math.round((correctAnswers / totalAnswered) * 100) : 0}
+                totalQuestions={totalAnswered}
+                correctCount={correctAnswers}
+                context="focus"
+                difficulty={plan.difficulty}
+              />
 
               <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }}
                 whileTap={{ scale: 0.97 }}

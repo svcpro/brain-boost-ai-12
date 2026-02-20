@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle, Zap, Flame, Skull, BookOpen, Filter, Sparkles } from "lucide-react";
+import MentorSuggestion from "./MentorSuggestion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -606,9 +607,15 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
               </div>
             )}
 
-            <p className="text-xs text-muted-foreground">
-              {pct >= 80 ? "Excellent! You're well prepared 🎉" : pct >= 50 ? "Good effort! Review weak areas 💪" : "Keep studying! Focus on weak topics 📚"}
-            </p>
+            <MentorSuggestion
+              score={pct}
+              totalQuestions={questions.length}
+              correctCount={score}
+              difficulty={difficulty}
+              context="exam"
+              timeUsed={totalTimeUsed > 0 ? totalTimeUsed : null}
+            />
+
             <div className="flex gap-2">
               <button onClick={() => { setQuestions([]); setFinished(false); setTotalTimeUsed(0); }} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl neural-gradient neural-border hover:glow-primary transition-all">
                 <RotateCcw className="w-4 h-4 text-primary" />

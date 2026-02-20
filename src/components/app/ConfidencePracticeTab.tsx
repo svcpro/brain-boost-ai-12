@@ -7,6 +7,7 @@ import { BookOpen, Sparkles, Heart, Shield, ChevronRight,
 } from "lucide-react";
 import { useConfidencePractice, PracticeQuestion } from "@/hooks/useConfidencePractice";
 import { Progress } from "@/components/ui/progress";
+import MentorSuggestion from "./MentorSuggestion";
 
 // ─── Encouragement messages ───
 const encouragements = [
@@ -1209,6 +1210,13 @@ const ConfidencePracticeTab = () => {
           ))}
         </div>
 
+        <MentorSuggestion
+          score={accuracy}
+          totalQuestions={score.total}
+          correctCount={score.correct}
+          context="practice"
+        />
+
         <div className="flex gap-3">
           <button onClick={() => { setSection("menu"); setQuestions([]); }}
             className="flex-1 py-3 rounded-xl bg-secondary text-foreground font-semibold text-sm flex items-center justify-center gap-2"
@@ -1220,13 +1228,6 @@ const ConfidencePracticeTab = () => {
           >
             <RotateCcw className="w-4 h-4" /> Retry
           </button>
-        </div>
-
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground italic flex items-center justify-center gap-1.5">
-            <Heart className="w-3 h-3 text-primary/60" />
-            Stay calm, you've practiced this. You're ready.
-          </p>
         </div>
       </div>
     );
