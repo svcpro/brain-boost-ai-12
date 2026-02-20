@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import CommunityDetailPage from "@/pages/CommunityDetailPage";
 import {
   Users, Plus, Search, BookOpen, ArrowLeft, Loader2,
   GraduationCap, Atom, Globe2, MessageSquare, TrendingUp,
@@ -29,6 +30,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [inlineSlug, setInlineSlug] = useState<string | null>(null);
   const [communities, setCommunities] = useState<any[]>([]);
   const [myMemberships, setMyMemberships] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -141,7 +143,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
         className={`group relative rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-all duration-300 cursor-pointer border-l-[3px] ${impCls} overflow-hidden`}
         onClick={() => {
           const slug = post.communities?.slug;
-          if (slug) navigate(`/community/${slug}`);
+          if (slug) goToDetail(slug);
         }}>
         {/* Hover glow effect */}
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -210,6 +212,20 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
     { id: "important" as const, label: "Top", icon: Crown },
     { id: "saved" as const, label: "Saved", icon: Bookmark },
   ];
+
+  // Helper to navigate to a community detail
+  const goToDetail = (slug: string) => {
+    if (inline) {
+      setInlineSlug(slug);
+    } else {
+      navigate(`/community/${slug}`);
+    }
+  };
+
+  // If inline and a slug is selected, render the detail page inside
+  if (inline && inlineSlug) {
+    return <CommunityDetailPage inlineSlug={inlineSlug} onBack={() => setInlineSlug(null)} />;
+  }
 
   return (
     <div className={inline ? "" : "min-h-screen bg-background"}>
@@ -395,7 +411,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
                   return (
                     <motion.div key={c.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04, type: "spring", stiffness: 300, damping: 30 }}
                       className="group relative rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-all duration-300 cursor-pointer overflow-hidden"
-                      onClick={() => navigate(`/community/${c.slug}`)}>
+                      onClick={() => goToDetail(c.slug)}>
                       {/* Background gradient strip */}
                       <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradient}`} />
                       <div className="p-4">
@@ -486,7 +502,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
               recommendations.map((post, i) => (
                 <motion.div key={post.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
                   className="group relative rounded-2xl bg-card/80 backdrop-blur-sm border border-primary/20 hover:border-primary/40 transition-all duration-300 cursor-pointer overflow-hidden"
-                  onClick={() => navigate(`/community/${post.community_id}`)}>
+                  onClick={() => goToDetail(post.community_id)}>
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary" />
                   <div className="p-4">
                     <div className="flex items-start gap-3">
