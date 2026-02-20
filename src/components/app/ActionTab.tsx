@@ -150,7 +150,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
     : "15 min session";
 
   return (
-    <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
+    <div className="px-5 py-6 space-y-5 max-w-lg mx-auto overflow-x-hidden">
 
       {/* ═══ Exam Phase Banner ═══ */}
       {examCountdown.phase !== "no_exam" && examCountdown.phase !== "normal" && (
