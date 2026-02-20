@@ -8,7 +8,7 @@ import {
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Sparkles, MessageSquare, Globe,
-  Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio, Target
+  Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio, Target, Rocket
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -46,8 +46,8 @@ import NotificationIntelligence from "@/components/admin/NotificationIntelligenc
 import GrowthControlCenter from "@/components/admin/GrowthControlCenter";
 import ExamCountdownConfig from "@/components/admin/ExamCountdownConfig";
 import SureShotAdminPanel from "@/components/admin/SureShotAdminPanel";
-
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center";
+import ComingSoonControlPanel from "@/components/admin/ComingSoonControlPanel";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -131,6 +131,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "services", label: "3rd Party Services", icon: Globe, roles: ["super_admin", "admin", "api_admin"] },
       { key: "seo", label: "SEO Manager", icon: SearchIcon, roles: ["super_admin", "admin"] },
       { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
+      { key: "coming_soon", label: "Coming Soon", icon: Rocket, roles: ["super_admin", "admin"], badge: "🚀" },
     ],
   },
   {
@@ -473,6 +474,7 @@ const AdminPanel = () => {
               {section === "email" && <EmailManagement />}
               {section === "notify_intelligence" && <NotificationIntelligence />}
               {section === "growth_center" && <GrowthControlCenter />}
+              {section === "coming_soon" && <ComingSoonControlPanel />}
               {section === "monitoring" && <SystemMonitor />}
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}
