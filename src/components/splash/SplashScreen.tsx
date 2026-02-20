@@ -23,29 +23,6 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     >
       {/* Device frame */}
       <div className="relative w-full max-w-[430px] h-[100dvh] overflow-hidden flex flex-col md:h-[min(95dvh,920px)] md:rounded-[2.5rem] md:border md:border-[#ffffff10] md:shadow-[0_25px_80px_-12px_hsl(0_0%_0%/0.6),0_0_120px_hsl(187_100%_50%/0.06)]">
-        {/* Status bar mock */}
-        <div className="flex items-center justify-between px-6 pt-3 pb-1 z-50">
-          <motion.span className="text-[10px] font-medium" style={{ color: "#ffffff50" }}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-          >
-            {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </motion.span>
-          <div className="flex items-center gap-1.5">
-            {/* Signal bars */}
-            <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
-              <rect x="0" y="7" width="2" height="3" rx="0.5" fill="#ffffff40" />
-              <rect x="3" y="5" width="2" height="5" rx="0.5" fill="#ffffff40" />
-              <rect x="6" y="3" width="2" height="7" rx="0.5" fill="#ffffff50" />
-              <rect x="9" y="0" width="2" height="10" rx="0.5" fill="#ffffff50" />
-            </svg>
-            {/* Battery */}
-            <svg width="18" height="9" viewBox="0 0 18 9" fill="none">
-              <rect x="0.5" y="0.5" width="15" height="8" rx="1.5" stroke="#ffffff40" strokeWidth="1" />
-              <rect x="16" y="2.5" width="1.5" height="4" rx="0.5" fill="#ffffff30" />
-              <rect x="2" y="2" width="10" height="5" rx="0.8" fill="#00FF94" opacity="0.6" />
-            </svg>
-          </div>
-        </div>
 
         {/* Particle background confined to phone */}
         <SplashParticleField />
