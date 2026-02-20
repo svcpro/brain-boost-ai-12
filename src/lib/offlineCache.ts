@@ -1,4 +1,20 @@
 const CACHE_PREFIX = "offline-cache:";
+const CACHE_VERSION_KEY = "offline-cache-version";
+const CURRENT_CACHE_VERSION = "v3"; // bump to invalidate all caches
+
+// Auto-clear stale caches from previous versions
+try {
+  if (localStorage.getItem(CACHE_VERSION_KEY) !== CURRENT_CACHE_VERSION) {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(CACHE_PREFIX)) keysToRemove.push(k);
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    localStorage.setItem(CACHE_VERSION_KEY, CURRENT_CACHE_VERSION);
+    console.log("[Cache] Cleared stale caches, upgraded to", CURRENT_CACHE_VERSION);
+  }
+} catch { /* ignore */ }
 
 export function setCache<T>(key: string, data: T): void {
   try {
@@ -14,6 +30,8 @@ export function getCache<T>(key: string): T | null {
     if (!raw) return null;
     return (JSON.parse(raw) as { data: T }).data;
   } catch {
+    // Corrupted cache — remove it
+    try { localStorage.removeItem(CACHE_PREFIX + key); } catch {}
     return null;
   }
 }
