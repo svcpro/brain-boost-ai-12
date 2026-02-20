@@ -226,7 +226,7 @@ const VoiceBrainCapture = () => {
   const progressPct = phase === "transcribing" ? 20 : phase === "extracting" ? 55 : phase === "mapping" ? 85 : 0;
 
   return (
-    <motion.div layout className="relative">
+    <motion.div layout className="relative" data-tour-id="voice-brain-capture">
       {/* ── Background aura ── */}
       <div className="absolute inset-0 -m-4 rounded-3xl pointer-events-none overflow-hidden">
         <motion.div
