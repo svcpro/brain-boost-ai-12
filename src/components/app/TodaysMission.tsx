@@ -91,13 +91,16 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       title = safeStr(data.title, "AI Mission");
     }
 
-    // Build description
+    // Build description — check description, goal, reason fields
     let description = "";
-    if (typeof data.description === "string" && data.description.length > 0 && !data.description.startsWith("{")) {
-      description = data.description;
-    } else if (typeof src.description === "string" && src.description.length > 0 && !src.description.startsWith("{")) {
-      description = src.description;
-    } else if (topic) {
+    const descCandidates = [data.description, src.description, src.goal, data.goal, src.reason, data.reason];
+    for (const c of descCandidates) {
+      if (typeof c === "string" && c.length > 0 && !c.startsWith("{")) {
+        description = c;
+        break;
+      }
+    }
+    if (!description && topic) {
       description = `Focus on ${topic} with a ${actionType.toLowerCase()} session to strengthen your memory.`;
     }
 
@@ -109,7 +112,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       estimated_minutes: safeNum(src.estimated_minutes || src.duration_minutes || src.duration || data.estimated_minutes || data.duration, 5),
       brain_improvement_pct: safeNum(src.brain_improvement_pct || data.brain_improvement_pct, 5),
       urgency: (["critical", "high", "medium"].includes(src.urgency || data.urgency) ? (src.urgency || data.urgency) : "medium") as DailyMission["urgency"],
-      reasoning: safeStr(src.reasoning || src.reason || data.reasoning || data.reason, "Personalized by your AI brain agent."),
+      reasoning: safeStr(src.reasoning || src.reason || src.goal || data.reasoning || data.reason || data.goal, "Personalized by your AI brain agent."),
       mission_type: safeStr(src.mission_type || src.type || data.mission_type || data.type, "review") as DailyMission["mission_type"],
       generated_date: today,
     };
@@ -126,18 +129,10 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       if (fnError) throw fnError;
       
       const missionData = parseMissionResponse(data);
-      if (missionData && missionData.title !== "AI Mission") {
+      if (missionData) {
         setMission(missionData);
         setCache(cacheKey, missionData);
         setCompleted(false);
-      } else if (data) {
-        // Fallback: still try to show something
-        const fallback = parseMissionResponse(data);
-        if (fallback) {
-          setMission(fallback);
-          setCache(cacheKey, fallback);
-          setCompleted(false);
-        }
       }
     } catch (e: any) {
       console.error("Mission generation failed:", e);
