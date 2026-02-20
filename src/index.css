@@ -232,4 +232,65 @@
     background: linear-gradient(90deg, hsl(187 100% 50% / 0.25), hsl(187 40% 25% / 0.15));
     border: 1px solid hsl(187 100% 50% / 0.2);
   }
+
+  /* SureShot premium effects */
+  .sureshot-gradient-text {
+    background: linear-gradient(135deg, hsl(0 90% 55%), hsl(25 100% 55%), hsl(330 100% 60%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .sureshot-glow {
+    box-shadow: 0 0 12px hsl(15 100% 55% / 0.5), 0 0 30px hsl(330 100% 60% / 0.2);
+  }
+
+  .sureshot-icon-glow {
+    filter: drop-shadow(0 0 6px hsl(15 100% 55% / 0.7)) drop-shadow(0 0 12px hsl(330 100% 55% / 0.4));
+  }
+
+  .sureshot-card-glow {
+    box-shadow: 0 0 40px hsl(15 100% 55% / 0.15), 0 0 80px hsl(330 100% 60% / 0.08), inset 0 1px 0 hsl(0 0% 100% / 0.05);
+  }
+
+  .sureshot-btn-gradient {
+    background: linear-gradient(135deg, hsl(25 100% 55%), hsl(0 85% 50%), hsl(330 100% 55%));
+  }
+
+  .sureshot-btn-gradient:hover {
+    box-shadow: 0 0 20px hsl(15 100% 55% / 0.5), 0 0 40px hsl(330 100% 60% / 0.3);
+    transform: scale(1.03);
+  }
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  25% { transform: scale(1.08) rotate(-2deg); opacity: 0.9; }
+  50% { transform: scale(0.95) rotate(1deg); opacity: 1; }
+  75% { transform: scale(1.05) rotate(-1deg); opacity: 0.95; }
+}
+
+@keyframes hot-badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+@keyframes glow-ring {
+  0% { box-shadow: 0 0 4px hsl(15 100% 55% / 0.4), 0 0 8px hsl(330 100% 55% / 0.2); }
+  50% { box-shadow: 0 0 10px hsl(15 100% 55% / 0.7), 0 0 20px hsl(330 100% 55% / 0.4); }
+  100% { box-shadow: 0 0 4px hsl(15 100% 55% / 0.4), 0 0 8px hsl(330 100% 55% / 0.2); }
+}
+
+@keyframes sureshot-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes spark-float {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-20px) scale(0); opacity: 0; }
+}
+
+@keyframes circular-progress {
+  0% { stroke-dashoffset: 283; }
 }
