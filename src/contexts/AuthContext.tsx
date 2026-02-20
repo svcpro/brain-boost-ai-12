@@ -24,11 +24,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const signupHandledRef = useRef<Set<string>>(new Set());
-  const currentUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    let initialLoadDone = false;
 
     const handleSignupNotifications = async (newUser: User) => {
       if (signupHandledRef.current.has(newUser.id)) return;
@@ -69,59 +67,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       trackEngagement("app_open");
     };
 
-    const applySession = (s: Session | null) => {
+    // Use getSession as the SOLE source of truth for initial load.
+    // This prevents the race condition where onAuthStateChange fires
+    // INITIAL_SESSION and SIGNED_IN in quick succession.
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       if (!isMounted) return;
-      const newUserId = s?.user?.id ?? null;
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      setLoading(false);
 
-      // Only update user state if the user actually changed
-      if (newUserId !== currentUserIdRef.current) {
-        currentUserIdRef.current = newUserId;
-        setUser(s?.user ?? null);
+      if (initialSession?.user) {
+        setTimeout(() => handleSignupNotifications(initialSession.user), 0);
       }
-      // Always update session (token may have refreshed)
-      setSession(s);
-    };
+    }).catch(() => {
+      if (isMounted) setLoading(false);
+    });
 
-    // 1. Set up the auth state listener FIRST (Supabase recommendation)
+    // Listener handles ONLY subsequent changes (sign-out, token refresh, new sign-in).
+    // It does NOT control loading state.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!isMounted) return;
 
-        applySession(newSession);
-
-        // Mark loading done on the first event if getSession hasn't finished yet
-        if (!initialLoadDone) {
-          initialLoadDone = true;
-          setLoading(false);
-        }
-
-        if (event === "SIGNED_IN" && newSession?.user) {
-          setTimeout(() => handleSignupNotifications(newSession.user), 0);
-        }
-
         if (event === "SIGNED_OUT") {
-          currentUserIdRef.current = null;
-          setUser(null);
           setSession(null);
+          setUser(null);
+          return;
+        }
+
+        // For TOKEN_REFRESHED, only update session (not user) to avoid re-render cascades
+        if (event === "TOKEN_REFRESHED") {
+          setSession(newSession);
+          return;
+        }
+
+        // For SIGNED_IN (e.g., OAuth redirect completing), update both
+        if (event === "SIGNED_IN" && newSession?.user) {
+          setSession(newSession);
+          setUser(newSession.user);
+          setTimeout(() => handleSignupNotifications(newSession.user), 0);
+          return;
+        }
+
+        // For INITIAL_SESSION or other events, just sync session
+        if (newSession) {
+          setSession(newSession);
+          setUser(newSession.user ?? null);
         }
       }
     );
-
-    // 2. Then get initial session as a fallback (in case listener is slow)
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (!isMounted) return;
-      applySession(s);
-      if (!initialLoadDone) {
-        initialLoadDone = true;
-        setLoading(false);
-      }
-    }).catch((e) => {
-      console.error("Auth initialization error:", e);
-      if (isMounted && !initialLoadDone) {
-        initialLoadDone = true;
-        setLoading(false);
-      }
-    });
 
     return () => {
       isMounted = false;

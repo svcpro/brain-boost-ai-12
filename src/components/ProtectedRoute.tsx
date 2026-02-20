@@ -6,20 +6,22 @@ import ACRYLogo from "@/components/landing/ACRYLogo";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
-  const [isBanned, setIsBanned] = useState(false);
+  const [profileState, setProfileState] = useState<"loading" | "onboarding" | "banned" | "ready">("loading");
   const checkedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (loading) return; // Wait for auth to finish first
+
     if (!user) {
-      setCheckingOnboarding(false);
+      setProfileState("ready"); // Will redirect to /auth below
       checkedUserIdRef.current = null;
       return;
     }
 
-    // Skip re-check if we already checked this user
+    // Skip re-check if we already checked this exact user
     if (checkedUserIdRef.current === user.id) return;
+
+    let cancelled = false;
 
     const checkProfile = async () => {
       try {
@@ -28,20 +30,35 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
           .select("study_preferences, is_banned")
           .eq("id", user.id)
           .maybeSingle();
+
+        if (cancelled) return;
+
         const prefs = data?.study_preferences as Record<string, unknown> | null;
-        setNeedsOnboarding(!prefs?.onboarded);
-        setIsBanned(!!(data as any)?.is_banned);
+        
+        if ((data as any)?.is_banned) {
+          setProfileState("banned");
+        } else if (!prefs?.onboarded) {
+          setProfileState("onboarding");
+        } else {
+          setProfileState("ready");
+        }
         checkedUserIdRef.current = user.id;
       } catch (e) {
         console.error("ProtectedRoute profile check error:", e);
-      } finally {
-        setCheckingOnboarding(false);
+        if (!cancelled) {
+          // On error, let them through rather than blocking forever
+          setProfileState("ready");
+          checkedUserIdRef.current = user.id;
+        }
       }
     };
-    checkProfile();
-  }, [user]);
 
-  if (loading || checkingOnboarding) {
+    checkProfile();
+    return () => { cancelled = true; };
+  }, [user, loading]);
+
+  // Show loading while auth is initializing OR profile is being checked
+  if (loading || (user && profileState === "loading")) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <ACRYLogo variant="icon" animate={true} className="animate-pulse" />
@@ -51,7 +68,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  if (isBanned) {
+  if (profileState === "banned") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="glass rounded-2xl p-8 neural-border text-center max-w-sm space-y-4">
@@ -65,7 +82,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (needsOnboarding) return <Navigate to="/onboarding" replace />;
+  if (profileState === "onboarding") return <Navigate to="/onboarding" replace />;
 
   return <>{children}</>;
 };
