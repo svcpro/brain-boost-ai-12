@@ -1,4 +1,5 @@
 import { useEffect, lazy, Suspense } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import NeuralBackground from "@/components/landing/NeuralBackground";
@@ -27,6 +28,20 @@ const Index = () => {
   useEffect(() => {
     if (!loading && user) {
       navigate("/app", { replace: true });
+      return;
+    }
+    // Check coming soon mode
+    if (!loading && !user) {
+      supabase
+        .from("coming_soon_config")
+        .select("is_enabled")
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.is_enabled) {
+            navigate("/coming-soon", { replace: true });
+          }
+        });
     }
   }, [user, loading, navigate]);
 

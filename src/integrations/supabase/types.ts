@@ -947,6 +947,63 @@ export type Database = {
         }
         Relationships: []
       }
+      coming_soon_config: {
+        Row: {
+          auto_redirect_on_launch: boolean
+          countdown_enabled: boolean
+          email_capture_enabled: boolean
+          hero_text: string | null
+          id: string
+          is_enabled: boolean
+          launch_date: string | null
+          sub_text: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_redirect_on_launch?: boolean
+          countdown_enabled?: boolean
+          email_capture_enabled?: boolean
+          hero_text?: string | null
+          id?: string
+          is_enabled?: boolean
+          launch_date?: string | null
+          sub_text?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_redirect_on_launch?: boolean
+          countdown_enabled?: boolean
+          email_capture_enabled?: boolean
+          hero_text?: string | null
+          id?: string
+          is_enabled?: boolean
+          launch_date?: string | null
+          sub_text?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      coming_soon_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       communities: {
         Row: {
           banner_url: string | null
