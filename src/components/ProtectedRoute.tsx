@@ -10,6 +10,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const checkedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    console.log("[ProtectedRoute] user:", user?.id ?? "none", "loading:", loading, "profileState:", profileState);
     if (loading) return; // Wait for auth to finish first
 
     if (!user) {
