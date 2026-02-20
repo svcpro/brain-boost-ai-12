@@ -111,6 +111,11 @@
     @apply border-border;
   }
 
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
   }
@@ -298,6 +303,7 @@
   align-items: center;
   justify-content: center;
   z-index: 1;
+  overflow: hidden;
 }
 
 .app-device-inner {
