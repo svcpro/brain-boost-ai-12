@@ -211,7 +211,11 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
 
       for (const res of data.results || []) {
         for (const topicName of res.topics) {
-          await supabase.from("topics").update({ memory_strength: 25, next_predicted_drop_date: new Date(Date.now() + 86400000).toISOString() }).eq("user_id", user.id).eq("name", topicName);
+          // Boost memory_strength by at least +15, capped at 99; never decrease it
+          const { data: existing } = await supabase.from("topics").select("memory_strength").eq("user_id", user.id).eq("name", topicName).maybeSingle();
+          const current = Number(existing?.memory_strength) || 0;
+          const boosted = Math.min(99, Math.max(current + 15, 50));
+          await supabase.from("topics").update({ memory_strength: boosted, last_revision_date: new Date().toISOString(), next_predicted_drop_date: new Date(Date.now() + 86400000).toISOString() }).eq("user_id", user.id).eq("name", topicName);
         }
       }
       boost = Math.min(8, data.totalTopicsCreated * 2);
