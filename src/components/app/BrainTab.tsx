@@ -152,7 +152,7 @@ const BrainTab = () => {
       />
 
       {/* ═══ SECTION 4: AI Intelligence Insights ═══ */}
-      <AIIntelligenceInsights />
+      <AIIntelligenceInsights onAction={(s, t) => setReviewSession({ subject: s, topic: t })} />
 
       {/* ═══ SECTION 5: Brain Evolution History ═══ */}
       <BrainEvolutionHistory />
