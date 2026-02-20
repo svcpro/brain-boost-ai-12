@@ -44,6 +44,7 @@ const LearningIdentitySummary = () => {
   const [showArchetype, setShowArchetype] = useState(false);
   const [showStrengthMap, setShowStrengthMap] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
+  const [optimized, setOptimized] = useState(false);
   const [generatingRoadmap, setGeneratingRoadmap] = useState(false);
   const [roadmap, setRoadmap] = useState<string[] | null>(null);
   const [recalibrating, setRecalibrating] = useState(false);
@@ -152,17 +153,20 @@ const LearningIdentitySummary = () => {
 
   // Optimize study style
   const handleOptimize = useCallback(async () => {
-    if (optimizing) return;
+    if (optimizing || optimized) return;
     setOptimizing(true);
     try {
       await supabase.functions.invoke("ai-brain-agent", { body: { action: "optimize_plan" } });
+      setOptimized(true);
       toast({ title: "⚡ Style Optimized", description: "Your study schedule now matches your learning archetype." });
+      // Reset after 5s so user can re-optimize later
+      setTimeout(() => setOptimized(false), 5000);
     } catch {
       toast({ title: "Optimized", description: "Study plan adjusted to your archetype." });
     } finally {
       setOptimizing(false);
     }
-  }, [optimizing, toast]);
+  }, [optimizing, optimized, toast]);
 
   // Generate gap-closing roadmap
   const handleRoadmap = useCallback(async () => {
@@ -281,12 +285,18 @@ const LearningIdentitySummary = () => {
         {/* Optimize Button */}
         <motion.button
           onClick={handleOptimize}
-          disabled={optimizing}
-          className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/15 border border-primary/20 transition-all text-sm font-medium text-primary disabled:opacity-50"
+          disabled={optimizing || optimized}
+          className={`w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border transition-all text-sm font-medium disabled:opacity-70 ${
+            optimized 
+              ? "bg-success/15 border-success/30 text-success" 
+              : "bg-primary/10 hover:bg-primary/15 border-primary/20 text-primary"
+          }`}
           whileTap={{ scale: 0.98 }}
+          animate={optimized ? { scale: [1, 1.03, 1] } : {}}
+          transition={{ duration: 0.3 }}
         >
-          {optimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-          {optimizing ? "Optimizing..." : "Optimize for My Style"}
+          {optimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : optimized ? <Star className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+          {optimizing ? "Optimizing..." : optimized ? "✓ Style Optimized!" : "Optimize for My Style"}
         </motion.button>
       </div>
 
