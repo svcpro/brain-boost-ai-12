@@ -36,41 +36,45 @@ const missionTypeConfig: Record<string, { icon: typeof Target; label: string }> 
 };
 
 export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissionProps) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { toast } = useToast();
   const [mission, setMission] = useState<DailyMission | null>(() => {
-    const cached = getCache<DailyMission>(CACHE_KEY);
-    const now = new Date();
-    const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    if (cached && cached.generated_date === localToday) return cached;
+    try {
+      const cached = getCache<DailyMission>(CACHE_KEY);
+      const now = new Date();
+      const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (cached && cached.generated_date === localToday) return cached;
+    } catch {}
     return null;
   });
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showMissionFlow, setShowMissionFlow] = useState(false);
+  const [error, setError] = useState(false);
 
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const generateMission = useCallback(async () => {
-    if (!user) return;
+    if (!user || !session) return;
     setLoading(true);
+    setError(false);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
+      const { data, error: fnError } = await supabase.functions.invoke("ai-brain-agent", {
         body: { action: "daily_mission" },
       });
-      if (error) throw error;
+      if (fnError) throw fnError;
       if (data?.title || data?.mission) {
         const missionData: DailyMission = {
-          title: data.title || data.mission?.slice(0, 60) || "AI Mission",
-          description: data.description || data.mission || "",
+          title: String(data.title || data.mission?.slice(0, 60) || "AI Mission"),
+          description: String(data.description || data.mission || ""),
           topic_name: data.topic_name || data.topic || undefined,
           subject_name: data.subject_name || data.subject || undefined,
-          estimated_minutes: data.estimated_minutes || data.duration || 5,
-          brain_improvement_pct: data.brain_improvement_pct || 5,
+          estimated_minutes: Number(data.estimated_minutes || data.duration || 5),
+          brain_improvement_pct: Number(data.brain_improvement_pct || 5),
           urgency: data.urgency || "medium",
-          reasoning: data.reasoning || data.reason || "",
+          reasoning: String(data.reasoning || data.reason || ""),
           mission_type: data.mission_type || data.type || "review",
           generated_date: today,
         };
@@ -80,17 +84,17 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       }
     } catch (e: any) {
       console.error("Mission generation failed:", e);
-      // Silently fail — mission card simply won't show if no cached mission
+      setError(true);
     } finally {
       setLoading(false);
     }
-  }, [user, today, toast]);
+  }, [user, session, today]);
 
   // Auto-generate on mount if no mission for today
   useEffect(() => {
-    if (!hasTopics || mission || loading) return;
+    if (!hasTopics || mission || loading || !session) return;
     generateMission();
-  }, [hasTopics, mission, loading, generateMission]);
+  }, [hasTopics, mission, loading, generateMission, session]);
 
   // Check completion status from localStorage
   useEffect(() => {
@@ -124,6 +128,27 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
   };
 
   if (!hasTopics) return null;
+
+  // Error state with retry
+  if (error && !mission && !loading) {
+    return (
+      <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">
+          Today's Mission
+        </p>
+        <div className="rounded-2xl border border-border bg-card p-5 text-center">
+          <Target className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-xs text-muted-foreground mb-3">Couldn't load your mission</p>
+          <button
+            onClick={() => { setError(false); generateMission(); }}
+            className="text-xs text-primary font-medium px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/15 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </motion.section>
+    );
+  }
 
   const urgencyStyles = {
     critical: { border: "border-destructive/30", badge: "bg-destructive/15 text-destructive", glow: "hsl(var(--destructive))" },
