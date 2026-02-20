@@ -82,7 +82,7 @@ const AuthPage = () => {
         transition={{ duration: 0.5 }}
         className="flex flex-col items-center mb-4"
       >
-        <ACRYLogo variant="icon" animate={true} className="scale-[0.55] -my-4" />
+        <ACRYLogo variant="icon" animate={true} className="scale-[0.6]" />
         <AnimatePresence mode="wait">
           <motion.div
             key={isLogin ? "login-title" : "signup-title"}
