@@ -21,8 +21,8 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center"
       style={{ background: "linear-gradient(180deg, #0B0F1A 0%, #111827 100%)" }}
     >
-      {/* Mobile phone frame */}
-      <div className="relative w-full max-w-[430px] h-[100dvh] overflow-hidden flex flex-col">
+      {/* Device frame */}
+      <div className="relative w-full max-w-[430px] h-[100dvh] overflow-hidden flex flex-col md:h-[min(95dvh,920px)] md:rounded-[2.5rem] md:border md:border-[#ffffff10] md:shadow-[0_25px_80px_-12px_hsl(0_0%_0%/0.6),0_0_120px_hsl(187_100%_50%/0.06)]">
         {/* Status bar mock */}
         <div className="flex items-center justify-between px-6 pt-3 pb-1 z-50">
           <motion.span className="text-[10px] font-medium" style={{ color: "#ffffff50" }}
