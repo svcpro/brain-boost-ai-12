@@ -1,8 +1,5 @@
 import { motion } from "framer-motion";
 import { Brain, TrendingUp, Zap, Lock, Rocket } from "lucide-react";
-import { usePlanGating } from "@/hooks/usePlanGating";
-import { useContext } from "react";
-import { PlanGatingContext } from "@/hooks/usePlanGating";
 
 const CircularProgress = ({ value }: { value: number }) => {
   const circumference = 2 * Math.PI * 45;
@@ -44,7 +41,7 @@ const SparkParticle = ({ delay, x }: { delay: number; x: number }) => (
   />
 );
 
-const SureShotHero = () => {
+const SureShotHero = ({ onUpgrade }: { onUpgrade?: () => void }) => {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -139,7 +136,8 @@ const SureShotHero = () => {
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 1 }}
-          className="relative z-10 w-full py-3 rounded-2xl text-white text-sm font-bold sureshot-btn-gradient transition-all duration-300 flex items-center justify-center gap-2"
+          onClick={(e) => { e.stopPropagation(); onUpgrade?.(); }}
+          className="relative z-10 w-full py-3 rounded-2xl text-white text-sm font-bold sureshot-btn-gradient transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
         >
           <Lock className="w-4 h-4" />
           Upgrade to Unlock Full Power
