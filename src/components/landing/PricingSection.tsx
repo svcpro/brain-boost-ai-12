@@ -85,16 +85,16 @@ const PricingSection = () => {
           initial={{ opacity: 0, y: 40 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ delay: 0.2 }}
-          className="glass rounded-3xl p-8 md:p-10 neural-border glow-primary relative overflow-hidden"
+          className="glass rounded-3xl pt-10 pb-8 px-8 md:px-10 neural-border glow-primary relative overflow-visible mt-5"
         >
           {/* Badge */}
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-5 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1.5">
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-5 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1.5 z-10 whitespace-nowrap">
             <Crown className="w-3.5 h-3.5" />
             ACRY Premium
           </div>
 
           {/* Trial badge */}
-          <div className="absolute top-4 right-4 px-3 py-1 rounded-xl bg-success/20 text-success text-[10px] font-bold">
+          <div className="absolute top-3 right-4 px-3 py-1 rounded-xl bg-success/20 text-success text-[10px] font-bold">
             15-DAY FREE TRIAL
           </div>
 
