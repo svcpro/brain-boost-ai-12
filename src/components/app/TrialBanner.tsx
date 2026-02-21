@@ -141,50 +141,94 @@ const TrialBanner = () => {
               )}
             </div>
 
-            {/* Compact progress bar */}
+            {/* Progress bar with day markers */}
             {!isTrialExpired && (
-              <div className="mt-1 relative">
-                <div
-                  className="h-[3px] w-full rounded-full overflow-hidden"
-                  style={{ background: `hsl(${SS.orange} / 0.06)` }}
-                >
-                  <motion.div
-                    className="h-full rounded-full relative overflow-hidden"
-                    style={{
-                      background: `linear-gradient(90deg, hsl(${SS.red}), hsl(${SS.orange}), hsl(${SS.pink}))`,
-                    }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+              <div className="mt-1.5 relative">
+                {/* Day labels */}
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[7px] font-medium" style={{ color: `hsl(${SS.orange} / 0.5)` }}>Day {elapsed}</span>
+                  <span className="text-[7px] font-medium" style={{ color: `hsl(${SS.pink} / 0.4)` }}>Day {totalDays}</span>
+                </div>
+                {/* Track */}
+                <div className="relative">
+                  <div
+                    className="h-[4px] w-full rounded-full overflow-hidden"
+                    style={{ background: `linear-gradient(90deg, hsl(${SS.red} / 0.06), hsl(${SS.orange} / 0.04), hsl(${SS.pink} / 0.06))` }}
                   >
+                    {/* Animated fill */}
                     <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent"
-                      animate={{ x: ["-150%", "250%"] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", repeatDelay: 5 }}
+                      className="h-full rounded-full relative overflow-hidden"
+                      style={{
+                        background: `linear-gradient(90deg, hsl(${SS.red}), hsl(${SS.orange}), hsl(${SS.pink}))`,
+                      }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+                    >
+                      {/* Primary shimmer */}
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                        animate={{ x: ["-150%", "250%"] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", repeatDelay: 4 }}
+                      />
+                      {/* Secondary reverse shimmer */}
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/12 to-transparent"
+                        animate={{ x: ["250%", "-150%"] }}
+                        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", repeatDelay: 5, delay: 1.5 }}
+                      />
+                      {/* Pulsing brightness overlay */}
+                      <motion.div
+                        className="absolute inset-0 rounded-full"
+                        style={{ background: `hsl(${SS.orange} / 0.2)` }}
+                        animate={{ opacity: [0, 0.4, 0] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                    </motion.div>
+                  </div>
+
+                  {/* Glowing tip dot */}
+                  <motion.div
+                    className="absolute top-1/2 -translate-y-1/2"
+                    initial={{ left: "0%" }}
+                    animate={{ left: `${progress}%` }}
+                    transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+                    style={{ marginLeft: "-4px" }}
+                  >
+                    {/* Outer glow ring */}
+                    <motion.div
+                      className="absolute -inset-1 rounded-full"
+                      style={{ background: `radial-gradient(circle, hsl(${SS.orange} / 0.3), transparent 70%)` }}
+                      animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0.7, 0.3] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                    <motion.div
+                      className="w-2 h-2 rounded-full"
+                      style={{ background: `hsl(${SS.orange})`, border: `1px solid hsl(${SS.pink} / 0.5)` }}
+                      animate={{
+                        boxShadow: [
+                          `0 0 4px hsl(${SS.orange} / 0.5), 0 0 10px hsl(${SS.red} / 0.2)`,
+                          `0 0 8px hsl(${SS.orange} / 0.9), 0 0 18px hsl(${SS.pink} / 0.4)`,
+                          `0 0 4px hsl(${SS.orange} / 0.5), 0 0 10px hsl(${SS.red} / 0.2)`,
+                        ],
+                        scale: [0.9, 1.15, 0.9],
+                      }}
+                      transition={{ duration: 2, repeat: Infinity }}
                     />
                   </motion.div>
+
+                  {/* Day tick marks */}
+                  {[5, 10].map((day) => (
+                    <div
+                      key={day}
+                      className="absolute top-1/2 -translate-y-1/2 w-[1px] h-2.5"
+                      style={{
+                        left: `${(day / totalDays) * 100}%`,
+                        background: `hsl(${SS.orange} / ${elapsed >= day ? 0.15 : 0.08})`,
+                      }}
+                    />
+                  ))}
                 </div>
-                {/* Glowing tip dot */}
-                <motion.div
-                  className="absolute top-1/2 -translate-y-1/2"
-                  initial={{ left: "0%" }}
-                  animate={{ left: `${progress}%` }}
-                  transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
-                  style={{ marginLeft: "-3px" }}
-                >
-                  <motion.div
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: `hsl(${SS.orange})` }}
-                    animate={{
-                      boxShadow: [
-                        `0 0 3px hsl(${SS.orange} / 0.5), 0 0 8px hsl(${SS.orange} / 0.2)`,
-                        `0 0 6px hsl(${SS.orange} / 0.8), 0 0 14px hsl(${SS.orange} / 0.3)`,
-                        `0 0 3px hsl(${SS.orange} / 0.5), 0 0 8px hsl(${SS.orange} / 0.2)`,
-                      ],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                </motion.div>
               </div>
             )}
           </div>
