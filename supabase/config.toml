@@ -200,3 +200,6 @@ verify_jwt = false
 
 [functions.fetch-pyqs]
 verify_jwt = false
+
+[functions.cognitive-profile-engine]
+verify_jwt = false

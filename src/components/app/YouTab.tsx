@@ -29,6 +29,7 @@ import MonthlyPerformanceSnapshot from "./you/MonthlyPerformanceSnapshot";
 import SubscriptionOverview from "./you/SubscriptionOverview";
 import AIRecalibration from "./you/AIRecalibration";
 import AIPersonalizationControlCenter from "./you/AIPersonalizationControlCenter";
+import CognitiveProfileCard from "./CognitiveProfileCard";
 
 interface YouTabProps {
   autoOpenVoiceSettings?: boolean;
@@ -246,6 +247,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       <PlanGateWrapper featureKey="ai_strategy">
         <AIPersonalStrategy />
       </PlanGateWrapper>
+
+      {/* ═══ SECTION 3.5: AI Cognitive Profile v2.0 ═══ */}
+      <CognitiveProfileCard />
 
       {/* ═══ SECTION 4: Subscription Overview ═══ */}
       <SubscriptionOverview currentPlan={currentPlan} onManagePlan={() => setShowSubscription(true)} />
