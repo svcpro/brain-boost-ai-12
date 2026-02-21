@@ -11,7 +11,7 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing auth");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("Missing auth");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -19,12 +19,14 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error("Unauthorized");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) throw new Error("Unauthorized");
+
+    const userId = claimsData.claims.sub as string;
 
     const body = await req.json();
     const { action } = body;
-    const userId = user.id;
 
     // Handle toggle and status BEFORE guards so they work even when disabled
     if (action === "toggle_user_autopilot") {
