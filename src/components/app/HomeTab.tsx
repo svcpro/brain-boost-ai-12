@@ -723,8 +723,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </SectionErrorBoundary>
       )}
 
-      {/* Brain Update Hero */}
-      {isEnabled('home_brain_update') && <BrainUpdateHero onOpen={() => openSignalWithPrefill()} overallHealth={overallHealth} hasTopics={hasTopics} />}
+      {/* Brain Update Hero — hidden, replaced by AutoStudySummaryCard */}
+      {/* {isEnabled('home_brain_update') && <BrainUpdateHero onOpen={() => openSignalWithPrefill()} overallHealth={overallHealth} hasTopics={hasTopics} />} */}
 
       {/* Weekly Summary */}
       {isEnabled('home_quick_start') && <WeeklySummaryNotification />}
