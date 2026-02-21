@@ -6003,7 +6003,7 @@ export type Database = {
           difficulty: string | null
           due_date: string | null
           id: string
-          institution_id: string
+          institution_id: string | null
           question_count: number | null
           questions: Json | null
           status: string | null
@@ -6022,7 +6022,7 @@ export type Database = {
           difficulty?: string | null
           due_date?: string | null
           id?: string
-          institution_id: string
+          institution_id?: string | null
           question_count?: number | null
           questions?: Json | null
           status?: string | null
@@ -6041,7 +6041,7 @@ export type Database = {
           difficulty?: string | null
           due_date?: string | null
           id?: string
-          institution_id?: string
+          institution_id?: string | null
           question_count?: number | null
           questions?: Json | null
           status?: string | null

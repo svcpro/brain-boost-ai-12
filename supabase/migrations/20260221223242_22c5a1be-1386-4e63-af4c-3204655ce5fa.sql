@@ -1,0 +1,1 @@
+ALTER TABLE public.teacher_practice_sets ALTER COLUMN institution_id DROP NOT NULL;

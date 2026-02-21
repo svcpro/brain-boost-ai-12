@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify teacher role in an institution
+    // Verify teacher role in an institution OR platform admin
     const { data: membership } = await admin
       .from("institution_members")
       .select("institution_id, role")
@@ -23,9 +23,22 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (!membership) {
+    // Also check if user is a platform admin
+    const { data: adminRole } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    const isAdmin = !!adminRole;
+
+    if (!membership && !isAdmin) {
       return errorResponse("Not a teacher in any institution", 403);
     }
+
+    // Use institution_id from membership, or fallback for admins
+    const effectiveInstitutionId = membership?.institution_id || null;
 
     if (action === "generate") {
       const { subject, topics, difficulty, question_count = 10, title } = params;
@@ -45,11 +58,16 @@ Return a JSON array of objects with these fields:
 
 Return ONLY valid JSON array, no markdown.`;
 
-      const aiResult = await aiFetch(prompt, {
-        model: "gemini-2.5-flash-lite",
+      const aiBody = JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
         temperature: 0.7,
-        maxTokens: 4000,
+        max_tokens: 4000,
+        messages: [{ role: "user", content: prompt }],
       });
+
+      const aiResp = await aiFetch({ body: aiBody, timeoutMs: 55000 });
+      const aiJson = await aiResp.json();
+      const aiResult = aiJson?.choices?.[0]?.message?.content || "";
 
       let questions = [];
       try {
@@ -60,8 +78,8 @@ Return ONLY valid JSON array, no markdown.`;
       }
 
       // Save to DB
-      const { data: set, error } = await supabase.from("teacher_practice_sets").insert({
-        institution_id: membership.institution_id,
+      const { data: set, error } = await admin.from("teacher_practice_sets").insert({
+        institution_id: effectiveInstitutionId,
         teacher_id: userId,
         title: title || `${subject} Practice Set`,
         subject,
@@ -79,7 +97,8 @@ Return ONLY valid JSON array, no markdown.`;
 
     if (action === "class_performance") {
       const { institution_id } = params;
-      const instId = institution_id || membership.institution_id;
+      const instId = institution_id || effectiveInstitutionId;
+      if (!instId) return jsonResponse({ students: 0, analytics: null, message: "No institution linked" });
 
       // Get all students in institution
       const { data: members } = await admin
