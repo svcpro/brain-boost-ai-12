@@ -1,7 +1,6 @@
 import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
 import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
-import LanguageSwitch from "@/components/ui/LanguageSwitch";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -9,7 +8,6 @@ import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { usePlanGating, PlanGatingContext } from "@/hooks/usePlanGating";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
 import SectionErrorBoundary from "@/components/SectionErrorBoundary";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 
 // Lazy load all tab components for fast initial load
@@ -34,12 +32,12 @@ export const VoiceContext = createContext<ReturnType<typeof useVoiceNotification
 export const useVoice = () => useContext(VoiceContext);
 
 const tabDefs = [
-  { id: "home", labelKey: "nav.home", icon: Home },
-  { id: "action", labelKey: "nav.action", icon: Zap },
-  { id: "brain", labelKey: "nav.brain", icon: Brain },
-  { id: "community", labelKey: "nav.community", icon: Users },
-  { id: "progress", labelKey: "nav.sureshot", icon: Crosshair },
-  { id: "you", labelKey: "nav.you", icon: User },
+  { id: "home", label: "Home", icon: Home },
+  { id: "action", label: "Action", icon: Zap },
+  { id: "brain", label: "Brain", icon: Brain },
+  { id: "community", label: "Community", icon: Users },
+  { id: "progress", label: "SureShot", icon: Crosshair },
+  { id: "you", label: "You", icon: User },
 ];
 
 const AppDashboard = () => {
@@ -52,7 +50,6 @@ const AppDashboard = () => {
   const { user } = useAuth();
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
-  const { t } = useLanguage();
   const { isEnabled: isTabEnabled, loading: flagsLoading } = useFeatureFlags();
   const planGating = usePlanGating();
   const [recCount, setRecCount] = useState(0);
@@ -234,7 +231,6 @@ const AppDashboard = () => {
           <header className="glass-strong border-b border-border px-5 py-3 flex items-center justify-between sticky top-0 z-40">
             <ACRYLogo variant="navbar" animate={false} />
             <div className="flex items-center gap-2">
-              <LanguageSwitch variant="minimal" />
               <ThemeToggle />
               <Suspense fallback={null}>
                 <GlobalNotificationCenter
@@ -309,7 +305,7 @@ const AppDashboard = () => {
                         </>
                       )}
                     </div>
-                    <span className={`text-[9px] ${isSureShot ? "font-bold sureshot-gradient-text" : active ? "font-bold" : "font-medium"}`}>{t(tab.labelKey)}</span>
+                    <span className={`text-[9px] ${isSureShot ? "font-bold sureshot-gradient-text" : active ? "font-bold" : "font-medium"}`}>{tab.label}</span>
                     {active && !isSureShot && (
                       <div className="w-1 h-1 rounded-full bg-primary" />
                     )}
