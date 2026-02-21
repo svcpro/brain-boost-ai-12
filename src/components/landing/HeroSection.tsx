@@ -3,7 +3,7 @@ import { Rocket, Play, Sparkles, Zap, Shield, TrendingUp } from "lucide-react";
 import ACRYLogo from "./ACRYLogo";
 import { Link } from "react-router-dom";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useLanguage } from "@/contexts/LanguageContext";
+
 
 // ─── Custom Hooks ───────────────────────────────────────────
 
@@ -229,11 +229,10 @@ const BrainStabilityRing = () => {
 };
 
 const LiveStatBar = () => {
-  const { t } = useLanguage();
   const stats = [
-    { label: t("landing.activeLearners"), value: "10K+", icon: Sparkles },
-    { label: t("landing.brainUpdatesHr"), value: "847", icon: Zap },
-    { label: t("landing.avgScoreBoost"), value: "+34%", icon: TrendingUp },
+    { label: "Active Learners", value: "10K+", icon: Sparkles },
+    { label: "Brain Updates/Hr", value: "847", icon: Zap },
+    { label: "Avg Score Boost", value: "+34%", icon: TrendingUp },
   ];
 
   return (
@@ -265,7 +264,6 @@ const LiveStatBar = () => {
 // ─── Main Hero ──────────────────────────────────────────────
 
 const HeroSection = () => {
-  const { t, language } = useLanguage();
   const examWord = useTypewriter(
     ["Every Exam.", "NEET.", "JEE.", "UPSC.", "CAT.", "GATE.", "Every Exam."],
     90, 60, 1800
@@ -308,7 +306,7 @@ const HeroSection = () => {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
           </span>
-          <span className="text-xs font-semibold text-primary tracking-wider uppercase">{t("landing.badge")}</span>
+          <span className="text-xs font-semibold text-primary tracking-wider uppercase">AI-Powered Learning</span>
         </motion.div>
 
         {/* Headline */}
@@ -318,18 +316,16 @@ const HeroSection = () => {
           transition={{ duration: 1, delay: 0.4, type: "spring", bounce: 0.2 }}
           className="text-[2.5rem] md:text-6xl lg:text-[4.5rem] font-bold tracking-tight mb-4 leading-[1.08]"
         >
-          <span className="text-foreground">{t("landing.headline1")}</span>
+          <span className="text-foreground">Your AI Second Brain</span>
           <br />
-          <span className="text-foreground">{t("landing.headline2")} </span>
+          <span className="text-foreground">for </span>
           <span className="gradient-text text-glow inline-block min-w-[140px] md:min-w-[200px]">
-            {language === "hi" ? "हर परीक्षा।" : examWord}
-            {language === "en" && (
-              <motion.span
-                animate={{ opacity: [1, 0] }}
-                transition={{ duration: 0.6, repeat: Infinity }}
-                className="inline-block w-[3px] h-[0.85em] bg-primary ml-0.5 align-middle rounded-full"
-              />
-            )}
+            {examWord}
+            <motion.span
+              animate={{ opacity: [1, 0] }}
+              transition={{ duration: 0.6, repeat: Infinity }}
+              className="inline-block w-[3px] h-[0.85em] bg-primary ml-0.5 align-middle rounded-full"
+            />
           </span>
         </motion.h1>
 
@@ -340,7 +336,7 @@ const HeroSection = () => {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 leading-relaxed"
         >
-          {t("landing.subheadline")} <span className="text-foreground font-semibold">{t("landing.subheadlineHighlight")}</span>
+          ACRY learns how you learn and builds a <span className="text-foreground font-semibold">personalized second brain</span>
         </motion.p>
 
         {/* CTAs */}
@@ -356,7 +352,7 @@ const HeroSection = () => {
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             <Rocket className="w-5 h-5 relative z-10" />
-            <span className="relative z-10">{t("landing.ctaPrimary")}</span>
+            <span className="relative z-10">Start Free — It's Instant</span>
             <div className="absolute inset-0 glow-primary-strong opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
           </Link>
           <button className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl glass neural-border font-medium text-foreground hover:bg-secondary/50 transition-all duration-300 group">
@@ -367,7 +363,7 @@ const HeroSection = () => {
             >
               <Play className="w-3.5 h-3.5 text-primary ml-0.5" />
             </motion.div>
-            {t("landing.ctaSecondary")}
+            Watch Demo
           </button>
         </motion.div>
 
@@ -382,7 +378,7 @@ const HeroSection = () => {
         transition={{ delay: 2.5 }}
         className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center gap-2"
       >
-        <span className="text-[9px] text-muted-foreground uppercase tracking-widest">{t("landing.scrollToExplore")}</span>
+        <span className="text-[9px] text-muted-foreground uppercase tracking-widest">Scroll to Explore</span>
         <motion.div
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
