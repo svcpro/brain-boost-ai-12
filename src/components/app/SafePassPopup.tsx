@@ -16,18 +16,41 @@ interface PeerStats {
   topPerformerStrength: number;
 }
 
+/* ─── Exam-specific cutoff data ─── */
+interface ExamCutoff {
+  label: string;
+  totalCandidates: number;
+  safeRankCutoff: number;       // rank <= this = safe to pass
+  comfortableRankCutoff: number; // rank <= this = comfortable
+  topperRankCutoff: number;      // rank <= this = topper zone
+}
+
+const EXAM_CUTOFFS: Record<string, ExamCutoff> = {
+  NEET:          { label: "NEET",          totalCandidates: 2400000, safeRankCutoff: 720000, comfortableRankCutoff: 200000, topperRankCutoff: 50000 },
+  "JEE Main":    { label: "JEE Main",     totalCandidates: 1200000, safeRankCutoff: 250000, comfortableRankCutoff: 100000, topperRankCutoff: 25000 },
+  "JEE Advanced":{ label: "JEE Advanced", totalCandidates: 250000,  safeRankCutoff: 50000,  comfortableRankCutoff: 15000,  topperRankCutoff: 5000 },
+  UPSC:          { label: "UPSC",         totalCandidates: 1200000, safeRankCutoff: 15000,  comfortableRankCutoff: 5000,   topperRankCutoff: 1000 },
+  CAT:           { label: "CAT",          totalCandidates: 300000,  safeRankCutoff: 30000,  comfortableRankCutoff: 10000,  topperRankCutoff: 2000 },
+  GATE:          { label: "GATE",         totalCandidates: 900000,  safeRankCutoff: 50000,  comfortableRankCutoff: 15000,  topperRankCutoff: 3000 },
+  SSC:           { label: "SSC CGL",      totalCandidates: 3000000, safeRankCutoff: 100000, comfortableRankCutoff: 30000,  topperRankCutoff: 5000 },
+  CLAT:          { label: "CLAT",         totalCandidates: 70000,   safeRankCutoff: 10000,  comfortableRankCutoff: 3000,   topperRankCutoff: 500 },
+  Boards:        { label: "Board Exams",  totalCandidates: 5000000, safeRankCutoff: 3000000,comfortableRankCutoff: 1000000,topperRankCutoff: 100000 },
+};
+
+const DEFAULT_CUTOFF: ExamCutoff = { label: "Exam", totalCandidates: 1000000, safeRankCutoff: 300000, comfortableRankCutoff: 100000, topperRankCutoff: 20000 };
+
 /* ─── Safe Pass result ─── */
 interface SafePassData {
   brainScore: number;
-  brainRank: number;         // 1-based rank among peers
-  totalPeers: number;
-  percentile: number;        // top X%
+  currentRank: number;
+  totalCandidates: number;
+  safeRankZone: [number, number];   // [lower, upper] rank range to pass
+  percentile: number;
   passProbability: number;
   safeZoneLabel: string;
   topicGaps: { name: string; strength: number; impact: number }[];
   whatIf: {
-    improvedBrainScore: number;
-    improvedPercentile: number;
+    improvedRank: number;
     improvedProbability: number;
     minutesNeeded: number;
   };
@@ -47,6 +70,15 @@ function computeSafePass(
 ): SafePassData | null {
   if (allTopics.length === 0) return null;
 
+  // Use the actual rank from the app's rank prediction system
+  const currentRank = rankData?.predicted_rank ?? 0;
+  if (currentRank <= 0) return null;
+
+  // Determine exam cutoff
+  const examType = peerStats?.examType ?? "";
+  const cutoff = EXAM_CUTOFFS[examType] ?? DEFAULT_CUTOFF;
+
+  // Brain Stability Score (for display)
   const avgStrength = allTopics.reduce((s, t) => s + t.memory_strength, 0) / allTopics.length;
   const strongCount = allTopics.filter(t => t.memory_strength >= 70).length;
   const coverageRatio = strongCount / Math.max(allTopics.length, 1);
@@ -68,46 +100,37 @@ function computeSafePass(
         : 50 + (prep > 0.5 ? 15 : -10);
   }
 
-  // Brain Stability Score — weighted composite (same as hero score but enriched)
   const brainScore = Math.round(
-    overallHealth * 0.35 +          // Brain health is primary
-    avgStrength * 0.25 +            // Memory strength
-    coverageRatio * 100 * 0.15 +    // Topic coverage
-    consistencyPct * 0.10 +         // Study consistency
-    recencyPct * 0.05 +             // Recency
-    decayPct * 0.05 +               // Decay control
-    volumePct * 0.03 +              // Volume
-    examPressurePct * 0.02          // Exam pressure
+    overallHealth * 0.35 + avgStrength * 0.25 + coverageRatio * 100 * 0.15 +
+    consistencyPct * 0.10 + recencyPct * 0.05 + decayPct * 0.05 +
+    volumePct * 0.03 + examPressurePct * 0.02
   );
 
-  // Rank among peers (same exam users on the platform)
-  const peerCount = peerStats ? Math.max(peerStats.peerCount, 1) : 100;
-  const peerAvg = peerStats?.avgStrength ?? 50;
-  const peerTop = peerStats?.topPerformerStrength ?? 90;
+  // Safe Rank Zone: based on current rank vs exam cutoffs
+  // Safe zone = the rank range needed to pass/qualify
+  const safeRankZone: [number, number] = [1, cutoff.safeRankCutoff];
 
-  // Percentile: how this user's brainScore compares to peer average
-  // Using a sigmoid centered on peer average for realistic distribution
-  const k = 0.06;
-  const sigmoid = (score: number, mid: number) => 1 / (1 + Math.exp(-k * (score - mid)));
-  const rawPercentile = sigmoid(brainScore, peerAvg) * 100;
-  const percentile = Math.round(Math.min(99, Math.max(1, rawPercentile)));
+  // Percentile based on current rank position in total candidates
+  const percentile = Math.round(Math.max(1, Math.min(99, (1 - currentRank / cutoff.totalCandidates) * 100)));
 
-  // Rank = percentile mapped to peer count
-  const brainRank = Math.max(1, Math.round(peerCount * (1 - percentile / 100)));
-
-  // Safe zone label
+  // Zone label based on rank vs cutoffs
   const safeZoneLabel =
-    percentile >= 90 ? "🏆 Elite Zone" :
-    percentile >= 75 ? "🎯 Safe Zone" :
-    percentile >= 50 ? "📈 Rising Zone" :
-    percentile >= 30 ? "⚡ Improvement Zone" :
+    currentRank <= cutoff.topperRankCutoff ? "🏆 Topper Zone" :
+    currentRank <= cutoff.comfortableRankCutoff ? "🎯 Comfortable Zone" :
+    currentRank <= cutoff.safeRankCutoff ? "✅ Safe Zone" :
+    currentRank <= cutoff.safeRankCutoff * 1.3 ? "⚡ Borderline Zone" :
     "🔴 At Risk Zone";
 
-  // Pass probability based on brain stability percentile
-  const passProbability = Math.round(Math.min(95, Math.max(15,
-    percentile >= 75 ? 60 + (percentile - 75) * 1.4 :
-    percentile >= 50 ? 45 + (percentile - 50) * 0.6 :
-    15 + percentile * 0.6
+  // Pass probability: how likely to pass based on rank vs safe cutoff
+  const rankRatio = currentRank / cutoff.safeRankCutoff;
+  const passProbability = Math.round(Math.min(95, Math.max(10,
+    rankRatio <= 0.1 ? 95 :                                    // Top 10% of cutoff
+    rankRatio <= 0.3 ? 90 - (rankRatio - 0.1) * 25 :          // 85-90%
+    rankRatio <= 0.5 ? 85 - (rankRatio - 0.3) * 25 :          // 80-85%
+    rankRatio <= 0.8 ? 75 - (rankRatio - 0.5) * 33 :          // 65-75%
+    rankRatio <= 1.0 ? 55 - (rankRatio - 0.8) * 50 :          // 45-55%
+    rankRatio <= 1.3 ? 35 - (rankRatio - 1.0) * 50 :          // 20-35%
+    10                                                          // Beyond 130% of cutoff
   )));
 
   // Topic gaps
@@ -121,14 +144,20 @@ function computeSafePass(
       impact: Math.round((60 - t.memory_strength) * 0.5),
     }));
 
-  // What-if: if top 3 gaps improved to 70%
-  const gapBoost = topicGaps.slice(0, 3).reduce((s, g) => s + g.impact, 0);
-  const improvedBrainScore = Math.min(100, brainScore + gapBoost);
-  const improvedPercentile = Math.round(Math.min(99, Math.max(1, sigmoid(improvedBrainScore, peerAvg) * 100)));
-  const improvedProbability = Math.round(Math.min(95, Math.max(15,
-    improvedPercentile >= 75 ? 60 + (improvedPercentile - 75) * 1.4 :
-    improvedPercentile >= 50 ? 45 + (improvedPercentile - 50) * 0.6 :
-    15 + improvedPercentile * 0.6
+  // What-if: improving top 3 weak topics would boost rank
+  const totalGapImpact = topicGaps.slice(0, 3).reduce((s, g) => s + g.impact, 0);
+  // Each point of brain score improvement could improve rank by ~1-2% of current position
+  const rankImprovement = Math.round(currentRank * (totalGapImpact / 100) * 0.4);
+  const improvedRank = Math.max(1, currentRank - rankImprovement);
+  const improvedRatio = improvedRank / cutoff.safeRankCutoff;
+  const improvedProbability = Math.round(Math.min(95, Math.max(10,
+    improvedRatio <= 0.1 ? 95 :
+    improvedRatio <= 0.3 ? 90 - (improvedRatio - 0.1) * 25 :
+    improvedRatio <= 0.5 ? 85 - (improvedRatio - 0.3) * 25 :
+    improvedRatio <= 0.8 ? 75 - (improvedRatio - 0.5) * 33 :
+    improvedRatio <= 1.0 ? 55 - (improvedRatio - 0.8) * 50 :
+    improvedRatio <= 1.3 ? 35 - (improvedRatio - 1.0) * 50 :
+    10
   )));
 
   const factorBreakdown = [
@@ -144,15 +173,15 @@ function computeSafePass(
 
   return {
     brainScore,
-    brainRank,
-    totalPeers: peerCount,
+    currentRank,
+    totalCandidates: cutoff.totalCandidates,
+    safeRankZone,
     percentile,
     passProbability,
     safeZoneLabel,
     topicGaps,
     whatIf: {
-      improvedBrainScore,
-      improvedPercentile,
+      improvedRank,
       improvedProbability,
       minutesNeeded: topicGaps.slice(0, 3).length * 15,
     },
@@ -348,23 +377,23 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                     {data.safeZoneLabel}
                   </motion.span>
 
-                  {/* Rank + Percentile */}
+                  {/* Current Rank + Safe Zone */}
                   <div className="flex items-center justify-center gap-6 mt-4 relative z-10">
                     <div className="text-center">
                       <motion.p className="text-lg font-extrabold text-foreground tabular-nums"
                         initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
-                        #{data.brainRank}
+                        #{data.currentRank.toLocaleString()}
                       </motion.p>
-                      <p className="text-[8px] text-muted-foreground">Rank among {data.totalPeers} peers</p>
+                      <p className="text-[8px] text-muted-foreground">Your Current Rank</p>
                     </div>
                     <div className="w-px h-8 bg-border/40" />
                     <div className="text-center">
                       <motion.p className="text-lg font-extrabold tabular-nums"
                         style={{ color: zoneColor(data.percentile) }}
                         initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}>
-                        Top {100 - data.percentile}%
+                        ≤ {data.safeRankZone[1].toLocaleString()}
                       </motion.p>
-                      <p className="text-[8px] text-muted-foreground">Percentile in {data.examLabel}</p>
+                      <p className="text-[8px] text-muted-foreground">Safe Rank to Pass {data.examLabel}</p>
                     </div>
                   </div>
 
@@ -462,30 +491,30 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                     <div className="grid grid-cols-3 gap-2">
                       <div className="rounded-xl bg-card/60 p-2.5 text-center border border-border/30">
                         <div className="flex items-center justify-center gap-1 mb-0.5">
-                          <span className="text-[8px] text-muted-foreground line-through tabular-nums">{data.brainScore}</span>
+                          <span className="text-[8px] text-muted-foreground line-through tabular-nums">#{data.currentRank.toLocaleString()}</span>
                           <ArrowUpRight className="w-2.5 h-2.5 text-success" />
                         </div>
                         <motion.p className="text-base font-extrabold text-success tabular-nums"
                           initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.6, type: "spring" }}>
-                          {data.whatIf.improvedBrainScore}
+                          #{data.whatIf.improvedRank.toLocaleString()}
                         </motion.p>
-                        <p className="text-[7px] text-muted-foreground">Brain Score</p>
+                        <p className="text-[7px] text-muted-foreground">Predicted Rank</p>
                       </div>
                       <div className="rounded-xl bg-card/60 p-2.5 text-center border border-border/30">
                         <ArrowUpRight className="w-2.5 h-2.5 text-success mx-auto mb-0.5" />
                         <motion.p className="text-base font-extrabold text-success tabular-nums"
                           initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.65, type: "spring" }}>
-                          Top {100 - data.whatIf.improvedPercentile}%
+                          {data.whatIf.improvedProbability}%
                         </motion.p>
-                        <p className="text-[7px] text-muted-foreground">Percentile</p>
+                        <p className="text-[7px] text-muted-foreground">Pass Chance</p>
                       </div>
                       <div className="rounded-xl bg-card/60 p-2.5 text-center border border-border/30">
                         <ArrowUpRight className="w-2.5 h-2.5 text-success mx-auto mb-0.5" />
                         <motion.p className="text-base font-extrabold text-success tabular-nums"
                           initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.7, type: "spring" }}>
-                          {data.whatIf.improvedProbability}%
+                          ↑{(data.currentRank - data.whatIf.improvedRank).toLocaleString()}
                         </motion.p>
-                        <p className="text-[7px] text-muted-foreground">Pass Chance</p>
+                        <p className="text-[7px] text-muted-foreground">Rank Jump</p>
                       </div>
                     </div>
                     <motion.p className="text-[10px] text-success/80 text-center mt-3 font-medium"
