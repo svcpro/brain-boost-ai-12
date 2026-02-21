@@ -39,7 +39,6 @@ export default function AutopilotWidget() {
       } else if (result?.status === "exists") {
         toast.info("Today's plan already exists");
       }
-      // Check for emergencies after plan generation
       const emergency = await checkEmergency();
       if (emergency?.emergency) {
         toast.warning(`Emergency: ${emergency.trigger_topic?.name} needs rescue!`, {
@@ -51,6 +50,18 @@ export default function AutopilotWidget() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleStartSession = () => {
+    if (!today?.next_session) return;
+    const mode = today.next_session.mode;
+    const topicName = today.next_session.topic_name;
+    const duration = today.next_session.duration_minutes;
+    toast.success(`Starting ${mode} mode: ${topicName} (${duration}min)`, { duration: 3000 });
+    // Emit event so the Action Tab / study mode can pick it up
+    window.dispatchEvent(new CustomEvent("autopilot-start-session", {
+      detail: { mode, topic_id: today.next_session.topic_id, topic_name: topicName, duration },
+    }));
   };
 
   return (
@@ -112,7 +123,7 @@ export default function AutopilotWidget() {
                   {/* Next Session Card */}
                   {today?.next_session && (
                     <button
-                      onClick={handleGenerate}
+                      onClick={handleStartSession}
                       className="w-full flex items-center gap-3 bg-secondary/50 hover:bg-secondary rounded-lg p-2.5 transition-colors text-left"
                     >
                       <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
