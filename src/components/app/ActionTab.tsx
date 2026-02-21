@@ -92,6 +92,18 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   // ─── Topic explorer state ───
   const [topicExplorerOpen, setTopicExplorerOpen] = useState(false);
 
+  // ─── Listen for autopilot-start-session events ───
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.mode) {
+        openStudyMode(detail.mode === "rescue" ? "emergency" : detail.mode);
+      }
+    };
+    window.addEventListener("autopilot-start-session", handler);
+    return () => window.removeEventListener("autopilot-start-session", handler);
+  }, [examCountdown]);
+
   // Fetch recommended topic
   useEffect(() => {
     if (!user) return;
