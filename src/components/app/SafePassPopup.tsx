@@ -117,10 +117,7 @@ function computeSafePass(
   examType: string | null,
   studyLogs: { duration_minutes: number; created_at: string }[],
 ): SafePassData | null {
-  if (allTopics.length === 0) return null;
-
-  const currentRank = rankData?.predicted_rank ?? 0;
-  if (currentRank <= 0) return null;
+  if (allTopics.length === 0 && studyLogs.length === 0) return null;
 
   const examLabel = examType || "Exam";
 
@@ -131,6 +128,13 @@ function computeSafePass(
     CLAT: 70000, Boards: 5000000,
   };
   const totalCandidates = (examType && candidateMap[examType]) || 1000000;
+
+  // Use rank prediction data if available, otherwise derive from total candidates
+  const currentRank = (rankData?.predicted_rank && rankData.predicted_rank > 0)
+    ? rankData.predicted_rank
+    : Math.round(totalCandidates * 0.7); // Default: assume user starts at ~70th percentile position
+
+  // examLabel, candidateMap, totalCandidates already declared above
 
   // Days to exam
   let daysToExam: number | null = null;
