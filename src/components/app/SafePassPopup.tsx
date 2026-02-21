@@ -213,20 +213,36 @@ function computeSafePass(
     volumePct * w.volume +
     examPressurePct * w.examPressure;
 
-  // Apply difficulty multiplier (harder exam lowers effective score)
-  const factorScore = Math.max(0, Math.min(100, rawScore / config.difficultyMultiplier));
+  // Active-student baseline boost: anyone actively studying with topics
+  // is already ahead of a large portion of casual/non-serious candidates.
+  // Boost scales with topic count (more topics = more serious preparation).
+  const topicMaturityBoost = Math.min(20, allTopics.length * 0.8);
+  const activeStudentBoost = 15 + topicMaturityBoost; // 15-35 point baseline
+  const boostedScore = Math.min(100, rawScore + activeStudentBoost);
 
-  // Map to rank within this exam's candidate pool
+  // Apply difficulty multiplier (harder exam lowers effective score slightly)
+  const factorScore = Math.max(0, Math.min(100, boostedScore / config.difficultyMultiplier));
+
+  // Sigmoid-based rank mapping (bell-curve distribution)
+  // Real exams follow a normal distribution — most students cluster in the middle.
+  // This maps factorScore to a percentile using a sigmoid, then to rank.
   const { totalCandidates, qualifyingCutoffRank } = config;
-  const centerRank = Math.round(totalCandidates * (1 - factorScore / 100));
-  const spreadPct = factorScore > 70 ? 0.03 : factorScore > 50 ? 0.05 : 0.08;
+  
+  // Sigmoid: maps 0-100 score to 0-1 percentile with S-curve
+  // k controls steepness, midpoint is at score 50
+  const k = 0.08; // steepness — lower = smoother curve
+  const sigmoid = (score: number) => 1 / (1 + Math.exp(-k * (score - 45)));
+  const percentile = sigmoid(factorScore); // 0 to 1, where 1 = top rank
+  
+  const centerRank = Math.max(1, Math.round(totalCandidates * (1 - percentile)));
+  const spreadPct = factorScore > 70 ? 0.02 : factorScore > 50 ? 0.04 : 0.06;
   const spread = Math.round(totalCandidates * spreadPct);
   const safeRankLow = Math.max(1, centerRank - spread);
   const safeRankHigh = Math.min(totalCandidates, centerRank + spread);
 
-  // Pass probability relative to qualifying cutoff
-  const distFromCutoff = (qualifyingCutoffRank - centerRank) / qualifyingCutoffRank;
-  const baseProbability = 50 + distFromCutoff * 45;
+  // Pass probability: based on rank position relative to qualifying cutoff
+  const passMargin = (qualifyingCutoffRank - centerRank) / qualifyingCutoffRank;
+  const baseProbability = 50 + passMargin * 50;
   const passProbability = Math.round(Math.min(95, Math.max(15, baseProbability)));
 
   // Topic gaps
@@ -243,9 +259,10 @@ function computeSafePass(
   // What-if simulation
   const potentialGain = topicGaps.slice(0, 3).reduce((s, g) => s + g.impact, 0);
   const improvedScore = Math.min(100, factorScore + potentialGain);
-  const improvedCenter = Math.round(totalCandidates * (1 - improvedScore / 100));
-  const improvedDist = (qualifyingCutoffRank - improvedCenter) / qualifyingCutoffRank;
-  const improvedProb = Math.round(Math.min(95, Math.max(15, 50 + improvedDist * 45)));
+  const improvedPercentile = sigmoid(improvedScore);
+  const improvedCenter = Math.max(1, Math.round(totalCandidates * (1 - improvedPercentile)));
+  const improvedMargin = (qualifyingCutoffRank - improvedCenter) / qualifyingCutoffRank;
+  const improvedProb = Math.round(Math.min(95, Math.max(15, 50 + improvedMargin * 50)));
 
   const factorBreakdown = [
     { label: "Memory Strength", pct: Math.round(avgStrength), weight: `${Math.round(w.memoryStrength * 100)}%` },
