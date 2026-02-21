@@ -41,6 +41,10 @@ serve(async (req) => {
       return await getStatus(supabase, userId);
     }
 
+    if (action === "complete_session") {
+      return await completeSession(supabase, userId, body.slot);
+    }
+
     // Load global config
     const { data: config } = await supabase.from("autopilot_config").select("*").limit(1).single();
     if (!config?.is_enabled) {
@@ -303,5 +307,58 @@ async function getStatus(supabase: any, userId: string) {
       next_session: next || null,
       progress_percent: session ? Math.round((completed / session.total_sessions) * 100) : 0,
     },
+  });
+}
+
+// ═══════════════════════════════════════
+// COMPLETE SESSION
+// ═══════════════════════════════════════
+async function completeSession(supabase: any, userId: string, slot?: number) {
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data: session } = await supabase.from("autopilot_sessions")
+    .select("*").eq("user_id", userId).eq("session_date", today).maybeSingle();
+
+  if (!session) {
+    return json({ error: "No session found for today" }, 404);
+  }
+
+  const schedule = session.planned_schedule || [];
+
+  // Mark the specified slot (or first incomplete) as completed
+  let marked = false;
+  for (const s of schedule) {
+    if (slot != null && s.slot === slot) {
+      s.completed = true;
+      marked = true;
+      break;
+    } else if (slot == null && !s.completed) {
+      s.completed = true;
+      marked = true;
+      break;
+    }
+  }
+
+  if (!marked) {
+    return json({ status: "no_change", message: "No incomplete session to mark" });
+  }
+
+  const completedCount = schedule.filter((s: any) => s.completed).length;
+
+  const { error } = await supabase.from("autopilot_sessions")
+    .update({
+      planned_schedule: schedule,
+      completed_sessions: completedCount,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", session.id);
+
+  if (error) throw error;
+
+  return json({
+    status: "completed",
+    completed_sessions: completedCount,
+    total_sessions: session.total_sessions,
+    progress_percent: Math.round((completedCount / session.total_sessions) * 100),
   });
 }

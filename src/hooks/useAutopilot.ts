@@ -97,6 +97,17 @@ export function useAutopilot() {
     }
   }, [session, invoke]);
 
+  const completeSession = useCallback(async (slot?: number) => {
+    if (!session) return;
+    try {
+      const currentSlot = slot ?? status?.today?.next_session?.slot;
+      await invoke("complete_session", { slot: currentSlot });
+      await fetchStatus();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }, [session, invoke, fetchStatus, status]);
+
   const toggleAutopilot = useCallback(async (enabled: boolean) => {
     if (!session) return;
     // Optimistic update
@@ -123,6 +134,7 @@ export function useAutopilot() {
     generatePlan,
     checkEmergency,
     getNextMode,
+    completeSession,
     toggleAutopilot,
   };
 }
