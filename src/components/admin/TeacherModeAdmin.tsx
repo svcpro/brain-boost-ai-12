@@ -568,16 +568,16 @@ export default function TeacherModeAdmin() {
               </div>
 
               {/* Subject Performance */}
-              {classPerf.subject_performance.length > 0 && (
+              {(classPerf.subject_performance || []).length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
                   className="rounded-2xl border border-border/30 bg-card/80 backdrop-blur-sm p-5">
                   <div className="flex items-center gap-2 mb-4">
                     <BookOpen className="w-4 h-4 text-primary" />
                     <h3 className="text-xs font-bold text-foreground">Subject Performance</h3>
-                    <span className="text-[9px] text-muted-foreground ml-auto">{classPerf.subject_performance.length} subjects</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">{(classPerf.subject_performance || []).length} subjects</span>
                   </div>
                   <div className="space-y-3">
-                    {classPerf.subject_performance.map((sp, i) => (
+                    {(classPerf.subject_performance || []).map((sp, i) => (
                       <motion.div key={sp.subject} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 + i * 0.05 }}>
                         <StrengthBar value={sp.avg_strength} label={`${sp.subject} (${sp.student_count} students)`} color="" />
                       </motion.div>
@@ -587,18 +587,18 @@ export default function TeacherModeAdmin() {
               )}
 
               {/* Weak Students */}
-              {classPerf.weak_students.length > 0 && (
+              {(classPerf.weak_students || []).length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
                   className="rounded-2xl border border-rose-500/20 bg-gradient-to-br from-rose-500/5 to-transparent backdrop-blur-sm p-5">
                   <div className="flex items-center gap-2 mb-4">
                     <AlertTriangle className="w-4 h-4 text-rose-400" />
                     <h3 className="text-xs font-bold text-foreground">At-Risk Students</h3>
                     <span className="text-[9px] bg-rose-500/15 text-rose-400 px-2 py-0.5 rounded-full font-bold ml-auto">
-                      {classPerf.weak_students.length} students
+                      {(classPerf.weak_students || []).length} students
                     </span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {classPerf.weak_students.slice(0, 8).map((ws, i) => (
+                    {(classPerf.weak_students || []).slice(0, 8).map((ws, i) => (
                       <motion.div key={ws.user_id}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
