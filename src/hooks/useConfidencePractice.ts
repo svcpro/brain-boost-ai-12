@@ -67,20 +67,24 @@ export function useConfidencePractice() {
 
   const fetchBankQuestions = useCallback(async (filters: {
     exam_type?: string; subject?: string; topic?: string; year?: number; difficulty?: string; count?: number;
-  }) => {
-    if (!user) return;
+  }): Promise<number> => {
+    if (!user) return 0;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("confidence-practice", {
         body: { action: "get_bank_questions", ...filters }
       });
       if (error) throw error;
-      setQuestions(data?.questions || []);
-      setTotalAvailable(data?.totalAvailable || data?.questions?.length || 0);
+      const qs = data?.questions || [];
+      setQuestions(qs);
+      setTotalAvailable(data?.totalAvailable || qs.length || 0);
+      setLoading(false);
+      return qs.length;
     } catch (e: any) {
       toast({ title: "Error loading questions", description: e.message, variant: "destructive" });
+      setLoading(false);
+      return 0;
     }
-    setLoading(false);
   }, [user]);
 
   const generatePredicted = useCallback(async (filters: {
