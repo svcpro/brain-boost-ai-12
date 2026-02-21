@@ -256,15 +256,67 @@ function computeSafePass(
   };
 }
 
-/* ─── UI helpers ─── */
-const probColor = (p: number) =>
-  p >= 75 ? "hsl(var(--success))" : p >= 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
+/* ─── Zone-specific design system ─── */
+const ZONE_CONFIG = {
+  topper: {
+    gradient: "linear-gradient(135deg, #00e676, #00c853, #69f0ae)",
+    glow: "0 0 40px rgba(0, 230, 118, 0.5), 0 0 80px rgba(0, 230, 118, 0.2)",
+    bg: "linear-gradient(160deg, rgba(0,230,118,0.08) 0%, hsl(var(--card)) 50%, rgba(0,200,83,0.06) 100%)",
+    border: "rgba(0,230,118,0.4)",
+    text: "#00e676",
+    emoji: "👑",
+    label: "TOPPER ZONE",
+    sub: "You're dominating! Stay consistent.",
+    pulse: "rgba(0,230,118,0.3)",
+  },
+  comfortable: {
+    gradient: "linear-gradient(135deg, #00bcd4, #26c6da, #4dd0e1)",
+    glow: "0 0 40px rgba(0, 188, 212, 0.5), 0 0 80px rgba(0, 188, 212, 0.2)",
+    bg: "linear-gradient(160deg, rgba(0,188,212,0.08) 0%, hsl(var(--card)) 50%, rgba(38,198,218,0.06) 100%)",
+    border: "rgba(0,188,212,0.4)",
+    text: "#00bcd4",
+    emoji: "🎯",
+    label: "COMFORTABLE",
+    sub: "Strong preparation! Push harder to top.",
+    pulse: "rgba(0,188,212,0.3)",
+  },
+  safe: {
+    gradient: "linear-gradient(135deg, #7c4dff, #651fff, #b388ff)",
+    glow: "0 0 40px rgba(124, 77, 255, 0.5), 0 0 80px rgba(124, 77, 255, 0.2)",
+    bg: "linear-gradient(160deg, rgba(124,77,255,0.08) 0%, hsl(var(--card)) 50%, rgba(101,31,255,0.06) 100%)",
+    border: "rgba(124,77,255,0.4)",
+    text: "#7c4dff",
+    emoji: "✅",
+    label: "SAFE ZONE",
+    sub: "On track! Keep the momentum going.",
+    pulse: "rgba(124,77,255,0.3)",
+  },
+  borderline: {
+    gradient: "linear-gradient(135deg, #ff9100, #ff6d00, #ffab40)",
+    glow: "0 0 40px rgba(255, 145, 0, 0.5), 0 0 80px rgba(255, 145, 0, 0.2)",
+    bg: "linear-gradient(160deg, rgba(255,145,0,0.1) 0%, hsl(var(--card)) 50%, rgba(255,109,0,0.08) 100%)",
+    border: "rgba(255,145,0,0.5)",
+    text: "#ff9100",
+    emoji: "⚠️",
+    label: "BORDERLINE",
+    sub: "Danger zone! Increase effort NOW.",
+    pulse: "rgba(255,145,0,0.4)",
+  },
+  at_risk: {
+    gradient: "linear-gradient(135deg, #ff1744, #d50000, #ff5252)",
+    glow: "0 0 40px rgba(255, 23, 68, 0.6), 0 0 80px rgba(255, 23, 68, 0.3), 0 0 120px rgba(255, 23, 68, 0.1)",
+    bg: "linear-gradient(160deg, rgba(255,23,68,0.12) 0%, hsl(var(--card)) 40%, rgba(213,0,0,0.1) 100%)",
+    border: "rgba(255,23,68,0.6)",
+    text: "#ff1744",
+    emoji: "🚨",
+    label: "AT RISK",
+    sub: "Critical! Start studying immediately!",
+    pulse: "rgba(255,23,68,0.5)",
+  },
+};
 
-const statusColor = (s: SafePassData["rankStatus"]) =>
-  s === "topper" || s === "comfortable" ? "hsl(var(--success))"
-  : s === "safe" ? "hsl(var(--primary))"
-  : s === "borderline" ? "hsl(var(--warning))"
-  : "hsl(var(--destructive))";
+const probColor = (p: number) =>
+  p >= 75 ? "#00e676" : p >= 50 ? "#ff9100" : "#ff1744";
 
 /* ─── Component ─── */
 interface SafePassPopupProps {
@@ -303,307 +355,388 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
   }, [open, user]);
 
   const data = computeSafePass(allTopics, overallHealth, streakDays, examDate, rankData ?? null, examType, studyLogs);
-  const color = data ? statusColor(data.rankStatus) : "hsl(var(--muted-foreground))";
+  const zone = data ? ZONE_CONFIG[data.rankStatus] : ZONE_CONFIG.at_risk;
+  const circ = 2 * Math.PI * 44;
 
   return (
     <AnimatePresence>
       {open && (
         <>
+          {/* Backdrop with zone-tinted radial glow */}
           <motion.div
-            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100]"
+            style={{ background: data ? `radial-gradient(circle at center, ${zone.pulse} 0%, rgba(0,0,0,0.75) 70%)` : "rgba(0,0,0,0.7)" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
           />
-          <motion.div
-            className="fixed inset-x-4 top-[8%] z-[101] mx-auto max-w-md max-h-[85vh] overflow-y-auto rounded-3xl border border-border/50 shadow-2xl"
-            style={{ background: "linear-gradient(160deg, hsl(var(--card)) 0%, hsl(var(--secondary)/0.6) 40%, hsl(var(--card)) 100%)" }}
-            initial={{ opacity: 0, scale: 0.85, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.85, y: 40 }}
-            transition={{ type: "spring", stiffness: 300, damping: 28 }}
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
 
-            {/* Header */}
-            <div className="relative p-5 pb-3">
-              <motion.button whileTap={{ scale: 0.85 }} onClick={onClose}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+          <motion.div
+            className="fixed inset-x-3 top-[5%] z-[101] mx-auto max-w-[420px] max-h-[90vh] overflow-y-auto rounded-[28px] shadow-2xl"
+            style={{
+              background: data ? zone.bg : "hsl(var(--card))",
+              border: `2px solid ${data ? zone.border : "hsl(var(--border))"}`,
+              boxShadow: data ? zone.glow : "none",
+            }}
+            initial={{ opacity: 0, scale: 0.8, y: 60 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 60 }}
+            transition={{ type: "spring", stiffness: 280, damping: 24 }}
+          >
+            {/* Animated background orbs */}
+            {data && (
+              <>
+                <motion.div className="absolute top-0 left-0 w-40 h-40 rounded-full blur-[60px] pointer-events-none"
+                  style={{ background: zone.pulse }}
+                  animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.2, 1], x: [-10, 10, -10] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                />
+                <motion.div className="absolute bottom-20 right-0 w-32 h-32 rounded-full blur-[50px] pointer-events-none"
+                  style={{ background: zone.pulse }}
+                  animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.3, 1] }}
+                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                />
+              </>
+            )}
+
+            {/* ═══ HEADER ═══ */}
+            <div className="relative p-5 pb-2">
+              <motion.button whileTap={{ scale: 0.8 }} onClick={onClose}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white/70 hover:text-white transition-colors z-10">
                 <X className="w-4 h-4" />
               </motion.button>
-              <div className="flex items-center gap-2.5 mb-1">
+
+              <div className="flex items-center gap-3">
                 <motion.div
-                  className="relative w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg, hsl(var(--primary)/0.2), hsl(var(--success)/0.15))", border: "1px solid hsl(var(--primary)/0.3)" }}
-                  animate={{ boxShadow: ["0 0 0px hsl(var(--primary)/0)", "0 0 16px hsl(var(--primary)/0.4)", "0 0 0px hsl(var(--primary)/0)"] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="relative w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden"
+                  style={{ background: zone.gradient }}
+                  animate={{ boxShadow: [`0 0 0px ${zone.pulse}`, `0 0 24px ${zone.pulse}`, `0 0 0px ${zone.pulse}`] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <Shield className="w-5 h-5 text-primary" />
+                  <Shield className="w-6 h-6 text-white drop-shadow-lg" />
+                  <motion.div className="absolute inset-0"
+                    style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%)" }}
+                    animate={{ x: ["-100%", "200%"] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+                  />
                 </motion.div>
                 <div>
-                  <h2 className="text-sm font-bold text-foreground">Safe Pass Prediction</h2>
-                  <p className="text-[9px] text-muted-foreground">
-                    Based on your app activity & study effort
-                  </p>
+                  <h2 className="text-base font-extrabold text-foreground tracking-tight">Safe Pass Prediction</h2>
+                  <p className="text-[10px] text-muted-foreground">Your path to exam success</p>
                 </div>
               </div>
+
               {data?.daysToExam != null && (
                 <motion.div
-                  className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold"
-                  style={{ background: data.daysToExam <= 7 ? "hsl(var(--destructive)/0.15)" : "hsl(var(--primary)/0.1)", color: data.daysToExam <= 7 ? "hsl(var(--destructive))" : "hsl(var(--primary))" }}
-                  initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }}
+                  className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold backdrop-blur-md"
+                  style={{
+                    background: data.daysToExam <= 14 ? "rgba(255,23,68,0.15)" : "rgba(0,230,118,0.1)",
+                    color: data.daysToExam <= 14 ? "#ff1744" : "#00e676",
+                    border: `1px solid ${data.daysToExam <= 14 ? "rgba(255,23,68,0.3)" : "rgba(0,230,118,0.2)"}`,
+                  }}
+                  initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: "spring" }}
                 >
-                  <Target className="w-3 h-3" />
-                  {data.daysToExam} days to {data.examLabel}
+                  {data.daysToExam <= 14 ? (
+                    <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>⏰</motion.span>
+                  ) : <Target className="w-3.5 h-3.5" />}
+                  {data.daysToExam === 0 ? "EXAM TODAY!" : `${data.daysToExam} days to ${data.examLabel}`}
                 </motion.div>
               )}
             </div>
 
             {!data ? (
-              <div className="px-5 pb-6 text-center">
-                <Target className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-40" />
-                <p className="text-xs text-muted-foreground">Add topics & start studying to generate prediction</p>
+              <div className="px-5 pb-8 text-center">
+                <motion.div animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity }}>
+                  <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
+                </motion.div>
+                <p className="text-sm text-muted-foreground font-medium">Start studying to unlock your prediction</p>
               </div>
             ) : (
               <div className="px-5 pb-6 space-y-4">
 
-                {/* ── Activity Score + Predicted Rank Range ── */}
-                <motion.div
-                  className="rounded-2xl p-4 text-center relative overflow-hidden"
-                  style={{ background: "linear-gradient(135deg, hsl(var(--primary)/0.08), hsl(var(--card)))", border: `1px solid ${color}30` }}
-                  initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                >
+                {/* ═══ ZONE STATUS HERO ═══ */}
+                <motion.div className="rounded-[20px] p-5 text-center relative overflow-hidden"
+                  style={{ border: `2px solid ${zone.border}` }}
+                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+                  <motion.div className="absolute inset-0 rounded-[20px] pointer-events-none"
+                    style={{ boxShadow: `inset 0 0 30px ${zone.pulse}` }}
+                    animate={{ opacity: [0.3, 0.7, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+
+                  {/* Zone badge */}
+                  <motion.div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-black tracking-wide mb-4"
+                    style={{ background: zone.gradient, color: "#fff" }}
+                    initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }}
+                    transition={{ delay: 0.25, type: "spring", stiffness: 200 }}>
+                    <motion.span className="text-lg"
+                      animate={data.rankStatus === "at_risk" ? { scale: [1, 1.4, 1], rotate: [0, -15, 15, 0] } : { scale: [1, 1.15, 1] }}
+                      transition={{ duration: data.rankStatus === "at_risk" ? 0.6 : 2, repeat: Infinity }}>
+                      {zone.emoji}
+                    </motion.span>
+                    {zone.label}
+                  </motion.div>
+
+                  <p className="text-[10px] text-muted-foreground font-medium mb-1">{zone.sub}</p>
+
                   {/* Current Rank */}
-                  <p className="text-[9px] text-muted-foreground mb-1">Your Current Rank</p>
-                  <motion.p
-                    className="text-3xl font-extrabold tabular-nums text-foreground"
-                    initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-                  >
+                  <p className="text-[9px] text-muted-foreground mt-4 mb-1 uppercase tracking-widest">Your Current Rank</p>
+                  <motion.p className="text-4xl font-black tabular-nums"
+                    style={{ color: zone.text, textShadow: `0 0 20px ${zone.pulse}` }}
+                    initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.35, type: "spring", stiffness: 180 }}>
                     #{data.currentRank.toLocaleString()}
                   </motion.p>
 
-                  {/* Zone badge */}
-                  <motion.span
-                    className="inline-block px-3 py-1 rounded-full text-[10px] font-bold mt-2"
-                    style={{ background: `${color}20`, color }}
-                    initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: "spring" }}
-                  >
-                    {data.currentZone}
-                  </motion.span>
-
-                  {/* Target Safe Zone to Pass */}
-                  <div className="mt-4 rounded-xl p-3" style={{ background: "linear-gradient(135deg, hsl(var(--success)/0.08), hsl(var(--secondary)/0.4))", border: "1px solid hsl(var(--success)/0.25)" }}>
-                    <p className="text-[9px] text-success font-semibold mb-1.5 flex items-center justify-center gap-1">
-                      <Target className="w-3 h-3" />
-                      🎯 Target Safe Zone to Pass {data.examLabel}
+                  {/* Target Safe Zone */}
+                  <motion.div className="mt-5 rounded-2xl p-4 relative overflow-hidden"
+                    style={{ background: "linear-gradient(135deg, rgba(0,230,118,0.06), rgba(0,200,83,0.04))", border: "1.5px solid rgba(0,230,118,0.3)" }}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+                    {[0, 1].map(i => (
+                      <motion.div key={i} className="absolute w-2 h-2 rounded-full" style={{ background: "#00e676", top: `${15 + i * 20}%`, right: `${5 + i * 8}%` }}
+                        animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }} transition={{ duration: 2, repeat: Infinity, delay: i * 0.7 }} />
+                    ))}
+                    <p className="text-[9px] font-bold uppercase tracking-widest mb-2 flex items-center justify-center gap-1.5" style={{ color: "#00e676" }}>
+                      <Target className="w-3.5 h-3.5" />🎯 Target Safe Zone to Pass {data.examLabel}
                     </p>
-                    <motion.p className="text-xl font-extrabold text-success tabular-nums"
-                      initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
+                    <motion.p className="text-2xl font-black tabular-nums"
+                      style={{ color: "#00e676", textShadow: "0 0 16px rgba(0,230,118,0.4)" }}
+                      initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55, type: "spring" }}>
                       #{data.safeZoneTarget[0].toLocaleString()} — #{data.safeZoneTarget[1].toLocaleString()}
                     </motion.p>
-                    <p className="text-[8px] text-muted-foreground mt-1">
-                      You need to reach this rank range to pass
-                    </p>
-                  </div>
-                  {/* Activity Score gauge + Pass probability */}
-                  <div className="flex items-center justify-center gap-6 mt-4">
-                    {/* Activity Score */}
-                    <div className="text-center">
-                      <div className="relative w-14 h-14">
-                        <svg viewBox="0 0 68 68" className="w-full h-full -rotate-90">
-                          <circle cx="34" cy="34" r="28" fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
-                          <motion.circle cx="34" cy="34" r="28" fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
-                            strokeDasharray={2 * Math.PI * 28}
-                            initial={{ strokeDashoffset: 2 * Math.PI * 28 }}
-                            animate={{ strokeDashoffset: 2 * Math.PI * 28 * (1 - data.activityScore / 100) }}
-                            transition={{ duration: 1.2, ease: "easeOut", delay: 0.4 }}
-                            style={{ filter: `drop-shadow(0 0 6px ${color})` }}
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <motion.span className="text-sm font-extrabold text-foreground tabular-nums"
-                            initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.6, type: "spring" }}>
-                            {data.activityScore}
-                          </motion.span>
+                    <p className="text-[8px] text-muted-foreground mt-1.5">Reach this rank to secure your seat</p>
+                    {data.currentRank > data.safeZoneTarget[1] && (
+                      <motion.div className="mt-3 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold mx-auto w-fit"
+                        style={{ background: data.rankStatus === "at_risk" ? "rgba(255,23,68,0.15)" : "rgba(255,145,0,0.12)", color: data.rankStatus === "at_risk" ? "#ff1744" : "#ff9100" }}
+                        initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.65, type: "spring" }}>
+                        <ArrowUpRight className="w-3 h-3" />
+                        {(data.currentRank - data.safeZoneTarget[1]).toLocaleString()} ranks to climb
+                      </motion.div>
+                    )}
+                  </motion.div>
+
+                  {/* Twin Gauges */}
+                  <div className="flex items-center justify-center gap-8 mt-5">
+                    {[
+                      { val: data.activityScore, label: "Activity Score", suffix: "", color: zone.text },
+                      { val: data.passProbability, label: "Pass Chance", suffix: "%", color: probColor(data.passProbability) },
+                    ].map((g, gi) => (
+                      <motion.div key={gi} className="text-center" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.5 + gi * 0.1, type: "spring" }}>
+                        <div className="relative w-[68px] h-[68px]">
+                          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                            <circle cx="50" cy="50" r="44" fill="none" stroke="hsl(var(--border)/0.3)" strokeWidth="6" />
+                            <motion.circle cx="50" cy="50" r="44" fill="none" stroke={g.color} strokeWidth="6" strokeLinecap="round"
+                              strokeDasharray={circ} initial={{ strokeDashoffset: circ }}
+                              animate={{ strokeDashoffset: circ * (1 - g.val / 100) }}
+                              transition={{ duration: 1.5, ease: "easeOut", delay: 0.6 + gi * 0.15 }}
+                              style={{ filter: `drop-shadow(0 0 8px ${g.color})` }} />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <motion.span className="text-base font-black tabular-nums text-foreground"
+                              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.8 + gi * 0.1, type: "spring" }}>
+                              {g.val}{g.suffix}
+                            </motion.span>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-[8px] text-muted-foreground mt-1">Activity Score</p>
-                    </div>
-                    {/* Pass probability */}
-                    <div className="text-center">
-                      <div className="relative w-14 h-14">
-                        <svg viewBox="0 0 68 68" className="w-full h-full -rotate-90">
-                          <circle cx="34" cy="34" r="28" fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
-                          <motion.circle cx="34" cy="34" r="28" fill="none" stroke={probColor(data.passProbability)} strokeWidth="5" strokeLinecap="round"
-                            strokeDasharray={2 * Math.PI * 28}
-                            initial={{ strokeDashoffset: 2 * Math.PI * 28 }}
-                            animate={{ strokeDashoffset: 2 * Math.PI * 28 * (1 - data.passProbability / 100) }}
-                            transition={{ duration: 1.2, ease: "easeOut", delay: 0.5 }}
-                            style={{ filter: `drop-shadow(0 0 6px ${probColor(data.passProbability)})` }}
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <motion.span className="text-sm font-extrabold text-foreground tabular-nums"
-                            initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.65, type: "spring" }}>
-                            {data.passProbability}%
-                          </motion.span>
-                        </div>
-                      </div>
-                      <p className="text-[8px] text-muted-foreground mt-1">Pass Chance</p>
-                    </div>
+                        <p className="text-[8px] text-muted-foreground mt-1 font-medium">{g.label}</p>
+                      </motion.div>
+                    ))}
                   </div>
                 </motion.div>
 
-                {/* ── Your Activity Breakdown ── */}
-                <motion.div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-4"
-                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1">
-                    <Brain className="w-3 h-3 text-primary" />
-                    What's Driving Your Prediction
+                {/* ═══ ZONE LADDER ═══ */}
+                <motion.div className="rounded-[20px] border border-border/30 bg-card/40 backdrop-blur-sm p-4"
+                  initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3 text-center">
+                    Your Position on the Ladder
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl bg-secondary/40 p-2.5 text-center border border-border/20">
-                      <Clock className="w-3.5 h-3.5 text-primary mx-auto mb-1" />
-                      <p className="text-sm font-extrabold text-foreground tabular-nums">{data.metrics.totalStudyMinutes}</p>
-                      <p className="text-[7px] text-muted-foreground">Total Minutes</p>
-                    </div>
-                    <div className="rounded-xl bg-secondary/40 p-2.5 text-center border border-border/20">
-                      <BookOpen className="w-3.5 h-3.5 text-primary mx-auto mb-1" />
-                      <p className="text-sm font-extrabold text-foreground tabular-nums">{data.metrics.totalSessions}</p>
-                      <p className="text-[7px] text-muted-foreground">Sessions Done</p>
-                    </div>
-                    <div className="rounded-xl bg-secondary/40 p-2.5 text-center border border-border/20">
-                      <Flame className="w-3.5 h-3.5 text-warning mx-auto mb-1" />
-                      <p className="text-sm font-extrabold text-foreground tabular-nums">{data.metrics.streakDays}</p>
-                      <p className="text-[7px] text-muted-foreground">Day Streak</p>
-                    </div>
-                    <div className="rounded-xl bg-secondary/40 p-2.5 text-center border border-border/20">
-                      <Target className="w-3.5 h-3.5 text-success mx-auto mb-1" />
-                      <p className="text-sm font-extrabold text-foreground tabular-nums">
-                        {data.metrics.topicsStrong}/{data.metrics.topicsCovered}
-                      </p>
-                      <p className="text-[7px] text-muted-foreground">Topics Strong</p>
-                    </div>
+                  <div className="space-y-1.5">
+                    {(["topper", "comfortable", "safe", "borderline", "at_risk"] as const).map((level, i) => {
+                      const cfg = ZONE_CONFIG[level];
+                      const isActive = data.rankStatus === level;
+                      return (
+                        <motion.div key={level}
+                          className="relative flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all"
+                          style={{
+                            background: isActive ? `linear-gradient(90deg, ${cfg.pulse}, transparent)` : "transparent",
+                            border: isActive ? `1.5px solid ${cfg.border}` : "1px solid transparent",
+                            boxShadow: isActive ? `0 0 16px ${cfg.pulse}` : "none",
+                          }}
+                          initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.35 + i * 0.06 }}>
+                          {isActive && (
+                            <motion.div className="absolute -left-1 w-2.5 h-2.5 rounded-full"
+                              style={{ background: cfg.gradient }}
+                              animate={{ scale: [1, 1.6, 1], opacity: [1, 0.4, 1] }}
+                              transition={{ duration: 1.2, repeat: Infinity }} />
+                          )}
+                          <span className="text-sm">{cfg.emoji}</span>
+                          <span className={`text-[10px] flex-1 ${isActive ? "font-extrabold" : "font-medium text-muted-foreground"}`}
+                            style={{ color: isActive ? cfg.text : undefined }}>
+                            {cfg.label}
+                          </span>
+                          {isActive && (
+                            <motion.span className="text-[8px] font-bold px-2 py-0.5 rounded-full"
+                              style={{ background: cfg.gradient, color: "#fff" }}
+                              animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                              YOU
+                            </motion.span>
+                          )}
+                        </motion.div>
+                      );
+                    })}
                   </div>
-                  {/* Memory strength bar */}
-                  <div className="mt-3">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-[8px] text-muted-foreground">Avg Memory Strength</span>
-                      <span className="text-[8px] font-bold text-foreground">{data.metrics.avgMemoryStrength}%</span>
+                </motion.div>
+
+                {/* ═══ METRICS ═══ */}
+                <motion.div className="rounded-[20px] border border-border/30 bg-card/40 backdrop-blur-sm p-4"
+                  initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    <Brain className="w-3.5 h-3.5" style={{ color: zone.text }} /> What's Driving Your Score
+                  </p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      { icon: Clock, val: data.metrics.totalStudyMinutes, label: "Minutes Studied", color: zone.text },
+                      { icon: BookOpen, val: data.metrics.totalSessions, label: "Sessions Done", color: "#7c4dff" },
+                      { icon: Flame, val: data.metrics.streakDays, label: "Day Streak", color: "#ff9100" },
+                      { icon: Target, val: `${data.metrics.topicsStrong}/${data.metrics.topicsCovered}`, label: "Topics Strong", color: "#00e676" },
+                    ].map((item, i) => (
+                      <motion.div key={i} className="rounded-xl p-3 text-center border border-border/20"
+                        style={{ background: "hsl(var(--secondary)/0.3)" }}
+                        initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4 + i * 0.06, type: "spring" }}
+                        whileHover={{ scale: 1.05, borderColor: item.color }}>
+                        <item.icon className="w-4 h-4 mx-auto mb-1.5" style={{ color: item.color }} />
+                        <p className="text-lg font-black text-foreground tabular-nums">{item.val}</p>
+                        <p className="text-[7px] text-muted-foreground font-medium">{item.label}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                  <div className="mt-4">
+                    <div className="flex justify-between mb-1.5">
+                      <span className="text-[8px] text-muted-foreground font-medium">Memory Strength</span>
+                      <span className="text-[9px] font-bold" style={{ color: zone.text }}>{data.metrics.avgMemoryStrength}%</span>
                     </div>
-                    <div className="w-full h-1.5 rounded-full bg-border/40 overflow-hidden">
-                      <motion.div
-                        className="h-full rounded-full"
-                        style={{ background: `linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))` }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${data.metrics.avgMemoryStrength}%` }}
-                        transition={{ duration: 1, delay: 0.4 }}
-                      />
+                    <div className="w-full h-2 rounded-full bg-border/30 overflow-hidden">
+                      <motion.div className="h-full rounded-full" style={{ background: zone.gradient }}
+                        initial={{ width: 0 }} animate={{ width: `${data.metrics.avgMemoryStrength}%` }}
+                        transition={{ duration: 1.2, delay: 0.5, ease: "easeOut" }} />
                     </div>
                   </div>
                 </motion.div>
 
-                {/* ── Improvement Tips (Addiction Hook) ── */}
+                {/* ═══ IMPROVEMENT TIPS ═══ */}
                 {data.improvementTips.length > 0 && (
-                  <motion.div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"
-                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-                    <p className="text-[9px] font-semibold text-primary uppercase tracking-wider mb-2.5 flex items-center gap-1">
-                      <Zap className="w-3 h-3" /> Do This to Improve Rank
+                  <motion.div className="rounded-[20px] p-4 relative overflow-hidden"
+                    style={{ background: `linear-gradient(135deg, ${zone.pulse}15, hsl(var(--card)))`, border: `1.5px solid ${zone.border}60` }}
+                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                    <p className="text-[9px] font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: zone.text }}>
+                      <Zap className="w-3.5 h-3.5" /> Level Up Your Rank
                     </p>
                     <div className="space-y-2">
                       {data.improvementTips.map((tip, i) => (
-                        <motion.div key={i}
-                          className="flex items-center gap-2.5 rounded-xl bg-card/60 px-3 py-2.5 border border-border/30"
-                          initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.4 + i * 0.08 }}>
-                          <span className="text-base">{tip.icon}</span>
-                          <div className="flex-1">
-                            <p className="text-[10px] text-foreground font-medium">{tip.label}</p>
-                            <p className="text-[8px] text-success font-bold">{tip.impact}</p>
+                        <motion.div key={i} className="flex items-center gap-3 rounded-xl px-3 py-3 border border-border/20"
+                          style={{ background: "hsl(var(--card)/0.7)" }}
+                          initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.45 + i * 0.08 }} whileHover={{ x: 4 }}>
+                          <span className="text-lg">{tip.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-foreground font-semibold">{tip.label}</p>
+                            <p className="text-[9px] font-bold" style={{ color: "#00e676" }}>{tip.impact}</p>
                           </div>
-                          <ArrowUpRight className="w-3.5 h-3.5 text-success shrink-0" />
+                          <motion.div animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                            <ArrowUpRight className="w-4 h-4 shrink-0" style={{ color: "#00e676" }} />
+                          </motion.div>
                         </motion.div>
                       ))}
                     </div>
                   </motion.div>
                 )}
 
-                {/* ── Topic Gaps ── */}
+                {/* ═══ WEAK TOPICS — RED ALERT ═══ */}
                 {data.topicGaps.length > 0 && (
-                  <motion.div className="rounded-2xl border border-warning/20 bg-warning/5 p-4"
-                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                    <p className="text-[9px] font-semibold text-warning uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Weak Topics Holding You Back
+                  <motion.div className="rounded-[20px] p-4 relative overflow-hidden"
+                    style={{ background: "linear-gradient(135deg, rgba(255,23,68,0.06), hsl(var(--card)))", border: "1.5px solid rgba(255,23,68,0.3)" }}
+                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+                    <motion.div className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full" style={{ background: "#ff1744" }}
+                      animate={{ scale: [1, 1.5, 1], opacity: [1, 0.3, 1] }} transition={{ duration: 1, repeat: Infinity }} />
+                    <p className="text-[9px] font-bold uppercase tracking-widest mb-2.5 flex items-center gap-1.5" style={{ color: "#ff1744" }}>
+                      <AlertTriangle className="w-3.5 h-3.5" /> 🚨 Weak Topics — Fix These NOW
                     </p>
                     <div className="space-y-1.5">
                       {data.topicGaps.map((gap, i) => (
-                        <motion.div key={i}
-                          className="flex items-center gap-2 rounded-xl bg-card/50 px-3 py-2 border border-border/30"
-                          initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.45 + i * 0.06 }}>
-                          <div className="w-2 h-2 rounded-full bg-warning shrink-0" />
-                          <span className="text-[10px] text-foreground truncate flex-1">{gap.name}</span>
-                          <span className="text-[10px] text-destructive font-bold tabular-nums">{gap.strength}%</span>
+                        <motion.div key={i} className="flex items-center gap-2.5 rounded-xl px-3 py-2 border"
+                          style={{ borderColor: gap.strength < 20 ? "rgba(255,23,68,0.3)" : "hsl(var(--border)/0.2)", background: gap.strength < 20 ? "rgba(255,23,68,0.05)" : "hsl(var(--card)/0.5)" }}
+                          initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + i * 0.06 }}>
+                          <motion.div className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ background: gap.strength < 20 ? "#ff1744" : gap.strength < 40 ? "#ff9100" : "#ffab40" }}
+                            animate={gap.strength < 20 ? { scale: [1, 1.4, 1] } : {}} transition={{ duration: 1, repeat: Infinity }} />
+                          <span className="text-[10px] text-foreground truncate flex-1 font-medium">{gap.name}</span>
+                          <span className="text-[10px] font-black tabular-nums" style={{ color: gap.strength < 20 ? "#ff1744" : "#ff9100" }}>{gap.strength}%</span>
                         </motion.div>
                       ))}
                     </div>
                   </motion.div>
                 )}
 
-                {/* ── What-If Scenarios ── */}
-                <motion.div className="rounded-2xl relative overflow-hidden p-4"
-                  style={{ background: "linear-gradient(135deg, hsl(var(--success)/0.08), hsl(var(--card)))", border: "1px solid hsl(var(--success)/0.25)" }}
-                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-                  <motion.div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-success/40"
-                    animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
-                    transition={{ duration: 2, repeat: Infinity }} />
-                  <p className="text-[9px] font-semibold text-success uppercase tracking-wider mb-3 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> What If You Do More?
+                {/* ═══ WHAT-IF ═══ */}
+                <motion.div className="rounded-[20px] p-4 relative overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, rgba(0,230,118,0.06), hsl(var(--card)))", border: "1.5px solid rgba(0,230,118,0.25)" }}
+                  initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+                  {[0, 1, 2].map(i => (
+                    <motion.div key={i} className="absolute w-1.5 h-1.5 rounded-full"
+                      style={{ background: "#00e676", top: `${20 + i * 25}%`, right: `${8 + i * 12}%` }}
+                      animate={{ y: [-5, 5, -5], opacity: [0, 1, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, delay: i * 0.7 }} />
+                  ))}
+                  <p className="text-[9px] font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: "#00e676" }}>
+                    <TrendingUp className="w-3.5 h-3.5" /> What If You Push Harder?
                   </p>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-card/60 p-2.5 text-center border border-border/30">
-                      <span className="text-base">⏱️</span>
-                      <motion.p className="text-xs font-extrabold text-success tabular-nums mt-1"
-                        initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.6, type: "spring" }}>
-                        #{data.whatIf.if30MinMore.toLocaleString()}
-                      </motion.p>
-                      <p className="text-[7px] text-muted-foreground">+30 min/day</p>
-                    </div>
-                    <div className="rounded-xl bg-card/60 p-2.5 text-center border border-border/30">
-                      <span className="text-base">📚</span>
-                      <motion.p className="text-xs font-extrabold text-success tabular-nums mt-1"
-                        initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.65, type: "spring" }}>
-                        #{data.whatIf.if3TopicsFix.toLocaleString()}
-                      </motion.p>
-                      <p className="text-[7px] text-muted-foreground">Fix 3 topics</p>
-                    </div>
-                    <div className="rounded-xl bg-card/60 p-2.5 text-center border border-border/30">
-                      <span className="text-base">🔥</span>
-                      <motion.p className="text-xs font-extrabold text-success tabular-nums mt-1"
-                        initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.7, type: "spring" }}>
-                        #{data.whatIf.ifStreakBonus.toLocaleString()}
-                      </motion.p>
-                      <p className="text-[7px] text-muted-foreground">Keep streak</p>
-                    </div>
+                    {[
+                      { emoji: "⏱️", rank: data.whatIf.if30MinMore, label: "+30 min/day" },
+                      { emoji: "📚", rank: data.whatIf.if3TopicsFix, label: "Fix 3 topics" },
+                      { emoji: "🔥", rank: data.whatIf.ifStreakBonus, label: "Keep streak" },
+                    ].map((s, i) => (
+                      <motion.div key={i} className="rounded-xl p-3 text-center border border-border/20"
+                        style={{ background: "hsl(var(--card)/0.6)" }}
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.55 + i * 0.08, type: "spring" }} whileHover={{ scale: 1.08 }}>
+                        <motion.span className="text-xl block mb-1"
+                          animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}>
+                          {s.emoji}
+                        </motion.span>
+                        <motion.p className="text-xs font-black tabular-nums" style={{ color: "#00e676" }}
+                          initial={{ scale: 0.7 }} animate={{ scale: 1 }} transition={{ delay: 0.65 + i * 0.08, type: "spring" }}>
+                          #{s.rank.toLocaleString()}
+                        </motion.p>
+                        <p className="text-[7px] text-muted-foreground font-medium mt-0.5">{s.label}</p>
+                      </motion.div>
+                    ))}
                   </div>
-                  <motion.p className="text-[9px] text-success/80 text-center mt-3 font-medium"
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
-                    More you study → Better your predicted rank 🚀
+                  <motion.p className="text-[10px] text-center mt-3 font-bold" style={{ color: "#00e676" }}
+                    animate={{ opacity: [0.6, 1, 0.6] }} transition={{ duration: 2, repeat: Infinity }}>
+                    More effort = Better rank = Pass guaranteed 🚀
                   </motion.p>
                 </motion.div>
 
+                {/* ═══ ALL STRONG — Celebration ═══ */}
                 {data.topicGaps.length === 0 && (
-                  <motion.div className="rounded-2xl bg-success/10 border border-success/20 p-4 text-center"
-                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.35 }}>
-                    <Trophy className="w-8 h-8 text-success mx-auto mb-2" />
-                    <p className="text-xs text-success font-semibold">All Topics Strong!</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Keep revising to maintain your rank</p>
+                  <motion.div className="rounded-[20px] p-5 text-center relative overflow-hidden"
+                    style={{ background: "linear-gradient(135deg, rgba(0,230,118,0.1), rgba(105,240,174,0.05))", border: "1.5px solid rgba(0,230,118,0.3)" }}
+                    initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }}>
+                    <motion.div animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+                      <Trophy className="w-10 h-10 mx-auto mb-2" style={{ color: "#FFD700", filter: "drop-shadow(0 0 12px rgba(255,215,0,0.5))" }} />
+                    </motion.div>
+                    <p className="text-sm font-black" style={{ color: "#00e676" }}>All Topics Strong! 💪</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Keep revising to maintain your edge</p>
                   </motion.div>
                 )}
 
-                <p className="text-[7px] text-muted-foreground/40 text-center italic pt-1">
-                  Prediction based on {data.metrics.totalStudyMinutes} min studied • {data.metrics.totalSessions} sessions • {data.metrics.daysActive} active days • {data.metrics.topicsCovered} topics
-                </p>
+                <motion.p className="text-[7px] text-muted-foreground/30 text-center italic pt-2"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
+                  {data.metrics.totalStudyMinutes} min • {data.metrics.totalSessions} sessions • {data.metrics.daysActive} active days • {data.metrics.topicsCovered} topics
+                </motion.p>
               </div>
             )}
           </motion.div>
