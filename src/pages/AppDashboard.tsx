@@ -25,6 +25,7 @@ import { useScheduledVoiceReminder } from "@/hooks/useScheduledVoiceReminder";
 import { useWeakQuestionReminder } from "@/hooks/useWeakQuestionReminder";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAutoStudyTracker } from "@/hooks/useAutoStudyTracker";
 
 
 // Export voice context so child components can trigger voice
@@ -48,6 +49,8 @@ const AppDashboard = () => {
   
   
   const { user } = useAuth();
+  // Fully autonomous silent study tracker — runs app-wide
+  useAutoStudyTracker();
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
   const { isEnabled: isTabEnabled, loading: flagsLoading } = useFeatureFlags();
