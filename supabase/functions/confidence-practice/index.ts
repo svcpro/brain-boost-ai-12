@@ -307,6 +307,14 @@ serve(async (req) => {
 
       const topicContext = userTopics?.map((t: any) => `${t.name} (strength: ${Math.round((t.memory_strength || 0) * 100)}%)`).join(", ") || "General topics";
 
+      // Fetch previously practiced predicted questions to avoid repeats
+      const { data: prevPracticed } = await supabase
+        .from("practice_progress")
+        .select("question_id")
+        .eq("user_id", user.id)
+        .eq("question_source", "predicted");
+      const prevPracticedCount = prevPracticed?.length || 0;
+
       const topicScoreMap = rankedTopics.slice(0, 20).map(([t, s]) =>
         `"${t}": { score: ${s.finalScore}, trend: "${s.trendDirection}", momentum: ${s.trendMomentum}, volatility: ${s.volatilityIndex}, stability: ${s.patternStability}, diff_evolution: "${s.difficultyEvolution}", framing: "${s.framingChange}", time_series: ${s.timeSeriesForecast}, hist_freq: ${s.historicalFrequency}, diff_align: ${s.difficultyAlignment}, semantic: ${s.semanticSimilarity}, examiner: ${s.examinerBehavior} }`
       ).join(",\n");
@@ -340,13 +348,15 @@ CRITICAL RULES:
 - Include trend_momentum, volatility_index, pattern_stability numbers.
 - Include difficulty_evolution and framing_change strings.
 - Generate exam-level questions that feel genuinely likely to appear.
+- CRITICAL: Every question MUST be unique. Do NOT repeat or paraphrase questions from the PYQ bank or from previous generations. The user has already practiced ${prevPracticedCount} predicted questions.
 - Return VALID JSON only.`
         },
         {
           role: "user",
-          content: `Generate exactly ${questionCount} predicted questions for ${targetExam}, subject: ${targetSubject}.
+          content: `Generate exactly ${questionCount} UNIQUE predicted questions for ${targetExam}, subject: ${targetSubject}.
 User's weak areas: ${topicContext}.
 Prioritize high-score topics from the trend research analysis.
+IMPORTANT: Each question must be completely different from standard PYQ bank questions. Create fresh, novel questions based on the trend patterns.
 
 Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct_answer":0,"explanation":"...","topic":"...","difficulty":"easy|medium|hard","probability_score":55-85,"probability_level":"Very High|High|Medium","trend_direction":"rising|stable|declining|comeback","trend_strength":"High|Medium|Emerging","trend_momentum":0-100,"volatility_index":0-100,"pattern_stability":0-100,"difficulty_evolution":"stable|conceptual_shift|factual_shift","framing_change":"stable|statement_increase|case_study_growth","ml_confidence":"Strong|Moderate|Fair","trend_reason":"Detailed evidence with years and counts...","score_breakdown":{"trend_momentum":0-100,"time_series_forecast":0-100,"historical_frequency":0-100,"difficulty_alignment":0-100,"semantic_similarity":0-100,"examiner_behavior":0-100},"similar_pyq_years":[2020,2021]}]}`
         }
@@ -534,6 +544,13 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
     }
 
     if (action === "get_bank_questions") {
+      // Fetch IDs of questions user has already answered to exclude them
+      const { data: answeredData } = await supabase
+        .from("practice_progress")
+        .select("question_id")
+        .eq("user_id", user.id);
+      const answeredIds = new Set((answeredData || []).map((d: any) => d.question_id).filter(Boolean));
+
       const batchSize = 1000;
       let allQuestions: any[] = [];
       let offset = 0;
@@ -552,7 +569,9 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
         if (error) throw error;
 
         if (data && data.length > 0) {
-          allQuestions = allQuestions.concat(data);
+          // Filter out already-answered questions
+          const fresh = data.filter((q: any) => !answeredIds.has(q.id));
+          allQuestions = allQuestions.concat(fresh);
           offset += batchSize;
           hasMore = data.length === batchSize;
         } else {
@@ -560,6 +579,7 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
         }
       }
 
+      const totalAvailable = allQuestions.length;
       let result = allQuestions;
       if (count && count > 0 && allQuestions.length > count) {
         for (let i = allQuestions.length - 1; i > 0; i--) {
@@ -569,7 +589,7 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
         result = allQuestions.slice(0, count);
       }
 
-      return new Response(JSON.stringify({ questions: result, totalAvailable: allQuestions.length }), {
+      return new Response(JSON.stringify({ questions: result, totalAvailable }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }

@@ -174,11 +174,21 @@ serve(async (req) => {
             const questions = await generateBatch(apiKey, exam, config.label, subject, year, needed);
 
             if (questions.length > 0) {
-              const { error: insertError } = await supabase.from("question_bank").insert(questions);
+              // Use upsert with onConflict to skip duplicates gracefully
+              const { data: inserted, error: insertError } = await supabase
+                .from("question_bank")
+                .upsert(questions, { onConflict: "exam_type,subject,md5(question)", ignoreDuplicates: true })
+                .select("id");
               if (insertError) {
-                console.error(`Insert error for ${exam}/${subject}/${year}:`, insertError);
+                // Fallback: insert one-by-one, skipping duplicates
+                let insertedCount = 0;
+                for (const q of questions) {
+                  const { error: singleErr } = await supabase.from("question_bank").insert(q);
+                  if (!singleErr) insertedCount++;
+                }
+                totalInserted += insertedCount;
               } else {
-                totalInserted += questions.length;
+                totalInserted += inserted?.length || questions.length;
               }
             }
 
