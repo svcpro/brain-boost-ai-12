@@ -560,11 +560,11 @@ export default function TeacherModeAdmin() {
             <div className="space-y-4">
               {/* Class overview cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard label="Total Students" value={classPerf.students} icon={Users} color="bg-blue-500" delay={0} />
-                <StatCard label="Active (30d)" value={classPerf.active_students} icon={Activity} color="bg-emerald-500" delay={0.05}
-                  trend={classPerf.students > 0 ? { value: Math.round(classPerf.active_students / classPerf.students * 100), up: true } : null} />
-                <StatCard label="Study Minutes" value={classPerf.total_study_minutes.toLocaleString()} icon={Clock} color="bg-accent" delay={0.1} />
-                <StatCard label="Sessions (30d)" value={classPerf.sessions_last_30d} icon={TrendingUp} color="bg-primary" delay={0.15} />
+                <StatCard label="Total Students" value={classPerf.students || 0} icon={Users} color="bg-blue-500" delay={0} />
+                <StatCard label="Active (30d)" value={classPerf.active_students || 0} icon={Activity} color="bg-emerald-500" delay={0.05}
+                  trend={classPerf.students > 0 ? { value: Math.round((classPerf.active_students || 0) / classPerf.students * 100), up: true } : null} />
+                <StatCard label="Study Minutes" value={(classPerf.total_study_minutes || 0).toLocaleString()} icon={Clock} color="bg-accent" delay={0.1} />
+                <StatCard label="Sessions (30d)" value={classPerf.sessions_last_30d || 0} icon={TrendingUp} color="bg-primary" delay={0.15} />
               </div>
 
               {/* Subject Performance */}
