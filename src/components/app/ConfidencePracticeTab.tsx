@@ -298,76 +298,7 @@ const ConfidencePracticeTab = () => {
           )}
         </motion.section>
 
-        {/* ─── Section A: Question Bank Card ─── */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-        >
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => { setSource("bank"); setSection("bank_setup"); }}
-            className="w-full rounded-3xl p-5 text-left relative overflow-hidden group"
-            style={{
-              background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
-              border: "1px solid hsl(var(--border))",
-            }}
-          >
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 blur-2xl pointer-events-none" style={{ background: "hsl(var(--primary))" }} />
-            <motion.div
-              className="absolute bottom-2 left-2 w-20 h-20 rounded-full opacity-5 pointer-events-none"
-              style={{ background: "hsl(var(--primary))" }}
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 3, repeat: Infinity }}
-            />
-
-            <div className="relative z-10 flex items-start gap-4">
-              <motion.div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-                style={{
-                  background: "linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.05))",
-                  border: "1px solid hsl(var(--primary) / 0.3)",
-                }}
-                animate={{ rotate: [0, 3, -3, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <BookOpen className="w-7 h-7 text-primary" />
-              </motion.div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-bold text-foreground text-base">Last 5 Years Question Bank</h3>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  Practice real previous year questions. Actual exam questions for authentic preparation.
-                </p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {["Year-wise", "Topic-wise", "Real PYQs"].map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-semibold"
-                      style={{
-                        background: "hsl(var(--primary) / 0.1)",
-                        color: "hsl(var(--primary))",
-                        border: "1px solid hsl(var(--primary) / 0.15)",
-                      }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <motion.div
-                animate={{ x: [0, 4, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="shrink-0 mt-2"
-              >
-                <ChevronRight className="w-5 h-5 text-primary/60 group-hover:text-primary transition-colors" />
-              </motion.div>
-            </div>
-          </motion.button>
-        </motion.div>
+        {/* Section A: Question Bank Card — hidden from user frontend */}
 
         {/* ─── Section B: AI Predicted Card ─── */}
         <motion.div
