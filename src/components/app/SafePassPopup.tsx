@@ -73,17 +73,38 @@ function computeActivityScore(m: ActivityMetrics): number {
   );
 }
 
-/* ─── Map activity score to predicted rank range ─── */
-function activityToRankRange(score: number, totalCandidates: number): [number, number] {
-  // Higher activity score → better (lower) rank
-  // Score 0 → bottom 90-95% | Score 100 → top 1-2%
-  const topPercentile = Math.max(0.5, 100 - score * 0.99);          // score 100 → 0.5 percentile
-  const bottomPercentile = Math.min(99, topPercentile + 5 + (100 - score) * 0.15);
+/* ─── Safe zone target rank per exam ─── 
+   These are the rank ranges where a user is considered "safe to pass"
+   based on real exam patterns. The user's current app rank needs to 
+   reach this range through sustained study effort.
+*/
+const SAFE_ZONE_MAP: Record<string, [number, number]> = {
+  NEET:           [1560, 2580],
+  "JEE Main":     [800, 1500],
+  "JEE Advanced": [200, 500],
+  UPSC:           [100, 300],
+  CAT:            [300, 800],
+  GATE:           [500, 1200],
+  SSC:            [1000, 3000],
+  CLAT:           [200, 600],
+  Boards:         [2000, 5000],
+};
+const DEFAULT_SAFE_ZONE: [number, number] = [1000, 3000];
 
-  const bestRank = Math.max(1, Math.round(totalCandidates * (topPercentile / 100)));
-  const worstRank = Math.round(totalCandidates * (bottomPercentile / 100));
-
-  return [bestRank, worstRank];
+/* ─── Map activity score to predicted rank ─── */
+function activityToPredictedRank(score: number, currentRank: number, safeZone: [number, number]): [number, number] {
+  // At score 0 → stays near current rank
+  // At score 100 → reaches safe zone best rank
+  // Interpolate between current rank and safe zone based on activity score
+  const progress = score / 100; // 0 to 1
+  
+  // Use exponential curve so early effort shows visible improvement
+  const curve = Math.pow(progress, 0.7); // slightly accelerated curve
+  
+  const predictedBest = Math.max(1, Math.round(currentRank - (currentRank - safeZone[0]) * curve));
+  const predictedWorst = Math.max(predictedBest, Math.round(currentRank - (currentRank - safeZone[1]) * curve));
+  
+  return [predictedBest, predictedWorst];
 }
 
 /* ─── Main computation ─── */
@@ -146,8 +167,9 @@ function computeSafePass(
     daysActive,
   };
 
+  const safeZone = (examType && SAFE_ZONE_MAP[examType]) ? SAFE_ZONE_MAP[examType] : DEFAULT_SAFE_ZONE;
   const activityScore = computeActivityScore(metrics);
-  const predictedSafeRankRange = activityToRankRange(activityScore, totalCandidates);
+  const predictedSafeRankRange = activityToPredictedRank(activityScore, currentRank, safeZone);
 
   // Determine zone based on activity score
   let rankStatus: SafePassData["rankStatus"];
@@ -219,9 +241,9 @@ function computeSafePass(
     improvementTips: tips.slice(0, 3),
     topicGaps,
     whatIf: {
-      if30MinMore: activityToRankRange(scoreWith30Min, totalCandidates)[0],
-      if3TopicsFix: activityToRankRange(scoreWith3Topics, totalCandidates)[0],
-      ifStreakBonus: activityToRankRange(scoreWithStreak, totalCandidates)[0],
+      if30MinMore: activityToPredictedRank(scoreWith30Min, currentRank, safeZone)[0],
+      if3TopicsFix: activityToPredictedRank(scoreWith3Topics, currentRank, safeZone)[0],
+      ifStreakBonus: activityToPredictedRank(scoreWithStreak, currentRank, safeZone)[0],
     },
     daysToExam,
     examLabel,
