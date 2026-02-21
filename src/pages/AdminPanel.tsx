@@ -47,7 +47,8 @@ import GrowthControlCenter from "@/components/admin/GrowthControlCenter";
 import ExamCountdownConfig from "@/components/admin/ExamCountdownConfig";
 import SureShotAdminPanel from "@/components/admin/SureShotAdminPanel";
 import ComingSoonControlPanel from "@/components/admin/ComingSoonControlPanel";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon";
+import AutopilotAdminPanel from "@/components/admin/AutopilotAdminPanel";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -132,6 +133,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "seo", label: "SEO Manager", icon: SearchIcon, roles: ["super_admin", "admin"] },
       { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
       { key: "coming_soon", label: "Coming Soon", icon: Rocket, roles: ["super_admin", "admin"], badge: "🚀" },
+      { key: "autopilot", label: "Autopilot Engine", icon: Workflow, roles: ["super_admin", "admin", "ai_admin"], badge: "v5" },
     ],
   },
   {
@@ -475,6 +477,7 @@ const AdminPanel = () => {
               {section === "notify_intelligence" && <NotificationIntelligence />}
               {section === "growth_center" && <GrowthControlCenter />}
               {section === "coming_soon" && <ComingSoonControlPanel />}
+              {section === "autopilot" && <AutopilotAdminPanel />}
               {section === "monitoring" && <SystemMonitor />}
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}

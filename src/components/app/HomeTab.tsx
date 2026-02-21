@@ -28,6 +28,7 @@ import TodaysMission from "./TodaysMission";
 import QuickMicroActions from "./QuickMicroActions";
 import PlanGateWrapper from "./PlanGateWrapper";
 import TrialBanner from "./TrialBanner";
+const AutopilotWidget = lazy(() => import("./AutopilotWidget"));
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Lazy load below-the-fold heavy components
@@ -469,6 +470,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           {analyzing ? "Updating…" : "Refresh brain"}
         </motion.button>
       </motion.section>
+
+      {/* AI Autopilot */}
+      <SectionErrorBoundary name="Autopilot">
+        <Suspense fallback={null}>
+          <AutopilotWidget />
+        </Suspense>
+      </SectionErrorBoundary>
 
       {/* Trial banner */}
       <TrialBanner />

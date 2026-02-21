@@ -209,3 +209,6 @@ verify_jwt = false
 
 [functions.study-pods]
 verify_jwt = false
+
+[functions.autopilot-engine]
+verify_jwt = false
