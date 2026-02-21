@@ -176,41 +176,79 @@ function computeSafePass(
   const activityScore = computeActivityScore(metrics);
   const predictedSafeRankRange = activityToPredictedRank(activityScore, currentRank, safeZone);
 
-  // Determine zone based on activity score
+  // ─── ACCURATE ZONE: based on predicted rank vs safe zone target ───
+  // Compare the user's best predicted rank against the safe zone boundaries
+  const predictedBestRank = predictedSafeRankRange[0];
+  const safeTop = safeZone[0];    // e.g. 1560 for NEET (best safe rank)
+  const safeBottom = safeZone[1]; // e.g. 2580 for NEET (worst safe rank)
+  
+  // Calculate how far the predicted rank is from the safe zone
+  // rankRatio: < 1 means inside/above safe zone, > 1 means below safe zone
+  const rankRatio = predictedBestRank / safeBottom;
+  
+  // Also factor in coverage, strength, and consistency for a blended score
+  const coverageRatio = allTopics.length > 0 ? topicsStrong / Math.max(allTopics.length, 1) : 0;
+  const strengthFactor = avgMemoryStrength / 100; // 0-1
+  const consistencyFactor = Math.min(1, daysActive / 30);
+  
+  // Blended position score: 60% rank position, 20% topic mastery, 10% consistency, 10% activity
+  const positionScore = Math.max(0, Math.min(100,
+    (1 - Math.min(rankRatio, 3) / 3) * 100  // rank position normalized 0-100
+  ));
+  const blendedScore = Math.round(
+    positionScore * 0.50 +
+    (coverageRatio * 100) * 0.20 +
+    strengthFactor * 100 * 0.15 +
+    consistencyFactor * 100 * 0.15
+  );
+
   let rankStatus: SafePassData["rankStatus"];
   let currentZone: string;
-  if (activityScore >= 85) {
+
+  if (predictedBestRank <= safeTop && blendedScore >= 75) {
+    // Predicted rank is ABOVE the safe zone top — topper
     rankStatus = "topper";
     currentZone = "🏆 Topper Zone — Outstanding Activity";
-  } else if (activityScore >= 70) {
+  } else if (predictedBestRank <= safeBottom && blendedScore >= 55) {
+    // Predicted rank is INSIDE the safe zone — comfortable
     rankStatus = "comfortable";
     currentZone = "🎯 Comfortable — Strong Preparation";
-  } else if (activityScore >= 50) {
+  } else if (predictedBestRank <= safeBottom * 1.5 && blendedScore >= 40) {
+    // Within 1.5x of safe zone bottom — safe
     rankStatus = "safe";
     currentZone = "✅ Safe Zone — On Track";
-  } else if (activityScore >= 30) {
+  } else if (predictedBestRank <= safeBottom * 3 && blendedScore >= 20) {
+    // Within 3x of safe zone — borderline
     rankStatus = "borderline";
     currentZone = "⚡ Borderline — Needs More Effort";
   } else {
+    // Far from safe zone — at risk
     rankStatus = "at_risk";
     currentZone = "🔴 At Risk — Study More to Improve";
   }
 
-  // Pass probability from activity score
+  // ─── Pass probability: blended from rank proximity + preparation quality ───
   let passProbability: number;
-  if (activityScore >= 90) passProbability = 95;
-  else if (activityScore >= 80) passProbability = 88;
-  else if (activityScore >= 70) passProbability = 78;
-  else if (activityScore >= 60) passProbability = 65;
-  else if (activityScore >= 50) passProbability = 52;
-  else if (activityScore >= 40) passProbability = 38;
-  else if (activityScore >= 25) passProbability = 22;
-  else passProbability = 10;
-
-  // Exam urgency adjustment
-  if (daysToExam !== null && daysToExam <= 30 && activityScore < 60) {
-    passProbability = Math.max(5, passProbability - Math.round((30 - daysToExam) * 0.4));
+  if (predictedBestRank <= safeTop) {
+    // Above safe zone: 85-98% based on mastery depth
+    passProbability = Math.round(85 + blendedScore * 0.13);
+  } else if (predictedBestRank <= safeBottom) {
+    // Inside safe zone: 60-85%
+    const withinZone = 1 - (predictedBestRank - safeTop) / (safeBottom - safeTop);
+    passProbability = Math.round(60 + withinZone * 25);
+  } else {
+    // Below safe zone: scale down based on distance
+    const distRatio = Math.min(predictedBestRank / safeBottom, 10);
+    passProbability = Math.max(5, Math.round(55 / distRatio + blendedScore * 0.1));
   }
+
+  // Exam urgency adjustment — reduce confidence when exam is near & preparation is weak
+  if (daysToExam !== null && daysToExam <= 30 && blendedScore < 50) {
+    const urgencyPenalty = Math.round((30 - daysToExam) * (50 - blendedScore) * 0.02);
+    passProbability = Math.max(3, passProbability - urgencyPenalty);
+  }
+  // Clamp
+  passProbability = Math.min(98, Math.max(3, passProbability));
 
   const progressPercent = activityScore;
 
