@@ -36,6 +36,8 @@ export interface PracticeQuestion {
     difficulty_alignment: number;
     semantic_similarity: number;
     examiner_behavior: number;
+    cross_exam_correlation?: number;
+    syllabus_coverage?: number;
     // Legacy support
     topic_frequency?: number;
     repetition?: number;
@@ -44,6 +46,7 @@ export interface PracticeQuestion {
     language_similarity?: number;
   };
   similar_pyq_years?: number[];
+  question_type?: "factual" | "conceptual" | "application" | "analytical";
 }
 
 export interface ProgressStats {
