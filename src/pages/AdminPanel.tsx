@@ -8,7 +8,8 @@ import {
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Sparkles, MessageSquare, Globe,
-  Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio, Target, Rocket
+  Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio, Target, Rocket,
+  Cpu, Building2, GraduationCap, Megaphone, Lock, Fingerprint, FileText, PanelLeftClose, PanelLeft
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -73,13 +74,19 @@ const ROLE_COLORS: Record<AppRole, string> = {
 interface NavGroup {
   label: string;
   icon: any;
-  items: { key: AdminSection; label: string; icon: any; roles: AppRole[]; badge?: string }[];
+  color: string;
+  gradient: string;
+  dotColor: string;
+  items: { key: AdminSection; label: string; icon: any; roles: AppRole[]; badge?: string; badgeColor?: string }[];
 }
 
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
     icon: LayoutDashboard,
+    color: "text-primary",
+    gradient: "from-primary/20 to-primary/5",
+    dotColor: "bg-primary",
     items: [
       { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
     ],
@@ -87,15 +94,24 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "AI & Intelligence",
     icon: Brain,
+    color: "text-accent",
+    gradient: "from-accent/20 to-accent/5",
+    dotColor: "bg-accent",
     items: [
-      { key: "ai", label: "AI Command Center", icon: Brain, roles: ["super_admin", "admin", "ai_admin"] },
+      { key: "ai", label: "AI Command Center", icon: Cpu, roles: ["super_admin", "admin", "ai_admin"] },
       { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
       { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
+      { key: "autopilot", label: "Autopilot Engine", icon: Workflow, roles: ["super_admin", "admin", "ai_admin"], badge: "v5", badgeColor: "bg-accent/20 text-accent" },
+      { key: "sureshot", label: "SureShot AI Lab", icon: Target, roles: ["super_admin", "admin", "ai_admin"], badge: "ML", badgeColor: "bg-accent/20 text-accent" },
+      { key: "exam_countdown", label: "Exam AI Control", icon: Brain, roles: ["super_admin", "admin"], badge: "AI", badgeColor: "bg-accent/20 text-accent" },
     ],
   },
   {
     label: "Users & Community",
     icon: Users,
+    color: "text-blue-400",
+    gradient: "from-blue-500/20 to-blue-500/5",
+    dotColor: "bg-blue-400",
     items: [
       { key: "users", label: "User Management", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
       { key: "community", label: "Community Hub", icon: Radio, roles: ["super_admin", "admin", "support_admin"] },
@@ -103,55 +119,65 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Messaging",
-    icon: Mail,
+    label: "Messaging & Growth",
+    icon: Megaphone,
+    color: "text-emerald-400",
+    gradient: "from-emerald-500/20 to-emerald-500/5",
+    dotColor: "bg-emerald-400",
     items: [
-      { key: "notify_intelligence", label: "🧠 AI Intelligence", icon: Brain, roles: ["super_admin", "admin"], badge: "NEW" },
-      { key: "growth_center", label: "🚀 Growth Engine", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "NEW" },
-      
+      { key: "notify_intelligence", label: "AI Intelligence", icon: Brain, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-emerald-500/20 text-emerald-400" },
+      { key: "growth_center", label: "Growth Engine", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-emerald-500/20 text-emerald-400" },
       { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
       { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
       { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
-      
     ],
   },
   {
     label: "Revenue & Plans",
     icon: Wallet,
+    color: "text-amber-400",
+    gradient: "from-amber-500/20 to-amber-500/5",
+    dotColor: "bg-amber-400",
     items: [
       { key: "subscriptions", label: "Subscriptions", icon: CreditCard, roles: ["super_admin", "admin", "finance_admin"] },
       { key: "plan_gating", label: "Plan Gating", icon: Shield, roles: ["super_admin", "admin"] },
-      { key: "exam_countdown", label: "Exam AI Control", icon: Brain, roles: ["super_admin", "admin"], badge: "AI" },
-      { key: "sureshot", label: "SureShot AI Lab", icon: Target, roles: ["super_admin", "admin", "ai_admin"], badge: "ML" },
       { key: "finance", label: "Finance & Costs", icon: IndianRupee, roles: ["super_admin", "admin", "finance_admin"] },
     ],
   },
   {
     label: "Platform & APIs",
     icon: Server,
+    color: "text-sky-400",
+    gradient: "from-sky-500/20 to-sky-500/5",
+    dotColor: "bg-sky-400",
     items: [
       { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
       { key: "services", label: "3rd Party Services", icon: Globe, roles: ["super_admin", "admin", "api_admin"] },
       { key: "seo", label: "SEO Manager", icon: SearchIcon, roles: ["super_admin", "admin"] },
       { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
       { key: "coming_soon", label: "Coming Soon", icon: Rocket, roles: ["super_admin", "admin"], badge: "🚀" },
-      { key: "autopilot", label: "Autopilot Engine", icon: Workflow, roles: ["super_admin", "admin", "ai_admin"], badge: "v5" },
     ],
   },
   {
     label: "Enterprise",
-    icon: Globe,
+    icon: Building2,
+    color: "text-rose-400",
+    gradient: "from-rose-500/20 to-rose-500/5",
+    dotColor: "bg-rose-400",
     items: [
-      { key: "institutions", label: "Institutions", icon: Users, roles: ["super_admin", "admin"], badge: "v6" },
-      { key: "teacher_mode", label: "AI Teacher Mode", icon: BookOpen, roles: ["super_admin", "admin", "ai_admin"], badge: "v6" },
+      { key: "institutions", label: "Institutions", icon: Building2, roles: ["super_admin", "admin"], badge: "v6", badgeColor: "bg-rose-500/20 text-rose-400" },
+      { key: "teacher_mode", label: "AI Teacher Mode", icon: GraduationCap, roles: ["super_admin", "admin", "ai_admin"], badge: "v6", badgeColor: "bg-rose-500/20 text-rose-400" },
     ],
   },
   {
     label: "Admin & Security",
-    icon: Shield,
+    icon: Lock,
+    color: "text-red-400",
+    gradient: "from-red-500/20 to-red-500/5",
+    dotColor: "bg-red-400",
     items: [
-      { key: "admins", label: "Admin Roles", icon: Shield, roles: ["super_admin"] },
-      { key: "audit", label: "Audit Logs", icon: ScrollText, roles: ["super_admin", "admin"] },
+      { key: "admins", label: "Admin Roles", icon: Fingerprint, roles: ["super_admin"] },
+      { key: "audit", label: "Audit Logs", icon: FileText, roles: ["super_admin", "admin"] },
       { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
     ],
   },
@@ -225,16 +251,19 @@ const AdminPanel = () => {
   // Shared sidebar content renderer
   const renderSidebarContent = (isMobile = false) => (
     <div className="flex flex-col h-full">
-      {/* Logo / Header */}
-      <div className="px-4 pt-5 pb-4">
+      {/* Logo / Brand Header */}
+      <div className="px-4 pt-5 pb-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0 border border-primary/20">
-            <Zap className="w-5 h-5 text-primary" />
+          <div className="relative">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+              <Zap className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-card" />
           </div>
           {!sidebarCollapsed && (
-            <div className="min-w-0">
-              <h1 className="text-base font-bold text-foreground tracking-tight">ACRY Admin</h1>
-              <p className="text-[10px] text-muted-foreground truncate">Control Center</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-sm font-extrabold text-foreground tracking-tight">ACRY Admin</h1>
+              <p className="text-[10px] text-muted-foreground/70 font-medium">Control Center</p>
             </div>
           )}
           {!sidebarCollapsed && <ThemeToggle />}
@@ -242,8 +271,9 @@ const AdminPanel = () => {
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="ml-auto p-1.5 rounded-lg hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors hidden md:flex"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              <ChevronRight className={`w-4 h-4 transition-transform ${sidebarCollapsed ? "" : "rotate-180"}`} />
+              {sidebarCollapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
             </button>
           )}
           {isMobile && (
@@ -254,74 +284,94 @@ const AdminPanel = () => {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search Bar */}
       {!sidebarCollapsed && (
-        <div className="px-3 pb-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <div className="px-3 pb-2">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/60 group-focus-within:text-primary transition-colors" />
             <input
               type="text"
               placeholder="Search menu..."
               value={navSearch}
               onChange={e => setNavSearch(e.target.value)}
-              className="w-full bg-secondary/60 border border-border/50 rounded-lg pl-8 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/30 transition-all"
+              className="w-full bg-secondary/40 border border-border/30 rounded-xl pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:bg-secondary/60 transition-all"
             />
           </div>
         </div>
       )}
 
-      {/* Role badges */}
+      {/* Role Badges */}
       {!sidebarCollapsed && (
-        <div className="px-4 pb-3 flex flex-wrap gap-1">
+        <div className="px-4 pb-2 flex flex-wrap gap-1">
           {roles.map(r => (
-            <span key={r} className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[r]}`}>
+            <span key={r} className={`text-[9px] font-bold px-2 py-0.5 rounded-md border ${ROLE_COLORS[r]} border-current/10`}>
               {ROLE_LABELS[r]}
             </span>
           ))}
         </div>
       )}
 
-      {/* Separator */}
-      <div className="mx-3 border-t border-border/40 mb-2" />
+      {/* Divider */}
+      <div className="mx-4 mb-2">
+        <div className="h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+      </div>
 
       {/* Navigation Groups */}
-      <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-1 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5 scrollbar-thin">
         {filteredGroups.map((group) => {
           const isExpanded = expandedGroups.has(group.label);
           const hasActiveItem = group.items.some(i => i.key === section);
           const GroupIcon = group.icon;
 
           return (
-            <div key={group.label}>
-              {/* Group header */}
+            <div key={group.label} className="mb-0.5">
+              {/* Group Header */}
               <button
                 onClick={() => !sidebarCollapsed && toggleGroup(group.label)}
                 className={cn(
-                  "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all",
-                  hasActiveItem ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                  "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-200",
+                  hasActiveItem
+                    ? `bg-gradient-to-r ${group.gradient} ${group.color}`
+                    : "text-muted-foreground/70 hover:text-muted-foreground hover:bg-secondary/40",
                   sidebarCollapsed ? "justify-center" : ""
                 )}
               >
-                <GroupIcon className="w-3.5 h-3.5 shrink-0" />
+                <div className={cn(
+                  "w-6 h-6 rounded-lg flex items-center justify-center transition-all shrink-0",
+                  hasActiveItem ? `${group.color} bg-current/10` : "text-muted-foreground/60"
+                )}>
+                  <GroupIcon className="w-3.5 h-3.5" />
+                </div>
                 {!sidebarCollapsed && (
                   <>
                     <span className="flex-1 text-left">{group.label}</span>
-                    <ChevronDown className={cn("w-3 h-3 transition-transform duration-200", isExpanded ? "" : "-rotate-90")} />
+                    <div className="flex items-center gap-1.5">
+                      {hasActiveItem && (
+                        <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", group.dotColor)} />
+                      )}
+                      <ChevronDown className={cn(
+                        "w-3 h-3 transition-transform duration-300",
+                        isExpanded ? "rotate-0" : "-rotate-90"
+                      )} />
+                    </div>
                   </>
                 )}
               </button>
 
-              {/* Group items */}
+              {/* Group Items */}
               <AnimatePresence initial={false}>
                 {(isExpanded || sidebarCollapsed) && (
                   <motion.div
                     initial={sidebarCollapsed ? false : { height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={sidebarCollapsed ? undefined : { height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.25, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    <div className={cn("space-y-0.5", !sidebarCollapsed && "ml-2 pl-2 border-l border-border/30")}>
+                    <div className={cn(
+                      "py-0.5 space-y-px",
+                      !sidebarCollapsed && "ml-5 pl-3 border-l-2 border-border/20"
+                    )}>
                       {group.items.map(item => {
                         const isActive = section === item.key;
                         const ItemIcon = item.icon;
@@ -334,26 +384,34 @@ const AdminPanel = () => {
                             }}
                             title={sidebarCollapsed ? item.label : undefined}
                             className={cn(
-                              "w-full flex items-center gap-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative",
-                              sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
+                              "w-full flex items-center gap-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 group/item relative",
+                              sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-[7px]",
                               isActive
-                                ? "bg-primary/12 text-primary shadow-sm shadow-primary/5"
-                                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+                                ? `bg-gradient-to-r ${group.gradient} ${group.color} shadow-sm`
+                                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                             )}
                           >
-                            {isActive && (
+                            {isActive && !sidebarCollapsed && (
                               <motion.div
-                                layoutId="activeNavIndicator"
-                                className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full"
-                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                layoutId="adminSidebarIndicator"
+                                className={cn("absolute -left-3.5 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full", group.dotColor)}
+                                transition={{ type: "spring", stiffness: 400, damping: 28 }}
                               />
                             )}
-                            <ItemIcon className={cn("w-4 h-4 shrink-0 transition-colors", isActive ? "text-primary" : "group-hover:text-foreground")} />
+                            <ItemIcon className={cn(
+                              "w-4 h-4 shrink-0 transition-all duration-200",
+                              isActive ? group.color : "group-hover/item:text-foreground"
+                            )} />
                             {!sidebarCollapsed && (
-                              <span className="truncate">{item.label}</span>
+                              <span className="truncate flex-1 text-left">{item.label}</span>
                             )}
                             {!sidebarCollapsed && item.badge && (
-                              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">{item.badge}</span>
+                              <span className={cn(
+                                "text-[8px] font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wide",
+                                item.badgeColor || "bg-primary/15 text-primary"
+                              )}>
+                                {item.badge}
+                              </span>
                             )}
                           </button>
                         );
@@ -368,23 +426,29 @@ const AdminPanel = () => {
       </nav>
 
       {/* Footer */}
-      <div className="mt-auto border-t border-border/40 p-3 space-y-1.5">
+      <div className="mt-auto p-3 space-y-1">
+        <div className="mx-1 mb-2">
+          <div className="h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+        </div>
         <button
           onClick={() => navigate("/app")}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors"
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-xl transition-all duration-200"
         >
           <ArrowLeft className="w-4 h-4 shrink-0" />
           {!sidebarCollapsed && <span>Back to App</span>}
         </button>
         <button
           onClick={async () => { sessionStorage.removeItem("admin_login_time"); await signOut(); navigate("/admin/login"); }}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-destructive/80 hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all duration-200"
         >
           <LogOut className="w-4 h-4 shrink-0" />
           {!sidebarCollapsed && <span>Sign Out</span>}
         </button>
         {!sidebarCollapsed && (
-          <p className="text-[9px] text-muted-foreground/60 px-3">Session auto-expires in 2h</p>
+          <div className="px-3 pt-1 flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            <p className="text-[9px] text-muted-foreground/50 font-medium">Session auto-expires in 2h</p>
+          </div>
         )}
       </div>
     </div>
@@ -394,9 +458,10 @@ const AdminPanel = () => {
     <div className="min-h-screen bg-background flex">
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "hidden md:flex flex-col bg-card/80 backdrop-blur-xl border-r border-border/60 transition-all duration-300 shrink-0",
-        sidebarCollapsed ? "w-[68px]" : "w-[260px]"
+        "hidden md:flex flex-col bg-card/60 backdrop-blur-2xl border-r border-border/40 transition-all duration-300 shrink-0 relative",
+        sidebarCollapsed ? "w-[68px]" : "w-[272px]"
       )}>
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] via-transparent to-accent/[0.02] pointer-events-none" />
         {renderSidebarContent()}
       </aside>
 
