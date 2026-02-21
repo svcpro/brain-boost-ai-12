@@ -151,39 +151,101 @@ serve(async (req) => {
     }
 
     if (action === "predict_rank") {
-      // Get all topics with memory strength
+      // ═══ UPGRADED EXAM-PATTERN RANK PREDICTION ENGINE v2.0 ═══
       const { data: topics } = await supabase
         .from("topics")
         .select("*, subjects(name)")
         .eq("user_id", userId);
 
       if (!topics || topics.length === 0) {
-        return new Response(JSON.stringify({ predicted_rank: null, percentile: null, factors: {} }), {
+        return new Response(JSON.stringify({ predicted_rank: null, percentile: null, factors: {}, trend: "neutral" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Get study logs for volume metrics
+      // Get study logs (all + recent)
       const { data: studyLogs } = await supabase
         .from("study_logs")
-        .select("duration_minutes, created_at")
-        .eq("user_id", userId);
+        .select("duration_minutes, created_at, confidence_level, topic_id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(500);
 
-      const totalMinutes = (studyLogs || []).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+      // Get user profile for exam context
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("exam_date, exam_type")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const now = new Date();
+      const allLogs = studyLogs || [];
+      const totalMinutes = allLogs.reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
       const totalHours = totalMinutes / 60;
 
-      // Calculate coverage: % of topics with memory_strength > 50
+      // ── Factor 1: Memory Strength (25%) ──
+      const avgStrength = topics.reduce((s: number, t: any) => s + (t.memory_strength || 0), 0) / topics.length;
+
+      // ── Factor 2: Topic Coverage (20%) ──
       const strongTopics = topics.filter((t: any) => t.memory_strength > 50).length;
       const coverageRatio = topics.length > 0 ? strongTopics / topics.length : 0;
 
-      // Average memory strength
-      const avgStrength = topics.reduce((s: number, t: any) => s + (t.memory_strength || 0), 0) / topics.length;
+      // ── Factor 3: Study Volume (10%) ──
+      const volumeScore = Math.min(totalHours / 200, 1) * 100;
 
-      // Composite score (0-100): weighted combination
-      const compositeScore = (avgStrength * 0.4) + (coverageRatio * 100 * 0.35) + (Math.min(totalHours / 200, 1) * 100 * 0.25);
+      // ── Factor 4: Study Consistency (15%) ──
+      // How many of the last 14 days had study activity
+      const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
+      const recentLogs = allLogs.filter((l: any) => new Date(l.created_at) >= twoWeeksAgo);
+      const activeDays = new Set(recentLogs.map((l: any) => new Date(l.created_at).toDateString()));
+      const consistencyScore = Math.min(100, (activeDays.size / 14) * 100);
 
-      // Map composite score to rank (simulated population of 100,000)
-      // Higher score = lower (better) rank
+      // ── Factor 5: Recency Momentum (10%) ──
+      // Weighted scoring: recent study activity counts more
+      const threeDaysAgo = new Date(now.getTime() - 3 * 86400000);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+      const last3dMins = allLogs.filter((l: any) => new Date(l.created_at) >= threeDaysAgo).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+      const last7dMins = allLogs.filter((l: any) => new Date(l.created_at) >= sevenDaysAgo).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+      const recencyScore = last7dMins > 0 ? Math.min(100, (last3dMins / Math.max(last7dMins, 1)) * 100 * 1.5) : 0;
+
+      // ── Factor 6: Decay Velocity (10%) ──
+      // How many topics are actively decaying vs stable
+      const decayingTopics = topics.filter((t: any) => {
+        if (!t.next_predicted_drop_date) return false;
+        return new Date(t.next_predicted_drop_date) <= now;
+      }).length;
+      const decayVelocityScore = topics.length > 0 ? Math.max(0, 100 - (decayingTopics / topics.length) * 100) : 0;
+
+      // ── Factor 7: Confidence Distribution (5%) ──
+      // Higher confidence in study sessions = better preparation
+      const confScores = allLogs.map((l: any) => l.confidence_level === "high" ? 100 : l.confidence_level === "medium" ? 60 : 20);
+      const avgConfidence = confScores.length > 0 ? confScores.reduce((a: number, b: number) => a + b, 0) / confScores.length : 50;
+
+      // ── Factor 8: Exam Proximity Pressure (5%) ──
+      // Adjusts rank based on how close the exam is vs preparedness
+      let examPressureScore = 50; // neutral if no exam
+      if (profile?.exam_date) {
+        const daysToExam = Math.ceil((new Date(profile.exam_date).getTime() - now.getTime()) / 86400000);
+        if (daysToExam > 0) {
+          // More prepared + closer exam = higher score
+          const preparedness = avgStrength / 100;
+          const urgency = Math.max(0, 1 - daysToExam / 90); // ramps up in last 90 days
+          examPressureScore = Math.min(100, (preparedness * 0.6 + (1 - urgency * (1 - preparedness)) * 0.4) * 100);
+        }
+      }
+
+      // ═══ COMPOSITE SCORE (8-factor weighted) ═══
+      const compositeScore =
+        (avgStrength * 0.25) +
+        (coverageRatio * 100 * 0.20) +
+        (volumeScore * 0.10) +
+        (consistencyScore * 0.15) +
+        (recencyScore * 0.10) +
+        (decayVelocityScore * 0.10) +
+        (avgConfidence * 0.05) +
+        (examPressureScore * 0.05);
+
+      // Map composite to rank in simulated population
       const totalPopulation = 100000;
       const percentile = Math.min(99.9, Math.max(0.1, compositeScore));
       const predictedRank = Math.max(1, Math.round(totalPopulation * (1 - percentile / 100)));
@@ -195,6 +257,18 @@ serve(async (req) => {
         .eq("user_id", userId)
         .order("recorded_at", { ascending: false })
         .limit(10);
+
+      // ── Trend Analysis ──
+      const histArr = (history || []).map((h: any) => h.predicted_rank);
+      let trend: "rising" | "falling" | "stable" | "neutral" = "neutral";
+      if (histArr.length >= 3) {
+        const recent3Avg = histArr.slice(0, 3).reduce((a: number, b: number) => a + b, 0) / 3;
+        const older3Avg = histArr.slice(Math.max(0, histArr.length - 3)).reduce((a: number, b: number) => a + b, 0) / Math.min(3, histArr.length);
+        const diff = older3Avg - recent3Avg; // positive = improving (rank decreasing)
+        if (diff > 500) trend = "rising";
+        else if (diff < -500) trend = "falling";
+        else trend = "stable";
+      }
 
       // Save current prediction
       await supabase.from("rank_predictions").insert({
@@ -208,13 +282,17 @@ serve(async (req) => {
           composite_score: Math.round(compositeScore * 100) / 100,
           topic_count: topics.length,
           strong_topics: strongTopics,
+          consistency_score: Math.round(consistencyScore),
+          recency_score: Math.round(recencyScore),
+          decay_velocity_score: Math.round(decayVelocityScore),
+          confidence_score: Math.round(avgConfidence),
+          exam_pressure_score: Math.round(examPressureScore),
         },
       });
 
       // Weekly study data (last 7 days)
-      const now = new Date();
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const weekLogs = (studyLogs || []).filter((l: any) => new Date(l.created_at) >= weekAgo);
+      const weekAgo = new Date(now.getTime() - 7 * 86400000);
+      const weekLogs = allLogs.filter((l: any) => new Date(l.created_at) >= weekAgo);
       const weeklyHours: Record<string, number> = {};
       const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       for (const log of weekLogs) {
@@ -228,13 +306,14 @@ serve(async (req) => {
       const weekTotalHours = Math.round(weeklyData.reduce((s, d) => s + d.hours, 0) * 10) / 10;
 
       // Rank change from previous
-      const previousRank = history && history.length > 1 ? history[1].predicted_rank : null;
+      const previousRank = histArr.length > 0 ? histArr[0] : null;
       const rankChange = previousRank ? previousRank - predictedRank : 0;
 
       return new Response(JSON.stringify({
         predicted_rank: predictedRank,
         percentile: Math.round(percentile * 10) / 10,
         rank_change: rankChange,
+        trend,
         factors: {
           avg_strength: Math.round(avgStrength * 100) / 100,
           coverage_ratio: Math.round(coverageRatio * 100) / 100,
@@ -242,6 +321,11 @@ serve(async (req) => {
           composite_score: Math.round(compositeScore * 100) / 100,
           topic_count: topics.length,
           strong_topics: strongTopics,
+          consistency_score: Math.round(consistencyScore),
+          recency_score: Math.round(recencyScore),
+          decay_velocity_score: Math.round(decayVelocityScore),
+          confidence_score: Math.round(avgConfidence),
+          exam_pressure_score: Math.round(examPressureScore),
         },
         history: (history || []).reverse().map((h: any) => ({
           rank: h.predicted_rank,

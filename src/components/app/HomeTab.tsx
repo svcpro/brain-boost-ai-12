@@ -386,10 +386,19 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             className="relative z-10 grid grid-cols-3 gap-2 mt-4"
           >
             <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
-              <p className="text-lg font-bold text-foreground tabular-nums">
-                {rankData?.predicted_rank ? `#${rankData.predicted_rank.toLocaleString()}` : "—"}
+              <div className="flex items-center justify-center gap-1">
+                <p className="text-lg font-bold text-foreground tabular-nums">
+                  {rankData?.predicted_rank ? `#${rankData.predicted_rank.toLocaleString()}` : "—"}
+                </p>
+                {rankData?.rank_change !== undefined && rankData.rank_change !== 0 && (
+                  <span className={`text-[9px] font-bold ${rankData.rank_change > 0 ? "text-success" : "text-destructive"}`}>
+                    {rankData.rank_change > 0 ? `↑${rankData.rank_change.toLocaleString()}` : `↓${Math.abs(rankData.rank_change).toLocaleString()}`}
+                  </span>
+                )}
+              </div>
+              <p className="text-[9px] text-muted-foreground">
+                Rank {rankData?.trend === "rising" ? "📈" : rankData?.trend === "falling" ? "📉" : rankData?.trend === "stable" ? "➡️" : ""}
               </p>
-              <p className="text-[9px] text-muted-foreground">Rank</p>
             </div>
             <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
               <p className="text-lg font-bold text-foreground tabular-nums">
@@ -407,6 +416,45 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             </div>
           </motion.div>
         )}
+
+        {/* Exam Readiness & Consistency micro-bar */}
+        {hasTopics && rankData?.factors && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="relative z-10 grid grid-cols-2 gap-2 mt-2"
+            >
+              <div className="rounded-lg bg-background/40 backdrop-blur-sm p-2 border border-border/30">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[8px] text-muted-foreground">Consistency</span>
+                  <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.consistency_score ?? 0}%</span>
+                </div>
+                <div className="h-1 rounded-full bg-secondary/60">
+                  <motion.div
+                    className="h-full rounded-full bg-primary"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${rankData.factors.consistency_score ?? 0}%` }}
+                    transition={{ duration: 1, delay: 1.2 }}
+                  />
+                </div>
+              </div>
+              <div className="rounded-lg bg-background/40 backdrop-blur-sm p-2 border border-border/30">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[8px] text-muted-foreground">Decay Shield</span>
+                  <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.decay_velocity_score ?? 0}%</span>
+                </div>
+                <div className="h-1 rounded-full bg-secondary/60">
+                  <motion.div
+                    className="h-full rounded-full bg-success"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${rankData.factors.decay_velocity_score ?? 0}%` }}
+                    transition={{ duration: 1, delay: 1.3 }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
 
         {/* Refresh button */}
         <motion.button
