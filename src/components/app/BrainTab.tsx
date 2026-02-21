@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
 import { setCache, getCache } from "@/lib/offlineCache";
 import { safeStr } from "@/lib/safeRender";
+import { useAutoStudyTracker } from "@/hooks/useAutoStudyTracker";
 
 import { isPast, isToday } from "date-fns";
 
@@ -43,6 +44,7 @@ const BrainTab = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { prediction, loading, predict } = useMemoryEngine();
+  const { trackTopicView, endTracking } = useAutoStudyTracker();
   const [subjectHealth, setSubjectHealth] = useState<SubjectHealthData[]>([]);
   const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
   const [showAITopicManager, setShowAITopicManager] = useState(false);
@@ -138,19 +140,19 @@ const BrainTab = () => {
         totalSubjects={subjectHealth.length}
         hasData={hasData}
         subjectHealth={subjectHealth}
-        onBoostSession={(s, t) => setReviewSession({ subject: s, topic: t })}
+        onBoostSession={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
       />
 
       {/* ═══ SECTION 2: Interactive Memory Map ═══ */}
       <InteractiveMemoryMap
         subjectHealth={subjectHealth}
-        onReview={(s, t) => setReviewSession({ subject: s, topic: t })}
+        onReview={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
       />
 
       {/* ═══ SECTION 3: Decay Forecast Timeline ═══ */}
       <DecayForecastTimeline
         subjectHealth={subjectHealth}
-        onPreventDecay={(s, t) => setReviewSession({ subject: s, topic: t })}
+        onPreventDecay={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
       />
 
       {/* ═══ SECTION 4: AI Intelligence Insights ═══ */}
@@ -217,7 +219,7 @@ const BrainTab = () => {
 
       <FocusModeSession
         open={!!reviewSession}
-        onClose={() => { setReviewSession(null); refreshAll(); }}
+        onClose={() => { endTracking(); setReviewSession(null); refreshAll(); }}
         onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))}
         initialSubject={reviewSession?.subject}
         initialTopic={reviewSession?.topic}
