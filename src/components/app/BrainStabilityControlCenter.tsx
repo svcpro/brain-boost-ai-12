@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, ShieldAlert, AlertOctagon, Zap, Brain, Clock, CheckCircle,
   RefreshCw, Sparkles, TrendingUp, ChevronRight, X, Play, Flame, Target,
+  Activity, Radio,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -411,6 +412,8 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
 
   // ─── Main render ───────────────────────────────────────────
   const topPriority = prioritized.critical[0] || prioritized.moderate[0];
+  const stabilityPercent = Math.round(overallHealth);
+  const circumference = 2 * Math.PI * 54;
 
   return (
     <>
@@ -420,76 +423,179 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
         transition={{ delay: 0.1 }}
         className="relative"
       >
-        {/* Background aura */}
-        <div className="absolute inset-0 -m-2 rounded-3xl pointer-events-none overflow-hidden">
+        {/* Outer glow pulse */}
+        <div className="absolute inset-0 -m-1 rounded-2xl pointer-events-none overflow-hidden">
           <motion.div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full blur-3xl"
-            style={{ background: emergencyActive ? "radial-gradient(circle, hsl(var(--destructive) / 0.06) 0%, transparent 70%)" : "radial-gradient(circle, hsl(var(--primary) / 0.05) 0%, transparent 70%)" }}
-            animate={{ scale: [1, 1.1, 1], opacity: [0.4, 0.7, 0.4] }}
-            transition={{ duration: 5, repeat: Infinity }}
+            className="absolute inset-0 rounded-2xl"
+            style={{
+              background: emergencyActive
+                ? "radial-gradient(ellipse at 50% 0%, hsl(var(--destructive) / 0.08) 0%, transparent 60%)"
+                : "radial-gradient(ellipse at 50% 0%, hsl(var(--primary) / 0.06) 0%, transparent 60%)",
+            }}
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
 
-        <div className="relative glass rounded-2xl overflow-hidden">
-          {/* Shimmer */}
+        <div className="relative rounded-2xl overflow-hidden border border-border/30" style={{ background: "hsl(var(--card) / 0.6)", backdropFilter: "blur(20px)" }}>
+          {/* Animated top accent line */}
           <motion.div
-            className="absolute top-0 left-0 right-0 h-[1px]"
-            style={{ background: emergencyActive ? "linear-gradient(90deg, transparent, hsl(var(--destructive) / 0.5), transparent)" : "linear-gradient(90deg, transparent, hsl(var(--primary) / 0.4), transparent)" }}
-            animate={{ opacity: [0.3, 0.8, 0.3] }}
-            transition={{ duration: 3, repeat: Infinity }}
+            className="absolute top-0 left-0 right-0 h-[2px]"
+            style={{
+              background: emergencyActive
+                ? "linear-gradient(90deg, transparent 0%, hsl(var(--destructive)) 30%, hsl(var(--destructive) / 0.6) 50%, hsl(var(--destructive)) 70%, transparent 100%)"
+                : "linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 30%, hsl(var(--primary) / 0.5) 50%, hsl(var(--primary)) 70%, transparent 100%)",
+            }}
+            animate={{ backgroundPosition: ["0% 0%", "200% 0%"] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* ── Header ── */}
-          <div className="px-4 pt-4 pb-2 flex items-center gap-3">
-            <motion.div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center ${emergencyActive ? "bg-destructive/15" : "bg-primary/10"}`}
-              animate={emergencyActive ? { scale: [1, 1.05, 1] } : {}}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <Shield className={`w-4.5 h-4.5 ${emergencyActive ? "text-destructive" : "text-primary"}`} />
-            </motion.div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-sm font-display font-bold text-foreground">Stability Control</h2>
-              <p className="text-[10px] text-muted-foreground">
-                {prioritized.critical.length > 0 ? `${prioritized.critical.length} critical` : ""}
-                {prioritized.critical.length > 0 && prioritized.moderate.length > 0 ? " · " : ""}
-                {prioritized.moderate.length > 0 ? `${prioritized.moderate.length} moderate` : ""}
-                {prioritized.critical.length === 0 && prioritized.moderate.length === 0 ? "Monitoring…" : ""}
-              </p>
+          {/* ── Compact Hero: Orbital Ring + Stats ── */}
+          <div className="px-4 pt-4 pb-3">
+            <div className="flex items-center gap-4">
+              {/* Orbital stability ring */}
+              <div className="relative w-[72px] h-[72px] shrink-0">
+                {/* Outer rotating orbit */}
+                <motion.div
+                  className="absolute inset-0"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                >
+                  <svg viewBox="0 0 72 72" className="w-full h-full">
+                    <circle cx="36" cy="36" r="34" fill="none" stroke="hsl(var(--border) / 0.15)" strokeWidth="1" strokeDasharray="3 6" />
+                    {/* Orbiting dot */}
+                    <circle cx="36" cy="2" r="2" fill={emergencyActive ? "hsl(var(--destructive))" : "hsl(var(--primary))"} opacity="0.8" />
+                  </svg>
+                </motion.div>
+
+                {/* Main ring */}
+                <svg viewBox="0 0 120 120" className="absolute inset-0 w-full h-full -rotate-90">
+                  <defs>
+                    <linearGradient id="stabilityGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor={emergencyActive ? "hsl(var(--destructive))" : "hsl(var(--primary))"} />
+                      <stop offset="100%" stopColor={emergencyActive ? "hsl(var(--warning))" : "hsl(var(--primary) / 0.5)"} />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="60" cy="60" r="54" fill="none" stroke="hsl(var(--border) / 0.1)" strokeWidth="5" />
+                  <motion.circle
+                    cx="60" cy="60" r="54" fill="none"
+                    stroke="url(#stabilityGrad)"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    initial={{ strokeDashoffset: circumference }}
+                    animate={{ strokeDashoffset: circumference * (1 - stabilityPercent / 100) }}
+                    transition={{ duration: 1.2, ease: "easeOut" }}
+                  />
+                </svg>
+
+                {/* Center value */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <motion.span
+                    className={`text-lg font-black tabular-nums leading-none ${emergencyActive ? "text-destructive" : "text-foreground"}`}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.3, type: "spring" }}
+                  >
+                    {stabilityPercent}
+                  </motion.span>
+                  <span className="text-[7px] text-muted-foreground font-semibold uppercase tracking-wider mt-0.5">Stable</span>
+                </div>
+              </div>
+
+              {/* Right side: header + live stats */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <motion.div
+                    className={`w-2 h-2 rounded-full ${emergencyActive ? "bg-destructive" : "bg-success"}`}
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                  <h2 className="text-xs font-display font-bold text-foreground tracking-tight">Stability Control</h2>
+                  {shieldStreak > 0 && (
+                    <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-primary">
+                      <Flame className="w-2.5 h-2.5" />{shieldStreak}d
+                    </span>
+                  )}
+                </div>
+
+                {/* Compact stat pills */}
+                <div className="flex flex-wrap gap-1.5">
+                  {prioritized.critical.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[9px] font-bold text-destructive"
+                    >
+                      <AlertOctagon className="w-2.5 h-2.5" />{prioritized.critical.length} critical
+                    </motion.span>
+                  )}
+                  {prioritized.moderate.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.05 }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 border border-warning/20 text-[9px] font-bold text-warning"
+                    >
+                      <ShieldAlert className="w-2.5 h-2.5" />{prioritized.moderate.length} moderate
+                    </motion.span>
+                  )}
+                  {prioritized.stable.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 border border-success/20 text-[9px] font-bold text-success"
+                    >
+                      <Shield className="w-2.5 h-2.5" />{prioritized.stable.length} OK
+                    </motion.span>
+                  )}
+                </div>
+              </div>
             </div>
-            {shieldStreak > 0 && (
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 border border-primary/20 text-[9px] font-bold text-primary">
-                <Flame className="w-3 h-3" /> {shieldStreak}d
-              </motion.div>
-            )}
           </div>
 
           {/* ── Emergency Banner ── */}
           <AnimatePresence>
             {emergencyActive && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mx-3 mb-2">
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mx-3 mb-2"
+              >
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   onClick={() => topPriority && handleFix(topPriority as RiskTopic, 3)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/25"
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-destructive/8 border border-destructive/20 backdrop-blur-sm"
                 >
-                  <motion.div animate={{ rotate: [0, -10, 10, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
-                    <AlertOctagon className="w-5 h-5 text-destructive" />
+                  <motion.div
+                    className="w-8 h-8 rounded-lg bg-destructive/15 flex items-center justify-center shrink-0"
+                    animate={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                  >
+                    <AlertOctagon className="w-4 h-4 text-destructive" />
                   </motion.div>
                   <div className="flex-1 text-left">
-                    <p className="text-[11px] font-bold text-destructive">🚨 Emergency Mode</p>
-                    <p className="text-[10px] text-destructive/80">Risk &gt;85% — tap to rescue now</p>
+                    <p className="text-[10px] font-bold text-destructive">Emergency — Risk &gt;85%</p>
+                    <p className="text-[9px] text-destructive/70">Tap to rescue {topPriority?.name}</p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-destructive/60" />
+                  <motion.div animate={{ x: [0, 3, 0] }} transition={{ repeat: Infinity, duration: 1 }}>
+                    <ChevronRight className="w-4 h-4 text-destructive/50" />
+                  </motion.div>
                 </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ── 1. Interactive Brain Heatmap ── */}
-          <div className="px-4 pb-3">
-            <p className="text-[9px] text-muted-foreground mb-2 uppercase tracking-wider font-medium">Risk Map</p>
-            <div className="flex flex-wrap justify-center gap-2">
+          {/* ── Neural Risk Map (compact orbital layout) ── */}
+          <div className="px-4 pb-2.5">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Radio className="w-3 h-3 text-primary/60" />
+              <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Neural Map</span>
+              <div className="flex-1 h-[1px] bg-border/20 ml-1" />
+            </div>
+            <div className="flex flex-wrap justify-center gap-1.5">
               {prioritized.all.map((topic, i) => (
                 <BrainNode
                   key={topic.id}
@@ -501,96 +607,130 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
             </div>
           </div>
 
-          {/* ── 2. AI Priority Focus (1-2 topics only) ── */}
+          {/* ── AI Priority Card (compact) ── */}
           {topPriority && !fixedToday.has(topPriority.id) && (
-            <div className="px-4 pb-3">
+            <div className="px-3 pb-2.5">
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className={`rounded-xl p-3.5 ${getTier(topPriority.memory_strength) === "critical" ? "bg-destructive/5 border border-destructive/15" : "bg-warning/5 border border-warning/15"}`}
+                transition={{ delay: 0.25 }}
+                className="rounded-xl p-3 border backdrop-blur-sm"
+                style={{
+                  background: getTier(topPriority.memory_strength) === "critical"
+                    ? "hsl(var(--destructive) / 0.04)"
+                    : "hsl(var(--warning) / 0.04)",
+                  borderColor: getTier(topPriority.memory_strength) === "critical"
+                    ? "hsl(var(--destructive) / 0.12)"
+                    : "hsl(var(--warning) / 0.12)",
+                }}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <Target className={`w-3.5 h-3.5 ${getTier(topPriority.memory_strength) === "critical" ? "text-destructive" : "text-warning"}`} />
-                  <span className="text-[10px] font-bold text-foreground">AI Priority — Focus today</span>
-                </div>
-                <p className="text-xs font-semibold text-foreground mb-0.5">{safeStr(topPriority.name)}</p>
-                <div className="flex items-center gap-3 text-[9px] text-muted-foreground mb-3">
-                  <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" /> ~{(topPriority as RiskTopic).estimated_fix_minutes}m</span>
-                  <span className="flex items-center gap-0.5 text-success"><TrendingUp className="w-2.5 h-2.5" /> +{(topPriority as RiskTopic).improvement_estimate}%</span>
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${getTier(topPriority.memory_strength) === "critical" ? "bg-destructive/10" : "bg-warning/10"}`}>
+                    <Target className={`w-3 h-3 ${getTier(topPriority.memory_strength) === "critical" ? "text-destructive" : "text-warning"}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-foreground truncate">{safeStr(topPriority.name)}</p>
+                    <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
+                      <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{(topPriority as RiskTopic).estimated_fix_minutes}m</span>
+                      <span className="flex items-center gap-0.5 text-success"><TrendingUp className="w-2.5 h-2.5" />+{(topPriority as RiskTopic).improvement_estimate}%</span>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">AI Pick</span>
                 </div>
 
-                {/* ── 3. One-Tap Fix Options ── */}
-                <div className="flex gap-2">
+                {/* Compact fix buttons */}
+                <div className="flex gap-1.5">
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleFix(topPriority as RiskTopic, 3)}
                     disabled={fixingId === topPriority.id}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/10 text-primary text-[10px] font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold disabled:opacity-50 hover:opacity-90 transition-opacity"
                   >
                     {fixingId === topPriority.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                    3-min Fix
+                    3-min
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleFix(topPriority as RiskTopic, 5)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-warning/10 text-warning text-[10px] font-semibold hover:bg-warning/20 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-warning/10 text-warning text-[10px] font-bold hover:bg-warning/20 transition-colors"
                   >
-                    <Play className="w-3 h-3" /> 5-min Fix
+                    <Play className="w-3 h-3" />5-min
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleFix(topPriority as RiskTopic, "auto")}
-                    className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-secondary/40 text-muted-foreground text-[10px] font-semibold hover:bg-secondary/60 transition-colors"
+                    className="flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-secondary/30 text-muted-foreground text-[10px] font-bold hover:bg-secondary/50 transition-colors"
                   >
-                    <Shield className="w-3 h-3" /> Auto
+                    <Shield className="w-3 h-3" />Auto
                   </motion.button>
                 </div>
               </motion.div>
             </div>
           )}
 
-          {/* ── 4. Predictive Decay Timeline ── */}
+          {/* ── Decay Timeline (compact rows) ── */}
           {prioritized.all.length > 0 && (
-            <div className="px-4 pb-3">
-              <p className="text-[9px] text-muted-foreground mb-2 uppercase tracking-wider font-medium">Decay Timeline</p>
-              <div className="space-y-1.5">
+            <div className="px-3 pb-2.5">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Activity className="w-3 h-3 text-muted-foreground/60" />
+                <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Decay Forecast</span>
+                <div className="flex-1 h-[1px] bg-border/20 ml-1" />
+              </div>
+              <div className="space-y-1">
                 {prioritized.all.slice(0, 4).map((topic, i) => {
                   const hours = topic.hours_until_drop ?? 48;
                   const tier = getTier(topic.memory_strength);
-                  const cfg = tierConfig[tier];
                   const isFixed = fixedToday.has(topic.id);
 
                   return (
                     <motion.div
                       key={topic.id}
-                      initial={{ opacity: 0, x: -10 }}
+                      initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.15 + i * 0.05 }}
-                      className={`flex items-center gap-2 p-2 rounded-lg ${isFixed ? "bg-success/5 border border-success/15" : "bg-secondary/15 border border-border/20"}`}
+                      transition={{ delay: 0.12 + i * 0.04 }}
+                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                        isFixed
+                          ? "bg-success/5 border border-success/10"
+                          : "bg-secondary/10 border border-border/10 hover:bg-secondary/20"
+                      }`}
                     >
-                      <div className={`w-1.5 h-1.5 rounded-full ${isFixed ? "bg-success" : tier === "critical" ? "bg-destructive animate-pulse" : tier === "moderate" ? "bg-warning" : "bg-success"}`} />
-                      <span className={`text-[10px] font-medium flex-1 truncate ${isFixed ? "text-success line-through" : "text-foreground"}`}>
-                         {safeStr(topic.name)}
+                      {/* Severity indicator */}
+                      <motion.div
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          isFixed ? "bg-success" : tier === "critical" ? "bg-destructive" : tier === "moderate" ? "bg-warning" : "bg-success"
+                        }`}
+                        animate={tier === "critical" && !isFixed ? { scale: [1, 1.4, 1], opacity: [1, 0.6, 1] } : {}}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                      <span className={`text-[10px] font-medium flex-1 truncate ${isFixed ? "text-success/70 line-through" : "text-foreground"}`}>
+                        {safeStr(topic.name)}
                       </span>
-                      <span className="text-[9px] text-muted-foreground tabular-nums flex items-center gap-0.5">
-                        <Clock className="w-2.5 h-2.5" />
+                      {/* Memory bar */}
+                      <div className="w-12 h-1 rounded-full bg-border/20 overflow-hidden">
+                        <motion.div
+                          className={`h-full rounded-full ${
+                            tier === "critical" ? "bg-destructive" : tier === "moderate" ? "bg-warning" : "bg-success"
+                          }`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${topic.memory_strength}%` }}
+                          transition={{ duration: 0.6, delay: 0.2 + i * 0.04 }}
+                        />
+                      </div>
+                      <span className="text-[8px] text-muted-foreground tabular-nums w-6 text-right">
                         {hours < 24 ? `${Math.round(hours)}h` : `${Math.round(hours / 24)}d`}
                       </span>
-                      {!isFixed && (
+                      {!isFixed ? (
                         <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleFix(topic as RiskTopic, 3);
-                          }}
+                          whileTap={{ scale: 0.85 }}
+                          onClick={(e) => { e.stopPropagation(); handleFix(topic as RiskTopic, 3); }}
                           disabled={fixingId === topic.id}
-                          className="text-[9px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50"
+                          className="text-[8px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-bold hover:bg-primary/20 transition-colors disabled:opacity-50"
                         >
-                          {fixingId === topic.id ? "..." : "Fix"}
+                          {fixingId === topic.id ? "…" : "Fix"}
                         </motion.button>
+                      ) : (
+                        <CheckCircle className="w-3 h-3 text-success shrink-0" />
                       )}
-                      {isFixed && <CheckCircle className="w-3 h-3 text-success shrink-0" />}
                     </motion.div>
                   );
                 })}
@@ -598,10 +738,10 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
             </div>
           )}
 
-          {/* ── 5. Auto Shield Toggle ── */}
-          <div className="px-4 pb-4 flex items-center gap-2">
+          {/* ── Auto Shield Toggle (compact) ── */}
+          <div className="px-3 pb-3">
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => {
                 const next = !autoShield;
                 setAutoShield(next);
@@ -609,12 +749,21 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
                 triggerHaptic([15]);
                 toast({ title: next ? "🛡️ Auto Shield ON" : "Auto Shield OFF", description: next ? "AI will auto-schedule recall for high-risk topics" : undefined });
               }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-semibold transition-all ${
-                autoShield ? "bg-primary text-primary-foreground glow-primary" : "bg-secondary/40 text-muted-foreground hover:bg-secondary/60"
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[10px] font-bold transition-all ${
+                autoShield
+                  ? "bg-primary text-primary-foreground shadow-[0_0_12px_hsl(var(--primary)/0.25)]"
+                  : "bg-secondary/20 text-muted-foreground hover:bg-secondary/40 border border-border/20"
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Auto Shield {autoShield ? "Active" : "Off"}
+              {autoShield ? "Auto Shield Active" : "Enable Auto Shield"}
+              {autoShield && (
+                <motion.div
+                  className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60"
+                  animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+              )}
             </motion.button>
           </div>
         </div>
