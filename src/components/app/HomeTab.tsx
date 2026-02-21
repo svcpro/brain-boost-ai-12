@@ -809,6 +809,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         allTopics={prediction?.topics || []}
         overallHealth={overallHealth}
         streakDays={streakData?.currentStreak ?? 0}
+        rankData={rankData}
       />
     </div>
   );
