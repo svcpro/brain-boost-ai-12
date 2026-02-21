@@ -104,7 +104,14 @@ const TrialBanner = () => {
           )}
         </AnimatePresence>
 
-        <div className="relative flex items-center gap-3 px-4 py-3 rounded-2xl bg-card/60 backdrop-blur-md transition-all duration-300">
+        <div
+          className="relative flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-md transition-all duration-300"
+          style={{
+            background: isUrgent
+              ? "linear-gradient(135deg, hsl(40 100% 50% / 0.08), hsl(0 72% 51% / 0.06), hsl(330 100% 60% / 0.05))"
+              : "linear-gradient(135deg, hsl(187 100% 50% / 0.08), hsl(262 100% 65% / 0.06), hsl(155 100% 50% / 0.04))",
+          }}
+        >
           {/* Crown with multi-ring glow */}
           <div className="relative shrink-0">
             {/* Outermost ring */}
@@ -170,7 +177,7 @@ const TrialBanner = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <motion.p
-                className="text-xs font-bold text-foreground truncate"
+                className={`text-xs font-bold truncate ${isTrialExpired ? "text-destructive" : "gradient-text"}`}
                 animate={isTrialExpired ? { opacity: [1, 0.7, 1] } : {}}
                 transition={{ duration: 2, repeat: Infinity }}
               >
