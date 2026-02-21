@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { InstitutionProvider } from "@/contexts/InstitutionContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -75,6 +76,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <InstitutionProvider>
         <AuthProvider>
           <Suspense fallback={<PageFallback />}>
             <Routes>
@@ -133,6 +135,7 @@ const App = () => (
             <OfflineBanner />
           </Suspense>
         </AuthProvider>
+        </InstitutionProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
