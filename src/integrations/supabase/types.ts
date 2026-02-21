@@ -4780,6 +4780,121 @@ export type Database = {
         }
         Relationships: []
       }
+      study_pod_members: {
+        Row: {
+          id: string
+          joined_at: string
+          pod_id: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          pod_id: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          pod_id?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_pod_members_pod_id_fkey"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "study_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_pod_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_ai_message: boolean | null
+          pod_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_ai_message?: boolean | null
+          pod_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_ai_message?: boolean | null
+          pod_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_pod_messages_pod_id_fkey"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "study_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_pods: {
+        Row: {
+          ai_matching_criteria: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          difficulty_level: string | null
+          exam_type: string | null
+          id: string
+          is_active: boolean | null
+          is_ai_created: boolean | null
+          max_members: number | null
+          name: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_matching_criteria?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          difficulty_level?: string | null
+          exam_type?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_ai_created?: boolean | null
+          max_members?: number | null
+          name: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_matching_criteria?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          difficulty_level?: string | null
+          exam_type?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_ai_created?: boolean | null
+          max_members?: number | null
+          name?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subjects: {
         Row: {
           created_at: string
