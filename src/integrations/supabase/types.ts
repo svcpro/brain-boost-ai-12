@@ -1577,6 +1577,45 @@ export type Database = {
         }
         Relationships: []
       }
+      device_sessions: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          device_name: string | null
+          device_type: string | null
+          id: string
+          ip_address: string | null
+          is_current: boolean | null
+          last_active_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          device_name?: string | null
+          device_type?: string | null
+          id?: string
+          ip_address?: string | null
+          is_current?: boolean | null
+          last_active_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          device_name?: string | null
+          device_type?: string | null
+          id?: string
+          ip_address?: string | null
+          is_current?: boolean | null
+          last_active_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       discussion_recommendations: {
         Row: {
           created_at: string
@@ -2526,6 +2565,98 @@ export type Database = {
           personal_weight?: number | null
           prediction_type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      institution_members: {
+        Row: {
+          id: string
+          institution_id: string
+          is_active: boolean | null
+          joined_at: string | null
+          metadata: Json | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          institution_id: string
+          is_active?: boolean | null
+          joined_at?: string | null
+          metadata?: Json | null
+          role?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          institution_id?: string
+          is_active?: boolean | null
+          joined_at?: string | null
+          metadata?: Json | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_members_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institutions: {
+        Row: {
+          admin_user_id: string
+          created_at: string | null
+          domain: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          primary_color: string | null
+          secondary_color: string | null
+          settings: Json | null
+          slug: string
+          student_count: number | null
+          teacher_count: number | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string | null
+          domain?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          settings?: Json | null
+          slug: string
+          student_count?: number | null
+          teacher_count?: number | null
+          type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string | null
+          domain?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          settings?: Json | null
+          slug?: string
+          student_count?: number | null
+          teacher_count?: number | null
+          type?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -3862,6 +3993,50 @@ export type Database = {
         }
         Relationships: []
       }
+      practice_set_submissions: {
+        Row: {
+          answers: Json | null
+          feedback: Json | null
+          graded_at: string | null
+          id: string
+          practice_set_id: string
+          score: number | null
+          student_id: string
+          submitted_at: string | null
+          time_spent_minutes: number | null
+        }
+        Insert: {
+          answers?: Json | null
+          feedback?: Json | null
+          graded_at?: string | null
+          id?: string
+          practice_set_id: string
+          score?: number | null
+          student_id: string
+          submitted_at?: string | null
+          time_spent_minutes?: number | null
+        }
+        Update: {
+          answers?: Json | null
+          feedback?: Json | null
+          graded_at?: string | null
+          id?: string
+          practice_set_id?: string
+          score?: number | null
+          student_id?: string
+          submitted_at?: string | null
+          time_spent_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_set_submissions_practice_set_id_fkey"
+            columns: ["practice_set_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_practice_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       predicted_questions: {
         Row: {
           correct_answer: number
@@ -5185,6 +5360,74 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_practice_sets: {
+        Row: {
+          ai_generated: boolean | null
+          assigned_to: string[] | null
+          avg_score: number | null
+          completion_count: number | null
+          created_at: string | null
+          difficulty: string | null
+          due_date: string | null
+          id: string
+          institution_id: string
+          question_count: number | null
+          questions: Json | null
+          status: string | null
+          subject: string
+          teacher_id: string
+          title: string
+          topics: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          assigned_to?: string[] | null
+          avg_score?: number | null
+          completion_count?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          due_date?: string | null
+          id?: string
+          institution_id: string
+          question_count?: number | null
+          questions?: Json | null
+          status?: string | null
+          subject: string
+          teacher_id: string
+          title: string
+          topics?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          assigned_to?: string[] | null
+          avg_score?: number | null
+          completion_count?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          due_date?: string | null
+          id?: string
+          institution_id?: string
+          question_count?: number | null
+          questions?: Json | null
+          status?: string | null
+          subject?: string
+          teacher_id?: string
+          title?: string
+          topics?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_practice_sets_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       topics: {
         Row: {
           created_at: string
@@ -5938,6 +6181,107 @@ export type Database = {
             columns: ["topic_id"]
             isOneToOne: false
             referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_deliveries: {
+        Row: {
+          delivered_at: string | null
+          event_type: string
+          id: string
+          latency_ms: number | null
+          payload: Json
+          response_body: string | null
+          status_code: number | null
+          webhook_id: string
+        }
+        Insert: {
+          delivered_at?: string | null
+          event_type: string
+          id?: string
+          latency_ms?: number | null
+          payload: Json
+          response_body?: string | null
+          status_code?: number | null
+          webhook_id: string
+        }
+        Update: {
+          delivered_at?: string | null
+          event_type?: string
+          id?: string
+          latency_ms?: number | null
+          payload?: Json
+          response_body?: string | null
+          status_code?: number | null
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_endpoints: {
+        Row: {
+          api_key_id: string | null
+          created_at: string | null
+          events: string[]
+          failure_count: number | null
+          id: string
+          institution_id: string | null
+          is_active: boolean | null
+          last_status_code: number | null
+          last_triggered_at: string | null
+          secret: string
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          api_key_id?: string | null
+          created_at?: string | null
+          events?: string[]
+          failure_count?: number | null
+          id?: string
+          institution_id?: string | null
+          is_active?: boolean | null
+          last_status_code?: number | null
+          last_triggered_at?: string | null
+          secret: string
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          api_key_id?: string | null
+          created_at?: string | null
+          events?: string[]
+          failure_count?: number | null
+          id?: string
+          institution_id?: string | null
+          is_active?: boolean | null
+          last_status_code?: number | null
+          last_triggered_at?: string | null
+          secret?: string
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_endpoints_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
             referencedColumns: ["id"]
           },
         ]

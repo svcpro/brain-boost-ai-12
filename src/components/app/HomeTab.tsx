@@ -21,6 +21,7 @@ import FocusModeSession from "./FocusModeSession";
 
 import BrainUpdateHero, { markBrainUpdated } from "./BrainUpdateHero";
 import QuickStudySignalModal from "./QuickStudySignalModal";
+import DeviceSyncIndicator from "./DeviceSyncIndicator";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import StreakMilestoneCelebration from "./StreakMilestoneCelebration";
 import ExplainButton from "./ExplainButton";
@@ -457,8 +458,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             </motion.div>
           )}
 
-        {/* Refresh button */}
-        <motion.button
+        {/* Device sync + Refresh */}
+        <div className="relative z-10 flex items-center justify-center gap-3 mt-4">
+          <DeviceSyncIndicator />
+          <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
@@ -467,8 +470,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           className="relative z-10 mt-4 inline-flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-primary transition-colors"
         >
           <RefreshCw className={`w-3 h-3 ${analyzing ? "animate-spin" : ""}`} />
-          {analyzing ? "Updating…" : "Refresh brain"}
-        </motion.button>
+            {analyzing ? "Updating…" : "Refresh brain"}
+          </motion.button>
+        </div>
       </motion.section>
 
       {/* AI Autopilot */}
