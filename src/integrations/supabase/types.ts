@@ -609,6 +609,104 @@ export type Database = {
           },
         ]
       }
+      batch_analytics: {
+        Row: {
+          active_students: number | null
+          avg_memory_strength: number | null
+          avg_score: number | null
+          batch_id: string
+          computed_at: string
+          dropout_risk_count: number | null
+          id: string
+          institution_id: string
+          rank_projection: Json | null
+          snapshot_date: string
+          stability_heatmap: Json | null
+          subject_distribution: Json | null
+          top_weak_topics: Json | null
+        }
+        Insert: {
+          active_students?: number | null
+          avg_memory_strength?: number | null
+          avg_score?: number | null
+          batch_id: string
+          computed_at?: string
+          dropout_risk_count?: number | null
+          id?: string
+          institution_id: string
+          rank_projection?: Json | null
+          snapshot_date?: string
+          stability_heatmap?: Json | null
+          subject_distribution?: Json | null
+          top_weak_topics?: Json | null
+        }
+        Update: {
+          active_students?: number | null
+          avg_memory_strength?: number | null
+          avg_score?: number | null
+          batch_id?: string
+          computed_at?: string
+          dropout_risk_count?: number | null
+          id?: string
+          institution_id?: string
+          rank_projection?: Json | null
+          snapshot_date?: string
+          stability_heatmap?: Json | null
+          subject_distribution?: Json | null
+          top_weak_topics?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_analytics_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "institution_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_analytics_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      batch_students: {
+        Row: {
+          batch_id: string
+          enrolled_at: string
+          id: string
+          is_active: boolean | null
+          roll_number: string | null
+          student_user_id: string
+        }
+        Insert: {
+          batch_id: string
+          enrolled_at?: string
+          id?: string
+          is_active?: boolean | null
+          roll_number?: string | null
+          student_user_id: string
+        }
+        Update: {
+          batch_id?: string
+          enrolled_at?: string
+          id?: string
+          is_active?: boolean | null
+          roll_number?: string | null
+          student_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_students_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "institution_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       behavioral_profiles: {
         Row: {
           best_send_day: number | null
@@ -2224,6 +2322,51 @@ export type Database = {
         }
         Relationships: []
       }
+      faculty_assignments: {
+        Row: {
+          assigned_at: string
+          batch_id: string
+          faculty_user_id: string
+          id: string
+          institution_id: string
+          is_primary: boolean | null
+          subject: string | null
+        }
+        Insert: {
+          assigned_at?: string
+          batch_id: string
+          faculty_user_id: string
+          id?: string
+          institution_id: string
+          is_primary?: boolean | null
+          subject?: string | null
+        }
+        Update: {
+          assigned_at?: string
+          batch_id?: string
+          faculty_user_id?: string
+          id?: string
+          institution_id?: string
+          is_primary?: boolean | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faculty_assignments_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "institution_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faculty_assignments_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fatigue_config: {
         Row: {
           auto_language_suggestion: boolean | null
@@ -2568,6 +2711,175 @@ export type Database = {
         }
         Relationships: []
       }
+      institution_batches: {
+        Row: {
+          academic_year: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          end_date: string | null
+          id: string
+          institution_id: string
+          is_active: boolean | null
+          max_students: number | null
+          name: string
+          start_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          academic_year?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          institution_id: string
+          is_active?: boolean | null
+          max_students?: number | null
+          name: string
+          start_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          academic_year?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          institution_id?: string
+          is_active?: boolean | null
+          max_students?: number | null
+          name?: string
+          start_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_batches_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institution_invoices: {
+        Row: {
+          amount: number
+          billing_period_end: string | null
+          billing_period_start: string | null
+          created_at: string
+          currency: string
+          id: string
+          institution_id: string
+          invoice_number: string
+          license_id: string | null
+          paid_at: string | null
+          razorpay_payment_id: string | null
+          status: string
+          student_count: number
+        }
+        Insert: {
+          amount: number
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          institution_id: string
+          invoice_number: string
+          license_id?: string | null
+          paid_at?: string | null
+          razorpay_payment_id?: string | null
+          status?: string
+          student_count?: number
+        }
+        Update: {
+          amount?: number
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          institution_id?: string
+          invoice_number?: string
+          license_id?: string | null
+          paid_at?: string | null
+          razorpay_payment_id?: string | null
+          status?: string
+          student_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_invoices_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "institution_invoices_license_id_fkey"
+            columns: ["license_id"]
+            isOneToOne: false
+            referencedRelation: "institution_licenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institution_licenses: {
+        Row: {
+          auto_renew: boolean | null
+          billing_cycle: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          institution_id: string
+          max_students: number
+          plan_name: string
+          price_per_student: number
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auto_renew?: boolean | null
+          billing_cycle?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          institution_id: string
+          max_students?: number
+          plan_name?: string
+          price_per_student?: number
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_renew?: boolean | null
+          billing_cycle?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          institution_id?: string
+          max_students?: number
+          plan_name?: string
+          price_per_student?: number
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_licenses_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institution_members: {
         Row: {
           id: string
@@ -2609,11 +2921,16 @@ export type Database = {
       institutions: {
         Row: {
           admin_user_id: string
+          branch: string | null
+          city: string | null
           created_at: string | null
           domain: string | null
           id: string
           is_active: boolean | null
+          license_expires_at: string | null
+          license_status: string | null
           logo_url: string | null
+          max_students: number | null
           name: string
           primary_color: string | null
           secondary_color: string | null
@@ -2626,11 +2943,16 @@ export type Database = {
         }
         Insert: {
           admin_user_id: string
+          branch?: string | null
+          city?: string | null
           created_at?: string | null
           domain?: string | null
           id?: string
           is_active?: boolean | null
+          license_expires_at?: string | null
+          license_status?: string | null
           logo_url?: string | null
+          max_students?: number | null
           name: string
           primary_color?: string | null
           secondary_color?: string | null
@@ -2643,11 +2965,16 @@ export type Database = {
         }
         Update: {
           admin_user_id?: string
+          branch?: string | null
+          city?: string | null
           created_at?: string | null
           domain?: string | null
           id?: string
           is_active?: boolean | null
+          license_expires_at?: string | null
+          license_status?: string | null
           logo_url?: string | null
+          max_students?: number | null
           name?: string
           primary_color?: string | null
           secondary_color?: string | null

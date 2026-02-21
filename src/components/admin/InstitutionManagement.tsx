@@ -2,11 +2,15 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Building2, Users, GraduationCap, Plus, Search, ToggleLeft, ToggleRight,
-  Loader2, Trash2, Eye, Pencil, Globe, Palette, BarChart3
+  Loader2, Eye, Globe, Palette, BarChart3, CreditCard
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import BatchManagement from "./institution/BatchManagement";
+import FacultyDashboard from "./institution/FacultyDashboard";
+import LicenseBilling from "./institution/LicenseBilling";
+import AdminSuperPanel from "./institution/AdminSuperPanel";
 
 interface Institution {
   id: string;
@@ -20,21 +24,24 @@ interface Institution {
   student_count: number;
   teacher_count: number;
   created_at: string;
+  city: string | null;
+  branch: string | null;
+  license_status: string | null;
+  max_students: number | null;
 }
 
 export default function InstitutionManagement() {
   const { toast } = useToast();
-  const [tab, setTab] = useState("list");
+  const [tab, setTab] = useState("super");
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("coaching");
+  const [newCity, setNewCity] = useState("");
   const [creating, setCreating] = useState(false);
   const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
-  const [members, setMembers] = useState<any[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
 
   useEffect(() => { loadInstitutions(); }, []);
 
@@ -56,6 +63,7 @@ export default function InstitutionManagement() {
       name: newName.trim(),
       slug,
       type: newType,
+      city: newCity || null,
       admin_user_id: user.id,
     });
 
@@ -63,7 +71,7 @@ export default function InstitutionManagement() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Institution created ✅" });
-      setNewName("");
+      setNewName(""); setNewCity("");
       setShowCreate(false);
       loadInstitutions();
     }
@@ -75,25 +83,15 @@ export default function InstitutionManagement() {
     loadInstitutions();
   };
 
-  const loadMembers = async (instId: string) => {
-    setMembersLoading(true);
-    const { data } = await supabase.from("institution_members")
-      .select("*")
-      .eq("institution_id", instId)
-      .order("joined_at", { ascending: false });
-    setMembers((data as any[]) || []);
-    setMembersLoading(false);
-  };
-
   const viewInstitution = (inst: Institution) => {
     setSelectedInst(inst);
-    loadMembers(inst.id);
-    setTab("detail");
+    setTab("batches");
   };
 
   const filtered = institutions.filter(i =>
     i.name.toLowerCase().includes(search.toLowerCase()) ||
-    i.slug.toLowerCase().includes(search.toLowerCase())
+    i.slug.toLowerCase().includes(search.toLowerCase()) ||
+    (i.city || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const TYPE_COLORS: Record<string, string> = {
@@ -111,34 +109,32 @@ export default function InstitutionManagement() {
         </div>
         <div>
           <h2 className="text-xl font-bold text-foreground">Institution Management</h2>
-          <p className="text-xs text-muted-foreground">Manage schools, coaching centers, and enterprise clients</p>
+          <p className="text-xs text-muted-foreground">Multi-tenant coaching platform • Batches • Billing • Analytics</p>
         </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-secondary/50">
+        <TabsList className="bg-secondary/50 flex-wrap h-auto">
+          <TabsTrigger value="super" className="text-xs">🏢 Super Panel</TabsTrigger>
           <TabsTrigger value="list" className="text-xs">All Institutions</TabsTrigger>
-          <TabsTrigger value="detail" className="text-xs" disabled={!selectedInst}>Details</TabsTrigger>
-          <TabsTrigger value="webhooks" className="text-xs">Webhooks</TabsTrigger>
-          <TabsTrigger value="billing" className="text-xs">Billing</TabsTrigger>
+          <TabsTrigger value="batches" className="text-xs" disabled={!selectedInst}>📚 Batches</TabsTrigger>
+          <TabsTrigger value="faculty" className="text-xs" disabled={!selectedInst}>👨‍🏫 Faculty</TabsTrigger>
+          <TabsTrigger value="billing" className="text-xs" disabled={!selectedInst}>💰 Billing</TabsTrigger>
+          <TabsTrigger value="webhooks" className="text-xs">🔗 Webhooks</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="super" className="mt-4">
+          <AdminSuperPanel />
+        </TabsContent>
 
         <TabsContent value="list" className="space-y-4 mt-4">
           {/* Toolbar */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search institutions..."
-                className="w-full bg-secondary/60 border border-border/50 rounded-lg pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
-              />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, slug, or city..." className="w-full bg-secondary/60 border border-border/50 rounded-lg pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
             </div>
-            <button
-              onClick={() => setShowCreate(!showCreate)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90"
-            >
+            <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
               <Plus className="w-3.5 h-3.5" /> Add Institution
             </button>
           </div>
@@ -146,21 +142,13 @@ export default function InstitutionManagement() {
           {/* Create form */}
           {showCreate && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="glass rounded-xl p-4 neural-border space-y-3">
-              <input
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder="Institution name"
-                className="w-full bg-secondary/60 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Institution name" className="w-full bg-secondary/60 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+                <input value={newCity} onChange={e => setNewCity(e.target.value)} placeholder="City (optional)" className="w-full bg-secondary/60 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+              </div>
               <div className="flex gap-2">
                 {["coaching", "school", "university", "enterprise"].map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setNewType(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${newType === t ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {t}
-                  </button>
+                  <button key={t} onClick={() => setNewType(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${newType === t ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{t}</button>
                 ))}
               </div>
               <button onClick={createInstitution} disabled={creating || !newName.trim()} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
@@ -174,8 +162,8 @@ export default function InstitutionManagement() {
             {[
               { label: "Total", value: institutions.length, icon: Building2 },
               { label: "Active", value: institutions.filter(i => i.is_active).length, icon: ToggleRight },
-              { label: "Total Students", value: institutions.reduce((s, i) => s + i.student_count, 0), icon: GraduationCap },
-              { label: "Total Teachers", value: institutions.reduce((s, i) => s + i.teacher_count, 0), icon: Users },
+              { label: "Total Students", value: institutions.reduce((s, i) => s + (i.student_count || 0), 0), icon: GraduationCap },
+              { label: "Total Teachers", value: institutions.reduce((s, i) => s + (i.teacher_count || 0), 0), icon: Users },
             ].map(s => (
               <div key={s.label} className="glass rounded-xl p-3 neural-border">
                 <div className="flex items-center gap-2 mb-1">
@@ -203,11 +191,17 @@ export default function InstitutionManagement() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-foreground truncate">{inst.name}</span>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize ${TYPE_COLORS[inst.type] || "bg-secondary text-muted-foreground"}`}>{inst.type}</span>
+                      {inst.license_status && (
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inst.license_status === "active" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
+                          {inst.license_status}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><GraduationCap className="w-3 h-3" />{inst.student_count} students</span>
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" />{inst.teacher_count} teachers</span>
-                      {inst.domain && <span className="text-[10px] text-primary flex items-center gap-1"><Globe className="w-3 h-3" />{inst.domain}</span>}
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><GraduationCap className="w-3 h-3" />{inst.student_count || 0} students</span>
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" />{inst.teacher_count || 0} teachers</span>
+                      {inst.city && <span className="text-[10px] text-primary flex items-center gap-1"><Globe className="w-3 h-3" />{inst.city}</span>}
+                      {inst.domain && <span className="text-[10px] text-accent flex items-center gap-1">{inst.domain}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -222,76 +216,32 @@ export default function InstitutionManagement() {
           )}
         </TabsContent>
 
-        <TabsContent value="detail" className="space-y-4 mt-4">
-          {selectedInst && (
-            <>
-              <div className="glass rounded-xl p-5 neural-border">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: selectedInst.primary_color + "20" }}>
-                    <Building2 className="w-6 h-6" style={{ color: selectedInst.primary_color }} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">{selectedInst.name}</h3>
-                    <p className="text-xs text-muted-foreground">/{selectedInst.slug} • {selectedInst.type}</p>
-                  </div>
-                </div>
+        <TabsContent value="batches" className="mt-4">
+          {selectedInst ? (
+            <BatchManagement institutionId={selectedInst.id} institutionName={selectedInst.name} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">Select an institution first</p>
+          )}
+        </TabsContent>
 
-                {/* White-label branding */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 rounded-lg bg-secondary/40">
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Palette className="w-3 h-3" />Brand Color</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="w-6 h-6 rounded-md border border-border" style={{ backgroundColor: selectedInst.primary_color }} />
-                      <span className="text-xs font-mono text-foreground">{selectedInst.primary_color}</span>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-secondary/40">
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Globe className="w-3 h-3" />Custom Domain</span>
-                    <span className="text-xs font-medium text-foreground mt-1 block">{selectedInst.domain || "Not set"}</span>
-                  </div>
-                </div>
-              </div>
+        <TabsContent value="faculty" className="mt-4">
+          {selectedInst ? (
+            <FacultyDashboard institutionId={selectedInst.id} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">Select an institution first</p>
+          )}
+        </TabsContent>
 
-              {/* Members */}
-              <div className="glass rounded-xl p-4 neural-border">
-                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-primary" />Members</h4>
-                {membersLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
-                ) : members.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">No members yet</p>
-                ) : (
-                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                    {members.map(m => (
-                      <div key={m.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
-                            {m.role === "teacher" ? <GraduationCap className="w-3.5 h-3.5 text-accent" /> : <Users className="w-3.5 h-3.5 text-muted-foreground" />}
-                          </div>
-                          <div>
-                            <span className="text-xs font-medium text-foreground">{m.user_id.slice(0, 8)}...</span>
-                            <span className={`ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize ${m.role === "teacher" ? "bg-accent/15 text-accent" : m.role === "institution_admin" ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"}`}>{m.role}</span>
-                          </div>
-                        </div>
-                        <span className={`text-[10px] ${m.is_active ? "text-success" : "text-muted-foreground"}`}>{m.is_active ? "Active" : "Inactive"}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
+        <TabsContent value="billing" className="mt-4">
+          {selectedInst ? (
+            <LicenseBilling institutionId={selectedInst.id} institutionName={selectedInst.name} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">Select an institution first</p>
           )}
         </TabsContent>
 
         <TabsContent value="webhooks" className="mt-4">
           <WebhookManagement />
-        </TabsContent>
-
-        <TabsContent value="billing" className="mt-4">
-          <div className="glass rounded-xl p-8 neural-border text-center">
-            <BarChart3 className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-            <h3 className="text-sm font-semibold text-foreground mb-1">Enterprise Billing</h3>
-            <p className="text-xs text-muted-foreground">Per-institution billing analytics coming soon</p>
-          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -326,7 +276,6 @@ function WebhookManagement() {
         <Globe className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-semibold text-foreground">Webhook Endpoints</h3>
       </div>
-
       <div className="glass rounded-xl p-3 neural-border">
         <p className="text-[10px] text-muted-foreground mb-2">Supported events:</p>
         <div className="flex flex-wrap gap-1">
@@ -335,14 +284,12 @@ function WebhookManagement() {
           ))}
         </div>
       </div>
-
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
       ) : webhooks.length === 0 ? (
         <div className="glass rounded-xl p-8 neural-border text-center">
           <Globe className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No webhook endpoints configured</p>
-          <p className="text-[10px] text-muted-foreground mt-1">Institutions can configure webhooks via the Enterprise API</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -354,7 +301,6 @@ function WebhookManagement() {
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[10px] text-muted-foreground">{(wh.events || []).length} events</span>
                   {wh.failure_count > 0 && <span className="text-[10px] text-destructive">{wh.failure_count} failures</span>}
-                  {wh.last_status_code && <span className={`text-[10px] ${wh.last_status_code < 400 ? "text-success" : "text-destructive"}`}>Last: {wh.last_status_code}</span>}
                 </div>
               </div>
               <button onClick={() => toggleWebhook(wh)} className="p-1.5 rounded-lg hover:bg-secondary">
