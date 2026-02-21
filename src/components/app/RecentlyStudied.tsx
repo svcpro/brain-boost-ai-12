@@ -128,9 +128,28 @@ const RecentlyStudied = ({ onQuickLog, analyzing }: RecentlyStudiedProps) => {
 
   if (items.length === 0) return null;
 
-  const handleResume = (item: RecentTopic) => {
+  const handleResume = async (item: RecentTopic) => {
     setClickedLogId(item.logId);
     onQuickLog?.(item.subjectName, item.topicName, item.minutes);
+
+    // Boost memory strength by +5% on re-tap
+    if (user) {
+      try {
+        const { data: topic } = await supabase
+          .from("topics")
+          .select("id, memory_strength")
+          .eq("user_id", user.id)
+          .eq("name", item.topicName)
+          .maybeSingle();
+
+        if (topic) {
+          await supabase
+            .from("topics")
+            .update({ memory_strength: Math.min(99, (topic.memory_strength || 50) + 5) })
+            .eq("id", topic.id);
+        }
+      } catch {}
+    }
   };
 
   return (
