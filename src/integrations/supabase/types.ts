@@ -2711,6 +2711,106 @@ export type Database = {
         }
         Relationships: []
       }
+      institution_api_keys: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          institution_id: string
+          is_active: boolean | null
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          permissions: string[] | null
+          rate_limit_per_minute: number | null
+          usage_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          institution_id: string
+          is_active?: boolean | null
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          permissions?: string[] | null
+          rate_limit_per_minute?: number | null
+          usage_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          institution_id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          permissions?: string[] | null
+          rate_limit_per_minute?: number | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_api_keys_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institution_audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          institution_id: string
+          ip_address: string | null
+          target_id: string | null
+          target_type: string
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          institution_id: string
+          ip_address?: string | null
+          target_id?: string | null
+          target_type: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          institution_id?: string
+          ip_address?: string | null
+          target_id?: string | null
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_audit_logs_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institution_batches: {
         Row: {
           academic_year: string | null
@@ -6905,6 +7005,263 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      whitelabel_branding: {
+        Row: {
+          accent_color: string | null
+          app_title: string | null
+          created_at: string
+          custom_css: string | null
+          email_logo_url: string | null
+          email_reply_to: string | null
+          email_sender_address: string | null
+          email_sender_name: string | null
+          favicon_url: string | null
+          font_family: string | null
+          id: string
+          institution_id: string
+          logo_dark_url: string | null
+          logo_url: string | null
+          primary_color: string
+          privacy_url: string | null
+          secondary_color: string
+          support_email: string | null
+          support_url: string | null
+          tagline: string | null
+          terms_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          app_title?: string | null
+          created_at?: string
+          custom_css?: string | null
+          email_logo_url?: string | null
+          email_reply_to?: string | null
+          email_sender_address?: string | null
+          email_sender_name?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          id?: string
+          institution_id: string
+          logo_dark_url?: string | null
+          logo_url?: string | null
+          primary_color?: string
+          privacy_url?: string | null
+          secondary_color?: string
+          support_email?: string | null
+          support_url?: string | null
+          tagline?: string | null
+          terms_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          app_title?: string | null
+          created_at?: string
+          custom_css?: string | null
+          email_logo_url?: string | null
+          email_reply_to?: string | null
+          email_sender_address?: string | null
+          email_sender_name?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          id?: string
+          institution_id?: string
+          logo_dark_url?: string | null
+          logo_url?: string | null
+          primary_color?: string
+          privacy_url?: string | null
+          secondary_color?: string
+          support_email?: string | null
+          support_url?: string | null
+          tagline?: string | null
+          terms_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whitelabel_branding_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: true
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whitelabel_contracts: {
+        Row: {
+          annual_fee: number | null
+          auto_renew: boolean | null
+          billing_cycle: string
+          contract_number: string
+          contract_type: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          institution_id: string
+          monthly_fee: number
+          notes: string | null
+          setup_fee: number | null
+          signed_at: string | null
+          signed_by: string | null
+          sla_support_response_hours: number | null
+          sla_tier: string | null
+          sla_uptime_guarantee: number | null
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          annual_fee?: number | null
+          auto_renew?: boolean | null
+          billing_cycle?: string
+          contract_number: string
+          contract_type?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          institution_id: string
+          monthly_fee?: number
+          notes?: string | null
+          setup_fee?: number | null
+          signed_at?: string | null
+          signed_by?: string | null
+          sla_support_response_hours?: number | null
+          sla_tier?: string | null
+          sla_uptime_guarantee?: number | null
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          annual_fee?: number | null
+          auto_renew?: boolean | null
+          billing_cycle?: string
+          contract_number?: string
+          contract_type?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          institution_id?: string
+          monthly_fee?: number
+          notes?: string | null
+          setup_fee?: number | null
+          signed_at?: string | null
+          signed_by?: string | null
+          sla_support_response_hours?: number | null
+          sla_tier?: string | null
+          sla_uptime_guarantee?: number | null
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whitelabel_contracts_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whitelabel_domains: {
+        Row: {
+          created_at: string
+          domain: string
+          domain_type: string
+          id: string
+          institution_id: string
+          is_primary: boolean | null
+          ssl_status: string | null
+          subdomain: string | null
+          updated_at: string
+          verification_status: string
+          verification_token: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          domain_type?: string
+          id?: string
+          institution_id: string
+          is_primary?: boolean | null
+          ssl_status?: string | null
+          subdomain?: string | null
+          updated_at?: string
+          verification_status?: string
+          verification_token?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          domain_type?: string
+          id?: string
+          institution_id?: string
+          is_primary?: boolean | null
+          ssl_status?: string | null
+          subdomain?: string | null
+          updated_at?: string
+          verification_status?: string
+          verification_token?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whitelabel_domains_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whitelabel_features: {
+        Row: {
+          category: string
+          config: Json | null
+          created_at: string
+          feature_key: string
+          feature_label: string
+          id: string
+          institution_id: string
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          config?: Json | null
+          created_at?: string
+          feature_key: string
+          feature_label: string
+          id?: string
+          institution_id: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          config?: Json | null
+          created_at?: string
+          feature_key?: string
+          feature_label?: string
+          id?: string
+          institution_id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whitelabel_features_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

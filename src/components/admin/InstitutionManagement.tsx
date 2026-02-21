@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Building2, Users, GraduationCap, Plus, Search, ToggleLeft, ToggleRight,
-  Loader2, Eye, Globe, Palette, BarChart3, CreditCard
+  Loader2, Eye, Globe, Palette, CreditCard
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,11 @@ import BatchManagement from "./institution/BatchManagement";
 import FacultyDashboard from "./institution/FacultyDashboard";
 import LicenseBilling from "./institution/LicenseBilling";
 import AdminSuperPanel from "./institution/AdminSuperPanel";
+import BrandingConfig from "./institution/BrandingConfig";
+import FeatureToggles from "./institution/FeatureToggles";
+import ContractManagement from "./institution/ContractManagement";
+import DomainManagement from "./institution/DomainManagement";
+import InstitutionAuditLog from "./institution/InstitutionAuditLog";
 
 interface Institution {
   id: string;
@@ -60,19 +65,14 @@ export default function InstitutionManagement() {
     if (!user) { setCreating(false); return; }
 
     const { error } = await supabase.from("institutions").insert({
-      name: newName.trim(),
-      slug,
-      type: newType,
-      city: newCity || null,
-      admin_user_id: user.id,
+      name: newName.trim(), slug, type: newType, city: newCity || null, admin_user_id: user.id,
     });
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Institution created ✅" });
-      setNewName(""); setNewCity("");
-      setShowCreate(false);
+      setNewName(""); setNewCity(""); setShowCreate(false);
       loadInstitutions();
     }
     setCreating(false);
@@ -101,6 +101,17 @@ export default function InstitutionManagement() {
     enterprise: "bg-warning/15 text-warning",
   };
 
+  const instTabs = selectedInst ? [
+    { value: "batches", label: "📚 Batches" },
+    { value: "faculty", label: "👨‍🏫 Faculty" },
+    { value: "branding", label: "🎨 Branding" },
+    { value: "features", label: "⚙️ Features" },
+    { value: "domains", label: "🌐 Domains" },
+    { value: "contracts", label: "📄 Contracts" },
+    { value: "billing", label: "💰 Billing" },
+    { value: "audit", label: "📋 Audit" },
+  ] : [];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
@@ -109,26 +120,23 @@ export default function InstitutionManagement() {
         </div>
         <div>
           <h2 className="text-xl font-bold text-foreground">Institution Management</h2>
-          <p className="text-xs text-muted-foreground">Multi-tenant coaching platform • Batches • Billing • Analytics</p>
+          <p className="text-xs text-muted-foreground">White-Label SaaS • Multi-Tenant Platform</p>
         </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-secondary/50 flex-wrap h-auto">
+        <TabsList className="bg-secondary/50 flex-wrap h-auto gap-0.5">
           <TabsTrigger value="super" className="text-xs">🏢 Super Panel</TabsTrigger>
           <TabsTrigger value="list" className="text-xs">All Institutions</TabsTrigger>
-          <TabsTrigger value="batches" className="text-xs" disabled={!selectedInst}>📚 Batches</TabsTrigger>
-          <TabsTrigger value="faculty" className="text-xs" disabled={!selectedInst}>👨‍🏫 Faculty</TabsTrigger>
-          <TabsTrigger value="billing" className="text-xs" disabled={!selectedInst}>💰 Billing</TabsTrigger>
           <TabsTrigger value="webhooks" className="text-xs">🔗 Webhooks</TabsTrigger>
+          {instTabs.map(t => (
+            <TabsTrigger key={t.value} value={t.value} className="text-xs" disabled={!selectedInst}>{t.label}</TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="super" className="mt-4">
-          <AdminSuperPanel />
-        </TabsContent>
+        <TabsContent value="super" className="mt-4"><AdminSuperPanel /></TabsContent>
 
         <TabsContent value="list" className="space-y-4 mt-4">
-          {/* Toolbar */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -139,7 +147,6 @@ export default function InstitutionManagement() {
             </button>
           </div>
 
-          {/* Create form */}
           {showCreate && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="glass rounded-xl p-4 neural-border space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -157,13 +164,12 @@ export default function InstitutionManagement() {
             </motion.div>
           )}
 
-          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: "Total", value: institutions.length, icon: Building2 },
               { label: "Active", value: institutions.filter(i => i.is_active).length, icon: ToggleRight },
-              { label: "Total Students", value: institutions.reduce((s, i) => s + (i.student_count || 0), 0), icon: GraduationCap },
-              { label: "Total Teachers", value: institutions.reduce((s, i) => s + (i.teacher_count || 0), 0), icon: Users },
+              { label: "Students", value: institutions.reduce((s, i) => s + (i.student_count || 0), 0), icon: GraduationCap },
+              { label: "Teachers", value: institutions.reduce((s, i) => s + (i.teacher_count || 0), 0), icon: Users },
             ].map(s => (
               <div key={s.label} className="glass rounded-xl p-3 neural-border">
                 <div className="flex items-center gap-2 mb-1">
@@ -175,7 +181,6 @@ export default function InstitutionManagement() {
             ))}
           </div>
 
-          {/* List */}
           {loading ? (
             <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
           ) : filtered.length === 0 ? (
@@ -183,7 +188,7 @@ export default function InstitutionManagement() {
           ) : (
             <div className="space-y-2">
               {filtered.map(inst => (
-                <motion.div key={inst.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-xl p-4 neural-border flex items-center gap-4">
+                <motion.div key={inst.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`glass rounded-xl p-4 neural-border flex items-center gap-4 ${selectedInst?.id === inst.id ? "ring-1 ring-primary/40" : ""}`}>
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: inst.primary_color + "20" }}>
                     <Building2 className="w-5 h-5" style={{ color: inst.primary_color }} />
                   </div>
@@ -191,17 +196,12 @@ export default function InstitutionManagement() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-foreground truncate">{inst.name}</span>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize ${TYPE_COLORS[inst.type] || "bg-secondary text-muted-foreground"}`}>{inst.type}</span>
-                      {inst.license_status && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inst.license_status === "active" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
-                          {inst.license_status}
-                        </span>
-                      )}
+                      {inst.license_status && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inst.license_status === "active" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>{inst.license_status}</span>}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><GraduationCap className="w-3 h-3" />{inst.student_count || 0} students</span>
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" />{inst.teacher_count || 0} teachers</span>
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><GraduationCap className="w-3 h-3" />{inst.student_count || 0}</span>
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" />{inst.teacher_count || 0}</span>
                       {inst.city && <span className="text-[10px] text-primary flex items-center gap-1"><Globe className="w-3 h-3" />{inst.city}</span>}
-                      {inst.domain && <span className="text-[10px] text-accent flex items-center gap-1">{inst.domain}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -217,29 +217,29 @@ export default function InstitutionManagement() {
         </TabsContent>
 
         <TabsContent value="batches" className="mt-4">
-          {selectedInst ? (
-            <BatchManagement institutionId={selectedInst.id} institutionName={selectedInst.name} />
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Select an institution first</p>
-          )}
+          {selectedInst ? <BatchManagement institutionId={selectedInst.id} institutionName={selectedInst.name} /> : <NoInstSelected />}
         </TabsContent>
-
         <TabsContent value="faculty" className="mt-4">
-          {selectedInst ? (
-            <FacultyDashboard institutionId={selectedInst.id} />
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Select an institution first</p>
-          )}
+          {selectedInst ? <FacultyDashboard institutionId={selectedInst.id} /> : <NoInstSelected />}
         </TabsContent>
-
+        <TabsContent value="branding" className="mt-4">
+          {selectedInst ? <BrandingConfig institutionId={selectedInst.id} institutionName={selectedInst.name} /> : <NoInstSelected />}
+        </TabsContent>
+        <TabsContent value="features" className="mt-4">
+          {selectedInst ? <FeatureToggles institutionId={selectedInst.id} institutionName={selectedInst.name} /> : <NoInstSelected />}
+        </TabsContent>
+        <TabsContent value="domains" className="mt-4">
+          {selectedInst ? <DomainManagement institutionId={selectedInst.id} institutionName={selectedInst.name} /> : <NoInstSelected />}
+        </TabsContent>
+        <TabsContent value="contracts" className="mt-4">
+          {selectedInst ? <ContractManagement institutionId={selectedInst.id} institutionName={selectedInst.name} /> : <NoInstSelected />}
+        </TabsContent>
         <TabsContent value="billing" className="mt-4">
-          {selectedInst ? (
-            <LicenseBilling institutionId={selectedInst.id} institutionName={selectedInst.name} />
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Select an institution first</p>
-          )}
+          {selectedInst ? <LicenseBilling institutionId={selectedInst.id} institutionName={selectedInst.name} /> : <NoInstSelected />}
         </TabsContent>
-
+        <TabsContent value="audit" className="mt-4">
+          {selectedInst ? <InstitutionAuditLog institutionId={selectedInst.id} institutionName={selectedInst.name} /> : <NoInstSelected />}
+        </TabsContent>
         <TabsContent value="webhooks" className="mt-4">
           <WebhookManagement />
         </TabsContent>
@@ -248,21 +248,26 @@ export default function InstitutionManagement() {
   );
 }
 
-// ─── Webhook Management Sub-component ───
+function NoInstSelected() {
+  return (
+    <div className="glass rounded-xl p-8 neural-border text-center">
+      <Building2 className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+      <p className="text-sm text-muted-foreground">Select an institution from the list first</p>
+    </div>
+  );
+}
+
 function WebhookManagement() {
-  const { toast } = useToast();
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadWebhooks(); }, []);
-
   const loadWebhooks = async () => {
     setLoading(true);
     const { data } = await supabase.from("webhook_endpoints").select("*").order("created_at", { ascending: false });
     setWebhooks((data as any[]) || []);
     setLoading(false);
   };
-
   const toggleWebhook = async (wh: any) => {
     await supabase.from("webhook_endpoints").update({ is_active: !wh.is_active }).eq("id", wh.id);
     loadWebhooks();
@@ -279,9 +284,7 @@ function WebhookManagement() {
       <div className="glass rounded-xl p-3 neural-border">
         <p className="text-[10px] text-muted-foreground mb-2">Supported events:</p>
         <div className="flex flex-wrap gap-1">
-          {EVENT_TYPES.map(e => (
-            <span key={e} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-mono">{e}</span>
-          ))}
+          {EVENT_TYPES.map(e => <span key={e} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-mono">{e}</span>)}
         </div>
       </div>
       {loading ? (
@@ -298,10 +301,7 @@ function WebhookManagement() {
               <div className={`w-2 h-2 rounded-full ${wh.is_active ? "bg-success" : "bg-muted-foreground"}`} />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-mono text-foreground truncate">{wh.url}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-muted-foreground">{(wh.events || []).length} events</span>
-                  {wh.failure_count > 0 && <span className="text-[10px] text-destructive">{wh.failure_count} failures</span>}
-                </div>
+                <span className="text-[10px] text-muted-foreground">{(wh.events || []).length} events</span>
               </div>
               <button onClick={() => toggleWebhook(wh)} className="p-1.5 rounded-lg hover:bg-secondary">
                 {wh.is_active ? <ToggleRight className="w-4 h-4 text-success" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
