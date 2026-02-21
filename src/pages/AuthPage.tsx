@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/splash/SplashScreen";
+import { useInstitution } from "@/contexts/InstitutionContext";
 
 const AuthPage = () => {
   const [searchParams] = useSearchParams();
@@ -19,6 +20,7 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { institution, isInstitutionDomain } = useInstitution();
 
   if (showSplash) {
     return (
@@ -142,6 +144,21 @@ const AuthPage = () => {
           className="flex flex-col items-center mt-6 mb-5 relative z-10"
         >
           {/* Animated logo icon */}
+          {isInstitutionDomain && institution?.logo_url ? (
+            <motion.div
+              className="relative"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.6, type: "spring", bounce: 0.25 }}
+            >
+              <img
+                src={institution.logo_url}
+                alt={institution.name}
+                className="w-16 h-16 rounded-2xl object-contain"
+                style={{ background: "#ffffff08", border: "1px solid #ffffff15" }}
+              />
+            </motion.div>
+          ) : (
           <motion.div
             className="relative"
             initial={{ scale: 0, rotate: -120 }}
@@ -220,6 +237,7 @@ const AuthPage = () => {
               transition={{ duration: 2, repeat: Infinity }}
             />
           </motion.div>
+          )}
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -231,7 +249,9 @@ const AuthPage = () => {
               className="text-center mt-4"
             >
               <h1 className="text-lg font-bold" style={{ color: "#ffffffee" }}>
-                {isLogin ? "Welcome back" : "Join ACRY"}
+                {isInstitutionDomain && institution
+                  ? (isLogin ? `Welcome to ${institution.name}` : `Join ${institution.name}`)
+                  : (isLogin ? "Welcome back" : "Join ACRY")}
               </h1>
               <p className="text-[11px] mt-0.5" style={{ color: "#ffffff45" }}>
                 {isLogin ? "Sign in to your AI Second Brain" : "Build your AI-powered study system"}
