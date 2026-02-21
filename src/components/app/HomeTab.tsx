@@ -53,6 +53,7 @@ const BrainMissionsCard = lazy(() => import("./BrainMissionsCard"));
 const CognitiveEmbeddingCard = lazy(() => import("./CognitiveEmbeddingCard"));
 const RLPolicyCard = lazy(() => import("./RLPolicyCard"));
 const AutoStudySummaryCard = lazy(() => import("./AutoStudySummaryCard"));
+const PrecisionIntelligenceCard = lazy(() => import("./PrecisionIntelligenceCard"));
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -769,7 +770,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         />
       </SectionErrorBoundary>
 
-      {/* ─── SECTION 2.5: Voice Brain Capture — hidden, replaced by AutoStudySummaryCard ─── */}
+      {/* ─── v7.0: Precision Intelligence Score (compact) ─── */}
+      <SectionErrorBoundary name="precision-score">
+        <Suspense fallback={null}>
+          <PrecisionIntelligenceCard compact />
+        </Suspense>
+      </SectionErrorBoundary>
+
       {/* <SectionErrorBoundary name="voice-brain-capture">
         <VoiceBrainCapture onSuccess={async () => { await predict(); setInsightsRefreshKey(k => k + 1); }} />
       </SectionErrorBoundary> */}

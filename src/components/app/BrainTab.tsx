@@ -19,6 +19,11 @@ import AIIntelligenceInsights from "./brain/AIIntelligenceInsights";
 import GrowthIdentitySystem from "./brain/GrowthIdentitySystem";
 import CompetitiveIntelDashboard from "./CompetitiveIntelDashboard";
 
+// v7.0 Precision Intelligence
+import PrecisionIntelligenceCard from "./PrecisionIntelligenceCard";
+import RankPredictionV2Card from "./RankPredictionV2Card";
+import DecayForecastV2Card from "./DecayForecastV2Card";
+
 // Modals
 import FocusModeSession from "./FocusModeSession";
 import AITopicManager from "./AITopicManager";
@@ -143,17 +148,26 @@ const BrainTab = () => {
         onBoostSession={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
       />
 
+      {/* ═══ v7.0: AI Precision Intelligence ═══ */}
+      <PrecisionIntelligenceCard />
+
       {/* ═══ SECTION 2: Interactive Memory Map ═══ */}
       <InteractiveMemoryMap
         subjectHealth={subjectHealth}
         onReview={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
       />
 
+      {/* ═══ v7.0: Forgetting Curve 2.0 ═══ */}
+      <DecayForecastV2Card />
+
       {/* ═══ SECTION 3: Decay Forecast Timeline ═══ */}
       <DecayForecastTimeline
         subjectHealth={subjectHealth}
         onPreventDecay={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
       />
+
+      {/* ═══ v7.0: Rank Prediction 2.0 ═══ */}
+      <RankPredictionV2Card />
 
       {/* ═══ SECTION 4: AI Intelligence Insights ═══ */}
       <AIIntelligenceInsights onAction={(s, t) => setReviewSession({ subject: s, topic: t })} />

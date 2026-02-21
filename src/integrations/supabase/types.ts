@@ -707,6 +707,53 @@ export type Database = {
           },
         ]
       }
+      behavioral_micro_events: {
+        Row: {
+          adjustment_details: Json | null
+          auto_adjustment_applied: string | null
+          context: Json | null
+          created_at: string
+          event_type: string
+          id: string
+          session_id: string | null
+          severity: number | null
+          topic_id: string | null
+          user_id: string
+        }
+        Insert: {
+          adjustment_details?: Json | null
+          auto_adjustment_applied?: string | null
+          context?: Json | null
+          created_at?: string
+          event_type: string
+          id?: string
+          session_id?: string | null
+          severity?: number | null
+          topic_id?: string | null
+          user_id: string
+        }
+        Update: {
+          adjustment_details?: Json | null
+          auto_adjustment_applied?: string | null
+          context?: Json | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          session_id?: string | null
+          severity?: number | null
+          topic_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "behavioral_micro_events_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       behavioral_profiles: {
         Row: {
           best_send_day: number | null
@@ -3544,6 +3591,57 @@ export type Database = {
         }
         Relationships: []
       }
+      model_recalibration_logs: {
+        Row: {
+          accuracy_delta: number | null
+          ai_reasoning: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          model_name: string
+          new_accuracy: number | null
+          parameters_changed: Json | null
+          previous_accuracy: number | null
+          recalibration_type: string
+          started_at: string | null
+          status: string | null
+          training_data_size: number | null
+          user_count_affected: number | null
+        }
+        Insert: {
+          accuracy_delta?: number | null
+          ai_reasoning?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          model_name: string
+          new_accuracy?: number | null
+          parameters_changed?: Json | null
+          previous_accuracy?: number | null
+          recalibration_type: string
+          started_at?: string | null
+          status?: string | null
+          training_data_size?: number | null
+          user_count_affected?: number | null
+        }
+        Update: {
+          accuracy_delta?: number | null
+          ai_reasoning?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          model_name?: string
+          new_accuracy?: number | null
+          parameters_changed?: Json | null
+          previous_accuracy?: number | null
+          recalibration_type?: string
+          started_at?: string | null
+          status?: string | null
+          training_data_size?: number | null
+          user_count_affected?: number | null
+        }
+        Relationships: []
+      }
       model_selections: {
         Row: {
           active_model: string
@@ -4464,6 +4562,57 @@ export type Database = {
           },
         ]
       }
+      precision_scores: {
+        Row: {
+          ai_reasoning: string | null
+          behavioral_timing_score: number | null
+          computed_at: string
+          confidence_interval_high: number | null
+          confidence_interval_low: number | null
+          created_at: string
+          error_clustering_score: number | null
+          forgetting_curve_factor: number | null
+          id: string
+          performance_trend_score: number | null
+          retrieval_strength_index: number | null
+          topic_weight_importance: number | null
+          unified_precision_score: number | null
+          user_id: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          behavioral_timing_score?: number | null
+          computed_at?: string
+          confidence_interval_high?: number | null
+          confidence_interval_low?: number | null
+          created_at?: string
+          error_clustering_score?: number | null
+          forgetting_curve_factor?: number | null
+          id?: string
+          performance_trend_score?: number | null
+          retrieval_strength_index?: number | null
+          topic_weight_importance?: number | null
+          unified_precision_score?: number | null
+          user_id: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          behavioral_timing_score?: number | null
+          computed_at?: string
+          confidence_interval_high?: number | null
+          confidence_interval_low?: number | null
+          created_at?: string
+          error_clustering_score?: number | null
+          forgetting_curve_factor?: number | null
+          id?: string
+          performance_trend_score?: number | null
+          retrieval_strength_index?: number | null
+          topic_weight_importance?: number | null
+          unified_precision_score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       predicted_questions: {
         Row: {
           correct_answer: number
@@ -5070,6 +5219,63 @@ export type Database = {
           predicted_rank?: number
           recorded_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      rank_predictions_v2: {
+        Row: {
+          ai_reasoning: string | null
+          computed_at: string
+          confidence_interval_high: number | null
+          confidence_interval_low: number | null
+          consistency_coefficient: number | null
+          created_at: string
+          factors_breakdown: Json | null
+          high_weight_topic_factor: number | null
+          id: string
+          model_version: string | null
+          percentile_estimation: number | null
+          predicted_rank: number | null
+          rank_band_high: number | null
+          rank_band_low: number | null
+          user_id: string
+          volatility_index: number | null
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          computed_at?: string
+          confidence_interval_high?: number | null
+          confidence_interval_low?: number | null
+          consistency_coefficient?: number | null
+          created_at?: string
+          factors_breakdown?: Json | null
+          high_weight_topic_factor?: number | null
+          id?: string
+          model_version?: string | null
+          percentile_estimation?: number | null
+          predicted_rank?: number | null
+          rank_band_high?: number | null
+          rank_band_low?: number | null
+          user_id: string
+          volatility_index?: number | null
+        }
+        Update: {
+          ai_reasoning?: string | null
+          computed_at?: string
+          confidence_interval_high?: number | null
+          confidence_interval_low?: number | null
+          consistency_coefficient?: number | null
+          created_at?: string
+          factors_breakdown?: Json | null
+          high_weight_topic_factor?: number | null
+          id?: string
+          model_version?: string | null
+          percentile_estimation?: number | null
+          predicted_rank?: number | null
+          rank_band_high?: number | null
+          rank_band_low?: number | null
+          user_id?: string
+          volatility_index?: number | null
         }
         Relationships: []
       }
@@ -5851,6 +6057,65 @@ export type Database = {
             columns: ["institution_id"]
             isOneToOne: false
             referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_decay_models: {
+        Row: {
+          ai_reasoning: string | null
+          avg_answer_latency_ms: number | null
+          computed_at: string
+          computed_decay_rate: number | null
+          created_at: string
+          error_severity_score: number | null
+          id: string
+          initial_mastery: number | null
+          next_optimal_review: string | null
+          predicted_retention: number | null
+          recall_strength: number | null
+          time_gap_hours: number | null
+          topic_id: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          avg_answer_latency_ms?: number | null
+          computed_at?: string
+          computed_decay_rate?: number | null
+          created_at?: string
+          error_severity_score?: number | null
+          id?: string
+          initial_mastery?: number | null
+          next_optimal_review?: string | null
+          predicted_retention?: number | null
+          recall_strength?: number | null
+          time_gap_hours?: number | null
+          topic_id?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          avg_answer_latency_ms?: number | null
+          computed_at?: string
+          computed_decay_rate?: number | null
+          created_at?: string
+          error_severity_score?: number | null
+          id?: string
+          initial_mastery?: number | null
+          next_optimal_review?: string | null
+          predicted_retention?: number | null
+          recall_strength?: number | null
+          time_gap_hours?: number | null
+          topic_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_decay_models_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
             referencedColumns: ["id"]
           },
         ]
