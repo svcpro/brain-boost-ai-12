@@ -84,6 +84,7 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<string>>(new Set());
   const [subjectsLoading, setSubjectsLoading] = useState(true);
   const answersRef = useRef<Array<{ question: string; options: string[]; correct: number; explanation: string; userAnswer: number | null }>>([]);
+  const seenQuestionsRef = useRef<Set<string>>(new Set());
 
   // Load subjects on mount
   useEffect(() => {
@@ -151,6 +152,7 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
 
   const generateQuiz = useCallback(async () => {
     if (!user) return;
+    seenQuestionsRef.current = new Set();
     setLoading(true);
     try {
       let topicsQuery = supabase
@@ -186,7 +188,7 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
         body: {
           action: "exam_simulate",
           topics: topicList,
-          questionCount,
+          questionCount: questionCount + 5, // Request extra to allow dedup filtering
           difficulty,
         },
       });
@@ -194,7 +196,15 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
       if (error) throw error;
 
       const content = data?.choices?.[0]?.message?.content || data?.result || "";
-      const parsed = parseQuestions(content);
+      let parsed = parseQuestions(content);
+
+      // Deduplicate: remove questions with text already seen in this session
+      parsed = parsed.filter(q => {
+        const key = q.question.trim().toLowerCase().slice(0, 80);
+        if (seenQuestionsRef.current.has(key)) return false;
+        seenQuestionsRef.current.add(key);
+        return true;
+      }).slice(0, questionCount);
 
       if (parsed.length === 0) {
         toast({ title: "Could not generate quiz", description: "Try again with more topics.", variant: "destructive" });

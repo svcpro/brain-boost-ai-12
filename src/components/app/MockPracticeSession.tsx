@@ -84,6 +84,7 @@ const MockPracticeSession = ({ open, onClose, onSessionComplete }: MockPracticeS
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
+  const seenQuestionsRef = useRef<Set<string>>(new Set());
 
   // ═══ Reset on open ═══
   useEffect(() => {
@@ -91,6 +92,7 @@ const MockPracticeSession = ({ open, onClose, onSessionComplete }: MockPracticeS
       setStep("preparing");
       setPrepIndex(0);
       setBlueprint(null);
+      seenQuestionsRef.current = new Set();
       setQuestions([]);
       setCurrentQIndex(0);
       setSelectedAnswer(null);
@@ -260,17 +262,26 @@ const MockPracticeSession = ({ open, onClose, onSessionComplete }: MockPracticeS
     const topic = blueprint.topics[topicIdx];
 
     try {
+      // Request extra questions to filter duplicates
       const { data } = await supabase.functions.invoke("ai-brain-agent", {
         body: {
           action: "mission_questions",
           topic_name: topic.name,
           subject_name: topic.subject,
           difficulty: adaptiveDifficulty,
-          count: 1,
+          count: 3, // Request more to allow dedup
         },
       });
-      const q = data?.questions?.[0];
+      const allQ = data?.questions || [];
+      // Find first question not already seen in this session
+      const q = allQ.find((q: any) => {
+        const key = (q.question || "").trim().toLowerCase().slice(0, 80);
+        return !seenQuestionsRef.current.has(key);
+      }) || allQ[0];
+      
       if (q) {
+        const key = (q.question || "").trim().toLowerCase().slice(0, 80);
+        seenQuestionsRef.current.add(key);
         const mcq: MCQQuestion = {
           question: q.question,
           options: q.options,
