@@ -40,28 +40,35 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
   const { user, session } = useAuth();
   const { toast } = useToast();
 
+  const getToday = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
   // Per-user cache key so each user gets their own personalized mission
   const cacheKey = user ? `${BASE_CACHE_KEY}-${user.id}` : BASE_CACHE_KEY;
   const completedKey = user ? `acry-mission-completed-date-${user.id}` : "acry-mission-completed-date";
 
-  const [mission, setMission] = useState<DailyMission | null>(() => {
-    if (!user) return null;
-    try {
-      const cached = getCache<DailyMission>(`${BASE_CACHE_KEY}-${user.id}`);
-      const now = new Date();
-      const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      if (cached && cached.generated_date === localToday) return cached;
-    } catch {}
-    return null;
-  });
+  const [mission, setMission] = useState<DailyMission | null>(null);
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showMissionFlow, setShowMissionFlow] = useState(false);
   const [error, setError] = useState(false);
+  const [fetchAttempted, setFetchAttempted] = useState(false);
 
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today = getToday();
+
+  // Load cached mission when user becomes available
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const cached = getCache<DailyMission>(`${BASE_CACHE_KEY}-${user.id}`);
+      if (cached && cached.generated_date === today) {
+        setMission(cached);
+      }
+    } catch {}
+  }, [user, today]);
 
   // safeStr and safeNum imported from @/lib/safeRender
 
@@ -112,8 +119,14 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       estimated_minutes: safeNum(src.estimated_minutes || src.duration_minutes || src.duration || data.estimated_minutes || data.duration, 5),
       brain_improvement_pct: safeNum(src.brain_improvement_pct || data.brain_improvement_pct, 5),
       urgency: (["critical", "high", "medium"].includes(src.urgency || data.urgency) ? (src.urgency || data.urgency) : "medium") as DailyMission["urgency"],
-      reasoning: safeStr(src.reasoning || src.reason || src.goal || data.reasoning || data.reason || data.goal, "Personalized by your AI brain agent."),
-      mission_type: safeStr(src.mission_type || src.type || data.mission_type || data.type, "review") as DailyMission["mission_type"],
+      reasoning: safeStr(src.reasoning || src.rationale || src.reason || src.goal || data.reasoning || data.rationale || data.reason || data.goal, "Personalized by your AI brain agent."),
+      mission_type: (() => {
+        const raw = safeStr(src.mission_type || src.type || src.action_type || data.mission_type || data.type || data.action_type, "review").toLowerCase();
+        if (raw.includes("recall") || raw.includes("remember")) return "recall";
+        if (raw.includes("practice") || raw.includes("solve") || raw.includes("problem")) return "practice";
+        if (raw.includes("strengthen") || raw.includes("deep")) return "strengthen";
+        return "review";
+      })() as DailyMission["mission_type"],
       generated_date: today,
     };
   };
@@ -140,13 +153,14 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     } finally {
       setLoading(false);
     }
-  }, [user, session, today]);
+  }, [user, session, today, cacheKey]);
 
   // Auto-generate on mount if no mission for today
   useEffect(() => {
-    if (!hasTopics || mission || loading || !session) return;
+    if (!hasTopics || mission || loading || !session || fetchAttempted) return;
+    setFetchAttempted(true);
     generateMission();
-  }, [hasTopics, mission, loading, generateMission, session]);
+  }, [hasTopics, mission, loading, generateMission, session, fetchAttempted]);
 
   // Check completion status from localStorage
   useEffect(() => {
