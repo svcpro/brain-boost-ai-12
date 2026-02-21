@@ -59,13 +59,16 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
 
   const today = getToday();
 
-  // Load cached mission when user becomes available
+  // Load cached mission when user becomes available — skip broken cache entries
   useEffect(() => {
     if (!user) return;
     try {
       const cached = getCache<DailyMission>(`${BASE_CACHE_KEY}-${user.id}`);
-      if (cached && cached.generated_date === today) {
+      if (cached && cached.generated_date === today && cached.title && cached.title !== "AI Mission") {
         setMission(cached);
+      } else {
+        // Clear stale/broken cache so a fresh fetch is triggered
+        setCache(`${BASE_CACHE_KEY}-${user.id}`, null);
       }
     } catch {}
   }, [user, today]);
@@ -104,15 +107,20 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     const actionType = safeStr(src.action_type || src.mission_type || data.action_type || data.mission_type || data.type || src.type, "Review");
     
     // Build a readable title — prefer an explicit string title, otherwise compose from topic+action
+    const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
     let title = "";
-    if (typeof data.title === "string" && data.title.length > 0 && !data.title.startsWith("{")) {
+    if (typeof data.title === "string" && data.title.length > 0 && !data.title.startsWith("{") && data.title !== "AI Mission") {
       title = data.title;
-    } else if (typeof src.title === "string" && src.title.length > 0 && !src.title.startsWith("{")) {
+    } else if (typeof src.title === "string" && src.title.length > 0 && !src.title.startsWith("{") && src.title !== "AI Mission") {
       title = src.title;
+    } else if (topic && actionType) {
+      title = `${capitalize(actionType)}: ${topic}`;
     } else if (topic) {
-      title = `${actionType}: ${topic}`;
+      title = `Review: ${topic}`;
+    } else if (typeof src.description === "string" && src.description.length > 0) {
+      title = src.description.length > 60 ? src.description.slice(0, 57) + "…" : src.description;
     } else {
-      title = "AI Mission";
+      title = "Your Daily Mission";
     }
 
     // Build description — check description, goal, reason fields
