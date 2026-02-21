@@ -302,26 +302,49 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
   return (
     <div className="px-5 py-6 space-y-5 max-w-lg mx-auto overflow-x-hidden">
-      {/* ─── SECTION 1: Hero Brain Stability Score ─── */}
+      {/* ─── SECTION 1: Hero Brain Stability Score — Ultra Animated ─── */}
       <motion.section
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="relative overflow-hidden rounded-3xl p-6 text-center"
         style={{
-          background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
-          border: "1px solid hsl(var(--border))",
+          background: `radial-gradient(ellipse at 30% 20%, hsl(var(--primary)/0.08) 0%, transparent 50%),
+                       radial-gradient(ellipse at 70% 80%, hsl(var(--success)/0.06) 0%, transparent 50%),
+                       linear-gradient(160deg, hsl(var(--card)) 0%, hsl(var(--secondary)/0.5) 50%, hsl(var(--card)) 100%)`,
+          border: "1px solid hsl(var(--primary)/0.15)",
+          boxShadow: `0 0 40px hsl(var(--primary)/0.06), inset 0 1px 0 hsl(var(--primary)/0.08)`,
         }}
       >
-        {/* Decorative glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: healthColor }} />
+        {/* Animated background orbs */}
+        <motion.div
+          className="absolute top-[-30px] left-[-20px] w-44 h-44 rounded-full pointer-events-none"
+          style={{ background: `radial-gradient(circle, hsl(var(--primary)/0.12), transparent 70%)` }}
+          animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.7, 0.4], x: [-5, 15, -5] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-[-20px] right-[-15px] w-36 h-36 rounded-full pointer-events-none"
+          style={{ background: `radial-gradient(circle, hsl(var(--success)/0.1), transparent 70%)` }}
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        />
+        {/* Shimmer sweep */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: "linear-gradient(105deg, transparent 40%, hsl(var(--primary)/0.04) 48%, hsl(var(--primary)/0.08) 50%, hsl(var(--primary)/0.04) 52%, transparent 60%)" }}
+          animate={{ x: ["-100%", "200%"] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", repeatDelay: 3 }}
+        />
 
-        {/* Greeting */}
-        <div className="relative z-10 flex items-center justify-center gap-2 mb-5">
+        {/* Greeting with animated avatar */}
+        <div className="relative z-10 flex items-center justify-center gap-3 mb-5">
           <motion.button
             whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
             onClick={() => onNavigateToYou?.()}
-            className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/30 shrink-0"
+            className="relative w-11 h-11 rounded-full overflow-hidden shrink-0"
+            style={{ boxShadow: `0 0 0 2px hsl(var(--primary)/0.3), 0 0 12px hsl(var(--primary)/0.15)` }}
           >
             {avatarUrl ? (
               <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
@@ -330,26 +353,62 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                 {(userName || "S").slice(0, 2).toUpperCase()}
               </div>
             )}
+            {/* Online pulse */}
+            <motion.div
+              className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card"
+              style={{ background: "hsl(var(--success))" }}
+              animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
           </motion.button>
           <div className="text-left">
-            <p className="text-xs text-muted-foreground">{greeting}</p>
+            <p className="text-[10px] text-muted-foreground">{greeting}</p>
             {userName && (
               <motion.p
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-sm font-bold text-foreground"
+                className="text-sm font-extrabold text-foreground"
               >
                 {userName}
               </motion.p>
             )}
           </div>
+          {/* Sparkle icon */}
+          <motion.div
+            className="ml-auto"
+            animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.15, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Sparkles className="w-5 h-5 text-primary" style={{ filter: "drop-shadow(0 0 6px hsl(var(--primary)/0.5))" }} />
+          </motion.div>
         </div>
 
-        {/* Circular progress */}
-        <div className="relative z-10 mx-auto w-36 h-36 mb-4">
+        {/* Circular progress — with glow ring */}
+        <div className="relative z-10 mx-auto w-40 h-40 mb-4">
+          {/* Outer glow ring */}
+          <motion.div
+            className="absolute inset-[-6px] rounded-full pointer-events-none"
+            style={{ border: `2px solid ${healthColor}`, opacity: 0.15 }}
+            animate={{ scale: [1, 1.04, 1], opacity: [0.1, 0.25, 0.1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          />
+          {/* Orbiting particle */}
+          <motion.div
+            className="absolute w-2 h-2 rounded-full pointer-events-none"
+            style={{ background: healthColor, boxShadow: `0 0 8px ${healthColor}`, top: "50%", left: "50%", marginTop: "-4px", marginLeft: "-4px" }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+            // Position the particle on the orbit
+          >
+            <motion.div
+              style={{ transform: "translateY(-76px)" }}
+              className="w-2 h-2 rounded-full"
+            />
+          </motion.div>
           <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
-            <circle cx="70" cy="70" r="58" fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
+            <circle cx="70" cy="70" r="58" fill="none" stroke="hsl(var(--border))" strokeWidth="6" strokeOpacity="0.3" />
+            {/* Secondary track glow */}
             <motion.circle
               cx="70" cy="70" r="58" fill="none"
               stroke={healthColor}
@@ -358,8 +417,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               strokeDasharray={2 * Math.PI * 58}
               initial={{ strokeDashoffset: 2 * Math.PI * 58 }}
               animate={{ strokeDashoffset: 2 * Math.PI * 58 * (1 - (hasTopics ? overallHealth : 0) / 100) }}
-              transition={{ duration: 1.5, ease: "easeOut", delay: 0.3 }}
-              style={{ filter: `drop-shadow(0 0 8px ${healthColor})` }}
+              transition={{ duration: 1.8, ease: "easeOut", delay: 0.3 }}
+              style={{ filter: `drop-shadow(0 0 12px ${healthColor})` }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -367,98 +426,165 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
-              className="text-3xl font-bold text-foreground tabular-nums"
+              className="text-4xl font-black text-foreground tabular-nums"
+              style={{ textShadow: `0 0 20px ${healthColor}40` }}
             >
               {hasTopics ? `${overallHealth}%` : "—"}
             </motion.span>
-            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.9 }}
+              className="text-[10px] font-semibold mt-0.5 px-2 py-0.5 rounded-full"
+              style={{
+                background: `${healthColor}15`,
+                color: healthColor,
+              }}
+            >
               {hasTopics ? healthLabel : "No data yet"}
-            </span>
+            </motion.span>
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center justify-center gap-2">
-          <p className="text-xs text-muted-foreground">
-            Brain Stability Score
-          </p>
+        <div className="relative z-10 flex items-center justify-center gap-3">
+          <motion.div
+            className="flex items-center gap-1.5"
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <Brain className="w-3.5 h-3.5 text-primary" style={{ filter: "drop-shadow(0 0 4px hsl(var(--primary)/0.4))" }} />
+            <p className="text-xs font-semibold text-muted-foreground">Brain Stability</p>
+          </motion.div>
           {/* Safe Pass Prediction Icon — Ultra animated */}
           <motion.button
             onClick={() => setSafePassOpen(true)}
-            className="relative w-7 h-7 rounded-full flex items-center justify-center cursor-pointer"
+            className="relative w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
             style={{
-              background: "linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--success)/0.12))",
-              border: "1px solid hsl(var(--primary)/0.3)",
+              background: "linear-gradient(135deg, hsl(var(--primary)/0.2), hsl(var(--success)/0.15))",
+              border: "1.5px solid hsl(var(--primary)/0.3)",
             }}
-            whileHover={{ scale: 1.15 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.2 }}
+            whileTap={{ scale: 0.85 }}
             animate={{
               boxShadow: [
                 "0 0 0px 0px hsl(var(--primary)/0)",
-                "0 0 10px 3px hsl(var(--primary)/0.35)",
+                "0 0 14px 4px hsl(var(--primary)/0.4)",
                 "0 0 0px 0px hsl(var(--primary)/0)",
               ],
             }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
             {/* Orbiting ring */}
             <motion.div
-              className="absolute inset-[-3px] rounded-full pointer-events-none"
-              style={{
-                border: "1.5px dashed hsl(var(--primary)/0.3)",
-              }}
+              className="absolute inset-[-4px] rounded-full pointer-events-none"
+              style={{ border: "1.5px dashed hsl(var(--success)/0.35)" }}
               animate={{ rotate: 360 }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
             />
-            {/* Pulsing dot */}
+            {/* Multi-color pulsing dot */}
             <motion.div
-              className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-success"
-              animate={{
-                scale: [1, 1.4, 1],
-                opacity: [1, 0.5, 1],
-              }}
-              transition={{ duration: 1.5, repeat: Infinity }}
+              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
+              style={{ background: "hsl(var(--success))", boxShadow: "0 0 6px hsl(var(--success)/0.6)" }}
+              animate={{ scale: [1, 1.5, 1], opacity: [1, 0.4, 1] }}
+              transition={{ duration: 1.2, repeat: Infinity }}
             />
-            <Trophy className="w-3.5 h-3.5 text-primary" />
+            <Trophy className="w-4 h-4 text-primary" style={{ filter: "drop-shadow(0 0 4px hsl(var(--primary)/0.5))" }} />
           </motion.button>
         </div>
 
-        {/* Mini stats row */}
+        {/* Mini stats row — with animated icons */}
         {hasTopics && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="relative z-10 grid grid-cols-3 gap-2 mt-4"
+            className="relative z-10 grid grid-cols-3 gap-2.5 mt-5"
           >
-            <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
+            {/* Rank */}
+            <motion.div
+              className="rounded-2xl p-3 border backdrop-blur-md"
+              style={{
+                background: "hsl(var(--card)/0.7)",
+                borderColor: "hsl(var(--primary)/0.15)",
+                boxShadow: "0 0 12px hsl(var(--primary)/0.05)",
+              }}
+              whileHover={{ scale: 1.03, boxShadow: "0 0 20px hsl(var(--primary)/0.15)" }}
+            >
+              <motion.div
+                animate={{ rotate: [0, 8, -8, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="flex justify-center mb-1"
+              >
+                <TrendingUp className="w-4 h-4 text-primary" style={{ filter: "drop-shadow(0 0 6px hsl(var(--primary)/0.5))" }} />
+              </motion.div>
               <div className="flex items-center justify-center gap-1">
-                <p className="text-lg font-bold text-foreground tabular-nums">
+                <p className="text-lg font-black text-foreground tabular-nums">
                   {rankData?.predicted_rank ? `#${rankData.predicted_rank.toLocaleString()}` : "—"}
                 </p>
-                {rankData?.rank_change !== undefined && rankData.rank_change !== 0 && (
-                  <span className={`text-[9px] font-bold ${rankData.rank_change > 0 ? "text-success" : "text-destructive"}`}>
-                    {rankData.rank_change > 0 ? `↑${rankData.rank_change.toLocaleString()}` : `↓${Math.abs(rankData.rank_change).toLocaleString()}`}
-                  </span>
-                )}
               </div>
-              <p className="text-[9px] text-muted-foreground">
-                Rank {rankData?.trend === "rising" ? "📈" : rankData?.trend === "falling" ? "📉" : rankData?.trend === "stable" ? "➡️" : ""}
-              </p>
-            </div>
-            <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
-              <p className="text-lg font-bold text-foreground tabular-nums">
+              {rankData?.rank_change !== undefined && rankData.rank_change !== 0 && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className={`text-[9px] font-bold block text-center ${rankData.rank_change > 0 ? "text-success" : "text-destructive"}`}
+                >
+                  {rankData.rank_change > 0 ? `↑${rankData.rank_change.toLocaleString()}` : `↓${Math.abs(rankData.rank_change).toLocaleString()}`}
+                </motion.span>
+              )}
+              <p className="text-[9px] text-muted-foreground text-center mt-0.5">Rank</p>
+            </motion.div>
+
+            {/* Streak */}
+            <motion.div
+              className="rounded-2xl p-3 border backdrop-blur-md"
+              style={{
+                background: "hsl(var(--card)/0.7)",
+                borderColor: "hsl(var(--warning)/0.15)",
+                boxShadow: "0 0 12px hsl(var(--warning)/0.05)",
+              }}
+              whileHover={{ scale: 1.03, boxShadow: "0 0 20px hsl(var(--warning)/0.15)" }}
+            >
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="flex justify-center mb-1"
+              >
+                <Flame className="w-4 h-4 text-warning" style={{ filter: "drop-shadow(0 0 6px hsl(var(--warning)/0.6))" }} />
+              </motion.div>
+              <p className="text-lg font-black text-foreground tabular-nums text-center">
                 {streakData?.currentStreak ?? 0}
-                <span className="text-xs ml-0.5">🔥</span>
               </p>
-              <p className="text-[9px] text-muted-foreground">Streak</p>
-            </div>
-            <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
-              <p className="text-lg font-bold text-foreground tabular-nums">
+              <p className="text-[9px] text-muted-foreground text-center mt-0.5">Streak 🔥</p>
+            </motion.div>
+
+            {/* Exam countdown */}
+            <motion.div
+              className="rounded-2xl p-3 border backdrop-blur-md"
+              style={{
+                background: "hsl(var(--card)/0.7)",
+                borderColor: examDaysLeft !== null && examDaysLeft <= 30 ? "hsl(var(--destructive)/0.2)" : "hsl(var(--border)/0.3)",
+                boxShadow: examDaysLeft !== null && examDaysLeft <= 30 ? "0 0 12px hsl(var(--destructive)/0.08)" : "none",
+              }}
+              whileHover={{ scale: 1.03 }}
+            >
+              <motion.div
+                animate={examDaysLeft !== null && examDaysLeft <= 7
+                  ? { scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }
+                  : { rotate: [0, 5, -5, 0] }}
+                transition={{ duration: examDaysLeft !== null && examDaysLeft <= 7 ? 1 : 3, repeat: Infinity }}
+                className="flex justify-center mb-1"
+              >
+                <Clock className="w-4 h-4" style={{
+                  color: examDaysLeft !== null && examDaysLeft <= 7 ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))",
+                  filter: examDaysLeft !== null && examDaysLeft <= 7 ? "drop-shadow(0 0 6px hsl(var(--destructive)/0.5))" : "none",
+                }} />
+              </motion.div>
+              <p className="text-lg font-black text-foreground tabular-nums text-center">
                 {examDaysLeft !== null ? examDaysLeft : "—"}
                 {examDaysLeft !== null && <span className="text-[9px] text-muted-foreground ml-0.5">d</span>}
               </p>
-              <p className="text-[9px] text-muted-foreground">Exam</p>
-            </div>
+              <p className="text-[9px] text-muted-foreground text-center mt-0.5">Exam</p>
+            </motion.div>
           </motion.div>
         )}
 
@@ -468,33 +594,45 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}
-              className="relative z-10 grid grid-cols-2 gap-2 mt-2"
+              className="relative z-10 grid grid-cols-2 gap-2.5 mt-3"
             >
-              <div className="rounded-lg bg-background/40 backdrop-blur-sm p-2 border border-border/30">
+              <div className="rounded-xl bg-card/50 backdrop-blur-sm p-2.5 border border-primary/10">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[8px] text-muted-foreground">Consistency</span>
+                  <div className="flex items-center gap-1">
+                    <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }}>
+                      <Target className="w-3 h-3 text-primary" style={{ filter: "drop-shadow(0 0 3px hsl(var(--primary)/0.4))" }} />
+                    </motion.div>
+                    <span className="text-[8px] text-muted-foreground">Consistency</span>
+                  </div>
                   <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.consistency_score ?? 0}%</span>
                 </div>
-                <div className="h-1 rounded-full bg-secondary/60">
+                <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
                   <motion.div
-                    className="h-full rounded-full bg-primary"
+                    className="h-full rounded-full"
+                    style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary)/0.7))", boxShadow: "0 0 8px hsl(var(--primary)/0.3)" }}
                     initial={{ width: 0 }}
                     animate={{ width: `${rankData.factors.consistency_score ?? 0}%` }}
-                    transition={{ duration: 1, delay: 1.2 }}
+                    transition={{ duration: 1.2, delay: 1.2, ease: "easeOut" }}
                   />
                 </div>
               </div>
-              <div className="rounded-lg bg-background/40 backdrop-blur-sm p-2 border border-border/30">
+              <div className="rounded-xl bg-card/50 backdrop-blur-sm p-2.5 border border-success/10">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[8px] text-muted-foreground">Decay Shield</span>
+                  <div className="flex items-center gap-1">
+                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+                      <Shield className="w-3 h-3 text-success" style={{ filter: "drop-shadow(0 0 3px hsl(var(--success)/0.4))" }} />
+                    </motion.div>
+                    <span className="text-[8px] text-muted-foreground">Decay Shield</span>
+                  </div>
                   <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.decay_velocity_score ?? 0}%</span>
                 </div>
-                <div className="h-1 rounded-full bg-secondary/60">
+                <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
                   <motion.div
-                    className="h-full rounded-full bg-success"
+                    className="h-full rounded-full"
+                    style={{ background: "linear-gradient(90deg, hsl(var(--success)), hsl(var(--success)/0.7))", boxShadow: "0 0 8px hsl(var(--success)/0.3)" }}
                     initial={{ width: 0 }}
                     animate={{ width: `${rankData.factors.decay_velocity_score ?? 0}%` }}
-                    transition={{ duration: 1, delay: 1.3 }}
+                    transition={{ duration: 1.2, delay: 1.3, ease: "easeOut" }}
                   />
                 </div>
               </div>
@@ -505,14 +643,19 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         <div className="relative z-10 flex items-center justify-center gap-3 mt-4">
           <DeviceSyncIndicator />
           <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          onClick={handleRefresh}
-          disabled={analyzing}
-          className="relative z-10 mt-4 inline-flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-primary transition-colors"
-        >
-          <RefreshCw className={`w-3 h-3 ${analyzing ? "animate-spin" : ""}`} />
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            onClick={handleRefresh}
+            disabled={analyzing}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.9 }}
+            className="relative z-10 mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors border border-border/30 hover:border-primary/20 backdrop-blur-sm"
+            style={{ background: "hsl(var(--card)/0.5)" }}
+          >
+            <motion.div animate={analyzing ? { rotate: 360 } : {}} transition={{ duration: 1, repeat: analyzing ? Infinity : 0, ease: "linear" }}>
+              <RefreshCw className="w-3 h-3" />
+            </motion.div>
             {analyzing ? "Updating…" : "Refresh brain"}
           </motion.button>
         </div>
