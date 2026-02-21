@@ -48,7 +48,9 @@ import ExamCountdownConfig from "@/components/admin/ExamCountdownConfig";
 import SureShotAdminPanel from "@/components/admin/SureShotAdminPanel";
 import ComingSoonControlPanel from "@/components/admin/ComingSoonControlPanel";
 import AutopilotAdminPanel from "@/components/admin/AutopilotAdminPanel";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot";
+import InstitutionManagement from "@/components/admin/InstitutionManagement";
+import TeacherModeAdmin from "@/components/admin/TeacherModeAdmin";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -134,6 +136,14 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
       { key: "coming_soon", label: "Coming Soon", icon: Rocket, roles: ["super_admin", "admin"], badge: "🚀" },
       { key: "autopilot", label: "Autopilot Engine", icon: Workflow, roles: ["super_admin", "admin", "ai_admin"], badge: "v5" },
+    ],
+  },
+  {
+    label: "Enterprise",
+    icon: Globe,
+    items: [
+      { key: "institutions", label: "Institutions", icon: Users, roles: ["super_admin", "admin"], badge: "v6" },
+      { key: "teacher_mode", label: "AI Teacher Mode", icon: BookOpen, roles: ["super_admin", "admin", "ai_admin"], badge: "v6" },
     ],
   },
   {
@@ -478,6 +488,8 @@ const AdminPanel = () => {
               {section === "growth_center" && <GrowthControlCenter />}
               {section === "coming_soon" && <ComingSoonControlPanel />}
               {section === "autopilot" && <AutopilotAdminPanel />}
+              {section === "institutions" && <InstitutionManagement />}
+              {section === "teacher_mode" && <TeacherModeAdmin />}
               {section === "monitoring" && <SystemMonitor />}
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}

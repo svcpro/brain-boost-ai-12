@@ -212,3 +212,9 @@ verify_jwt = false
 
 [functions.autopilot-engine]
 verify_jwt = false
+
+[functions.webhook-dispatch]
+verify_jwt = false
+
+[functions.teacher-practice]
+verify_jwt = false
