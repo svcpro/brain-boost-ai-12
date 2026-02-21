@@ -402,16 +402,51 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                 </div>
                 {hasRecent && (
                   <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setQuickMode(!quickMode)}
-                    className={`text-[9px] px-2.5 py-1.5 rounded-full border transition-all flex items-center gap-1 ${
-                      quickMode
-                        ? "bg-primary/15 border-primary/30 text-primary font-semibold"
-                        : "bg-secondary/40 border-border/40 text-muted-foreground hover:border-primary/20"
-                    }`}
+                    whileTap={{ scale: 0.92 }}
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    onClick={() => { setQuickMode(!quickMode); triggerHaptic([6]); }}
+                    className="relative text-[9px] px-3 py-1.5 rounded-full overflow-hidden flex items-center gap-1.5 font-semibold"
+                    style={{
+                      background: quickMode
+                        ? "linear-gradient(135deg, hsl(var(--primary) / 0.18), hsl(var(--accent) / 0.12), hsl(var(--primary) / 0.15))"
+                        : "linear-gradient(135deg, hsl(var(--secondary) / 0.5), hsl(var(--card)), hsl(var(--secondary) / 0.3))",
+                      border: quickMode
+                        ? "1.5px solid hsl(var(--primary) / 0.4)"
+                        : "1px solid hsl(var(--border) / 0.4)",
+                      boxShadow: quickMode
+                        ? "0 3px 14px hsl(var(--primary) / 0.2), inset 0 1px 0 hsl(var(--primary) / 0.1)"
+                        : "0 2px 8px hsl(var(--border) / 0.1)",
+                      color: quickMode ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                    }}
                   >
-                    <Zap className="w-3 h-3" />
-                    {quickMode ? "Voice mode" : "Quick tap"}
+                    {/* Animated shimmer sweep */}
+                    <motion.div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background: quickMode
+                          ? "linear-gradient(90deg, transparent, hsl(var(--primary) / 0.1), transparent)"
+                          : "linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.03), transparent)",
+                      }}
+                      animate={{ x: ["-100%", "200%"] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 2 }}
+                    />
+                    {/* Pulsing glow dot */}
+                    {quickMode && (
+                      <motion.div
+                        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+                        style={{ background: "hsl(var(--primary))", boxShadow: "0 0 8px hsl(var(--primary) / 0.6)" }}
+                        animate={{ opacity: [0.5, 1, 0.5], scale: [0.7, 1.1, 0.7] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                    )}
+                    <motion.span
+                      animate={quickMode ? { rotate: [0, 360] } : {}}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
+                      className="relative z-10"
+                    >
+                      {quickMode ? <Mic className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
+                    </motion.span>
+                    <span className="relative z-10">{quickMode ? "Voice mode" : "Quick tap"}</span>
                   </motion.button>
                 )}
               </div>
@@ -716,59 +751,133 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                           </div>
                         </div>
 
-                        {/* ─── Premium animated LOG button ─── */}
-                        <motion.button
-                          whileHover={{ scale: 1.02, y: -1 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={handleQuickLog}
-                          disabled={quickLogging}
-                          className="relative w-full py-3 rounded-xl text-xs font-bold text-primary-foreground flex items-center justify-center gap-2 disabled:opacity-50 overflow-hidden"
-                          style={{
-                            background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.85), hsl(var(--primary) / 0.9))",
-                            boxShadow: "0 6px 24px hsl(var(--primary) / 0.3), 0 2px 8px hsl(var(--primary) / 0.2)",
-                          }}
-                        >
-                          {/* Moving shimmer */}
+                        {/* ─── Ultra-premium animated LOG button ─── */}
+                        <motion.div className="relative">
+                          {/* Outer animated glow ring */}
                           <motion.div
-                            className="absolute inset-0 pointer-events-none"
-                            style={{ background: "linear-gradient(90deg, transparent 0%, hsl(0 0% 100% / 0.15) 50%, transparent 100%)" }}
-                            animate={{ x: ["-100%", "200%"] }}
-                            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+                            className="absolute -inset-[3px] rounded-2xl pointer-events-none"
+                            style={{
+                              background: "conic-gradient(from 0deg, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.4), hsl(var(--primary) / 0.3), hsl(var(--accent) / 0.5), hsl(var(--primary) / 0.5))",
+                              filter: "blur(4px)",
+                            }}
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                           />
-                          {/* Floating sparkles */}
-                          {!quickLogging && (
-                            <>
-                              <motion.div className="absolute top-1 left-[15%] w-1 h-1 rounded-full bg-white/30"
-                                animate={{ y: [-2, -8, -2], opacity: [0, 1, 0] }} transition={{ duration: 2, repeat: Infinity, delay: 0 }} />
-                              <motion.div className="absolute top-2 right-[20%] w-0.5 h-0.5 rounded-full bg-white/40"
-                                animate={{ y: [-2, -10, -2], opacity: [0, 1, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }} />
-                              <motion.div className="absolute bottom-1 left-[40%] w-1 h-1 rounded-full bg-white/20"
-                                animate={{ y: [2, -6, 2], opacity: [0, 0.8, 0] }} transition={{ duration: 1.8, repeat: Infinity, delay: 1 }} />
-                            </>
-                          )}
-                          <span className="relative z-10 flex items-center gap-2">
-                            {quickLogging ? (
-                              <><Loader2 className="w-4 h-4 animate-spin" /> Mapping to brain...</>
-                            ) : (
+                          {/* Secondary pulsing glow */}
+                          <motion.div
+                            className="absolute -inset-[6px] rounded-2xl pointer-events-none"
+                            style={{
+                              background: "radial-gradient(ellipse at center, hsl(var(--primary) / 0.2), transparent 70%)",
+                            }}
+                            animate={{ opacity: [0.3, 0.7, 0.3], scale: [0.98, 1.02, 0.98] }}
+                            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          />
+                          <motion.button
+                            whileHover={{ scale: 1.03, y: -2 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={handleQuickLog}
+                            disabled={quickLogging}
+                            className="relative w-full py-3.5 rounded-xl text-xs font-bold text-primary-foreground flex items-center justify-center gap-2 disabled:opacity-50 overflow-hidden"
+                            style={{
+                              background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.85), hsl(var(--primary) / 0.9))",
+                              boxShadow: "0 8px 32px hsl(var(--primary) / 0.35), 0 2px 8px hsl(var(--primary) / 0.25), inset 0 1px 0 hsl(0 0% 100% / 0.15)",
+                            }}
+                          >
+                            {/* Multi-layer shimmer */}
+                            <motion.div
+                              className="absolute inset-0 pointer-events-none"
+                              style={{ background: "linear-gradient(105deg, transparent 0%, hsl(0 0% 100% / 0.2) 40%, hsl(0 0% 100% / 0.05) 50%, transparent 100%)" }}
+                              animate={{ x: ["-150%", "250%"] }}
+                              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.5 }}
+                            />
+                            <motion.div
+                              className="absolute inset-0 pointer-events-none"
+                              style={{ background: "linear-gradient(250deg, transparent 0%, hsl(0 0% 100% / 0.1) 45%, transparent 100%)" }}
+                              animate={{ x: ["200%", "-150%"] }}
+                              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", repeatDelay: 2, delay: 1 }}
+                            />
+                            {/* Floating sparkle particles */}
+                            {!quickLogging && (
                               <>
-                                <motion.span animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}>
-                                  <Zap className="w-4 h-4" />
-                                </motion.span>
-                                Log {selectedQuickTopics.length} topic{selectedQuickTopics.length > 1 ? "s" : ""} to Brain
+                                {[
+                                  { left: "10%", delay: 0, size: "w-1.5 h-1.5" },
+                                  { left: "25%", delay: 0.4, size: "w-1 h-1" },
+                                  { left: "50%", delay: 0.8, size: "w-1 h-1" },
+                                  { left: "70%", delay: 1.2, size: "w-1.5 h-1.5" },
+                                  { left: "85%", delay: 0.6, size: "w-0.5 h-0.5" },
+                                ].map((p, i) => (
+                                  <motion.div
+                                    key={i}
+                                    className={`absolute ${p.size} rounded-full bg-white/30`}
+                                    style={{ left: p.left, bottom: "20%" }}
+                                    animate={{ y: [0, -16, -24], opacity: [0, 0.9, 0], scale: [0.5, 1.2, 0.3] }}
+                                    transition={{ duration: 2.2, repeat: Infinity, delay: p.delay, ease: "easeOut" }}
+                                  />
+                                ))}
                               </>
                             )}
-                          </span>
-                        </motion.button>
+                            {/* Bottom edge highlight */}
+                            <div
+                              className="absolute bottom-0 left-[10%] right-[10%] h-[1px]"
+                              style={{ background: "linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.25), transparent)" }}
+                            />
+                            <span className="relative z-10 flex items-center gap-2">
+                              {quickLogging ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <motion.span
+                                    animate={{ opacity: [1, 0.5, 1] }}
+                                    transition={{ duration: 1.2, repeat: Infinity }}
+                                  >
+                                    Mapping to brain...
+                                  </motion.span>
+                                </>
+                              ) : (
+                                <>
+                                  <motion.span
+                                    animate={{ rotate: [0, 20, -20, 0], scale: [1, 1.2, 1] }}
+                                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+                                  >
+                                    <Zap className="w-4 h-4" />
+                                  </motion.span>
+                                  Log {selectedQuickTopics.length} topic{selectedQuickTopics.length > 1 ? "s" : ""} to Brain
+                                  <motion.span
+                                    animate={{ scale: [1, 1.3, 1], rotate: [0, 15, 0] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+                                  >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                  </motion.span>
+                                </>
+                              )}
+                            </span>
+                          </motion.button>
+                        </motion.div>
 
-                        {/* Summary preview */}
+                        {/* Summary preview with animated flow */}
                         <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.2 }}
-                          className="flex items-center justify-center gap-2 text-[8px] text-muted-foreground"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.3 }}
+                          className="flex items-center justify-center gap-1.5 text-[8px] text-muted-foreground"
                         >
                           <Brain className="w-3 h-3 text-primary/50" />
-                          <span>{selectedQuickSubject} → {selectedQuickTopics.length} topics → +memory boost</span>
+                          <span>{selectedQuickSubject}</span>
+                          <motion.span
+                            animate={{ x: [0, 3, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                            className="text-primary/40"
+                          >→</motion.span>
+                          <span>{selectedQuickTopics.length} topics</span>
+                          <motion.span
+                            animate={{ x: [0, 3, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
+                            className="text-primary/40"
+                          >→</motion.span>
+                          <motion.span
+                            animate={{ opacity: [0.6, 1, 0.6] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="text-primary font-semibold"
+                          >+memory boost</motion.span>
                         </motion.div>
                       </motion.div>
                     )}
