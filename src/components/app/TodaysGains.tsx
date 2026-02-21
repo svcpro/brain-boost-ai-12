@@ -120,18 +120,17 @@ const TodaysGains = () => {
 
       // Parallel fetches
       const [sessionsRes, topicsRes, weekRes] = await Promise.all([
-        (supabase as any)
-          .from("study_sessions")
+        supabase
+          .from("study_logs")
           .select("duration_minutes, confidence_level, created_at")
           .eq("user_id", user.id)
           .gte("created_at", todayStart.toISOString()),
-        (supabase as any)
+        supabase
           .from("topics")
           .select("memory_strength")
-          .eq("user_id", user.id)
-          .eq("deleted", false),
-        (supabase as any)
-          .from("study_sessions")
+          .eq("user_id", user.id),
+        supabase
+          .from("study_logs")
           .select("duration_minutes, created_at")
           .eq("user_id", user.id)
           .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString()),
