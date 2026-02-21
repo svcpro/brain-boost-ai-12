@@ -95,18 +95,43 @@ serve(async (req) => {
 
       interface TrendMetrics {
         trendDirection: "rising" | "stable" | "declining" | "comeback";
-        trendMomentum: number;       // 0-100
-        volatilityIndex: number;     // 0-100
-        patternStability: number;    // 0-100
-        difficultyEvolution: string; // e.g. "conceptual_shift", "stable", "factual_shift"
-        framingChange: string;       // e.g. "statement_increase", "case_study_growth", "stable"
+        trendMomentum: number;
+        volatilityIndex: number;
+        patternStability: number;
+        difficultyEvolution: string;
+        framingChange: string;
+        crossExamCorrelation: number;
+        syllabusCoverage: number;
       }
 
       // ══════════════════════════════════════════════════════════════
       // PHASE 2: Time-Series Forecast & Pattern Drift Detection
       // ══════════════════════════════════════════════════════════════
 
-      function computeTrendMetrics(analytics: TopicAnalytics, allYrs: number[], maxY: number): TrendMetrics {
+      // Cross-exam correlation: check if this topic appears in other exams too
+      const { data: crossExamData } = await supabase
+        .from("question_bank")
+        .select("exam_type, topic")
+        .neq("exam_type", targetExam)
+        .limit(500);
+
+      const crossExamTopics: Record<string, Set<string>> = {};
+      for (const q of (crossExamData || [])) {
+        const key = q.topic || "General";
+        if (!crossExamTopics[key]) crossExamTopics[key] = new Set();
+        crossExamTopics[key].add(q.exam_type);
+      }
+
+      // Syllabus coverage: check user's topic coverage
+      const { data: userStudied } = await supabase
+        .from("topics")
+        .select("name, memory_strength")
+        .eq("user_id", user.id)
+        .eq("deleted", false);
+
+      const studiedTopicNames = new Set((userStudied || []).map((t: any) => t.name?.toLowerCase()));
+
+      function computeTrendMetrics(topicName: string, analytics: TopicAnalytics, allYrs: number[], maxY: number): TrendMetrics {
         const sortedYears = [...allYrs].sort();
         const yearCounts = sortedYears.map(y => analytics.yearCounts[y] || 0);
 
@@ -118,7 +143,6 @@ serve(async (req) => {
         }
         const slope = n > 1 ? (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX) : 0;
 
-        // Check for comeback: absent for 2+ years then reappeared
         const lastTwoYears = sortedYears.slice(-2);
         const recentPresence = lastTwoYears.filter(y => (analytics.yearCounts[y] || 0) > 0).length;
         const earlyYears = sortedYears.slice(0, -2);
@@ -131,44 +155,49 @@ serve(async (req) => {
         else if (slope < -0.3) trendDirection = "declining";
         else trendDirection = "stable";
 
-        // ── Trend Momentum (0-100): Weighted recency * slope magnitude ──
         const recentWeight = lastTwoYears.reduce((s, y) => s + (analytics.yearCounts[y] || 0), 0);
         const avgCount = analytics.count / Math.max(maxY, 1);
         const momentumRaw = (Math.abs(slope) * 30) + (recentWeight / Math.max(avgCount, 1)) * 35 + (analytics.years.size / maxY) * 35;
         const trendMomentum = Math.round(Math.max(0, Math.min(100, momentumRaw)));
 
-        // ── Volatility Index (0-100): Std deviation of year counts ──
         const mean = yearCounts.reduce((a, b) => a + b, 0) / Math.max(n, 1);
         const variance = yearCounts.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / Math.max(n, 1);
         const stdDev = Math.sqrt(variance);
         const volatilityIndex = Math.round(Math.min(100, (stdDev / Math.max(mean, 0.5)) * 50));
 
-        // ── Pattern Stability (0-100): Consistency of appearance ──
         const appearedRatio = analytics.years.size / maxY;
         const countConsistency = mean > 0 ? 1 - (stdDev / (mean * 2)) : 0;
         const patternStability = Math.round(Math.max(0, Math.min(100, (appearedRatio * 60 + Math.max(0, countConsistency) * 40))));
 
-        // ── Difficulty Evolution Detection ──
-        const recentDiffs = (pyqData || []).filter(q => (q.topic || q.subject) === analytics && q.year && q.year >= recentYear - 1).map(q => q.difficulty);
-        const olderDiffs = (pyqData || []).filter(q => (q.topic || q.subject) === analytics && q.year && q.year < recentYear - 1).map(q => q.difficulty);
-        // Simplified: check if difficulty is shifting
+        const recentDiffs = (pyqData || []).filter(q => q.topic === topicName && q.year && q.year >= recentYear - 1).map(q => q.difficulty);
+        const olderDiffs = (pyqData || []).filter(q => q.topic === topicName && q.year && q.year < recentYear - 1).map(q => q.difficulty);
         const recentHardRatio = recentDiffs.filter(d => d === "hard").length / Math.max(recentDiffs.length, 1);
         const olderHardRatio = olderDiffs.filter(d => d === "hard").length / Math.max(olderDiffs.length, 1);
         const difficultyEvolution = recentHardRatio > olderHardRatio + 0.2 ? "conceptual_shift" :
           recentHardRatio < olderHardRatio - 0.2 ? "factual_shift" : "stable";
 
-        // ── Framing Pattern Detection (question structure analysis) ──
         const recentQs = analytics.questions.slice(0, Math.ceil(analytics.questions.length / 2));
         const statementCount = recentQs.filter(q => q.toLowerCase().includes("statement") || q.toLowerCase().includes("assertion")).length;
         const caseStudyCount = recentQs.filter(q => q.toLowerCase().includes("case") || q.toLowerCase().includes("passage") || q.toLowerCase().includes("read")).length;
         const framingChange = statementCount > recentQs.length * 0.3 ? "statement_increase" :
           caseStudyCount > recentQs.length * 0.2 ? "case_study_growth" : "stable";
 
-        return { trendDirection, trendMomentum, volatilityIndex, patternStability, difficultyEvolution, framingChange };
+        // ── NEW Factor 7: Cross-Exam Correlation ──
+        const crossExamAppearances = crossExamTopics[topicName]?.size || 0;
+        const crossExamCorrelation = Math.round(Math.min(100, crossExamAppearances * 25 + (crossExamAppearances > 0 ? 30 : 0)));
+
+        // ── NEW Factor 8: Syllabus Coverage Gap ──
+        const isStudied = studiedTopicNames.has(topicName.toLowerCase());
+        const userStrength = (userStudied || []).find((t: any) => t.name?.toLowerCase() === topicName.toLowerCase());
+        const memStrength = userStrength ? (userStrength as any).memory_strength || 0 : 0;
+        // Higher score = more important to practice (weak or unstudied topics)
+        const syllabusCoverage = isStudied ? Math.round(Math.max(20, 100 - memStrength * 100)) : 85;
+
+        return { trendDirection, trendMomentum, volatilityIndex, patternStability, difficultyEvolution, framingChange, crossExamCorrelation, syllabusCoverage };
       }
 
       // ══════════════════════════════════════════════════════════════
-      // PHASE 3: Hybrid ML Prediction Model (Upgraded 6-factor formula)
+      // PHASE 3: Hybrid ML Prediction Model (UPGRADED 8-factor formula)
       // ══════════════════════════════════════════════════════════════
 
       const topicScores: Record<string, {
@@ -179,6 +208,8 @@ serve(async (req) => {
         difficultyAlignment: number;
         semanticSimilarity: number;
         examinerBehavior: number;
+        crossExamCorrelation: number;
+        syllabusCoverage: number;
         trendDirection: string;
         trendMomentum: number;
         volatilityIndex: number;
@@ -191,14 +222,14 @@ serve(async (req) => {
       }> = {};
 
       for (const [topicName, analytics] of Object.entries(topicAnalytics)) {
-        const trend = computeTrendMetrics(analytics, allYears, maxYears);
+        const trend = computeTrendMetrics(topicName, analytics, allYears, maxYears);
 
-        // Factor 1: Trend Momentum (0.25)
+        // Factor 1: Trend Momentum (0.20)
         const trendMomentumWeight = trend.trendMomentum;
 
-        // Factor 2: Time-Series Forecast (0.20) — LSTM-inspired exponential weighted moving average
+        // Factor 2: Time-Series Forecast (0.15) — LSTM-inspired EWMA
         const sortedYrs = [...allYears].sort();
-        const alpha = 0.4; // smoothing factor
+        const alpha = 0.4;
         let ewma = analytics.yearCounts[sortedYrs[0]] || 0;
         for (let i = 1; i < sortedYrs.length; i++) {
           ewma = alpha * (analytics.yearCounts[sortedYrs[i]] || 0) + (1 - alpha) * ewma;
@@ -206,23 +237,22 @@ serve(async (req) => {
         const avgPerYear = analytics.count / maxYears;
         const timeSeriesForecast = Math.round(Math.min(100, (ewma / Math.max(avgPerYear, 0.5)) * 50));
 
-        // Factor 3: Historical Frequency (0.20)
+        // Factor 3: Historical Frequency (0.15)
         const historicalFrequency = Math.round(Math.min(100, (analytics.count / Math.max(totalPYQs, 1)) * 100 * 10));
 
-        // Factor 4: Difficulty Alignment (0.15)
+        // Factor 4: Difficulty Alignment (0.12)
         const diffCounts: Record<string, number> = {};
         analytics.difficulties.forEach(d => diffCounts[d] = (diffCounts[d] || 0) + 1);
         const dominantDiffCount = Math.max(...Object.values(diffCounts), 0);
         const difficultyAlignment = analytics.difficulties.length > 0
           ? Math.round((dominantDiffCount / analytics.difficulties.length) * 100) : 50;
 
-        // Factor 5: Semantic Similarity (0.10)
+        // Factor 5: Semantic Similarity (0.08)
         const uniqueStarts = new Set(analytics.questions.map(q => q.slice(0, 30).toLowerCase()));
         const semanticSimilarity = analytics.questions.length > 1
           ? Math.round(Math.min(100, (uniqueStarts.size / analytics.questions.length) * 100)) : 60;
 
-        // Factor 6: Examiner Behavior Model (0.10) — cyclical repetition detection
-        // If a topic appeared every N years consistently, boost score
+        // Factor 6: Examiner Behavior Model (0.08)
         const yearsPresent = [...analytics.years].sort();
         let cyclicalScore = 50;
         if (yearsPresent.length >= 3) {
@@ -230,28 +260,34 @@ serve(async (req) => {
           for (let i = 1; i < yearsPresent.length; i++) gaps.push(yearsPresent[i] - yearsPresent[i - 1]);
           const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
           const gapVariance = gaps.reduce((s, g) => s + Math.pow(g - avgGap, 2), 0) / gaps.length;
-          // Low variance = consistent cycle = high score
           cyclicalScore = Math.round(Math.max(30, Math.min(100, 100 - gapVariance * 20)));
         } else if (yearsPresent.length >= 2) {
           cyclicalScore = 60;
         }
         const examinerBehavior = cyclicalScore;
 
-        // ── UPGRADED HYBRID FORMULA ──
+        // Factor 7: Cross-Exam Correlation (0.12)
+        const crossExamCorrelation = trend.crossExamCorrelation;
+
+        // Factor 8: Syllabus Coverage Gap (0.10)
+        const syllabusCoverage = trend.syllabusCoverage;
+
+        // ── UPGRADED 8-FACTOR HYBRID FORMULA ──
         const rawScore =
-          (trendMomentumWeight * 0.25) +
-          (timeSeriesForecast * 0.20) +
-          (historicalFrequency * 0.20) +
-          (difficultyAlignment * 0.15) +
-          (semanticSimilarity * 0.10) +
-          (examinerBehavior * 0.10);
+          (trendMomentumWeight * 0.20) +
+          (timeSeriesForecast * 0.15) +
+          (historicalFrequency * 0.15) +
+          (difficultyAlignment * 0.12) +
+          (semanticSimilarity * 0.08) +
+          (examinerBehavior * 0.08) +
+          (crossExamCorrelation * 0.12) +
+          (syllabusCoverage * 0.10);
 
         // Cap to 55-85% range for authenticity
         const finalScore = Math.round(Math.max(55, Math.min(85, rawScore)));
 
         const trendStrength = trend.trendMomentum >= 70 ? "High" : trend.trendMomentum >= 40 ? "Medium" : "Emerging";
 
-        // Evidence summary
         const yearsList = [...analytics.years].sort().join(", ");
         const evidenceParts = [];
         evidenceParts.push(`Appeared in ${analytics.years.size}/${maxYears} years (${yearsList})`);
@@ -259,6 +295,7 @@ serve(async (req) => {
         else if (trend.trendDirection === "declining") evidenceParts.push("📉 Declining trend");
         else if (trend.trendDirection === "comeback") evidenceParts.push("⚡ Comeback candidate");
         evidenceParts.push(`${analytics.count} total occurrences`);
+        if (crossExamCorrelation > 50) evidenceParts.push(`🌐 Appears in ${crossExamTopics[topicName]?.size || 0} other exams`);
         if (trend.difficultyEvolution !== "stable") evidenceParts.push(`Difficulty: ${trend.difficultyEvolution.replace("_", " ")}`);
         if (trend.framingChange !== "stable") evidenceParts.push(`Pattern: ${trend.framingChange.replace("_", " ")}`);
         const evidenceSummary = evidenceParts.join(". ");
@@ -271,6 +308,8 @@ serve(async (req) => {
           difficultyAlignment: Math.round(difficultyAlignment),
           semanticSimilarity: Math.round(semanticSimilarity),
           examinerBehavior: Math.round(examinerBehavior),
+          crossExamCorrelation: Math.round(crossExamCorrelation),
+          syllabusCoverage: Math.round(syllabusCoverage),
           trendDirection: trend.trendDirection,
           trendMomentum: trend.trendMomentum,
           volatilityIndex: trend.volatilityIndex,
@@ -288,7 +327,7 @@ serve(async (req) => {
         .sort(([, a], [, b]) => b.finalScore - a.finalScore);
 
       const patternSummary = rankedTopics.slice(0, 15).map(([t, s]) =>
-        `${t}: Score=${s.finalScore}%, Trend=${s.trendDirection}, Momentum=${s.trendMomentum}, Volatility=${s.volatilityIndex}, Stability=${s.patternStability}, DiffEvolution=${s.difficultyEvolution}, Framing=${s.framingChange}`
+        `${t}: Score=${s.finalScore}%, Trend=${s.trendDirection}, Momentum=${s.trendMomentum}, CrossExam=${s.crossExamCorrelation}, SyllabusCoverage=${s.syllabusCoverage}, Volatility=${s.volatilityIndex}, Stability=${s.patternStability}, DiffEvolution=${s.difficultyEvolution}, Framing=${s.framingChange}`
       ).join("\n");
 
       const subjectSummary = Object.entries(subjectFrequency)
@@ -307,7 +346,7 @@ serve(async (req) => {
 
       const topicContext = userTopics?.map((t: any) => `${t.name} (strength: ${Math.round((t.memory_strength || 0) * 100)}%)`).join(", ") || "General topics";
 
-      // Fetch previously practiced predicted questions to avoid repeats
+      // Fetch previously practiced predicted questions to avoid repeats — include question text for dedup
       const { data: prevPracticed } = await supabase
         .from("practice_progress")
         .select("question_id")
@@ -315,51 +354,73 @@ serve(async (req) => {
         .eq("question_source", "predicted");
       const prevPracticedCount = prevPracticed?.length || 0;
 
+      // Fetch actual question texts for strict dedup
+      const prevIds = (prevPracticed || []).map((p: any) => p.question_id).filter(Boolean);
+      let prevQuestionTexts: string[] = [];
+      if (prevIds.length > 0) {
+        const { data: prevQs } = await supabase
+          .from("question_bank")
+          .select("question")
+          .in("id", prevIds.slice(0, 50));
+        prevQuestionTexts = (prevQs || []).map((q: any) => q.question?.slice(0, 80) || "");
+      }
+
       const topicScoreMap = rankedTopics.slice(0, 20).map(([t, s]) =>
-        `"${t}": { score: ${s.finalScore}, trend: "${s.trendDirection}", momentum: ${s.trendMomentum}, volatility: ${s.volatilityIndex}, stability: ${s.patternStability}, diff_evolution: "${s.difficultyEvolution}", framing: "${s.framingChange}", time_series: ${s.timeSeriesForecast}, hist_freq: ${s.historicalFrequency}, diff_align: ${s.difficultyAlignment}, semantic: ${s.semanticSimilarity}, examiner: ${s.examinerBehavior} }`
+        `"${t}": { score: ${s.finalScore}, trend: "${s.trendDirection}", momentum: ${s.trendMomentum}, crossExam: ${s.crossExamCorrelation}, syllabusCoverage: ${s.syllabusCoverage}, volatility: ${s.volatilityIndex}, stability: ${s.patternStability}, diff_evolution: "${s.difficultyEvolution}", framing: "${s.framingChange}", time_series: ${s.timeSeriesForecast}, hist_freq: ${s.historicalFrequency}, diff_align: ${s.difficultyAlignment}, semantic: ${s.semanticSimilarity}, examiner: ${s.examinerBehavior} }`
       ).join(",\n");
 
       const questionCount = Math.min(count || 5, 10);
 
+      // Build dedup context
+      const dedupContext = prevQuestionTexts.length > 0
+        ? `\n\nPREVIOUSLY GENERATED QUESTIONS (DO NOT repeat or paraphrase these):\n${prevQuestionTexts.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
+        : "";
+
       const aiMessages = [
         {
           role: "system",
-          content: `You are an expert Indian competitive exam analyst for ${targetExam} using a Trend-Based ML Research Engine. You have analyzed ${totalPYQs} PYQs from last ${maxYears} years using advanced pattern detection.
+          content: `You are an expert Indian competitive exam analyst for ${targetExam} using an Ultra-Advanced Trend-Based ML Research Engine v3.0. You have analyzed ${totalPYQs} PYQs from last ${maxYears} years using 8-factor deep pattern detection.
 
-COMPUTED PREDICTION SCORES (Hybrid 6-Factor Model):
+COMPUTED PREDICTION SCORES (Hybrid 8-Factor Model):
 ${topicScoreMap || "No historical data — use general exam patterns."}
 
 SUBJECT WEIGHTAGE: ${subjectSummary || "Equal distribution assumed."}
 
-UPGRADED FORMULA (6 factors):
-Final Score = (Trend Momentum × 0.25) + (Time-Series Forecast × 0.20) + (Historical Frequency × 0.20) + (Difficulty Alignment × 0.15) + (Semantic Similarity × 0.10) + (Examiner Behavior × 0.10)
+UPGRADED FORMULA (8 factors):
+Final Score = (Trend Momentum × 0.20) + (Time-Series Forecast × 0.15) + (Historical Frequency × 0.15) + (Difficulty Alignment × 0.12) + (Semantic Similarity × 0.08) + (Examiner Behavior × 0.08) + (Cross-Exam Correlation × 0.12) + (Syllabus Coverage Gap × 0.10)
+
+NEW FACTORS:
+- Cross-Exam Correlation: Topics appearing across multiple exam types have higher universal importance
+- Syllabus Coverage Gap: User's weak/unstudied topics are prioritized for maximum exam preparedness
 
 TREND RESEARCH PATTERNS:
 ${patternSummary}
+${dedupContext}
 
 CRITICAL RULES:
 - probability_score MUST be between 55 and 85. NEVER 100%.
 - Use the pre-computed scores above. Match each question's topic to the closest topic score.
-- trend_reason must cite SPECIFIC evidence: exact years, occurrence counts, trend direction, momentum scores.
+- trend_reason must cite SPECIFIC evidence: exact years, occurrence counts, trend direction, momentum scores, cross-exam presence.
 - trend_direction MUST be one of: "rising", "stable", "declining", "comeback"
 - trend_strength must be: "High", "Medium", or "Emerging"
 - ml_confidence must be: "Strong" (score 75+), "Moderate" (65-74), or "Fair" (55-64)
-- For each question, provide score_breakdown with ALL 6 components.
+- For each question, provide score_breakdown with ALL 8 components.
 - Include trend_momentum, volatility_index, pattern_stability numbers.
 - Include difficulty_evolution and framing_change strings.
-- Generate exam-level questions that feel genuinely likely to appear.
-- CRITICAL: Do NOT generate questions that reference images, diagrams, figures, graphs, tables, or any visual content. All questions must be fully self-contained as text only.
-- CRITICAL: Every question MUST be unique. Do NOT repeat or paraphrase questions from the PYQ bank or from previous generations. The user has already practiced ${prevPracticedCount} predicted questions.
+- Generate exam-level questions that feel genuinely likely to appear in the upcoming ${targetExam} exam.
+- IMAGE-BASED QUESTIONS: For subjects like Physics, Chemistry, Biology, Geography — you MAY include image descriptions in markdown format using descriptive text like "[Diagram: ...]" or descriptive scenarios that test visual/spatial reasoning. For conceptual topics, include data interpretation tables or passage-based questions.
+- CRITICAL UNIQUENESS: Every question MUST be 100% unique and novel. Do NOT repeat, paraphrase, or create close variants of any existing PYQ or previously generated question. The user has already practiced ${prevPracticedCount} predicted questions. Create genuinely new questions exploring untested angles of each topic.
+- REAL EXAM STANDARD: Questions must exactly match the format, difficulty distribution, and cognitive level of actual ${targetExam} papers. Include a mix of: factual recall (20%), conceptual understanding (40%), application-based (30%), and analytical/higher-order (10%).
 - Return VALID JSON only.`
         },
         {
           role: "user",
           content: `Generate exactly ${questionCount} UNIQUE predicted questions for ${targetExam}, subject: ${targetSubject}.
 User's weak areas: ${topicContext}.
-Prioritize high-score topics from the trend research analysis.
-IMPORTANT: Each question must be completely different from standard PYQ bank questions. Create fresh, novel questions based on the trend patterns.
+Prioritize high-score topics from the trend research analysis. Include at least 1-2 data-interpretation or passage-based questions for real exam feel.
+IMPORTANT: Each question must be completely different from standard PYQ bank questions. Create fresh, novel questions exploring new angles based on the 8-factor trend patterns.
 
-Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct_answer":0,"explanation":"...","topic":"...","difficulty":"easy|medium|hard","probability_score":55-85,"probability_level":"Very High|High|Medium","trend_direction":"rising|stable|declining|comeback","trend_strength":"High|Medium|Emerging","trend_momentum":0-100,"volatility_index":0-100,"pattern_stability":0-100,"difficulty_evolution":"stable|conceptual_shift|factual_shift","framing_change":"stable|statement_increase|case_study_growth","ml_confidence":"Strong|Moderate|Fair","trend_reason":"Detailed evidence with years and counts...","score_breakdown":{"trend_momentum":0-100,"time_series_forecast":0-100,"historical_frequency":0-100,"difficulty_alignment":0-100,"semantic_similarity":0-100,"examiner_behavior":0-100},"similar_pyq_years":[2020,2021]}]}`
+Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct_answer":0,"explanation":"...","topic":"...","difficulty":"easy|medium|hard","probability_score":55-85,"probability_level":"Very High|High|Medium","trend_direction":"rising|stable|declining|comeback","trend_strength":"High|Medium|Emerging","trend_momentum":0-100,"volatility_index":0-100,"pattern_stability":0-100,"difficulty_evolution":"stable|conceptual_shift|factual_shift","framing_change":"stable|statement_increase|case_study_growth","ml_confidence":"Strong|Moderate|Fair","trend_reason":"Detailed evidence with years, counts, cross-exam data...","score_breakdown":{"trend_momentum":0-100,"time_series_forecast":0-100,"historical_frequency":0-100,"difficulty_alignment":0-100,"semantic_similarity":0-100,"examiner_behavior":0-100,"cross_exam_correlation":0-100,"syllabus_coverage":0-100},"similar_pyq_years":[2020,2021],"question_type":"factual|conceptual|application|analytical"}]}`
         }
       ];
 
@@ -368,9 +429,9 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
       let lastError = "";
 
       const modelsToTry = [
+        "google/gemini-3-flash-preview",
         "google/gemini-2.5-flash",
         "google/gemini-2.5-flash-lite",
-        "openai/gpt-5-nano",
       ];
 
       for (const model of modelsToTry) {
@@ -519,14 +580,16 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
             momentum: s.trendMomentum,
             volatility: s.volatilityIndex,
             stability: s.patternStability,
+            crossExamCorrelation: s.crossExamCorrelation,
+            syllabusCoverage: s.syllabusCoverage,
             difficultyEvolution: s.difficultyEvolution,
             framingChange: s.framingChange,
             years: [...topicAnalytics[t].years].sort(),
             yearBreakdown: s.yearBreakdown,
           })),
           examType: targetExam,
-          formula: "TrendMomentum(25%) + TimeSeries(20%) + HistFreq(20%) + DiffAlign(15%) + Semantic(10%) + ExaminerBehavior(10%)",
-          engineVersion: "2.0-TrendML",
+          formula: "TrendMomentum(20%) + TimeSeries(15%) + HistFreq(15%) + DiffAlign(12%) + Semantic(8%) + ExaminerBehavior(8%) + CrossExamCorrelation(12%) + SyllabusCoverage(10%)",
+          engineVersion: "3.0-UltraML",
         }
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }

@@ -43,7 +43,7 @@ type Section = "menu" | "bank_setup" | "predicted_setup" | "practice" | "result"
 const LoadingStageText = ({ isPredicted }: { isPredicted: boolean }) => {
   const [stageIdx, setStageIdx] = useState(0);
   const stages = isPredicted
-    ? ["Scanning 5-year exam patterns...", "Running ML trend analysis...", "Computing 6-factor scores...", "Generating predicted questions...", "Applying difficulty alignment...", "Finalizing AI predictions..."]
+    ? ["Scanning 5-year exam patterns...", "Running 8-factor ML analysis...", "Computing cross-exam correlations...", "Analyzing syllabus coverage gaps...", "Generating unique predicted questions...", "Applying difficulty alignment...", "Finalizing ultra-AI predictions..."]
     : ["Connecting to question bank...", "Applying your filters...", "Loading questions from database...", "Randomizing question order...", "Preparing practice session..."];
 
   useEffect(() => {
@@ -417,16 +417,17 @@ const ConfidencePracticeTab = () => {
                       border: "1px solid hsl(var(--primary) / 0.3)",
                     }}
                   >
-                    ML v2.0 ✨
+                    ML v3.0 ✨
                   </motion.span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  Trend-Based ML Research Engine — 6-factor hybrid model analyzing multi-year patterns, trend momentum & examiner behavior.
+                  Ultra-Advanced Trend-Based ML Research Engine v3.0 — 8-factor hybrid model analyzing multi-year patterns, cross-exam correlation, syllabus coverage gaps & examiner behavior.
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   {[
                     { label: "Trend Research", glow: true },
-                    { label: "6-Factor ML", glow: true },
+                    { label: "8-Factor ML", glow: true },
+                    { label: "Cross-Exam Intel", glow: true },
                     { label: "Pattern Drift", glow: false },
                   ].map(({ label, glow }) => (
                     <span
@@ -643,7 +644,7 @@ const ConfidencePracticeTab = () => {
                 </div>
                 <div className="flex justify-between">
                   {(isPredicted
-                    ? ["Analyzing", "ML Model", "Trends", "Generating"]
+                    ? ["Analyzing", "8-Factor ML", "Cross-Exam", "Generating"]
                     : ["Connecting", "Filtering", "Loading", "Preparing"]
                   ).map((stage, i) => (
                     <motion.span
@@ -675,7 +676,7 @@ const ConfidencePracticeTab = () => {
 
             <div className="px-5 py-2.5 border-t border-border/30" style={{ background: "hsl(var(--secondary) / 0.5)" }}>
               <p className="text-[9px] text-muted-foreground text-center italic">
-                {isPredicted ? "⚡ Analyzing 5-year patterns with 6-factor hybrid model..." : "📦 Fetching authentic previous year questions..."}
+                {isPredicted ? "⚡ Analyzing 5-year patterns with 8-factor ultra-ML model..." : "📦 Fetching authentic previous year questions..."}
               </p>
             </div>
           </motion.div>
@@ -756,11 +757,16 @@ const ConfidencePracticeTab = () => {
               {/* Engine badge */}
               <div className="flex items-center gap-2 relative z-10">
                 <span className="px-2 py-0.5 rounded-lg text-[8px] font-bold bg-primary/10 text-primary border border-primary/20">
-                  🧠 TREND-ML ENGINE v2.0
+                  🧠 ULTRA-ML ENGINE v3.0
                 </span>
                 <span className="px-2 py-0.5 rounded-lg text-[8px] font-semibold bg-secondary text-muted-foreground">
-                  6-Factor Hybrid Model
+                  8-Factor Hybrid Model
                 </span>
+                {q.question_type && (
+                  <span className="px-2 py-0.5 rounded-lg text-[8px] font-semibold bg-accent/10 text-accent-foreground border border-accent/20 capitalize">
+                    {q.question_type}
+                  </span>
+                )}
               </div>
 
               {/* Main score row */}
@@ -863,15 +869,17 @@ const ConfidencePracticeTab = () => {
                   >
                     <div className="rounded-xl p-3 bg-background/50 border border-border/50 space-y-2">
                       <p className="text-[10px] font-bold text-foreground flex items-center gap-1.5">
-                        <BarChart3 className="w-3 h-3 text-primary" /> Hybrid 6-Factor Prediction Model
+                        <BarChart3 className="w-3 h-3 text-primary" /> Hybrid 8-Factor Prediction Model
                       </p>
                       {[
-                        { label: "Trend Momentum", value: q.score_breakdown.trend_momentum ?? q.score_breakdown.topic_frequency ?? 0, weight: "25%", icon: "📈" },
-                        { label: "Time-Series Forecast", value: q.score_breakdown.time_series_forecast ?? q.score_breakdown.repetition ?? 0, weight: "20%", icon: "⏳" },
-                        { label: "Historical Frequency", value: q.score_breakdown.historical_frequency ?? q.score_breakdown.recent_trend ?? 0, weight: "20%", icon: "📊" },
-                        { label: "Difficulty Alignment", value: q.score_breakdown.difficulty_alignment ?? q.score_breakdown.difficulty_match ?? 0, weight: "15%", icon: "🎯" },
-                        { label: "Semantic Similarity", value: q.score_breakdown.semantic_similarity ?? q.score_breakdown.language_similarity ?? 0, weight: "10%", icon: "🔤" },
-                        { label: "Examiner Behavior", value: q.score_breakdown.examiner_behavior ?? 50, weight: "10%", icon: "👤" },
+                        { label: "Trend Momentum", value: q.score_breakdown.trend_momentum ?? q.score_breakdown.topic_frequency ?? 0, weight: "20%", icon: "📈" },
+                        { label: "Time-Series Forecast", value: q.score_breakdown.time_series_forecast ?? q.score_breakdown.repetition ?? 0, weight: "15%", icon: "⏳" },
+                        { label: "Historical Frequency", value: q.score_breakdown.historical_frequency ?? q.score_breakdown.recent_trend ?? 0, weight: "15%", icon: "📊" },
+                        { label: "Difficulty Alignment", value: q.score_breakdown.difficulty_alignment ?? q.score_breakdown.difficulty_match ?? 0, weight: "12%", icon: "🎯" },
+                        { label: "Semantic Similarity", value: q.score_breakdown.semantic_similarity ?? q.score_breakdown.language_similarity ?? 0, weight: "8%", icon: "🔤" },
+                        { label: "Examiner Behavior", value: q.score_breakdown.examiner_behavior ?? 50, weight: "8%", icon: "👤" },
+                        { label: "Cross-Exam Correlation", value: q.score_breakdown.cross_exam_correlation ?? 0, weight: "12%", icon: "🌐" },
+                        { label: "Syllabus Coverage", value: q.score_breakdown.syllabus_coverage ?? 0, weight: "10%", icon: "📚" },
                       ].map((item) => (
                         <div key={item.label} className="space-y-0.5">
                           <div className="flex items-center justify-between">
@@ -924,7 +932,7 @@ const ConfidencePracticeTab = () => {
                     <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg bg-warning/5 border border-warning/10">
                       <AlertTriangle className="w-3 h-3 text-warning shrink-0 mt-0.5" />
                       <p className="text-[8px] text-muted-foreground leading-relaxed">
-                        Prediction is based on multi-year statistical modeling and trend analysis. Not a guarantee. Scores are dynamically recalculated using a 6-factor hybrid ML model.
+                        Prediction is based on multi-year statistical modeling, cross-exam intelligence, and 8-factor hybrid ML analysis. Not a guarantee. Scores are dynamically recalculated using the Ultra-ML Engine v3.0.
                       </p>
                     </div>
                   </motion.div>
