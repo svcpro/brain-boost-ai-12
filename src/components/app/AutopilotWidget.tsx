@@ -26,11 +26,9 @@ export default function AutopilotWidget() {
   const { status, loading, generatePlan, toggleAutopilot, checkEmergency } = useAutopilot();
   const [generating, setGenerating] = useState(false);
 
-  if (!status) return null;
-
-  const isEnabled = status.globally_enabled && status.user_enabled;
-  const today = status.today;
-  const NextIcon = today.next_session ? (modeIcons[today.next_session.mode] || Bot) : Bot;
+  const isEnabled = status ? (status.globally_enabled && status.user_enabled) : true;
+  const today = status?.today;
+  const NextIcon = today?.next_session ? (modeIcons[today.next_session.mode] || Bot) : Bot;
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -72,9 +70,11 @@ export default function AutopilotWidget() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={`text-[10px] ${intensityColors[status.intensity] || "text-primary"}`}>
-              {status.intensity}
-            </Badge>
+            {status && (
+              <Badge variant="outline" className={`text-[10px] ${intensityColors[status.intensity] || "text-primary"}`}>
+                {status.intensity}
+              </Badge>
+            )}
             <Switch
               checked={isEnabled}
               onCheckedChange={(v) => toggleAutopilot(v)}
@@ -92,17 +92,17 @@ export default function AutopilotWidget() {
               className="space-y-3"
             >
               {/* Daily Progress */}
-              {today.has_plan ? (
+              {today?.has_plan ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">
-                      {today.completed_sessions}/{today.total_sessions} sessions
+                      {today?.completed_sessions || 0}/{today?.total_sessions || 0} sessions
                     </span>
-                    <span className="text-foreground font-medium">{today.progress_percent}%</span>
+                    <span className="text-foreground font-medium">{today?.progress_percent || 0}%</span>
                   </div>
-                  <Progress value={today.progress_percent} className="h-1.5" />
+                  <Progress value={today?.progress_percent || 0} className="h-1.5" />
 
-                  {today.emergency_triggered && (
+                  {today?.emergency_triggered && (
                     <div className="flex items-center gap-1.5 text-[10px] text-destructive bg-destructive/10 rounded-md px-2 py-1">
                       <AlertTriangle className="w-3 h-3" />
                       Emergency rescue triggered
@@ -110,7 +110,7 @@ export default function AutopilotWidget() {
                   )}
 
                   {/* Next Session Card */}
-                  {today.next_session && (
+                  {today?.next_session && (
                     <button
                       onClick={handleGenerate}
                       className="w-full flex items-center gap-3 bg-secondary/50 hover:bg-secondary rounded-lg p-2.5 transition-colors text-left"
@@ -130,7 +130,7 @@ export default function AutopilotWidget() {
                     </button>
                   )}
 
-                  {!today.next_session && (
+                  {!today?.next_session && (
                     <div className="text-center text-xs text-muted-foreground py-2">
                       ✅ All sessions completed today!
                     </div>
