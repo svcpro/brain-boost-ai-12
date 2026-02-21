@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface InstitutionBranding {
@@ -14,33 +15,14 @@ export interface InstitutionBranding {
   is_active: boolean;
 }
 
-const MAIN_DOMAINS = ["lovable.app", "lovableproject.com", "localhost", "acry.ai"];
-
 /**
- * Extracts the institution slug from the current hostname.
- * e.g. akash-institute.acry.ai → "akash-institute"
- * Returns null if on a main domain (acry.ai, lovable.app, etc.)
+ * Hook for institution pages rendered under /i/:slug routes.
+ * Fetches institution branding based on the slug param.
  */
-export function getInstitutionSlug(): string | null {
-  const hostname = window.location.hostname;
-
-  // Check if we're on a subdomain of acry.ai
-  if (hostname.endsWith(".acry.ai")) {
-    const sub = hostname.replace(".acry.ai", "");
-    // Ignore www or empty
-    if (sub && sub !== "www") return sub;
-  }
-
-  // Not an institution subdomain
-  return null;
-}
-
-export function useInstitutionSubdomain() {
+export function useInstitutionBySlug(slug: string | undefined) {
   const [institution, setInstitution] = useState<InstitutionBranding | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const slug = getInstitutionSlug();
 
   useEffect(() => {
     if (!slug) {
@@ -75,5 +57,14 @@ export function useInstitutionSubdomain() {
     fetchInstitution();
   }, [slug]);
 
-  return { institution, slug, loading, error, isInstitutionDomain: !!slug };
+  return { institution, slug: slug || null, loading, error, isInstitutionDomain: !!slug };
+}
+
+// Keep backward compat — no longer used for subdomain detection
+export function getInstitutionSlug(): string | null {
+  return null;
+}
+
+export function useInstitutionSubdomain() {
+  return { institution: null, slug: null, loading: false, error: null, isInstitutionDomain: false };
 }
