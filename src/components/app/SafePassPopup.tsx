@@ -33,7 +33,8 @@ interface ActivityMetrics {
 interface SafePassData {
   currentRank: number;
   activityScore: number;          // 0-100 composite score
-  predictedSafeRankRange: [number, number]; // predicted rank range to pass
+  predictedSafeRankRange: [number, number];
+  safeZoneTarget: [number, number];        // actual target safe zone to pass
   currentZone: string;
   passProbability: number;
   rankStatus: "topper" | "comfortable" | "safe" | "borderline" | "at_risk";
@@ -237,6 +238,7 @@ function computeSafePass(
     currentRank,
     activityScore,
     predictedSafeRankRange,
+    safeZoneTarget: safeZone,
     currentZone,
     passProbability,
     rankStatus,
@@ -389,18 +391,35 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                     {data.currentZone}
                   </motion.span>
 
-                  {/* Predicted Safe Rank Range (activity-based) */}
+                  {/* Target Safe Zone to Pass */}
                   <div className="mt-4 rounded-xl p-3" style={{ background: "linear-gradient(135deg, hsl(var(--success)/0.08), hsl(var(--secondary)/0.4))", border: "1px solid hsl(var(--success)/0.25)" }}>
                     <p className="text-[9px] text-success font-semibold mb-1.5 flex items-center justify-center gap-1">
                       <Target className="w-3 h-3" />
-                      🎯 Predicted Rank Range to Pass {data.examLabel}
+                      🎯 Target Safe Zone to Pass {data.examLabel}
                     </p>
                     <motion.p className="text-xl font-extrabold text-success tabular-nums"
                       initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
+                      #{data.safeZoneTarget[0].toLocaleString()} — #{data.safeZoneTarget[1].toLocaleString()}
+                    </motion.p>
+                    <p className="text-[8px] text-muted-foreground mt-1">
+                      You need to reach this rank range to pass
+                    </p>
+                  </div>
+
+                  {/* Your Predicted Rank (based on activity) */}
+                  <div className="mt-3 rounded-xl p-3" style={{ background: `linear-gradient(135deg, ${color}10, hsl(var(--secondary)/0.3))`, border: `1px solid ${color}30` }}>
+                    <p className="text-[9px] font-semibold mb-1.5 flex items-center justify-center gap-1" style={{ color }}>
+                      <TrendingUp className="w-3 h-3" />
+                      📊 Your Predicted Rank (Based on Activity)
+                    </p>
+                    <motion.p className="text-lg font-extrabold tabular-nums" style={{ color }}
+                      initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}>
                       #{data.predictedSafeRankRange[0].toLocaleString()} — #{data.predictedSafeRankRange[1].toLocaleString()}
                     </motion.p>
                     <p className="text-[8px] text-muted-foreground mt-1">
-                      Based on your study effort, this is where you'll likely land
+                      {data.predictedSafeRankRange[1] <= data.safeZoneTarget[1]
+                        ? "✅ You're on track to pass!"
+                        : `⚡ ${(data.predictedSafeRankRange[0] - data.safeZoneTarget[1]).toLocaleString()} ranks to go — keep studying!`}
                     </p>
                   </div>
 
