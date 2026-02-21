@@ -114,7 +114,7 @@ export default function DomainManagement({ institutionId, institutionName }: Pro
         <div className="glass rounded-xl p-8 neural-border text-center">
           <Globe className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No custom domains configured</p>
-          <p className="text-[10px] text-muted-foreground mt-1">Default subdomain: <span className="font-mono text-primary">{institutionName.toLowerCase().replace(/\s+/g, "-")}.acry.app</span></p>
+          <p className="text-[10px] text-muted-foreground mt-1">Default subdomain: <span className="font-mono text-primary">{institutionName.toLowerCase().replace(/\s+/g, "-")}.acry.ai</span></p>
         </div>
       ) : (
         <div className="space-y-2">
