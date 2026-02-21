@@ -5,7 +5,7 @@ import {
   Loader2, Eye, Globe, Palette, CreditCard, TrendingUp, CheckCircle2,
   Clock, AlertTriangle, IndianRupee, BarChart3, Shield, Zap, ArrowRight,
   ChevronDown, ChevronRight, Activity, Layers, Settings, FileText, X,
-  Webhook, BookOpen, Fingerprint, Crown, Sparkles, Server
+  Webhook, BookOpen, Fingerprint, Crown, Sparkles, Server, Trash2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -126,6 +126,34 @@ export default function InstitutionManagement() {
     loadAll();
   };
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const deleteInstitution = async (inst: Institution) => {
+    setDeletingId(inst.id);
+    // Delete related data first
+    await Promise.all([
+      supabase.from("batch_students").delete().in(
+        "batch_id",
+        (await supabase.from("institution_batches").select("id").eq("institution_id", inst.id)).data?.map(b => b.id) || []
+      ),
+      supabase.from("institution_batches").delete().eq("institution_id", inst.id),
+      supabase.from("batch_analytics").delete().eq("institution_id", inst.id),
+      supabase.from("institution_licenses").delete().eq("institution_id", inst.id),
+      supabase.from("institution_invoices").delete().eq("institution_id", inst.id),
+    ]);
+    const { error } = await supabase.from("institutions").delete().eq("id", inst.id);
+    if (error) {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Institution deleted 🗑️" });
+      if (selectedInst?.id === inst.id) setView("overview");
+      loadAll();
+    }
+    setDeletingId(null);
+    setConfirmDeleteId(null);
+  };
+
   const openInstitution = (inst: Institution) => {
     setSelectedInst(inst);
     setDetailTab("batches");
@@ -204,6 +232,26 @@ export default function InstitutionManagement() {
               {instLicense && <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-success" />{instLicense.plan_name}</span>}
             </div>
           </div>
+          {/* Delete in detail view */}
+          {confirmDeleteId === selectedInst.id ? (
+            <div className="flex items-center gap-1.5 ml-auto">
+              <button onClick={() => deleteInstitution(selectedInst)} disabled={deletingId === selectedInst.id}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                {deletingId === selectedInst.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Delete permanently
+              </button>
+              <button onClick={() => setConfirmDeleteId(null)}
+                className="px-3 py-1.5 rounded-xl text-xs font-medium bg-secondary text-muted-foreground hover:bg-secondary/80 transition-colors">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmDeleteId(selectedInst.id)}
+              className="ml-auto p-2 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+              title="Delete institution">
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
         </motion.div>
 
         {/* Detail Tab Navigation */}
@@ -589,6 +637,23 @@ export default function InstitutionManagement() {
                       className="p-2 rounded-xl hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-colors">
                       {inst.is_active ? <ToggleRight className="w-5 h-5 text-success" /> : <ToggleLeft className="w-5 h-5" />}
                     </button>
+                    {confirmDeleteId === inst.id ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => deleteInstitution(inst)} disabled={deletingId === inst.id}
+                          className="px-2 py-1 rounded-lg text-[9px] font-bold bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors disabled:opacity-50">
+                          {deletingId === inst.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Confirm"}
+                        </button>
+                        <button onClick={() => setConfirmDeleteId(null)}
+                          className="px-2 py-1 rounded-lg text-[9px] font-bold bg-secondary text-muted-foreground hover:bg-secondary/80 transition-colors">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(inst.id); }}
+                        className="p-2 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <ArrowRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                   </div>
                 </div>
