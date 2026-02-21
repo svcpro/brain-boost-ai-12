@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, ReactNode } from "react";
-import { useInstitutionSubdomain, InstitutionBranding } from "@/hooks/useInstitutionSubdomain";
+import { useParams } from "react-router-dom";
+import { useInstitutionBySlug, InstitutionBranding } from "@/hooks/useInstitutionSubdomain";
 
 interface InstitutionContextType {
   institution: InstitutionBranding | null;
@@ -17,8 +18,14 @@ const InstitutionContext = createContext<InstitutionContextType>({
 
 export const useInstitution = () => useContext(InstitutionContext);
 
+/**
+ * Wrapper that reads :slug from /i/:slug/* routes.
+ * Placed inside <BrowserRouter> so useParams works.
+ */
 export const InstitutionProvider = ({ children }: { children: ReactNode }) => {
-  const { institution, isInstitutionDomain, loading, error } = useInstitutionSubdomain();
+  const params = useParams<{ institutionSlug?: string }>();
+  const slug = params.institutionSlug;
+  const { institution, isInstitutionDomain, loading, error } = useInstitutionBySlug(slug);
 
   // Apply institution branding as CSS custom properties
   useEffect(() => {
