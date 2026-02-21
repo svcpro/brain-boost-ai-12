@@ -421,146 +421,373 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                 {quickMode && hasRecent ? (
                   <motion.div
                     key="quick"
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="space-y-3"
+                    exit={{ opacity: 0, y: -12, scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    className="space-y-4"
                   >
-                    {/* Subject chips */}
+                    {/* ─── Subject Selection with animated gradient cards ─── */}
                     <div>
-                      <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1">
-                        <BookOpen className="w-3 h-3" /> Select Subject
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {recentSubjects.map((sub, i) => (
-                          <motion.button
-                            key={sub.id}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: i * 0.04 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              setSelectedQuickSubject(selectedQuickSubject === sub.name ? null : sub.name);
-                              setSelectedQuickTopics([]);
-                            }}
-                            className={`text-[10px] px-3 py-1.5 rounded-xl border transition-all ${
-                              selectedQuickSubject === sub.name
-                                ? "border-primary/40 text-primary font-semibold shadow-sm"
-                                : "border-border/30 text-muted-foreground hover:border-primary/20"
-                            }`}
-                            style={{
-                              background: selectedQuickSubject === sub.name
-                                ? "linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.06))"
-                                : "hsl(var(--secondary) / 0.3)",
-                            }}
-                          >
-                            {sub.name}
-                          </motion.button>
-                        ))}
+                      <motion.p
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1.5 font-medium"
+                      >
+                        <motion.span
+                          className="w-4 h-4 rounded-md flex items-center justify-center"
+                          style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.15))" }}
+                          animate={{ rotate: [0, 5, -5, 0] }}
+                          transition={{ duration: 3, repeat: Infinity }}
+                        >
+                          <BookOpen className="w-2.5 h-2.5 text-primary" />
+                        </motion.span>
+                        Pick your subject
+                      </motion.p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {recentSubjects.map((sub, i) => {
+                          const isActive = selectedQuickSubject === sub.name;
+                          return (
+                            <motion.button
+                              key={sub.id}
+                              initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              transition={{ delay: i * 0.06, type: "spring", stiffness: 400, damping: 20 }}
+                              whileHover={{ scale: 1.04, y: -2 }}
+                              whileTap={{ scale: 0.94 }}
+                              onClick={() => {
+                                setSelectedQuickSubject(isActive ? null : sub.name);
+                                setSelectedQuickTopics([]);
+                                if (!isActive) triggerHaptic([8]);
+                              }}
+                              className="relative rounded-xl p-2.5 text-center overflow-hidden transition-shadow"
+                              style={{
+                                background: isActive
+                                  ? `linear-gradient(145deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.08), hsl(var(--primary) / 0.12))`
+                                  : `linear-gradient(145deg, hsl(var(--secondary) / 0.4), hsl(var(--card)))`,
+                                border: isActive ? "1.5px solid hsl(var(--primary) / 0.4)" : "1px solid hsl(var(--border) / 0.3)",
+                                boxShadow: isActive ? "0 4px 16px hsl(var(--primary) / 0.15), inset 0 1px 0 hsl(var(--primary) / 0.1)" : "none",
+                              }}
+                            >
+                              {/* Animated shimmer on active */}
+                              {isActive && (
+                                <motion.div
+                                  className="absolute inset-0 pointer-events-none"
+                                  style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary) / 0.08), transparent)" }}
+                                  animate={{ x: ["-100%", "200%"] }}
+                                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+                                />
+                              )}
+                              {/* Glow dot */}
+                              {isActive && (
+                                <motion.div
+                                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
+                                  style={{ background: "hsl(var(--primary))", boxShadow: "0 0 6px hsl(var(--primary) / 0.6)" }}
+                                  animate={{ opacity: [0.6, 1, 0.6], scale: [0.8, 1.2, 0.8] }}
+                                  transition={{ duration: 1.5, repeat: Infinity }}
+                                />
+                              )}
+                              <p className={`text-[10px] font-semibold relative z-10 truncate ${isActive ? "text-primary" : "text-foreground"}`}>
+                                {sub.name}
+                              </p>
+                              <p className="text-[8px] text-muted-foreground relative z-10 mt-0.5">
+                                {sub.topics.length} topic{sub.topics.length !== 1 ? "s" : ""}
+                              </p>
+                            </motion.button>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    {/* Topic chips (only when subject selected) */}
+                    {/* ─── Topic Selection with staggered gradient pills ─── */}
                     <AnimatePresence>
                       {selectedSubjectData && selectedSubjectData.topics.length > 0 && (
                         <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
+                          initial={{ opacity: 0, height: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, height: "auto", scale: 1 }}
+                          exit={{ opacity: 0, height: 0, scale: 0.98 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 25 }}
                           className="overflow-hidden"
                         >
-                          <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1">
-                            <Target className="w-3 h-3" /> Select Topics <span className="text-primary/60">(multi-select)</span>
-                          </p>
+                          {/* Section header with gradient line */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <motion.span
+                              className="w-4 h-4 rounded-md flex items-center justify-center"
+                              style={{ background: "linear-gradient(135deg, hsl(var(--accent) / 0.2), hsl(var(--primary) / 0.15))" }}
+                              animate={{ scale: [1, 1.1, 1] }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                            >
+                              <Target className="w-2.5 h-2.5 text-primary" />
+                            </motion.span>
+                            <p className="text-[10px] text-muted-foreground font-medium">
+                              Select topics
+                            </p>
+                            <motion.span
+                              initial={{ opacity: 0, scale: 0 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="text-[8px] px-1.5 py-0.5 rounded-full font-medium"
+                              style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.08))", color: "hsl(var(--primary))" }}
+                            >
+                              multi-select
+                            </motion.span>
+                            {selectedQuickTopics.length > 0 && (
+                              <motion.span
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 500 }}
+                                className="ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full text-primary-foreground"
+                                style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.8))" }}
+                              >
+                                {selectedQuickTopics.length}
+                              </motion.span>
+                            )}
+                          </div>
+
+                          {/* Topic grid */}
                           <div className="flex flex-wrap gap-1.5">
                             {selectedSubjectData.topics.map((topic, j) => {
                               const isSelected = selectedQuickTopics.includes(topic.name);
                               return (
                                 <motion.button
                                   key={topic.id}
-                                  initial={{ opacity: 0, y: 6 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: j * 0.03 }}
-                                  whileTap={{ scale: 0.95 }}
+                                  initial={{ opacity: 0, y: 8, scale: 0.85 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  transition={{ delay: j * 0.04, type: "spring", stiffness: 400, damping: 20 }}
+                                  whileHover={{ scale: 1.05, y: -1 }}
+                                  whileTap={{ scale: 0.92 }}
                                   onClick={() => {
                                     setSelectedQuickTopics(prev =>
                                       isSelected ? prev.filter(t => t !== topic.name) : [...prev, topic.name]
                                     );
+                                    triggerHaptic([5]);
                                   }}
-                                  className={`text-[9px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
-                                    isSelected
-                                      ? "border-primary/40 text-primary font-medium"
-                                      : "border-border/30 text-muted-foreground hover:border-primary/20"
-                                  }`}
+                                  className="relative text-[9px] px-3 py-1.5 rounded-xl overflow-hidden transition-shadow"
                                   style={{
                                     background: isSelected
-                                      ? "linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.05))"
-                                      : "hsl(var(--secondary) / 0.2)",
+                                      ? "linear-gradient(135deg, hsl(var(--primary) / 0.14), hsl(var(--accent) / 0.08), hsl(var(--primary) / 0.1))"
+                                      : "linear-gradient(135deg, hsl(var(--secondary) / 0.3), hsl(var(--card)))",
+                                    border: isSelected ? "1px solid hsl(var(--primary) / 0.35)" : "1px solid hsl(var(--border) / 0.25)",
+                                    boxShadow: isSelected ? "0 2px 12px hsl(var(--primary) / 0.12)" : "none",
                                   }}
                                 >
-                                  {isSelected && <CheckCircle className="w-2.5 h-2.5" />}
-                                  {topic.name}
+                                  {/* Checkmark morph */}
+                                  <span className={`inline-flex items-center gap-1 relative z-10 font-medium ${isSelected ? "text-primary" : "text-muted-foreground"}`}>
+                                    <AnimatePresence mode="wait">
+                                      {isSelected && (
+                                        <motion.span
+                                          initial={{ width: 0, opacity: 0 }}
+                                          animate={{ width: "auto", opacity: 1 }}
+                                          exit={{ width: 0, opacity: 0 }}
+                                          transition={{ duration: 0.2 }}
+                                          className="overflow-hidden"
+                                        >
+                                          <CheckCircle className="w-3 h-3" />
+                                        </motion.span>
+                                      )}
+                                    </AnimatePresence>
+                                    {topic.name}
+                                  </span>
+                                  {/* Selection shimmer */}
+                                  {isSelected && (
+                                    <motion.div
+                                      className="absolute inset-0 pointer-events-none"
+                                      style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary) / 0.06), transparent)" }}
+                                      animate={{ x: ["-100%", "200%"] }}
+                                      transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+                                    />
+                                  )}
                                 </motion.button>
                               );
                             })}
+                          </div>
+
+                          {/* ─── Select All / Clear ─── */}
+                          <div className="flex justify-end gap-2 mt-2">
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => setSelectedQuickTopics(selectedSubjectData.topics.map(t => t.name))}
+                              className="text-[8px] px-2 py-0.5 rounded-full text-primary/70 hover:text-primary transition-colors"
+                              style={{ background: "hsl(var(--primary) / 0.06)" }}
+                            >
+                              Select all
+                            </motion.button>
+                            {selectedQuickTopics.length > 0 && (
+                              <motion.button
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setSelectedQuickTopics([])}
+                                className="text-[8px] px-2 py-0.5 rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                                style={{ background: "hsl(var(--secondary) / 0.4)" }}
+                              >
+                                Clear
+                              </motion.button>
+                            )}
                           </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
 
-                    {/* Study type + confidence (compact row) */}
+                    {/* ─── Study Type + Confidence with animated gradient cards ─── */}
                     {selectedQuickTopics.length > 0 && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2 pt-1">
-                        <div className="flex gap-3">
-                          <div className="flex-1">
-                            <p className="text-[8px] text-muted-foreground mb-1">Study type</p>
-                            <div className="flex flex-wrap gap-1">
-                              {STUDY_TYPES.map((st) => (
-                                <button key={st} onClick={() => setSelectedStudyType(selectedStudyType === st ? null : st)}
-                                  className={`text-[8px] px-2 py-0.5 rounded-full border transition-all ${
-                                    selectedStudyType === st ? "bg-primary/12 border-primary/30 text-primary font-medium" : "bg-secondary/30 border-border/30 text-muted-foreground"
-                                  }`}
-                                >{st}</button>
-                              ))}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                        className="space-y-3"
+                      >
+                        {/* Combined study type & confidence in a gradient container */}
+                        <div
+                          className="rounded-xl p-3 space-y-3"
+                          style={{
+                            background: "linear-gradient(160deg, hsl(var(--secondary) / 0.3), hsl(var(--card)), hsl(var(--primary) / 0.03))",
+                            border: "1px solid hsl(var(--border) / 0.2)",
+                          }}
+                        >
+                          {/* Study type */}
+                          <div>
+                            <p className="text-[8px] text-muted-foreground mb-1.5 flex items-center gap-1 font-medium">
+                              <PenLine className="w-2.5 h-2.5" /> Study type
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {STUDY_TYPES.map((st, i) => {
+                                const isActive = selectedStudyType === st;
+                                return (
+                                  <motion.button
+                                    key={st}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: i * 0.03 }}
+                                    whileHover={{ scale: 1.06 }}
+                                    whileTap={{ scale: 0.93 }}
+                                    onClick={() => setSelectedStudyType(isActive ? null : st)}
+                                    className="text-[9px] px-2.5 py-1 rounded-full transition-all"
+                                    style={{
+                                      background: isActive
+                                        ? "linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1))"
+                                        : "hsl(var(--secondary) / 0.4)",
+                                      border: isActive ? "1px solid hsl(var(--primary) / 0.3)" : "1px solid hsl(var(--border) / 0.25)",
+                                      color: isActive ? "hsl(var(--primary))" : undefined,
+                                      fontWeight: isActive ? 600 : 400,
+                                      boxShadow: isActive ? "0 2px 8px hsl(var(--primary) / 0.1)" : "none",
+                                    }}
+                                  >
+                                    {st}
+                                  </motion.button>
+                                );
+                              })}
                             </div>
                           </div>
+
+                          {/* Confidence with gradient slider pills */}
                           <div>
-                            <p className="text-[8px] text-muted-foreground mb-1">Confidence</p>
-                            <div className="flex gap-1">
-                              {CONFIDENCE_LEVELS.map((cl) => (
-                                <button key={cl} onClick={() => setSelectedConfidence(selectedConfidence === cl ? null : cl)}
-                                  className={`text-[8px] px-2 py-0.5 rounded-full border transition-all ${
-                                    selectedConfidence === cl ? "bg-primary/12 border-primary/30 text-primary font-medium" : "bg-secondary/30 border-border/30 text-muted-foreground"
-                                  }`}
-                                >{cl}</button>
-                              ))}
+                            <p className="text-[8px] text-muted-foreground mb-1.5 flex items-center gap-1 font-medium">
+                              <Star className="w-2.5 h-2.5" /> Confidence
+                            </p>
+                            <div className="flex gap-2">
+                              {CONFIDENCE_LEVELS.map((cl, i) => {
+                                const isActive = selectedConfidence === cl;
+                                const colors = [
+                                  { bg: "hsl(var(--destructive) / 0.1)", border: "hsl(var(--destructive) / 0.25)", text: "hsl(var(--destructive))", glow: "hsl(var(--destructive) / 0.15)" },
+                                  { bg: "hsl(var(--warning) / 0.1)", border: "hsl(var(--warning) / 0.25)", text: "hsl(var(--warning))", glow: "hsl(var(--warning) / 0.15)" },
+                                  { bg: "hsl(var(--success) / 0.1)", border: "hsl(var(--success) / 0.25)", text: "hsl(var(--success))", glow: "hsl(var(--success) / 0.15)" },
+                                ][i];
+                                return (
+                                  <motion.button
+                                    key={cl}
+                                    whileHover={{ scale: 1.06, y: -1 }}
+                                    whileTap={{ scale: 0.93 }}
+                                    onClick={() => setSelectedConfidence(isActive ? null : cl)}
+                                    className="flex-1 text-[9px] py-1.5 rounded-lg transition-all text-center font-medium"
+                                    style={{
+                                      background: isActive
+                                        ? `linear-gradient(135deg, ${colors.bg}, transparent)`
+                                        : "hsl(var(--secondary) / 0.3)",
+                                      border: isActive ? `1px solid ${colors.border}` : "1px solid hsl(var(--border) / 0.2)",
+                                      color: isActive ? colors.text : undefined,
+                                      boxShadow: isActive ? `0 2px 10px ${colors.glow}` : "none",
+                                    }}
+                                  >
+                                    {cl === "Low" ? "😓" : cl === "Medium" ? "🤔" : "💪"} {cl}
+                                  </motion.button>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
 
-                        {/* Log button */}
+                        {/* ─── Premium animated LOG button ─── */}
                         <motion.button
+                          whileHover={{ scale: 1.02, y: -1 }}
                           whileTap={{ scale: 0.97 }}
                           onClick={handleQuickLog}
                           disabled={quickLogging}
-                          className="w-full py-2.5 rounded-xl text-xs font-bold text-primary-foreground flex items-center justify-center gap-2 disabled:opacity-50"
+                          className="relative w-full py-3 rounded-xl text-xs font-bold text-primary-foreground flex items-center justify-center gap-2 disabled:opacity-50 overflow-hidden"
                           style={{
-                            background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.8), hsl(var(--primary)))",
-                            boxShadow: "0 4px 20px hsl(var(--primary) / 0.3)",
+                            background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.85), hsl(var(--primary) / 0.9))",
+                            boxShadow: "0 6px 24px hsl(var(--primary) / 0.3), 0 2px 8px hsl(var(--primary) / 0.2)",
                           }}
                         >
-                          {quickLogging ? (
-                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Logging...</>
-                          ) : (
-                            <><Zap className="w-3.5 h-3.5" /> Log {selectedQuickTopics.length} topic{selectedQuickTopics.length > 1 ? "s" : ""}</>
+                          {/* Moving shimmer */}
+                          <motion.div
+                            className="absolute inset-0 pointer-events-none"
+                            style={{ background: "linear-gradient(90deg, transparent 0%, hsl(0 0% 100% / 0.15) 50%, transparent 100%)" }}
+                            animate={{ x: ["-100%", "200%"] }}
+                            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+                          />
+                          {/* Floating sparkles */}
+                          {!quickLogging && (
+                            <>
+                              <motion.div className="absolute top-1 left-[15%] w-1 h-1 rounded-full bg-white/30"
+                                animate={{ y: [-2, -8, -2], opacity: [0, 1, 0] }} transition={{ duration: 2, repeat: Infinity, delay: 0 }} />
+                              <motion.div className="absolute top-2 right-[20%] w-0.5 h-0.5 rounded-full bg-white/40"
+                                animate={{ y: [-2, -10, -2], opacity: [0, 1, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }} />
+                              <motion.div className="absolute bottom-1 left-[40%] w-1 h-1 rounded-full bg-white/20"
+                                animate={{ y: [2, -6, 2], opacity: [0, 0.8, 0] }} transition={{ duration: 1.8, repeat: Infinity, delay: 1 }} />
+                            </>
                           )}
+                          <span className="relative z-10 flex items-center gap-2">
+                            {quickLogging ? (
+                              <><Loader2 className="w-4 h-4 animate-spin" /> Mapping to brain...</>
+                            ) : (
+                              <>
+                                <motion.span animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}>
+                                  <Zap className="w-4 h-4" />
+                                </motion.span>
+                                Log {selectedQuickTopics.length} topic{selectedQuickTopics.length > 1 ? "s" : ""} to Brain
+                              </>
+                            )}
+                          </span>
                         </motion.button>
+
+                        {/* Summary preview */}
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                          className="flex items-center justify-center gap-2 text-[8px] text-muted-foreground"
+                        >
+                          <Brain className="w-3 h-3 text-primary/50" />
+                          <span>{selectedQuickSubject} → {selectedQuickTopics.length} topics → +memory boost</span>
+                        </motion.div>
                       </motion.div>
                     )}
 
                     {/* Empty state for no topics */}
                     {selectedSubjectData && selectedSubjectData.topics.length === 0 && (
-                      <p className="text-[9px] text-muted-foreground text-center py-2">No topics yet — use voice to add new ones</p>
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center py-4 rounded-xl"
+                        style={{
+                          background: "linear-gradient(135deg, hsl(var(--secondary) / 0.2), hsl(var(--card)))",
+                          border: "1px dashed hsl(var(--border) / 0.3)",
+                        }}
+                      >
+                        <Mic className="w-5 h-5 text-primary/30 mx-auto mb-1.5" />
+                        <p className="text-[9px] text-muted-foreground">No topics yet</p>
+                        <p className="text-[8px] text-muted-foreground/60 mt-0.5">Switch to voice mode to add new topics</p>
+                      </motion.div>
                     )}
                   </motion.div>
                 ) : (
