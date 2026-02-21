@@ -405,24 +405,6 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                       You need to reach this rank range to pass
                     </p>
                   </div>
-
-                  {/* Your Predicted Rank (based on activity) */}
-                  <div className="mt-3 rounded-xl p-3" style={{ background: `linear-gradient(135deg, ${color}10, hsl(var(--secondary)/0.3))`, border: `1px solid ${color}30` }}>
-                    <p className="text-[9px] font-semibold mb-1.5 flex items-center justify-center gap-1" style={{ color }}>
-                      <TrendingUp className="w-3 h-3" />
-                      📊 Your Predicted Rank (Based on Activity)
-                    </p>
-                    <motion.p className="text-lg font-extrabold tabular-nums" style={{ color }}
-                      initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}>
-                      #{data.predictedSafeRankRange[0].toLocaleString()} — #{data.predictedSafeRankRange[1].toLocaleString()}
-                    </motion.p>
-                    <p className="text-[8px] text-muted-foreground mt-1">
-                      {data.predictedSafeRankRange[1] <= data.safeZoneTarget[1]
-                        ? "✅ You're on track to pass!"
-                        : `⚡ ${(data.predictedSafeRankRange[0] - data.safeZoneTarget[1]).toLocaleString()} ranks to go — keep studying!`}
-                    </p>
-                  </div>
-
                   {/* Activity Score gauge + Pass probability */}
                   <div className="flex items-center justify-center gap-6 mt-4">
                     {/* Activity Score */}
