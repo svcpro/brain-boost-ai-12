@@ -26,6 +26,21 @@ serve(async (req) => {
     const { action } = body;
     const userId = user.id;
 
+    // Handle toggle and status BEFORE guards so they work even when disabled
+    if (action === "toggle_user_autopilot") {
+      const enabled = body.enabled ?? true;
+      await supabase.from("user_autopilot_preferences").upsert({
+        user_id: userId,
+        autopilot_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+      return json({ status: "ok", autopilot_enabled: enabled });
+    }
+
+    if (action === "get_status") {
+      return await getStatus(supabase, userId);
+    }
+
     // Load global config
     const { data: config } = await supabase.from("autopilot_config").select("*").limit(1).single();
     if (!config?.is_enabled) {
@@ -53,20 +68,6 @@ serve(async (req) => {
 
     if (action === "get_next_mode") {
       return await getNextMode(supabase, userId, intensity);
-    }
-
-    if (action === "get_status") {
-      return await getStatus(supabase, userId);
-    }
-
-    if (action === "toggle_user_autopilot") {
-      const enabled = body.enabled ?? true;
-      await supabase.from("user_autopilot_preferences").upsert({
-        user_id: userId,
-        autopilot_enabled: enabled,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
-      return json({ status: "ok", autopilot_enabled: enabled });
     }
 
     return json({ error: "Unknown action" }, 400);
