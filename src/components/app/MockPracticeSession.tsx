@@ -6,6 +6,7 @@ import {
   CheckCircle, Star, Flame, Award, Swords,
   ChevronRight, Timer, Users, Crown, Medal
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import MentorSuggestion from "./MentorSuggestion";
 import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
@@ -644,7 +645,11 @@ const MockPracticeSession = ({ open, onClose, onSessionComplete }: MockPracticeS
                   className="space-y-4"
                 >
                   <div className="text-xs text-muted-foreground">{currentQ.subject} · {currentQ.topic}</div>
-                  <p className="text-sm font-semibold text-foreground leading-relaxed">{currentQ.question}</p>
+                  <div className="text-sm font-semibold text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown components={{ img: ({ node, ...props }) => <img {...props} className="max-w-full rounded-lg my-2" loading="lazy" /> }}>
+                      {currentQ.question}
+                    </ReactMarkdown>
+                  </div>
 
                   <div className="space-y-2">
                     {currentQ.options.map((opt, i) => {
@@ -690,7 +695,11 @@ const MockPracticeSession = ({ open, onClose, onSessionComplete }: MockPracticeS
                     >
                       <div className="rounded-xl border border-border bg-secondary/30 p-3">
                         <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Explanation</p>
-                        <p className="text-xs text-foreground leading-relaxed">{currentQ.explanation}</p>
+                        <div className="text-xs text-foreground leading-relaxed prose prose-xs dark:prose-invert max-w-none">
+                          <ReactMarkdown components={{ img: ({ node, ...props }) => <img {...props} className="max-w-full rounded-lg my-2" loading="lazy" /> }}>
+                            {currentQ.explanation}
+                          </ReactMarkdown>
+                        </div>
                       </div>
 
                       <motion.button

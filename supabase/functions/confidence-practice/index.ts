@@ -348,6 +348,7 @@ CRITICAL RULES:
 - Include trend_momentum, volatility_index, pattern_stability numbers.
 - Include difficulty_evolution and framing_change strings.
 - Generate exam-level questions that feel genuinely likely to appear.
+- CRITICAL: Do NOT generate questions that reference images, diagrams, figures, graphs, tables, or any visual content. All questions must be fully self-contained as text only.
 - CRITICAL: Every question MUST be unique. Do NOT repeat or paraphrase questions from the PYQ bank or from previous generations. The user has already practiced ${prevPracticedCount} predicted questions.
 - Return VALID JSON only.`
         },
