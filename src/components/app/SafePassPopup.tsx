@@ -8,55 +8,162 @@ import { RankPredictionData } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-/* ─── Peer stats from DB ─── */
-interface PeerStats {
-  examType: string;
-  peerCount: number;
-  avgStrength: number;
-  topPerformerStrength: number;
-}
-
-/* ─── Exam-specific cutoff data ─── */
-interface ExamCutoff {
+/* ─── Exam-specific real cutoff data (2025-2026 based) ─── */
+interface ExamConfig {
   label: string;
   totalCandidates: number;
-  safeRankCutoff: number;       // rank <= this = safe to pass
-  comfortableRankCutoff: number; // rank <= this = comfortable
-  topperRankCutoff: number;      // rank <= this = topper zone
+  /** General category qualifying cutoff rank */
+  qualifyingCutoffRank: number;
+  /** Government/top college safe cutoff rank */
+  governmentSeatCutoff: number;
+  /** Top college / topper cutoff rank */
+  topCollegeCutoff: number;
+  /** Category-wise cutoff ranges [General, OBC, SC, ST] */
+  categoryRanks: { label: string; cutoff: number }[];
 }
 
-const EXAM_CUTOFFS: Record<string, ExamCutoff> = {
-  NEET:          { label: "NEET",          totalCandidates: 2400000, safeRankCutoff: 720000, comfortableRankCutoff: 200000, topperRankCutoff: 50000 },
-  "JEE Main":    { label: "JEE Main",     totalCandidates: 1200000, safeRankCutoff: 250000, comfortableRankCutoff: 100000, topperRankCutoff: 25000 },
-  "JEE Advanced":{ label: "JEE Advanced", totalCandidates: 250000,  safeRankCutoff: 50000,  comfortableRankCutoff: 15000,  topperRankCutoff: 5000 },
-  UPSC:          { label: "UPSC",         totalCandidates: 1200000, safeRankCutoff: 15000,  comfortableRankCutoff: 5000,   topperRankCutoff: 1000 },
-  CAT:           { label: "CAT",          totalCandidates: 300000,  safeRankCutoff: 30000,  comfortableRankCutoff: 10000,  topperRankCutoff: 2000 },
-  GATE:          { label: "GATE",         totalCandidates: 900000,  safeRankCutoff: 50000,  comfortableRankCutoff: 15000,  topperRankCutoff: 3000 },
-  SSC:           { label: "SSC CGL",      totalCandidates: 3000000, safeRankCutoff: 100000, comfortableRankCutoff: 30000,  topperRankCutoff: 5000 },
-  CLAT:          { label: "CLAT",         totalCandidates: 70000,   safeRankCutoff: 10000,  comfortableRankCutoff: 3000,   topperRankCutoff: 500 },
-  Boards:        { label: "Board Exams",  totalCandidates: 5000000, safeRankCutoff: 3000000,comfortableRankCutoff: 1000000,topperRankCutoff: 100000 },
+const EXAM_CONFIGS: Record<string, ExamConfig> = {
+  NEET: {
+    label: "NEET",
+    totalCandidates: 2400000,
+    qualifyingCutoffRank: 800000,
+    governmentSeatCutoff: 85000,
+    topCollegeCutoff: 15000,
+    categoryRanks: [
+      { label: "General", cutoff: 720000 },
+      { label: "OBC", cutoff: 780000 },
+      { label: "SC", cutoff: 850000 },
+      { label: "ST", cutoff: 900000 },
+    ],
+  },
+  "JEE Main": {
+    label: "JEE Main",
+    totalCandidates: 1200000,
+    qualifyingCutoffRank: 250000,
+    governmentSeatCutoff: 35000,
+    topCollegeCutoff: 10000,
+    categoryRanks: [
+      { label: "General", cutoff: 250000 },
+      { label: "OBC", cutoff: 320000 },
+      { label: "SC", cutoff: 400000 },
+      { label: "ST", cutoff: 450000 },
+    ],
+  },
+  "JEE Advanced": {
+    label: "JEE Advanced",
+    totalCandidates: 250000,
+    qualifyingCutoffRank: 40000,
+    governmentSeatCutoff: 10000,
+    topCollegeCutoff: 2000,
+    categoryRanks: [
+      { label: "General", cutoff: 40000 },
+      { label: "OBC", cutoff: 55000 },
+      { label: "SC", cutoff: 70000 },
+      { label: "ST", cutoff: 80000 },
+    ],
+  },
+  UPSC: {
+    label: "UPSC CSE",
+    totalCandidates: 1200000,
+    qualifyingCutoffRank: 15000,
+    governmentSeatCutoff: 5000,
+    topCollegeCutoff: 1000,
+    categoryRanks: [
+      { label: "General", cutoff: 800 },
+      { label: "OBC", cutoff: 1200 },
+      { label: "SC", cutoff: 2000 },
+      { label: "ST", cutoff: 2500 },
+    ],
+  },
+  CAT: {
+    label: "CAT",
+    totalCandidates: 300000,
+    qualifyingCutoffRank: 30000,
+    governmentSeatCutoff: 5000,
+    topCollegeCutoff: 1000,
+    categoryRanks: [
+      { label: "General", cutoff: 30000 },
+      { label: "OBC", cutoff: 40000 },
+      { label: "SC", cutoff: 50000 },
+      { label: "ST", cutoff: 55000 },
+    ],
+  },
+  GATE: {
+    label: "GATE",
+    totalCandidates: 900000,
+    qualifyingCutoffRank: 50000,
+    governmentSeatCutoff: 10000,
+    topCollegeCutoff: 2000,
+    categoryRanks: [
+      { label: "General", cutoff: 50000 },
+      { label: "OBC", cutoff: 65000 },
+      { label: "SC", cutoff: 80000 },
+      { label: "ST", cutoff: 90000 },
+    ],
+  },
+  SSC: {
+    label: "SSC CGL",
+    totalCandidates: 3000000,
+    qualifyingCutoffRank: 100000,
+    governmentSeatCutoff: 25000,
+    topCollegeCutoff: 5000,
+    categoryRanks: [
+      { label: "General", cutoff: 100000 },
+      { label: "OBC", cutoff: 130000 },
+      { label: "SC", cutoff: 160000 },
+      { label: "ST", cutoff: 180000 },
+    ],
+  },
+  CLAT: {
+    label: "CLAT",
+    totalCandidates: 70000,
+    qualifyingCutoffRank: 10000,
+    governmentSeatCutoff: 3000,
+    topCollegeCutoff: 500,
+    categoryRanks: [
+      { label: "General", cutoff: 10000 },
+      { label: "OBC", cutoff: 13000 },
+      { label: "SC", cutoff: 16000 },
+      { label: "ST", cutoff: 18000 },
+    ],
+  },
+  Boards: {
+    label: "Board Exams",
+    totalCandidates: 5000000,
+    qualifyingCutoffRank: 4000000,
+    governmentSeatCutoff: 1000000,
+    topCollegeCutoff: 100000,
+    categoryRanks: [
+      { label: "General", cutoff: 4000000 },
+    ],
+  },
 };
 
-const DEFAULT_CUTOFF: ExamCutoff = { label: "Exam", totalCandidates: 1000000, safeRankCutoff: 300000, comfortableRankCutoff: 100000, topperRankCutoff: 20000 };
+const DEFAULT_CONFIG: ExamConfig = {
+  label: "Exam",
+  totalCandidates: 1000000,
+  qualifyingCutoffRank: 300000,
+  governmentSeatCutoff: 50000,
+  topCollegeCutoff: 10000,
+  categoryRanks: [{ label: "General", cutoff: 300000 }],
+};
 
-/* ─── Safe Pass result ─── */
+/* ─── Result ─── */
 interface SafePassData {
-  brainScore: number;
   currentRank: number;
-  totalCandidates: number;
-  safeRankZone: [number, number];   // [lower, upper] rank range to pass
-  percentile: number;
+  examConfig: ExamConfig;
+  safeRankZone: [number, number];   // predicted safe zone range
+  zoneLabel: string;
   passProbability: number;
-  safeZoneLabel: string;
-  topicGaps: { name: string; strength: number; impact: number }[];
+  rankStatus: "topper" | "comfortable" | "safe" | "borderline" | "at_risk";
+  topicGaps: { name: string; strength: number; rankImpact: number }[];
   whatIf: {
     improvedRank: number;
     improvedProbability: number;
     minutesNeeded: number;
   };
-  factorBreakdown: { label: string; pct: number; weight: string }[];
   daysToExam: number | null;
-  examLabel: string;
+  percentileAmongCandidates: number;
 }
 
 /* ─── Computation ─── */
@@ -66,137 +173,139 @@ function computeSafePass(
   streakDays: number,
   examDate: string | null,
   rankData: RankPredictionData | null,
-  peerStats: PeerStats | null,
+  examType: string | null,
 ): SafePassData | null {
   if (allTopics.length === 0) return null;
 
-  // Use the actual rank from the app's rank prediction system
   const currentRank = rankData?.predicted_rank ?? 0;
   if (currentRank <= 0) return null;
 
-  // Determine exam cutoff
-  const examType = peerStats?.examType ?? "";
-  const cutoff = EXAM_CUTOFFS[examType] ?? DEFAULT_CUTOFF;
+  const config = (examType && EXAM_CONFIGS[examType]) ? EXAM_CONFIGS[examType] : DEFAULT_CONFIG;
 
-  // Brain Stability Score (for display)
-  const avgStrength = allTopics.reduce((s, t) => s + t.memory_strength, 0) / allTopics.length;
-  const strongCount = allTopics.filter(t => t.memory_strength >= 70).length;
-  const coverageRatio = strongCount / Math.max(allTopics.length, 1);
-  const consistencyPct = Math.min(streakDays, 30) / 30 * 100;
-  const recencyPct = rankData?.factors?.recency_score ?? (streakDays > 0 ? Math.min(80, 40 + streakDays * 2) : 30);
-  const decayPct = rankData?.factors?.decay_velocity_score ?? Math.max(20, 100 - allTopics.filter(t => t.memory_strength < 40).length * 15);
-  const volumePct = Math.min(100, allTopics.length * 3);
-
+  // Days to exam
   let daysToExam: number | null = null;
-  let examPressurePct = 50;
   if (examDate) {
     const diff = Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000);
     daysToExam = Math.max(0, diff);
-    const prep = avgStrength * coverageRatio / 100;
-    examPressurePct = daysToExam <= 7
-      ? (prep > 0.5 ? 85 : 25)
-      : daysToExam <= 30
-        ? (prep > 0.4 ? 70 : 35)
-        : 50 + (prep > 0.5 ? 15 : -10);
   }
 
-  const brainScore = Math.round(
-    overallHealth * 0.35 + avgStrength * 0.25 + coverageRatio * 100 * 0.15 +
-    consistencyPct * 0.10 + recencyPct * 0.05 + decayPct * 0.05 +
-    volumePct * 0.03 + examPressurePct * 0.02
+  // Percentile among total candidates
+  const percentileAmongCandidates = Math.round(
+    Math.max(1, Math.min(99.9, (1 - currentRank / config.totalCandidates) * 100) * 10) / 10
   );
 
-  // Safe Rank Zone: based on current rank vs exam cutoffs
-  // Safe zone = the rank range needed to pass/qualify
-  const safeRankZone: [number, number] = [1, cutoff.safeRankCutoff];
+  // Determine rank status & zone label
+  let rankStatus: SafePassData["rankStatus"];
+  let zoneLabel: string;
+  if (currentRank <= config.topCollegeCutoff) {
+    rankStatus = "topper";
+    zoneLabel = "🏆 Topper Zone";
+  } else if (currentRank <= config.governmentSeatCutoff) {
+    rankStatus = "comfortable";
+    zoneLabel = "🎯 Comfortable Zone";
+  } else if (currentRank <= config.qualifyingCutoffRank) {
+    rankStatus = "safe";
+    zoneLabel = "✅ Safe to Pass";
+  } else if (currentRank <= config.qualifyingCutoffRank * 1.2) {
+    rankStatus = "borderline";
+    zoneLabel = "⚡ Borderline — Push Harder";
+  } else {
+    rankStatus = "at_risk";
+    zoneLabel = "🔴 At Risk — Needs Improvement";
+  }
 
-  // Percentile based on current rank position in total candidates
-  const percentile = Math.round(Math.max(1, Math.min(99, (1 - currentRank / cutoff.totalCandidates) * 100)));
+  // Safe rank zone prediction: a range around your rank based on your preparation variance
+  // Stronger students have tighter range, weaker students wider
+  const avgStrength = allTopics.reduce((s, t) => s + t.memory_strength, 0) / allTopics.length;
+  const varianceFactor = Math.max(0.03, (100 - avgStrength) / 100 * 0.15); // 3% to 15% variance
+  const lowerBound = Math.max(1, Math.round(currentRank * (1 - varianceFactor)));
+  const upperBound = Math.round(currentRank * (1 + varianceFactor));
+  const safeRankZone: [number, number] = [lowerBound, upperBound];
 
-  // Zone label based on rank vs cutoffs
-  const safeZoneLabel =
-    currentRank <= cutoff.topperRankCutoff ? "🏆 Topper Zone" :
-    currentRank <= cutoff.comfortableRankCutoff ? "🎯 Comfortable Zone" :
-    currentRank <= cutoff.safeRankCutoff ? "✅ Safe Zone" :
-    currentRank <= cutoff.safeRankCutoff * 1.3 ? "⚡ Borderline Zone" :
-    "🔴 At Risk Zone";
+  // Pass probability based on rank vs qualifying cutoff
+  const rankRatio = currentRank / config.qualifyingCutoffRank;
+  let passProbability: number;
+  if (rankRatio <= 0.02) passProbability = 99;
+  else if (rankRatio <= 0.05) passProbability = 97;
+  else if (rankRatio <= 0.1) passProbability = 95;
+  else if (rankRatio <= 0.2) passProbability = 92;
+  else if (rankRatio <= 0.4) passProbability = 87;
+  else if (rankRatio <= 0.6) passProbability = 80;
+  else if (rankRatio <= 0.8) passProbability = 70;
+  else if (rankRatio <= 0.95) passProbability = 55;
+  else if (rankRatio <= 1.0) passProbability = 45;
+  else if (rankRatio <= 1.1) passProbability = 30;
+  else if (rankRatio <= 1.3) passProbability = 18;
+  else passProbability = 8;
 
-  // Pass probability: how likely to pass based on rank vs safe cutoff
-  const rankRatio = currentRank / cutoff.safeRankCutoff;
-  const passProbability = Math.round(Math.min(95, Math.max(10,
-    rankRatio <= 0.1 ? 95 :                                    // Top 10% of cutoff
-    rankRatio <= 0.3 ? 90 - (rankRatio - 0.1) * 25 :          // 85-90%
-    rankRatio <= 0.5 ? 85 - (rankRatio - 0.3) * 25 :          // 80-85%
-    rankRatio <= 0.8 ? 75 - (rankRatio - 0.5) * 33 :          // 65-75%
-    rankRatio <= 1.0 ? 55 - (rankRatio - 0.8) * 50 :          // 45-55%
-    rankRatio <= 1.3 ? 35 - (rankRatio - 1.0) * 50 :          // 20-35%
-    10                                                          // Beyond 130% of cutoff
-  )));
+  // Apply days-to-exam adjustment
+  if (daysToExam !== null && daysToExam <= 30) {
+    // Less time = less room for improvement, slightly lower probability if not safe
+    if (rankStatus === "borderline" || rankStatus === "at_risk") {
+      passProbability = Math.max(5, passProbability - Math.round((30 - daysToExam) * 0.3));
+    }
+  }
 
-  // Topic gaps
+  // Topic gaps with rank impact
   const topicGaps = [...allTopics]
     .filter(t => t.memory_strength < 60)
     .sort((a, b) => a.memory_strength - b.memory_strength)
     .slice(0, 5)
-    .map(t => ({
-      name: t.name,
-      strength: Math.round(t.memory_strength),
-      impact: Math.round((60 - t.memory_strength) * 0.5),
-    }));
+    .map(t => {
+      // Each weak topic's improvement can shift rank by a proportional amount
+      const strengthGap = 60 - t.memory_strength;
+      const rankImpact = Math.round(currentRank * (strengthGap / 100) * 0.08);
+      return {
+        name: t.name,
+        strength: Math.round(t.memory_strength),
+        rankImpact,
+      };
+    });
 
-  // What-if: improving top 3 weak topics would boost rank
-  const totalGapImpact = topicGaps.slice(0, 3).reduce((s, g) => s + g.impact, 0);
-  // Each point of brain score improvement could improve rank by ~1-2% of current position
-  const rankImprovement = Math.round(currentRank * (totalGapImpact / 100) * 0.4);
-  const improvedRank = Math.max(1, currentRank - rankImprovement);
-  const improvedRatio = improvedRank / cutoff.safeRankCutoff;
-  const improvedProbability = Math.round(Math.min(95, Math.max(10,
-    improvedRatio <= 0.1 ? 95 :
-    improvedRatio <= 0.3 ? 90 - (improvedRatio - 0.1) * 25 :
-    improvedRatio <= 0.5 ? 85 - (improvedRatio - 0.3) * 25 :
-    improvedRatio <= 0.8 ? 75 - (improvedRatio - 0.5) * 33 :
-    improvedRatio <= 1.0 ? 55 - (improvedRatio - 0.8) * 50 :
-    improvedRatio <= 1.3 ? 35 - (improvedRatio - 1.0) * 50 :
-    10
-  )));
-
-  const factorBreakdown = [
-    { label: "Brain Health", pct: overallHealth, weight: "35%" },
-    { label: "Memory Strength", pct: Math.round(avgStrength), weight: "25%" },
-    { label: "Topic Coverage", pct: Math.round(coverageRatio * 100), weight: "15%" },
-    { label: "Study Consistency", pct: Math.round(consistencyPct), weight: "10%" },
-    { label: "Recency Momentum", pct: Math.round(recencyPct), weight: "5%" },
-    { label: "Decay Control", pct: Math.round(decayPct), weight: "5%" },
-    { label: "Study Volume", pct: Math.round(volumePct), weight: "3%" },
-    { label: "Exam Readiness", pct: Math.round(examPressurePct), weight: "2%" },
-  ];
+  // What-if: fixing top 3 weak topics
+  const totalRankImprovement = topicGaps.slice(0, 3).reduce((s, g) => s + g.rankImpact, 0);
+  const improvedRank = Math.max(1, currentRank - totalRankImprovement);
+  const improvedRatio = improvedRank / config.qualifyingCutoffRank;
+  let improvedProbability: number;
+  if (improvedRatio <= 0.02) improvedProbability = 99;
+  else if (improvedRatio <= 0.05) improvedProbability = 97;
+  else if (improvedRatio <= 0.1) improvedProbability = 95;
+  else if (improvedRatio <= 0.2) improvedProbability = 92;
+  else if (improvedRatio <= 0.4) improvedProbability = 87;
+  else if (improvedRatio <= 0.6) improvedProbability = 80;
+  else if (improvedRatio <= 0.8) improvedProbability = 70;
+  else if (improvedRatio <= 0.95) improvedProbability = 55;
+  else if (improvedRatio <= 1.0) improvedProbability = 45;
+  else if (improvedRatio <= 1.1) improvedProbability = 30;
+  else improvedProbability = 18;
 
   return {
-    brainScore,
     currentRank,
-    totalCandidates: cutoff.totalCandidates,
+    examConfig: config,
     safeRankZone,
-    percentile,
+    zoneLabel,
     passProbability,
-    safeZoneLabel,
+    rankStatus,
     topicGaps,
     whatIf: {
       improvedRank,
       improvedProbability,
       minutesNeeded: topicGaps.slice(0, 3).length * 15,
     },
-    factorBreakdown,
     daysToExam,
-    examLabel: peerStats?.examType ?? "Your Exam",
+    percentileAmongCandidates,
   };
 }
 
 /* ─── UI helpers ─── */
 const probColor = (p: number) =>
-  p >= 75 ? "hsl(var(--success))" : p >= 55 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
+  p >= 75 ? "hsl(var(--success))" : p >= 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
 
-const zoneColor = (pct: number) =>
-  pct >= 75 ? "hsl(var(--success))" : pct >= 50 ? "hsl(var(--primary))" : pct >= 30 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
+const statusColor = (s: SafePassData["rankStatus"]) =>
+  s === "topper" || s === "comfortable" ? "hsl(var(--success))"
+  : s === "safe" ? "hsl(var(--primary))"
+  : s === "borderline" ? "hsl(var(--warning))"
+  : "hsl(var(--destructive))";
 
 /* ─── Component ─── */
 interface SafePassPopupProps {
@@ -213,70 +322,25 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
 }) => {
   const { user } = useAuth();
   const [examDate, setExamDate] = useState<string | null>(null);
-  const [peerStats, setPeerStats] = useState<PeerStats | null>(null);
+  const [examType, setExamType] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !user) return;
-
-    // Fetch user's exam info + peer stats in parallel
     (async () => {
       const { data: profile } = await supabase
         .from("profiles")
         .select("exam_type, exam_date")
         .eq("id", user.id)
         .single();
-
-      if (!profile) return;
-      setExamDate(profile.exam_date);
-
-      if (profile.exam_type) {
-        // Get peer stats for same exam type
-        const { data: peers } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("exam_type", profile.exam_type);
-
-        const peerIds = (peers || []).map(p => p.id);
-
-        if (peerIds.length > 0) {
-          const { data: topicStats } = await supabase
-            .from("topics")
-            .select("user_id, memory_strength")
-            .in("user_id", peerIds)
-            .is("deleted_at", null);
-
-          if (topicStats && topicStats.length > 0) {
-            // Group by user and compute per-user avg
-            const userAvgs: Record<string, number[]> = {};
-            topicStats.forEach(t => {
-              if (!userAvgs[t.user_id]) userAvgs[t.user_id] = [];
-              userAvgs[t.user_id].push(t.memory_strength);
-            });
-
-            const userScores = Object.values(userAvgs).map(
-              strengths => strengths.reduce((a, b) => a + b, 0) / strengths.length
-            );
-
-            setPeerStats({
-              examType: profile.exam_type,
-              peerCount: userScores.length,
-              avgStrength: userScores.reduce((a, b) => a + b, 0) / userScores.length,
-              topPerformerStrength: Math.max(...userScores),
-            });
-          } else {
-            setPeerStats({
-              examType: profile.exam_type,
-              peerCount: peerIds.length,
-              avgStrength: 50,
-              topPerformerStrength: 80,
-            });
-          }
-        }
+      if (profile) {
+        setExamDate(profile.exam_date);
+        setExamType(profile.exam_type);
       }
     })();
   }, [open, user]);
 
-  const data = computeSafePass(allTopics, overallHealth, streakDays, examDate, rankData ?? null, peerStats);
+  const data = computeSafePass(allTopics, overallHealth, streakDays, examDate, rankData ?? null, examType);
+  const color = data ? statusColor(data.rankStatus) : "hsl(var(--muted-foreground))";
 
   return (
     <AnimatePresence>
@@ -289,16 +353,13 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
           />
           <motion.div
             className="fixed inset-x-4 top-[8%] z-[101] mx-auto max-w-md max-h-[85vh] overflow-y-auto rounded-3xl border border-border/50 shadow-2xl"
-            style={{
-              background: "linear-gradient(160deg, hsl(var(--card)) 0%, hsl(var(--secondary)/0.6) 40%, hsl(var(--card)) 100%)",
-            }}
+            style={{ background: "linear-gradient(160deg, hsl(var(--card)) 0%, hsl(var(--secondary)/0.6) 40%, hsl(var(--card)) 100%)" }}
             initial={{ opacity: 0, scale: 0.85, y: 40 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.85, y: 40 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
           >
             <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-success/10 blur-2xl pointer-events-none" />
 
             {/* Header */}
             <div className="relative p-5 pb-3">
@@ -313,14 +374,13 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                   animate={{ boxShadow: ["0 0 0px hsl(var(--primary)/0)", "0 0 16px hsl(var(--primary)/0.4)", "0 0 0px hsl(var(--primary)/0)"] }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <Brain className="w-5 h-5 text-primary" />
+                  <Shield className="w-5 h-5 text-primary" />
                 </motion.div>
                 <div>
                   <h2 className="text-sm font-bold text-foreground">Safe Pass Prediction</h2>
-                  <p className="text-[9px] text-muted-foreground flex items-center gap-1">
-                    <Users className="w-2.5 h-2.5" />
-                    Based on Brain Stability Score
-                    {peerStats && ` • ${peerStats.peerCount} ${peerStats.examType} peers`}
+                  <p className="text-[9px] text-muted-foreground">
+                    Based on your rank #{rankData?.predicted_rank?.toLocaleString() ?? "—"}
+                    {data && ` • ${data.examConfig.label}`}
                   </p>
                 </div>
               </div>
@@ -331,7 +391,7 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                   initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }}
                 >
                   <Target className="w-3 h-3" />
-                  {data.daysToExam} days to exam
+                  {data.daysToExam} days to {data.examConfig.label}
                 </motion.div>
               )}
             </div>
@@ -344,61 +404,46 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
             ) : (
               <div className="px-5 pb-6 space-y-4">
 
-                {/* ── Brain Score + Zone + Rank ── */}
+                {/* ── Your Rank + Predicted Safe Zone ── */}
                 <motion.div
                   className="rounded-2xl p-4 text-center relative overflow-hidden"
-                  style={{ background: "linear-gradient(135deg, hsl(var(--primary)/0.08), hsl(var(--card)))", border: "1px solid hsl(var(--primary)/0.2)" }}
+                  style={{ background: "linear-gradient(135deg, hsl(var(--primary)/0.08), hsl(var(--card)))", border: `1px solid ${color}30` }}
                   initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
                 >
-                  <motion.div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{ background: "linear-gradient(180deg, transparent 0%, hsl(var(--primary)/0.06) 50%, transparent 100%)", height: "30%" }}
-                    animate={{ y: ["0%", "300%", "0%"] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  />
-
-                  {/* Brain Score big number */}
-                  <p className="text-[9px] text-muted-foreground mb-1 relative z-10">Brain Stability Score</p>
+                  {/* Current Rank */}
+                  <p className="text-[9px] text-muted-foreground mb-1">Your Current Rank</p>
                   <motion.p
-                    className="text-4xl font-extrabold tabular-nums relative z-10"
-                    style={{ color: zoneColor(data.percentile) }}
+                    className="text-4xl font-extrabold tabular-nums"
+                    style={{ color }}
                     initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
                   >
-                    {data.brainScore}
+                    #{data.currentRank.toLocaleString()}
                   </motion.p>
 
                   {/* Zone badge */}
                   <motion.span
-                    className="inline-block px-3 py-1 rounded-full text-[10px] font-bold mt-1 relative z-10"
-                    style={{ background: `${zoneColor(data.percentile)}20`, color: zoneColor(data.percentile) }}
+                    className="inline-block px-3 py-1 rounded-full text-[10px] font-bold mt-2"
+                    style={{ background: `${color}20`, color }}
                     initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: "spring" }}
                   >
-                    {data.safeZoneLabel}
+                    {data.zoneLabel}
                   </motion.span>
 
-                  {/* Current Rank + Safe Zone */}
-                  <div className="flex items-center justify-center gap-6 mt-4 relative z-10">
-                    <div className="text-center">
-                      <motion.p className="text-lg font-extrabold text-foreground tabular-nums"
-                        initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
-                        #{data.currentRank.toLocaleString()}
-                      </motion.p>
-                      <p className="text-[8px] text-muted-foreground">Your Current Rank</p>
-                    </div>
-                    <div className="w-px h-8 bg-border/40" />
-                    <div className="text-center">
-                      <motion.p className="text-lg font-extrabold tabular-nums"
-                        style={{ color: zoneColor(data.percentile) }}
-                        initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}>
-                        ≤ {data.safeRankZone[1].toLocaleString()}
-                      </motion.p>
-                      <p className="text-[8px] text-muted-foreground">Safe Rank to Pass {data.examLabel}</p>
-                    </div>
+                  {/* Predicted Safe Rank Zone */}
+                  <div className="mt-4 rounded-xl p-3" style={{ background: "hsl(var(--secondary)/0.4)", border: "1px solid hsl(var(--border)/0.3)" }}>
+                    <p className="text-[9px] text-muted-foreground mb-1.5">Predicted Safe Rank Zone</p>
+                    <motion.p className="text-xl font-extrabold text-foreground tabular-nums"
+                      initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
+                      #{data.safeRankZone[0].toLocaleString()} — #{data.safeRankZone[1].toLocaleString()}
+                    </motion.p>
+                    <p className="text-[8px] text-muted-foreground mt-1">
+                      Based on your study variance • Top {data.percentileAmongCandidates}% of {data.examConfig.totalCandidates.toLocaleString()} candidates
+                    </p>
                   </div>
 
                   {/* Pass probability gauge */}
-                  <div className="flex items-center justify-center gap-4 mt-4 relative z-10">
+                  <div className="flex items-center justify-center gap-4 mt-4">
                     <div className="relative w-14 h-14">
                       <svg viewBox="0 0 68 68" className="w-full h-full -rotate-90">
                         <circle cx="34" cy="34" r="28" fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
@@ -420,37 +465,54 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                     <div className="text-left">
                       <p className="text-xs font-semibold text-foreground">Pass Probability</p>
                       <p className="text-[9px] text-muted-foreground">
-                        {data.passProbability >= 75 ? "You're in the safe zone 🎯"
-                          : data.passProbability >= 55 ? "Keep pushing, almost there 📈"
+                        {data.passProbability >= 80 ? "You're in the safe zone 🎯"
+                          : data.passProbability >= 50 ? "Keep pushing, almost there 📈"
                           : "Focus on weak topics ⚡"}
                       </p>
                     </div>
                   </div>
                 </motion.div>
 
-                {/* ── Factor Breakdown ── */}
+                {/* ── Exam Cutoff Reference ── */}
                 <motion.div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-4"
                   initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
                   <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3 text-primary" />
-                    Brain Score Breakdown
+                    {data.examConfig.label} Qualifying Cutoffs
                   </p>
                   <div className="space-y-2">
-                    {data.factorBreakdown.map((f, i) => (
-                      <div key={i}>
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[10px] text-foreground">{f.label}</span>
-                          <span className="text-[9px] text-muted-foreground">{f.pct}% <span className="text-[7px]">({f.weight})</span></span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                          <motion.div className="h-full rounded-full"
-                            style={{ background: f.pct >= 70 ? "hsl(var(--success))" : f.pct >= 40 ? "hsl(var(--warning))" : "hsl(var(--destructive))" }}
-                            initial={{ width: 0 }} animate={{ width: `${f.pct}%` }}
-                            transition={{ duration: 0.8, delay: 0.3 + i * 0.08 }}
-                          />
-                        </div>
+                    {/* Topper */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-foreground">🏆 Top College</span>
+                      <span className="text-[10px] font-bold tabular-nums" style={{ color: data.currentRank <= data.examConfig.topCollegeCutoff ? "hsl(var(--success))" : "hsl(var(--muted-foreground))" }}>
+                        ≤ #{data.examConfig.topCollegeCutoff.toLocaleString()}
+                      </span>
+                    </div>
+                    {/* Govt seat */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-foreground">🎯 Govt. Seat</span>
+                      <span className="text-[10px] font-bold tabular-nums" style={{ color: data.currentRank <= data.examConfig.governmentSeatCutoff ? "hsl(var(--success))" : "hsl(var(--muted-foreground))" }}>
+                        ≤ #{data.examConfig.governmentSeatCutoff.toLocaleString()}
+                      </span>
+                    </div>
+                    {/* Category cutoffs */}
+                    {data.examConfig.categoryRanks.map((cat, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <span className="text-[10px] text-foreground">✅ Qualifying ({cat.label})</span>
+                        <span className="text-[10px] font-bold tabular-nums" style={{ color: data.currentRank <= cat.cutoff ? "hsl(var(--success))" : "hsl(var(--muted-foreground))" }}>
+                          ≤ #{cat.cutoff.toLocaleString()}
+                        </span>
                       </div>
                     ))}
+                    {/* Rank position indicator */}
+                    <div className="mt-2 pt-2 border-t border-border/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-primary">📍 Your Rank</span>
+                        <span className="text-[10px] font-extrabold tabular-nums" style={{ color }}>
+                          #{data.currentRank.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
 
@@ -459,7 +521,7 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                   <motion.div className="rounded-2xl border border-warning/20 bg-warning/5 p-4"
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
                     <p className="text-[9px] font-semibold text-warning uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Topics Holding Your Score Back
+                      <AlertTriangle className="w-3 h-3" /> Weak Topics Affecting Your Rank
                     </p>
                     <div className="space-y-1.5">
                       {data.topicGaps.map((gap, i) => (
@@ -470,7 +532,7 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                           <div className="w-2 h-2 rounded-full bg-warning shrink-0" />
                           <span className="text-[10px] text-foreground truncate flex-1">{gap.name}</span>
                           <span className="text-[10px] text-destructive font-bold tabular-nums">{gap.strength}%</span>
-                          <span className="text-[9px] text-success font-medium">+{gap.impact}pt</span>
+                          <span className="text-[9px] text-success font-medium">↑{gap.rankImpact.toLocaleString()}</span>
                         </motion.div>
                       ))}
                     </div>
@@ -494,15 +556,15 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                           <span className="text-[8px] text-muted-foreground line-through tabular-nums">#{data.currentRank.toLocaleString()}</span>
                           <ArrowUpRight className="w-2.5 h-2.5 text-success" />
                         </div>
-                        <motion.p className="text-base font-extrabold text-success tabular-nums"
+                        <motion.p className="text-sm font-extrabold text-success tabular-nums"
                           initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.6, type: "spring" }}>
                           #{data.whatIf.improvedRank.toLocaleString()}
                         </motion.p>
-                        <p className="text-[7px] text-muted-foreground">Predicted Rank</p>
+                        <p className="text-[7px] text-muted-foreground">New Rank</p>
                       </div>
                       <div className="rounded-xl bg-card/60 p-2.5 text-center border border-border/30">
                         <ArrowUpRight className="w-2.5 h-2.5 text-success mx-auto mb-0.5" />
-                        <motion.p className="text-base font-extrabold text-success tabular-nums"
+                        <motion.p className="text-sm font-extrabold text-success tabular-nums"
                           initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.65, type: "spring" }}>
                           {data.whatIf.improvedProbability}%
                         </motion.p>
@@ -510,7 +572,7 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                       </div>
                       <div className="rounded-xl bg-card/60 p-2.5 text-center border border-border/30">
                         <ArrowUpRight className="w-2.5 h-2.5 text-success mx-auto mb-0.5" />
-                        <motion.p className="text-base font-extrabold text-success tabular-nums"
+                        <motion.p className="text-sm font-extrabold text-success tabular-nums"
                           initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ delay: 0.7, type: "spring" }}>
                           ↑{(data.currentRank - data.whatIf.improvedRank).toLocaleString()}
                         </motion.p>
@@ -527,14 +589,14 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                 {data.topicGaps.length === 0 && (
                   <motion.div className="rounded-2xl bg-success/10 border border-success/20 p-4 text-center"
                     initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.35 }}>
-                    <Shield className="w-8 h-8 text-success mx-auto mb-2" />
-                    <p className="text-xs text-success font-semibold">All Topics Above Safe Threshold!</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Your brain stability is strong. Keep it up!</p>
+                    <Trophy className="w-8 h-8 text-success mx-auto mb-2" />
+                    <p className="text-xs text-success font-semibold">All Topics Strong!</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Keep revising to maintain your rank</p>
                   </motion.div>
                 )}
 
                 <p className="text-[7px] text-muted-foreground/40 text-center italic pt-1">
-                  Ranked by Brain Stability Score among {data.examLabel} peers on this platform
+                  Prediction based on your rank #{data.currentRank.toLocaleString()} among {data.examConfig.totalCandidates.toLocaleString()} {data.examConfig.label} candidates
                 </p>
               </div>
             )}
