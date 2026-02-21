@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { toast } from "sonner";
+import FocusModeSession from "./FocusModeSession";
+import MockPracticeSession from "./MockPracticeSession";
+import EmergencyRecoverySession from "./EmergencyRecoverySession";
+import LazyModeSession from "./LazyModeSession";
 
 const intensityColors: Record<string, string> = {
   gentle: "text-emerald-400",
@@ -25,6 +29,10 @@ const modeIcons: Record<string, any> = {
 export default function AutopilotWidget() {
   const { status, loading, generatePlan, toggleAutopilot, checkEmergency } = useAutopilot();
   const [generating, setGenerating] = useState(false);
+  const [focusModeOpen, setFocusModeOpen] = useState(false);
+  const [mockOpen, setMockOpen] = useState(false);
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
+  const [lazyModeOpen, setLazyModeOpen] = useState(false);
 
   const isEnabled = status ? (status.globally_enabled && status.user_enabled) : true;
   const today = status?.today;
@@ -58,16 +66,29 @@ export default function AutopilotWidget() {
     const topicName = today.next_session.topic_name;
     const duration = today.next_session.duration_minutes;
     toast.success(`Starting ${mode} mode: ${topicName} (${duration}min)`, { duration: 3000 });
-    // First switch to Action tab, then dispatch session event after it mounts
-    window.dispatchEvent(new CustomEvent("switch-dashboard-tab", { detail: "action" }));
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("autopilot-start-session", {
-        detail: { mode, topic_id: today.next_session!.topic_id, topic_name: topicName, duration },
-      }));
-    }, 300);
+
+    // Open the appropriate study mode inline
+    switch (mode) {
+      case "focus":
+        setFocusModeOpen(true);
+        break;
+      case "revision":
+        setLazyModeOpen(true);
+        break;
+      case "mock":
+        setMockOpen(true);
+        break;
+      case "rescue":
+      case "emergency":
+        setEmergencyOpen(true);
+        break;
+      default:
+        setFocusModeOpen(true);
+    }
   };
 
   return (
+    <>
     <Card className="bg-card/80 backdrop-blur-sm border-border/50 overflow-hidden">
       <CardContent className="p-4 space-y-3">
         {/* Header */}
@@ -169,5 +190,12 @@ export default function AutopilotWidget() {
         </AnimatePresence>
       </CardContent>
     </Card>
+
+    {/* Study Mode Modals */}
+    <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
+    <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
+    <MockPracticeSession open={mockOpen} onClose={() => setMockOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
+    <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
+    </>
   );
 }
