@@ -73,11 +73,28 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
   // safeStr and safeNum imported from @/lib/safeRender
 
   const parseMissionResponse = (data: any): DailyMission | null => {
+    if (!data) return null;
+
+    // Handle case where mission is returned as a plain string
+    if (typeof data.mission === "string" && typeof data.mission !== "object") {
+      const text = data.mission;
+      return {
+        title: text.length > 60 ? text.slice(0, 57) + "…" : text,
+        description: text,
+        estimated_minutes: 5,
+        brain_improvement_pct: 5,
+        urgency: "medium",
+        reasoning: "Personalized by your AI brain agent.",
+        mission_type: text.toLowerCase().includes("solve") || text.toLowerCase().includes("problem") ? "practice" : "review",
+        generated_date: today,
+      };
+    }
+
     // The AI may return the mission as a nested object in data.title, data.mission, or directly in data
     // Normalize: find the actual mission object
     let src = data;
     if (typeof data.title === "object" && data.title !== null) {
-      src = data.title; // The whole mission was stuffed into .title
+      src = data.title;
     } else if (typeof data.mission === "object" && data.mission !== null) {
       src = data.mission;
     }
@@ -95,7 +112,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     } else if (topic) {
       title = `${actionType}: ${topic}`;
     } else {
-      title = safeStr(data.title, "AI Mission");
+      title = "AI Mission";
     }
 
     // Build description — check description, goal, reason fields
