@@ -476,12 +476,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </div>
       </motion.section>
 
-      {/* AI Autopilot */}
-      <SectionErrorBoundary name="Autopilot">
+      {/* AI Autopilot — hidden */}
+      {/* <SectionErrorBoundary name="Autopilot">
         <Suspense fallback={null}>
           <AutopilotWidget />
         </Suspense>
-      </SectionErrorBoundary>
+      </SectionErrorBoundary> */}
 
       {/* Trial banner */}
       <TrialBanner />
