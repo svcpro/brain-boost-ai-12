@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bot, Globe, GitBranch, Fingerprint, Users, Activity,
-  IndianRupee, HeartPulse, FlaskConical, Database, Brain, Cpu
+  IndianRupee, HeartPulse, FlaskConical, Database, Brain, Cpu, Swords
 } from "lucide-react";
 import AgentControlCenter from "./ai-command/AgentControlCenter";
 import GlobalBrainDashboard from "./ai-command/GlobalBrainDashboard";
@@ -15,6 +15,7 @@ import SystemHealthMonitor from "./ai-command/SystemHealthMonitor";
 import AISimulationLab from "./ai-command/AISimulationLab";
 import TrainingDataControl from "./ai-command/TrainingDataControl";
 import CognitiveProfileViewer from "./ai-command/CognitiveProfileViewer";
+import CompetitiveIntelAdmin from "./ai-command/CompetitiveIntelAdmin";
 
 type CommandTab =
   | "agents"
@@ -22,6 +23,7 @@ type CommandTab =
   | "models"
   | "personalization"
   | "cognitive"
+  | "competitive"
   | "collective"
   | "activity"
   | "costs"
@@ -34,6 +36,7 @@ const TABS: { key: CommandTab; label: string; icon: any; color: string }[] = [
   { key: "brain", label: "Global Brain", icon: Brain, color: "text-accent" },
   { key: "models", label: "Model Versions", icon: GitBranch, color: "text-success" },
   { key: "cognitive", label: "Cognitive v2.0", icon: Cpu, color: "text-blue-400" },
+  { key: "competitive", label: "Competition v3.0", icon: Swords, color: "text-orange-400" },
   { key: "personalization", label: "Personalization", icon: Fingerprint, color: "text-warning" },
   { key: "collective", label: "Collective Intel", icon: Globe, color: "text-primary" },
   { key: "activity", label: "Live Activity", icon: Activity, color: "text-success" },
@@ -84,6 +87,7 @@ export default function AICommandCenter() {
           {activeTab === "brain" && <GlobalBrainDashboard />}
           {activeTab === "models" && <AIModelManagement />}
           {activeTab === "cognitive" && <CognitiveProfileViewer />}
+          {activeTab === "competitive" && <CompetitiveIntelAdmin />}
           {activeTab === "personalization" && <PersonalizationEngine />}
           {activeTab === "collective" && <CollectiveIntelDashboard />}
           {activeTab === "activity" && <RealTimeActivityStream />}

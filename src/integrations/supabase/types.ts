@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      accelerator_enrollments: {
+        Row: {
+          ai_strategy: string | null
+          created_at: string
+          daily_schedule: Json | null
+          days_completed: number | null
+          end_date: string
+          high_probability_topics: Json | null
+          id: string
+          intensity_level: string | null
+          progress_percentage: number | null
+          start_date: string
+          status: string | null
+          target_exam_type: string | null
+          updated_at: string
+          user_id: string
+          weak_topics: Json | null
+        }
+        Insert: {
+          ai_strategy?: string | null
+          created_at?: string
+          daily_schedule?: Json | null
+          days_completed?: number | null
+          end_date?: string
+          high_probability_topics?: Json | null
+          id?: string
+          intensity_level?: string | null
+          progress_percentage?: number | null
+          start_date?: string
+          status?: string | null
+          target_exam_type?: string | null
+          updated_at?: string
+          user_id: string
+          weak_topics?: Json | null
+        }
+        Update: {
+          ai_strategy?: string | null
+          created_at?: string
+          daily_schedule?: Json | null
+          days_completed?: number | null
+          end_date?: string
+          high_probability_topics?: Json | null
+          id?: string
+          intensity_level?: string | null
+          progress_percentage?: number | null
+          start_date?: string
+          status?: string | null
+          target_exam_type?: string | null
+          updated_at?: string
+          user_id?: string
+          weak_topics?: Json | null
+        }
+        Relationships: []
+      }
       admin_audit_logs: {
         Row: {
           action: string
@@ -1293,6 +1347,39 @@ export type Database = {
           },
         ]
       }
+      competitive_intel_config: {
+        Row: {
+          accelerator_enabled: boolean | null
+          id: string
+          opponent_sim_enabled: boolean | null
+          rank_heatmap_enabled: boolean | null
+          trend_engine_enabled: boolean | null
+          updated_at: string
+          updated_by: string | null
+          weakness_engine_enabled: boolean | null
+        }
+        Insert: {
+          accelerator_enabled?: boolean | null
+          id?: string
+          opponent_sim_enabled?: boolean | null
+          rank_heatmap_enabled?: boolean | null
+          trend_engine_enabled?: boolean | null
+          updated_at?: string
+          updated_by?: string | null
+          weakness_engine_enabled?: boolean | null
+        }
+        Update: {
+          accelerator_enabled?: boolean | null
+          id?: string
+          opponent_sim_enabled?: boolean | null
+          rank_heatmap_enabled?: boolean | null
+          trend_engine_enabled?: boolean | null
+          updated_at?: string
+          updated_by?: string | null
+          weakness_engine_enabled?: boolean | null
+        }
+        Relationships: []
+      }
       confidence_events: {
         Row: {
           boost_message: string | null
@@ -1856,6 +1943,54 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_datasets: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          exam_type: string
+          file_type: string | null
+          file_url: string | null
+          id: string
+          processed_at: string | null
+          processed_patterns: number | null
+          status: string | null
+          subject: string | null
+          total_questions: number | null
+          uploaded_by: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          exam_type: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          processed_at?: string | null
+          processed_patterns?: number | null
+          status?: string | null
+          subject?: string | null
+          total_questions?: number | null
+          uploaded_by: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          exam_type?: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          processed_at?: string | null
+          processed_patterns?: number | null
+          status?: string | null
+          subject?: string | null
+          total_questions?: number | null
+          uploaded_by?: string
+          year?: number
+        }
+        Relationships: []
+      }
       exam_results: {
         Row: {
           created_at: string
@@ -1889,6 +2024,51 @@ export type Database = {
           topics?: string | null
           total_questions?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      exam_trend_patterns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          difficulty_distribution: Json | null
+          exam_type: string
+          frequency_count: number | null
+          id: string
+          predicted_probability: number | null
+          source: string | null
+          subject: string
+          topic: string
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          difficulty_distribution?: Json | null
+          exam_type: string
+          frequency_count?: number | null
+          id?: string
+          predicted_probability?: number | null
+          source?: string | null
+          subject: string
+          topic: string
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          difficulty_distribution?: Json | null
+          exam_type?: string
+          frequency_count?: number | null
+          id?: string
+          predicted_probability?: number | null
+          source?: string | null
+          subject?: string
+          topic?: string
+          updated_at?: string
+          year?: number | null
         }
         Relationships: []
       }
@@ -3216,6 +3396,42 @@ export type Database = {
         }
         Relationships: []
       }
+      opponent_simulation_config: {
+        Row: {
+          competitor_accuracy_range: Json | null
+          difficulty_escalation_rate: number | null
+          exam_type: string
+          id: string
+          is_enabled: boolean | null
+          pressure_level: string | null
+          time_pressure_multiplier: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          competitor_accuracy_range?: Json | null
+          difficulty_escalation_rate?: number | null
+          exam_type?: string
+          id?: string
+          is_enabled?: boolean | null
+          pressure_level?: string | null
+          time_pressure_multiplier?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          competitor_accuracy_range?: Json | null
+          difficulty_escalation_rate?: number | null
+          exam_type?: string
+          id?: string
+          is_enabled?: boolean | null
+          pressure_level?: string | null
+          time_pressure_multiplier?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       plan_feature_gates: {
         Row: {
           created_at: string
@@ -4069,6 +4285,48 @@ export type Database = {
           question_text?: string
           times_seen?: number
           times_wrong?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rank_heatmap_snapshots: {
+        Row: {
+          blended_percentile: number | null
+          computed_at: string
+          created_at: string
+          exam_type: string
+          id: string
+          internal_rank_score: number | null
+          percentile: number
+          simulated_national_score: number | null
+          subject_breakdown: Json | null
+          total_internal_users: number | null
+          user_id: string
+        }
+        Insert: {
+          blended_percentile?: number | null
+          computed_at?: string
+          created_at?: string
+          exam_type?: string
+          id?: string
+          internal_rank_score?: number | null
+          percentile?: number
+          simulated_national_score?: number | null
+          subject_breakdown?: Json | null
+          total_internal_users?: number | null
+          user_id: string
+        }
+        Update: {
+          blended_percentile?: number | null
+          computed_at?: string
+          created_at?: string
+          exam_type?: string
+          id?: string
+          internal_rank_score?: number | null
+          percentile?: number
+          simulated_national_score?: number | null
+          subject_breakdown?: Json | null
+          total_internal_users?: number | null
           user_id?: string
         }
         Relationships: []
@@ -5366,6 +5624,56 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "voice_notification_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weakness_predictions: {
+        Row: {
+          ai_reasoning: string | null
+          computed_at: string
+          created_at: string
+          failure_probability: number
+          id: string
+          reinforcement_date: string | null
+          reinforcement_scheduled: boolean | null
+          risk_factors: Json | null
+          topic_id: string | null
+          topic_name: string
+          user_id: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          computed_at?: string
+          created_at?: string
+          failure_probability?: number
+          id?: string
+          reinforcement_date?: string | null
+          reinforcement_scheduled?: boolean | null
+          risk_factors?: Json | null
+          topic_id?: string | null
+          topic_name: string
+          user_id: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          computed_at?: string
+          created_at?: string
+          failure_probability?: number
+          id?: string
+          reinforcement_date?: string | null
+          reinforcement_scheduled?: boolean | null
+          risk_factors?: Json | null
+          topic_id?: string | null
+          topic_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weakness_predictions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
             referencedColumns: ["id"]
           },
         ]
