@@ -572,6 +572,11 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </SectionErrorBoundary>
       )}
 
+      {/* ─── Auto-Detected Study ─── */}
+      <SectionErrorBoundary name="auto-study-summary">
+        <AutoStudySummaryCard onRefresh={() => handleRefresh()} />
+      </SectionErrorBoundary>
+
       {/* ─── SECTION 2: Today's Mission (AI-Powered Single Action) ─── */}
       <SectionErrorBoundary name="todays-mission">
         <TodaysMission
@@ -660,7 +665,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         <SectionErrorBoundary name="analytics-widgets">
           <div className="space-y-3">
             {/* AIRiskReductionEngine hidden — functionality consolidated into MomentumSection */}
-            <AutoStudySummaryCard onRefresh={() => handleRefresh()} />
+            {/* AutoStudySummaryCard moved above Today's Mission */}
             {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
             {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
             {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
