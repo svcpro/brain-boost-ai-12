@@ -177,17 +177,10 @@ function computeSafePass(
 ): SafePassData | null {
   if (allTopics.length === 0) return null;
 
+  const currentRank = rankData?.predicted_rank ?? 0;
+  if (currentRank <= 0) return null;
+
   const config = (examType && EXAM_CONFIGS[examType]) ? EXAM_CONFIGS[examType] : DEFAULT_CONFIG;
-
-  // The rank from rankData is the APP rank (among ~100K app users).
-  // We need the user's PERCENTILE to estimate their real exam rank among actual candidates.
-  const percentile = rankData?.percentile ?? 0;
-  if (percentile <= 0) return null;
-
-  // Estimate actual exam rank using percentile scaled to real candidate pool
-  // percentile=36.2 means user is better than 36.2% of peers
-  // Among totalCandidates, their estimated rank = totalCandidates * (1 - percentile/100)
-  const estimatedExamRank = Math.max(1, Math.round(config.totalCandidates * (1 - percentile / 100)));
 
   // Days to exam
   let daysToExam: number | null = null;
@@ -196,22 +189,24 @@ function computeSafePass(
     daysToExam = Math.max(0, diff);
   }
 
-  // Percentile among total candidates (same as app percentile — it's a relative measure)
-  const percentileAmongCandidates = Math.round(percentile * 10) / 10;
+  // Percentile among total candidates
+  const percentileAmongCandidates = Math.round(
+    Math.max(1, Math.min(99.9, (1 - currentRank / config.totalCandidates) * 100) * 10) / 10
+  );
 
-  // Determine rank status & zone label using estimated exam rank
+  // Determine rank status & zone label
   let rankStatus: SafePassData["rankStatus"];
   let zoneLabel: string;
-  if (estimatedExamRank <= config.topCollegeCutoff) {
+  if (currentRank <= config.topCollegeCutoff) {
     rankStatus = "topper";
     zoneLabel = "🏆 Topper Zone";
-  } else if (estimatedExamRank <= config.governmentSeatCutoff) {
+  } else if (currentRank <= config.governmentSeatCutoff) {
     rankStatus = "comfortable";
     zoneLabel = "🎯 Comfortable Zone";
-  } else if (estimatedExamRank <= config.qualifyingCutoffRank) {
+  } else if (currentRank <= config.qualifyingCutoffRank) {
     rankStatus = "safe";
     zoneLabel = "✅ Safe to Pass";
-  } else if (estimatedExamRank <= config.qualifyingCutoffRank * 1.2) {
+  } else if (currentRank <= config.qualifyingCutoffRank * 1.2) {
     rankStatus = "borderline";
     zoneLabel = "⚡ Borderline — Push Harder";
   } else {
@@ -219,15 +214,15 @@ function computeSafePass(
     zoneLabel = "🔴 At Risk — Needs Improvement";
   }
 
-  // Safe rank zone: a confidence interval around estimated rank
+  // Safe rank zone: confidence interval around current rank based on preparation variance
   const avgStrength = allTopics.reduce((s, t) => s + t.memory_strength, 0) / allTopics.length;
   const varianceFactor = Math.max(0.03, (100 - avgStrength) / 100 * 0.15);
-  const lowerBound = Math.max(1, Math.round(estimatedExamRank * (1 - varianceFactor)));
-  const upperBound = Math.round(estimatedExamRank * (1 + varianceFactor));
+  const lowerBound = Math.max(1, Math.round(currentRank * (1 - varianceFactor)));
+  const upperBound = Math.round(currentRank * (1 + varianceFactor));
   const safeRankZone: [number, number] = [lowerBound, upperBound];
 
-  // Pass probability based on estimated exam rank vs qualifying cutoff
-  const rankRatio = estimatedExamRank / config.qualifyingCutoffRank;
+  // Pass probability based on rank vs qualifying cutoff
+  const rankRatio = currentRank / config.qualifyingCutoffRank;
   let passProbability: number;
   if (rankRatio <= 0.02) passProbability = 99;
   else if (rankRatio <= 0.05) passProbability = 97;
@@ -249,14 +244,14 @@ function computeSafePass(
     }
   }
 
-  // Topic gaps with rank impact (scaled to exam candidate pool)
+  // Topic gaps with rank impact
   const topicGaps = [...allTopics]
     .filter(t => t.memory_strength < 60)
     .sort((a, b) => a.memory_strength - b.memory_strength)
     .slice(0, 5)
     .map(t => {
       const strengthGap = 60 - t.memory_strength;
-      const rankImpact = Math.round(estimatedExamRank * (strengthGap / 100) * 0.08);
+      const rankImpact = Math.round(currentRank * (strengthGap / 100) * 0.08);
       return {
         name: t.name,
         strength: Math.round(t.memory_strength),
@@ -266,7 +261,7 @@ function computeSafePass(
 
   // What-if: fixing top 3 weak topics
   const totalRankImprovement = topicGaps.slice(0, 3).reduce((s, g) => s + g.rankImpact, 0);
-  const improvedRank = Math.max(1, estimatedExamRank - totalRankImprovement);
+  const improvedRank = Math.max(1, currentRank - totalRankImprovement);
   const improvedRatio = improvedRank / config.qualifyingCutoffRank;
   let improvedProbability: number;
   if (improvedRatio <= 0.02) improvedProbability = 99;
@@ -282,7 +277,7 @@ function computeSafePass(
   else improvedProbability = 18;
 
   return {
-    currentRank: estimatedExamRank,
+    currentRank,
     examConfig: config,
     safeRankZone,
     zoneLabel,
@@ -381,7 +376,8 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                 <div>
                   <h2 className="text-sm font-bold text-foreground">Safe Pass Prediction</h2>
                   <p className="text-[9px] text-muted-foreground">
-                    Estimated {data ? data.examConfig.label : ""} Rank from App Percentile {rankData?.percentile?.toFixed(1) ?? "—"}%
+                    Based on your rank #{rankData?.predicted_rank?.toLocaleString() ?? "—"}
+                    {data && ` • ${data.examConfig.label}`}
                   </p>
                 </div>
               </div>
@@ -597,7 +593,7 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                 )}
 
                 <p className="text-[7px] text-muted-foreground/40 text-center italic pt-1">
-                  Estimated rank among {data.examConfig.totalCandidates.toLocaleString()} {data.examConfig.label} candidates • Based on {data.percentileAmongCandidates}% app percentile
+                  Prediction based on your rank #{data.currentRank.toLocaleString()} among {data.examConfig.totalCandidates.toLocaleString()} {data.examConfig.label} candidates
                 </p>
               </div>
             )}
