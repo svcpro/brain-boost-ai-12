@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Zap, Target, Timer, TrendingUp, Gauge, Loader2, RefreshCw, Languages } from "lucide-react";
+import { Brain, Zap, Target, Timer, TrendingUp, Gauge, Loader2, RefreshCw, Languages, Sparkles } from "lucide-react";
 import { useCognitiveProfile } from "@/hooks/useCognitiveProfile";
 
 const styleEmoji: Record<string, string> = { conceptual: "🧠", memorizer: "📚", hybrid: "⚡" };
@@ -20,7 +20,22 @@ export default function CognitiveProfileCard() {
     </div>
   );
 
-  if (!profile) return null;
+  if (!profile) return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl neural-border p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center text-lg">🧠</div>
+        <div>
+          <p className="text-xs font-bold text-foreground">AI Cognitive Profile</p>
+          <p className="text-[10px] text-muted-foreground">v2.0 Engine</p>
+        </div>
+      </div>
+      <div className="rounded-xl bg-secondary/30 p-4 text-center space-y-1">
+        <Sparkles className="w-5 h-5 mx-auto text-primary/60" />
+        <p className="text-xs font-medium text-foreground">Your cognitive profile is building</p>
+        <p className="text-[10px] text-muted-foreground">Complete a practice session to unlock personalized insights about your learning style, speed patterns & accuracy.</p>
+      </div>
+    </motion.div>
+  );
 
   const styleColor = profile.learning_style === "conceptual" ? "text-blue-400" : profile.learning_style === "memorizer" ? "text-amber-400" : "text-primary";
 
