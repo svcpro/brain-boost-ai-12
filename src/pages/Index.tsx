@@ -8,6 +8,8 @@ import Footer from "@/components/landing/Footer";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { Link } from "react-router-dom";
 import { Rocket } from "lucide-react";
+import LanguageSwitch from "@/components/ui/LanguageSwitch";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 
 // Lazy load below-fold sections
@@ -22,6 +24,7 @@ const PricingSection = lazy(() => import("@/components/landing/PricingSection"))
 const CTASection = lazy(() => import("@/components/landing/CTASection"));
 
 const Index = () => {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -53,13 +56,16 @@ const Index = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 glass-strong">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <ACRYLogo variant="navbar" animate={false} />
-          <Link
-            to="/auth?splash=1"
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold glow-primary hover:glow-primary-strong transition-all duration-300"
-          >
-            <Rocket className="w-3.5 h-3.5" />
-            Start Free
-          </Link>
+          <div className="flex items-center gap-3">
+            <LanguageSwitch />
+            <Link
+              to="/auth?splash=1"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold glow-primary hover:glow-primary-strong transition-all duration-300"
+            >
+              <Rocket className="w-3.5 h-3.5" />
+              {t("common.startFree")}
+            </Link>
+          </div>
         </div>
       </nav>
 

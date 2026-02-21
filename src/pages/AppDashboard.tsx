@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
 import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import LanguageSwitch from "@/components/ui/LanguageSwitch";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { useNavigate } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -8,6 +9,7 @@ import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { usePlanGating, PlanGatingContext } from "@/hooks/usePlanGating";
 import VoiceNotificationOverlay from "@/components/app/VoiceNotificationOverlay";
 import SectionErrorBoundary from "@/components/SectionErrorBoundary";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 
 // Lazy load all tab components for fast initial load
@@ -31,13 +33,13 @@ import { useAuth } from "@/contexts/AuthContext";
 export const VoiceContext = createContext<ReturnType<typeof useVoiceNotification> | null>(null);
 export const useVoice = () => useContext(VoiceContext);
 
-const tabs = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "action", label: "Action", icon: Zap },
-  { id: "brain", label: "Brain", icon: Brain },
-  { id: "community", label: "Community", icon: Users },
-  { id: "progress", label: "SureShot", icon: Crosshair },
-  { id: "you", label: "You", icon: User },
+const tabDefs = [
+  { id: "home", labelKey: "nav.home", icon: Home },
+  { id: "action", labelKey: "nav.action", icon: Zap },
+  { id: "brain", labelKey: "nav.brain", icon: Brain },
+  { id: "community", labelKey: "nav.community", icon: Users },
+  { id: "progress", labelKey: "nav.sureshot", icon: Crosshair },
+  { id: "you", labelKey: "nav.you", icon: User },
 ];
 
 const AppDashboard = () => {
@@ -50,6 +52,7 @@ const AppDashboard = () => {
   const { user } = useAuth();
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { isEnabled: isTabEnabled, loading: flagsLoading } = useFeatureFlags();
   const planGating = usePlanGating();
   const [recCount, setRecCount] = useState(0);
@@ -76,7 +79,7 @@ const AppDashboard = () => {
   useEffect(() => {
     const handler = (e: Event) => {
       const tab = (e as CustomEvent).detail;
-      if (tab && tabs.some((t) => t.id === tab)) {
+      if (tab && tabDefs.some((t) => t.id === tab)) {
         setActiveTab(tab);
       }
     };
@@ -166,7 +169,7 @@ const AppDashboard = () => {
   useEffect(() => {
     if (flagsLoading) return;
     if (!isTabEnabled(`tab_${activeTab}`)) {
-      const firstEnabled = tabs.find(t => isTabEnabled(`tab_${t.id}`));
+      const firstEnabled = tabDefs.find(t => isTabEnabled(`tab_${t.id}`));
       if (firstEnabled) {
         setActiveTab(firstEnabled.id);
       }
@@ -231,6 +234,7 @@ const AppDashboard = () => {
           <header className="glass-strong border-b border-border px-5 py-3 flex items-center justify-between sticky top-0 z-40">
             <ACRYLogo variant="navbar" animate={false} />
             <div className="flex items-center gap-2">
+              <LanguageSwitch variant="minimal" />
               <ThemeToggle />
               <Suspense fallback={null}>
                 <GlobalNotificationCenter
@@ -271,7 +275,7 @@ const AppDashboard = () => {
           {/* Bottom Nav — contained inside device frame */}
           <nav className="absolute bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
             <div className="flex items-center justify-around py-1.5 safe-area-bottom">
-              {tabs.filter(tab => isTabEnabled(`tab_${tab.id}`)).map((tab) => {
+              {tabDefs.filter(tab => isTabEnabled(`tab_${tab.id}`)).map((tab) => {
                 const active = activeTab === tab.id;
                 const isSureShot = tab.id === "progress";
                 return (
@@ -305,7 +309,7 @@ const AppDashboard = () => {
                         </>
                       )}
                     </div>
-                    <span className={`text-[9px] ${isSureShot ? "font-bold sureshot-gradient-text" : active ? "font-bold" : "font-medium"}`}>{tab.label}</span>
+                    <span className={`text-[9px] ${isSureShot ? "font-bold sureshot-gradient-text" : active ? "font-bold" : "font-medium"}`}>{t(tab.labelKey)}</span>
                     {active && !isSureShot && (
                       <div className="w-1 h-1 rounded-full bg-primary" />
                     )}
