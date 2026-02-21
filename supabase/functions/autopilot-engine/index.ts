@@ -22,7 +22,8 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { action } = await req.json();
+    const body = await req.json();
+    const { action } = body;
     const userId = user.id;
 
     // Load global config
@@ -59,7 +60,7 @@ serve(async (req) => {
     }
 
     if (action === "toggle_user_autopilot") {
-      const { enabled } = await req.json().catch(() => ({ enabled: true }));
+      const enabled = body.enabled ?? true;
       await supabase.from("user_autopilot_preferences").upsert({
         user_id: userId,
         autopilot_enabled: enabled,

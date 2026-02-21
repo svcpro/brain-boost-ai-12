@@ -99,10 +99,14 @@ export function useAutopilot() {
 
   const toggleAutopilot = useCallback(async (enabled: boolean) => {
     if (!session) return;
+    // Optimistic update
+    setStatus(prev => prev ? { ...prev, user_enabled: enabled } : prev);
     try {
       await invoke("toggle_user_autopilot", { enabled });
       await fetchStatus();
     } catch (e: any) {
+      // Revert on error
+      setStatus(prev => prev ? { ...prev, user_enabled: !enabled } : prev);
       setError(e.message);
     }
   }, [session, invoke, fetchStatus]);
