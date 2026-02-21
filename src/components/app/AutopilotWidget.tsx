@@ -58,10 +58,13 @@ export default function AutopilotWidget() {
     const topicName = today.next_session.topic_name;
     const duration = today.next_session.duration_minutes;
     toast.success(`Starting ${mode} mode: ${topicName} (${duration}min)`, { duration: 3000 });
-    // Emit event so the Action Tab / study mode can pick it up
-    window.dispatchEvent(new CustomEvent("autopilot-start-session", {
-      detail: { mode, topic_id: today.next_session.topic_id, topic_name: topicName, duration },
-    }));
+    // First switch to Action tab, then dispatch session event after it mounts
+    window.dispatchEvent(new CustomEvent("switch-dashboard-tab", { detail: "action" }));
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("autopilot-start-session", {
+        detail: { mode, topic_id: today.next_session!.topic_id, topic_name: topicName, duration },
+      }));
+    }, 300);
   };
 
   return (
