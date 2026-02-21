@@ -152,10 +152,13 @@ const DEFAULT_CONFIG: ExamConfig = {
 interface SafePassData {
   currentRank: number;
   examConfig: ExamConfig;
-  safeRankZone: [number, number];   // predicted safe zone range
+  targetSafeZone: [number, number];  // exam cutoff-based target zone to pass
+  ranksToClimb: number;              // gap between current rank and safe cutoff
+  dailyRankTarget: number;           // ranks to improve per day to reach safe zone
   zoneLabel: string;
   passProbability: number;
   rankStatus: "topper" | "comfortable" | "safe" | "borderline" | "at_risk";
+  progressPercent: number;           // how close to safe zone (0-100)
   topicGaps: { name: string; strength: number; rankImpact: number }[];
   whatIf: {
     improvedRank: number;
@@ -194,6 +197,26 @@ function computeSafePass(
     Math.max(1, Math.min(99.9, (1 - currentRank / config.totalCandidates) * 100) * 10) / 10
   );
 
+  // Target safe rank zone = the exam's qualifying cutoff range (where you need to be)
+  // Lower bound = govt seat cutoff (comfortable), upper bound = qualifying cutoff (just pass)
+  const targetSafeZone: [number, number] = [
+    config.governmentSeatCutoff,
+    config.qualifyingCutoffRank,
+  ];
+
+  // Ranks to climb: how many ranks user needs to improve to enter safe zone
+  const ranksToClimb = Math.max(0, currentRank - config.qualifyingCutoffRank);
+
+  // Daily rank target: if exam is upcoming, how many ranks per day to reach safe zone
+  const effectiveDays = daysToExam != null && daysToExam > 0 ? daysToExam : 90;
+  const dailyRankTarget = ranksToClimb > 0 ? Math.ceil(ranksToClimb / effectiveDays) : 0;
+
+  // Progress: how close to safe zone (100% = at or above cutoff)
+  // Scale from 0 (at totalCandidates) to 100 (at qualifyingCutoffRank or better)
+  const progressPercent = currentRank <= config.qualifyingCutoffRank
+    ? 100
+    : Math.max(0, Math.round((1 - (currentRank - config.qualifyingCutoffRank) / (config.totalCandidates - config.qualifyingCutoffRank)) * 100));
+
   // Determine rank status & zone label
   let rankStatus: SafePassData["rankStatus"];
   let zoneLabel: string;
@@ -202,24 +225,17 @@ function computeSafePass(
     zoneLabel = "🏆 Topper Zone";
   } else if (currentRank <= config.governmentSeatCutoff) {
     rankStatus = "comfortable";
-    zoneLabel = "🎯 Comfortable Zone";
+    zoneLabel = "🎯 Comfortable — Govt. Seat Likely";
   } else if (currentRank <= config.qualifyingCutoffRank) {
     rankStatus = "safe";
-    zoneLabel = "✅ Safe to Pass";
+    zoneLabel = "✅ Safe to Pass " + config.label;
   } else if (currentRank <= config.qualifyingCutoffRank * 1.2) {
     rankStatus = "borderline";
-    zoneLabel = "⚡ Borderline — Push Harder";
+    zoneLabel = "⚡ Borderline — " + ranksToClimb.toLocaleString() + " ranks to go";
   } else {
     rankStatus = "at_risk";
-    zoneLabel = "🔴 At Risk — Needs Improvement";
+    zoneLabel = "🔴 " + ranksToClimb.toLocaleString() + " ranks away from Safe Zone";
   }
-
-  // Safe rank zone: confidence interval around current rank based on preparation variance
-  const avgStrength = allTopics.reduce((s, t) => s + t.memory_strength, 0) / allTopics.length;
-  const varianceFactor = Math.max(0.03, (100 - avgStrength) / 100 * 0.15);
-  const lowerBound = Math.max(1, Math.round(currentRank * (1 - varianceFactor)));
-  const upperBound = Math.round(currentRank * (1 + varianceFactor));
-  const safeRankZone: [number, number] = [lowerBound, upperBound];
 
   // Pass probability based on rank vs qualifying cutoff
   const rankRatio = currentRank / config.qualifyingCutoffRank;
@@ -279,10 +295,13 @@ function computeSafePass(
   return {
     currentRank,
     examConfig: config,
-    safeRankZone,
+    targetSafeZone,
+    ranksToClimb,
+    dailyRankTarget,
     zoneLabel,
     passProbability,
     rankStatus,
+    progressPercent,
     topicGaps,
     whatIf: {
       improvedRank,
@@ -427,17 +446,61 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                     {data.zoneLabel}
                   </motion.span>
 
-                  {/* Predicted Safe Rank Zone */}
-                  <div className="mt-4 rounded-xl p-3" style={{ background: "hsl(var(--secondary)/0.4)", border: "1px solid hsl(var(--border)/0.3)" }}>
-                    <p className="text-[9px] text-muted-foreground mb-1.5">Predicted Safe Rank Zone</p>
-                    <motion.p className="text-xl font-extrabold text-foreground tabular-nums"
+                  {/* Target Safe Rank Zone to Pass Exam */}
+                  <div className="mt-4 rounded-xl p-3" style={{ background: "linear-gradient(135deg, hsl(var(--success)/0.08), hsl(var(--secondary)/0.4))", border: "1px solid hsl(var(--success)/0.25)" }}>
+                    <p className="text-[9px] text-success font-semibold mb-1.5 flex items-center justify-center gap-1">
+                      <Target className="w-3 h-3" />
+                      🎯 Target Safe Rank Zone to Pass {data.examConfig.label}
+                    </p>
+                    <motion.p className="text-xl font-extrabold text-success tabular-nums"
                       initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
-                      #{data.safeRankZone[0].toLocaleString()} — #{data.safeRankZone[1].toLocaleString()}
+                      #{data.targetSafeZone[0].toLocaleString()} — #{data.targetSafeZone[1].toLocaleString()}
                     </motion.p>
                     <p className="text-[8px] text-muted-foreground mt-1">
-                      Based on your study variance • Top {data.percentileAmongCandidates}% of {data.examConfig.totalCandidates.toLocaleString()} candidates
+                      Reach this rank range to safely pass {data.examConfig.label}
                     </p>
                   </div>
+
+                  {/* Ranks to Climb — The Addiction Engine */}
+                  {data.ranksToClimb > 0 ? (
+                    <div className="mt-3 rounded-xl p-3 relative overflow-hidden" style={{ background: "hsl(var(--destructive)/0.06)", border: "1px solid hsl(var(--destructive)/0.2)" }}>
+                      <p className="text-[9px] text-destructive font-semibold mb-2 flex items-center justify-center gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        Ranks You Need to Climb
+                      </p>
+                      <motion.p className="text-2xl font-extrabold text-destructive tabular-nums"
+                        initial={{ scale: 0.7 }} animate={{ scale: 1 }} transition={{ delay: 0.55, type: "spring" }}>
+                        ↑ {data.ranksToClimb.toLocaleString()}
+                      </motion.p>
+                      {/* Progress bar toward safe zone */}
+                      <div className="mt-2 w-full h-2 rounded-full bg-border/40 overflow-hidden">
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: `linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))` }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${data.progressPercent}%` }}
+                          transition={{ duration: 1.5, ease: "easeOut", delay: 0.6 }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[7px] text-muted-foreground">{data.progressPercent}% toward Safe Zone</span>
+                        <span className="text-[7px] text-muted-foreground">#{data.targetSafeZone[1].toLocaleString()}</span>
+                      </div>
+                      {data.dailyRankTarget > 0 && (
+                        <motion.p className="text-[10px] text-warning font-semibold text-center mt-2"
+                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
+                          📅 Improve ~{data.dailyRankTarget.toLocaleString()} ranks/day
+                          {data.daysToExam != null && ` in ${data.daysToExam} days`} to enter Safe Zone
+                        </motion.p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-xl p-3" style={{ background: "hsl(var(--success)/0.08)", border: "1px solid hsl(var(--success)/0.2)" }}>
+                      <p className="text-[10px] text-success font-bold text-center">
+                        ✅ You're already in the Safe Zone! Keep it up!
+                      </p>
+                    </div>
+                  )}
 
                   {/* Pass probability gauge */}
                   <div className="flex items-center justify-center gap-4 mt-4">
