@@ -144,10 +144,20 @@ const TrialBanner = () => {
             {/* Progress bar with day markers */}
             {!isTrialExpired && (
               <div className="mt-1.5 relative">
-                {/* Day labels */}
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[7px] font-medium" style={{ color: `hsl(${SS.orange} / 0.5)` }}>Day {elapsed}</span>
-                  <span className="text-[7px] font-medium" style={{ color: `hsl(${SS.pink} / 0.4)` }}>Day {totalDays}</span>
+                {/* Live day count on progress bar */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1">
+                    <motion.div
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: `hsl(${isUrgent ? SS.red : SS.orange})` }}
+                      animate={{ opacity: [1, 0.3, 1], scale: [1, 0.8, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                    <span className="text-[8px] font-bold" style={{ color: `hsl(${isUrgent ? SS.red : SS.orange})` }}>
+                      {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} left
+                    </span>
+                  </div>
+                  <span className="text-[7px] font-medium text-muted-foreground">{elapsed}/{totalDays} days used</span>
                 </div>
                 {/* Track */}
                 <div className="relative">
