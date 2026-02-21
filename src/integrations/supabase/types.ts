@@ -496,6 +496,119 @@ export type Database = {
           },
         ]
       }
+      autopilot_config: {
+        Row: {
+          auto_emergency_enabled: boolean
+          auto_mock_optimization_enabled: boolean
+          auto_mode_switch_enabled: boolean
+          auto_schedule_enabled: boolean
+          auto_weekly_report_enabled: boolean
+          emergency_drop_threshold: number
+          emergency_min_memory_strength: number
+          id: string
+          intensity_level: string
+          is_enabled: boolean
+          max_daily_auto_sessions: number
+          report_channels: string[]
+          report_send_day: number
+          report_send_hour: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_emergency_enabled?: boolean
+          auto_mock_optimization_enabled?: boolean
+          auto_mode_switch_enabled?: boolean
+          auto_schedule_enabled?: boolean
+          auto_weekly_report_enabled?: boolean
+          emergency_drop_threshold?: number
+          emergency_min_memory_strength?: number
+          id?: string
+          intensity_level?: string
+          is_enabled?: boolean
+          max_daily_auto_sessions?: number
+          report_channels?: string[]
+          report_send_day?: number
+          report_send_hour?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_emergency_enabled?: boolean
+          auto_mock_optimization_enabled?: boolean
+          auto_mode_switch_enabled?: boolean
+          auto_schedule_enabled?: boolean
+          auto_weekly_report_enabled?: boolean
+          emergency_drop_threshold?: number
+          emergency_min_memory_strength?: number
+          id?: string
+          intensity_level?: string
+          is_enabled?: boolean
+          max_daily_auto_sessions?: number
+          report_channels?: string[]
+          report_send_day?: number
+          report_send_hour?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      autopilot_sessions: {
+        Row: {
+          completed_sessions: number
+          created_at: string
+          emergency_topic_id: string | null
+          emergency_triggered: boolean
+          id: string
+          mode_switches: Json | null
+          performance_summary: Json | null
+          planned_schedule: Json
+          session_date: string
+          status: string
+          total_sessions: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_sessions?: number
+          created_at?: string
+          emergency_topic_id?: string | null
+          emergency_triggered?: boolean
+          id?: string
+          mode_switches?: Json | null
+          performance_summary?: Json | null
+          planned_schedule?: Json
+          session_date?: string
+          status?: string
+          total_sessions?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_sessions?: number
+          created_at?: string
+          emergency_topic_id?: string | null
+          emergency_triggered?: boolean
+          id?: string
+          mode_switches?: Json | null
+          performance_summary?: Json | null
+          planned_schedule?: Json
+          session_date?: string
+          status?: string
+          total_sessions?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autopilot_sessions_emergency_topic_id_fkey"
+            columns: ["emergency_topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       behavioral_profiles: {
         Row: {
           best_send_day: number | null
@@ -5121,6 +5234,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_autopilot_preferences: {
+        Row: {
+          autopilot_enabled: boolean
+          created_at: string
+          id: string
+          max_sessions_per_day: number | null
+          preferred_intensity: string | null
+          quiet_hours_end: number | null
+          quiet_hours_start: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          autopilot_enabled?: boolean
+          created_at?: string
+          id?: string
+          max_sessions_per_day?: number | null
+          preferred_intensity?: string | null
+          quiet_hours_end?: number | null
+          quiet_hours_start?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          autopilot_enabled?: boolean
+          created_at?: string
+          id?: string
+          max_sessions_per_day?: number | null
+          preferred_intensity?: string | null
+          quiet_hours_end?: number | null
+          quiet_hours_start?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_chat_limits: {
         Row: {
