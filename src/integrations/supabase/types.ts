@@ -80,6 +80,39 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_recalibration_logs: {
+        Row: {
+          changes_summary: string | null
+          created_at: string
+          id: string
+          new_profile: Json | null
+          old_profile: Json | null
+          recalibration_type: string
+          triggered_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          changes_summary?: string | null
+          created_at?: string
+          id?: string
+          new_profile?: Json | null
+          old_profile?: Json | null
+          recalibration_type?: string
+          triggered_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          changes_summary?: string | null
+          created_at?: string
+          id?: string
+          new_profile?: Json | null
+          old_profile?: Json | null
+          recalibration_type?: string
+          triggered_by?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ai_recommendations: {
         Row: {
           completed: boolean
@@ -890,6 +923,57 @@ export type Database = {
         }
         Relationships: []
       }
+      cognitive_profiles: {
+        Row: {
+          accuracy_rate: number | null
+          avg_answer_speed_ms: number | null
+          conceptual_score: number | null
+          created_at: string
+          id: string
+          last_recalibrated_at: string | null
+          learning_style: string
+          learning_style_confidence: number | null
+          memorizer_score: number | null
+          speed_accuracy_tradeoff: string | null
+          speed_pattern: string | null
+          total_answers_analyzed: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accuracy_rate?: number | null
+          avg_answer_speed_ms?: number | null
+          conceptual_score?: number | null
+          created_at?: string
+          id?: string
+          last_recalibrated_at?: string | null
+          learning_style?: string
+          learning_style_confidence?: number | null
+          memorizer_score?: number | null
+          speed_accuracy_tradeoff?: string | null
+          speed_pattern?: string | null
+          total_answers_analyzed?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accuracy_rate?: number | null
+          avg_answer_speed_ms?: number | null
+          conceptual_score?: number | null
+          created_at?: string
+          id?: string
+          last_recalibrated_at?: string | null
+          learning_style?: string
+          learning_style_confidence?: number | null
+          memorizer_score?: number | null
+          speed_accuracy_tradeoff?: string | null
+          speed_pattern?: string | null
+          total_answers_analyzed?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cognitive_twins: {
         Row: {
           avg_decay_rate: number | null
@@ -1208,6 +1292,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      confidence_events: {
+        Row: {
+          boost_message: string | null
+          consecutive_wrong: number | null
+          created_at: string
+          event_type: string
+          id: string
+          rescue_mode_duration_seconds: number | null
+          topic_id: string | null
+          user_id: string
+        }
+        Insert: {
+          boost_message?: string | null
+          consecutive_wrong?: number | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          rescue_mode_duration_seconds?: number | null
+          topic_id?: string | null
+          user_id: string
+        }
+        Update: {
+          boost_message?: string | null
+          consecutive_wrong?: number | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          rescue_mode_duration_seconds?: number | null
+          topic_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       content_flags: {
         Row: {
@@ -1775,6 +1892,84 @@ export type Database = {
         }
         Relationships: []
       }
+      fatigue_config: {
+        Row: {
+          auto_language_suggestion: boolean | null
+          break_suggestion_cooldown_minutes: number | null
+          confidence_boost_enabled: boolean | null
+          delay_threshold_ms: number | null
+          id: string
+          mistake_cluster_threshold: number | null
+          rescue_mode_wrong_threshold: number | null
+          session_max_minutes: number | null
+          updated_at: string
+          updated_by: string | null
+          weekly_recalibration_enabled: boolean | null
+        }
+        Insert: {
+          auto_language_suggestion?: boolean | null
+          break_suggestion_cooldown_minutes?: number | null
+          confidence_boost_enabled?: boolean | null
+          delay_threshold_ms?: number | null
+          id?: string
+          mistake_cluster_threshold?: number | null
+          rescue_mode_wrong_threshold?: number | null
+          session_max_minutes?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          weekly_recalibration_enabled?: boolean | null
+        }
+        Update: {
+          auto_language_suggestion?: boolean | null
+          break_suggestion_cooldown_minutes?: number | null
+          confidence_boost_enabled?: boolean | null
+          delay_threshold_ms?: number | null
+          id?: string
+          mistake_cluster_threshold?: number | null
+          rescue_mode_wrong_threshold?: number | null
+          session_max_minutes?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          weekly_recalibration_enabled?: boolean | null
+        }
+        Relationships: []
+      }
+      fatigue_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          fatigue_score: number | null
+          id: string
+          mistake_cluster_count: number | null
+          response_delay_avg_ms: number | null
+          session_duration_minutes: number | null
+          trigger_reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type?: string
+          fatigue_score?: number | null
+          id?: string
+          mistake_cluster_count?: number | null
+          response_delay_avg_ms?: number | null
+          session_duration_minutes?: number | null
+          trigger_reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          fatigue_score?: number | null
+          id?: string
+          mistake_cluster_count?: number | null
+          response_delay_avg_ms?: number | null
+          session_duration_minutes?: number | null
+          trigger_reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       feature_flags: {
         Row: {
           enabled: boolean
@@ -2037,6 +2232,51 @@ export type Database = {
           personal_score?: number | null
           personal_weight?: number | null
           prediction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      language_performance: {
+        Row: {
+          accuracy_rate: number | null
+          avg_response_time_ms: number | null
+          correct_answers: number | null
+          created_at: string
+          id: string
+          improvement_pct: number | null
+          language: string
+          period_end: string | null
+          period_start: string | null
+          total_questions: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accuracy_rate?: number | null
+          avg_response_time_ms?: number | null
+          correct_answers?: number | null
+          created_at?: string
+          id?: string
+          improvement_pct?: number | null
+          language?: string
+          period_end?: string | null
+          period_start?: string | null
+          total_questions?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accuracy_rate?: number | null
+          avg_response_time_ms?: number | null
+          correct_answers?: number | null
+          created_at?: string
+          id?: string
+          improvement_pct?: number | null
+          language?: string
+          period_end?: string | null
+          period_start?: string | null
+          total_questions?: number | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
