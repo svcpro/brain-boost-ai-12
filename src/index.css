@@ -138,25 +138,43 @@
   .glow-primary {
     box-shadow: 0 0 20px hsl(187 100% 50% / 0.3), 0 0 60px hsl(187 100% 50% / 0.1);
   }
+  .light .glow-primary {
+    box-shadow: 0 0 12px hsl(187 100% 38% / 0.15), 0 0 30px hsl(187 100% 38% / 0.06);
+  }
 
   .glow-primary-strong {
     box-shadow: 0 0 30px hsl(187 100% 50% / 0.5), 0 0 80px hsl(187 100% 50% / 0.2);
+  }
+  .light .glow-primary-strong {
+    box-shadow: 0 0 16px hsl(187 100% 38% / 0.2), 0 0 40px hsl(187 100% 38% / 0.08);
   }
 
   .glow-accent {
     box-shadow: 0 0 20px hsl(262 100% 65% / 0.3), 0 0 60px hsl(262 100% 65% / 0.1);
   }
+  .light .glow-accent {
+    box-shadow: 0 0 12px hsl(262 100% 55% / 0.15), 0 0 30px hsl(262 100% 55% / 0.06);
+  }
 
   .glow-success {
     box-shadow: 0 0 20px hsl(155 100% 50% / 0.3), 0 0 60px hsl(155 100% 50% / 0.1);
+  }
+  .light .glow-success {
+    box-shadow: 0 0 12px hsl(155 100% 40% / 0.15), 0 0 30px hsl(155 100% 40% / 0.06);
   }
 
   .text-glow {
     text-shadow: 0 0 20px hsl(187 100% 50% / 0.5), 0 0 40px hsl(187 100% 50% / 0.2);
   }
+  .light .text-glow {
+    text-shadow: none;
+  }
 
   .text-glow-accent {
     text-shadow: 0 0 20px hsl(262 100% 65% / 0.5), 0 0 40px hsl(262 100% 65% / 0.2);
+  }
+  .light .text-glow-accent {
+    text-shadow: none;
   }
 
   .glass {
@@ -165,22 +183,46 @@
     border: 1px solid hsl(var(--border) / 0.5);
   }
 
+  .light .glass {
+    background: hsl(var(--surface-glass) / 0.85);
+    border: 1px solid hsl(var(--border) / 0.6);
+    box-shadow: 0 1px 3px hsl(0 0% 0% / 0.06);
+  }
+
   .glass-strong {
     background: hsl(var(--surface-glass) / 0.8);
     backdrop-filter: blur(30px);
     border: 1px solid hsl(var(--border) / 0.6);
   }
 
+  .light .glass-strong {
+    background: hsl(var(--surface-glass) / 0.95);
+    border: 1px solid hsl(var(--border) / 0.7);
+    box-shadow: 0 1px 4px hsl(0 0% 0% / 0.08);
+  }
+
   .neural-gradient {
     background: linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--neural-dim) / 0.05));
+  }
+  .light .neural-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--neural-dim) / 0.03));
   }
 
   .neural-border {
     border: 1px solid hsl(187 100% 50% / 0.2);
   }
+  .light .neural-border {
+    border: 1px solid hsl(187 100% 38% / 0.25);
+  }
 
   .gradient-text {
     background: linear-gradient(135deg, hsl(187 100% 60%), hsl(262 100% 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .light .gradient-text {
+    background: linear-gradient(135deg, hsl(187 100% 32%), hsl(262 100% 50%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -192,10 +234,20 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+  .light .gradient-text-cyan {
+    background: linear-gradient(135deg, hsl(187 100% 35%), hsl(187 100% 28%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 
   .gradient-bg-hero {
     background: radial-gradient(ellipse 80% 60% at 50% 40%, hsl(187 100% 50% / 0.08), transparent 60%),
                 radial-gradient(ellipse 60% 40% at 80% 60%, hsl(262 100% 65% / 0.06), transparent 50%);
+  }
+  .light .gradient-bg-hero {
+    background: radial-gradient(ellipse 80% 60% at 50% 40%, hsl(187 100% 38% / 0.06), transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 60%, hsl(262 100% 55% / 0.04), transparent 50%);
   }
 
   /* Custom range slider – glassmorphism theme */
@@ -303,6 +355,10 @@
 /* ═══ Premium App Device Frame ═══ */
 .app-shell-bg {
   background: radial-gradient(ellipse 80% 50% at 50% 20%, hsl(228 50% 5%), hsl(228 50% 3%));
+}
+
+.light .app-shell-bg {
+  background: radial-gradient(ellipse 80% 50% at 50% 20%, hsl(210 20% 95%), hsl(210 20% 92%));
 }
 
 .app-device-frame {
