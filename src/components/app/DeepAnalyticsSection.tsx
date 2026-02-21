@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain, TrendingDown, BarChart3, Sparkles, GraduationCap, Users,
   ChevronDown, Shield, Clock, Activity, Target, Zap, AlertTriangle,
+  Trophy, TrendingUp, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +37,19 @@ interface ExamReadiness {
   recommendation: string;
 }
 
+interface SafePassPrediction {
+  safeRankLow: number;
+  safeRankHigh: number;
+  passProbability: number;
+  topicGaps: { name: string; strength: number; impact: number }[];
+  whatIf: {
+    improvedProbability: number;
+    improvedRankLow: number;
+    improvedRankHigh: number;
+    minutesNeeded: number;
+  };
+}
+
 const CACHE_KEY = "deep-analytics-v1";
 
 const DeepAnalyticsSection: React.FC<DeepAnalyticsSectionProps> = ({
@@ -46,6 +60,7 @@ const DeepAnalyticsSection: React.FC<DeepAnalyticsSectionProps> = ({
   const [studyPatterns, setStudyPatterns] = useState<StudyPatternData | null>(() => getCache<StudyPatternData>(`${CACHE_KEY}-patterns`));
   const [examReadiness, setExamReadiness] = useState<ExamReadiness | null>(() => getCache<ExamReadiness>(`${CACHE_KEY}-exam`));
   const [aiInsights, setAiInsights] = useState<string[]>(() => getCache<string[]>(`${CACHE_KEY}-insights`) || []);
+  const [safePass, setSafePass] = useState<SafePassPrediction | null>(() => getCache<SafePassPrediction>(`${CACHE_KEY}-safepass`));
   const [loaded, setLoaded] = useState(false);
   const topicsKey = allTopics.map(t => `${t.id}:${t.memory_strength}`).join(",");
 
@@ -120,6 +135,68 @@ const DeepAnalyticsSection: React.FC<DeepAnalyticsSectionProps> = ({
       const exam: ExamReadiness = { score: readinessScore, strongTopics: strong, weakTopics: weak, daysLeft, recommendation: rec };
       setExamReadiness(exam);
       setCache(`${CACHE_KEY}-exam`, exam);
+
+      // Safe Pass Rank Prediction
+      if (allTopics.length > 0) {
+        const avgStrength = allTopics.reduce((s, t) => s + t.memory_strength, 0) / allTopics.length;
+        const coverage = allTopics.length; // total topics studied
+        const strongCount = allTopics.filter(t => t.memory_strength >= 70).length;
+        const weakCount = allTopics.filter(t => t.memory_strength < 40).length;
+        const coverageRatio = strongCount / Math.max(allTopics.length, 1);
+
+        // Multi-factor score (0-100) — maps to rank position
+        const factorScore = (
+          avgStrength * 0.30 +
+          coverageRatio * 100 * 0.25 +
+          Math.min(streakDays, 30) / 30 * 100 * 0.15 +
+          overallHealth * 0.15 +
+          readinessScore * 0.15
+        );
+
+        // Map factor score to rank range (assuming ~10,000 candidates)
+        const totalCandidates = 10000;
+        // Higher factor = lower (better) rank
+        const centerRank = Math.round(totalCandidates * (1 - factorScore / 100));
+        const spread = Math.round(totalCandidates * 0.05); // ±5% spread
+        const safeRankLow = Math.max(1, centerRank - spread);
+        const safeRankHigh = Math.min(totalCandidates, centerRank + spread);
+
+        // Pass probability: capped 55-85%
+        const rawProb = Math.min(85, Math.max(55, factorScore * 0.9 + 10));
+        const passProbability = Math.round(rawProb);
+
+        // Topic gaps: weakest topics sorted by potential impact
+        const topicGaps = [...allTopics]
+          .filter(t => t.memory_strength < 60)
+          .sort((a, b) => a.memory_strength - b.memory_strength)
+          .slice(0, 5)
+          .map(t => ({
+            name: t.name,
+            strength: Math.round(t.memory_strength),
+            impact: Math.round((60 - t.memory_strength) * 0.4), // potential % improvement
+          }));
+
+        // What-if: if user fixes top 3 weak topics
+        const potentialGain = topicGaps.slice(0, 3).reduce((s, g) => s + g.impact, 0);
+        const improvedScore = Math.min(100, factorScore + potentialGain);
+        const improvedCenter = Math.round(totalCandidates * (1 - improvedScore / 100));
+        const improvedProb = Math.min(85, Math.max(55, improvedScore * 0.9 + 10));
+
+        const prediction: SafePassPrediction = {
+          safeRankLow,
+          safeRankHigh,
+          passProbability,
+          topicGaps,
+          whatIf: {
+            improvedProbability: Math.round(improvedProb),
+            improvedRankLow: Math.max(1, improvedCenter - spread),
+            improvedRankHigh: Math.min(totalCandidates, improvedCenter + spread),
+            minutesNeeded: topicGaps.slice(0, 3).length * 15,
+          },
+        };
+        setSafePass(prediction);
+        setCache(`${CACHE_KEY}-safepass`, prediction);
+      }
 
       // AI Behavioral Insights (generated locally from data)
       const insights: string[] = [];
@@ -439,7 +516,126 @@ const DeepAnalyticsSection: React.FC<DeepAnalyticsSectionProps> = ({
                   )}
                 </div>
 
-                {/* 6. Comparative Stats (Optional) */}
+                {/* 6. Safe Pass Rank Prediction */}
+                <div className={cardClass}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Trophy className="w-4 h-4 text-primary" />
+                    <h3 className="text-xs font-semibold text-foreground">Safe Pass Prediction</h3>
+                    <span className="ml-auto text-[9px] text-muted-foreground/60 italic">AI predicted</span>
+                  </div>
+
+                  {!safePass || allTopics.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground text-center py-3">
+                      {allTopics.length === 0 ? "Add topics to see prediction" : loaded ? "Calculating…" : "Loading…"}
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Rank Range + Probability */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 rounded-xl bg-primary/10 border border-primary/20 p-3 text-center">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">Safe Rank Zone</p>
+                          <p className="text-lg font-bold text-primary tabular-nums">
+                            {safePass.safeRankLow.toLocaleString()} – {safePass.safeRankHigh.toLocaleString()}
+                          </p>
+                          <p className="text-[8px] text-muted-foreground">out of ~10,000</p>
+                        </div>
+                        <div className="shrink-0 text-center">
+                          <div className="relative w-14 h-14">
+                            <svg viewBox="0 0 60 60" className="w-full h-full -rotate-90">
+                              <circle cx="30" cy="30" r="24" fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
+                              <motion.circle
+                                cx="30" cy="30" r="24" fill="none"
+                                stroke={safePass.passProbability >= 75 ? "hsl(var(--success))" : safePass.passProbability >= 65 ? "hsl(var(--warning))" : "hsl(var(--destructive))"}
+                                strokeWidth="5"
+                                strokeLinecap="round"
+                                strokeDasharray={2 * Math.PI * 24}
+                                initial={{ strokeDashoffset: 2 * Math.PI * 24 }}
+                                animate={{ strokeDashoffset: 2 * Math.PI * 24 * (1 - safePass.passProbability / 100) }}
+                                transition={{ duration: 1, ease: "easeOut" }}
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-xs font-bold text-foreground tabular-nums">{safePass.passProbability}%</span>
+                            </div>
+                          </div>
+                          <p className="text-[8px] text-muted-foreground mt-0.5">Pass Chance</p>
+                        </div>
+                      </div>
+
+                      {/* Topic Gaps */}
+                      {safePass.topicGaps.length > 0 && (
+                        <div>
+                          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-warning" />
+                            Topic Gaps Holding You Back
+                          </p>
+                          <div className="space-y-1">
+                            {safePass.topicGaps.map((gap, i) => (
+                              <motion.div
+                                key={i}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                                className="flex items-center gap-2 rounded-lg bg-secondary/30 px-2 py-1.5"
+                              >
+                                <div className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
+                                <span className="text-[10px] text-foreground truncate flex-1">{gap.name}</span>
+                                <span className="text-[9px] text-destructive tabular-nums font-medium">{gap.strength}%</span>
+                                <span className="text-[8px] text-success">+{gap.impact}%</span>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* What-If Simulation */}
+                      {safePass.topicGaps.length > 0 && (
+                        <div className="rounded-xl border border-success/30 bg-success/5 p-3">
+                          <p className="text-[9px] font-semibold text-success flex items-center gap-1 mb-2">
+                            <Zap className="w-3 h-3" />
+                            What If You Fix Top 3 Weak Topics?
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-[9px] text-muted-foreground line-through tabular-nums">{safePass.passProbability}%</span>
+                                <ArrowUpRight className="w-3 h-3 text-success" />
+                                <span className="text-sm font-bold text-success tabular-nums">{safePass.whatIf.improvedProbability}%</span>
+                              </div>
+                              <p className="text-[8px] text-muted-foreground">Pass Chance</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <ArrowUpRight className="w-3 h-3 text-success" />
+                                <span className="text-xs font-bold text-success tabular-nums">
+                                  {safePass.whatIf.improvedRankLow.toLocaleString()}-{safePass.whatIf.improvedRankHigh.toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="text-[8px] text-muted-foreground">New Rank Zone</p>
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-muted-foreground text-center mt-2">
+                            ⏱️ ~{safePass.whatIf.minutesNeeded} min of focused study needed
+                          </p>
+                        </div>
+                      )}
+
+                      {safePass.topicGaps.length === 0 && (
+                        <div className="rounded-xl bg-success/10 p-3 text-center">
+                          <Shield className="w-5 h-5 text-success mx-auto mb-1" />
+                          <p className="text-[10px] text-success font-medium">All topics above pass threshold!</p>
+                          <p className="text-[9px] text-muted-foreground">Maintain your study consistency to stay safe.</p>
+                        </div>
+                      )}
+
+                      <p className="text-[7px] text-muted-foreground/50 text-center italic">
+                        Prediction based on memory strength, coverage, consistency & brain health
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 7. Comparative Stats (Optional) */}
                 <div className={cardClass}>
                   <div className="flex items-center gap-2 mb-3">
                     <Users className="w-4 h-4 text-muted-foreground" />
