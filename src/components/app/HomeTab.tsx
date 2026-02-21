@@ -51,6 +51,7 @@ const DeepAnalyticsSection = lazy(() => import("./DeepAnalyticsSection"));
 const BrainMissionsCard = lazy(() => import("./BrainMissionsCard"));
 const CognitiveEmbeddingCard = lazy(() => import("./CognitiveEmbeddingCard"));
 const RLPolicyCard = lazy(() => import("./RLPolicyCard"));
+const AutoStudySummaryCard = lazy(() => import("./AutoStudySummaryCard"));
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -659,6 +660,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         <SectionErrorBoundary name="analytics-widgets">
           <div className="space-y-3">
             {/* AIRiskReductionEngine hidden — functionality consolidated into MomentumSection */}
+            <AutoStudySummaryCard onRefresh={() => handleRefresh()} />
             {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
             {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
             {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
