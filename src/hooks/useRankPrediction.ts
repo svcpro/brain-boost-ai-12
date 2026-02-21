@@ -10,6 +10,11 @@ export interface RankFactors {
   composite_score: number;
   topic_count: number;
   strong_topics: number;
+  consistency_score?: number;
+  recency_score?: number;
+  decay_velocity_score?: number;
+  confidence_score?: number;
+  exam_pressure_score?: number;
 }
 
 export interface WeeklyDay {
@@ -21,6 +26,7 @@ export interface RankPredictionData {
   predicted_rank: number | null;
   percentile: number | null;
   rank_change: number;
+  trend: "rising" | "falling" | "stable" | "neutral";
   factors: RankFactors;
   history: { rank: number; date: string }[];
   weekly_data: WeeklyDay[];
