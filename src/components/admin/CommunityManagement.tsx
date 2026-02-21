@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Users, MessageSquare, BarChart3, MessageCircle, Shield, AlertTriangle, Settings,
-  Activity, FileText, TrendingUp, Lock
+  Activity, FileText, TrendingUp, Lock, Brain
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import CommunityOverviewDashboard from "./community/CommunityOverviewDashboard";
@@ -14,12 +14,14 @@ import ModerationRulesPanel from "./community/ModerationRulesPanel";
 import CommunityAnalytics from "./community/CommunityAnalytics";
 import ModerationAuditLog from "./community/ModerationAuditLog";
 import ModerationActivityStream from "./community/ModerationActivityStream";
+import StudyPodManagement from "./community/StudyPodManagement";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "communities", label: "Communities", icon: Users },
   { id: "posts", label: "Posts", icon: MessageSquare },
   { id: "comments", label: "Comments", icon: MessageCircle },
+  { id: "pods", label: "Study Pods", icon: Brain },
   { id: "abuse", label: "AI Abuse Detection", icon: AlertTriangle },
   { id: "moderation", label: "User Moderation", icon: Shield },
   { id: "rules", label: "Moderation Rules", icon: Settings },
@@ -39,6 +41,7 @@ const CommunityManagement = () => {
     communities: "community.manage",
     posts: "community.moderate",
     comments: "community.moderate",
+    pods: "community.manage",
     abuse: "community.view_flags",
     moderation: "community.ban_users",
     rules: "community.manage_rules",
@@ -83,6 +86,7 @@ const CommunityManagement = () => {
           {tab === "communities" && <CommunityListManager />}
           {tab === "posts" && <PostManager />}
           {tab === "comments" && <CommentManager />}
+          {tab === "pods" && <StudyPodManagement />}
           {tab === "abuse" && <AbuseDetectionPanel />}
           {tab === "moderation" && <UserModerationPanel />}
           {tab === "rules" && <ModerationRulesPanel />}

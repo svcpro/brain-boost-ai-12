@@ -206,3 +206,6 @@ verify_jwt = false
 
 [functions.competitive-intelligence]
 verify_jwt = false
+
+[functions.study-pods]
+verify_jwt = false

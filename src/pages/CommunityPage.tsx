@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import CommunityDetailPage from "@/pages/CommunityDetailPage";
+import StudyPodsSection from "@/components/app/StudyPodsSection";
 import {
   Users, Plus, Search, BookOpen, ArrowLeft, Loader2,
   GraduationCap, Atom, Globe2, MessageSquare, TrendingUp,
@@ -37,7 +38,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
-  const [activeView, setActiveView] = useState<"feed" | "communities" | "recommended" | "important" | "saved">("feed");
+  const [activeView, setActiveView] = useState<"feed" | "pods" | "communities" | "recommended" | "important" | "saved">("feed");
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [importantPosts, setImportantPosts] = useState<any[]>([]);
   const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
@@ -207,6 +208,7 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
 
   const views = [
     { id: "feed" as const, label: "Feed", icon: Flame, glow: true },
+    { id: "pods" as const, label: "Pods", icon: Users, ai: true },
     { id: "communities" as const, label: "Explore", icon: Compass },
     { id: "recommended" as const, label: "For You", icon: Brain, ai: true },
     { id: "important" as const, label: "Top", icon: Crown },
@@ -381,6 +383,9 @@ const CommunityPage = ({ inline = false }: { inline?: boolean }) => {
             }
           </>
         )}
+
+        {/* PODS VIEW */}
+        {activeView === "pods" && <StudyPodsSection />}
 
         {/* COMMUNITIES VIEW */}
         {activeView === "communities" && (
