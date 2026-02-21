@@ -121,7 +121,8 @@ const ConfidencePracticeTab = () => {
     if (questions.length > 0 && (section === "bank_setup" || section === "predicted_setup")) {
       startPractice(source, mode);
     }
-  }, [questions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions, section]);
 
   // Exam mode timer
   useEffect(() => {
@@ -183,8 +184,9 @@ const ConfidencePracticeTab = () => {
     fetchStats();
   };
 
-  const loadBankQuestions = async () => {
-    await fetchBankQuestions({
+  const loadBankQuestions = async (): Promise<number> => {
+    setQuestions([]);
+    return await fetchBankQuestions({
       exam_type: selExam || undefined,
       subject: selSubject || undefined,
       year: selYear ? Number(selYear) : undefined,
@@ -194,12 +196,18 @@ const ConfidencePracticeTab = () => {
   };
 
   const loadPredictedQuestions = async () => {
+    setQuestions([]);
     await generatePredicted({
       exam_type: selExam || undefined,
       subject: selSubject || undefined,
       count: selCount,
     });
   };
+
+  // Show message when no questions found after fetch
+  const [noQuestionsFound, setNoQuestionsFound] = useState(false);
+  // Reset when navigating sections
+  useEffect(() => { setNoQuestionsFound(false); }, [section]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
@@ -681,17 +689,40 @@ const ConfidencePracticeTab = () => {
             </div>
           </motion.div>
         ) : (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={async () => {
-              if (isPredicted) await loadPredictedQuestions();
-              else await loadBankQuestions();
-            }}
-            className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            Start Practice
-          </motion.button>
+          <div className="space-y-3">
+            {noQuestionsFound && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl p-3 text-center"
+                style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.2)" }}
+              >
+                <p className="text-xs text-destructive font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 inline mr-1" />
+                  No questions found for the selected filters. Try changing your filters or populate the question bank first.
+                </p>
+              </motion.div>
+            )}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={async () => {
+                setNoQuestionsFound(false);
+                if (isPredicted) {
+                  await loadPredictedQuestions();
+                } else {
+                  const count = await loadBankQuestions();
+                  if (count === 0) {
+                    setNoQuestionsFound(true);
+                    return;
+                  }
+                }
+              }}
+              className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Start Practice
+            </motion.button>
+          </div>
         )}
       </div>
     );
