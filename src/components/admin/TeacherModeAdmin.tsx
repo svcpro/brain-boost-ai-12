@@ -1,15 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   GraduationCap, BookOpen, Users, BarChart3, Loader2, Brain, FileText,
   Sparkles, Target, TrendingUp, Zap, AlertTriangle, CheckCircle2,
   Clock, Award, Activity, Flame, Eye, Send, Plus, RefreshCw,
-  PieChart, ArrowUpRight, ArrowDownRight, Shield, Star, Layers
+  PieChart, ArrowUpRight, ArrowDownRight, Shield, Star, Layers,
+  X, ChevronLeft, ChevronRight, Check, Hash, Lightbulb, Play
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AIProgressBar from "@/components/app/AIProgressBar";
+import ReactMarkdown from "react-markdown";
 
 // ─── Types ───
 interface PracticeSet {
@@ -138,6 +140,247 @@ const ScoreRing = ({ score, size = 40 }: { score: number; size?: number }) => {
   );
 };
 
+// ─── Question Preview Modal ───
+const QuestionPreviewModal = ({ set, onClose }: { set: PracticeSet; onClose: () => void }) => {
+  const questions: any[] = Array.isArray(set.questions) ? set.questions : [];
+  const [currentQ, setCurrentQ] = useState(0);
+  const [studentMode, setStudentMode] = useState(false);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
+  const [timer, setTimer] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
+
+  useEffect(() => {
+    let interval: any;
+    if (timerRunning) interval = setInterval(() => setTimer(t => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [timerRunning]);
+
+  const q = questions[currentQ];
+  const options = q?.options || q?.choices || [];
+  const correctIndex = typeof q?.correct_answer === "number" ? q.correct_answer 
+    : typeof q?.answer === "number" ? q.answer 
+    : options.findIndex((o: any) => o.is_correct || o.correct);
+  const hasAnswered = selectedAnswers[currentQ] !== undefined;
+  const isCorrect = hasAnswered && selectedAnswers[currentQ] === correctIndex;
+
+  const handleSelect = (idx: number) => {
+    if (!studentMode || hasAnswered) return;
+    setSelectedAnswers(prev => ({ ...prev, [currentQ]: idx }));
+    setShowExplanation(prev => ({ ...prev, [currentQ]: true }));
+  };
+
+  const totalAnswered = Object.keys(selectedAnswers).length;
+  const totalCorrect = Object.entries(selectedAnswers).filter(([qi, ai]) => {
+    const quest = questions[Number(qi)];
+    const opts = quest?.options || quest?.choices || [];
+    const ci = typeof quest?.correct_answer === "number" ? quest.correct_answer 
+      : typeof quest?.answer === "number" ? quest.answer 
+      : opts.findIndex((o: any) => o.is_correct || o.correct);
+    return ai === ci;
+  }).length;
+
+  const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+
+  if (questions.length === 0) {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+          className="bg-card border border-border/40 rounded-2xl p-8 text-center max-w-sm w-full" onClick={e => e.stopPropagation()}>
+          <FileText className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
+          <h3 className="text-sm font-bold text-foreground mb-1">No Questions Found</h3>
+          <p className="text-xs text-muted-foreground mb-4">This practice set has no questions data stored.</p>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl bg-primary/15 text-primary text-xs font-bold">Close</button>
+        </motion.div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-3" onClick={onClose}>
+      <motion.div initial={{ scale: 0.92, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 30 }}
+        className="bg-card/95 border border-border/40 rounded-2xl backdrop-blur-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border/30 bg-gradient-to-r from-primary/5 to-accent/5 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+              {set.ai_generated ? <Brain className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-primary" />}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground truncate max-w-[200px]">{set.title}</h3>
+              <p className="text-[10px] text-muted-foreground">{set.subject} • {questions.length} questions • {set.difficulty}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Student mode toggle */}
+            <button onClick={() => { setStudentMode(!studentMode); if (!studentMode) { setTimerRunning(true); } else { setTimerRunning(false); setTimer(0); setSelectedAnswers({}); setShowExplanation({}); } }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                studentMode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "bg-secondary/50 text-muted-foreground hover:text-foreground"
+              }`}>
+              <Play className="w-3 h-3" />
+              {studentMode ? "Exit Student View" : "Student View"}
+            </button>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Student mode stats bar */}
+        {studentMode && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+            className="flex items-center justify-between px-5 py-2 border-b border-border/20 bg-secondary/20 text-[10px] font-bold shrink-0">
+            <div className="flex items-center gap-4">
+              <span className="text-muted-foreground">⏱ {formatTime(timer)}</span>
+              <span className="text-muted-foreground">Answered: <span className="text-foreground">{totalAnswered}/{questions.length}</span></span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-emerald-400">✓ {totalCorrect}</span>
+              <span className="text-rose-400">✗ {totalAnswered - totalCorrect}</span>
+              {totalAnswered > 0 && (
+                <span className="text-primary">{Math.round(totalCorrect / totalAnswered * 100)}%</span>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Question navigator dots */}
+        <div className="flex items-center gap-1 px-5 py-2 border-b border-border/20 overflow-x-auto shrink-0">
+          {questions.map((_, i) => {
+            const answered = selectedAnswers[i] !== undefined;
+            const correct = answered && (() => {
+              const quest = questions[i];
+              const opts = quest?.options || quest?.choices || [];
+              const ci = typeof quest?.correct_answer === "number" ? quest.correct_answer
+                : typeof quest?.answer === "number" ? quest.answer
+                : opts.findIndex((o: any) => o.is_correct || o.correct);
+              return selectedAnswers[i] === ci;
+            })();
+            return (
+              <button key={i} onClick={() => setCurrentQ(i)}
+                className={`w-6 h-6 rounded-md text-[9px] font-bold transition-all shrink-0 ${
+                  i === currentQ ? "bg-primary text-primary-foreground scale-110 shadow-md" 
+                  : answered && studentMode ? (correct ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/20 text-rose-400 border border-rose-500/30")
+                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary/70"
+                }`}>
+                {i + 1}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Question content */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <AnimatePresence mode="wait">
+            <motion.div key={currentQ}
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}>
+
+              {/* Question number & text */}
+              <div className="flex items-start gap-3 mb-4">
+                <span className="shrink-0 w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-xs font-black text-primary">
+                  {currentQ + 1}
+                </span>
+                <div className="flex-1">
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
+                    <ReactMarkdown>{q?.question || q?.text || q?.title || "No question text"}</ReactMarkdown>
+                  </div>
+                  {q?.difficulty && (
+                    <span className={`inline-block mt-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                      q.difficulty === "hard" ? "bg-rose-500/15 text-rose-400" 
+                      : q.difficulty === "medium" ? "bg-amber-500/15 text-amber-400" 
+                      : "bg-emerald-500/15 text-emerald-400"
+                    }`}>
+                      {q.difficulty}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Options */}
+              <div className="space-y-2 ml-11">
+                {options.map((opt: any, oi: number) => {
+                  const optText = typeof opt === "string" ? opt : opt.text || opt.label || opt.option || String(opt);
+                  const isSelected = selectedAnswers[currentQ] === oi;
+                  const isCorrectOpt = oi === correctIndex;
+                  const revealed = !studentMode || hasAnswered;
+                  
+                  return (
+                    <motion.button key={oi}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: oi * 0.05 }}
+                      onClick={() => handleSelect(oi)}
+                      disabled={!studentMode || hasAnswered}
+                      className={`w-full text-left rounded-xl border p-3 transition-all duration-300 ${
+                        revealed && isCorrectOpt
+                          ? "border-emerald-500/40 bg-emerald-500/10"
+                          : isSelected && !isCorrect
+                          ? "border-rose-500/40 bg-rose-500/10"
+                          : isSelected
+                          ? "border-primary/40 bg-primary/10"
+                          : "border-border/30 bg-secondary/20 hover:border-primary/20 hover:bg-secondary/40"
+                      } ${studentMode && !hasAnswered ? "cursor-pointer" : ""}`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <span className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold ${
+                          revealed && isCorrectOpt ? "bg-emerald-500/20 text-emerald-400" 
+                          : isSelected && !isCorrect ? "bg-rose-500/20 text-rose-400"
+                          : "bg-secondary/50 text-muted-foreground"
+                        }`}>
+                          {revealed && isCorrectOpt ? <Check className="w-3 h-3" /> 
+                            : isSelected && !isCorrect ? <X className="w-3 h-3" /> 
+                            : String.fromCharCode(65 + oi)}
+                        </span>
+                        <span className="text-xs text-foreground flex-1">
+                          <ReactMarkdown>{optText}</ReactMarkdown>
+                        </span>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+
+              {/* Explanation */}
+              {((!studentMode || showExplanation[currentQ]) && (q?.explanation || q?.hint)) && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                  className="ml-11 mt-4 rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Explanation</span>
+                  </div>
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-muted-foreground">
+                    <ReactMarkdown>{q.explanation || q.hint}</ReactMarkdown>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Footer navigation */}
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border/30 bg-secondary/10 shrink-0">
+          <button onClick={() => setCurrentQ(Math.max(0, currentQ - 1))} disabled={currentQ === 0}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-secondary/50 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-30 transition-all">
+            <ChevronLeft className="w-3.5 h-3.5" /> Previous
+          </button>
+          <span className="text-[10px] font-bold text-muted-foreground">
+            {currentQ + 1} / {questions.length}
+          </span>
+          <button onClick={() => setCurrentQ(Math.min(questions.length - 1, currentQ + 1))} disabled={currentQ === questions.length - 1}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/15 text-xs font-bold text-primary hover:bg-primary/25 disabled:opacity-30 transition-all">
+            Next <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 // ─── Generate Form ───
 const GenerateForm = ({ onGenerate, generating }: { onGenerate: (data: any) => void; generating: boolean }) => {
   const [subject, setSubject] = useState("");
@@ -235,6 +478,8 @@ export default function TeacherModeAdmin() {
   const [perfLoading, setPerfLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
+
+  const [previewSet, setPreviewSet] = useState<PracticeSet | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -459,6 +704,11 @@ export default function TeacherModeAdmin() {
                           <span className="text-lg font-black text-foreground">{set.completion_count || 0}</span>
                           <p className="text-[9px] text-muted-foreground">done</p>
                         </div>
+                        <button onClick={() => setPreviewSet(set)}
+                          className="p-2 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Preview Questions">
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                         {set.status === "draft" && (
                           <button onClick={() => handlePublish(set.id)}
                             className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors opacity-0 group-hover:opacity-100">
@@ -616,6 +866,11 @@ export default function TeacherModeAdmin() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Preview Modal */}
+      <AnimatePresence>
+        {previewSet && <QuestionPreviewModal set={previewSet} onClose={() => setPreviewSet(null)} />}
+      </AnimatePresence>
     </div>
   );
 }
