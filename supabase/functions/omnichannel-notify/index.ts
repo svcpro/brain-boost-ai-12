@@ -340,10 +340,11 @@ async function sendEmail(
 async function sendVoice(
   url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
 ) {
+  const voiceText = `${title}. ${body}`.trim();
   const res = await fetch(`${url}/functions/v1/voice-automation-engine`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "send_direct", user_id: userId, title, body, data }),
+    body: JSON.stringify({ action: "send_direct", user_id: userId, voice_text: voiceText, title, body, data }),
   });
   const result = await res.json();
   return { success: result.success || (result.queued || 0) > 0, retryCount: 0, error: result.error };
