@@ -56,22 +56,27 @@ const ProgressArc = ({
 };
 
 // ─── Mini Bar Chart ───
+const MAX_BAR_PX = 40;
+
 const MiniMomentumGraph = ({ data }: { data: { day: string; value: number }[] }) => {
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
-    <div className="flex items-end gap-1.5 h-12">
-      {data.map((d, i) => (
-        <div key={d.day} className="flex flex-col items-center gap-1 flex-1">
-          <motion.div
-            className="w-full rounded-sm bg-primary/80"
-            style={{ minWidth: 6 }}
-            initial={{ height: 0 }}
-            animate={{ height: `${Math.max((d.value / max) * 100, 8)}%` }}
-            transition={{ duration: 0.6, delay: 0.05 * i, ease: "easeOut" }}
-          />
-          <span className="text-[8px] text-muted-foreground leading-none">{d.day}</span>
-        </div>
-      ))}
+    <div className="flex items-end gap-1.5" style={{ height: MAX_BAR_PX + 16 }}>
+      {data.map((d, i) => {
+        const barH = Math.max((d.value / max) * MAX_BAR_PX, 4);
+        return (
+          <div key={d.day} className="flex flex-col items-center gap-1 flex-1">
+            <motion.div
+              className="w-full rounded-sm bg-primary/80"
+              style={{ minWidth: 6 }}
+              initial={{ height: 0 }}
+              animate={{ height: barH }}
+              transition={{ duration: 0.6, delay: 0.05 * i, ease: "easeOut" }}
+            />
+            <span className="text-[8px] text-muted-foreground leading-none">{d.day}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };
