@@ -203,3 +203,6 @@ verify_jwt = false
 
 [functions.cognitive-profile-engine]
 verify_jwt = false
+
+[functions.competitive-intelligence]
+verify_jwt = false

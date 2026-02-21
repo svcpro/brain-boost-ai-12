@@ -31,6 +31,7 @@ const TermsPage = lazy(() => import("./pages/TermsPage"));
 const RefundPolicyPage = lazy(() => import("./pages/RefundPolicyPage"));
 const CookiePolicyPage = lazy(() => import("./pages/CookiePolicyPage"));
 const ComingSoonPage = lazy(() => import("./pages/ComingSoonPage"));
+const AcceleratorPage = lazy(() => import("./pages/AcceleratorPage"));
 
 // Lazy load heavy components
 const PWAInstallBanner = lazy(() => import("@/components/app/PWAInstallBanner"));
@@ -105,6 +106,11 @@ const App = () => (
               <Route path="/community/:slug" element={
                 <ProtectedRoute>
                   <CommunityDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/accelerator" element={
+                <ProtectedRoute>
+                  <AcceleratorPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/login" element={<AdminLogin />} />

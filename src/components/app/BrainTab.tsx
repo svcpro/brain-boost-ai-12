@@ -16,6 +16,7 @@ import InteractiveMemoryMap from "./brain/InteractiveMemoryMap";
 import DecayForecastTimeline from "./brain/DecayForecastTimeline";
 import AIIntelligenceInsights from "./brain/AIIntelligenceInsights";
 import GrowthIdentitySystem from "./brain/GrowthIdentitySystem";
+import CompetitiveIntelDashboard from "./CompetitiveIntelDashboard";
 
 // Modals
 import FocusModeSession from "./FocusModeSession";
@@ -189,6 +190,8 @@ const BrainTab = () => {
           </div>
         </motion.div>
       )}
+      {/* ─── Competition Intel v3.0 ─── */}
+      <CompetitiveIntelDashboard />
 
       {/* ─── Modals ─── */}
       {showAITopicManager && (
