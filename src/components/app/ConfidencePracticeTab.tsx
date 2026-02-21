@@ -8,6 +8,7 @@ import { BookOpen, Sparkles, Heart, Shield, ChevronRight,
 import { useConfidencePractice, PracticeQuestion } from "@/hooks/useConfidencePractice";
 import { Progress } from "@/components/ui/progress";
 import MentorSuggestion from "./MentorSuggestion";
+import ReactMarkdown from "react-markdown";
 
 // ─── Encouragement messages ───
 const encouragements = [
@@ -957,7 +958,11 @@ const ConfidencePracticeTab = () => {
           animate={{ opacity: 1, x: 0 }}
           className="rounded-xl p-5 bg-card border border-border"
         >
-          <p className="text-sm font-medium text-foreground leading-relaxed">{q.question}</p>
+          <div className="text-sm font-medium text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown components={{ img: ({ node, ...props }) => <img {...props} className="max-w-full rounded-lg my-2" loading="lazy" /> }}>
+              {q.question}
+            </ReactMarkdown>
+          </div>
         </motion.div>
 
         {/* Options */}
@@ -1022,7 +1027,11 @@ const ConfidencePracticeTab = () => {
             className="rounded-xl p-4 bg-primary/5 border border-primary/10"
           >
             <p className="text-xs font-semibold text-primary mb-1">Explanation</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{q.explanation}</p>
+            <div className="text-xs text-muted-foreground leading-relaxed prose prose-xs dark:prose-invert max-w-none">
+              <ReactMarkdown components={{ img: ({ node, ...props }) => <img {...props} className="max-w-full rounded-lg my-2" loading="lazy" /> }}>
+                {q.explanation || ""}
+              </ReactMarkdown>
+            </div>
           </motion.div>
         )}
 

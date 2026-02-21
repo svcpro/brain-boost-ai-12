@@ -686,8 +686,8 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: `You are an exam question generator. ${difficultyPrompts[difficulty] || difficultyPrompts.medium} Generate multiple-choice questions as a JSON array. Each object must have: question, options (array of 4 strings), correct (0-3 index), explanation. Output ONLY the JSON array, no markdown.` },
-            { role: "user", content: `Generate ${qCount} ${difficulty}-difficulty exam questions based on these topics: ${topicList}` }
+            { role: "system", content: `You are an exam question generator. ${difficultyPrompts[difficulty] || difficultyPrompts.medium} Generate multiple-choice questions as a JSON array. Each object must have: question, options (array of 4 strings), correct (0-3 index), explanation. CRITICAL: Do NOT generate questions that reference images, diagrams, figures, graphs, or any visual content. All questions must be fully self-contained as text only. Output ONLY the JSON array, no markdown.` },
+            { role: "user", content: `Generate ${qCount} ${difficulty}-difficulty exam questions based on these topics: ${topicList}. Remember: text-only questions, no image/diagram references.` }
           ],
         }),
       });

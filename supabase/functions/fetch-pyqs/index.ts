@@ -48,7 +48,8 @@ Requirements:
 - Each question needs 4 options with exactly one correct answer (index 0-3)
 - Include a clear explanation for the correct answer
 - Tag difficulty as easy, medium, or hard
-- Set previous_year_tag like "${examType} ${year}"`,
+- Set previous_year_tag like "${examType} ${year}"
+- CRITICAL: Do NOT generate questions that reference images, diagrams, figures, graphs, tables, or any visual content. All questions must be fully self-contained as text only.`,
         },
       ],
       tools: [

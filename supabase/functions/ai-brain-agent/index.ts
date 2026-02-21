@@ -367,7 +367,7 @@ At-risk topics: ${atRiskTopics.slice(0, 5).map(t => t.name).join(", ") || "None"
         messages: [
           {
             role: "system",
-            content: `You are ACRY, an AI tutor. Generate exactly ${qCount} MCQs at "${diff}" difficulty. ${topicCtx} Each question tests recall/understanding. Keep explanations to 1 sentence. Return via the tool call.`
+            content: `You are ACRY, an AI tutor. Generate exactly ${qCount} MCQs at "${diff}" difficulty. ${topicCtx} Each question tests recall/understanding. Keep explanations to 1 sentence. CRITICAL: Do NOT generate questions that reference images, diagrams, figures, graphs, or any visual content. All questions must be fully self-contained as text only. Return via the tool call.`
           },
           {
             role: "user",

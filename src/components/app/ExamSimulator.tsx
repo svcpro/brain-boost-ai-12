@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SlidersHorizontal, X, Play, CheckCircle2, XCircle, Loader2, RotateCcw, Clock, AlertTriangle, Zap, Flame, Skull, BookOpen, Filter, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import MentorSuggestion from "./MentorSuggestion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -550,7 +551,11 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
               </motion.div>
             )}
 
-            <p className="text-sm font-medium text-foreground">{q.question}</p>
+            <div className="text-sm font-medium text-foreground prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown components={{ img: ({ node, ...props }) => <img {...props} className="max-w-full rounded-lg my-2" loading="lazy" /> }}>
+                {q.question}
+              </ReactMarkdown>
+            </div>
 
             <div className="space-y-2">
               {q.options.map((opt, i) => (
@@ -579,9 +584,9 @@ const ExamSimulator = ({ onClose, retryQuestions }: ExamSimulatorProps) => {
             </div>
 
             {answered && q.explanation && (
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-muted-foreground bg-secondary/30 rounded-lg p-3">
-                💡 {q.explanation}
-              </motion.p>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-muted-foreground bg-secondary/30 rounded-lg p-3 prose prose-xs dark:prose-invert max-w-none">
+                💡 <ReactMarkdown components={{ img: ({ node, ...props }) => <img {...props} className="max-w-full rounded-lg my-2" loading="lazy" /> }}>{q.explanation}</ReactMarkdown>
+              </motion.div>
             )}
 
             {answered && (
