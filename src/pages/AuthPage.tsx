@@ -360,10 +360,41 @@ const AuthPage = () => {
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={async () => {
-              const { error } = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
-              });
-              if (error) toast({ title: "Error", description: String(error), variant: "destructive" });
+              try {
+                setLoading(true);
+                const isCustomDomain =
+                  !window.location.hostname.includes("lovable.app") &&
+                  !window.location.hostname.includes("lovableproject.com") &&
+                  !window.location.hostname.includes("localhost");
+
+                if (isCustomDomain) {
+                  const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: "google",
+                    options: {
+                      redirectTo: `${window.location.origin}/app`,
+                      skipBrowserRedirect: true,
+                    },
+                  });
+                  if (error) throw error;
+                  if (data?.url) {
+                    const oauthUrl = new URL(data.url);
+                    const allowedHosts = ["accounts.google.com", "yvxrsujwgmzdjzsjyqfb.supabase.co"];
+                    if (!allowedHosts.some((host) => oauthUrl.hostname.endsWith(host))) {
+                      throw new Error("Invalid OAuth redirect URL");
+                    }
+                    window.location.href = data.url;
+                  }
+                } else {
+                  const { error } = await lovable.auth.signInWithOAuth("google", {
+                    redirect_uri: window.location.origin,
+                  });
+                  if (error) throw error;
+                }
+              } catch (error: any) {
+                toast({ title: "Error", description: error.message || String(error), variant: "destructive" });
+              } finally {
+                setLoading(false);
+              }
             }}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
             style={{
