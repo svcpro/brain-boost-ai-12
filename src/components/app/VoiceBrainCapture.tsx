@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, MicOff, Brain, CheckCircle, Loader2, Zap,
   BookOpen, Target, PenLine, ThumbsUp, MessageCircle, Sparkles,
+  Clock, ChevronRight, Star, History, Volume2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,22 +40,39 @@ const RECORDING_HINTS = [
 const STUDY_TYPES = ["Revision", "Practice", "Reading", "Solving", "Lecture"];
 const CONFIDENCE_LEVELS = ["Low", "Medium", "High"];
 
-/* ── Orbital ring that spins around the mic ── */
-const OrbitalRing = ({ delay = 0, size = 80, duration = 8 }: { delay?: number; size?: number; duration?: number }) => (
+/* ── Animated gradient ring ── */
+const GradientRing = ({ size = 80, duration = 8, delay = 0, isRecording = false }: { size?: number; duration?: number; delay?: number; isRecording?: boolean }) => (
   <motion.div
-    className="absolute rounded-full border border-primary/15"
-    style={{ width: size, height: size, top: "50%", left: "50%", marginTop: -size / 2, marginLeft: -size / 2 }}
+    className="absolute rounded-full"
+    style={{
+      width: size, height: size, top: "50%", left: "50%", marginTop: -size / 2, marginLeft: -size / 2,
+      background: isRecording
+        ? `conic-gradient(from ${delay * 90}deg, hsl(var(--destructive) / 0.3), transparent, hsl(var(--destructive) / 0.15), transparent)`
+        : `conic-gradient(from ${delay * 90}deg, hsl(var(--primary) / 0.25), hsl(var(--accent) / 0.15), transparent, hsl(var(--primary) / 0.1))`,
+      padding: 1,
+    }}
     animate={{ rotate: 360 }}
     transition={{ duration, repeat: Infinity, ease: "linear", delay }}
   >
-    <motion.div
-      className="absolute w-1.5 h-1.5 rounded-full bg-primary/40"
-      style={{ top: -3, left: "50%", marginLeft: -3 }}
-      animate={{ scale: [1, 1.6, 1], opacity: [0.4, 1, 0.4] }}
-      transition={{ duration: 2, repeat: Infinity, delay }}
-    />
+    <div className="w-full h-full rounded-full bg-card" />
   </motion.div>
 );
+
+/* ── Floating particle ── */
+const FloatingParticle = ({ delay = 0, x = 0 }: { delay?: number; x?: number }) => (
+  <motion.div
+    className="absolute w-1 h-1 rounded-full bg-primary/40"
+    style={{ left: `${50 + x}%`, bottom: "20%" }}
+    animate={{ y: [-10, -40, -60], opacity: [0, 0.8, 0], scale: [0.5, 1, 0.3] }}
+    transition={{ duration: 2.5, repeat: Infinity, delay, ease: "easeOut" }}
+  />
+);
+
+interface RecentSubject {
+  id: string;
+  name: string;
+  topics: { id: string; name: string }[];
+}
 
 const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
   const { user } = useAuth();
@@ -70,6 +88,11 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
   const [selectedStudyType, setSelectedStudyType] = useState<string | null>(null);
   const [selectedConfidence, setSelectedConfidence] = useState<string | null>(null);
   const [clarifyText, setClarifyText] = useState("");
+  const [recentSubjects, setRecentSubjects] = useState<RecentSubject[]>([]);
+  const [quickMode, setQuickMode] = useState(false);
+  const [selectedQuickSubject, setSelectedQuickSubject] = useState<string | null>(null);
+  const [selectedQuickTopics, setSelectedQuickTopics] = useState<string[]>([]);
+  const [quickLogging, setQuickLogging] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -79,6 +102,22 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const silenceCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load recent subjects & topics for quick-tap
+  useEffect(() => {
+    if (!user) return;
+    const loadRecent = async () => {
+      const { data: subjects } = await supabase.from("subjects").select("id, name").eq("user_id", user.id).order("created_at", { ascending: false }).limit(6);
+      if (!subjects?.length) return;
+      const enriched: RecentSubject[] = [];
+      for (const sub of subjects) {
+        const { data: topics } = await supabase.from("topics").select("id, name").eq("user_id", user.id).eq("subject_id", sub.id).order("last_revision_date", { ascending: false }).limit(8);
+        enriched.push({ id: sub.id, name: sub.name, topics: topics || [] });
+      }
+      setRecentSubjects(enriched);
+    };
+    loadRecent();
+  }, [user]);
 
   useEffect(() => {
     return () => {
@@ -98,6 +137,50 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
     }
     return () => { if (hintTimerRef.current) clearInterval(hintTimerRef.current); };
   }, [phase]);
+
+  // ── Quick-tap log ──
+  const handleQuickLog = async () => {
+    if (!user || !selectedQuickSubject || selectedQuickTopics.length === 0) return;
+    setQuickLogging(true);
+    triggerHaptic([10]);
+    try {
+      const confLevel = selectedConfidence === "High" ? "high" : selectedConfidence === "Medium" ? "medium" : "low";
+      const sub = recentSubjects.find(s => s.name === selectedQuickSubject);
+      for (const topicName of selectedQuickTopics) {
+        const topic = sub?.topics.find(t => t.name === topicName);
+        // Boost memory
+        const { data: existing } = await supabase.from("topics").select("memory_strength").eq("user_id", user.id).eq("name", topicName).maybeSingle();
+        const current = Number(existing?.memory_strength) || 0;
+        const boosted = Math.min(99, Math.max(current + 15, 50));
+        await supabase.from("topics").update({ memory_strength: boosted, last_revision_date: new Date().toISOString(), next_predicted_drop_date: new Date(Date.now() + 86400000).toISOString() }).eq("user_id", user.id).eq("name", topicName);
+        // Study log
+        await supabase.from("study_logs").insert({
+          user_id: user.id,
+          subject_id: sub?.id || null,
+          topic_id: topic?.id || null,
+          duration_minutes: 5,
+          confidence_level: confLevel,
+          study_mode: selectedStudyType?.toLowerCase() || "focus",
+          notes: `Quick log: ${topicName}`,
+        });
+      }
+      confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 }, zIndex: 9999 });
+      toast({ title: "🧠 Brain Updated!", description: `${selectedQuickTopics.length} topic${selectedQuickTopics.length > 1 ? "s" : ""} logged!` });
+      triggerHaptic([15, 30, 15]);
+      onSuccess?.();
+      // Reset
+      setSelectedQuickSubject(null);
+      setSelectedQuickTopics([]);
+      setQuickMode(false);
+      setSelectedStudyType(null);
+      setSelectedConfidence(null);
+    } catch (e) {
+      console.error("Quick log error:", e);
+      toast({ title: "Failed to log", variant: "destructive" });
+    } finally {
+      setQuickLogging(false);
+    }
+  };
 
   const startRecording = useCallback(async () => {
     if (!user) return;
@@ -121,7 +204,6 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
       triggerHaptic([15]);
       timerRef.current = setInterval(() => { const secs = Math.floor((Date.now() - startTimeRef.current) / 1000); setElapsed(secs); if (secs >= MAX_DURATION) recorder.stop(); }, 250);
 
-      // Silence detection: auto-stop after 5s of silence (only after at least 3s of recording)
       try {
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
@@ -132,15 +214,13 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
         analyserRef.current = analyser;
         const dataArray = new Uint8Array(analyser.fftSize);
         let silentSince: number | null = null;
-        const SILENCE_THRESHOLD = 5; // RMS threshold for silence
+        const SILENCE_THRESHOLD = 5;
         const SILENCE_DURATION_MS = 5000;
         const MIN_RECORD_MS = 3000;
 
         silenceCheckRef.current = setInterval(() => {
           if (mediaRecorderRef.current?.state !== "recording") return;
-          // Use time-domain data for reliable volume detection
           analyser.getByteTimeDomainData(dataArray);
-          // Calculate RMS (root mean square) for accurate volume level
           let sumSquares = 0;
           for (let i = 0; i < dataArray.length; i++) {
             const normalized = (dataArray[i] - 128) / 128;
@@ -201,7 +281,6 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
     setPhase("mapping"); triggerHaptic([10, 20]);
     let boost = 0;
     if (data.totalTopicsCreated > 0) {
-      // Find or create subject for the first extracted result
       let subjectId: string | null = null;
       const firstSubject = data.results?.[0]?.subject;
       if (firstSubject) {
@@ -216,7 +295,6 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
 
       for (const res of data.results || []) {
         for (const topicName of res.topics) {
-          // Boost memory_strength by at least +15, capped at 99; never decrease it
           const { data: existing } = await supabase.from("topics").select("memory_strength").eq("user_id", user.id).eq("name", topicName).maybeSingle();
           const current = Number(existing?.memory_strength) || 0;
           const boosted = Math.min(99, Math.max(current + 15, 50));
@@ -225,10 +303,8 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
       }
       boost = Math.min(8, data.totalTopicsCreated * 2);
 
-      // Insert study log for each extracted topic so they appear in Recently Studied
       const confLevel = selectedConfidence === "High" ? "high" : selectedConfidence === "Medium" ? "medium" : selectedConfidence === "Low" ? "low" : "medium";
       for (const res of data.results || []) {
-        // Find or create subject per result
         let resSubjectId = subjectId;
         if (res.subject && res.subject !== firstSubject) {
           const { data: sRow } = await supabase.from("subjects").select("id").eq("user_id", user.id).eq("name", res.subject).maybeSingle();
@@ -239,10 +315,8 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
           }
         }
         for (const topicName of res.topics) {
-          // Get topic_id for this topic
           const { data: topicRow } = await supabase.from("topics").select("id").eq("user_id", user.id).eq("name", topicName).maybeSingle();
           const topicId = topicRow?.id || null;
-
           const logPayload: any = {
             user_id: user.id,
             duration_minutes: Math.max(1, Math.ceil(elapsed / 60)),
@@ -257,14 +331,12 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
         }
       }
 
-      // Fire confetti + toast
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, zIndex: 9999 });
       toast({ title: "🧠 Brain Updated!", description: `${data.totalTopicsCreated} topic${data.totalTopicsCreated > 1 ? "s" : ""} mapped successfully!` });
     } else {
       toast({ title: "✅ Brain Synced", description: "Topics already exist in your brain." });
     }
     setStabilityBoost(boost); setPhase("done"); triggerHaptic([15, 30, 15]);
-    // Trigger parent refresh so Topic Stability list updates immediately
     if (boost > 0) onSuccess?.();
     setTimeout(() => { setPhase("idle"); setSelectedStudyType(null); setSelectedConfidence(null); }, 4500);
   };
@@ -281,165 +353,354 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
 
   const isProcessing = phase === "transcribing" || phase === "extracting" || phase === "mapping";
   const progressPct = phase === "transcribing" ? 20 : phase === "extracting" ? 55 : phase === "mapping" ? 85 : 0;
+  const selectedSubjectData = recentSubjects.find(s => s.name === selectedQuickSubject);
+  const hasRecent = recentSubjects.length > 0;
 
   return (
     <motion.div layout className="relative">
-      {/* ── Background aura ── */}
+      {/* ── Background gradient aura ── */}
       <div className="absolute inset-0 -m-4 rounded-3xl pointer-events-none overflow-hidden">
         <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full blur-3xl"
-          style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 70%)" }}
-          animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0.9, 0.6] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full blur-3xl"
+          style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.06) 0%, hsl(var(--accent) / 0.04) 40%, transparent 70%)" }}
+          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
 
       {/* ── Glass card ── */}
       <motion.div
         layout
-        className="relative glass rounded-2xl overflow-hidden"
+        className="relative rounded-2xl overflow-hidden"
+        style={{
+          background: "linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--secondary) / 0.3) 50%, hsl(var(--card)) 100%)",
+          border: "1px solid hsl(var(--border) / 0.6)",
+        }}
       >
-        {/* Shimmer line at top */}
+        {/* Animated gradient top border */}
         <motion.div
-          className="absolute top-0 left-0 right-0 h-[1px]"
-          style={{ background: "linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.5) 50%, transparent 100%)" }}
-          animate={{ opacity: [0.3, 0.8, 0.3] }}
+          className="absolute top-0 left-0 right-0 h-[2px]"
+          style={{ background: "linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.6) 30%, hsl(var(--accent) / 0.5) 50%, hsl(var(--primary) / 0.6) 70%, transparent 100%)" }}
+          animate={{ opacity: [0.3, 0.9, 0.3] }}
           transition={{ duration: 3, repeat: Infinity }}
         />
 
         <AnimatePresence mode="wait">
           {/* ════════ IDLE ════════ */}
           {phase === "idle" && !error && (
-            <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-5 flex flex-col items-center text-center space-y-4">
-              {/* Central mic button with orbital rings */}
-              <div className="relative w-28 h-28 flex items-center justify-center">
-                <OrbitalRing size={100} duration={12} delay={0} />
-                <OrbitalRing size={80} duration={8} delay={0.5} />
-                <OrbitalRing size={60} duration={10} delay={1} />
-
-                <motion.button
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.92 }}
-                  onClick={startRecording}
-                  className="relative z-10 w-16 h-16 rounded-full flex items-center justify-center glow-primary"
-                  style={{ background: "linear-gradient(145deg, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.08))", border: "1.5px solid hsl(var(--primary) / 0.3)" }}
-                >
-                  <Mic className="w-6 h-6 text-primary" />
-                  {/* Inner pulse */}
-                  <motion.div
-                    className="absolute inset-0 rounded-full border border-primary/20"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-                    transition={{ duration: 2.5, repeat: Infinity }}
-                  />
-                </motion.button>
-              </div>
-
-              <div>
-                <p className="text-sm font-display font-semibold text-foreground flex items-center justify-center gap-1.5">
-                  <Brain className="w-4 h-4 text-primary" />
-                  What I Studied ?
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed">
-                  Tap to speak in Hindi or English — AI auto-translates & maps your memory
-                </p>
-              </div>
-
-              {/* How-to toggle */}
-              <button
-                onClick={() => setShowGuide(!showGuide)}
-                className="text-[10px] px-3 py-1 rounded-full bg-secondary/40 text-muted-foreground border border-border/30 hover:border-primary/20 hover:text-foreground transition-all"
-              >
-                {showGuide ? "Hide guide" : "How to speak?"}
-              </button>
-
-              {/* Expandable guide */}
-              <AnimatePresence>
-                {showGuide && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="w-full overflow-hidden"
+            <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-5">
+              {/* Title row */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1))" }}>
+                    <Brain className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-display font-bold text-foreground">What I Studied ?</p>
+                    <p className="text-[9px] text-muted-foreground">Voice or Quick-tap to log</p>
+                  </div>
+                </div>
+                {hasRecent && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setQuickMode(!quickMode)}
+                    className={`text-[9px] px-2.5 py-1.5 rounded-full border transition-all flex items-center gap-1 ${
+                      quickMode
+                        ? "bg-primary/15 border-primary/30 text-primary font-semibold"
+                        : "bg-secondary/40 border-border/40 text-muted-foreground hover:border-primary/20"
+                    }`}
                   >
-                    <div className="space-y-3 pt-1">
-                      {/* 4-step pills */}
-                      <div className="flex justify-center gap-2">
-                        {SPEAKING_STEPS.map((step, i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.07 }}
-                            className="flex flex-col items-center gap-1"
+                    <Zap className="w-3 h-3" />
+                    {quickMode ? "Voice mode" : "Quick tap"}
+                  </motion.button>
+                )}
+              </div>
+
+              {/* ── Quick-tap mode ── */}
+              <AnimatePresence mode="wait">
+                {quickMode && hasRecent ? (
+                  <motion.div
+                    key="quick"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-3"
+                  >
+                    {/* Subject chips */}
+                    <div>
+                      <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3" /> Select Subject
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {recentSubjects.map((sub, i) => (
+                          <motion.button
+                            key={sub.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.04 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              setSelectedQuickSubject(selectedQuickSubject === sub.name ? null : sub.name);
+                              setSelectedQuickTopics([]);
+                            }}
+                            className={`text-[10px] px-3 py-1.5 rounded-xl border transition-all ${
+                              selectedQuickSubject === sub.name
+                                ? "border-primary/40 text-primary font-semibold shadow-sm"
+                                : "border-border/30 text-muted-foreground hover:border-primary/20"
+                            }`}
+                            style={{
+                              background: selectedQuickSubject === sub.name
+                                ? "linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.06))"
+                                : "hsl(var(--secondary) / 0.3)",
+                            }}
                           >
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step.optional ? "bg-secondary/50 border border-border/40" : "bg-primary/10 border border-primary/20"}`}>
-                              <step.icon className={`w-3.5 h-3.5 ${step.optional ? "text-muted-foreground" : "text-primary"}`} />
-                            </div>
-                            <span className="text-[9px] font-medium text-foreground">{step.label}</span>
-                            <span className="text-[8px] text-muted-foreground">{step.example}</span>
-                          </motion.div>
+                            {sub.name}
+                          </motion.button>
                         ))}
                       </div>
-
-                      {/* English example */}
-                      <div className="rounded-xl bg-secondary/20 border border-border/20 px-3 py-2.5 mx-auto max-w-[280px]">
-                        <p className="text-[9px] text-muted-foreground mb-1">🇬🇧 English example:</p>
-                        <p className="text-[10px] text-foreground italic leading-relaxed">
-                          "I revised <span className="text-primary font-medium">Physics</span>, <span className="text-primary font-medium">Newton's Third Law</span>, did practice problems, feeling <span className="text-primary font-medium">confident</span>"
-                        </p>
-                      </div>
-
-                      {/* Hindi example */}
-                      <div className="rounded-xl bg-primary/5 border border-primary/15 px-3 py-2.5 mx-auto max-w-[280px]">
-                        <p className="text-[9px] text-muted-foreground mb-1">🇮🇳 Hindi / हिंदी example:</p>
-                        <p className="text-[10px] text-foreground italic leading-relaxed">
-                          "मैंने <span className="text-primary font-medium">Chemistry</span> पढ़ा, <span className="text-primary font-medium">Organic Reactions</span> revise किया, practice भी की"
-                        </p>
-                        <p className="text-[8px] text-muted-foreground mt-1">
-                          ↑ AI will auto-translate this to English
-                        </p>
-                      </div>
-
-                      {/* Quick-tap context */}
-                      <div className="space-y-2 text-left px-2">
-                        <div>
-                          <p className="text-[9px] text-muted-foreground mb-1.5 text-center">Study type</p>
-                          <div className="flex flex-wrap justify-center gap-1.5">
-                            {STUDY_TYPES.map((st) => (
-                              <button
-                                key={st}
-                                onClick={() => setSelectedStudyType(selectedStudyType === st ? null : st)}
-                                className={`text-[9px] px-2.5 py-1 rounded-full border transition-all ${
-                                  selectedStudyType === st
-                                    ? "bg-primary/15 border-primary/30 text-primary font-medium shadow-sm shadow-primary/10"
-                                    : "bg-secondary/30 border-border/30 text-muted-foreground hover:border-primary/20"
-                                }`}
-                              >
-                                {st}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[9px] text-muted-foreground mb-1.5 text-center">Confidence</p>
-                          <div className="flex justify-center gap-1.5">
-                            {CONFIDENCE_LEVELS.map((cl) => (
-                              <button
-                                key={cl}
-                                onClick={() => setSelectedConfidence(selectedConfidence === cl ? null : cl)}
-                                className={`text-[9px] px-3 py-1 rounded-full border transition-all ${
-                                  selectedConfidence === cl
-                                    ? "bg-primary/15 border-primary/30 text-primary font-medium shadow-sm shadow-primary/10"
-                                    : "bg-secondary/30 border-border/30 text-muted-foreground hover:border-primary/20"
-                                }`}
-                              >
-                                {cl}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
                     </div>
+
+                    {/* Topic chips (only when subject selected) */}
+                    <AnimatePresence>
+                      {selectedSubjectData && selectedSubjectData.topics.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1">
+                            <Target className="w-3 h-3" /> Select Topics <span className="text-primary/60">(multi-select)</span>
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedSubjectData.topics.map((topic, j) => {
+                              const isSelected = selectedQuickTopics.includes(topic.name);
+                              return (
+                                <motion.button
+                                  key={topic.id}
+                                  initial={{ opacity: 0, y: 6 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: j * 0.03 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => {
+                                    setSelectedQuickTopics(prev =>
+                                      isSelected ? prev.filter(t => t !== topic.name) : [...prev, topic.name]
+                                    );
+                                  }}
+                                  className={`text-[9px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                                    isSelected
+                                      ? "border-primary/40 text-primary font-medium"
+                                      : "border-border/30 text-muted-foreground hover:border-primary/20"
+                                  }`}
+                                  style={{
+                                    background: isSelected
+                                      ? "linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.05))"
+                                      : "hsl(var(--secondary) / 0.2)",
+                                  }}
+                                >
+                                  {isSelected && <CheckCircle className="w-2.5 h-2.5" />}
+                                  {topic.name}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Study type + confidence (compact row) */}
+                    {selectedQuickTopics.length > 0 && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2 pt-1">
+                        <div className="flex gap-3">
+                          <div className="flex-1">
+                            <p className="text-[8px] text-muted-foreground mb-1">Study type</p>
+                            <div className="flex flex-wrap gap-1">
+                              {STUDY_TYPES.map((st) => (
+                                <button key={st} onClick={() => setSelectedStudyType(selectedStudyType === st ? null : st)}
+                                  className={`text-[8px] px-2 py-0.5 rounded-full border transition-all ${
+                                    selectedStudyType === st ? "bg-primary/12 border-primary/30 text-primary font-medium" : "bg-secondary/30 border-border/30 text-muted-foreground"
+                                  }`}
+                                >{st}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[8px] text-muted-foreground mb-1">Confidence</p>
+                            <div className="flex gap-1">
+                              {CONFIDENCE_LEVELS.map((cl) => (
+                                <button key={cl} onClick={() => setSelectedConfidence(selectedConfidence === cl ? null : cl)}
+                                  className={`text-[8px] px-2 py-0.5 rounded-full border transition-all ${
+                                    selectedConfidence === cl ? "bg-primary/12 border-primary/30 text-primary font-medium" : "bg-secondary/30 border-border/30 text-muted-foreground"
+                                  }`}
+                                >{cl}</button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Log button */}
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handleQuickLog}
+                          disabled={quickLogging}
+                          className="w-full py-2.5 rounded-xl text-xs font-bold text-primary-foreground flex items-center justify-center gap-2 disabled:opacity-50"
+                          style={{
+                            background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.8), hsl(var(--primary)))",
+                            boxShadow: "0 4px 20px hsl(var(--primary) / 0.3)",
+                          }}
+                        >
+                          {quickLogging ? (
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Logging...</>
+                          ) : (
+                            <><Zap className="w-3.5 h-3.5" /> Log {selectedQuickTopics.length} topic{selectedQuickTopics.length > 1 ? "s" : ""}</>
+                          )}
+                        </motion.button>
+                      </motion.div>
+                    )}
+
+                    {/* Empty state for no topics */}
+                    {selectedSubjectData && selectedSubjectData.topics.length === 0 && (
+                      <p className="text-[9px] text-muted-foreground text-center py-2">No topics yet — use voice to add new ones</p>
+                    )}
+                  </motion.div>
+                ) : (
+                  /* ── Voice mode (original) ── */
+                  <motion.div
+                    key="voice"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex flex-col items-center text-center space-y-4"
+                  >
+                    {/* Central mic with gradient rings */}
+                    <div className="relative w-28 h-28 flex items-center justify-center">
+                      <GradientRing size={110} duration={12} delay={0} />
+                      <GradientRing size={88} duration={8} delay={0.5} />
+                      <GradientRing size={66} duration={10} delay={1} />
+                      <FloatingParticle delay={0} x={-8} />
+                      <FloatingParticle delay={0.8} x={6} />
+                      <FloatingParticle delay={1.5} x={-3} />
+
+                      <motion.button
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.92 }}
+                        onClick={startRecording}
+                        className="relative z-10 w-16 h-16 rounded-full flex items-center justify-center"
+                        style={{
+                          background: "linear-gradient(145deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.1), hsl(var(--primary) / 0.08))",
+                          border: "1.5px solid hsl(var(--primary) / 0.3)",
+                          boxShadow: "0 0 30px hsl(var(--primary) / 0.15), inset 0 1px 0 hsl(var(--primary) / 0.1)",
+                        }}
+                      >
+                        <Mic className="w-6 h-6 text-primary" />
+                        <motion.div
+                          className="absolute inset-0 rounded-full"
+                          style={{ border: "1px solid hsl(var(--primary) / 0.2)" }}
+                          animate={{ scale: [1, 1.25, 1], opacity: [0.5, 0, 0.5] }}
+                          transition={{ duration: 2.5, repeat: Infinity }}
+                        />
+                      </motion.button>
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground max-w-[220px] leading-relaxed">
+                      Tap to speak in <span className="text-primary font-medium">Hindi</span> or <span className="text-primary font-medium">English</span> — AI auto-translates & maps your memory
+                    </p>
+
+                    {/* How-to toggle */}
+                    <button
+                      onClick={() => setShowGuide(!showGuide)}
+                      className="text-[9px] px-3 py-1 rounded-full border border-border/30 hover:border-primary/20 text-muted-foreground hover:text-foreground transition-all flex items-center gap-1"
+                      style={{ background: "hsl(var(--secondary) / 0.3)" }}
+                    >
+                      {showGuide ? "Hide guide" : "How to speak?"}
+                      <ChevronRight className={`w-3 h-3 transition-transform ${showGuide ? "rotate-90" : ""}`} />
+                    </button>
+
+                    {/* Expandable guide */}
+                    <AnimatePresence>
+                      {showGuide && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="w-full overflow-hidden"
+                        >
+                          <div className="space-y-3 pt-1">
+                            {/* 4-step pills */}
+                            <div className="flex justify-center gap-2">
+                              {SPEAKING_STEPS.map((step, i) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: i * 0.07 }}
+                                  className="flex flex-col items-center gap-1"
+                                >
+                                  <div
+                                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                                    style={{
+                                      background: step.optional
+                                        ? "hsl(var(--secondary) / 0.5)"
+                                        : "linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.08))",
+                                      border: step.optional ? "1px solid hsl(var(--border) / 0.4)" : "1px solid hsl(var(--primary) / 0.25)",
+                                    }}
+                                  >
+                                    <step.icon className={`w-3.5 h-3.5 ${step.optional ? "text-muted-foreground" : "text-primary"}`} />
+                                  </div>
+                                  <span className="text-[9px] font-medium text-foreground">{step.label}</span>
+                                  <span className="text-[8px] text-muted-foreground">{step.example}</span>
+                                </motion.div>
+                              ))}
+                            </div>
+
+                            {/* English example */}
+                            <div className="rounded-xl px-3 py-2.5 mx-auto max-w-[280px]" style={{ background: "linear-gradient(135deg, hsl(var(--secondary) / 0.3), hsl(var(--card)))", border: "1px solid hsl(var(--border) / 0.3)" }}>
+                              <p className="text-[9px] text-muted-foreground mb-1">🇬🇧 English example:</p>
+                              <p className="text-[10px] text-foreground italic leading-relaxed">
+                                "I revised <span className="text-primary font-medium">Physics</span>, <span className="text-primary font-medium">Newton's Third Law</span>, did practice problems, feeling <span className="text-primary font-medium">confident</span>"
+                              </p>
+                            </div>
+
+                            {/* Hindi example */}
+                            <div className="rounded-xl px-3 py-2.5 mx-auto max-w-[280px]" style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.05), hsl(var(--accent) / 0.03))", border: "1px solid hsl(var(--primary) / 0.15)" }}>
+                              <p className="text-[9px] text-muted-foreground mb-1">🇮🇳 Hindi / हिंदी example:</p>
+                              <p className="text-[10px] text-foreground italic leading-relaxed">
+                                "मैंने <span className="text-primary font-medium">Chemistry</span> पढ़ा, <span className="text-primary font-medium">Organic Reactions</span> revise किया, practice भी की"
+                              </p>
+                              <p className="text-[8px] text-muted-foreground mt-1">↑ AI will auto-translate this to English</p>
+                            </div>
+
+                            {/* Quick-tap context */}
+                            <div className="space-y-2 text-left px-2">
+                              <div>
+                                <p className="text-[9px] text-muted-foreground mb-1.5 text-center">Study type</p>
+                                <div className="flex flex-wrap justify-center gap-1.5">
+                                  {STUDY_TYPES.map((st) => (
+                                    <button key={st} onClick={() => setSelectedStudyType(selectedStudyType === st ? null : st)}
+                                      className={`text-[9px] px-2.5 py-1 rounded-full border transition-all ${
+                                        selectedStudyType === st ? "bg-primary/15 border-primary/30 text-primary font-medium shadow-sm shadow-primary/10" : "bg-secondary/30 border-border/30 text-muted-foreground hover:border-primary/20"
+                                      }`}
+                                    >{st}</button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-[9px] text-muted-foreground mb-1.5 text-center">Confidence</p>
+                                <div className="flex justify-center gap-1.5">
+                                  {CONFIDENCE_LEVELS.map((cl) => (
+                                    <button key={cl} onClick={() => setSelectedConfidence(selectedConfidence === cl ? null : cl)}
+                                      className={`text-[9px] px-3 py-1 rounded-full border transition-all ${
+                                        selectedConfidence === cl ? "bg-primary/15 border-primary/30 text-primary font-medium shadow-sm shadow-primary/10" : "bg-secondary/30 border-border/30 text-muted-foreground hover:border-primary/20"
+                                      }`}
+                                    >{cl}</button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -450,7 +711,8 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
           {phase === "idle" && error && (
             <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-5 flex flex-col items-center text-center space-y-3">
               <motion.button whileTap={{ scale: 0.9 }} onClick={() => { setError(null); startRecording(); }}
-                className="w-14 h-14 rounded-full bg-destructive/10 border border-destructive/20 flex items-center justify-center"
+                className="w-14 h-14 rounded-full flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, hsl(var(--destructive) / 0.1), hsl(var(--destructive) / 0.05))", border: "1px solid hsl(var(--destructive) / 0.2)" }}
               >
                 <Mic className="w-6 h-6 text-destructive" />
               </motion.button>
@@ -462,16 +724,23 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
           {/* ════════ RECORDING ════════ */}
           {phase === "recording" && (
             <motion.div key="recording" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="p-5 flex flex-col items-center text-center space-y-4">
-              {/* Pulsing mic */}
               <div className="relative w-28 h-28 flex items-center justify-center">
-                {/* Sound wave rings */}
+                {/* Gradient recording rings */}
+                <GradientRing size={110} duration={6} delay={0} isRecording />
+                <GradientRing size={88} duration={4} delay={0.3} isRecording />
+                <GradientRing size={66} duration={5} delay={0.6} isRecording />
+
+                {/* Sound wave pulses */}
                 {[0, 1, 2].map((i) => (
                   <motion.div
                     key={i}
-                    className="absolute rounded-full border border-destructive/20"
-                    style={{ width: 60 + i * 24, height: 60 + i * 24 }}
-                    animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.1, 0.4] }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }}
+                    className="absolute rounded-full"
+                    style={{
+                      width: 60 + i * 24, height: 60 + i * 24,
+                      border: "1px solid hsl(var(--destructive) / 0.15)",
+                    }}
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.05, 0.3] }}
+                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.25 }}
                   />
                 ))}
 
@@ -479,7 +748,11 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                   whileTap={{ scale: 0.9 }}
                   onClick={stopRecording}
                   className="relative z-10 w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ background: "linear-gradient(145deg, hsl(var(--destructive) / 0.2), hsl(var(--destructive) / 0.08))", border: "1.5px solid hsl(var(--destructive) / 0.35)" }}
+                  style={{
+                    background: "linear-gradient(145deg, hsl(var(--destructive) / 0.2), hsl(var(--destructive) / 0.08))",
+                    border: "1.5px solid hsl(var(--destructive) / 0.35)",
+                    boxShadow: "0 0 30px hsl(var(--destructive) / 0.15)",
+                  }}
                 >
                   <MicOff className="w-6 h-6 text-destructive" />
                 </motion.button>
@@ -495,8 +768,14 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
               </div>
 
               {/* Progress arc */}
-              <div className="w-full max-w-[200px] h-1 rounded-full bg-secondary overflow-hidden">
-                <motion.div className="h-full rounded-full bg-destructive/50" style={{ width: `${(elapsed / MAX_DURATION) * 100}%` }} />
+              <div className="w-full max-w-[200px] h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--secondary) / 0.5)" }}>
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${(elapsed / MAX_DURATION) * 100}%`,
+                    background: "linear-gradient(90deg, hsl(var(--destructive) / 0.4), hsl(var(--destructive) / 0.7))",
+                  }}
+                />
               </div>
 
               {/* Rotating hints */}
@@ -519,20 +798,15 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
           {/* ════════ PROCESSING ════════ */}
           {isProcessing && (
             <motion.div key="processing" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="p-6 flex flex-col items-center text-center space-y-4">
-              {/* Animated brain */}
               <div className="relative w-20 h-20 flex items-center justify-center">
                 <motion.div
                   className="absolute inset-0 rounded-full"
-                  style={{ background: "conic-gradient(from 0deg, hsl(var(--primary) / 0.3), transparent, hsl(var(--primary) / 0.3))" }}
+                  style={{ background: "conic-gradient(from 0deg, hsl(var(--primary) / 0.3), hsl(var(--accent) / 0.2), transparent, hsl(var(--primary) / 0.3))" }}
                   animate={{ rotate: 360 }}
                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                 />
                 <div className="absolute inset-[3px] rounded-full bg-card" />
-                <motion.div
-                  className="relative z-10"
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                >
+                <motion.div className="relative z-10" animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>
                   <Brain className="w-8 h-8 text-primary" />
                 </motion.div>
               </div>
@@ -546,16 +820,15 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                 </p>
               </div>
 
-              {/* Progress bar */}
-              <div className="w-full max-w-[180px] h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+              <div className="w-full max-w-[180px] h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--secondary) / 0.5)" }}>
                 <motion.div
-                  className="h-full rounded-full bg-primary/60"
+                  className="h-full rounded-full"
                   animate={{ width: `${progressPct}%` }}
                   transition={{ duration: 0.5 }}
+                  style={{ background: "linear-gradient(90deg, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.6), hsl(var(--primary) / 0.7))" }}
                 />
               </div>
 
-              {/* Step dots */}
               <div className="flex items-center gap-2">
                 {(["transcribing", "extracting", "mapping"] as Phase[]).map((p, i) => {
                   const steps: Phase[] = ["transcribing", "extracting", "mapping"];
@@ -578,7 +851,7 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
           {/* ════════ CLARIFY ════════ */}
           {phase === "clarify" && (
             <motion.div key="clarify" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-5 flex flex-col items-center text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.06))", border: "1px solid hsl(var(--primary) / 0.2)" }}>
                 <MessageCircle className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -600,7 +873,8 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                   whileTap={{ scale: 0.95 }}
                   onClick={handleClarifySubmit}
                   disabled={!clarifyText.trim()}
-                  className="px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium disabled:opacity-40"
+                  className="px-3 py-2 rounded-xl text-primary text-xs font-medium disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.06))", border: "1px solid hsl(var(--primary) / 0.2)" }}
                 >
                   Go
                 </motion.button>
@@ -617,9 +891,10 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
               {/* Success burst */}
               <div className="relative w-16 h-16 flex items-center justify-center">
                 <motion.div
-                  className="absolute inset-0 rounded-full bg-primary/10"
+                  className="absolute inset-0 rounded-full"
+                  style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1))" }}
                   initial={{ scale: 0 }}
-                  animate={{ scale: [0, 1.8, 1.4], opacity: [0.4, 0.1, 0] }}
+                  animate={{ scale: [0, 2, 1.6], opacity: [0.5, 0.1, 0] }}
                   transition={{ duration: 0.8 }}
                 />
                 <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 300, delay: 0.1 }}>
@@ -637,14 +912,15 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="text-xs font-bold text-primary mt-1 flex items-center justify-center gap-1"
+                    className="text-xs font-bold mt-1 flex items-center justify-center gap-1"
+                    style={{ color: "hsl(var(--primary))" }}
                   >
                     <Zap className="w-3.5 h-3.5" />+{stabilityBoost}% stability
                   </motion.p>
                 )}
               </div>
 
-              {/* Extracted topics */}
+              {/* Extracted topics with gradient badges */}
               {results.length > 0 && (
                 <div className="space-y-2 w-full max-w-[280px]">
                   {results.map((r, i) => (
@@ -653,7 +929,11 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.15 }}
-                        className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
+                        className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full text-primary"
+                        style={{
+                          background: "linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.06))",
+                          border: "1px solid hsl(var(--primary) / 0.2)",
+                        }}
                       >
                         {r.subject}
                       </motion.span>
@@ -664,7 +944,11 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
                             initial={{ opacity: 0, y: 6, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ delay: 0.2 + j * 0.06 }}
-                            className="text-[9px] px-2 py-0.5 rounded-lg bg-secondary/40 text-muted-foreground border border-border/30"
+                            className="text-[9px] px-2 py-0.5 rounded-lg text-muted-foreground"
+                            style={{
+                              background: "linear-gradient(135deg, hsl(var(--secondary) / 0.4), hsl(var(--card)))",
+                              border: "1px solid hsl(var(--border) / 0.3)",
+                            }}
                           >
                             {t}
                           </motion.span>
@@ -692,9 +976,10 @@ const VoiceBrainCapture = ({ onSuccess }: { onSuccess?: () => void }) => {
               )}
 
               {/* Auto-dismiss bar */}
-              <div className="w-full max-w-[180px] h-0.5 rounded-full bg-secondary overflow-hidden">
+              <div className="w-full max-w-[180px] h-0.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--secondary))" }}>
                 <motion.div
-                  className="h-full bg-primary/30 rounded-full"
+                  className="h-full rounded-full"
+                  style={{ background: "linear-gradient(90deg, hsl(var(--primary) / 0.3), hsl(var(--accent) / 0.4))" }}
                   initial={{ width: "100%" }}
                   animate={{ width: "0%" }}
                   transition={{ duration: 4.5, ease: "linear" }}
