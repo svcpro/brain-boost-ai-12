@@ -28,6 +28,7 @@ import ExplainButton from "./ExplainButton";
 import TodaysMission from "./TodaysMission";
 import QuickMicroActions from "./QuickMicroActions";
 import PlanGateWrapper from "./PlanGateWrapper";
+import SafePassPopup from "./SafePassPopup";
 import TrialBanner from "./TrialBanner";
 const AutopilotWidget = lazy(() => import("./AutopilotWidget"));
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -83,7 +84,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const [recoverySessionOpen, setRecoverySessionOpen] = useState(false);
   const [showComeback, setShowComeback] = useState(false);
   const lastScrollY = useRef(0);
-  
+  const [safePassOpen, setSafePassOpen] = useState(false);
 
   // Hide FAB on scroll down, show on scroll up
   useEffect(() => {
@@ -376,9 +377,50 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           </div>
         </div>
 
-        <p className="relative z-10 text-xs text-muted-foreground">
-          Brain Stability Score
-        </p>
+        <div className="relative z-10 flex items-center justify-center gap-2">
+          <p className="text-xs text-muted-foreground">
+            Brain Stability Score
+          </p>
+          {/* Safe Pass Prediction Icon — Ultra animated */}
+          <motion.button
+            onClick={() => setSafePassOpen(true)}
+            className="relative w-7 h-7 rounded-full flex items-center justify-center cursor-pointer"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--success)/0.12))",
+              border: "1px solid hsl(var(--primary)/0.3)",
+            }}
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
+            animate={{
+              boxShadow: [
+                "0 0 0px 0px hsl(var(--primary)/0)",
+                "0 0 10px 3px hsl(var(--primary)/0.35)",
+                "0 0 0px 0px hsl(var(--primary)/0)",
+              ],
+            }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+          >
+            {/* Orbiting ring */}
+            <motion.div
+              className="absolute inset-[-3px] rounded-full pointer-events-none"
+              style={{
+                border: "1.5px dashed hsl(var(--primary)/0.3)",
+              }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            />
+            {/* Pulsing dot */}
+            <motion.div
+              className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-success"
+              animate={{
+                scale: [1, 1.4, 1],
+                opacity: [1, 0.5, 1],
+              }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+            <Trophy className="w-3.5 h-3.5 text-primary" />
+          </motion.button>
+        </div>
 
         {/* Mini stats row */}
         {hasTopics && (
@@ -760,6 +802,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         autoStart
       />
 
+      {/* Safe Pass Rank Prediction Popup */}
+      <SafePassPopup
+        open={safePassOpen}
+        onClose={() => setSafePassOpen(false)}
+        allTopics={prediction?.topics || []}
+        overallHealth={overallHealth}
+        streakDays={streakData?.currentStreak ?? 0}
+      />
     </div>
   );
 };
