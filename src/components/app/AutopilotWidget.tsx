@@ -27,7 +27,7 @@ const modeIcons: Record<string, any> = {
 };
 
 export default function AutopilotWidget() {
-  const { status, loading, generatePlan, toggleAutopilot, checkEmergency } = useAutopilot();
+  const { status, loading, generatePlan, toggleAutopilot, checkEmergency, completeSession, fetchStatus } = useAutopilot();
   const [generating, setGenerating] = useState(false);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
@@ -192,10 +192,10 @@ export default function AutopilotWidget() {
     </Card>
 
     {/* Study Mode Modals */}
-    <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
-    <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
-    <MockPracticeSession open={mockOpen} onClose={() => setMockOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
-    <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
+    <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => { completeSession(); window.dispatchEvent(new Event("insights-refresh")); }} />
+    <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => { completeSession(); window.dispatchEvent(new Event("insights-refresh")); }} />
+    <MockPracticeSession open={mockOpen} onClose={() => setMockOpen(false)} onSessionComplete={() => { completeSession(); window.dispatchEvent(new Event("insights-refresh")); }} />
+    <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} onSessionComplete={() => { completeSession(); window.dispatchEvent(new Event("insights-refresh")); }} />
     </>
   );
 }
