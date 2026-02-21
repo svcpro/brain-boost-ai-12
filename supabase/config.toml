@@ -218,3 +218,9 @@ verify_jwt = false
 
 [functions.teacher-practice]
 verify_jwt = false
+
+[functions.ai-behavior-analyzer]
+verify_jwt = false
+
+[functions.memory-decay-cron]
+verify_jwt = false

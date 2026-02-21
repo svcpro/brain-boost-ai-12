@@ -572,10 +572,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </SectionErrorBoundary>
       )}
 
-      {/* ─── Auto-Detected Study ─── */}
-      <SectionErrorBoundary name="auto-study-summary">
-        <AutoStudySummaryCard onRefresh={() => handleRefresh()} />
-      </SectionErrorBoundary>
+      {/* Auto-Detected Study — removed, replaced by fully autonomous AI tracking */}
 
       {/* ─── SECTION 2: Today's Mission (AI-Powered Single Action) ─── */}
       <SectionErrorBoundary name="todays-mission">
