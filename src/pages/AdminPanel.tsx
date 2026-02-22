@@ -53,6 +53,7 @@ import InstitutionManagement from "@/components/admin/InstitutionManagement";
 import TeacherModeAdmin from "@/components/admin/TeacherModeAdmin";
 import STQEngineAdmin from "@/components/admin/ai-command/STQEngineAdmin";
 import ExamIntelligenceAdmin from "@/components/admin/ai-command/ExamIntelligenceAdmin";
+import ExamIntelV10Admin from "@/components/admin/ai-command/ExamIntelV10Admin";
 import CurrentAffairsAdmin from "@/components/admin/ai-command/CurrentAffairsAdmin";
 type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
 
@@ -548,7 +549,7 @@ const AdminPanel = () => {
               {section === "exam_countdown" && <ExamCountdownConfig />}
               {section === "sureshot" && <SureShotAdminPanel />}
               {section === "stq" && <STQEngineAdmin />}
-              {section === "exam_intel" && <ExamIntelligenceAdmin />}
+              {section === "exam_intel" && <ExamIntelV10Admin />}
               {section === "current_affairs" && <CurrentAffairsAdmin />}
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
