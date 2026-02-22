@@ -80,17 +80,17 @@ function computeActivityScore(m: ActivityMetrics): number {
    reach this range through sustained study effort.
 */
 const SAFE_ZONE_MAP: Record<string, [number, number]> = {
-  NEET:           [1560, 2580],
-  "JEE Main":     [800, 1500],
-  "JEE Advanced": [200, 500],
-  UPSC:           [100, 300],
-  CAT:            [300, 800],
-  GATE:           [500, 1200],
-  SSC:            [1000, 3000],
-  CLAT:           [200, 600],
-  Boards:         [2000, 5000],
+  NEET:           [50000, 80000],      // ~50K-80K for any govt MBBS seat
+  "JEE Main":     [15000, 35000],      // ~15K-35K for decent NIT seat
+  "JEE Advanced": [2000, 8000],        // ~2K-8K for any IIT seat
+  UPSC:           [1, 800],            // ~800 total selections (IAS+IPS+IFS)
+  CAT:            [1000, 5000],        // ~1K-5K for any IIM seat
+  GATE:           [500, 2000],         // Branch-dependent, top PSU/IIT M.Tech
+  SSC:            [10000, 50000],      // Lakhs apply, ~50K vacancies
+  CLAT:           [500, 2000],         // ~500-2K for top NLU seats
+  Boards:         [1, 100],            // Top percentile (percentage-based, not rank)
 };
-const DEFAULT_SAFE_ZONE: [number, number] = [1000, 3000];
+const DEFAULT_SAFE_ZONE: [number, number] = [5000, 20000];
 
 /* ─── Map activity score to predicted rank ─── */
 function activityToPredictedRank(score: number, currentRank: number, safeZone: [number, number]): [number, number] {
