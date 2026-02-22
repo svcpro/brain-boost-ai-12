@@ -73,40 +73,61 @@ async function runFullPipeline(sb: any, params: any) {
   let totalTopics = 0, totalPredictions = 0, totalAlerts = 0, totalBriefs = 0;
 
   try {
-    for (const examType of examTypes) {
-      // Stage 1: Compute topic probability scores
-      const scores = await computeTopicScores(sb, { exam_type: examType });
-      totalTopics += scores.count || 0;
+    // Stage 1+2: Run scoring + shift detection for ALL exam types in PARALLEL
+    const stage1Results = await Promise.allSettled(
+      examTypes.map(async (examType: string) => {
+        const [scores, shifts] = await Promise.all([
+          computeTopicScores(sb, { exam_type: examType }),
+          detectShiftsAndAlert(sb, { exam_type: examType }),
+        ]);
+        return { examType, scores, shifts };
+      })
+    );
 
-      // Stage 2: Detect curriculum shifts & generate alerts
-      const shifts = await detectShiftsAndAlert(sb, { exam_type: examType });
+    // Collect results and prepare question generation
+    const questionTasks: Promise<any>[] = [];
+    for (const r of stage1Results) {
+      if (r.status !== "fulfilled") continue;
+      const { examType, scores, shifts } = r.value;
+      totalTopics += scores.count || 0;
       totalAlerts += shifts.alerts_created || 0;
 
-      // Stage 3: Generate intel practice questions for top topics
-      const topTopics = scores.top_topics?.slice(0, 5) || [];
+      // Stage 3: Queue question generation for top 3 topics (not 5) per exam
+      const topTopics = scores.top_topics?.slice(0, 3) || [];
       for (const t of topTopics) {
-        try {
-          const qs = await generateIntelQuestions(sb, {
-            exam_type: examType, subject: t.subject, topic: t.topic, count: 3,
+        questionTasks.push(
+          generateIntelQuestions(sb, {
+            exam_type: examType, subject: t.subject, topic: t.topic, count: 2,
             probability_score: t.composite_score,
-          });
-          totalPredictions += qs.count || 0;
-        } catch { /* continue */ }
+          }).catch(() => ({ count: 0 }))
+        );
       }
     }
 
-    // Stage 4: Update all active student briefs
+    // Run ALL question generations in parallel (batched to avoid rate limits)
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < questionTasks.length; i += BATCH_SIZE) {
+      const batch = questionTasks.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(batch);
+      for (const r of results) {
+        if (r.status === "fulfilled") totalPredictions += r.value?.count || 0;
+      }
+    }
+
+    // Stage 4: Student briefs - batch in parallel, limit to 20 max
     const { data: activeUsers } = await sb
       .from("profiles")
       .select("id, exam_type")
       .not("exam_type", "is", null)
-      .limit(500);
+      .limit(20);
 
-    for (const u of (activeUsers || []).slice(0, 100)) {
-      try {
-        await computeStudentBrief(sb, u.id, { exam_type: u.exam_type });
-        totalBriefs++;
-      } catch { /* continue */ }
+    if (activeUsers?.length) {
+      const briefResults = await Promise.allSettled(
+        activeUsers.map((u: any) =>
+          computeStudentBrief(sb, u.id, { exam_type: u.exam_type }).catch(() => null)
+        )
+      );
+      totalBriefs = briefResults.filter(r => r.status === "fulfilled" && r.value).length;
     }
 
     const duration = Date.now() - startTime;
@@ -497,18 +518,22 @@ async function detectShiftsAndAlert(sb: any, params: any) {
   // Alert all users with this exam type about major shifts
   if ((recentShifts || []).length > 0) {
     const { data: users } = await sb.from("profiles")
-      .select("id").eq("exam_type", exam_type).limit(200);
+      .select("id").eq("exam_type", exam_type).limit(50);
 
-    for (const shift of (recentShifts || []).filter((s: any) => s.confidence > 0.7)) {
-      for (const u of (users || []).slice(0, 50)) {
-        await sb.from("exam_intel_alerts").insert({
+    const highConfShifts = (recentShifts || []).filter((s: any) => s.confidence > 0.7);
+    if (highConfShifts.length > 0 && users?.length) {
+      const alertRows = highConfShifts.flatMap((shift: any) =>
+        (users || []).slice(0, 20).map((u: any) => ({
           user_id: u.id, alert_type: "syllabus_shift",
           topic: shift.affected_topic || "General", subject: shift.affected_subject,
           exam_type, old_score: shift.old_weight, new_score: shift.new_weight,
           severity: shift.confidence > 0.85 ? "critical" : "medium",
           message: `📊 Syllabus shift detected: "${shift.affected_topic}" weight changed from ${Math.round((shift.old_weight || 0) * 100)}% → ${Math.round((shift.new_weight || 0) * 100)}%`,
-        });
-        alertsCreated++;
+        }))
+      );
+      if (alertRows.length > 0) {
+        await sb.from("exam_intel_alerts").insert(alertRows);
+        alertsCreated = alertRows.length;
       }
     }
   }
