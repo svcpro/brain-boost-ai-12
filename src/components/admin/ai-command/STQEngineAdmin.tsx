@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Brain, Upload, RefreshCw, TrendingUp, Database, Zap, BarChart3, AlertTriangle, Loader2, Target, Layers } from "lucide-react";
+import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Brain, Upload, RefreshCw, TrendingUp, Database, Zap, BarChart3, AlertTriangle, Loader2, Target, Layers, Sparkles, Trash2, Pencil, Search, CheckSquare, Square, X, Download, Filter, BookOpen, GraduationCap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -143,11 +143,41 @@ function DashboardView({ examType }: { examType: string }) {
 }
 
 // =============================================
-// SYLLABUS PARSER
+// SYLLABUS PARSER (Full Featured)
 // =============================================
 function SyllabusParser({ examType }: { examType: string }) {
   const [text, setText] = useState("");
+  const [mode, setMode] = useState<"auto" | "manual">("auto");
+  const [search, setSearch] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ subject: "", topic: "", subtopic: "", weightage_pct: "" });
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const qc = useQueryClient();
+
+  const examSubjects: Record<string, string[]> = {
+    JEE: ["Physics", "Chemistry", "Mathematics"],
+    NEET: ["Physics", "Chemistry", "Biology"],
+    UPSC: ["General Studies", "CSAT", "Optional Subject"],
+    general: ["General Knowledge"],
+  };
+
+  const autoGenerate = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stq-engine", {
+        body: { action: "auto_generate_syllabus", exam_type: examType, subjects: selectedSubjects },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d) => {
+      toast.success(`🎉 Generated ${d.count} taxonomy items across ${Object.keys(d.subjects || {}).length} subjects`);
+      qc.invalidateQueries({ queryKey: ["stq-taxonomy"] });
+      qc.invalidateQueries({ queryKey: ["stq-dashboard"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const parse = useMutation({
     mutationFn: async () => {
@@ -158,45 +188,311 @@ function SyllabusParser({ examType }: { examType: string }) {
       if (error) throw error;
       return data;
     },
-    onSuccess: (d) => { toast.success(`Parsed ${d.count} taxonomy items`); qc.invalidateQueries({ queryKey: ["stq-dashboard"] }); setText(""); },
+    onSuccess: (d) => { toast.success(`Parsed ${d.count} taxonomy items`); qc.invalidateQueries({ queryKey: ["stq-taxonomy"] }); setText(""); },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const { data: taxonomy } = useQuery({
+  const deleteItems = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { data, error } = await supabase.functions.invoke("stq-engine", {
+        body: { action: "delete_taxonomy", ids },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { toast.success("Items deleted"); setSelectedIds(new Set()); qc.invalidateQueries({ queryKey: ["stq-taxonomy"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteAll = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stq-engine", {
+        body: { action: "delete_taxonomy", exam_type: examType, delete_all: true },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { toast.success(`All ${examType} taxonomy cleared`); qc.invalidateQueries({ queryKey: ["stq-taxonomy"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateItem = useMutation({
+    mutationFn: async () => {
+      if (!editingItem) throw new Error("No item selected");
+      const { data, error } = await supabase.functions.invoke("stq-engine", {
+        body: {
+          action: "update_taxonomy", id: editingItem.id,
+          updates: { subject: editForm.subject, topic: editForm.topic, subtopic: editForm.subtopic || null, weightage_pct: editForm.weightage_pct ? parseFloat(editForm.weightage_pct) : null },
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { toast.success("Item updated"); setEditingItem(null); qc.invalidateQueries({ queryKey: ["stq-taxonomy"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const { data: taxonomy, isLoading } = useQuery({
     queryKey: ["stq-taxonomy", examType],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("syllabus_taxonomies").select("*").eq("exam_type", examType).order("subject").limit(100);
+      const { data } = await (supabase as any).from("syllabus_taxonomies").select("*").eq("exam_type", examType).order("subject").order("topic");
       return data || [];
     },
   });
 
+  const subjects = useMemo(() => {
+    const s = new Set((taxonomy || []).map((t: any) => t.subject));
+    return ["all", ...Array.from(s)];
+  }, [taxonomy]);
+
+  const filtered = useMemo(() => {
+    let items = taxonomy || [];
+    if (subjectFilter !== "all") items = items.filter((t: any) => t.subject === subjectFilter);
+    if (search) {
+      const q = search.toLowerCase();
+      items = items.filter((t: any) => t.topic?.toLowerCase().includes(q) || t.subtopic?.toLowerCase().includes(q) || t.subject?.toLowerCase().includes(q));
+    }
+    return items;
+  }, [taxonomy, subjectFilter, search]);
+
+  const subjectStats = useMemo(() => {
+    const stats: Record<string, { count: number; avgWeight: number }> = {};
+    (taxonomy || []).forEach((t: any) => {
+      if (!stats[t.subject]) stats[t.subject] = { count: 0, avgWeight: 0 };
+      stats[t.subject].count++;
+      if (t.weightage_pct) stats[t.subject].avgWeight += t.weightage_pct;
+    });
+    Object.values(stats).forEach(s => { if (s.count) s.avgWeight = Math.round(s.avgWeight / s.count * 10) / 10; });
+    return stats;
+  }, [taxonomy]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map((t: any) => t.id)));
+  };
+  const startEdit = (item: any) => {
+    setEditingItem(item);
+    setEditForm({ subject: item.subject, topic: item.topic, subtopic: item.subtopic || "", weightage_pct: item.weightage_pct?.toString() || "" });
+  };
+  const exportCSV = () => {
+    const rows = (taxonomy || []).map((t: any) => `${t.subject},${t.topic},${t.subtopic || ""},${t.hierarchy_level},${t.weightage_pct || ""},${t.source}`);
+    const csv = "Subject,Topic,Subtopic,Level,Weightage%,Source\n" + rows.join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${examType}_syllabus_taxonomy.csv`; a.click();
+    URL.revokeObjectURL(url); toast.success("Exported CSV");
+  };
+  const toggleSubject = (s: string) => {
+    setSelectedSubjects(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+  };
+
   return (
     <div className="space-y-4">
-      <Card title="Parse Syllabus" icon={Upload}>
-        <textarea value={text} onChange={e => setText(e.target.value)}
-          placeholder={`Paste ${examType} syllabus text here...\n\nExample:\nPhysics:\n- Mechanics: Kinematics, Laws of Motion, Work Energy Power\n- Electrodynamics: Current Electricity, Magnetism`}
-          className="w-full h-40 p-3 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground resize-none" />
-        <button onClick={() => parse.mutate()} disabled={parse.isPending}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 mt-2">
-          {parse.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
-          {parse.isPending ? "AI Parsing..." : "Parse with AI"}
+      {/* Mode Toggle */}
+      <div className="flex gap-1 p-0.5 rounded-lg bg-secondary/50">
+        <button onClick={() => setMode("auto")}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-[11px] font-medium transition-all ${mode === "auto" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`}>
+          <Sparkles className="w-3.5 h-3.5" /> Auto Generate with AI
         </button>
-      </Card>
+        <button onClick={() => setMode("manual")}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-[11px] font-medium transition-all ${mode === "manual" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`}>
+          <Upload className="w-3.5 h-3.5" /> Manual Input
+        </button>
+      </div>
 
-      {taxonomy && taxonomy.length > 0 && (
-        <Card title={`Taxonomy (${taxonomy.length})`} icon={Layers}>
-          <div className="space-y-1 max-h-64 overflow-y-auto">
-            {taxonomy.map((t: any) => (
-              <div key={t.id} className="flex items-center gap-2 p-2 rounded-lg bg-background/50 text-xs">
-                <span className="text-primary font-bold w-6 text-center">{t.hierarchy_level}</span>
-                <span className="text-foreground flex-1 truncate">{t.subject} › {t.topic}{t.subtopic ? ` › ${t.subtopic}` : ""}</span>
-                {t.weightage_pct && <span className="text-muted-foreground">{t.weightage_pct}%</span>}
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{t.source}</span>
-              </div>
-            ))}
+      {/* Auto Generate */}
+      {mode === "auto" && (
+        <Card title="AI Auto Syllabus Generation" icon={Sparkles}>
+          <p className="text-[10px] text-muted-foreground mb-3">
+            AI will generate a complete, exhaustive syllabus with all topics, subtopics, weightages, and importance ratings for <span className="text-primary font-bold">{examType}</span>.
+          </p>
+          <div className="mb-3">
+            <p className="text-[10px] font-medium text-foreground mb-1.5">Select Subjects (optional — leave empty for all):</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(examSubjects[examType] || examSubjects.general).map(s => (
+                <button key={s} onClick={() => toggleSubject(s)}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
+                    selectedSubjects.includes(s) ? "bg-primary/15 border-primary/30 text-primary" : "border-border text-muted-foreground hover:bg-secondary"
+                  }`}>
+                  {selectedSubjects.includes(s) ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
+          <button onClick={() => autoGenerate.mutate()} disabled={autoGenerate.isPending}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xs font-bold disabled:opacity-50 shadow-lg">
+            {autoGenerate.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating Full Syllabus with AI...</> : <><GraduationCap className="w-4 h-4" /> Generate Complete {examType} Syllabus</>}
+          </button>
+          {autoGenerate.isPending && (
+            <div className="rounded-lg p-3 bg-primary/5 border border-primary/10 mt-2">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <p className="text-[10px] font-medium text-primary">AI is analyzing {examType} exam patterns...</p>
+              </div>
+              <div className="space-y-1 text-[9px] text-muted-foreground">
+                <p>• Extracting complete subject hierarchy</p>
+                <p>• Mapping all topics & subtopics</p>
+                <p>• Calculating weightages from historical data</p>
+                <p>• Assigning importance ratings</p>
+              </div>
+            </div>
+          )}
         </Card>
       )}
+
+      {/* Manual Input */}
+      {mode === "manual" && (
+        <Card title="Parse Syllabus Text" icon={Upload}>
+          <textarea value={text} onChange={e => setText(e.target.value)}
+            placeholder={`Paste ${examType} syllabus text here...\n\nExample:\nPhysics:\n- Mechanics: Kinematics, Laws of Motion\n- Electrodynamics: Current Electricity, Magnetism`}
+            className="w-full h-40 p-3 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground resize-none" />
+          <button onClick={() => parse.mutate()} disabled={parse.isPending}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 mt-2">
+            {parse.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+            {parse.isPending ? "AI Parsing..." : "Parse with AI"}
+          </button>
+        </Card>
+      )}
+
+      {/* Subject Stats */}
+      {Object.keys(subjectStats).length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {Object.entries(subjectStats).map(([subject, stats]) => (
+            <div key={subject} className="rounded-xl p-2.5 bg-card border border-border text-center">
+              <p className="text-sm font-bold text-foreground">{stats.count}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{subject}</p>
+              {stats.avgWeight > 0 && <p className="text-[9px] text-primary">{stats.avgWeight}% avg wt</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Taxonomy List */}
+      {taxonomy && taxonomy.length > 0 && (
+        <Card title={`Taxonomy (${taxonomy.length} items)`} icon={Layers}>
+          {/* Toolbar */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex items-center gap-1.5 flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg bg-background border border-border">
+              <Search className="w-3 h-3 text-muted-foreground" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search topics..."
+                className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground" />
+              {search && <button onClick={() => setSearch("")}><X className="w-3 h-3 text-muted-foreground" /></button>}
+            </div>
+            <select value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)}
+              className="px-2 py-1.5 rounded-lg bg-background border border-border text-xs text-foreground">
+              {subjects.map((s: string) => <option key={s} value={s}>{s === "all" ? "All Subjects" : s}</option>)}
+            </select>
+            <button onClick={exportCSV} className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-secondary text-muted-foreground text-[10px] hover:text-foreground">
+              <Download className="w-3 h-3" /> CSV
+            </button>
+          </div>
+
+          {/* Bulk Actions */}
+          <div className="flex items-center gap-2 mb-2">
+            <button onClick={toggleSelectAll} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
+              {selectedIds.size === filtered.length && filtered.length > 0 ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+            </button>
+            {selectedIds.size > 0 && (
+              <button onClick={() => deleteItems.mutate([...selectedIds])} disabled={deleteItems.isPending}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-destructive/15 text-destructive font-medium">
+                {deleteItems.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />} Delete Selected
+              </button>
+            )}
+            <button onClick={() => { if (confirm(`Delete ALL ${examType} taxonomy items?`)) deleteAll.mutate(); }}
+              disabled={deleteAll.isPending} className="ml-auto flex items-center gap-1 px-2 py-1 rounded text-[10px] text-destructive/70 hover:text-destructive">
+              <Trash2 className="w-3 h-3" /> Clear All
+            </button>
+          </div>
+
+          {/* Items */}
+          <div className="space-y-1 max-h-[400px] overflow-y-auto">
+            <AnimatePresence>
+              {filtered.map((t: any) => (
+                <motion.div key={t.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-background/50 text-xs group">
+                  <button onClick={() => toggleSelect(t.id)} className="shrink-0">
+                    {selectedIds.has(t.id) ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5 text-muted-foreground" />}
+                  </button>
+                  <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold ${
+                    t.hierarchy_level === 1 ? "bg-primary/15 text-primary" : t.hierarchy_level === 2 ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground"
+                  }`}>{t.hierarchy_level}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-foreground truncate block">
+                      <span className="font-medium">{t.subject}</span>
+                      <span className="text-muted-foreground"> › </span>{t.topic}
+                      {t.subtopic && <span className="text-muted-foreground"> › {t.subtopic}</span>}
+                    </span>
+                  </div>
+                  {t.metadata?.importance && (
+                    <span className={`shrink-0 px-1.5 py-0.5 rounded text-[8px] font-medium ${
+                      t.metadata.importance === "critical" ? "bg-destructive/15 text-destructive" :
+                      t.metadata.importance === "high" ? "bg-primary/15 text-primary" :
+                      t.metadata.importance === "medium" ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground"
+                    }`}>{t.metadata.importance}</span>
+                  )}
+                  {t.weightage_pct && <span className="shrink-0 text-[10px] text-muted-foreground">{t.weightage_pct}%</span>}
+                  <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-secondary text-muted-foreground">{t.source?.replace("ai_", "AI ")}</span>
+                  <button onClick={() => startEdit(t)} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+          {filtered.length === 0 && search && <p className="text-[10px] text-muted-foreground text-center py-4">No items match "{search}"</p>}
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {taxonomy?.length === 0 && !isLoading && (
+        <div className="text-center py-8 space-y-2">
+          <BookOpen className="w-8 h-8 mx-auto text-muted-foreground/40" />
+          <p className="text-xs text-muted-foreground">No syllabus taxonomy yet</p>
+          <p className="text-[10px] text-muted-foreground">Use AI Auto Generate or paste syllabus text to get started</p>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editingItem && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+            onClick={() => setEditingItem(null)}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              className="w-full max-w-sm rounded-2xl bg-card border border-border p-5 shadow-xl space-y-3"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-foreground">Edit Taxonomy Item</h4>
+                <button onClick={() => setEditingItem(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
+              </div>
+              {([
+                { label: "Subject", key: "subject" as const },
+                { label: "Topic", key: "topic" as const },
+                { label: "Subtopic", key: "subtopic" as const },
+                { label: "Weightage %", key: "weightage_pct" as const },
+              ]).map(f => (
+                <div key={f.key}>
+                  <label className="text-[10px] text-muted-foreground">{f.label}</label>
+                  <input value={editForm[f.key]} onChange={e => setEditForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs text-foreground mt-0.5" />
+                </div>
+              ))}
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setEditingItem(null)} className="flex-1 px-3 py-2 rounded-lg bg-secondary text-muted-foreground text-xs">Cancel</button>
+                <button onClick={() => updateItem.mutate()} disabled={updateItem.isPending}
+                  className="flex-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+                  {updateItem.isPending ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
