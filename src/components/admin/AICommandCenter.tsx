@@ -16,6 +16,7 @@ import AISimulationLab from "./ai-command/AISimulationLab";
 import TrainingDataControl from "./ai-command/TrainingDataControl";
 import CognitiveProfileViewer from "./ai-command/CognitiveProfileViewer";
 import CompetitiveIntelAdmin from "./ai-command/CompetitiveIntelAdmin";
+import STQEngineAdmin from "./ai-command/STQEngineAdmin";
 
 type CommandTab =
   | "agents"
@@ -24,6 +25,7 @@ type CommandTab =
   | "personalization"
   | "cognitive"
   | "competitive"
+  | "stq"
   | "collective"
   | "activity"
   | "costs"
@@ -37,6 +39,7 @@ const TABS: { key: CommandTab; label: string; icon: any; color: string }[] = [
   { key: "models", label: "Model Versions", icon: GitBranch, color: "text-success" },
   { key: "cognitive", label: "Cognitive v2.0", icon: Cpu, color: "text-blue-400" },
   { key: "competitive", label: "Competition v3.0", icon: Swords, color: "text-orange-400" },
+  { key: "stq", label: "STQ v9.0", icon: Database, color: "text-red-400" },
   { key: "personalization", label: "Personalization", icon: Fingerprint, color: "text-warning" },
   { key: "collective", label: "Collective Intel", icon: Globe, color: "text-primary" },
   { key: "activity", label: "Live Activity", icon: Activity, color: "text-success" },
@@ -88,6 +91,7 @@ export default function AICommandCenter() {
           {activeTab === "models" && <AIModelManagement />}
           {activeTab === "cognitive" && <CognitiveProfileViewer />}
           {activeTab === "competitive" && <CompetitiveIntelAdmin />}
+          {activeTab === "stq" && <STQEngineAdmin />}
           {activeTab === "personalization" && <PersonalizationEngine />}
           {activeTab === "collective" && <CollectiveIntelDashboard />}
           {activeTab === "activity" && <RealTimeActivityStream />}

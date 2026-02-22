@@ -224,3 +224,6 @@ verify_jwt = false
 
 [functions.memory-decay-cron]
 verify_jwt = false
+
+[functions.stq-engine]
+verify_jwt = false

@@ -4201,6 +4201,51 @@ export type Database = {
         }
         Relationships: []
       }
+      pattern_evolution_logs: {
+        Row: {
+          affected_topics: string[] | null
+          created_at: string
+          description: string
+          detected_at: string
+          detection_type: string
+          exam_type: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          recommendation: string | null
+          severity: string | null
+          subject: string | null
+        }
+        Insert: {
+          affected_topics?: string[] | null
+          created_at?: string
+          description: string
+          detected_at?: string
+          detection_type: string
+          exam_type: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          recommendation?: string | null
+          severity?: string | null
+          subject?: string | null
+        }
+        Update: {
+          affected_topics?: string[] | null
+          created_at?: string
+          description?: string
+          detected_at?: string
+          detection_type?: string
+          exam_type?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          recommendation?: string | null
+          severity?: string | null
+          subject?: string | null
+        }
+        Relationships: []
+      }
       plan_feature_gates: {
         Row: {
           created_at: string
@@ -5108,6 +5153,74 @@ export type Database = {
         }
         Relationships: []
       }
+      question_mining_results: {
+        Row: {
+          created_at: string
+          difficulty_level: string | null
+          exam_type: string
+          id: string
+          marks: number | null
+          metadata: Json | null
+          pattern_tags: string[] | null
+          question_text: string | null
+          question_type: string | null
+          semantic_cluster: string | null
+          similarity_score: number | null
+          source_paper: string | null
+          subject: string
+          subtopic: string | null
+          taxonomy_id: string | null
+          topic: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          difficulty_level?: string | null
+          exam_type: string
+          id?: string
+          marks?: number | null
+          metadata?: Json | null
+          pattern_tags?: string[] | null
+          question_text?: string | null
+          question_type?: string | null
+          semantic_cluster?: string | null
+          similarity_score?: number | null
+          source_paper?: string | null
+          subject: string
+          subtopic?: string | null
+          taxonomy_id?: string | null
+          topic: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          difficulty_level?: string | null
+          exam_type?: string
+          id?: string
+          marks?: number | null
+          metadata?: Json | null
+          pattern_tags?: string[] | null
+          question_text?: string | null
+          question_type?: string | null
+          semantic_cluster?: string | null
+          similarity_score?: number | null
+          source_paper?: string | null
+          subject?: string
+          subtopic?: string | null
+          taxonomy_id?: string | null
+          topic?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_mining_results_taxonomy_id_fkey"
+            columns: ["taxonomy_id"]
+            isOneToOne: false
+            referencedRelation: "syllabus_taxonomies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_performance: {
         Row: {
           correct_index: number
@@ -5605,6 +5718,111 @@ export type Database = {
         }
         Relationships: []
       }
+      stq_engine_config: {
+        Row: {
+          auto_retrain_enabled: boolean | null
+          engine_enabled: boolean | null
+          id: string
+          last_retrained_at: string | null
+          memory_injection_enabled: boolean | null
+          mock_integration_enabled: boolean | null
+          model_version: string | null
+          pattern_detection_enabled: boolean | null
+          question_mining_enabled: boolean | null
+          retrain_interval_days: number | null
+          sureshot_integration_enabled: boolean | null
+          syllabus_parser_enabled: boolean | null
+          tpi_engine_enabled: boolean | null
+          tpi_high_threshold: number | null
+          tpi_low_threshold: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_retrain_enabled?: boolean | null
+          engine_enabled?: boolean | null
+          id?: string
+          last_retrained_at?: string | null
+          memory_injection_enabled?: boolean | null
+          mock_integration_enabled?: boolean | null
+          model_version?: string | null
+          pattern_detection_enabled?: boolean | null
+          question_mining_enabled?: boolean | null
+          retrain_interval_days?: number | null
+          sureshot_integration_enabled?: boolean | null
+          syllabus_parser_enabled?: boolean | null
+          tpi_engine_enabled?: boolean | null
+          tpi_high_threshold?: number | null
+          tpi_low_threshold?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_retrain_enabled?: boolean | null
+          engine_enabled?: boolean | null
+          id?: string
+          last_retrained_at?: string | null
+          memory_injection_enabled?: boolean | null
+          mock_integration_enabled?: boolean | null
+          model_version?: string | null
+          pattern_detection_enabled?: boolean | null
+          question_mining_enabled?: boolean | null
+          retrain_interval_days?: number | null
+          sureshot_integration_enabled?: boolean | null
+          syllabus_parser_enabled?: boolean | null
+          tpi_engine_enabled?: boolean | null
+          tpi_high_threshold?: number | null
+          tpi_low_threshold?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      stq_training_logs: {
+        Row: {
+          accuracy_after: number | null
+          accuracy_before: number | null
+          created_at: string
+          data_points_processed: number | null
+          duration_ms: number | null
+          error_message: string | null
+          exam_types_trained: string[] | null
+          id: string
+          model_version: string
+          status: string | null
+          training_type: string | null
+          triggered_by: string | null
+        }
+        Insert: {
+          accuracy_after?: number | null
+          accuracy_before?: number | null
+          created_at?: string
+          data_points_processed?: number | null
+          duration_ms?: number | null
+          error_message?: string | null
+          exam_types_trained?: string[] | null
+          id?: string
+          model_version: string
+          status?: string | null
+          training_type?: string | null
+          triggered_by?: string | null
+        }
+        Update: {
+          accuracy_after?: number | null
+          accuracy_before?: number | null
+          created_at?: string
+          data_points_processed?: number | null
+          duration_ms?: number | null
+          error_message?: string | null
+          exam_types_trained?: string[] | null
+          id?: string
+          model_version?: string
+          status?: string | null
+          training_type?: string | null
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       streak_freezes: {
         Row: {
           created_at: string
@@ -5993,6 +6211,62 @@ export type Database = {
         }
         Relationships: []
       }
+      syllabus_taxonomies: {
+        Row: {
+          created_at: string
+          exam_type: string
+          hierarchy_level: number
+          id: string
+          metadata: Json | null
+          normalized_name: string
+          parent_id: string | null
+          source: string | null
+          subject: string
+          subtopic: string | null
+          topic: string
+          updated_at: string
+          weightage_pct: number | null
+        }
+        Insert: {
+          created_at?: string
+          exam_type?: string
+          hierarchy_level?: number
+          id?: string
+          metadata?: Json | null
+          normalized_name: string
+          parent_id?: string | null
+          source?: string | null
+          subject: string
+          subtopic?: string | null
+          topic: string
+          updated_at?: string
+          weightage_pct?: number | null
+        }
+        Update: {
+          created_at?: string
+          exam_type?: string
+          hierarchy_level?: number
+          id?: string
+          metadata?: Json | null
+          normalized_name?: string
+          parent_id?: string | null
+          source?: string | null
+          subject?: string
+          subtopic?: string | null
+          topic?: string
+          updated_at?: string
+          weightage_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "syllabus_taxonomies_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "syllabus_taxonomies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teacher_practice_sets: {
         Row: {
           ai_generated: boolean | null
@@ -6116,6 +6390,86 @@ export type Database = {
             columns: ["topic_id"]
             isOneToOne: false
             referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_probability_index: {
+        Row: {
+          appearance_years: number[] | null
+          computed_at: string
+          confidence: number | null
+          created_at: string
+          data_points_used: number | null
+          difficulty_score: number | null
+          exam_type: string
+          frequency_score: number | null
+          id: string
+          last_appeared_year: number | null
+          model_version: string | null
+          prediction_year: number
+          recency_score: number | null
+          subject: string
+          subtopic: string | null
+          taxonomy_id: string | null
+          topic: string
+          tpi_score: number
+          trend_momentum_score: number | null
+          updated_at: string
+          volatility_score: number | null
+        }
+        Insert: {
+          appearance_years?: number[] | null
+          computed_at?: string
+          confidence?: number | null
+          created_at?: string
+          data_points_used?: number | null
+          difficulty_score?: number | null
+          exam_type: string
+          frequency_score?: number | null
+          id?: string
+          last_appeared_year?: number | null
+          model_version?: string | null
+          prediction_year?: number
+          recency_score?: number | null
+          subject: string
+          subtopic?: string | null
+          taxonomy_id?: string | null
+          topic: string
+          tpi_score?: number
+          trend_momentum_score?: number | null
+          updated_at?: string
+          volatility_score?: number | null
+        }
+        Update: {
+          appearance_years?: number[] | null
+          computed_at?: string
+          confidence?: number | null
+          created_at?: string
+          data_points_used?: number | null
+          difficulty_score?: number | null
+          exam_type?: string
+          frequency_score?: number | null
+          id?: string
+          last_appeared_year?: number | null
+          model_version?: string | null
+          prediction_year?: number
+          recency_score?: number | null
+          subject?: string
+          subtopic?: string | null
+          taxonomy_id?: string | null
+          topic?: string
+          tpi_score?: number
+          trend_momentum_score?: number | null
+          updated_at?: string
+          volatility_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_probability_index_taxonomy_id_fkey"
+            columns: ["taxonomy_id"]
+            isOneToOne: false
+            referencedRelation: "syllabus_taxonomies"
             referencedColumns: ["id"]
           },
         ]
