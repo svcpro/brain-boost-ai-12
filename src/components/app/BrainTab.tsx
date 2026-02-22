@@ -208,8 +208,7 @@ const BrainTab = () => {
           </div>
         </motion.div>
       )}
-      {/* ─── Competition Intel v3.0 ─── */}
-      <CompetitiveIntelDashboard />
+      {/* ─── Competition Intel v3.0 — hidden per user request ─── */}
 
       {/* ─── Modals ─── */}
       {showAITopicManager && (
