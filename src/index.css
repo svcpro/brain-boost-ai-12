@@ -124,12 +124,12 @@
     @apply font-display;
   }
 
-  /* Hide scrollbar everywhere but keep scrolling */
-  * {
+  /* Hide scrollbar everywhere but keep scrolling — except Radix select viewports */
+  *:not([data-radix-select-viewport]) {
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
   }
-  *::-webkit-scrollbar {
+  *:not([data-radix-select-viewport])::-webkit-scrollbar {
     display: none; /* Chrome/Safari */
   }
 }

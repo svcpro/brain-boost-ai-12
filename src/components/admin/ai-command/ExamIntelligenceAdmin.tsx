@@ -198,7 +198,7 @@ export default function ExamIntelligenceAdmin() {
                 <SelectTrigger className="w-32 h-9 text-xs bg-secondary/50 border-border/50 backdrop-blur-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="z-[200] bg-popover border border-border shadow-xl max-h-60 overflow-y-auto">
+                <SelectContent className="z-[200] bg-popover border border-border shadow-xl">
                   {EXAM_TYPES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                 </SelectContent>
               </Select>
