@@ -912,6 +912,51 @@ export type Database = {
         }
         Relationships: []
       }
+      ca_autopilot_config: {
+        Row: {
+          auto_approve_questions: boolean
+          categories: string[]
+          exam_types: string[]
+          fetch_interval_hours: number
+          id: string
+          is_enabled: boolean
+          last_auto_run_at: string | null
+          total_auto_runs: number
+          total_events_fetched: number
+          total_questions_generated: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_approve_questions?: boolean
+          categories?: string[]
+          exam_types?: string[]
+          fetch_interval_hours?: number
+          id?: string
+          is_enabled?: boolean
+          last_auto_run_at?: string | null
+          total_auto_runs?: number
+          total_events_fetched?: number
+          total_questions_generated?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_approve_questions?: boolean
+          categories?: string[]
+          exam_types?: string[]
+          fetch_interval_hours?: number
+          id?: string
+          is_enabled?: boolean
+          last_auto_run_at?: string | null
+          total_auto_runs?: number
+          total_events_fetched?: number
+          total_questions_generated?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       ca_entities: {
         Row: {
           created_at: string
@@ -1002,6 +1047,7 @@ export type Database = {
           processing_status: string | null
           question_count: number | null
           raw_content: string | null
+          source: string | null
           source_name: string | null
           source_url: string | null
           summary: string | null
@@ -1020,6 +1066,7 @@ export type Database = {
           processing_status?: string | null
           question_count?: number | null
           raw_content?: string | null
+          source?: string | null
           source_name?: string | null
           source_url?: string | null
           summary?: string | null
@@ -1038,6 +1085,7 @@ export type Database = {
           processing_status?: string | null
           question_count?: number | null
           raw_content?: string | null
+          source?: string | null
           source_name?: string | null
           source_url?: string | null
           summary?: string | null

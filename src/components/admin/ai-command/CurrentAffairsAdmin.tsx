@@ -5,7 +5,8 @@ import {
   Plus, Play, Loader2, CheckCircle2, XCircle, ChevronRight,
   Globe, Shield, TrendingUp, Atom, ArrowUpRight, ArrowDownRight,
   Eye, BookOpen, Zap, RefreshCw, Clock, BarChart3, CircleDot,
-  FileText, Building2, MapPin, Scale, Activity, Landmark, IndianRupee
+  FileText, Building2, MapPin, Scale, Activity, Landmark, IndianRupee,
+  Power, Settings, Rocket, BotMessageSquare
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,21 +14,17 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCADashboard, useCAEvents, useCAEventDetail, useAddEvent, useCAPipeline, useApproveQuestion } from "@/hooks/useCurrentAffairs";
+import { useCAAutopilotConfig, useUpdateCAAutopilot, useTriggerAutoPipeline } from "@/hooks/useCAAutopilot";
 import { toast } from "sonner";
 import { EXAM_TYPES } from "@/lib/examTypes";
 
 const ENTITY_ICONS: Record<string, any> = {
-  policy: FileText,
-  scheme: Shield,
-  govt_body: Landmark,
-  constitutional_article: Scale,
-  act: BookOpen,
-  location: MapPin,
-  economic_indicator: IndianRupee,
-  person: Brain,
-  organization: Building2,
+  policy: FileText, scheme: Shield, govt_body: Landmark,
+  constitutional_article: Scale, act: BookOpen, location: MapPin,
+  economic_indicator: IndianRupee, person: Brain, organization: Building2,
 };
 
 const ENTITY_COLORS: Record<string, string> = {
@@ -52,6 +49,7 @@ const EDGE_COLORS: Record<string, string> = {
 
 const TABS = [
   { key: "overview", label: "Dashboard", icon: BarChart3 },
+  { key: "autopilot", label: "Autopilot", icon: BotMessageSquare },
   { key: "events", label: "Events", icon: Newspaper },
   { key: "graph", label: "Event Graph", icon: Network },
   { key: "questions", label: "Questions", icon: Sparkles },
@@ -67,12 +65,14 @@ const PIPELINE_STAGES = [
   { key: "done", label: "Complete", icon: CheckCircle2 },
 ];
 
+const CA_CATEGORIES = ["polity", "economy", "science", "environment", "international", "social", "defence", "sports"];
+
 export default function CurrentAffairsAdmin() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", summary: "", raw_content: "", source_url: "", source_name: "", category: "polity" });
-  const [examType, setExamType] = useState("UPSC");
+  const [examType, setExamType] = useState("UPSC CSE");
 
   const { data: dashboard, isLoading: dashLoading } = useCADashboard();
   const { data: events, isLoading: eventsLoading } = useCAEvents();
@@ -80,6 +80,11 @@ export default function CurrentAffairsAdmin() {
   const addEvent = useAddEvent();
   const pipeline = useCAPipeline();
   const approveQ = useApproveQuestion();
+
+  // Autopilot hooks
+  const { data: autoConfig, isLoading: autoLoading } = useCAAutopilotConfig();
+  const updateAuto = useUpdateCAAutopilot();
+  const triggerAuto = useTriggerAutoPipeline();
 
   const handleAddEvent = async () => {
     if (!newEvent.title.trim()) return toast.error("Title is required");
@@ -96,6 +101,20 @@ export default function CurrentAffairsAdmin() {
     pipeline.mutate({ event_id: eventId, exam_type: examType }, {
       onSuccess: () => toast.success("Full pipeline complete!"),
       onError: () => toast.error("Pipeline failed"),
+    });
+  };
+
+  const handleToggleAutopilot = (enabled: boolean) => {
+    updateAuto.mutate({ is_enabled: enabled }, {
+      onSuccess: () => toast.success(enabled ? "Autopilot enabled!" : "Autopilot disabled"),
+      onError: () => toast.error("Failed to update"),
+    });
+  };
+
+  const handleTriggerNow = () => {
+    triggerAuto.mutate(undefined, {
+      onSuccess: (data: any) => toast.success(`Auto pipeline complete! ${data?.events_fetched || 0} events, ${data?.questions_generated || 0} questions`),
+      onError: () => toast.error("Auto pipeline failed"),
     });
   };
 
@@ -138,6 +157,13 @@ export default function CurrentAffairsAdmin() {
                     <CircleDot className="w-2 h-2 mr-0.5" /> LIVE
                   </Badge>
                 </motion.div>
+                {autoConfig?.is_enabled && (
+                  <motion.div animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                    <Badge className="bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 border-violet-500/30 text-violet-300 text-[9px]">
+                      <BotMessageSquare className="w-2.5 h-2.5 mr-0.5" /> AUTO
+                    </Badge>
+                  </motion.div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground/80">Event Graph Intelligence · Auto Syllabus Mapping · Exam Question Generation</p>
             </div>
@@ -146,7 +172,7 @@ export default function CurrentAffairsAdmin() {
           <div className="flex items-center gap-3">
             <div className="relative z-50">
               <Select value={examType} onValueChange={setExamType}>
-                <SelectTrigger className="w-28 h-9 text-xs bg-secondary/50 border-border/50 backdrop-blur-sm">
+                <SelectTrigger className="w-32 h-9 text-xs bg-secondary/50 border-border/50 backdrop-blur-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[200] bg-popover border border-border shadow-xl">
@@ -165,36 +191,39 @@ export default function CurrentAffairsAdmin() {
 
       {/* Pipeline Progress */}
       <AnimatePresence>
-        {pipeline.isPending && (
+        {(pipeline.isPending || triggerAuto.isPending) && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
             className="rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/5 to-emerald-500/5 p-4"
           >
             <p className="text-xs font-bold text-foreground mb-3 flex items-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" /> AI Pipeline Running
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+              {triggerAuto.isPending ? "Auto Pipeline Running — AI is fetching & processing news..." : "AI Pipeline Running"}
             </p>
-            <div className="flex items-center gap-1">
-              {PIPELINE_STAGES.map((s, i) => {
-                const isActive = i === stageIndex;
-                const isDone = i < stageIndex;
-                return (
-                  <div key={s.key} className="flex-1 flex items-center gap-1">
-                    <motion.div
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${
-                        isDone ? "bg-emerald-500/20 text-emerald-400" :
-                        isActive ? "bg-cyan-500/20 text-cyan-400" :
-                        "bg-secondary/30 text-muted-foreground"
-                      }`}
-                      animate={isActive ? { scale: [1, 1.05, 1] } : {}}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    >
-                      {isDone ? <CheckCircle2 className="w-3 h-3" /> : isActive ? <Loader2 className="w-3 h-3 animate-spin" /> : <s.icon className="w-3 h-3" />}
-                      <span className="hidden sm:inline">{s.label}</span>
-                    </motion.div>
-                    {i < PIPELINE_STAGES.length - 1 && <ChevronRight className="w-3 h-3 text-muted-foreground/30" />}
-                  </div>
-                );
-              })}
-            </div>
+            {pipeline.isPending && (
+              <div className="flex items-center gap-1">
+                {PIPELINE_STAGES.map((s, i) => {
+                  const isActive = i === stageIndex;
+                  const isDone = i < stageIndex;
+                  return (
+                    <div key={s.key} className="flex-1 flex items-center gap-1">
+                      <motion.div
+                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                          isDone ? "bg-emerald-500/20 text-emerald-400" :
+                          isActive ? "bg-cyan-500/20 text-cyan-400" :
+                          "bg-secondary/30 text-muted-foreground"
+                        }`}
+                        animate={isActive ? { scale: [1, 1.05, 1] } : {}}
+                        transition={{ duration: 1, repeat: Infinity }}
+                      >
+                        {isDone ? <CheckCircle2 className="w-3 h-3" /> : isActive ? <Loader2 className="w-3 h-3 animate-spin" /> : <s.icon className="w-3 h-3" />}
+                        <span className="hidden sm:inline">{s.label}</span>
+                      </motion.div>
+                      {i < PIPELINE_STAGES.length - 1 && <ChevronRight className="w-3 h-3 text-muted-foreground/30" />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -242,6 +271,9 @@ export default function CurrentAffairsAdmin() {
             )}
             <tab.icon className="w-3.5 h-3.5 relative z-10" />
             <span className="relative z-10">{tab.label}</span>
+            {tab.key === "autopilot" && autoConfig?.is_enabled && (
+              <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            )}
           </motion.button>
         ))}
       </div>
@@ -266,7 +298,7 @@ export default function CurrentAffairsAdmin() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[200] bg-popover border border-border shadow-xl">
-                  {["polity", "economy", "science", "environment", "international", "social", "defence", "sports"].map(c => (
+                  {CA_CATEGORIES.map(c => (
                     <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
                   ))}
                 </SelectContent>
@@ -287,10 +319,175 @@ export default function CurrentAffairsAdmin() {
       <AnimatePresence mode="wait">
         <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
 
+          {/* AUTOPILOT TAB */}
+          {activeTab === "autopilot" && (
+            <div className="space-y-4">
+              {autoLoading ? (
+                <div className="text-center py-10"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
+              ) : (
+                <>
+                  {/* Master Switch */}
+                  <Card className={`relative overflow-hidden border ${autoConfig?.is_enabled ? "border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 to-card/80" : "border-border/50 bg-card/80"}`}>
+                    <CardContent className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <motion.div className={`w-12 h-12 rounded-xl flex items-center justify-center ${autoConfig?.is_enabled ? "bg-emerald-500/20" : "bg-secondary/50"}`}
+                            animate={autoConfig?.is_enabled ? { boxShadow: ["0 0 15px rgba(16,185,129,0.2)", "0 0 30px rgba(16,185,129,0.4)", "0 0 15px rgba(16,185,129,0.2)"] } : {}}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          >
+                            <BotMessageSquare className={`w-6 h-6 ${autoConfig?.is_enabled ? "text-emerald-400" : "text-muted-foreground"}`} />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-sm font-bold text-foreground">Full Autopilot Mode</h3>
+                            <p className="text-[11px] text-muted-foreground">
+                              AI automatically fetches news, extracts entities, builds knowledge graphs, and generates exam questions
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={autoConfig?.is_enabled || false}
+                          onCheckedChange={handleToggleAutopilot}
+                          disabled={updateAuto.isPending}
+                        />
+                      </div>
+
+                      {autoConfig?.is_enabled && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                          className="pt-4 border-t border-border/30 space-y-3"
+                        >
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="text-center p-3 rounded-lg bg-secondary/20">
+                              <p className="text-xl font-black text-foreground">{autoConfig.total_auto_runs}</p>
+                              <p className="text-[9px] text-muted-foreground">Auto Runs</p>
+                            </div>
+                            <div className="text-center p-3 rounded-lg bg-secondary/20">
+                              <p className="text-xl font-black text-foreground">{autoConfig.total_events_fetched}</p>
+                              <p className="text-[9px] text-muted-foreground">Events Fetched</p>
+                            </div>
+                            <div className="text-center p-3 rounded-lg bg-secondary/20">
+                              <p className="text-xl font-black text-foreground">{autoConfig.total_questions_generated}</p>
+                              <p className="text-[9px] text-muted-foreground">Qs Generated</p>
+                            </div>
+                          </div>
+
+                          {autoConfig.last_auto_run_at && (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> Last auto run: {new Date(autoConfig.last_auto_run_at).toLocaleString()}
+                            </p>
+                          )}
+                        </motion.div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Manual Trigger */}
+                  <Card className="border-border/50 bg-card/80">
+                    <CardContent className="p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                            <Rocket className="w-4 h-4 text-violet-400" /> Run Now
+                          </h3>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Manually trigger the full auto pipeline — fetches latest news and processes through all AI stages
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleTriggerNow}
+                          disabled={triggerAuto.isPending}
+                          className="gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white"
+                        >
+                          {triggerAuto.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                          {triggerAuto.isPending ? "Running..." : "Trigger Pipeline"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Configuration */}
+                  <Card className="border-border/50 bg-card/80">
+                    <CardContent className="p-5 space-y-4">
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <Settings className="w-4 h-4 text-muted-foreground" /> Autopilot Configuration
+                      </h3>
+
+                      {/* Exam Types */}
+                      <div>
+                        <p className="text-[11px] font-medium text-foreground mb-2">Target Exam Types</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {EXAM_TYPES.slice(0, 15).map(exam => {
+                            const isSelected = (autoConfig?.exam_types || []).includes(exam);
+                            return (
+                              <motion.button key={exam} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all ${
+                                  isSelected
+                                    ? "bg-primary/15 text-primary border-primary/30"
+                                    : "bg-secondary/30 text-muted-foreground border-border/50 hover:border-border"
+                                }`}
+                                onClick={() => {
+                                  const current = autoConfig?.exam_types || [];
+                                  const updated = isSelected
+                                    ? current.filter((e: string) => e !== exam)
+                                    : [...current, exam];
+                                  updateAuto.mutate({ exam_types: updated });
+                                }}
+                              >
+                                {exam}
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Categories */}
+                      <div>
+                        <p className="text-[11px] font-medium text-foreground mb-2">News Categories</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {CA_CATEGORIES.map(cat => {
+                            const isSelected = (autoConfig?.categories || []).includes(cat);
+                            return (
+                              <motion.button key={cat} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-medium border capitalize transition-all ${
+                                  isSelected
+                                    ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/30"
+                                    : "bg-secondary/30 text-muted-foreground border-border/50 hover:border-border"
+                                }`}
+                                onClick={() => {
+                                  const current = autoConfig?.categories || [];
+                                  const updated = isSelected
+                                    ? current.filter((c: string) => c !== cat)
+                                    : [...current, cat];
+                                  updateAuto.mutate({ categories: updated });
+                                }}
+                              >
+                                {cat}
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Auto-approve toggle */}
+                      <div className="flex items-center justify-between pt-2 border-t border-border/20">
+                        <div>
+                          <p className="text-[11px] font-medium text-foreground">Auto-Approve Questions</p>
+                          <p className="text-[10px] text-muted-foreground">Automatically approve all AI-generated questions</p>
+                        </div>
+                        <Switch
+                          checked={autoConfig?.auto_approve_questions || false}
+                          onCheckedChange={(v) => updateAuto.mutate({ auto_approve_questions: v })}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+          )}
+
           {/* OVERVIEW TAB */}
           {activeTab === "overview" && (
             <div className="space-y-4">
-              {/* Entity Distribution */}
               {dashboard?.entities?.by_type && Object.keys(dashboard.entities.by_type).length > 0 && (
                 <Card className="border-border/50 bg-card/80">
                   <CardContent className="p-4">
@@ -316,7 +513,6 @@ export default function CurrentAffairsAdmin() {
                 </Card>
               )}
 
-              {/* Graph Edge Distribution */}
               {dashboard?.graph_edges?.by_type && Object.keys(dashboard.graph_edges.by_type).length > 0 && (
                 <Card className="border-border/50 bg-card/80">
                   <CardContent className="p-4">
@@ -352,7 +548,7 @@ export default function CurrentAffairsAdmin() {
               {events && events.length === 0 && (
                 <div className="text-center py-10 text-muted-foreground">
                   <Newspaper className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">No events yet. Click "Add Event" to start.</p>
+                  <p className="text-xs">No events yet. Enable Autopilot or click "Add Event" to start.</p>
                 </div>
               )}
               {events?.map((event: any, i: number) => (
@@ -370,6 +566,11 @@ export default function CurrentAffairsAdmin() {
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h4 className="text-sm font-bold text-foreground truncate">{event.title}</h4>
                         <Badge variant="outline" className="text-[9px]">{event.category}</Badge>
+                        {event.source === "auto" && (
+                          <Badge className="bg-violet-500/15 text-violet-400 border-violet-500/20 text-[9px]">
+                            <BotMessageSquare className="w-2.5 h-2.5 mr-0.5" /> Auto
+                          </Badge>
+                        )}
                         <Badge className={`text-[9px] ${
                           event.processing_status === "completed" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20" :
                           event.processing_status === "processing" ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/20" :
@@ -406,7 +607,6 @@ export default function CurrentAffairsAdmin() {
                 </div>
               ) : detail ? (
                 <>
-                  {/* Entities */}
                   <Card className="border-border/50 bg-card/80">
                     <CardContent className="p-4">
                       <p className="text-xs font-bold text-foreground mb-3 flex items-center gap-2">
@@ -432,7 +632,6 @@ export default function CurrentAffairsAdmin() {
                     </CardContent>
                   </Card>
 
-                  {/* Graph Edges */}
                   <Card className="border-border/50 bg-card/80">
                     <CardContent className="p-4">
                       <p className="text-xs font-bold text-foreground mb-3 flex items-center gap-2">
@@ -454,7 +653,6 @@ export default function CurrentAffairsAdmin() {
                     </CardContent>
                   </Card>
 
-                  {/* Syllabus Links */}
                   <Card className="border-border/50 bg-card/80">
                     <CardContent className="p-4">
                       <p className="text-xs font-bold text-foreground mb-3 flex items-center gap-2">
