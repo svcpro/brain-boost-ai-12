@@ -460,13 +460,11 @@ const OnboardingPage = () => {
                         onClick={() => setExamCategory(cat.id)}
                         className="flex-1 py-2 rounded-xl text-[10px] font-bold tracking-wider relative overflow-hidden"
                         style={{
-                          background: isActive
-                            ? `linear-gradient(135deg, ${cat.color}20, ${cat.color}08)`
-                            : "#ffffff04",
-                          border: `1.5px solid ${isActive ? `${cat.color}60` : "#ffffff08"}`,
-                          color: isActive ? cat.color : "#ffffff40",
+                          background: isActive ? cat.color : "#ffffff04",
+                          border: `1.5px solid ${isActive ? cat.color : "#ffffff08"}`,
+                          color: isActive ? "#000000" : "#ffffff40",
                           boxShadow: isActive
-                            ? `0 0 20px ${cat.color}20, 0 0 40px ${cat.color}08, inset 0 0 15px ${cat.color}06`
+                            ? `0 0 20px ${cat.color}40, 0 0 40px ${cat.color}15`
                             : "none",
                         }}
                       >
