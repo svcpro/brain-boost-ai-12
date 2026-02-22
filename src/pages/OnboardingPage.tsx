@@ -10,21 +10,62 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const EXAM_TYPES = [
-  { id: "neet", label: "NEET", desc: "Medical" },
-  { id: "jee", label: "JEE", desc: "Engineering" },
-  { id: "upsc", label: "UPSC", desc: "Civil services" },
-  { id: "gate", label: "GATE", desc: "Graduate" },
-  { id: "cat", label: "CAT", desc: "Management" },
-  { id: "other", label: "Other", desc: "Custom" },
+const EXAM_CATEGORIES = [
+  { id: "government", label: "🏛️ Government", color: "#00E5FF" },
+  { id: "entrance", label: "🎓 Entrance", color: "#7C4DFF" },
+  { id: "global", label: "🌍 Global", color: "#00FF94" },
+] as const;
+
+type ExamEntry = { id: string; label: string; desc: string; category: string };
+
+const EXAM_TYPES: ExamEntry[] = [
+  // Government
+  { id: "ssc_cgl", label: "SSC CGL", desc: "Staff Selection", category: "government" },
+  { id: "ibps_po", label: "IBPS PO", desc: "Banking", category: "government" },
+  { id: "sbi_po", label: "SBI PO", desc: "Banking", category: "government" },
+  { id: "rrb_ntpc", label: "RRB NTPC", desc: "Railways", category: "government" },
+  { id: "rrb_group_d", label: "RRB Group D", desc: "Railways", category: "government" },
+  { id: "nda", label: "NDA", desc: "Defence", category: "government" },
+  { id: "cds", label: "CDS", desc: "Defence", category: "government" },
+  { id: "state_psc", label: "State PSC", desc: "State Services", category: "government" },
+  { id: "ugc_net", label: "UGC NET", desc: "Lectureship", category: "government" },
+  // Entrance
+  { id: "jee_advanced", label: "JEE Advanced", desc: "IIT Entry", category: "entrance" },
+  { id: "neet_ug", label: "NEET UG", desc: "Medical", category: "entrance" },
+  { id: "cat", label: "CAT", desc: "MBA / IIM", category: "entrance" },
+  { id: "gate", label: "GATE", desc: "M.Tech / PSU", category: "entrance" },
+  { id: "clat", label: "CLAT", desc: "Law / NLU", category: "entrance" },
+  { id: "cuet_ug", label: "CUET UG", desc: "Central Unis", category: "entrance" },
+  { id: "bitsat", label: "BITSAT", desc: "BITS Pilani", category: "entrance" },
+  { id: "nift", label: "NIFT", desc: "Fashion Design", category: "entrance" },
+  { id: "xat", label: "XAT", desc: "XLRI / MBA", category: "entrance" },
+  // Global
+  { id: "sat", label: "SAT", desc: "US Colleges", category: "global" },
+  { id: "gre", label: "GRE", desc: "Grad School", category: "global" },
+  { id: "gmat", label: "GMAT", desc: "Business School", category: "global" },
+  { id: "ielts", label: "IELTS", desc: "English Prof.", category: "global" },
+  { id: "toefl", label: "TOEFL", desc: "English Prof.", category: "global" },
+  { id: "usmle", label: "USMLE", desc: "US Medical", category: "global" },
+  { id: "cfa", label: "CFA", desc: "Finance", category: "global" },
+  { id: "cpa", label: "CPA", desc: "Accounting", category: "global" },
+  { id: "mcat", label: "MCAT", desc: "Medical", category: "global" },
+  { id: "acca", label: "ACCA", desc: "Accounting", category: "global" },
 ];
 
 const SUGGESTED_SUBJECTS: Record<string, string[]> = {
-  neet: ["Physics", "Chemistry", "Biology (Botany)", "Biology (Zoology)"],
-  jee: ["Physics", "Chemistry", "Mathematics"],
-  upsc: ["History", "Geography", "Polity", "Economics", "Science & Technology", "Environment", "Ethics"],
-  gate: ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  neet_ug: ["Physics", "Chemistry", "Biology (Botany)", "Biology (Zoology)"],
+  jee_advanced: ["Physics", "Chemistry", "Mathematics"],
   cat: ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+  gate: ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  ssc_cgl: ["General Intelligence", "English Language", "Quantitative Aptitude", "General Awareness"],
+  ibps_po: ["Reasoning", "English Language", "Quantitative Aptitude", "General Awareness", "Computer Aptitude"],
+  nda: ["Mathematics", "General Ability Test", "English", "General Knowledge"],
+  ugc_net: ["General Paper", "Subject Paper"],
+  sat: ["Math", "Evidence-Based Reading", "Writing"],
+  gre: ["Verbal Reasoning", "Quantitative Reasoning", "Analytical Writing"],
+  gmat: ["Quantitative", "Verbal", "Integrated Reasoning", "Analytical Writing"],
+  clat: ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
+  state_psc: ["General Studies", "CSAT", "Optional Subject"],
 };
 
 const SUGGESTED_TOPICS: Record<string, string[]> = {
@@ -53,7 +94,7 @@ const OnboardingPage = () => {
   const [step, setStep] = useState(0);
   const [displayName, setDisplayName] = useState("");
   const [examType, setExamType] = useState("");
-  const [customExam, setCustomExam] = useState("");
+  const [examCategory, setExamCategory] = useState("government");
   const [examDate, setExamDate] = useState("");
   const [subjects, setSubjects] = useState<string[]>([]);
   const [newSubject, setNewSubject] = useState("");
@@ -112,7 +153,8 @@ const OnboardingPage = () => {
   };
 
   const handleAIGenerate = async () => {
-    const examLabel = examType === "other" ? customExam || "Custom Exam" : examType.toUpperCase();
+    const selectedExam = EXAM_TYPES.find(e => e.id === examType);
+    const examLabel = selectedExam?.label || examType.toUpperCase();
     setAiGenerating(true);
     setAiProgress(0);
     setAiProgressLabel("Initializing AI...");
@@ -136,7 +178,7 @@ const OnboardingPage = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("ai-topic-manager", {
-        body: { action: "generate_curriculum", exam_type: examLabel, custom_exam: customExam },
+        body: { action: "generate_curriculum", exam_type: examLabel },
       });
       if (error) throw error;
 
@@ -192,7 +234,8 @@ const OnboardingPage = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const finalExam = examType === "other" ? customExam || "Custom Exam" : examType.toUpperCase();
+      const selectedExam = EXAM_TYPES.find(e => e.id === examType);
+      const finalExam = selectedExam?.label || examType.toUpperCase();
       const { error: profileErr } = await supabase.from("profiles").update({
         display_name: displayName.trim(),
         exam_type: finalExam,
@@ -392,29 +435,72 @@ const OnboardingPage = () => {
                   <GraduationCap className="w-4 h-4" style={{ color: "#00E5FF" }} />
                   <h1 className="text-lg font-bold" style={{ color: "#ffffffee" }}>Your exam?</h1>
                 </div>
-                <p className="text-xs mb-4" style={{ color: "#ffffff40" }}>Helps ACRY optimize your study strategy.</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {EXAM_TYPES.map(exam => (
-                    <motion.button whileTap={{ scale: 0.96 }} key={exam.id} onClick={() => setExamType(exam.id)}
-                      className="p-3 rounded-xl text-center transition-all duration-300"
+                <p className="text-xs mb-3" style={{ color: "#ffffff40" }}>Pick your target exam. ACRY will customize everything.</p>
+
+                {/* Category tabs */}
+                <div className="flex gap-1.5 mb-3">
+                  {EXAM_CATEGORIES.map(cat => (
+                    <motion.button
+                      key={cat.id}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setExamCategory(cat.id)}
+                      className="flex-1 py-1.5 rounded-lg text-[10px] font-bold tracking-wide transition-all"
                       style={{
-                        background: examType === exam.id ? "linear-gradient(135deg, #00E5FF10, #7C4DFF08)" : "#ffffff04",
-                        border: `1px solid ${examType === exam.id ? "#00E5FF40" : "#ffffff08"}`,
-                        boxShadow: examType === exam.id ? "0 0 15px #00E5FF10" : "none",
+                        background: examCategory === cat.id ? `${cat.color}15` : "#ffffff04",
+                        border: `1px solid ${examCategory === cat.id ? `${cat.color}40` : "#ffffff08"}`,
+                        color: examCategory === cat.id ? cat.color : "#ffffff50",
+                        boxShadow: examCategory === cat.id ? `0 0 12px ${cat.color}15` : "none",
                       }}
                     >
-                      <p className="font-semibold text-xs" style={{ color: examType === exam.id ? "#00E5FF" : "#ffffffcc" }}>{exam.label}</p>
-                      <p className="text-[9px]" style={{ color: "#ffffff35" }}>{exam.desc}</p>
+                      {cat.label}
                     </motion.button>
                   ))}
                 </div>
-                {examType === "other" && (
-                  <input type="text" placeholder="Enter your exam name" value={customExam} onChange={e => setCustomExam(e.target.value)}
-                    className="w-full mt-3 rounded-xl px-4 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
-                    style={inputStyle}
-                    onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
-                    onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
-                  />
+
+                {/* Exam grid */}
+                <div className="grid grid-cols-3 gap-2 max-h-[260px] overflow-y-auto pr-1 scrollbar-hide">
+                  <AnimatePresence mode="popLayout">
+                    {EXAM_TYPES.filter(e => e.category === examCategory).map((exam, i) => {
+                      const catColor = EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF";
+                      return (
+                        <motion.button
+                          key={exam.id}
+                          layout
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{ duration: 0.2, delay: i * 0.03 }}
+                          whileTap={{ scale: 0.94 }}
+                          onClick={() => setExamType(exam.id)}
+                          className="p-2.5 rounded-xl text-center transition-all duration-300 relative overflow-hidden"
+                          style={{
+                            background: examType === exam.id ? `linear-gradient(135deg, ${catColor}12, ${catColor}06)` : "#ffffff04",
+                            border: `1px solid ${examType === exam.id ? `${catColor}50` : "#ffffff08"}`,
+                            boxShadow: examType === exam.id ? `0 0 20px ${catColor}15, inset 0 0 20px ${catColor}05` : "none",
+                          }}
+                        >
+                          {examType === exam.id && (
+                            <motion.div
+                              layoutId="examGlow"
+                              className="absolute inset-0 rounded-xl"
+                              style={{ background: `radial-gradient(circle at center, ${catColor}08, transparent)` }}
+                            />
+                          )}
+                          <p className="font-bold text-[11px] relative z-10" style={{ color: examType === exam.id ? catColor : "#ffffffcc" }}>{exam.label}</p>
+                          <p className="text-[8px] mt-0.5 relative z-10" style={{ color: examType === exam.id ? `${catColor}90` : "#ffffff30" }}>{exam.desc}</p>
+                        </motion.button>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+
+                {examType && (
+                  <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "#00E5FF08", border: "1px solid #00E5FF15" }}>
+                    <Sparkles className="w-3 h-3" style={{ color: "#00E5FF" }} />
+                    <p className="text-[10px]" style={{ color: "#00E5FFaa" }}>
+                      Selected: <span className="font-bold" style={{ color: "#00E5FF" }}>{EXAM_TYPES.find(e => e.id === examType)?.label}</span>
+                    </p>
+                  </motion.div>
                 )}
               </motion.div>
             )}
