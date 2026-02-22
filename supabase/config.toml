@@ -227,3 +227,6 @@ verify_jwt = false
 
 [functions.stq-engine]
 verify_jwt = false
+
+[functions.exam-intelligence]
+verify_jwt = false
