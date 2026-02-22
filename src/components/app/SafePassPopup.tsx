@@ -80,14 +80,45 @@ function computeActivityScore(m: ActivityMetrics): number {
    reach this range through sustained study effort.
 */
 const SAFE_ZONE_MAP: Record<string, [number, number]> = {
-  NEET:           [1560, 2580],        // Any govt MBBS seat
-  "JEE Main":     [800, 1500],         // Decent NIT seat
-  "JEE Advanced": [200, 500],          // Any IIT seat
+  // ─── Government Exams ───
+  "SSC CGL":      [1000, 5000],         // ~50K vacancies across posts
+  "IBPS PO":      [500, 2000],          // Probationary Officer selections
+  "SBI PO":       [400, 1500],          // SBI PO selections
+  "RRB NTPC":     [2000, 8000],         // Large-scale railway recruitment
+  "RRB Group D":  [5000, 15000],        // Mass railway recruitment
+  NDA:            [200, 400],           // National Defence Academy selections
+  CDS:            [150, 350],           // Combined Defence Services
+  "State PSC":    [100, 500],           // State civil services
+  "UGC NET":      [1000, 3000],         // Lectureship/JRF qualifying
   UPSC:           [100, 300],           // IAS+IPS+IFS selections
+  SSC:            [1000, 3000],         // ~50K vacancies (legacy key)
+
+  // ─── Private Entrance Exams ───
+  "JEE Advanced": [200, 500],           // Any IIT seat
+  "JEE Main":     [800, 1500],          // Decent NIT seat
+  NEET:           [1560, 2580],         // Any govt MBBS seat
+  "NEET UG":      [1560, 2580],         // Any govt MBBS seat (alias)
   CAT:            [300, 800],           // Any IIM seat
   GATE:           [500, 1200],          // Top PSU/IIT M.Tech
-  SSC:            [1000, 3000],         // ~50K vacancies
   CLAT:           [200, 600],           // Top NLU seats
+  "CUET UG":      [500, 2000],         // Top central university seats
+  BITSAT:         [100, 400],           // BITS Pilani/Goa/Hyderabad
+  "NIFT Entrance":[100, 350],          // Top NIFT campus seats
+  XAT:            [200, 600],           // XLRI & top B-school seats
+
+  // ─── Global Exams ───
+  SAT:            [50, 200],            // Top US university admits (percentile-based)
+  GRE:            [100, 500],           // Top grad school admits
+  GMAT:           [80, 300],            // Top MBA program admits
+  IELTS:          [50, 150],            // Band 7.5+ equivalent ranking
+  TOEFL:          [50, 150],            // Score 100+ equivalent ranking
+  USMLE:          [100, 500],           // US medical licensing top scores
+  CFA:            [200, 800],           // CFA Program pass ranking
+  "CPA Exam":     [150, 500],          // CPA qualifying rank
+  MCAT:           [100, 400],           // Top med school admits
+  ACCA:           [200, 600],           // ACCA qualification ranking
+
+  // ─── Boards ───
   Boards:         [100, 240],           // Top percentile
 };
 const DEFAULT_SAFE_ZONE: [number, number] = [1000, 3000];
