@@ -151,7 +151,7 @@ serve(async (req) => {
     }
 
     // === 4. COMPUTE GLOBAL MODEL ACCURACY METRICS ===
-    const modelNames = ["rank_prediction", "memory_strength", "forgetting_curve", "burnout_detection", "adaptive_difficulty"];
+    const modelNames = ["rank_prediction", "memory_strength", "forgetting_curve", "burnout_detection", "adaptive_difficulty", "stq_pattern_prediction"];
 
     for (const modelName of modelNames) {
       const { data: validatedPreds } = await supabase.from("model_predictions")
@@ -188,6 +188,64 @@ serve(async (req) => {
           metadata: { avg_confidence: Math.round(avgConfidence * 100) / 100, accuracy: Math.round(accuracy * 100) / 100 },
         });
       }
+    }
+
+    // === 4B. VALIDATE STQ TPI PREDICTIONS ===
+    // Check if high-TPI topics actually appeared in recent exams/mocks
+    try {
+      const { data: tpiTopics } = await supabase
+        .from("topic_probability_index")
+        .select("topic_name, tpi_score, exam_type, prediction_year")
+        .gte("tpi_score", 70)
+        .order("tpi_score", { ascending: false })
+        .limit(100);
+
+      const { data: recentExamTopics } = await supabase
+        .from("question_mining_results")
+        .select("topic, exam_type, year")
+        .gte("year", new Date().getFullYear() - 1)
+        .limit(500);
+
+      if (tpiTopics && tpiTopics.length > 0 && recentExamTopics && recentExamTopics.length > 0) {
+        const examTopicSet = new Set(
+          recentExamTopics.map((q: any) => `${(q.topic || "").toLowerCase()}::${q.exam_type}`)
+        );
+
+        let tpiHits = 0;
+        let tpiTotal = 0;
+        for (const tpi of tpiTopics) {
+          const key = `${(tpi.topic_name || "").toLowerCase()}::${tpi.exam_type}`;
+          tpiTotal++;
+          if (examTopicSet.has(key)) tpiHits++;
+        }
+
+        const tpiAccuracy = tpiTotal > 0 ? tpiHits / tpiTotal : 0;
+
+        globalMetrics.push({
+          model_name: "stq_tpi_prediction",
+          metric_type: "hit_rate",
+          metric_value: Math.round(tpiAccuracy * 1000) / 1000,
+          sample_size: tpiTotal,
+          period_start: periodStart,
+          period_end: periodEnd,
+          metadata: { hits: tpiHits, total: tpiTotal, threshold: 70 },
+        });
+
+        // If TPI accuracy is low, flag for recalibration
+        if (tpiAccuracy < 0.4 && tpiTotal >= 5) {
+          globalMetrics.push({
+            model_name: "stq_tpi_prediction",
+            metric_type: "recalibration_needed",
+            metric_value: tpiAccuracy,
+            sample_size: tpiTotal,
+            period_start: periodStart,
+            period_end: periodEnd,
+            metadata: { reason: "TPI hit rate below 40%", recommended_action: "retrain_stq" },
+          });
+        }
+      }
+    } catch (e) {
+      console.error("STQ TPI validation error:", e);
     }
 
     // === 5. AUTO-SELECT BEST MODELS ===

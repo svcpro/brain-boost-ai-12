@@ -89,7 +89,49 @@ serve(async (req) => {
 
     const dataDriftDetected = durationDrift > 0.3; // >30% change in study patterns
 
-    // === 4. AUTO-RETRAIN DECISION ===
+    // === 4. STQ MODEL DRIFT MONITORING ===
+    let stqDrift: any = { monitored: false };
+    try {
+      // Check if STQ TPI scores are drifting from actual exam patterns
+      const { data: recentMetrics } = await supabase
+        .from("model_metrics")
+        .select("metric_value, metadata, created_at")
+        .eq("model_name", "stq_tpi_prediction")
+        .eq("metric_type", "hit_rate")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (recentMetrics && recentMetrics.length >= 2) {
+        const latestHitRate = recentMetrics[0].metric_value;
+        const avgHistorical = recentMetrics.slice(1).reduce((s: number, m: any) => s + m.metric_value, 0) / (recentMetrics.length - 1);
+        const stqDriftScore = Math.abs(latestHitRate - avgHistorical);
+        
+        stqDrift = {
+          monitored: true,
+          latest_hit_rate: latestHitRate,
+          avg_historical: Math.round(avgHistorical * 100) / 100,
+          drift_score: Math.round(stqDriftScore * 100) / 100,
+          needs_retrain: latestHitRate < 0.4 || stqDriftScore > 0.2,
+        };
+      }
+
+      // Check STQ engine staleness
+      const { data: stqConfig } = await supabase
+        .from("stq_engine_config")
+        .select("last_retrained_at")
+        .limit(1)
+        .maybeSingle();
+
+      if (stqConfig?.last_retrained_at) {
+        const stqAge = (now.getTime() - new Date(stqConfig.last_retrained_at).getTime()) / (1000 * 60 * 60 * 24);
+        stqDrift.days_since_retrain = Math.round(stqAge);
+        stqDrift.stale = stqAge > 14; // STQ model stale after 14 days
+      }
+    } catch (e) {
+      console.error("STQ drift check error:", e);
+    }
+
+    // === 5. AUTO-RETRAIN DECISION ===
     const modelsToRetrain: string[] = [];
 
     // Retrain feature engine if stale
@@ -105,7 +147,12 @@ serve(async (req) => {
       if (!modelsToRetrain.includes("feature_engine")) modelsToRetrain.push("feature_engine");
     }
 
-    // === 5. TRIGGER RETRAINING ===
+    // If STQ drift detected, flag for STQ retrain
+    if (stqDrift.needs_retrain || stqDrift.stale) {
+      modelsToRetrain.push("stq_engine");
+    }
+
+    // === 6. TRIGGER RETRAINING ===
     let retrainResults: Record<string, string> = {};
     if (modelsToRetrain.includes("feature_engine")) {
       try {
@@ -116,10 +163,22 @@ serve(async (req) => {
       }
     }
 
-    // === 6. LOG THE MONITORING EVENT ===
+    // Auto-retrain STQ if drifting
+    if (modelsToRetrain.includes("stq_engine")) {
+      try {
+        const { error } = await supabase.functions.invoke("stq-engine", {
+          body: { action: "retrain" },
+        });
+        retrainResults["stq_engine"] = error ? `error: ${error.message}` : "success";
+      } catch (e) {
+        retrainResults["stq_engine"] = `error: ${e instanceof Error ? e.message : "unknown"}`;
+      }
+    }
+
+    // === 7. LOG THE MONITORING EVENT ===
     await supabase.from("ml_training_logs").insert({
       model_name: "continual_learning",
-      model_version: "v1",
+      model_version: "v2",
       training_type: "monitoring",
       status: "completed",
       completed_at: now.toISOString(),
@@ -129,6 +188,7 @@ serve(async (req) => {
         features_stale: featuresStale,
         data_drift: Math.round(durationDrift * 100) / 100,
         data_drift_detected: dataDriftDetected,
+        stq_drift: stqDrift,
         models_retrained: modelsToRetrain,
         retrain_results: retrainResults,
       },
@@ -140,7 +200,7 @@ serve(async (req) => {
       if (report.total >= 3) {
         await supabase.from("model_metrics").insert({
           model_name: model,
-          model_version: "v1",
+          model_version: "v2",
           metric_type: "accuracy",
           metric_value: report.accuracy,
           sample_size: report.total,
@@ -155,6 +215,7 @@ serve(async (req) => {
       accuracy_report: accuracyReport,
       feature_staleness: { age_hours: Math.round(featureAge * 10) / 10, stale: featuresStale },
       data_drift: { drift_score: Math.round(durationDrift * 100) / 100, detected: dataDriftDetected },
+      stq_model_health: stqDrift,
       retrained_models: modelsToRetrain,
       retrain_results: retrainResults,
       health_score: Math.round(
