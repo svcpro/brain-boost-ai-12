@@ -458,7 +458,7 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
                   />
                 </motion.div>
                 <div>
-                  <h2 className="text-base font-extrabold text-foreground tracking-tight">Safe Pass Prediction</h2>
+                  <h2 className="text-base font-extrabold text-foreground tracking-tight">Sure Pass Prediction Engine</h2>
                   <p className="text-[10px] text-muted-foreground">Your path to exam success</p>
                 </div>
               </div>
