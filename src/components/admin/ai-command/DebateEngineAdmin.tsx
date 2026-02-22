@@ -6,11 +6,13 @@ import {
   Globe, BookOpen, Landmark, TrendingUp, PenTool, Zap,
   Target, Sparkles, Activity, Shield, ArrowRight, Cpu,
   Flame, Award, Clock, Users, Send, Timer, Star,
-  AlertTriangle, ThumbsUp, ArrowDown, RotateCcw, BookMarked
+  AlertTriangle, ThumbsUp, ArrowDown, RotateCcw, BookMarked,
+  Wand2, RefreshCw
 } from "lucide-react";
 import {
   useDebateDashboard, useDebateAnalyses, useDebateAnalysisDetail,
-  useGenerateAnalysis, useApplyFrameworks, useEvaluateWriting, useWritingEvaluations
+  useGenerateAnalysis, useApplyFrameworks, useEvaluateWriting, useWritingEvaluations,
+  useGenerateAITopic, useGenerateAIAnswer
 } from "@/hooks/useDebateEngine";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -316,14 +318,17 @@ export default function DebateEngineAdmin() {
   const [selectedEvalId, setSelectedEvalId] = useState<string | null>(null);
   const [newTopic, setNewTopic] = useState({ title: "", context: "", event_id: "" });
   const [activePipelineStage, setActivePipelineStage] = useState(0);
-  
+  const [autoGenStep, setAutoGenStep] = useState<"idle" | "generating_topic" | "topic_ready" | "generating_analysis" | "done">("idle");
+
   // Writing lab state
   const [writingTopic, setWritingTopic] = useState("");
+  const [writingContext, setWritingContext] = useState("");
   const [writingAnswer, setWritingAnswer] = useState("");
   const [writingLinkedAnalysis, setWritingLinkedAnalysis] = useState<string>("");
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [evalResult, setEvalResult] = useState<any>(null);
+  const [writingStep, setWritingStep] = useState<"idle" | "generating_topic" | "topic_ready" | "generating_answer" | "answer_ready" | "evaluating">("idle");
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const dashboard = useDebateDashboard();
@@ -333,6 +338,8 @@ export default function DebateEngineAdmin() {
   const applyFrameworks = useApplyFrameworks();
   const evaluateWriting = useEvaluateWriting();
   const evaluations = useWritingEvaluations();
+  const generateAITopic = useGenerateAITopic();
+  const generateAIAnswer = useGenerateAIAnswer();
 
   // Pipeline animation
   useEffect(() => {
@@ -352,20 +359,43 @@ export default function DebateEngineAdmin() {
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
-  const handleGenerate = () => {
-    if (!newTopic.title.trim()) return;
-    generateAnalysis.mutate(
-      { topic_title: newTopic.title, topic_context: newTopic.context, event_id: newTopic.event_id || undefined },
-      {
-        onSuccess: (data: any) => {
-          toast.success("Multi-angle analysis generated!");
-          setSelectedId(data.id);
-          setTab("detail");
-          setNewTopic({ title: "", context: "", event_id: "" });
-        },
-        onError: (e: any) => toast.error(e.message || "Failed to generate analysis"),
-      }
-    );
+  // FULLY AUTOMATED: Generate Topic → Generate Analysis → Apply Frameworks
+  const handleAutoGenerate = async () => {
+    try {
+      // Step 1: AI generates topic
+      setAutoGenStep("generating_topic");
+      const topicResult = await generateAITopic.mutateAsync();
+      setNewTopic({ title: topicResult.topic_title || "", context: topicResult.topic_context || "", event_id: "" });
+      setAutoGenStep("topic_ready");
+      toast.success("AI generated a debate topic!");
+
+      // Brief pause for visual feedback
+      await new Promise(r => setTimeout(r, 800));
+
+      // Step 2: Generate multi-angle analysis
+      setAutoGenStep("generating_analysis");
+      const analysisResult = await generateAnalysis.mutateAsync({
+        topic_title: topicResult.topic_title,
+        topic_context: topicResult.topic_context,
+      });
+      toast.success("6-dimension analysis generated!");
+
+      // Step 3: Auto-apply frameworks
+      await applyFrameworks.mutateAsync(analysisResult.id);
+      toast.success("All 4 frameworks applied!");
+
+      setAutoGenStep("done");
+      setSelectedId(analysisResult.id);
+
+      // Auto-navigate to detail after brief celebration
+      await new Promise(r => setTimeout(r, 1200));
+      setTab("detail");
+      setAutoGenStep("idle");
+      setNewTopic({ title: "", context: "", event_id: "" });
+    } catch (e: any) {
+      toast.error(e.message || "AI generation failed");
+      setAutoGenStep("idle");
+    }
   };
 
   const handleApplyFrameworks = (id: string) => {
@@ -378,38 +408,60 @@ export default function DebateEngineAdmin() {
     });
   };
 
-  const handleSubmitWriting = async () => {
-    if (!writingTopic.trim() || !writingAnswer.trim()) return;
-    setIsTimerRunning(false);
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { toast.error("Please log in first"); return; }
+  // FULLY AUTOMATED: AI generates topic → AI writes answer → AI evaluates
+  const handleAutoWritingLab = async () => {
+    try {
+      // Step 1: AI generates topic
+      setWritingStep("generating_topic");
+      const topicResult = await generateAITopic.mutateAsync();
+      setWritingTopic(topicResult.topic_title || "");
+      setWritingContext(topicResult.topic_context || "");
+      setWritingStep("topic_ready");
+      toast.success("AI picked a writing topic!");
 
-    evaluateWriting.mutate(
-      {
+      await new Promise(r => setTimeout(r, 600));
+
+      // Step 2: AI writes an answer
+      setWritingStep("generating_answer");
+      const answerResult = await generateAIAnswer.mutateAsync({
+        topic_title: topicResult.topic_title,
+        topic_context: topicResult.topic_context,
+      });
+      setWritingAnswer(answerResult.answer || "");
+      setWritingStep("answer_ready");
+      toast.success("AI wrote the answer!");
+
+      await new Promise(r => setTimeout(r, 600));
+
+      // Step 3: AI evaluates the answer
+      setWritingStep("evaluating");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Please log in first"); setWritingStep("idle"); return; }
+
+      const evalData2 = await evaluateWriting.mutateAsync({
         user_id: user.id,
-        topic_title: writingTopic,
-        user_answer: writingAnswer,
-        debate_analysis_id: writingLinkedAnalysis || undefined,
-        time_taken_seconds: elapsedSeconds,
-      },
-      {
-        onSuccess: (data: any) => {
-          toast.success("Writing evaluated by AI!");
-          setEvalResult(data);
-          evaluations.refetch();
-        },
-        onError: (e: any) => toast.error(e.message || "Evaluation failed"),
-      }
-    );
+        topic_title: topicResult.topic_title,
+        user_answer: answerResult.answer,
+        time_taken_seconds: 0,
+      });
+      setEvalResult(evalData2);
+      evaluations.refetch();
+      setWritingStep("idle");
+      toast.success("AI evaluation complete!");
+    } catch (e: any) {
+      toast.error(e.message || "Writing lab failed");
+      setWritingStep("idle");
+    }
   };
 
   const handleStartWritingFromAnalysis = (analysis: any) => {
     setWritingTopic(analysis.topic_title);
+    setWritingContext(analysis.topic_context || "");
     setWritingLinkedAnalysis(analysis.id);
     setWritingAnswer("");
     setElapsedSeconds(0);
     setEvalResult(null);
+    setWritingStep("idle");
     setTab("writing_lab");
   };
 
@@ -799,47 +851,78 @@ export default function DebateEngineAdmin() {
             </div>
           )}
 
-          {/* ═══════ CREATE TAB ═══════ */}
+          {/* ═══════ CREATE TAB — FULLY AUTOMATED ═══════ */}
           {tab === "create" && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="relative bg-card/80 backdrop-blur-sm border border-border rounded-2xl p-8 max-w-2xl overflow-hidden">
               <motion.div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-bl-full"
                 animate={{ opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 4, repeat: Infinity }} />
-              <div className="relative space-y-5">
+              <div className="relative space-y-6">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg"><Sparkles className="w-5 h-5 text-white" /></div>
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg"><Wand2 className="w-5 h-5 text-white" /></div>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground">Generate Multi-Angle Analysis</h3>
-                    <p className="text-[10px] text-muted-foreground">AI analyzes topic from 6 dimensions → then apply 4 frameworks → then write & evaluate</p>
+                    <h3 className="text-sm font-bold text-foreground">Fully Automated AI Analysis</h3>
+                    <p className="text-[10px] text-muted-foreground">One click → AI picks topic → generates 6D analysis → applies 4 frameworks</p>
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block font-medium">Topic Title *</label>
-                  <input value={newTopic.title} onChange={e => setNewTopic(p => ({ ...p, title: e.target.value }))} placeholder="e.g., National Education Policy 2020"
-                    className="w-full px-4 py-3 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50 transition-all" />
+
+                {/* Auto-generation progress steps */}
+                <div className="space-y-3">
+                  {[
+                    { step: "generating_topic", label: "AI Generating Debate Topic", icon: Sparkles, gradient: "from-cyan-500 to-blue-500" },
+                    { step: "topic_ready", label: "Topic Generated", icon: CheckCircle2, gradient: "from-emerald-500 to-green-500" },
+                    { step: "generating_analysis", label: "Generating 6-Dimension Analysis + 4 Frameworks", icon: Brain, gradient: "from-purple-500 to-pink-500" },
+                    { step: "done", label: "Complete! Full Analysis Ready", icon: Award, gradient: "from-orange-500 to-red-500" },
+                  ].map((s, i) => {
+                    const isActive = autoGenStep === s.step;
+                    const isPast = ["generating_topic", "topic_ready", "generating_analysis", "done"].indexOf(autoGenStep) > i;
+                    return (
+                      <motion.div key={s.step} initial={{ opacity: 0.4, x: -10 }} animate={{ opacity: isActive || isPast ? 1 : 0.4, x: 0 }} transition={{ delay: i * 0.05 }}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
+                          isActive ? `bg-gradient-to-r ${s.gradient} text-white border-transparent shadow-lg` :
+                          isPast ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-secondary/30 border-border/50 text-muted-foreground"
+                        }`}>
+                        {isActive && !isPast ? (
+                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}><Loader2 className="w-4 h-4" /></motion.div>
+                        ) : isPast ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          <s.icon className="w-4 h-4" />
+                        )}
+                        <span className="text-xs font-bold">{s.label}</span>
+                      </motion.div>
+                    );
+                  })}
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block font-medium">Context / Description</label>
-                  <textarea value={newTopic.context} onChange={e => setNewTopic(p => ({ ...p, context: e.target.value }))} placeholder="Provide background context..."
-                    rows={5} className="w-full px-4 py-3 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50 transition-all resize-none" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block font-medium">Link to CA Event <span className="text-muted-foreground/50">(optional)</span></label>
-                  <input value={newTopic.event_id} onChange={e => setNewTopic(p => ({ ...p, event_id: e.target.value }))} placeholder="Event UUID"
-                    className="w-full px-4 py-3 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50 transition-all" />
-                </div>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={handleGenerate}
-                  disabled={!newTopic.title.trim() || generateAnalysis.isPending}
-                  className="relative flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-bold shadow-lg disabled:opacity-50 overflow-hidden">
-                  {generateAnalysis.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Generating Multi-Angle Analysis...</span></> : <><Brain className="w-4 h-4" /><span>Generate Analysis</span></>}
-                  {!generateAnalysis.isPending && <motion.div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent" animate={{ x: ["-100%", "200%"] }} transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 4 }} />}
+
+                {/* Show generated topic if available */}
+                {newTopic.title && autoGenStep !== "idle" && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-wider block mb-1">AI Selected Topic</span>
+                    <h4 className="text-sm font-bold text-foreground">{newTopic.title}</h4>
+                    {newTopic.context && <p className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-3">{newTopic.context}</p>}
+                  </motion.div>
+                )}
+
+                {/* Main CTA */}
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={handleAutoGenerate}
+                  disabled={autoGenStep !== "idle"}
+                  className="relative flex items-center justify-center gap-2 w-full px-4 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-bold shadow-lg disabled:opacity-50 overflow-hidden">
+                  {autoGenStep !== "idle" ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /><span>AI Pipeline Running...</span></>
+                  ) : (
+                    <><Wand2 className="w-4 h-4" /><span>🚀 One-Click Full AI Analysis</span></>
+                  )}
+                  {autoGenStep === "idle" && <motion.div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent" animate={{ x: ["-100%", "200%"] }} transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 4 }} />}
                 </motion.button>
+
                 <div className="bg-secondary/30 rounded-xl p-4 border border-border/50">
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">Full AI Pipeline:</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">Fully Automated Pipeline:</p>
                   <div className="flex flex-wrap gap-2">
-                    {["1. Generate 6-Dimension Analysis", "2. Apply 4 Reasoning Frameworks", "3. Write Your Answer", "4. Get AI Evaluation & Score"].map((item, i) => (
+                    {["1. AI Picks Debate Topic", "2. 6-Dimension Analysis", "3. Apply PESTLE + Stakeholder + Cost-Benefit + Long/Short", "4. Ready for Review"].map((item, i) => (
                       <span key={i} className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-card/50 px-2.5 py-1 rounded-lg border border-border/50">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />{item}
+                        <Zap className="w-3 h-3 text-orange-400 shrink-0" />{item}
                       </span>
                     ))}
                   </div>
@@ -858,55 +941,85 @@ export default function DebateEngineAdmin() {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg"><PenTool className="w-5 h-5 text-white" /></div>
                       <div>
-                        <h3 className="text-sm font-bold text-foreground">AI Writing Evaluator</h3>
-                        <p className="text-[10px] text-muted-foreground">Write your answer. AI will evaluate on Structure, Depth, Evidence, Clarity & Logic Flow.</p>
+                        <h3 className="text-sm font-bold text-foreground">Fully Automated AI Writing Lab</h3>
+                        <p className="text-[10px] text-muted-foreground">One click → AI picks topic → AI writes answer → AI evaluates & scores</p>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1.5 block font-medium">Topic / Question *</label>
-                      <input value={writingTopic} onChange={e => setWritingTopic(e.target.value)} placeholder="e.g., Discuss the impact of NEP 2020 on higher education..."
-                        className="w-full px-4 py-3 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all" />
+                    {/* Auto-writing progress steps */}
+                    <div className="space-y-3">
+                      {[
+                        { step: "generating_topic", label: "AI Picking Writing Topic", icon: Sparkles, gradient: "from-cyan-500 to-blue-500" },
+                        { step: "topic_ready", label: "Topic Selected", icon: CheckCircle2, gradient: "from-emerald-500 to-green-500" },
+                        { step: "generating_answer", label: "AI Writing Mains-Quality Answer", icon: PenTool, gradient: "from-purple-500 to-pink-500" },
+                        { step: "answer_ready", label: "Answer Written", icon: CheckCircle2, gradient: "from-emerald-500 to-green-500" },
+                        { step: "evaluating", label: "AI Evaluating on 5 Dimensions", icon: Award, gradient: "from-orange-500 to-red-500" },
+                      ].map((s, i) => {
+                        const steps = ["generating_topic", "topic_ready", "generating_answer", "answer_ready", "evaluating"];
+                        const isActive = writingStep === s.step;
+                        const isPast = steps.indexOf(writingStep) > i;
+                        return (
+                          <motion.div key={s.step} initial={{ opacity: 0.4, x: -10 }} animate={{ opacity: isActive || isPast ? 1 : 0.4, x: 0 }} transition={{ delay: i * 0.05 }}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
+                              isActive ? `bg-gradient-to-r ${s.gradient} text-white border-transparent shadow-lg` :
+                              isPast ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-secondary/30 border-border/50 text-muted-foreground"
+                            }`}>
+                            {isActive ? (
+                              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}><Loader2 className="w-4 h-4" /></motion.div>
+                            ) : isPast ? (
+                              <CheckCircle2 className="w-4 h-4" />
+                            ) : (
+                              <s.icon className="w-4 h-4" />
+                            )}
+                            <span className="text-xs font-bold">{s.label}</span>
+                          </motion.div>
+                        );
+                      })}
                     </div>
 
-                    {/* Timer */}
-                    <div className="flex items-center gap-4 bg-secondary/30 rounded-xl p-4 border border-border/50">
-                      <div className="flex items-center gap-2">
-                        <Timer className="w-4 h-4 text-primary" />
-                        <span className="text-xs font-bold text-foreground">Timer</span>
-                      </div>
-                      <motion.span className="text-2xl font-black text-foreground tabular-nums font-mono"
-                        animate={isTimerRunning ? { color: ["hsl(var(--foreground))", "hsl(var(--primary))", "hsl(var(--foreground))"] } : {}}
-                        transition={{ duration: 2, repeat: Infinity }}>
-                        {formatTime(elapsedSeconds)}
-                      </motion.span>
-                      <div className="flex gap-2 ml-auto">
-                        <motion.button whileTap={{ scale: 0.9 }} onClick={() => setIsTimerRunning(!isTimerRunning)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${isTimerRunning ? "bg-red-500/15 text-red-400 border border-red-500/20" : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"}`}>
-                          {isTimerRunning ? "Pause" : "Start"}
-                        </motion.button>
-                        <motion.button whileTap={{ scale: 0.9 }} onClick={() => { setElapsedSeconds(0); setIsTimerRunning(false); }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-secondary text-muted-foreground border border-border">
-                          <RotateCcw className="w-3 h-3" />
-                        </motion.button>
-                      </div>
-                    </div>
+                    {/* Show generated topic */}
+                    {writingTopic && writingStep !== "idle" && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                        className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                        <span className="text-[10px] font-bold text-primary uppercase tracking-wider block mb-1">AI Selected Topic</span>
+                        <h4 className="text-sm font-bold text-foreground">{writingTopic}</h4>
+                      </motion.div>
+                    )}
 
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-xs text-muted-foreground font-medium">Your Answer *</label>
-                        <span className="text-[10px] text-muted-foreground">{writingAnswer.split(/\s+/).filter(Boolean).length} words</span>
-                      </div>
-                      <textarea value={writingAnswer} onChange={e => { setWritingAnswer(e.target.value); if (!isTimerRunning && e.target.value.length > 0) setIsTimerRunning(true); }}
-                        placeholder="Start writing your answer here... Timer will auto-start when you begin typing."
-                        rows={15} className="w-full px-4 py-3 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all resize-none leading-relaxed" />
-                    </div>
+                    {/* Show AI-generated answer */}
+                    {writingAnswer && writingStep !== "idle" && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                        className="bg-secondary/30 border border-border/50 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">AI Written Answer</span>
+                          <span className="text-[10px] text-muted-foreground">{writingAnswer.split(/\s+/).filter(Boolean).length} words</span>
+                        </div>
+                        <p className="text-xs text-foreground leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto">{writingAnswer}</p>
+                      </motion.div>
+                    )}
 
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={handleSubmitWriting}
-                      disabled={!writingTopic.trim() || !writingAnswer.trim() || evaluateWriting.isPending}
-                      className="relative flex items-center justify-center gap-2 w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-sm font-bold shadow-lg disabled:opacity-50 overflow-hidden">
-                      {evaluateWriting.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /><span>AI is Evaluating Your Answer...</span></> : <><Send className="w-4 h-4" /><span>Submit for AI Evaluation</span></>}
+                    {/* Main CTA */}
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={handleAutoWritingLab}
+                      disabled={writingStep !== "idle"}
+                      className="relative flex items-center justify-center gap-2 w-full px-4 py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-sm font-bold shadow-lg disabled:opacity-50 overflow-hidden">
+                      {writingStep !== "idle" ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /><span>AI Writing Pipeline Running...</span></>
+                      ) : (
+                        <><Wand2 className="w-4 h-4" /><span>🚀 One-Click AI Write & Evaluate</span></>
+                      )}
+                      {writingStep === "idle" && <motion.div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent" animate={{ x: ["-100%", "200%"] }} transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 4 }} />}
                     </motion.button>
+
+                    <div className="bg-secondary/30 rounded-xl p-4 border border-border/50">
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">Fully Automated Pipeline:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {["1. AI Picks Topic", "2. AI Writes Answer", "3. AI Evaluates 5 Dimensions", "4. Score + Feedback + Model Answer"].map((item, i) => (
+                          <span key={i} className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-card/50 px-2.5 py-1 rounded-lg border border-border/50">
+                            <Zap className="w-3 h-3 text-emerald-400 shrink-0" />{item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   </motion.div>
                 </>
               ) : (
@@ -979,7 +1092,7 @@ export default function DebateEngineAdmin() {
 
                   {/* Actions */}
                   <div className="flex gap-3">
-                    <motion.button whileHover={{ scale: 1.02 }} onClick={() => { setEvalResult(null); setWritingAnswer(""); setElapsedSeconds(0); }}
+                    <motion.button whileHover={{ scale: 1.02 }} onClick={() => { setEvalResult(null); setWritingAnswer(""); setWritingTopic(""); setWritingContext(""); setElapsedSeconds(0); setWritingStep("idle"); }}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-xs font-bold shadow-lg">
                       <RotateCcw className="w-3.5 h-3.5" />Try Again
                     </motion.button>

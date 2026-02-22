@@ -84,6 +84,19 @@ export function useEvaluateWriting() {
   });
 }
 
+export function useGenerateAITopic() {
+  return useMutation({
+    mutationFn: () => debateInvoke("generate_ai_topic"),
+  });
+}
+
+export function useGenerateAIAnswer() {
+  return useMutation({
+    mutationFn: (params: { topic_title: string; topic_context: string }) =>
+      debateInvoke("generate_ai_answer", params),
+  });
+}
+
 export function useWritingEvaluations(userId?: string) {
   return useQuery({
     queryKey: ["ca-writing-evaluations", userId],

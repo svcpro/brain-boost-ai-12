@@ -215,6 +215,47 @@ Evaluate and return JSON with:
   return data;
 }
 
+// MODULE 4: AI Topic Generator
+async function generateAITopic() {
+  const systemPrompt = `You are a UPSC exam expert. Generate a current, exam-relevant debate topic for Mains/Interview preparation. Pick from recent policy, governance, social, economic, environmental, or international affairs themes.`;
+
+  const prompt = `Generate a single debate topic for UPSC analytical writing practice.
+
+Return JSON with:
+1. topic_title: A clear, exam-style topic title (e.g., "Lateral Entry into Civil Services: Reform or Threat to Meritocracy?")
+2. topic_context: 3-4 paragraph detailed context/background about the topic (200-300 words)
+3. category: One of: governance, economy, social, environment, international, science_tech, security, ethics
+
+Make it thought-provoking, multi-dimensional, and relevant to current affairs. Choose topics that have strong arguments on both sides.`;
+
+  return await aiCall(prompt, systemPrompt);
+}
+
+// MODULE 5: AI Answer Generator
+async function generateAIAnswer(topicTitle: string, topicContext: string) {
+  const systemPrompt = `You are a UPSC Mains topper who writes structured, analytical answers. Write in a formal but clear style with proper introduction, body paragraphs covering multiple dimensions, and a balanced conclusion.`;
+
+  const prompt = `Write a UPSC Mains-quality answer for:
+
+Topic: ${topicTitle}
+Context: ${topicContext}
+
+Requirements:
+1. 250-350 words
+2. Clear introduction stating the issue
+3. Multiple dimensions (social, economic, political, ethical as relevant)
+4. Use of relevant examples, data, committee recommendations, or constitutional provisions
+5. Balanced analysis acknowledging both sides
+6. Forward-looking conclusion with suggestions
+
+Return JSON with:
+1. answer: The full answer text (250-350 words)
+2. key_points_covered: Array of key dimensions/points covered
+3. word_count: Approximate word count`;
+
+  return await aiCall(prompt, systemPrompt);
+}
+
 // Dashboard
 async function getDashboard(supabase: any) {
   const [analyses, frameworks, evaluations] = await Promise.all([
@@ -261,6 +302,12 @@ serve(async (req) => {
         break;
       case "get_dashboard":
         result = await getDashboard(supabase);
+        break;
+      case "generate_ai_topic":
+        result = await generateAITopic();
+        break;
+      case "generate_ai_answer":
+        result = await generateAIAnswer(params.topic_title, params.topic_context);
         break;
       default:
         throw new Error(`Unknown action: ${action}`);
