@@ -60,7 +60,7 @@ type STQTab = "dashboard" | "pipeline" | "syllabus" | "mining" | "tpi" | "patter
 
 const TAB_CONFIG: { key: STQTab; label: string; icon: any; gradient: string; activeColor: string }[] = [
   { key: "dashboard", label: "Dashboard", icon: BarChart3, gradient: "from-cyan-500 to-blue-600", activeColor: "text-cyan-400" },
-  { key: "pipeline", label: "🚀 Full Auto Pipeline", icon: Rocket, gradient: "from-orange-500 to-red-600", activeColor: "text-orange-400" },
+  { key: "pipeline", label: "Full Auto Pipeline", icon: Rocket, gradient: "from-orange-500 to-red-600", activeColor: "text-orange-400" },
   { key: "syllabus", label: "Syllabus Parser", icon: Layers, gradient: "from-violet-500 to-purple-600", activeColor: "text-violet-400" },
   { key: "mining", label: "Question Mining", icon: Database, gradient: "from-emerald-500 to-green-600", activeColor: "text-emerald-400" },
   { key: "tpi", label: "TPI Scores", icon: Target, gradient: "from-rose-500 to-pink-600", activeColor: "text-rose-400" },
