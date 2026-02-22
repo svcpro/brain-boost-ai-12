@@ -39,6 +39,8 @@ serve(async (req) => {
         return await detectPatterns(supabase, params);
       case "retrain":
         return await retrainModel(supabase, params);
+      case "full_pipeline":
+        return await fullPipeline(supabase, params);
       case "get_dashboard":
         return await getDashboard(supabase, params);
       default:
@@ -901,6 +903,61 @@ async function retrainModel(supabase: any, { exam_type }: any) {
     accuracy_before: avgConfBefore,
     accuracy_after: avgConfAfter,
   });
+}
+
+// =============================================
+// FULL AUTO PIPELINE: Syllabus → Mining → TPI → Patterns → Training
+// =============================================
+async function fullPipeline(supabase: any, { exam_type, subjects, years, skip_syllabus }: any) {
+  const steps: any[] = [];
+  const startTime = Date.now();
+
+  try {
+    // Step 1: Generate Syllabus (unless already exists or skipped)
+    if (!skip_syllabus) {
+      const syllabusResult = await autoGenerateSyllabus(supabase, { exam_type, subjects });
+      const syllabusData = JSON.parse(await syllabusResult.text());
+      steps.push({ step: "syllabus", status: "completed", count: syllabusData.count || 0 });
+    } else {
+      const { count } = await supabase.from("syllabus_taxonomies").select("id", { count: "exact", head: true }).eq("exam_type", exam_type);
+      steps.push({ step: "syllabus", status: "skipped", count: count || 0 });
+    }
+
+    // Step 2: Auto Mine Questions
+    const targetYears = years?.length ? years : [2024, 2023, 2022, 2021, 2020];
+    const mineResult = await autoMineQuestions(supabase, { exam_type, years: targetYears, subjects });
+    const mineData = JSON.parse(await mineResult.text());
+    steps.push({ step: "mining", status: "completed", total_mined: mineData.total_mined || 0 });
+
+    // Step 3: Compute TPI
+    const tpiResult = await computeTPI(supabase, { exam_type, prediction_year: new Date().getFullYear() + 1 });
+    const tpiData = JSON.parse(await tpiResult.text());
+    if (tpiData.error) {
+      steps.push({ step: "tpi", status: "failed", error: tpiData.error });
+    } else {
+      steps.push({ step: "tpi", status: "completed", topics_computed: tpiData.topics_computed || 0, high_tpi: tpiData.high_tpi || 0 });
+    }
+
+    // Step 4: Pattern Detection
+    const patternResult = await detectPatterns(supabase, { exam_type });
+    const patternData = JSON.parse(await patternResult.text());
+    if (patternData.error) {
+      steps.push({ step: "patterns", status: "failed", error: patternData.error });
+    } else {
+      steps.push({ step: "patterns", status: "completed", detections: patternData.detections_count || 0 });
+    }
+
+    // Step 5: Model Training
+    const trainResult = await retrainModel(supabase, { exam_type });
+    const trainData = JSON.parse(await trainResult.text());
+    steps.push({ step: "training", status: "completed", model_version: trainData.model_version, data_points: trainData.data_points || 0 });
+
+  } catch (e: any) {
+    steps.push({ step: "error", status: "failed", error: e.message });
+  }
+
+  const duration = Date.now() - startTime;
+  return json({ success: true, exam_type, duration_ms: duration, steps });
 }
 
 async function getDashboard(supabase: any, { exam_type }: any) {

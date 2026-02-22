@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Upload, RefreshCw, TrendingUp, Database, Zap, BarChart3, AlertTriangle, Loader2, Target, Layers, Sparkles, Trash2, Pencil, Search, CheckSquare, Square, X, Download, Filter, BookOpen, GraduationCap } from "lucide-react";
+import { Brain, Upload, RefreshCw, TrendingUp, Database, Zap, BarChart3, AlertTriangle, Loader2, Target, Layers, Sparkles, Trash2, Pencil, Search, CheckSquare, Square, X, Download, Filter, BookOpen, GraduationCap, Rocket, Check, Circle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -59,7 +59,7 @@ const STQ_EXAM_SUBJECTS: Record<string, string[]> = {
   "MCAT": ["Biology", "Chemistry", "Physics", "Psychology", "Critical Analysis"],
 };
 
-type STQTab = "dashboard" | "syllabus" | "mining" | "tpi" | "patterns" | "training";
+type STQTab = "dashboard" | "pipeline" | "syllabus" | "mining" | "tpi" | "patterns" | "training";
 
 export default function STQEngineAdmin() {
   const [tab, setTab] = useState<STQTab>("dashboard");
@@ -67,6 +67,7 @@ export default function STQEngineAdmin() {
 
   const tabs: { key: STQTab; label: string; icon: any }[] = [
     { key: "dashboard", label: "Dashboard", icon: BarChart3 },
+    { key: "pipeline", label: "🚀 Full Auto Pipeline", icon: Rocket },
     { key: "syllabus", label: "Syllabus Parser", icon: Layers },
     { key: "mining", label: "Question Mining", icon: Database },
     { key: "tpi", label: "TPI Scores", icon: Target },
@@ -112,6 +113,7 @@ export default function STQEngineAdmin() {
 
       {/* Content */}
       {tab === "dashboard" && <DashboardView examType={examType} />}
+      {tab === "pipeline" && <FullAutoPipeline examType={examType} />}
       {tab === "syllabus" && <SyllabusParser examType={examType} />}
       {tab === "mining" && <QuestionMining examType={examType} />}
       {tab === "tpi" && <TPIScores examType={examType} />}
@@ -198,6 +200,277 @@ function DashboardView({ examType }: { examType: string }) {
           </div>
         </Card>
       )}
+    </div>
+  );
+}
+
+// =============================================
+// FULL AUTO PIPELINE (One-Click Everything)
+// =============================================
+const PIPELINE_STEPS = [
+  { key: "syllabus", label: "Generate Syllabus", icon: Layers, description: "AI generates complete exam taxonomy" },
+  { key: "mining", label: "Question Mining", icon: Database, description: "AI mines question patterns per year/subject" },
+  { key: "tpi", label: "Compute TPI Scores", icon: Target, description: "Calculate Topic Probability Index" },
+  { key: "patterns", label: "Pattern Detection", icon: TrendingUp, description: "Detect exam trend evolution" },
+  { key: "training", label: "Model Training", icon: RefreshCw, description: "Retrain prediction model" },
+];
+
+function FullAutoPipeline({ examType }: { examType: string }) {
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<number[]>([2024, 2023, 2022, 2021, 2020]);
+  const [skipSyllabus, setSkipSyllabus] = useState(false);
+  const [pipelineResult, setPipelineResult] = useState<any>(null);
+  const [currentStep, setCurrentStep] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const availableSubjects = STQ_EXAM_SUBJECTS[examType] || [];
+  const allYears = [2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015];
+
+  // Check if syllabus exists
+  const { data: existingSyllabus } = useQuery({
+    queryKey: ["stq-taxonomy-count", examType],
+    queryFn: async () => {
+      const { count } = await (supabase as any).from("syllabus_taxonomies").select("id", { count: "exact", head: true }).eq("exam_type", examType);
+      return count || 0;
+    },
+  });
+
+  const runPipeline = useMutation({
+    mutationFn: async () => {
+      setPipelineResult(null);
+      setCurrentStep("syllabus");
+
+      // Simulate step progress visually while the backend runs the full pipeline
+      const stepOrder = ["syllabus", "mining", "tpi", "patterns", "training"];
+      const progressInterval = setInterval(() => {
+        setCurrentStep(prev => {
+          const idx = stepOrder.indexOf(prev || "syllabus");
+          if (idx < stepOrder.length - 1) return stepOrder[idx + 1];
+          return prev;
+        });
+      }, 12000); // Each step ~12s estimate
+
+      try {
+        const { data, error } = await supabase.functions.invoke("stq-engine", {
+          body: {
+            action: "full_pipeline",
+            exam_type: examType,
+            subjects: selectedSubjects.length ? selectedSubjects : undefined,
+            years: selectedYears,
+            skip_syllabus: skipSyllabus,
+          },
+        });
+        clearInterval(progressInterval);
+        if (error) throw error;
+        return data;
+      } catch (e) {
+        clearInterval(progressInterval);
+        throw e;
+      }
+    },
+    onSuccess: (d) => {
+      setCurrentStep(null);
+      setPipelineResult(d);
+      toast.success(`🚀 Full pipeline completed in ${(d.duration_ms / 1000).toFixed(1)}s!`);
+      qc.invalidateQueries({ queryKey: ["stq-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["stq-taxonomy"] });
+      qc.invalidateQueries({ queryKey: ["stq-mining"] });
+      qc.invalidateQueries({ queryKey: ["stq-tpi"] });
+      qc.invalidateQueries({ queryKey: ["stq-patterns"] });
+      qc.invalidateQueries({ queryKey: ["stq-training-logs"] });
+    },
+    onError: (e: any) => {
+      setCurrentStep(null);
+      toast.error(e.message);
+    },
+  });
+
+  const getStepStatus = (stepKey: string) => {
+    if (pipelineResult?.steps) {
+      const step = pipelineResult.steps.find((s: any) => s.step === stepKey);
+      if (step) return step.status;
+    }
+    if (!runPipeline.isPending) return "idle";
+    const stepOrder = ["syllabus", "mining", "tpi", "patterns", "training"];
+    const currentIdx = stepOrder.indexOf(currentStep || "");
+    const thisIdx = stepOrder.indexOf(stepKey);
+    if (thisIdx < currentIdx) return "completed";
+    if (thisIdx === currentIdx) return "running";
+    return "pending";
+  };
+
+  const getStepDetail = (stepKey: string) => {
+    if (!pipelineResult?.steps) return null;
+    return pipelineResult.steps.find((s: any) => s.step === stepKey);
+  };
+
+  const toggleSubject = (s: string) => setSelectedSubjects(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+  const toggleYear = (y: number) => setSelectedYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]);
+
+  return (
+    <div className="space-y-4">
+      {/* Hero */}
+      <Card title="Full Auto Pipeline — One Click, Complete Setup" icon={Rocket}>
+        <p className="text-[10px] text-muted-foreground mb-4">
+          Run the entire STQ pipeline for <span className="text-primary font-bold">{examType}</span> automatically:
+          Syllabus → Question Mining → TPI → Pattern Detection → Training. All powered by AI.
+        </p>
+
+        {/* Skip syllabus toggle */}
+        {(existingSyllabus || 0) > 0 && (
+          <div className="flex items-center gap-2 mb-3 p-2.5 rounded-lg bg-secondary/30 border border-border">
+            <button onClick={() => setSkipSyllabus(!skipSyllabus)}
+              className="flex items-center gap-1.5 text-[11px]">
+              {skipSyllabus ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5 text-muted-foreground" />}
+              <span className={skipSyllabus ? "text-primary font-medium" : "text-muted-foreground"}>
+                Skip syllabus (already have {existingSyllabus} items)
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Subject Selection */}
+        {availableSubjects.length > 0 && !skipSyllabus && (
+          <div className="mb-3">
+            <p className="text-[10px] font-medium text-foreground mb-1.5">Subjects (optional):</p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableSubjects.map(s => (
+                <button key={s} onClick={() => toggleSubject(s)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
+                    selectedSubjects.includes(s) ? "bg-primary/15 border-primary/30 text-primary" : "border-border text-muted-foreground hover:bg-secondary"
+                  }`}>
+                  {selectedSubjects.includes(s) ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Year Selection */}
+        <div className="mb-3">
+          <p className="text-[10px] font-medium text-foreground mb-1.5">Mining Years:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {allYears.map(y => (
+              <button key={y} onClick={() => toggleYear(y)}
+                className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
+                  selectedYears.includes(y) ? "bg-primary/15 border-primary/30 text-primary" : "border-border text-muted-foreground hover:bg-secondary"
+                }`}>
+                {y}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 mt-1">
+            <button onClick={() => setSelectedYears(allYears)} className="text-[9px] text-primary hover:underline">All</button>
+            <button onClick={() => setSelectedYears([2024, 2023, 2022, 2021, 2020])} className="text-[9px] text-muted-foreground hover:underline">Last 5</button>
+          </div>
+        </div>
+
+        {/* Launch Button */}
+        <button onClick={() => runPipeline.mutate()} disabled={runPipeline.isPending || !selectedYears.length}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-sm font-bold disabled:opacity-50 shadow-lg">
+          {runPipeline.isPending ? (
+            <><Loader2 className="w-5 h-5 animate-spin" /> Pipeline Running...</>
+          ) : (
+            <><Rocket className="w-5 h-5" /> Launch Full Pipeline for {examType}</>
+          )}
+        </button>
+      </Card>
+
+      {/* Pipeline Progress Steps */}
+      <Card title="Pipeline Progress" icon={Zap}>
+        <div className="space-y-2">
+          {PIPELINE_STEPS.map((step, i) => {
+            const status = getStepStatus(step.key);
+            const detail = getStepDetail(step.key);
+            return (
+              <motion.div key={step.key}
+                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                  status === "running" ? "bg-primary/5 border-primary/20 shadow-sm" :
+                  status === "completed" ? "bg-green-500/5 border-green-500/15" :
+                  status === "failed" ? "bg-destructive/5 border-destructive/15" :
+                  status === "skipped" ? "bg-secondary/50 border-border" :
+                  "bg-card border-border"
+                }`}>
+                {/* Status Icon */}
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                  status === "running" ? "bg-primary/15" :
+                  status === "completed" ? "bg-green-500/15" :
+                  status === "failed" ? "bg-destructive/15" :
+                  status === "skipped" ? "bg-secondary" :
+                  "bg-secondary/50"
+                }`}>
+                  {status === "running" ? <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" /> :
+                   status === "completed" ? <Check className="w-3.5 h-3.5 text-green-400" /> :
+                   status === "failed" ? <X className="w-3.5 h-3.5 text-destructive" /> :
+                   status === "skipped" ? <Check className="w-3.5 h-3.5 text-muted-foreground" /> :
+                   <Circle className="w-3.5 h-3.5 text-muted-foreground/40" />}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className={`text-xs font-bold ${
+                      status === "running" ? "text-primary" :
+                      status === "completed" ? "text-green-400" :
+                      status === "failed" ? "text-destructive" :
+                      "text-foreground"
+                    }`}>{step.label}</p>
+                    {status === "skipped" && <span className="text-[9px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">skipped</span>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{step.description}</p>
+                  {/* Step result details */}
+                  {detail && status === "completed" && (
+                    <p className="text-[10px] text-green-400 mt-0.5">
+                      {detail.count != null && `${detail.count} items`}
+                      {detail.total_mined != null && `${detail.total_mined} questions mined`}
+                      {detail.topics_computed != null && `${detail.topics_computed} topics (${detail.high_tpi || 0} high)`}
+                      {detail.detections != null && `${detail.detections} patterns found`}
+                      {detail.model_version && `${detail.model_version} • ${detail.data_points} data points`}
+                    </p>
+                  )}
+                  {detail && status === "failed" && (
+                    <p className="text-[10px] text-destructive mt-0.5">{detail.error}</p>
+                  )}
+                </div>
+
+                {/* Step number */}
+                <span className="text-[10px] text-muted-foreground/50 font-mono shrink-0">{i + 1}/5</span>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Running indicator */}
+        {runPipeline.isPending && (
+          <div className="mt-3 rounded-lg p-3 bg-primary/5 border border-primary/10">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <p className="text-[10px] font-medium text-primary">Full pipeline running for {examType}...</p>
+            </div>
+            <p className="text-[9px] text-muted-foreground">This may take 1-3 minutes depending on the number of years and subjects.</p>
+            <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
+              <motion.div className="h-full rounded-full bg-primary" initial={{ width: "2%" }}
+                animate={{ width: "95%" }} transition={{ duration: 120, ease: "linear" }} />
+            </div>
+          </div>
+        )}
+
+        {/* Completion Summary */}
+        {pipelineResult && !runPipeline.isPending && (
+          <div className="mt-3 rounded-lg p-3 bg-green-500/5 border border-green-500/15">
+            <div className="flex items-center gap-2 mb-1">
+              <Check className="w-4 h-4 text-green-400" />
+              <p className="text-xs font-bold text-green-400">Pipeline Complete!</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {examType} • {(pipelineResult.duration_ms / 1000).toFixed(1)}s total •
+              {pipelineResult.steps?.filter((s: any) => s.status === "completed").length}/{pipelineResult.steps?.length} steps succeeded
+            </p>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
