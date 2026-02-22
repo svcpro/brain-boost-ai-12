@@ -259,34 +259,37 @@ export default function STQEngineAdmin() {
                 <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${showExamDropdown ? "rotate-180" : ""}`} />
               </button>
 
-              <AnimatePresence>
+               <AnimatePresence>
                 {showExamDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                    className="absolute right-0 mt-2 w-56 rounded-xl border border-border/50 shadow-2xl z-50 max-h-72 overflow-y-auto"
-                    style={{ background: "hsl(var(--card))", backdropFilter: "blur(16px)" }}
-                  >
-                    {["Government", "Entrance", "Global"].map(cat => (
-                      <div key={cat}>
-                        <p className="px-3 pt-2.5 pb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">{cat}</p>
-                        {STQ_EXAM_TYPES.filter(e => e.category === cat).map(e => (
-                          <button
-                            key={e.id}
-                            onClick={() => { setExamType(e.id); setShowExamDropdown(false); }}
-                            className={`w-full px-3 py-2 text-left text-xs transition-colors ${
-                              examType === e.id
-                                ? "bg-primary/10 text-primary font-semibold"
-                                : "text-foreground hover:bg-secondary/50"
-                            }`}
-                          >
-                            {e.id}
-                          </button>
-                        ))}
-                      </div>
-                    ))}
-                  </motion.div>
+                  <>
+                    <div className="fixed inset-0 z-[99]" onClick={() => setShowExamDropdown(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-64 rounded-xl border border-border shadow-2xl z-[100] max-h-80 overflow-y-auto bg-popover"
+                    >
+                      {["Government", "Entrance", "Global"].map(cat => (
+                        <div key={cat}>
+                          <p className="px-3 pt-2.5 pb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">{cat}</p>
+                          {STQ_EXAM_TYPES.filter(e => e.category === cat).map(e => (
+                            <button
+                              key={e.id}
+                              onClick={() => { setExamType(e.id); setShowExamDropdown(false); }}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs whitespace-nowrap truncate transition-colors ${
+                                examType === e.id
+                                  ? "bg-primary/10 text-primary font-semibold"
+                                  : "text-foreground hover:bg-accent"
+                              }`}
+                            >
+                              {examType === e.id && <Check className="w-3 h-3 shrink-0" />}
+                              <span className="truncate">{e.id}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </motion.div>
+                  </>
                 )}
               </AnimatePresence>
             </div>
