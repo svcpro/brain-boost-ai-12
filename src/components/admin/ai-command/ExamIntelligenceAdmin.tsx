@@ -13,8 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { useExamIntelligence } from "@/hooks/useExamIntelligence";
 import { toast } from "sonner";
-
-const EXAM_TYPES = ["UPSC", "NEET", "JEE", "SSC CGL", "CAT", "GATE", "GRE", "SAT", "CLAT", "NDA"];
+import { EXAM_TYPES } from "@/lib/examTypes";
 
 const MODULE_TABS = [
   { key: "overview", label: "Neural Overview", icon: Radar, gradient: "from-violet-500 to-fuchsia-500" },
