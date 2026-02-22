@@ -25,8 +25,8 @@ serve(async (req) => {
     const { action } = await req.json();
     const userId = user.id;
 
-    // Gather all user data in parallel
-    const [topicsRes, profileRes, logsRes, examsRes, featuresRes, rankRes, twinRes] = await Promise.all([
+    // Gather all user data in parallel (including Intel v10.0 predictions)
+    const [topicsRes, profileRes, logsRes, examsRes, featuresRes, rankRes, twinRes, intelRes] = await Promise.all([
       supabase.from("topics").select("id, name, memory_strength, subject_id, last_revision_date, next_predicted_drop_date, revision_count, created_at")
         .eq("user_id", userId).is("deleted_at", null),
       supabase.from("profiles").select("daily_study_goal_minutes, exam_date, exam_type, display_name")
@@ -39,6 +39,7 @@ serve(async (req) => {
       supabase.from("rank_predictions").select("predicted_rank, percentile, recorded_at")
         .eq("user_id", userId).order("recorded_at", { ascending: false }).limit(10),
       supabase.from("cognitive_twins").select("*").eq("user_id", userId).order("computed_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("exam_intel_student_briefs").select("*").eq("user_id", userId).order("computed_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     const topics = topicsRes.data || [];
@@ -48,6 +49,7 @@ serve(async (req) => {
     const features = featuresRes.data;
     const ranks = rankRes.data || [];
     const twin = twinRes.data;
+    const intelBrief = intelRes.data;
 
     const now = new Date();
     const daysToExam = profile?.exam_date
@@ -101,6 +103,13 @@ ${ranks.slice(0, 5).map(r => `- Rank ${r.predicted_rank} (${r.percentile}th pcti
 
 ## STUDY PATTERNS (recent 50 sessions)
 ${recentLogs.slice(0, 15).map(l => `- ${l.duration_minutes}min ${l.study_mode || "study"} | confidence: ${l.confidence_level || "N/A"} | ${new Date(l.created_at).toLocaleDateString()}`).join("\n")}
+
+## EXAM INTEL v10.0 PREDICTIONS
+${intelBrief ? `- Overall Readiness: ${intelBrief.overall_readiness_score}%
+- Hot Topics: ${(intelBrief.predicted_hot_topics || []).slice(0, 5).map((t: any) => `${t.topic} (${Math.round(t.probability * 100)}%)`).join(", ")}
+- Critical Gaps (High Prob + Low Strength): ${(intelBrief.weakness_overlap || []).slice(0, 3).map((w: any) => `${w.topic} (exam: ${Math.round(w.probability * 100)}%, you: ${Math.round(w.your_strength * 100)}%)`).join(", ")}
+- Risk Topics (Not Studied): ${(intelBrief.risk_topics || []).slice(0, 3).map((r: any) => `${r.topic} (${Math.round(r.probability * 100)}%)`).join(", ")}
+- AI Strategy: ${intelBrief.ai_strategy_summary || "N/A"}` : "No intel brief computed yet."}
 `;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

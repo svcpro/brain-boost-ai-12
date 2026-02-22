@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Crosshair, AlertOctagon,
+  Crosshair, AlertOctagon, Radar,
   Brain, ArrowRight, Sparkles,
   Clock, TrendingUp, ChevronDown, BookOpen,
   Zap, Target, Play, Timer, Lock, ShieldAlert, Shield, Newspaper
@@ -22,6 +22,7 @@ import ActiveTaskEngine from "./ActiveTaskEngine";
 import { useExamCountdown } from "@/hooks/useExamCountdown";
 import ExamLockModal from "./ExamLockModal";
 import CAPracticeSession from "./CAPracticeSession";
+import IntelPracticeSession from "./IntelPracticeSession";
 
 // ─── Study mode definitions ───
 const studyModes = [
@@ -75,6 +76,16 @@ const studyModes = [
     color: "text-primary",
     bgClass: "bg-primary/15",
   },
+  {
+    id: "intel-practice",
+    icon: Radar,
+    title: "Exam Intel Practice",
+    desc: "AI-predicted high-probability questions. Practice what's most likely to appear in your exam.",
+    duration: "10-20 min",
+    gain: "+Prediction mastery",
+    color: "text-primary",
+    bgClass: "bg-primary/15",
+  },
 ];
 
 interface ActionTabProps {
@@ -88,6 +99,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [emergencyOpen, setEmergencyOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
   const [caOpen, setCaOpen] = useState(false);
+  const [intelOpen, setIntelOpen] = useState(false);
   const [lockModalOpen, setLockModalOpen] = useState(false);
   const [lockedModeName, setLockedModeName] = useState("");
   
@@ -167,6 +179,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       case "mock": setMockOpen(true); break;
       case "emergency": setEmergencyOpen(true); break;
       case "current-affairs": setCaOpen(true); break;
+      case "intel-practice": setIntelOpen(true); break;
     }
   };
 
@@ -480,6 +493,15 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
             })}
           </div>
         </motion.section>
+      )}
+
+      {/* Intel Practice */}
+      {intelOpen && (
+        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto p-4">
+          <div className="max-w-lg mx-auto">
+            <IntelPracticeSession onClose={() => setIntelOpen(false)} />
+          </div>
+        </div>
       )}
 
 

@@ -2765,6 +2765,275 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_intel_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          exam_type: string
+          id: string
+          is_pushed: boolean | null
+          is_read: boolean | null
+          message: string
+          new_score: number | null
+          old_score: number | null
+          severity: string
+          subject: string | null
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          alert_type?: string
+          created_at?: string
+          exam_type: string
+          id?: string
+          is_pushed?: boolean | null
+          is_read?: boolean | null
+          message: string
+          new_score?: number | null
+          old_score?: number | null
+          severity?: string
+          subject?: string | null
+          topic: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          exam_type?: string
+          id?: string
+          is_pushed?: boolean | null
+          is_read?: boolean | null
+          message?: string
+          new_score?: number | null
+          old_score?: number | null
+          severity?: string
+          subject?: string | null
+          topic?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      exam_intel_pipeline_runs: {
+        Row: {
+          alerts_created: number | null
+          completed_at: string | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          exam_type: string
+          id: string
+          pipeline_stage: string
+          predictions_generated: number | null
+          started_at: string
+          status: string
+          student_briefs_updated: number | null
+          topics_analyzed: number | null
+        }
+        Insert: {
+          alerts_created?: number | null
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          exam_type: string
+          id?: string
+          pipeline_stage: string
+          predictions_generated?: number | null
+          started_at?: string
+          status?: string
+          student_briefs_updated?: number | null
+          topics_analyzed?: number | null
+        }
+        Update: {
+          alerts_created?: number | null
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          exam_type?: string
+          id?: string
+          pipeline_stage?: string
+          predictions_generated?: number | null
+          started_at?: string
+          status?: string
+          student_briefs_updated?: number | null
+          topics_analyzed?: number | null
+        }
+        Relationships: []
+      }
+      exam_intel_practice_questions: {
+        Row: {
+          cognitive_type: string | null
+          correct_answer: number
+          correct_rate: number | null
+          created_at: string
+          difficulty_level: string | null
+          exam_type: string
+          explanation: string | null
+          id: string
+          is_active: boolean | null
+          options: Json
+          probability_score: number | null
+          question_text: string
+          source: string | null
+          subject: string
+          times_served: number | null
+          topic: string
+        }
+        Insert: {
+          cognitive_type?: string | null
+          correct_answer?: number
+          correct_rate?: number | null
+          created_at?: string
+          difficulty_level?: string | null
+          exam_type: string
+          explanation?: string | null
+          id?: string
+          is_active?: boolean | null
+          options?: Json
+          probability_score?: number | null
+          question_text: string
+          source?: string | null
+          subject: string
+          times_served?: number | null
+          topic: string
+        }
+        Update: {
+          cognitive_type?: string | null
+          correct_answer?: number
+          correct_rate?: number | null
+          created_at?: string
+          difficulty_level?: string | null
+          exam_type?: string
+          explanation?: string | null
+          id?: string
+          is_active?: boolean | null
+          options?: Json
+          probability_score?: number | null
+          question_text?: string
+          source?: string | null
+          subject?: string
+          times_served?: number | null
+          topic?: string
+        }
+        Relationships: []
+      }
+      exam_intel_student_briefs: {
+        Row: {
+          ai_strategy_summary: string | null
+          computed_at: string
+          created_at: string
+          exam_type: string
+          id: string
+          opportunity_topics: Json | null
+          overall_readiness_score: number | null
+          predicted_hot_topics: Json | null
+          recommended_actions: Json | null
+          risk_topics: Json | null
+          updated_at: string
+          user_id: string
+          weakness_overlap: Json | null
+        }
+        Insert: {
+          ai_strategy_summary?: string | null
+          computed_at?: string
+          created_at?: string
+          exam_type: string
+          id?: string
+          opportunity_topics?: Json | null
+          overall_readiness_score?: number | null
+          predicted_hot_topics?: Json | null
+          recommended_actions?: Json | null
+          risk_topics?: Json | null
+          updated_at?: string
+          user_id: string
+          weakness_overlap?: Json | null
+        }
+        Update: {
+          ai_strategy_summary?: string | null
+          computed_at?: string
+          created_at?: string
+          exam_type?: string
+          id?: string
+          opportunity_topics?: Json | null
+          overall_readiness_score?: number | null
+          predicted_hot_topics?: Json | null
+          recommended_actions?: Json | null
+          risk_topics?: Json | null
+          updated_at?: string
+          user_id?: string
+          weakness_overlap?: Json | null
+        }
+        Relationships: []
+      }
+      exam_intel_topic_scores: {
+        Row: {
+          ai_confidence: number | null
+          ca_boost_score: number | null
+          composite_score: number | null
+          computed_at: string
+          consecutive_appearances: number | null
+          created_at: string
+          exam_type: string
+          historical_frequency: number | null
+          id: string
+          last_appeared_year: number | null
+          predicted_marks_weight: number | null
+          probability_score: number
+          subject: string
+          topic: string
+          topic_id: string | null
+          trend_direction: string
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ca_boost_score?: number | null
+          composite_score?: number | null
+          computed_at?: string
+          consecutive_appearances?: number | null
+          created_at?: string
+          exam_type: string
+          historical_frequency?: number | null
+          id?: string
+          last_appeared_year?: number | null
+          predicted_marks_weight?: number | null
+          probability_score?: number
+          subject: string
+          topic: string
+          topic_id?: string | null
+          trend_direction?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ca_boost_score?: number | null
+          composite_score?: number | null
+          computed_at?: string
+          consecutive_appearances?: number | null
+          created_at?: string
+          exam_type?: string
+          historical_frequency?: number | null
+          id?: string
+          last_appeared_year?: number | null
+          predicted_marks_weight?: number | null
+          probability_score?: number
+          subject?: string
+          topic?: string
+          topic_id?: string | null
+          trend_direction?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_intel_topic_scores_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_results: {
         Row: {
           created_at: string

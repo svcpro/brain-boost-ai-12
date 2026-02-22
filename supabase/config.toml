@@ -236,3 +236,6 @@ verify_jwt = false
 
 [functions.ca-auto-pipeline]
 verify_jwt = false
+
+[functions.exam-intel-v10]
+verify_jwt = false
