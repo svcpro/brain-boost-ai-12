@@ -124,13 +124,31 @@
     @apply font-display;
   }
 
-  /* Hide scrollbar everywhere but keep scrolling — except Radix select viewports */
-  *:not([data-radix-select-viewport]) {
+  /* Hide scrollbar everywhere but keep scrolling */
+  * {
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
   }
-  *:not([data-radix-select-viewport])::-webkit-scrollbar {
+  *::-webkit-scrollbar {
     display: none; /* Chrome/Safari */
+  }
+
+  /* Re-enable scrollbar inside Radix Select dropdowns so items are scrollable */
+  [data-radix-select-viewport],
+  [role="listbox"] {
+    scrollbar-width: thin !important;
+    -ms-overflow-style: auto !important;
+    overflow-y: auto !important;
+  }
+  [data-radix-select-viewport]::-webkit-scrollbar,
+  [role="listbox"]::-webkit-scrollbar {
+    display: block !important;
+    width: 4px;
+  }
+  [data-radix-select-viewport]::-webkit-scrollbar-thumb,
+  [role="listbox"]::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
   }
 }
 
