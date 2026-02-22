@@ -55,6 +55,7 @@ const CognitiveEmbeddingCard = lazy(() => import("./CognitiveEmbeddingCard"));
 const RLPolicyCard = lazy(() => import("./RLPolicyCard"));
 const AutoStudySummaryCard = lazy(() => import("./AutoStudySummaryCard"));
 const PrecisionIntelligenceCard = lazy(() => import("./PrecisionIntelligenceCard"));
+const DebateEngineWidget = lazy(() => import("./DebateEngineWidget"));
 
 interface HomeTabProps {
   onNavigateToEmergency?: () => void;
@@ -818,6 +819,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       </SectionErrorBoundary> */}
       {/* ─── SECTION 2.6: Brain Feed (Second Brain Feed) ─── */}
       {/* <BrainFeed hasTopics={hasTopics} /> */}
+
+      {/* ─── Debate & Writing Lab Widget ─── */}
+      <SectionErrorBoundary name="debate-widget">
+        <Suspense fallback={null}>
+          <DebateEngineWidget />
+        </Suspense>
+      </SectionErrorBoundary>
 
       {/* ─── SECTION 3: Quick Micro Actions ─── */}
       {hasTopics && (
