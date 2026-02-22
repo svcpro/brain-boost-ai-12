@@ -723,12 +723,16 @@ async function computeTPI(supabase: any, { exam_type, prediction_year }: any) {
     });
   }
 
-  // Upsert TPI scores
-  for (const row of tpiResults) {
-    await supabase.from("topic_probability_index").upsert(row, {
-      onConflict: "exam_type,subject,topic,subtopic,prediction_year",
-      ignoreDuplicates: false,
-    });
+  // Delete existing TPI scores for this exam_type + prediction_year, then insert fresh
+  await supabase.from("topic_probability_index")
+    .delete()
+    .eq("exam_type", exam_type)
+    .eq("prediction_year", targetYear);
+
+  // Insert in batches of 50
+  for (let i = 0; i < tpiResults.length; i += 50) {
+    const batch = tpiResults.slice(i, i + 50);
+    await supabase.from("topic_probability_index").insert(batch);
   }
 
   return json({
