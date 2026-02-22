@@ -114,7 +114,7 @@ export default function ExamIntelligenceAdmin() {
       >
         {/* Shimmer sweep */}
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent skew-x-12"
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent skew-x-12 pointer-events-none"
           animate={{ x: ["-100%", "200%"] }}
           transition={{ duration: 4, repeat: Infinity, repeatDelay: 6, ease: "easeInOut" }}
         />
@@ -194,10 +194,10 @@ export default function ExamIntelligenceAdmin() {
             </div>
 
             <Select value={examType} onValueChange={setExamType}>
-              <SelectTrigger className="w-32 h-9 text-xs bg-secondary/50 border-border/50 backdrop-blur-sm">
+              <SelectTrigger className="w-32 h-9 text-xs bg-secondary/50 border-border/50 backdrop-blur-sm relative z-20">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100] bg-popover border border-border shadow-xl">
                 {EXAM_TYPES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
               </SelectContent>
             </Select>
