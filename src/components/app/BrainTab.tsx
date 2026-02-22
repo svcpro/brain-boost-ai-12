@@ -27,6 +27,7 @@ import DecayForecastV2Card from "./DecayForecastV2Card";
 // Modals
 import FocusModeSession from "./FocusModeSession";
 import AITopicManager from "./AITopicManager";
+import SafePassPopup from "./SafePassPopup";
 
 interface TopicInfo {
   id: string;
@@ -53,6 +54,7 @@ const BrainTab = () => {
   const [subjectHealth, setSubjectHealth] = useState<SubjectHealthData[]>([]);
   const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
   const [showAITopicManager, setShowAITopicManager] = useState(false);
+  const [showSafePass, setShowSafePass] = useState(false);
 
   useEffect(() => {
     try {
@@ -146,6 +148,7 @@ const BrainTab = () => {
         hasData={hasData}
         subjectHealth={subjectHealth}
         onBoostSession={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
+        onSurePassClick={() => setShowSafePass(true)}
       />
 
       {/* ═══ v7.0: AI Precision Intelligence ═══ */}
@@ -230,6 +233,20 @@ const BrainTab = () => {
           </motion.div>
         </div>
       )}
+
+      <SafePassPopup
+        open={showSafePass}
+        onClose={() => setShowSafePass(false)}
+        allTopics={subjectHealth.flatMap(s => s.topics.map(t => ({
+          id: t.id, name: t.name, memory_strength: t.memory_strength,
+          next_predicted_drop_date: t.next_predicted_drop_date,
+          last_revision_date: t.last_revision_date,
+          subject_name: s.name, hours_until_drop: 0, stability: t.memory_strength / 100,
+          review_count: 0, risk_level: (t.memory_strength < 40 ? "high" : t.memory_strength < 70 ? "medium" : "low") as "high" | "medium" | "low",
+        })))}
+        overallHealth={hasData ? overallHealth : 0}
+        streakDays={0}
+      />
 
       <FocusModeSession
         open={!!reviewSession}

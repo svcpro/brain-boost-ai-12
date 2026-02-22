@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain, Shield, AlertTriangle, Target, TrendingUp, TrendingDown,
   Zap, ChevronDown, Sparkles, Activity, Gauge, Eye, Play, Loader2,
+  ArrowRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +33,7 @@ interface BrainStabilityOverviewProps {
   hasData: boolean;
   subjectHealth: SubjectHealthData[];
   onBoostSession: (subject: string, topic: string) => void;
+  onSurePassClick?: () => void;
 }
 
 /* ───────── sub-metrics derived ───────── */
@@ -150,7 +152,7 @@ const BreakdownCard = ({ icon: Icon, label, value, color, bgColor, delay }: {
 /* ───────── Main component ───────── */
 export default function BrainStabilityOverview({
   overallHealth, totalTopics, totalAtRisk, totalSubjects, hasData,
-  subjectHealth, onBoostSession,
+  subjectHealth, onBoostSession, onSurePassClick,
 }: BrainStabilityOverviewProps) {
   const { user } = useAuth();
   const [expanded, setExpanded] = useState(false);
@@ -278,16 +280,25 @@ export default function BrainStabilityOverview({
 
       <div className="relative z-10 p-6">
         {/* ── Title ── */}
-        <div className="flex items-center justify-center gap-2 mb-2">
+        <button
+          onClick={onSurePassClick}
+          className="flex items-center justify-center gap-2 mb-2 mx-auto group cursor-pointer"
+        >
           <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            animate={{ scale: [1, 1.15, 1] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
             className="w-2 h-2 rounded-full bg-primary"
           />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
-            AI Stability Center
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-primary group-hover:text-primary/80 transition-colors">
+            SurePass
           </span>
-        </div>
+          <motion.div
+            animate={{ x: [0, 5, 0] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <ArrowRight className="w-3.5 h-3.5 text-primary" />
+          </motion.div>
+        </button>
 
         {/* ── Arc ── */}
         <StabilityArc value={hasData ? overallHealth : 0} animateKey={arcKey} />
