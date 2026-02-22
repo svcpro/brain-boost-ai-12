@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Target, Calendar, CheckCircle, RefreshCw, TrendingUp, AlertOctagon, Zap, ChevronDown, ChevronRight, User, BookOpen, Plus, Sparkles, Flame, X, Shield, Clock, BarChart3, Star, Trophy, ArrowRight } from "lucide-react";
 import { useMemoryEngine, TopicPrediction } from "@/hooks/useMemoryEngine";
 import { useRankPrediction } from "@/hooks/useRankPrediction";
+import { usePrecisionIntelligence } from "@/hooks/usePrecisionIntelligence";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { setCache, getCache } from "@/lib/offlineCache";
@@ -67,6 +68,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const { isEnabled } = useFeatureFlagContext();
   const { prediction, loading, predict, generateRecommendations } = useMemoryEngine();
   const { data: rankData, loading: rankLoading, predictRank } = useRankPrediction();
+  const { rankData: rankV2Data, loading: rankV2Loading, computeRankV2 } = usePrecisionIntelligence();
   const { user } = useAuth();
   const { toast } = useToast();
   const voice = useVoice();
@@ -114,6 +116,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   useEffect(() => {
     predict().then(() => setRadarLastUpdated(new Date()));
     predictRank();
+    computeRankV2();
     loadRecommendations();
     supabase.functions.invoke("burnout-detection").then(({ data }) => {
       if (data) setBurnoutData(data);
@@ -253,6 +256,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       setAnalysisProgress(40);
       setAnalysisStep("Predicting exam rank…");
       await predictRank();
+      await computeRankV2();
       setRadarLastUpdated(new Date());
       setAnalysisProgress(55);
       setAnalysisStep("Running hybrid prediction engine…");
@@ -524,16 +528,16 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               </motion.div>
               <div className="flex items-center justify-center gap-1">
                 <p className="text-lg font-black text-foreground tabular-nums">
-                  {rankData?.predicted_rank ? `#${rankData.predicted_rank.toLocaleString()}` : "—"}
+                  {rankV2Data?.predicted_rank ? `#${rankV2Data.predicted_rank.toLocaleString()}` : rankData?.predicted_rank ? `#${rankData.predicted_rank.toLocaleString()}` : "—"}
                 </p>
               </div>
-              {rankData?.rank_change !== undefined && rankData.rank_change !== 0 && (
+              {rankV2Data?.trend && rankV2Data.trend !== "stable" && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className={`text-[9px] font-bold block text-center ${rankData.rank_change > 0 ? "text-success" : "text-destructive"}`}
+                  className={`text-[9px] font-bold block text-center ${rankV2Data.trend === "rising" ? "text-success" : "text-destructive"}`}
                 >
-                  {rankData.rank_change > 0 ? `↑${rankData.rank_change.toLocaleString()}` : `↓${Math.abs(rankData.rank_change).toLocaleString()}`}
+                  {rankV2Data.trend === "rising" ? "↑ Rising" : "↓ Falling"}
                 </motion.span>
               )}
               <p className="text-[9px] text-muted-foreground text-center mt-0.5">Rank</p>
