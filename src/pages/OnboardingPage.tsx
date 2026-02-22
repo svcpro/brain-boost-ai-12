@@ -29,6 +29,7 @@ const EXAM_TYPES: ExamEntry[] = [
   { id: "cds", label: "CDS", desc: "Defence", category: "government" },
   { id: "state_psc", label: "State PSC", desc: "State Services", category: "government" },
   { id: "ugc_net", label: "UGC NET", desc: "Lectureship", category: "government" },
+  { id: "other_gov", label: "Other", desc: "Custom Exam", category: "government" },
   // Entrance
   { id: "jee_advanced", label: "JEE Advanced", desc: "IIT Entry", category: "entrance" },
   { id: "neet_ug", label: "NEET UG", desc: "Medical", category: "entrance" },
@@ -39,6 +40,7 @@ const EXAM_TYPES: ExamEntry[] = [
   { id: "bitsat", label: "BITSAT", desc: "BITS Pilani", category: "entrance" },
   { id: "nift", label: "NIFT", desc: "Fashion Design", category: "entrance" },
   { id: "xat", label: "XAT", desc: "XLRI / MBA", category: "entrance" },
+  { id: "other_ent", label: "Other", desc: "Custom Exam", category: "entrance" },
   // Global
   { id: "sat", label: "SAT", desc: "US Colleges", category: "global" },
   { id: "gre", label: "GRE", desc: "Grad School", category: "global" },
@@ -50,6 +52,7 @@ const EXAM_TYPES: ExamEntry[] = [
   { id: "cpa", label: "CPA", desc: "Accounting", category: "global" },
   { id: "mcat", label: "MCAT", desc: "Medical", category: "global" },
   { id: "acca", label: "ACCA", desc: "Accounting", category: "global" },
+  { id: "other_global", label: "Other", desc: "Custom Exam", category: "global" },
 ];
 
 const SUGGESTED_SUBJECTS: Record<string, string[]> = {
@@ -95,6 +98,7 @@ const OnboardingPage = () => {
   const [displayName, setDisplayName] = useState("");
   const [examType, setExamType] = useState("");
   const [examCategory, setExamCategory] = useState("government");
+  const [customExam, setCustomExam] = useState("");
   const [examDate, setExamDate] = useState("");
   const [subjects, setSubjects] = useState<string[]>([]);
   const [newSubject, setNewSubject] = useState("");
@@ -153,8 +157,9 @@ const OnboardingPage = () => {
   };
 
   const handleAIGenerate = async () => {
+    const isOther = examType.startsWith("other_");
     const selectedExam = EXAM_TYPES.find(e => e.id === examType);
-    const examLabel = selectedExam?.label || examType.toUpperCase();
+    const examLabel = isOther ? (customExam || "Custom Exam") : (selectedExam?.label || examType.toUpperCase());
     setAiGenerating(true);
     setAiProgress(0);
     setAiProgressLabel("Initializing AI...");
@@ -216,7 +221,7 @@ const OnboardingPage = () => {
 
   const canProceed = () => {
     if (step === 0) return displayName.trim().length >= 2;
-    if (step === 1) return examType !== "";
+    if (step === 1) return examType !== "" && (!examType.startsWith("other_") || customExam.trim().length >= 2);
     if (step === 2) return examDate !== "";
     if (step === 3) return subjects.length > 0;
     if (step === 4) return true;
@@ -234,8 +239,9 @@ const OnboardingPage = () => {
     if (!user) return;
     setLoading(true);
     try {
+      const isOther = examType.startsWith("other_");
       const selectedExam = EXAM_TYPES.find(e => e.id === examType);
-      const finalExam = selectedExam?.label || examType.toUpperCase();
+      const finalExam = isOther ? (customExam || "Custom Exam") : (selectedExam?.label || examType.toUpperCase());
       const { error: profileErr } = await supabase.from("profiles").update({
         display_name: displayName.trim(),
         exam_type: finalExam,
@@ -431,75 +437,217 @@ const OnboardingPage = () => {
             {/* Step 1: Exam Type */}
             {step === 1 && (
               <motion.div key="exam" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <GraduationCap className="w-4 h-4" style={{ color: "#00E5FF" }} />
+                <div className="flex items-center gap-2 mb-1">
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <GraduationCap className="w-4 h-4" style={{ color: "#00E5FF" }} />
+                  </motion.div>
                   <h1 className="text-lg font-bold" style={{ color: "#ffffffee" }}>Your exam?</h1>
                 </div>
                 <p className="text-xs mb-3" style={{ color: "#ffffff40" }}>Pick your target exam. ACRY will customize everything.</p>
 
-                {/* Category tabs */}
-                <div className="flex gap-1.5 mb-3">
-                  {EXAM_CATEGORIES.map(cat => (
-                    <motion.button
-                      key={cat.id}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setExamCategory(cat.id)}
-                      className="flex-1 py-1.5 rounded-lg text-[10px] font-bold tracking-wide transition-all"
-                      style={{
-                        background: examCategory === cat.id ? `${cat.color}15` : "#ffffff04",
-                        border: `1px solid ${examCategory === cat.id ? `${cat.color}40` : "#ffffff08"}`,
-                        color: examCategory === cat.id ? cat.color : "#ffffff50",
-                        boxShadow: examCategory === cat.id ? `0 0 12px ${cat.color}15` : "none",
-                      }}
-                    >
-                      {cat.label}
-                    </motion.button>
-                  ))}
+                {/* Ultra animated category tabs */}
+                <div className="flex gap-1.5 mb-3 relative">
+                  {EXAM_CATEGORIES.map((cat, idx) => {
+                    const isActive = examCategory === cat.id;
+                    return (
+                      <motion.button
+                        key={cat.id}
+                        whileTap={{ scale: 0.92 }}
+                        whileHover={{ scale: 1.03 }}
+                        onClick={() => setExamCategory(cat.id)}
+                        className="flex-1 py-2 rounded-xl text-[10px] font-bold tracking-wider relative overflow-hidden"
+                        style={{
+                          background: isActive
+                            ? `linear-gradient(135deg, ${cat.color}20, ${cat.color}08)`
+                            : "#ffffff04",
+                          border: `1.5px solid ${isActive ? `${cat.color}60` : "#ffffff08"}`,
+                          color: isActive ? cat.color : "#ffffff40",
+                          boxShadow: isActive
+                            ? `0 0 20px ${cat.color}20, 0 0 40px ${cat.color}08, inset 0 0 15px ${cat.color}06`
+                            : "none",
+                        }}
+                      >
+                        {/* Shimmer sweep on active */}
+                        {isActive && (
+                          <motion.div
+                            className="absolute inset-0 rounded-xl"
+                            style={{
+                              background: `linear-gradient(105deg, transparent 40%, ${cat.color}15 50%, transparent 60%)`,
+                            }}
+                            animate={{ x: ["-100%", "200%"] }}
+                            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.5 }}
+                          />
+                        )}
+                        {/* Breathing glow orb */}
+                        {isActive && (
+                          <motion.div
+                            className="absolute rounded-full"
+                            style={{
+                              width: 40, height: 40,
+                              top: "50%", left: "50%",
+                              transform: "translate(-50%, -50%)",
+                              background: `radial-gradient(circle, ${cat.color}15, transparent)`,
+                            }}
+                            animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0.6, 0.3] }}
+                            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          />
+                        )}
+                        {/* Active indicator dot */}
+                        {isActive && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full"
+                            style={{ background: cat.color, boxShadow: `0 0 6px ${cat.color}` }}
+                          />
+                        )}
+                        <span className="relative z-10">{cat.label}</span>
+                      </motion.button>
+                    );
+                  })}
                 </div>
 
-                {/* Exam grid */}
-                <div className="grid grid-cols-3 gap-2 max-h-[260px] overflow-y-auto pr-1 scrollbar-hide">
+                {/* Exam grid with stagger + glow */}
+                <div className="grid grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-hide">
                   <AnimatePresence mode="popLayout">
                     {EXAM_TYPES.filter(e => e.category === examCategory).map((exam, i) => {
                       const catColor = EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF";
+                      const isSelected = examType === exam.id;
+                      const isOtherOption = exam.id.startsWith("other_");
                       return (
                         <motion.button
                           key={exam.id}
                           layout
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          transition={{ duration: 0.2, delay: i * 0.03 }}
-                          whileTap={{ scale: 0.94 }}
+                          initial={{ opacity: 0, scale: 0.85, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 25, delay: i * 0.04 }}
+                          whileTap={{ scale: 0.92 }}
+                          whileHover={{ scale: 1.04, y: -2 }}
                           onClick={() => setExamType(exam.id)}
-                          className="p-2.5 rounded-xl text-center transition-all duration-300 relative overflow-hidden"
+                          className="p-2.5 rounded-xl text-center relative overflow-hidden group"
                           style={{
-                            background: examType === exam.id ? `linear-gradient(135deg, ${catColor}12, ${catColor}06)` : "#ffffff04",
-                            border: `1px solid ${examType === exam.id ? `${catColor}50` : "#ffffff08"}`,
-                            boxShadow: examType === exam.id ? `0 0 20px ${catColor}15, inset 0 0 20px ${catColor}05` : "none",
+                            background: isSelected
+                              ? `linear-gradient(145deg, ${catColor}18, ${catColor}08)`
+                              : isOtherOption
+                                ? "linear-gradient(135deg, #ffffff08, #ffffff04)"
+                                : "#ffffff04",
+                            border: `1.5px solid ${isSelected ? `${catColor}60` : isOtherOption ? "#ffffff15" : "#ffffff08"}`,
+                            boxShadow: isSelected
+                              ? `0 4px 25px ${catColor}20, 0 0 40px ${catColor}08, inset 0 1px 0 ${catColor}15`
+                              : "none",
                           }}
                         >
-                          {examType === exam.id && (
-                            <motion.div
-                              layoutId="examGlow"
-                              className="absolute inset-0 rounded-xl"
-                              style={{ background: `radial-gradient(circle at center, ${catColor}08, transparent)` }}
-                            />
+                          {/* Selection glow */}
+                          {isSelected && (
+                            <>
+                              <motion.div
+                                className="absolute inset-0 rounded-xl"
+                                style={{ background: `radial-gradient(circle at 50% 30%, ${catColor}12, transparent 70%)` }}
+                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                              />
+                              {/* Orbiting particle */}
+                              <motion.div
+                                className="absolute w-1 h-1 rounded-full"
+                                style={{ background: catColor, boxShadow: `0 0 4px ${catColor}` }}
+                                animate={{
+                                  x: [0, 20, 20, 0, 0],
+                                  y: [0, 0, 20, 20, 0],
+                                  opacity: [0.6, 1, 0.6, 1, 0.6],
+                                }}
+                                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                              />
+                              {/* Check indicator */}
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center z-20"
+                                style={{ background: catColor, boxShadow: `0 0 8px ${catColor}60` }}
+                              >
+                                <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </motion.div>
+                            </>
                           )}
-                          <p className="font-bold text-[11px] relative z-10" style={{ color: examType === exam.id ? catColor : "#ffffffcc" }}>{exam.label}</p>
-                          <p className="text-[8px] mt-0.5 relative z-10" style={{ color: examType === exam.id ? `${catColor}90` : "#ffffff30" }}>{exam.desc}</p>
+                          {/* Other option special icon */}
+                          {isOtherOption && (
+                            <motion.div
+                              className="mx-auto mb-0.5 w-5 h-5 rounded-full flex items-center justify-center relative z-10"
+                              style={{ background: "#ffffff08", border: "1px dashed #ffffff20" }}
+                              animate={isSelected ? { borderColor: catColor, background: `${catColor}15` } : {}}
+                            >
+                              <Plus className="w-3 h-3" style={{ color: isSelected ? catColor : "#ffffff40" }} />
+                            </motion.div>
+                          )}
+                          <p className="font-bold text-[11px] relative z-10" style={{ color: isSelected ? catColor : "#ffffffcc" }}>
+                            {exam.label}
+                          </p>
+                          <p className="text-[8px] mt-0.5 relative z-10" style={{ color: isSelected ? `${catColor}aa` : "#ffffff30" }}>
+                            {exam.desc}
+                          </p>
                         </motion.button>
                       );
                     })}
                   </AnimatePresence>
                 </div>
 
-                {examType && (
-                  <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "#00E5FF08", border: "1px solid #00E5FF15" }}>
-                    <Sparkles className="w-3 h-3" style={{ color: "#00E5FF" }} />
-                    <p className="text-[10px]" style={{ color: "#00E5FFaa" }}>
-                      Selected: <span className="font-bold" style={{ color: "#00E5FF" }}>{EXAM_TYPES.find(e => e.id === examType)?.label}</span>
+                {/* Custom exam input for "Other" */}
+                {examType.startsWith("other_") && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-3">
+                    <input
+                      type="text" placeholder="Type your exam name..." value={customExam}
+                      onChange={e => setCustomExam(e.target.value)}
+                      autoFocus
+                      className="w-full rounded-xl px-4 py-2.5 text-sm placeholder:opacity-30 focus:outline-none transition-all"
+                      style={{
+                        background: "#ffffff08",
+                        border: "1.5px solid #ffffff15",
+                        color: "#ffffffdd",
+                      }}
+                      onFocus={(e) => {
+                        const catColor = EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF";
+                        e.target.style.borderColor = `${catColor}50`;
+                        e.target.style.boxShadow = `0 0 15px ${catColor}10`;
+                      }}
+                      onBlur={(e) => { e.target.style.borderColor = "#ffffff15"; e.target.style.boxShadow = "none"; }}
+                    />
+                  </motion.div>
+                )}
+
+                {/* Selection confirmation */}
+                {examType && !examType.startsWith("other_") && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 200 }}
+                    className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl relative overflow-hidden"
+                    style={{
+                      background: `linear-gradient(135deg, ${EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF"}08, transparent)`,
+                      border: `1px solid ${EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF"}20`,
+                    }}
+                  >
+                    <motion.div
+                      animate={{ rotate: [0, 360] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                    >
+                      <Sparkles className="w-3 h-3" style={{ color: EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF" }} />
+                    </motion.div>
+                    <p className="text-[10px]" style={{ color: `${EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF"}aa` }}>
+                      Locked in: <span className="font-bold" style={{ color: EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF" }}>
+                        {EXAM_TYPES.find(e => e.id === examType)?.label}
+                      </span>
                     </p>
+                  </motion.div>
+                )}
+                {examType.startsWith("other_") && customExam.trim() && (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl"
+                    style={{ background: "#00FF9408", border: "1px solid #00FF9420" }}
+                  >
+                    <Sparkles className="w-3 h-3" style={{ color: "#00FF94" }} />
+                    <p className="text-[10px]" style={{ color: "#00FF94aa" }}>Custom: <span className="font-bold" style={{ color: "#00FF94" }}>{customExam}</span></p>
                   </motion.div>
                 )}
               </motion.div>
