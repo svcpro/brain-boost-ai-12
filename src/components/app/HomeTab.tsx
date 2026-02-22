@@ -448,14 +448,18 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </div>
 
         <div className="relative z-10 flex items-center justify-center gap-3">
-          <motion.div
-            className="flex items-center gap-1.5"
+          <motion.button
+            onClick={() => setSafePassOpen(true)}
+            className="flex items-center gap-1.5 cursor-pointer group"
             animate={{ opacity: [0.7, 1, 0.7] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
             <Brain className="w-3.5 h-3.5 text-primary" style={{ filter: "drop-shadow(0 0 4px hsl(var(--primary)/0.4))" }} />
-            <p className="text-xs font-semibold text-muted-foreground">Brain Stability</p>
-          </motion.div>
+            <p className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">SurePass</p>
+            <motion.div animate={{ x: [0, 4, 0] }} transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}>
+              <ArrowRight className="w-3 h-3 text-primary" />
+            </motion.div>
+          </motion.button>
           {/* Safe Pass Prediction Icon — Ultra animated */}
           <motion.button
             onClick={() => setSafePassOpen(true)}
