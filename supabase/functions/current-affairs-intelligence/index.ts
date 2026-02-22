@@ -41,6 +41,8 @@ serve(async (req) => {
         return await linkSyllabus(supabase, params);
       case "generate_questions":
         return await generateQuestions(supabase, params);
+      case "analyze_policy":
+        return await analyzePolicy(supabase, params);
       case "full_pipeline":
         return await fullPipeline(supabase, params);
       case "get_dashboard":
@@ -255,7 +257,114 @@ Return JSON array of: { question_type, question_text, options (array of strings,
   return jsonResp({ success: true, count: rows.length, questions });
 }
 
-// ─── FULL PIPELINE ───
+// ─── MODULE 5: POLICY IMPACT PREDICTION (CA 3.0) ───
+async function analyzePolicy(supabase: any, params: any) {
+  const { event_id, exam_types = ["UPSC CSE"] } = params;
+  const { data: event } = await supabase.from("ca_events").select("*").eq("id", event_id).single();
+  if (!event) return jsonResp({ error: "Event not found" });
+
+  const content = event.raw_content || event.summary || event.title;
+
+  // Create policy analysis record
+  const { data: analysis, error: aErr } = await supabase.from("ca_policy_analyses").insert({
+    event_id, policy_title: event.title, policy_summary: event.summary,
+    policy_category: event.category, exam_types,
+    similarity_scan_status: "processing", impact_scan_status: "pending",
+  }).select().single();
+  if (aErr || !analysis) return jsonResp({ error: "Failed to create analysis", details: aErr });
+  const analysisId = analysis.id;
+
+  // Similarity Engine
+  const similarities = await aiCall(
+    `You are a Policy Similarity Engine. Given a new policy/event, find historically similar policies that appeared in exams.
+For each match: historical_policy_name, historical_policy_year, similarity_score (0-1), match_dimensions (JSON: structural, thematic, constitutional, economic each 0-1), pattern_type ("recurring"|"cyclical"|"precedent"|"reform_chain"), exam_appearance_count.
+Return JSON array of 3-8 matches sorted by similarity_score.`,
+    `Policy: ${event.title}\nContent: ${content}\nCategory: ${event.category || "general"}`
+  );
+
+  let simCount = 0;
+  if (Array.isArray(similarities)) {
+    const simRows = similarities.map((s: any) => ({
+      policy_analysis_id: analysisId,
+      historical_policy_name: s.historical_policy_name,
+      historical_policy_year: s.historical_policy_year,
+      similarity_score: Math.min(1, Math.max(0, s.similarity_score || 0)),
+      match_dimensions: s.match_dimensions || {},
+      pattern_type: s.pattern_type || "precedent",
+      exam_appearance_count: s.exam_appearance_count || 0,
+    }));
+    await supabase.from("ca_policy_similarities").insert(simRows);
+    simCount = simRows.length;
+    const topScore = Math.max(...simRows.map((s: any) => s.similarity_score));
+    await supabase.from("ca_policy_analyses").update({
+      similarity_scan_status: "completed", top_similarity_score: topScore, impact_scan_status: "processing",
+    }).eq("id", analysisId);
+  }
+
+  // Impact Forecast
+  const impact = await aiCall(
+    `You are an Impact Forecast Model. Predict exam impact of this policy.
+For each impact: impact_type ("direct"|"indirect_ripple"|"controversy"), topic_name, subject (Polity/Economy/Environment/Science/Geography/History/Society/IR), predicted_tpi_shift (0-1), confidence (0-1), time_horizon ("immediate"|"3_months"|"6_months"|"1_year"), reasoning, micro_topics (array 2-4).
+Also: meta object with controversy_likelihood (0-1), predicted_exam_framing (string), question_probability_increase (0-100).
+Return JSON: { impacts: [...], meta: {...} }`,
+    `Policy: ${event.title}\nContent: ${content}\nCategory: ${event.category}\nExam Types: ${exam_types.join(", ")}\nSimilarities: ${JSON.stringify(similarities?.slice(0, 3) || [])}`
+  );
+
+  let impactCount = 0;
+  if (impact) {
+    const impacts = impact.impacts || impact;
+    const meta = impact.meta || {};
+    if (Array.isArray(impacts)) {
+      const impactRows = impacts.map((f: any) => ({
+        policy_analysis_id: analysisId, impact_type: f.impact_type || "direct",
+        topic_name: f.topic_name, subject: f.subject,
+        predicted_tpi_shift: Math.min(1, Math.max(0, f.predicted_tpi_shift || 0)),
+        confidence: Math.min(1, Math.max(0, f.confidence || 0)),
+        time_horizon: f.time_horizon || "immediate",
+        reasoning: f.reasoning, micro_topics: f.micro_topics || [],
+      }));
+      await supabase.from("ca_impact_forecasts").insert(impactRows);
+      impactCount = impactRows.length;
+
+      // Generate TPI adjustments
+      const adjustments = impacts
+        .filter((f: any) => (f.predicted_tpi_shift || 0) > 0.05)
+        .map((f: any) => ({
+          policy_analysis_id: analysisId, exam_type: exam_types[0] || "UPSC CSE",
+          subject: f.subject, topic_name: f.topic_name,
+          old_probability: f.current_tpi || 0,
+          new_probability: Math.min(1, (f.current_tpi || 0) + (f.predicted_tpi_shift || 0)),
+          adjustment_reason: f.reasoning || `Policy impact from: ${event.title}`,
+          status: "pending",
+        }));
+      if (adjustments.length > 0) await supabase.from("ca_probability_adjustments").insert(adjustments);
+    }
+    await supabase.from("ca_policy_analyses").update({
+      impact_scan_status: "completed",
+      overall_impact_score: Math.max(...(Array.isArray(impacts) ? impacts.map((i: any) => i.predicted_tpi_shift || 0) : [0])),
+      controversy_likelihood: meta.controversy_likelihood || 0,
+      predicted_exam_framing: meta.predicted_exam_framing || "",
+      question_probability_increase: meta.question_probability_increase || 0,
+      ai_reasoning: meta.predicted_exam_framing,
+    }).eq("id", analysisId);
+  }
+
+  // Auto-apply TPI adjustments
+  const { data: config } = await supabase.from("ca_autopilot_config").select("auto_apply_tpi_adjustments").limit(1).single();
+  if (config?.auto_apply_tpi_adjustments) {
+    const { data: adjs } = await supabase.from("ca_probability_adjustments")
+      .select("*").eq("policy_analysis_id", analysisId).eq("status", "pending");
+    for (const adj of (adjs || [])) {
+      await supabase.from("ca_probability_adjustments").update({
+        status: "applied", applied_at: new Date().toISOString(),
+      }).eq("id", adj.id);
+    }
+  }
+
+  return jsonResp({ success: true, analysis_id: analysisId, similarities: simCount, impacts: impactCount });
+}
+
+// ─── FULL PIPELINE (v3.0 — includes Policy Prediction) ───
 async function fullPipeline(supabase: any, params: any) {
   const { event_id, exam_type = "UPSC" } = params;
 
@@ -274,6 +383,13 @@ async function fullPipeline(supabase: any, params: any) {
   const e4 = await generateQuestions(supabase, { event_id, exam_type });
   const e4Data = await e4.json();
 
+  // CA 3.0: Policy Impact Prediction
+  let policyData: any = { similarities: 0, impacts: 0 };
+  try {
+    const e5 = await analyzePolicy(supabase, { event_id, exam_types: [exam_type] });
+    policyData = await e5.json();
+  } catch (e) { console.error("Policy prediction error:", e); }
+
   await supabase.from("ca_events").update({ processing_status: "completed" }).eq("id", event_id);
 
   return jsonResp({
@@ -282,19 +398,25 @@ async function fullPipeline(supabase: any, params: any) {
     graph_edges: e2Data.count,
     syllabus_links: e3Data.count,
     questions: e4Data.count,
+    policy_similarities: policyData.similarities || 0,
+    policy_impacts: policyData.impacts || 0,
+    policy_analysis_id: policyData.analysis_id || null,
   });
 }
 
-// ─── DASHBOARD ───
+// ─── DASHBOARD (v3.0) ───
 async function getDashboard(supabase: any, params: any) {
   const { exam_type } = params;
 
-  const [events, entities, graphEdges, syllabusLinks, questions] = await Promise.all([
+  const [events, entities, graphEdges, syllabusLinks, questions, policyAnalyses, forecasts, adjustments] = await Promise.all([
     supabase.from("ca_events").select("*", { count: "exact" }).order("created_at", { ascending: false }).limit(20),
     supabase.from("ca_entities").select("*", { count: "exact" }),
     supabase.from("ca_graph_edges").select("*", { count: "exact" }),
     supabase.from("ca_syllabus_links").select("*", { count: "exact" }),
     supabase.from("ca_generated_questions").select("*", { count: "exact" }),
+    supabase.from("ca_policy_analyses").select("*", { count: "exact" }).order("created_at", { ascending: false }).limit(10),
+    supabase.from("ca_impact_forecasts").select("*", { count: "exact" }),
+    supabase.from("ca_probability_adjustments").select("*", { count: "exact" }),
   ]);
 
   const entityTypes: Record<string, number> = {};
@@ -307,11 +429,23 @@ async function getDashboard(supabase: any, params: any) {
     edgeTypes[e.edge_type] = (edgeTypes[e.edge_type] || 0) + 1;
   });
 
+  const impactDist: Record<string, number> = {};
+  (forecasts.data || []).forEach((f: any) => {
+    impactDist[f.impact_type] = (impactDist[f.impact_type] || 0) + 1;
+  });
+
+  const appliedCount = (adjustments.data || []).filter((a: any) => a.status === "applied").length;
+  const pendingCount = (adjustments.data || []).filter((a: any) => a.status === "pending").length;
+
   return jsonResp({
     events: { data: events.data, count: events.count },
     entities: { count: entities.count, by_type: entityTypes },
     graph_edges: { count: graphEdges.count, by_type: edgeTypes },
     syllabus_links: { count: syllabusLinks.count },
     questions: { count: questions.count },
+    // CA 3.0 Policy Prediction stats
+    policy_analyses: { data: policyAnalyses.data, count: policyAnalyses.count },
+    impact_forecasts: { count: forecasts.count, by_type: impactDist },
+    tpi_adjustments: { count: adjustments.count, applied: appliedCount, pending: pendingCount },
   });
 }
