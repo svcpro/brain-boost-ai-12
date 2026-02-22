@@ -593,7 +593,7 @@ async function computeTPI(supabase: any, { exam_type, prediction_year }: any) {
     supabase.from("syllabus_taxonomies").select("*").eq("exam_type", exam_type),
   ]);
 
-  if (!questions?.length) return json({ error: "No mined questions found. Mine questions first." }, 400);
+  if (!questions?.length) return json({ success: true, topics_computed: 0, high_tpi: 0, medium_tpi: 0, low_tpi: 0, top_10: [], message: "No mined questions yet. Run question mining first to compute TPI scores." });
 
   // Build taxonomy weightage map
   const taxWeightMap: Record<string, number> = {};
@@ -795,7 +795,7 @@ async function detectPatterns(supabase: any, { exam_type }: any) {
     .eq("exam_type", exam_type)
     .order("year", { ascending: true });
 
-  if (!questions?.length) return json({ error: "No data for pattern detection" }, 400);
+  if (!questions?.length) return json({ success: true, detections_count: 0, detections: [], summary: { total_patterns: 0, critical: 0, high: 0, moderate: 0 }, message: "No mined questions yet. Run question mining first to detect patterns." });
 
   const years = [...new Set(questions.map((q: any) => q.year))].sort() as number[];
   const halfIdx = Math.floor(years.length / 2);
