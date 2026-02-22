@@ -262,7 +262,6 @@ async function aiCall(systemPrompt: string, userPrompt: string) {
 }
 
 async function fetchNewsViaAI(categories: string[]) {
-  const today = new Date().toISOString().split("T")[0];
   const categoryList = categories.join(", ");
 
   const resp = await aiFetch({
@@ -271,38 +270,56 @@ async function fetchNewsViaAI(categories: string[]) {
       messages: [
         {
           role: "system",
-          content: `You are a current affairs intelligence engine for competitive exam preparation in India. Generate the most important and recent current affairs events happening today or in the last 24 hours. Focus on events relevant to UPSC, NEET, JEE, SSC and other competitive exams.
+          content: `You are a current affairs content generator for competitive exam preparation in India (UPSC, SSC, Banking, etc.). Your task is to produce exam-relevant current affairs entries based on the most recent events in your knowledge.
 
-Return a JSON array of 5-8 events. Each event must have:
-- title: Clear, concise headline
-- summary: 2-3 sentence overview with key facts, figures, and implications
-- raw_content: Detailed 4-6 sentence analysis including background context, significance, and exam relevance
-- category: One of [${categoryList}]
-- importance_score: 0-1 based on exam relevance
+IMPORTANT: You MUST always return a valid JSON array. Never refuse or say you cannot generate content. Use your latest available knowledge to create factual, exam-relevant entries.
+
+Return a JSON array of 5-8 events. Each event object must have exactly these fields:
+- "title": Clear, concise headline (string)
+- "summary": 2-3 sentence overview with key facts and implications (string)
+- "raw_content": Detailed 4-6 sentence analysis including background, significance, and exam relevance (string)
+- "category": One of [${categoryList}] (string)
+- "importance_score": 0-1 based on exam relevance (number)
 
 Focus on: Government policies, Supreme Court verdicts, economic data, scientific discoveries, international relations, appointments, awards, defense deals, environmental policies, constitutional amendments, legislative changes.
 
-DO NOT make up events. Only include factual, verifiable current affairs.`,
+You MUST return ONLY a JSON array. No explanations, no preamble.`,
         },
         {
           role: "user",
-          content: `Generate the most important current affairs events for ${today}. Categories to cover: ${categoryList}. These will be used for competitive exam preparation.`,
+          content: `Generate 5-8 important current affairs events relevant for Indian competitive exams. Categories: ${categoryList}. Return ONLY a JSON array, nothing else.`,
         },
       ],
-      temperature: 0.4,
+      temperature: 0.7,
       max_tokens: 6000,
+      response_format: { type: "json_object" },
     }),
     timeoutMs: 60000,
   });
 
   const data = await resp.json();
+  console.log("CA Auto Pipeline: AI response status:", resp.status);
   const text = data.choices?.[0]?.message?.content || "";
+  console.log("CA Auto Pipeline: AI raw text length:", text.length, "first 200 chars:", text.substring(0, 200));
+  
+  if (!text) {
+    console.error("CA Auto Pipeline: Empty AI response. Full data:", JSON.stringify(data).substring(0, 500));
+    return [];
+  }
+
+  // Try to extract JSON array from the response
   const match = text.match(/\[[\s\S]*\]/);
-  if (!match) return [];
+  if (!match) {
+    console.error("CA Auto Pipeline: No JSON array found in response. Text:", text.substring(0, 300));
+    return [];
+  }
 
   try {
-    return JSON.parse(match[0]);
-  } catch {
+    const parsed = JSON.parse(match[0]);
+    console.log("CA Auto Pipeline: Parsed", parsed.length, "events");
+    return parsed;
+  } catch (e) {
+    console.error("CA Auto Pipeline: JSON parse error:", e);
     return [];
   }
 }
