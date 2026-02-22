@@ -57,7 +57,8 @@ import ExamIntelV10Admin from "@/components/admin/ai-command/ExamIntelV10Admin";
 import CurrentAffairsAdmin from "@/components/admin/ai-command/CurrentAffairsAdmin";
 import PolicyPredictorAdmin from "@/components/admin/ai-command/PolicyPredictorAdmin";
 import DebateEngineAdmin from "@/components/admin/ai-command/DebateEngineAdmin";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
+import CompetitiveIntelAdmin from "@/components/admin/ai-command/CompetitiveIntelAdmin";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -114,6 +115,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "exam_intel", label: "Exam Intel v10.0", icon: Sparkles, roles: ["super_admin", "admin", "ai_admin"], badge: "v10", badgeColor: "bg-violet-500/20 text-violet-400" },
       { key: "current_affairs", label: "CA v3.0", icon: Globe, roles: ["super_admin", "admin", "ai_admin"], badge: "v3", badgeColor: "bg-cyan-500/20 text-cyan-400" },
       { key: "debate_engine", label: "CA 4.0 Debate Engine", icon: Swords, roles: ["super_admin", "admin", "ai_admin"], badge: "v4", badgeColor: "bg-orange-500/20 text-orange-400" },
+      { key: "competitive_intel", label: "Competition v3.0", icon: Swords, roles: ["super_admin", "admin", "ai_admin"], badge: "v3", badgeColor: "bg-orange-500/20 text-orange-400" },
     ],
   },
   {
@@ -556,6 +558,7 @@ const AdminPanel = () => {
               {section === "current_affairs" && <CurrentAffairsAdmin />}
               {section === "policy_predictor" && <PolicyPredictorAdmin />}
               {section === "debate_engine" && <DebateEngineAdmin />}
+              {section === "competitive_intel" && <CompetitiveIntelAdmin />}
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
               {section === "finance" && <FinanceManagement />}
