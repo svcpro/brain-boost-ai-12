@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Swords, Upload, ToggleLeft, ToggleRight, Settings, TrendingUp, Database, RefreshCw, Plus, Trash2, Save, Loader2 } from "lucide-react";
+import { Swords, Cpu } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import CompetitiveHeroStats from "../competitive-intel/CompetitiveHeroStats";
+import EngineControlPanel from "../competitive-intel/EngineControlPanel";
+import TrendPatternsPanel from "../competitive-intel/TrendPatternsPanel";
+import OpponentSimPanel from "../competitive-intel/OpponentSimPanel";
+import DatasetListPanel from "../competitive-intel/DatasetListPanel";
 
 export default function CompetitiveIntelAdmin() {
   const qc = useQueryClient();
@@ -85,153 +90,80 @@ export default function CompetitiveIntelAdmin() {
     onSuccess: () => { toast.success("Opponent config saved"); qc.invalidateQueries({ queryKey: ["opponent-config"] }); },
   });
 
-  const configToggles = [
-    { key: "trend_engine_enabled", label: "Trend Engine" },
-    { key: "weakness_engine_enabled", label: "Weakness Engine" },
-    { key: "accelerator_enabled", label: "30-Day Accelerator" },
-    { key: "opponent_sim_enabled", label: "Opponent Simulation" },
-    { key: "rank_heatmap_enabled", label: "Rank Heatmap" },
-  ];
+  // Count active engine toggles
+  const activeEngines = config ? ["trend_engine_enabled", "weakness_engine_enabled", "accelerator_enabled", "opponent_sim_enabled", "rank_heatmap_enabled"].filter(k => config[k] !== false).length : 0;
 
   return (
     <div className="space-y-5">
-      {/* Master Toggles */}
-      <div className="rounded-xl p-4 space-y-3" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
-        <div className="flex items-center gap-2 mb-2">
-          <Settings className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Engine Controls</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {configToggles.map(t => {
-            const enabled = config?.[t.key] ?? true;
-            return (
-              <button
-                key={t.key}
-                onClick={() => toggleConfig.mutate({ key: t.key, value: !enabled })}
-                className="flex items-center justify-between p-3 rounded-lg bg-background/50 hover:bg-secondary/50 transition-colors"
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-2xl p-6"
+        style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+      >
+        {/* Animated background orbs */}
+        <motion.div
+          className="absolute -top-10 -left-10 w-40 h-40 rounded-full bg-gradient-to-br from-orange-500/15 to-amber-400/10 blur-3xl"
+          animate={{ scale: [1, 1.2, 1], x: [0, 15, 0] }}
+          transition={{ duration: 6, repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute -bottom-10 -right-10 w-40 h-40 rounded-full bg-gradient-to-br from-rose-500/10 to-pink-400/10 blur-3xl"
+          animate={{ scale: [1.2, 1, 1.2], x: [0, -15, 0] }}
+          transition={{ duration: 7, repeat: Infinity }}
+        />
+
+        <div className="relative z-10 flex items-center gap-4">
+          <motion.div
+            className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-xl shadow-orange-500/25"
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 4, repeat: Infinity }}
+          >
+            <Swords className="w-6 h-6 text-white" />
+          </motion.div>
+          <div>
+            <h2 className="text-xl font-black text-foreground flex items-center gap-2">
+              Competition v3.0
+              <motion.span
+                className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 text-white font-bold"
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
               >
-                <span className="text-xs font-medium text-foreground">{t.label}</span>
-                {enabled ? <ToggleRight className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5 text-muted-foreground" />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Add Trend Pattern */}
-      <div className="rounded-xl p-4 space-y-3" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-accent" />
-          <h3 className="text-sm font-bold text-foreground">Exam Trend Patterns</h3>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <select value={newTrend.exam_type} onChange={e => setNewTrend(p => ({ ...p, exam_type: e.target.value }))}
-            className="p-2 rounded-lg bg-background border border-border text-xs text-foreground">
-            <option>JEE</option><option>NEET</option><option>UPSC</option><option>general</option>
-          </select>
-          <input placeholder="Subject" value={newTrend.subject} onChange={e => setNewTrend(p => ({ ...p, subject: e.target.value }))}
-            className="p-2 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground" />
-          <input placeholder="Topic" value={newTrend.topic} onChange={e => setNewTrend(p => ({ ...p, topic: e.target.value }))}
-            className="p-2 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground" />
-          <input type="number" placeholder="Year" value={newTrend.year} onChange={e => setNewTrend(p => ({ ...p, year: +e.target.value }))}
-            className="p-2 rounded-lg bg-background border border-border text-xs text-foreground" />
-          <input type="number" placeholder="Freq" value={newTrend.frequency_count} onChange={e => setNewTrend(p => ({ ...p, frequency_count: +e.target.value }))}
-            className="p-2 rounded-lg bg-background border border-border text-xs text-foreground" />
-          <input type="number" placeholder="Probability %" value={newTrend.predicted_probability} onChange={e => setNewTrend(p => ({ ...p, predicted_probability: +e.target.value }))}
-            className="p-2 rounded-lg bg-background border border-border text-xs text-foreground" />
-        </div>
-        <button onClick={() => addTrend.mutate()} disabled={addTrend.isPending}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
-          <Plus className="w-3.5 h-3.5" /> Add Pattern
-        </button>
-
-        {/* Existing trends */}
-        {trends && trends.length > 0 && (
-          <div className="space-y-1.5 max-h-48 overflow-y-auto">
-            {trends.map((t: any) => (
-              <div key={t.id} className="flex items-center gap-2 p-2 rounded-lg bg-background/50 text-xs">
-                <span className="text-primary font-bold w-8">{t.predicted_probability}%</span>
-                <span className="text-foreground flex-1 truncate">{t.topic} · {t.subject}</span>
-                <span className="text-muted-foreground">{t.exam_type}</span>
-                <button onClick={() => deleteTrend.mutate(t.id)} className="text-destructive hover:text-destructive/80"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Opponent Simulation Config */}
-      {opponentConfig && (
-        <div className="rounded-xl p-4 space-y-3" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
-          <div className="flex items-center gap-2">
-            <Swords className="w-4 h-4 text-warning" />
-            <h3 className="text-sm font-bold text-foreground">Opponent Simulation</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] text-muted-foreground">Pressure Level</label>
-              <select
-                defaultValue={opponentConfig.pressure_level}
-                onChange={e => updateOpponent.mutate({ pressure_level: e.target.value })}
-                className="w-full p-2 rounded-lg bg-background border border-border text-xs text-foreground mt-1"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="extreme">Extreme</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground">Time Pressure (multiplier)</label>
-              <input
-                type="number" step="0.05" min="0.5" max="1.0"
-                defaultValue={opponentConfig.time_pressure_multiplier}
-                onBlur={e => updateOpponent.mutate({ time_pressure_multiplier: +e.target.value })}
-                className="w-full p-2 rounded-lg bg-background border border-border text-xs text-foreground mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground">Difficulty Escalation</label>
-              <input
-                type="number" step="0.05" min="1.0" max="2.0"
-                defaultValue={opponentConfig.difficulty_escalation_rate}
-                onBlur={e => updateOpponent.mutate({ difficulty_escalation_rate: +e.target.value })}
-                className="w-full p-2 rounded-lg bg-background border border-border text-xs text-foreground mt-1"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={() => updateOpponent.mutate({ is_enabled: !opponentConfig.is_enabled })}
-                className={`w-full py-2 rounded-lg text-xs font-medium ${opponentConfig.is_enabled ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"}`}
-              >
-                {opponentConfig.is_enabled ? "✅ Enabled" : "❌ Disabled"}
-              </button>
-            </div>
+                LIVE
+              </motion.span>
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Exam pattern analysis · Opponent simulation · Rank intelligence
+            </p>
           </div>
         </div>
-      )}
+      </motion.div>
 
-      {/* Datasets */}
-      <div className="rounded-xl p-4 space-y-3" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
-        <div className="flex items-center gap-2">
-          <Database className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-sm font-bold text-foreground">Uploaded Datasets</h3>
+      {/* Hero Stats */}
+      <CompetitiveHeroStats
+        trendCount={trends?.length || 0}
+        datasetCount={datasets?.length || 0}
+        opponentEnabled={opponentConfig?.is_enabled ?? false}
+        engineToggles={activeEngines}
+      />
+
+      {/* Engine Controls */}
+      <EngineControlPanel config={config} toggleConfig={toggleConfig} />
+
+      {/* Two-column layout for trends & opponent */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <TrendPatternsPanel
+          trends={trends || []}
+          addTrend={addTrend}
+          deleteTrend={deleteTrend}
+          newTrend={newTrend}
+          setNewTrend={setNewTrend}
+        />
+        <div className="space-y-5">
+          <OpponentSimPanel opponentConfig={opponentConfig} updateOpponent={updateOpponent} />
+          <DatasetListPanel datasets={datasets || []} />
         </div>
-        {datasets && datasets.length > 0 ? (
-          <div className="space-y-2">
-            {datasets.map((d: any) => (
-              <div key={d.id} className="flex items-center gap-2 p-2 rounded-lg bg-background/50 text-xs">
-                <span className="text-foreground flex-1">{d.exam_type} {d.year} — {d.subject || "All"}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${d.status === "processed" ? "bg-primary/15 text-primary" : d.status === "error" ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"}`}>
-                  {d.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">No datasets uploaded yet. Use CSV/PDF upload or manual entry above.</p>
-        )}
       </div>
     </div>
   );
