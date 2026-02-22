@@ -51,7 +51,8 @@ import ComingSoonControlPanel from "@/components/admin/ComingSoonControlPanel";
 import AutopilotAdminPanel from "@/components/admin/AutopilotAdminPanel";
 import InstitutionManagement from "@/components/admin/InstitutionManagement";
 import TeacherModeAdmin from "@/components/admin/TeacherModeAdmin";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
+import STQEngineAdmin from "@/components/admin/ai-command/STQEngineAdmin";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -104,6 +105,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "growth_center", label: "Growth Engine", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
       { key: "sureshot", label: "SureShot AI Lab", icon: Target, roles: ["super_admin", "admin", "ai_admin"], badge: "ML", badgeColor: "bg-accent/20 text-accent" },
       { key: "exam_countdown", label: "Exam AI Control", icon: Brain, roles: ["super_admin", "admin"], badge: "AI", badgeColor: "bg-accent/20 text-accent" },
+      { key: "stq", label: "STQ Engine v9.0", icon: Database, roles: ["super_admin", "admin", "ai_admin"], badge: "v9", badgeColor: "bg-accent/20 text-accent" },
     ],
   },
   {
@@ -541,6 +543,7 @@ const AdminPanel = () => {
               {section === "plan_gating" && <PlanGatingManagement />}
               {section === "exam_countdown" && <ExamCountdownConfig />}
               {section === "sureshot" && <SureShotAdminPanel />}
+              {section === "stq" && <STQEngineAdmin />}
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
               {section === "finance" && <FinanceManagement />}
