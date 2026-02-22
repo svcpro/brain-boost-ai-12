@@ -803,6 +803,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             hasTopics={hasTopics}
             overallHealth={overallHealth}
             onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
+            onSurePassClick={() => setSafePassOpen(true)}
           />
         </SectionErrorBoundary>
       )}
