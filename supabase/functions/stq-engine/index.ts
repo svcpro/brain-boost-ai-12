@@ -19,6 +19,12 @@ serve(async (req) => {
     switch (action) {
       case "parse_syllabus":
         return await parseSyllabus(supabase, params);
+      case "auto_generate_syllabus":
+        return await autoGenerateSyllabus(supabase, params);
+      case "delete_taxonomy":
+        return await deleteTaxonomy(supabase, params);
+      case "update_taxonomy":
+        return await updateTaxonomy(supabase, params);
       case "mine_questions":
         return await mineQuestions(supabase, params);
       case "compute_tpi":
@@ -146,6 +152,149 @@ ${syllabus_text}`;
   if (error) throw error;
 
   return json({ success: true, count: data.length, items: data });
+}
+
+// =============================================
+// AUTO GENERATE SYLLABUS (Full AI Generation)
+// =============================================
+async function autoGenerateSyllabus(supabase: any, { exam_type, subjects }: any) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+  const subjectList = subjects?.length ? subjects.join(", ") : "";
+  const prompt = `You are an expert education curriculum designer. Generate a COMPLETE and EXHAUSTIVE syllabus taxonomy for the ${exam_type} exam.
+${subjectList ? `Focus on these subjects: ${subjectList}` : "Include ALL subjects covered in this exam."}
+
+For each entry provide:
+- subject: Main subject name
+- topic: Chapter/topic name  
+- subtopic: Specific subtopic (be granular)
+- normalized_name: Clean standardized name
+- hierarchy_level: 1=subject, 2=topic, 3=subtopic
+- weightage_pct: Estimated weightage percentage based on historical exam patterns
+- importance: "critical" | "high" | "medium" | "low" based on exam frequency
+
+Be EXHAUSTIVE - include every single topic and subtopic that has ever appeared or could appear in ${exam_type}.
+For JEE: Physics, Chemistry, Mathematics with all chapters.
+For NEET: Physics, Chemistry, Biology (Botany + Zoology) with all chapters.
+For UPSC: All relevant subjects with detailed topics.
+
+Return a comprehensive JSON array. Aim for 100+ entries with full subtopic coverage.`;
+
+  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [{ role: "user", content: prompt }],
+      tools: [{
+        type: "function",
+        function: {
+          name: "generate_syllabus",
+          description: "Generate complete exam syllabus taxonomy",
+          parameters: {
+            type: "object",
+            properties: {
+              items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    subject: { type: "string" },
+                    topic: { type: "string" },
+                    subtopic: { type: "string" },
+                    normalized_name: { type: "string" },
+                    hierarchy_level: { type: "number" },
+                    weightage_pct: { type: "number" },
+                    importance: { type: "string" },
+                  },
+                  required: ["subject", "topic", "normalized_name", "hierarchy_level"],
+                },
+              },
+            },
+            required: ["items"],
+          },
+        },
+      }],
+      tool_choice: { type: "function", function: { name: "generate_syllabus" } },
+    }),
+  });
+
+  if (!aiResp.ok) {
+    const errText = await aiResp.text();
+    console.error("AI error:", aiResp.status, errText);
+    throw new Error("AI syllabus generation failed");
+  }
+
+  const aiData = await aiResp.json();
+  let items: any[] = [];
+
+  try {
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall) {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      items = parsed.items || [];
+    }
+  } catch {
+    const content = aiData.choices?.[0]?.message?.content || "";
+    const match = content.match(/[\[\{][\s\S]*[\]\}]/);
+    if (match) items = JSON.parse(match[0]);
+  }
+
+  if (!items.length) throw new Error("No taxonomy items generated");
+
+  // Clear existing taxonomy for this exam type before inserting
+  await supabase.from("syllabus_taxonomies").delete().eq("exam_type", exam_type).eq("source", "ai_generated");
+
+  const rows = items.map((item: any) => ({
+    exam_type,
+    subject: item.subject,
+    topic: item.topic,
+    subtopic: item.subtopic || null,
+    normalized_name: item.normalized_name,
+    hierarchy_level: item.hierarchy_level || 2,
+    weightage_pct: item.weightage_pct || null,
+    source: "ai_generated",
+    metadata: { importance: item.importance || "medium" },
+  }));
+
+  const { data, error } = await supabase.from("syllabus_taxonomies").insert(rows).select();
+  if (error) throw error;
+
+  // Group stats
+  const subjects_map: Record<string, number> = {};
+  for (const r of data) {
+    subjects_map[r.subject] = (subjects_map[r.subject] || 0) + 1;
+  }
+
+  return json({ 
+    success: true, 
+    count: data.length, 
+    subjects: subjects_map,
+    items: data,
+  });
+}
+
+// =============================================
+// DELETE / UPDATE TAXONOMY
+// =============================================
+async function deleteTaxonomy(supabase: any, { ids, exam_type, delete_all }: any) {
+  if (delete_all && exam_type) {
+    const { error } = await supabase.from("syllabus_taxonomies").delete().eq("exam_type", exam_type);
+    if (error) throw error;
+    return json({ success: true, message: `All ${exam_type} taxonomy deleted` });
+  }
+  if (!ids?.length) throw new Error("No IDs provided");
+  const { error } = await supabase.from("syllabus_taxonomies").delete().in("id", ids);
+  if (error) throw error;
+  return json({ success: true, deleted: ids.length });
+}
+
+async function updateTaxonomy(supabase: any, { id, updates }: any) {
+  if (!id) throw new Error("No ID provided");
+  const { data, error } = await supabase.from("syllabus_taxonomies").update(updates).eq("id", id).select().single();
+  if (error) throw error;
+  return json({ success: true, item: data });
 }
 
 // =============================================
