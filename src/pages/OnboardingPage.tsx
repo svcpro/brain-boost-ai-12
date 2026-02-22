@@ -514,7 +514,7 @@ const OnboardingPage = () => {
                 </div>
 
                 {/* Exam grid with stagger + glow */}
-                <div className="grid grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-hide">
+                <div className="grid grid-cols-3 gap-2 max-h-[280px] overflow-y-auto pr-1 scrollbar-hide">
                   <AnimatePresence mode="popLayout">
                     {EXAM_TYPES.filter(e => e.category === examCategory).map((exam, i) => {
                       const catColor = TAB_GLOW;
