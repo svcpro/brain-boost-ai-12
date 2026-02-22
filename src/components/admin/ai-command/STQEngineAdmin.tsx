@@ -140,13 +140,13 @@ export default function STQEngineAdmin() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl border border-border/50"
+        className="relative rounded-2xl border border-border/50"
         style={{
           background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--background)) 50%, hsl(var(--card)) 100%)",
         }}
       >
         {/* Animated gradient orbs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+         <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
           <motion.div
             className="absolute -top-20 -right-20 w-60 h-60 rounded-full opacity-[0.08]"
             style={{ background: "radial-gradient(circle, hsl(15, 100%, 55%), transparent 70%)" }}
