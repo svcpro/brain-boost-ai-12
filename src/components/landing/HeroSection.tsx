@@ -265,7 +265,7 @@ const LiveStatBar = () => {
 
 const HeroSection = () => {
   const examWord = useTypewriter(
-    ["Every Exam.", "NEET.", "JEE.", "UPSC.", "CAT.", "GATE.", "SSC CGL.", "GRE.", "SAT.", "Every Exam."],
+    ["UPSC.", "NEET.", "JEE.", "SSC CGL.", "CAT.", "GATE.", "GRE.", "SAT.", "CLAT.", "NDA.", "Every Exam."],
     90, 60, 1800
   );
   const { x: mouseX, y: mouseY } = useMouseParallax(0.015);
