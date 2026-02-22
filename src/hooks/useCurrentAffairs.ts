@@ -106,3 +106,92 @@ export function useApproveQuestion() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ca-event-detail"] }),
   });
 }
+
+// Push approved CA questions to main question_bank
+export function usePushToQuestionBank() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      // Get all approved CA questions not yet pushed
+      const { data: approved, error: fetchErr } = await supabase
+        .from("ca_generated_questions")
+        .select("*, ca_events(category, title)")
+        .eq("status", "approved")
+        .eq("question_type", "prelims_mcq"); // Only MCQs fit the question_bank format
+
+      if (fetchErr) throw fetchErr;
+      if (!approved || approved.length === 0) return { pushed: 0 };
+
+      let pushed = 0;
+      for (const q of approved) {
+        // Check duplicate by question text hash
+        const { data: existing } = await supabase
+          .from("question_bank")
+          .select("id")
+          .eq("question", q.question_text)
+          .limit(1);
+
+        if (existing && existing.length > 0) continue;
+
+        const options = Array.isArray(q.options) ? q.options : [];
+        const correctIndex = options.indexOf(q.correct_answer);
+
+        const { error: insertErr } = await supabase.from("question_bank").insert({
+          exam_type: q.exam_type || "UPSC CSE",
+          subject: (q as any).ca_events?.category || "Current Affairs",
+          topic: (q as any).ca_events?.title?.substring(0, 100) || "Current Affairs",
+          year: new Date().getFullYear(),
+          difficulty: q.difficulty || "moderate",
+          question: q.question_text,
+          options: options,
+          correct_answer: correctIndex >= 0 ? correctIndex : 0,
+          explanation: q.explanation || "",
+          previous_year_tag: "CA-AI-Generated",
+        });
+
+        if (!insertErr) pushed++;
+      }
+
+      return { pushed };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["ca-dashboard"] });
+    },
+  });
+}
+
+// Student-facing: fetch approved CA questions for practice
+export function useCAStudentQuestions(limit = 10) {
+  return useQuery({
+    queryKey: ["ca-student-questions", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ca_generated_questions")
+        .select("*, ca_events(title, category, summary)")
+        .eq("status", "approved")
+        .eq("question_type", "prelims_mcq")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+// Student-facing: fetch today's CA events
+export function useTodayCAEvents() {
+  return useQuery({
+    queryKey: ["ca-today-events"],
+    queryFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("ca_events")
+        .select("id, title, summary, category, event_date, created_at")
+        .gte("created_at", today)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
