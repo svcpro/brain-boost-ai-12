@@ -912,6 +912,291 @@ export type Database = {
         }
         Relationships: []
       }
+      ca_entities: {
+        Row: {
+          created_at: string
+          description: string | null
+          entity_type: string
+          first_seen_at: string | null
+          id: string
+          last_seen_at: string | null
+          metadata: Json | null
+          name: string
+          occurrence_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          entity_type: string
+          first_seen_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          metadata?: Json | null
+          name: string
+          occurrence_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          entity_type?: string
+          first_seen_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          metadata?: Json | null
+          name?: string
+          occurrence_count?: number | null
+        }
+        Relationships: []
+      }
+      ca_event_entities: {
+        Row: {
+          context_snippet: string | null
+          created_at: string
+          entity_id: string
+          event_id: string
+          id: string
+          relevance_score: number | null
+        }
+        Insert: {
+          context_snippet?: string | null
+          created_at?: string
+          entity_id: string
+          event_id: string
+          id?: string
+          relevance_score?: number | null
+        }
+        Update: {
+          context_snippet?: string | null
+          created_at?: string
+          entity_id?: string
+          event_id?: string
+          id?: string
+          relevance_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_event_entities_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "ca_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ca_event_entities_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ca_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ca_events: {
+        Row: {
+          ai_analysis: Json | null
+          category: string | null
+          created_at: string
+          entity_count: number | null
+          event_date: string | null
+          id: string
+          importance_score: number | null
+          processing_status: string | null
+          question_count: number | null
+          raw_content: string | null
+          source_name: string | null
+          source_url: string | null
+          summary: string | null
+          syllabus_link_count: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          category?: string | null
+          created_at?: string
+          entity_count?: number | null
+          event_date?: string | null
+          id?: string
+          importance_score?: number | null
+          processing_status?: string | null
+          question_count?: number | null
+          raw_content?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          summary?: string | null
+          syllabus_link_count?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          category?: string | null
+          created_at?: string
+          entity_count?: number | null
+          event_date?: string | null
+          id?: string
+          importance_score?: number | null
+          processing_status?: string | null
+          question_count?: number | null
+          raw_content?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          summary?: string | null
+          syllabus_link_count?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ca_generated_questions: {
+        Row: {
+          cognitive_level: string | null
+          correct_answer: string | null
+          created_at: string
+          difficulty: string | null
+          event_id: string
+          exam_type: string | null
+          explanation: string | null
+          id: string
+          marks: number | null
+          options: Json | null
+          question_text: string
+          question_type: string
+          status: string | null
+        }
+        Insert: {
+          cognitive_level?: string | null
+          correct_answer?: string | null
+          created_at?: string
+          difficulty?: string | null
+          event_id: string
+          exam_type?: string | null
+          explanation?: string | null
+          id?: string
+          marks?: number | null
+          options?: Json | null
+          question_text: string
+          question_type: string
+          status?: string | null
+        }
+        Update: {
+          cognitive_level?: string | null
+          correct_answer?: string | null
+          created_at?: string
+          difficulty?: string | null
+          event_id?: string
+          exam_type?: string | null
+          explanation?: string | null
+          id?: string
+          marks?: number | null
+          options?: Json | null
+          question_text?: string
+          question_type?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_generated_questions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ca_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ca_graph_edges: {
+        Row: {
+          created_at: string
+          description: string | null
+          edge_type: string
+          event_id: string
+          id: string
+          metadata: Json | null
+          target_label: string
+          target_ref_id: string | null
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          edge_type: string
+          event_id: string
+          id?: string
+          metadata?: Json | null
+          target_label: string
+          target_ref_id?: string | null
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          edge_type?: string
+          event_id?: string
+          id?: string
+          metadata?: Json | null
+          target_label?: string
+          target_ref_id?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_graph_edges_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ca_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ca_syllabus_links: {
+        Row: {
+          created_at: string
+          event_id: string
+          exam_type: string
+          id: string
+          micro_topic: string
+          pattern_details: string | null
+          pattern_detected: boolean | null
+          relevance_score: number | null
+          subject: string
+          topic_id: string | null
+          tpi_impact: number | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          exam_type: string
+          id?: string
+          micro_topic: string
+          pattern_details?: string | null
+          pattern_detected?: boolean | null
+          relevance_score?: number | null
+          subject: string
+          topic_id?: string | null
+          tpi_impact?: number | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          exam_type?: string
+          id?: string
+          micro_topic?: string
+          pattern_details?: string | null
+          pattern_detected?: boolean | null
+          relevance_score?: number | null
+          subject?: string
+          topic_id?: string | null
+          tpi_impact?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_syllabus_links_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ca_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_recipients: {
         Row: {
           ab_variant: string | null

@@ -230,3 +230,6 @@ verify_jwt = false
 
 [functions.exam-intelligence]
 verify_jwt = false
+
+[functions.current-affairs-intelligence]
+verify_jwt = false
