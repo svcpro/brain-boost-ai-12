@@ -110,7 +110,7 @@ export default function ExamIntelligenceAdmin() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/40 via-card/80 to-fuchsia-950/30 p-5"
+        className="relative overflow-visible rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/40 via-card/80 to-fuchsia-950/30 p-5"
       >
         {/* Shimmer sweep */}
         <motion.div
