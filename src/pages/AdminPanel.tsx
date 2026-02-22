@@ -99,7 +99,6 @@ const NAV_GROUPS: NavGroup[] = [
     dotColor: "bg-accent",
     items: [
       { key: "ai", label: "AI Command Center", icon: Cpu, roles: ["super_admin", "admin", "ai_admin"] },
-      { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
       { key: "autopilot", label: "Autopilot Engine", icon: Workflow, roles: ["super_admin", "admin", "ai_admin"], badge: "v5", badgeColor: "bg-accent/20 text-accent" },
       { key: "notify_intelligence", label: "AI Intelligence", icon: Brain, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
       { key: "growth_center", label: "Growth Engine", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
@@ -127,6 +126,7 @@ const NAV_GROUPS: NavGroup[] = [
     gradient: "from-emerald-500/20 to-emerald-500/5",
     dotColor: "bg-emerald-400",
     items: [
+      { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
       { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
       { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
       { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
