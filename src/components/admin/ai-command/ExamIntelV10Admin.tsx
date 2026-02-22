@@ -40,12 +40,13 @@ export default function ExamIntelV10Admin() {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  const handleRunPipeline = async () => {
+  const handleRunPipeline = async (allExams: boolean) => {
     setPipelineRunning(true);
-    toast.info("🚀 Full Intel Pipeline starting...");
-    const result = await runFullPipeline([examType]);
+    const types = allExams ? [...EXAM_TYPES] : [examType];
+    toast.info(`🚀 Pipeline starting for ${allExams ? "ALL exams" : examType}...`);
+    const result = await runFullPipeline(types);
     if (result) {
-      toast.success(`Pipeline complete: ${result.topics_analyzed} topics, ${result.predictions_generated} questions, ${result.alerts_created} alerts`);
+      toast.success(`Pipeline complete: ${result.topics_analyzed} topics, ${result.predictions_generated} questions, ${result.alerts_created} alerts (${result.duration_ms ? (result.duration_ms / 1000).toFixed(1) + "s" : ""})`);
       fetchDashboard();
     }
     setPipelineRunning(false);
@@ -118,14 +119,24 @@ export default function ExamIntelV10Admin() {
                       <h3 className="font-bold text-sm">🧠 Autonomous Pipeline</h3>
                       <p className="text-xs text-muted-foreground">Zero-touch: PYQ Analysis → Predictions → Questions → Student Briefs → Alerts</p>
                     </div>
-                    <Button
-                      onClick={handleRunPipeline}
-                      disabled={pipelineRunning || loading}
-                      className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
-                      size="sm"
-                    >
-                      {pipelineRunning ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Running...</> : <><Rocket className="w-3 h-3 mr-1" /> Run Full Pipeline</>}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleRunPipeline(false)}
+                        disabled={pipelineRunning || loading}
+                        className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
+                        size="sm"
+                      >
+                        {pipelineRunning ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Running...</> : <><Rocket className="w-3 h-3 mr-1" /> Run {examType}</>}
+                      </Button>
+                      <Button
+                        onClick={() => handleRunPipeline(true)}
+                        disabled={pipelineRunning || loading}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Zap className="w-3 h-3 mr-1" /> Run All Exams
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Stats Grid */}
