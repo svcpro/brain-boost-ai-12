@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Swords, Cpu } from "lucide-react";
+import { Swords } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,12 +9,12 @@ import EngineControlPanel from "../competitive-intel/EngineControlPanel";
 import TrendPatternsPanel from "../competitive-intel/TrendPatternsPanel";
 import OpponentSimPanel from "../competitive-intel/OpponentSimPanel";
 import DatasetListPanel from "../competitive-intel/DatasetListPanel";
+import AutoPipelinePanel from "../competitive-intel/AutoPipelinePanel";
 
 export default function CompetitiveIntelAdmin() {
   const qc = useQueryClient();
   const [newTrend, setNewTrend] = useState({ exam_type: "JEE", subject: "", topic: "", year: 2024, frequency_count: 1, predicted_probability: 50 });
 
-  // Config
   const { data: config } = useQuery({
     queryKey: ["intel-config"],
     queryFn: async () => {
@@ -23,7 +23,6 @@ export default function CompetitiveIntelAdmin() {
     },
   });
 
-  // Datasets
   const { data: datasets } = useQuery({
     queryKey: ["exam-datasets"],
     queryFn: async () => {
@@ -32,7 +31,6 @@ export default function CompetitiveIntelAdmin() {
     },
   });
 
-  // Trends
   const { data: trends } = useQuery({
     queryKey: ["admin-exam-trends"],
     queryFn: async () => {
@@ -41,7 +39,6 @@ export default function CompetitiveIntelAdmin() {
     },
   });
 
-  // Opponent config
   const { data: opponentConfig } = useQuery({
     queryKey: ["opponent-config"],
     queryFn: async () => {
@@ -50,7 +47,6 @@ export default function CompetitiveIntelAdmin() {
     },
   });
 
-  // Toggle config
   const toggleConfig = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: boolean }) => {
       if (!config?.id) return;
@@ -60,7 +56,6 @@ export default function CompetitiveIntelAdmin() {
     onSuccess: () => { toast.success("Config updated"); qc.invalidateQueries({ queryKey: ["intel-config"] }); },
   });
 
-  // Add trend
   const addTrend = useMutation({
     mutationFn: async () => {
       if (!newTrend.subject || !newTrend.topic) throw new Error("Subject and topic required");
@@ -71,7 +66,6 @@ export default function CompetitiveIntelAdmin() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Delete trend
   const deleteTrend = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any).from("exam_trend_patterns").delete().eq("id", id);
@@ -80,7 +74,6 @@ export default function CompetitiveIntelAdmin() {
     onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["admin-exam-trends"] }); },
   });
 
-  // Update opponent config
   const updateOpponent = useMutation({
     mutationFn: async (updates: any) => {
       if (!opponentConfig?.id) return;
@@ -90,7 +83,6 @@ export default function CompetitiveIntelAdmin() {
     onSuccess: () => { toast.success("Opponent config saved"); qc.invalidateQueries({ queryKey: ["opponent-config"] }); },
   });
 
-  // Count active engine toggles
   const activeEngines = config ? ["trend_engine_enabled", "weakness_engine_enabled", "accelerator_enabled", "opponent_sim_enabled", "rank_heatmap_enabled"].filter(k => config[k] !== false).length : 0;
 
   return (
@@ -102,7 +94,6 @@ export default function CompetitiveIntelAdmin() {
         className="relative overflow-hidden rounded-2xl p-6"
         style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
       >
-        {/* Animated background orbs */}
         <motion.div
           className="absolute -top-10 -left-10 w-40 h-40 rounded-full bg-gradient-to-br from-orange-500/15 to-amber-400/10 blur-3xl"
           animate={{ scale: [1, 1.2, 1], x: [0, 15, 0] }}
@@ -113,7 +104,6 @@ export default function CompetitiveIntelAdmin() {
           animate={{ scale: [1.2, 1, 1.2], x: [0, -15, 0] }}
           transition={{ duration: 7, repeat: Infinity }}
         />
-
         <div className="relative z-10 flex items-center gap-4">
           <motion.div
             className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-xl shadow-orange-500/25"
@@ -130,11 +120,11 @@ export default function CompetitiveIntelAdmin() {
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                LIVE
+                AI AUTO
               </motion.span>
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Exam pattern analysis · Opponent simulation · Rank intelligence
+              Fully automated · AI-driven analysis · Zero manual work
             </p>
           </div>
         </div>
@@ -148,10 +138,13 @@ export default function CompetitiveIntelAdmin() {
         engineToggles={activeEngines}
       />
 
+      {/* AI Auto Pipeline — THE MAIN FEATURE */}
+      <AutoPipelinePanel />
+
       {/* Engine Controls */}
       <EngineControlPanel config={config} toggleConfig={toggleConfig} />
 
-      {/* Two-column layout for trends & opponent */}
+      {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <TrendPatternsPanel
           trends={trends || []}
