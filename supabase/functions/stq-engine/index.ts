@@ -27,6 +27,12 @@ serve(async (req) => {
         return await updateTaxonomy(supabase, params);
       case "mine_questions":
         return await mineQuestions(supabase, params);
+      case "auto_mine_questions":
+        return await autoMineQuestions(supabase, params);
+      case "delete_mining":
+        return await deleteMining(supabase, params);
+      case "get_mining_stats":
+        return await getMiningStats(supabase, params);
       case "compute_tpi":
         return await computeTPI(supabase, params);
       case "detect_patterns":
@@ -416,6 +422,203 @@ Return JSON array.`;
   if (error) throw error;
 
   return json({ success: true, count: data.length, questions: data });
+}
+
+// =============================================
+// AUTO MINE QUESTIONS (AI generates + classifies)
+// =============================================
+async function autoMineQuestions(supabase: any, { exam_type, years, subjects }: any) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+  const targetYears = years?.length ? years : [2024, 2023, 2022, 2021, 2020];
+  const targetSubjects = subjects?.length ? subjects : null;
+
+  // Fetch taxonomy
+  const { data: taxonomy } = await supabase
+    .from("syllabus_taxonomies")
+    .select("id, subject, topic, subtopic, normalized_name")
+    .eq("exam_type", exam_type);
+
+  const taxonomyTopics = (taxonomy || []).map((t: any) => `${t.subject} > ${t.topic}${t.subtopic ? ` > ${t.subtopic}` : ""}`);
+  const subjectList = targetSubjects || [...new Set((taxonomy || []).map((t: any) => t.subject))];
+
+  if (!subjectList.length) throw new Error("No subjects found. Generate syllabus first.");
+
+  let totalMined = 0;
+  const results: any[] = [];
+
+  for (const year of targetYears) {
+    for (const subject of subjectList) {
+      // Check existing count
+      const { count: existing } = await supabase
+        .from("question_mining_results")
+        .select("*", { count: "exact", head: true })
+        .eq("exam_type", exam_type)
+        .eq("year", year)
+        .eq("subject", subject);
+
+      if ((existing || 0) >= 10) {
+        results.push({ year, subject, mined: 0, skipped: true });
+        continue;
+      }
+
+      const prompt = `You are an expert exam analyst for ${exam_type}. Generate a realistic analysis of ${subject} questions that appeared in the ${year} exam paper.
+
+Known syllabus topics for ${subject}:
+${taxonomyTopics.filter((t: string) => t.startsWith(subject)).join("\n") || "Use standard topics for this subject."}
+
+Generate 8-12 question entries that would realistically appear in ${exam_type} ${year} for ${subject}. For each:
+- topic: The chapter/topic name
+- subtopic: Specific subtopic
+- question_text: A brief description of the question type (first 200 chars)
+- question_type: mcq/numerical/assertion_reason/passage/match
+- difficulty_level: easy/medium/hard/very_hard
+- marks: Typical marks (4 for MCQ, etc.)
+- semantic_cluster: A cluster label grouping similar patterns
+- pattern_tags: Array like ["formula_based", "conceptual", "application", "graph_based"]
+
+Base this on realistic ${exam_type} exam patterns.`;
+
+      try {
+        await new Promise(r => setTimeout(r, 600)); // rate limit guard
+
+        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [{ role: "user", content: prompt }],
+            tools: [{
+              type: "function",
+              function: {
+                name: "return_questions",
+                description: "Return analyzed exam questions",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    questions: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          topic: { type: "string" },
+                          subtopic: { type: "string" },
+                          question_text: { type: "string" },
+                          question_type: { type: "string" },
+                          difficulty_level: { type: "string" },
+                          marks: { type: "number" },
+                          semantic_cluster: { type: "string" },
+                          pattern_tags: { type: "array", items: { type: "string" } },
+                        },
+                        required: ["topic", "question_text"],
+                      },
+                    },
+                  },
+                  required: ["questions"],
+                },
+              },
+            }],
+            tool_choice: { type: "function", function: { name: "return_questions" } },
+          }),
+        });
+
+        if (!aiResp.ok) {
+          const status = aiResp.status;
+          if (status === 429) { results.push({ year, subject, mined: 0, rateLimited: true }); continue; }
+          if (status === 402) throw new Error("AI credits exhausted");
+          continue;
+        }
+
+        const aiData = await aiResp.json();
+        let questions: any[] = [];
+        try {
+          const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall) questions = JSON.parse(toolCall.function.arguments).questions || [];
+        } catch {
+          const content = aiData.choices?.[0]?.message?.content || "";
+          const match = content.match(/[\[\{][\s\S]*[\]\}]/);
+          if (match) questions = JSON.parse(match[0]);
+        }
+
+        const rows = questions.map((q: any) => {
+          const taxMatch = (taxonomy || []).find((t: any) =>
+            t.subject.toLowerCase() === subject.toLowerCase() &&
+            t.topic.toLowerCase() === q.topic?.toLowerCase()
+          );
+          return {
+            exam_type, year, subject,
+            topic: q.topic,
+            subtopic: q.subtopic || null,
+            taxonomy_id: taxMatch?.id || null,
+            question_text: q.question_text?.substring(0, 500),
+            question_type: q.question_type || "mcq",
+            difficulty_level: q.difficulty_level || "medium",
+            marks: q.marks || 4,
+            semantic_cluster: q.semantic_cluster || null,
+            similarity_score: null,
+            pattern_tags: q.pattern_tags || [],
+            source_paper: `${exam_type}_${year}`,
+          };
+        });
+
+        if (rows.length) {
+          const { data: inserted } = await supabase.from("question_mining_results").insert(rows).select();
+          totalMined += inserted?.length || 0;
+          results.push({ year, subject, mined: inserted?.length || 0 });
+        }
+      } catch (e: any) {
+        console.error(`Auto-mine error ${subject}/${year}:`, e);
+        results.push({ year, subject, mined: 0, error: e.message });
+      }
+    }
+  }
+
+  return json({ success: true, total_mined: totalMined, results });
+}
+
+// =============================================
+// DELETE MINING / GET STATS
+// =============================================
+async function deleteMining(supabase: any, { exam_type, year, delete_all }: any) {
+  if (delete_all && exam_type) {
+    const { error } = await supabase.from("question_mining_results").delete().eq("exam_type", exam_type);
+    if (error) throw error;
+    return json({ success: true, message: `All ${exam_type} mining data deleted` });
+  }
+  if (year && exam_type) {
+    const { error } = await supabase.from("question_mining_results").delete().eq("exam_type", exam_type).eq("year", year);
+    if (error) throw error;
+    return json({ success: true, message: `${exam_type} ${year} mining data deleted` });
+  }
+  throw new Error("Provide exam_type with delete_all or year");
+}
+
+async function getMiningStats(supabase: any, { exam_type }: any) {
+  const { data } = await supabase
+    .from("question_mining_results")
+    .select("year, subject, question_type, difficulty_level, topic")
+    .eq("exam_type", exam_type);
+
+  if (!data?.length) return json({ total: 0, by_year: {}, by_subject: {}, by_type: {}, by_difficulty: {}, top_topics: [] });
+
+  const byYear: Record<number, number> = {};
+  const bySubject: Record<string, number> = {};
+  const byType: Record<string, number> = {};
+  const byDifficulty: Record<string, number> = {};
+  const topicCount: Record<string, number> = {};
+
+  for (const q of data) {
+    byYear[q.year] = (byYear[q.year] || 0) + 1;
+    bySubject[q.subject] = (bySubject[q.subject] || 0) + 1;
+    byType[q.question_type] = (byType[q.question_type] || 0) + 1;
+    byDifficulty[q.difficulty_level] = (byDifficulty[q.difficulty_level] || 0) + 1;
+    topicCount[q.topic] = (topicCount[q.topic] || 0) + 1;
+  }
+
+  const topTopics = Object.entries(topicCount).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([topic, count]) => ({ topic, count }));
+
+  return json({ total: data.length, by_year: byYear, by_subject: bySubject, by_type: byType, by_difficulty: byDifficulty, top_topics: topTopics });
 }
 
 // =============================================

@@ -553,13 +553,40 @@ function SyllabusParser({ examType }: { examType: string }) {
 }
 
 // =============================================
-// QUESTION MINING
+// QUESTION MINING (Full Featured)
 // =============================================
 function QuestionMining({ examType }: { examType: string }) {
+  const [mode, setMode] = useState<"auto" | "manual">("auto");
   const [year, setYear] = useState(2024);
   const [text, setText] = useState("");
+  const [selectedYears, setSelectedYears] = useState<number[]>([2024, 2023, 2022, 2021, 2020]);
+  const [autoProgress, setAutoProgress] = useState<{ running: boolean; current: string; done: number; total: number }>({ running: false, current: "", done: 0, total: 0 });
   const qc = useQueryClient();
+  const availableSubjects = STQ_EXAM_SUBJECTS[examType] || [];
+  const allYears = [2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015];
 
+  // Auto mine with AI
+  const autoMine = useMutation({
+    mutationFn: async () => {
+      if (!selectedYears.length) throw new Error("Select at least one year");
+      setAutoProgress({ running: true, current: "Starting AI mining engine...", done: 0, total: selectedYears.length });
+
+      const { data, error } = await supabase.functions.invoke("stq-engine", {
+        body: { action: "auto_mine_questions", exam_type: examType, years: selectedYears, subjects: availableSubjects.length ? availableSubjects : undefined },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d) => {
+      setAutoProgress(prev => ({ ...prev, running: false }));
+      toast.success(`🎉 Mined ${d.total_mined} questions across ${selectedYears.length} years`);
+      qc.invalidateQueries({ queryKey: ["stq-mining"] });
+      qc.invalidateQueries({ queryKey: ["stq-dashboard"] });
+    },
+    onError: (e: any) => { setAutoProgress(prev => ({ ...prev, running: false })); toast.error(e.message); },
+  });
+
+  // Manual mine
   const mine = useMutation({
     mutationFn: async () => {
       if (!text.trim()) throw new Error("Enter question paper text");
@@ -569,51 +596,255 @@ function QuestionMining({ examType }: { examType: string }) {
       if (error) throw error;
       return data;
     },
-    onSuccess: (d) => { toast.success(`Mined ${d.count} questions`); qc.invalidateQueries({ queryKey: ["stq-dashboard"] }); setText(""); },
+    onSuccess: (d) => { toast.success(`Mined ${d.count} questions`); qc.invalidateQueries({ queryKey: ["stq-mining"] }); setText(""); },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const { data: minedCount } = useQuery({
-    queryKey: ["stq-mining-count", examType],
+  // Delete year data
+  const deleteYear = useMutation({
+    mutationFn: async (y: number) => {
+      const { data, error } = await supabase.functions.invoke("stq-engine", {
+        body: { action: "delete_mining", exam_type: examType, year: y },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { toast.success("Year data deleted"); qc.invalidateQueries({ queryKey: ["stq-mining"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Delete all
+  const deleteAll = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stq-engine", {
+        body: { action: "delete_mining", exam_type: examType, delete_all: true },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { toast.success("All mining data cleared"); qc.invalidateQueries({ queryKey: ["stq-mining"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Stats
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["stq-mining", examType],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("question_mining_results").select("year, subject").eq("exam_type", examType);
-      const byYear: Record<number, number> = {};
-      (data || []).forEach((q: any) => { byYear[q.year] = (byYear[q.year] || 0) + 1; });
-      return byYear;
+      const { data, error } = await supabase.functions.invoke("stq-engine", {
+        body: { action: "get_mining_stats", exam_type: examType },
+      });
+      if (error) throw error;
+      return data;
     },
   });
 
+  const toggleYear = (y: number) => {
+    setSelectedYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]);
+  };
+
   return (
     <div className="space-y-4">
-      <Card title="Mine Questions" icon={Database}>
-        <div className="flex gap-2 mb-2">
-          <select value={year} onChange={e => setYear(+e.target.value)}
-            className="px-2 py-1.5 rounded-lg bg-background border border-border text-xs text-foreground">
-            {[2024, 2023, 2022, 2021, 2020, 2019].map(y => <option key={y}>{y}</option>)}
-          </select>
-          <span className="text-xs text-muted-foreground self-center">Paper Year</span>
-        </div>
-        <textarea value={text} onChange={e => setText(e.target.value)}
-          placeholder={`Paste ${examType} ${year} exam questions here...\n\nQ1. A particle of mass m is moving...\nQ2. The magnetic field at center of a circular loop...`}
-          className="w-full h-40 p-3 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground resize-none" />
-        <button onClick={() => mine.mutate()} disabled={mine.isPending}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 mt-2">
-          {mine.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-          {mine.isPending ? "AI Mining..." : "Mine & Classify"}
+      {/* Mode Toggle */}
+      <div className="flex gap-1 p-0.5 rounded-lg bg-secondary/50">
+        <button onClick={() => setMode("auto")}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-[11px] font-medium transition-all ${mode === "auto" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`}>
+          <Sparkles className="w-3.5 h-3.5" /> Auto Mine with AI
         </button>
-      </Card>
+        <button onClick={() => setMode("manual")}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-[11px] font-medium transition-all ${mode === "manual" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`}>
+          <Upload className="w-3.5 h-3.5" /> Manual Input
+        </button>
+      </div>
 
-      {minedCount && Object.keys(minedCount).length > 0 && (
-        <Card title="Mined Data" icon={BarChart3}>
-          <div className="grid grid-cols-3 gap-2">
-            {Object.entries(minedCount).sort(([a], [b]) => +b - +a).map(([y, count]) => (
-              <div key={y} className="rounded-lg p-2 bg-background/50 text-center">
-                <p className="text-sm font-bold text-foreground">{count as number}</p>
-                <p className="text-[10px] text-muted-foreground">{y}</p>
-              </div>
-            ))}
+      {/* Auto Mine */}
+      {mode === "auto" && (
+        <Card title="AI Auto Question Mining" icon={Sparkles}>
+          <p className="text-[10px] text-muted-foreground mb-3">
+            AI will generate realistic exam question patterns for <span className="text-primary font-bold">{examType}</span> based on historical exam analysis, then classify and map them to your syllabus taxonomy.
+          </p>
+
+          {/* Year Selection */}
+          <div className="mb-3">
+            <p className="text-[10px] font-medium text-foreground mb-1.5">Select Years to Mine:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {allYears.map(y => (
+                <button key={y} onClick={() => toggleYear(y)}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
+                    selectedYears.includes(y) ? "bg-primary/15 border-primary/30 text-primary" : "border-border text-muted-foreground hover:bg-secondary"
+                  }`}>
+                  {selectedYears.includes(y) ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+                  {y}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Quick Actions */}
+          <div className="flex gap-2 mb-3">
+            <button onClick={() => setSelectedYears(allYears)} className="text-[10px] text-primary hover:underline">Select All</button>
+            <button onClick={() => setSelectedYears([])} className="text-[10px] text-muted-foreground hover:underline">Clear</button>
+            <button onClick={() => setSelectedYears([2024, 2023, 2022, 2021, 2020])} className="text-[10px] text-muted-foreground hover:underline">Last 5 Years</button>
+          </div>
+
+          {/* Subjects Info */}
+          {availableSubjects.length > 0 && (
+            <div className="rounded-lg p-2.5 bg-secondary/30 border border-border mb-3">
+              <p className="text-[10px] text-muted-foreground">
+                Mining subjects: <span className="text-foreground font-medium">{availableSubjects.join(", ")}</span>
+              </p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                ~{selectedYears.length * availableSubjects.length * 10} questions will be generated ({selectedYears.length} years × {availableSubjects.length} subjects × ~10 per batch)
+              </p>
+            </div>
+          )}
+
+          {/* Generate Button */}
+          <button onClick={() => autoMine.mutate()} disabled={autoMine.isPending || !selectedYears.length}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xs font-bold disabled:opacity-50 shadow-lg">
+            {autoMine.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Mining Questions with AI...</> : <><Zap className="w-4 h-4" /> Mine {selectedYears.length} Years of {examType} Questions</>}
+          </button>
+
+          {/* Progress */}
+          {autoMine.isPending && (
+            <div className="rounded-lg p-3 bg-primary/5 border border-primary/10 mt-2">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <p className="text-[10px] font-medium text-primary">AI is mining {examType} question patterns...</p>
+              </div>
+              <div className="space-y-1 text-[9px] text-muted-foreground">
+                <p>• Analyzing historical exam patterns per subject</p>
+                <p>• Classifying question types & difficulty</p>
+                <p>• Mapping to syllabus taxonomy</p>
+                <p>• Clustering semantic patterns</p>
+              </div>
+              <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
+                <motion.div className="h-full rounded-full bg-primary" initial={{ width: "5%" }}
+                  animate={{ width: "85%" }} transition={{ duration: 30, ease: "linear" }} />
+              </div>
+            </div>
+          )}
         </Card>
+      )}
+
+      {/* Manual Input */}
+      {mode === "manual" && (
+        <Card title="Mine from Question Paper" icon={Database}>
+          <div className="flex gap-2 mb-2">
+            <select value={year} onChange={e => setYear(+e.target.value)}
+              className="px-2 py-1.5 rounded-lg bg-background border border-border text-xs text-foreground">
+              {allYears.map(y => <option key={y}>{y}</option>)}
+            </select>
+            <span className="text-xs text-muted-foreground self-center">Paper Year</span>
+          </div>
+          <textarea value={text} onChange={e => setText(e.target.value)}
+            placeholder={`Paste ${examType} ${year} exam questions here...\n\nQ1. A particle of mass m is moving...\nQ2. The magnetic field at center of a circular loop...`}
+            className="w-full h-40 p-3 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground resize-none" />
+          <button onClick={() => mine.mutate()} disabled={mine.isPending}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 mt-2">
+            {mine.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+            {mine.isPending ? "AI Mining..." : "Mine & Classify"}
+          </button>
+        </Card>
+      )}
+
+      {/* Stats Dashboard */}
+      {!isLoading && stats && stats.total > 0 && (
+        <>
+          {/* Summary Stats */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl p-2.5 bg-card border border-border text-center">
+              <p className="text-lg font-bold text-foreground">{stats.total}</p>
+              <p className="text-[10px] text-muted-foreground">Total Mined</p>
+            </div>
+            <div className="rounded-xl p-2.5 bg-card border border-border text-center">
+              <p className="text-lg font-bold text-foreground">{Object.keys(stats.by_year || {}).length}</p>
+              <p className="text-[10px] text-muted-foreground">Years Covered</p>
+            </div>
+            <div className="rounded-xl p-2.5 bg-card border border-border text-center">
+              <p className="text-lg font-bold text-foreground">{Object.keys(stats.by_subject || {}).length}</p>
+              <p className="text-[10px] text-muted-foreground">Subjects</p>
+            </div>
+          </div>
+
+          {/* By Year */}
+          <Card title="Questions by Year" icon={BarChart3}>
+            <div className="space-y-1.5">
+              {Object.entries(stats.by_year || {}).sort(([a], [b]) => +b - +a).map(([y, count]: [string, any]) => (
+                <div key={y} className="flex items-center gap-2 group">
+                  <span className="text-xs font-medium text-foreground w-10">{y}</span>
+                  <div className="flex-1 h-5 rounded-full bg-secondary overflow-hidden">
+                    <motion.div className="h-full rounded-full bg-primary/60" initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (count / Math.max(...Object.values(stats.by_year as Record<string, number>))) * 100)}%` }}
+                      transition={{ duration: 0.5 }} />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground w-8 text-right">{count}</span>
+                  <button onClick={() => { if (confirm(`Delete all ${examType} ${y} mining data?`)) deleteYear.mutate(+y); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 className="w-3 h-3 text-destructive/50 hover:text-destructive" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* By Subject */}
+          <Card title="Questions by Subject" icon={Layers}>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(stats.by_subject || {}).map(([subject, count]: [string, any]) => (
+                <div key={subject} className="rounded-lg p-2.5 bg-background/50">
+                  <p className="text-xs font-bold text-foreground">{count}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{subject}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* By Difficulty */}
+          <Card title="Difficulty Distribution" icon={Target}>
+            <div className="flex gap-2">
+              {Object.entries(stats.by_difficulty || {}).map(([diff, count]: [string, any]) => {
+                const colors: Record<string, string> = { easy: "bg-green-500/15 text-green-400", medium: "bg-yellow-500/15 text-yellow-400", hard: "bg-red-500/15 text-red-400", very_hard: "bg-purple-500/15 text-purple-400" };
+                return (
+                  <div key={diff} className={`flex-1 rounded-lg p-2 text-center ${colors[diff] || "bg-secondary text-muted-foreground"}`}>
+                    <p className="text-sm font-bold">{count}</p>
+                    <p className="text-[9px] capitalize">{diff.replace("_", " ")}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Top Topics */}
+          {stats.top_topics?.length > 0 && (
+            <Card title="Most Frequent Topics" icon={TrendingUp}>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {stats.top_topics.map((t: any, i: number) => (
+                  <div key={t.topic} className="flex items-center gap-2 p-1.5 rounded-lg bg-background/50 text-xs">
+                    <span className="w-5 h-5 rounded flex items-center justify-center bg-primary/10 text-primary text-[9px] font-bold">{i + 1}</span>
+                    <span className="flex-1 text-foreground truncate">{t.topic}</span>
+                    <span className="text-muted-foreground">{t.count}×</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Clear All */}
+          <button onClick={() => { if (confirm(`Delete ALL ${examType} mining data?`)) deleteAll.mutate(); }}
+            disabled={deleteAll.isPending}
+            className="flex items-center justify-center gap-1 w-full px-3 py-2 rounded-lg text-[10px] text-destructive/70 hover:text-destructive border border-destructive/10 hover:border-destructive/30 transition-colors">
+            <Trash2 className="w-3 h-3" /> Clear All Mining Data
+          </button>
+        </>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && (!stats || stats.total === 0) && (
+        <div className="text-center py-8 space-y-2">
+          <Database className="w-8 h-8 mx-auto text-muted-foreground/40" />
+          <p className="text-xs text-muted-foreground">No questions mined yet</p>
+          <p className="text-[10px] text-muted-foreground">Use AI Auto Mine or paste question papers to populate</p>
+        </div>
       )}
     </div>
   );
