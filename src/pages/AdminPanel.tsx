@@ -9,7 +9,7 @@ import {
   CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Sparkles, MessageSquare, Globe,
   Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio, Target, Rocket,
-  Cpu, Building2, GraduationCap, Megaphone, Lock, Fingerprint, FileText, PanelLeftClose, PanelLeft
+  Cpu, Building2, GraduationCap, Megaphone, Lock, Fingerprint, FileText, PanelLeftClose, PanelLeft, Swords
 } from "lucide-react";
 import AITopicManager from "@/components/app/AITopicManager";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -56,7 +56,8 @@ import ExamIntelligenceAdmin from "@/components/admin/ai-command/ExamIntelligenc
 import ExamIntelV10Admin from "@/components/admin/ai-command/ExamIntelV10Admin";
 import CurrentAffairsAdmin from "@/components/admin/ai-command/CurrentAffairsAdmin";
 import PolicyPredictorAdmin from "@/components/admin/ai-command/PolicyPredictorAdmin";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
+import DebateEngineAdmin from "@/components/admin/ai-command/DebateEngineAdmin";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -112,6 +113,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "stq", label: "STQ Engine v9.0", icon: Database, roles: ["super_admin", "admin", "ai_admin"], badge: "v9", badgeColor: "bg-accent/20 text-accent" },
       { key: "exam_intel", label: "Exam Intel v10.0", icon: Sparkles, roles: ["super_admin", "admin", "ai_admin"], badge: "v10", badgeColor: "bg-violet-500/20 text-violet-400" },
       { key: "current_affairs", label: "CA v3.0", icon: Globe, roles: ["super_admin", "admin", "ai_admin"], badge: "v3", badgeColor: "bg-cyan-500/20 text-cyan-400" },
+      { key: "debate_engine", label: "CA 4.0 Debate Engine", icon: Swords, roles: ["super_admin", "admin", "ai_admin"], badge: "v4", badgeColor: "bg-orange-500/20 text-orange-400" },
     ],
   },
   {
@@ -553,6 +555,7 @@ const AdminPanel = () => {
               {section === "exam_intel" && <ExamIntelV10Admin />}
               {section === "current_affairs" && <CurrentAffairsAdmin />}
               {section === "policy_predictor" && <PolicyPredictorAdmin />}
+              {section === "debate_engine" && <DebateEngineAdmin />}
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
               {section === "finance" && <FinanceManagement />}
