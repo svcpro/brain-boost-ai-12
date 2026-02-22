@@ -16,19 +16,26 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if autopilot is enabled
+    // Parse request body for manual trigger flag
+    let forceRun = false;
+    try {
+      const body = await req.json();
+      forceRun = body?.force === true;
+    } catch { /* no body is fine */ }
+
+    // Check if autopilot is enabled (skip check if force triggered)
     const { data: config } = await supabase
       .from("ca_autopilot_config")
       .select("*")
       .limit(1)
       .single();
 
-    if (!config?.is_enabled) {
+    if (!forceRun && !config?.is_enabled) {
       return jsonResp({ skipped: true, reason: "Autopilot disabled" });
     }
 
-    const categories = config.categories || ["polity", "economy", "science", "environment", "international"];
-    const examTypes = config.exam_types || ["UPSC CSE"];
+    const categories = config?.categories || ["polity", "economy", "science", "environment", "international"];
+    const examTypes = config?.exam_types || ["UPSC CSE"];
 
     console.log("CA Auto Pipeline: Starting auto-fetch for categories:", categories);
 

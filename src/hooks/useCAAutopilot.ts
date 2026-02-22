@@ -41,7 +41,9 @@ export function useTriggerAutoPipeline() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("ca-auto-pipeline");
+      const { data, error } = await supabase.functions.invoke("ca-auto-pipeline", {
+        body: { force: true },
+      });
       if (error) throw error;
       return data;
     },
