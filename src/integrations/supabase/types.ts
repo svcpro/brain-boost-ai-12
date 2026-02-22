@@ -1722,6 +1722,54 @@ export type Database = {
         }
         Relationships: []
       }
+      curriculum_shift_events: {
+        Row: {
+          affected_subject: string | null
+          affected_topic: string | null
+          auto_recalibrated: boolean | null
+          confidence: number | null
+          created_at: string
+          detected_at: string
+          detection_method: string | null
+          exam_type: string
+          id: string
+          new_weight: number | null
+          old_weight: number | null
+          recalibration_details: Json | null
+          shift_type: string
+        }
+        Insert: {
+          affected_subject?: string | null
+          affected_topic?: string | null
+          auto_recalibrated?: boolean | null
+          confidence?: number | null
+          created_at?: string
+          detected_at?: string
+          detection_method?: string | null
+          exam_type: string
+          id?: string
+          new_weight?: number | null
+          old_weight?: number | null
+          recalibration_details?: Json | null
+          shift_type?: string
+        }
+        Update: {
+          affected_subject?: string | null
+          affected_topic?: string | null
+          auto_recalibrated?: boolean | null
+          confidence?: number | null
+          created_at?: string
+          detected_at?: string
+          detection_method?: string | null
+          exam_type?: string
+          id?: string
+          new_weight?: number | null
+          old_weight?: number | null
+          recalibration_details?: Json | null
+          shift_type?: string
+        }
+        Relationships: []
+      }
       device_sessions: {
         Row: {
           created_at: string | null
@@ -2288,6 +2336,102 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_evolution_patterns: {
+        Row: {
+          created_at: string
+          difficulty_index: number | null
+          exam_type: string
+          frequency_score: number | null
+          id: string
+          pattern_metadata: Json | null
+          structural_type: string | null
+          subject: string
+          topic: string
+          updated_at: string
+          weight_trend: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          difficulty_index?: number | null
+          exam_type: string
+          frequency_score?: number | null
+          id?: string
+          pattern_metadata?: Json | null
+          structural_type?: string | null
+          subject: string
+          topic: string
+          updated_at?: string
+          weight_trend?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string
+          difficulty_index?: number | null
+          exam_type?: string
+          frequency_score?: number | null
+          id?: string
+          pattern_metadata?: Json | null
+          structural_type?: string | null
+          subject?: string
+          topic?: string
+          updated_at?: string
+          weight_trend?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      exam_evolution_reports: {
+        Row: {
+          created_at: string
+          declining_topics: Json | null
+          difficulty_inflation_rate: number | null
+          exam_type: string
+          full_report: Json | null
+          generated_at: string
+          id: string
+          period_end: number | null
+          period_start: number | null
+          report_type: string
+          rising_topics: Json | null
+          shift_alerts: Json | null
+          structural_drift_index: number | null
+          topic_rotation_score: number | null
+        }
+        Insert: {
+          created_at?: string
+          declining_topics?: Json | null
+          difficulty_inflation_rate?: number | null
+          exam_type: string
+          full_report?: Json | null
+          generated_at?: string
+          id?: string
+          period_end?: number | null
+          period_start?: number | null
+          report_type?: string
+          rising_topics?: Json | null
+          shift_alerts?: Json | null
+          structural_drift_index?: number | null
+          topic_rotation_score?: number | null
+        }
+        Update: {
+          created_at?: string
+          declining_topics?: Json | null
+          difficulty_inflation_rate?: number | null
+          exam_type?: string
+          full_report?: Json | null
+          generated_at?: string
+          id?: string
+          period_end?: number | null
+          period_start?: number | null
+          report_type?: string
+          rising_topics?: Json | null
+          shift_alerts?: Json | null
+          structural_drift_index?: number | null
+          topic_rotation_score?: number | null
+        }
+        Relationships: []
+      }
       exam_results: {
         Row: {
           created_at: string
@@ -2553,6 +2697,87 @@ export type Database = {
             columns: ["freeze_id"]
             isOneToOne: false
             referencedRelation: "streak_freezes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generated_exam_questions: {
+        Row: {
+          approved_by: string | null
+          cognitive_type: string | null
+          correct_answer: number | null
+          created_at: string
+          difficulty_level: string | null
+          dna_cluster_id: string | null
+          exam_type: string
+          explanation: string | null
+          generation_metadata: Json | null
+          generation_model: string | null
+          id: string
+          is_approved: boolean | null
+          micro_concept_id: string | null
+          options: Json | null
+          predicted_probability: number | null
+          quality_score: number | null
+          question_text: string
+          subject: string
+          topic: string
+        }
+        Insert: {
+          approved_by?: string | null
+          cognitive_type?: string | null
+          correct_answer?: number | null
+          created_at?: string
+          difficulty_level?: string | null
+          dna_cluster_id?: string | null
+          exam_type: string
+          explanation?: string | null
+          generation_metadata?: Json | null
+          generation_model?: string | null
+          id?: string
+          is_approved?: boolean | null
+          micro_concept_id?: string | null
+          options?: Json | null
+          predicted_probability?: number | null
+          quality_score?: number | null
+          question_text: string
+          subject: string
+          topic: string
+        }
+        Update: {
+          approved_by?: string | null
+          cognitive_type?: string | null
+          correct_answer?: number | null
+          created_at?: string
+          difficulty_level?: string | null
+          dna_cluster_id?: string | null
+          exam_type?: string
+          explanation?: string | null
+          generation_metadata?: Json | null
+          generation_model?: string | null
+          id?: string
+          is_approved?: boolean | null
+          micro_concept_id?: string | null
+          options?: Json | null
+          predicted_probability?: number | null
+          quality_score?: number | null
+          question_text?: string
+          subject?: string
+          topic?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_exam_questions_dna_cluster_id_fkey"
+            columns: ["dna_cluster_id"]
+            isOneToOne: false
+            referencedRelation: "question_dna_clusters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_exam_questions_micro_concept_id_fkey"
+            columns: ["micro_concept_id"]
+            isOneToOne: false
+            referencedRelation: "micro_concepts"
             referencedColumns: ["id"]
           },
         ]
@@ -3434,6 +3659,60 @@ export type Database = {
           submitted_by?: string | null
           tags?: string[] | null
           template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      micro_concepts: {
+        Row: {
+          created_at: string
+          exam_type: string
+          historical_frequency: number | null
+          id: string
+          importance_weight: number | null
+          injected_to_memory: boolean | null
+          injected_to_revision: boolean | null
+          last_appeared_year: number | null
+          metadata: Json | null
+          micro_concept: string
+          probability_score: number | null
+          subject: string
+          topic: string
+          trend_direction: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exam_type: string
+          historical_frequency?: number | null
+          id?: string
+          importance_weight?: number | null
+          injected_to_memory?: boolean | null
+          injected_to_revision?: boolean | null
+          last_appeared_year?: number | null
+          metadata?: Json | null
+          micro_concept: string
+          probability_score?: number | null
+          subject: string
+          topic: string
+          trend_direction?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exam_type?: string
+          historical_frequency?: number | null
+          id?: string
+          importance_weight?: number | null
+          injected_to_memory?: boolean | null
+          injected_to_revision?: boolean | null
+          last_appeared_year?: number | null
+          metadata?: Json | null
+          micro_concept?: string
+          probability_score?: number | null
+          subject?: string
+          topic?: string
+          trend_direction?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -4706,6 +4985,57 @@ export type Database = {
         }
         Relationships: []
       }
+      prediction_confidence_bands: {
+        Row: {
+          computed_at: string
+          confidence_level: number | null
+          created_at: string
+          data_points_used: number | null
+          exam_type: string
+          id: string
+          lower_bound: number | null
+          model_version: string | null
+          point_estimate: number | null
+          prediction_type: string
+          risk_adjustment: number | null
+          upper_bound: number | null
+          user_id: string
+          volatility_score: number | null
+        }
+        Insert: {
+          computed_at?: string
+          confidence_level?: number | null
+          created_at?: string
+          data_points_used?: number | null
+          exam_type: string
+          id?: string
+          lower_bound?: number | null
+          model_version?: string | null
+          point_estimate?: number | null
+          prediction_type: string
+          risk_adjustment?: number | null
+          upper_bound?: number | null
+          user_id: string
+          volatility_score?: number | null
+        }
+        Update: {
+          computed_at?: string
+          confidence_level?: number | null
+          created_at?: string
+          data_points_used?: number | null
+          exam_type?: string
+          id?: string
+          lower_bound?: number | null
+          model_version?: string | null
+          point_estimate?: number | null
+          prediction_type?: string
+          risk_adjustment?: number | null
+          upper_bound?: number | null
+          user_id?: string
+          volatility_score?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           auto_use_streak_freeze: boolean
@@ -5150,6 +5480,54 @@ export type Database = {
           question_id?: string
           tag?: string
           tagged_by?: string
+        }
+        Relationships: []
+      }
+      question_dna_clusters: {
+        Row: {
+          archetype: string | null
+          centroid_embedding: Json | null
+          cluster_label: string
+          cluster_size: number | null
+          cognitive_features: Json | null
+          concept_layers: Json | null
+          created_at: string
+          exam_type: string
+          growth_rate: number | null
+          id: string
+          is_rising: boolean | null
+          sample_question_ids: Json | null
+          updated_at: string
+        }
+        Insert: {
+          archetype?: string | null
+          centroid_embedding?: Json | null
+          cluster_label: string
+          cluster_size?: number | null
+          cognitive_features?: Json | null
+          concept_layers?: Json | null
+          created_at?: string
+          exam_type: string
+          growth_rate?: number | null
+          id?: string
+          is_rising?: boolean | null
+          sample_question_ids?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          archetype?: string | null
+          centroid_embedding?: Json | null
+          cluster_label?: string
+          cluster_size?: number | null
+          cognitive_features?: Json | null
+          concept_layers?: Json | null
+          created_at?: string
+          exam_type?: string
+          growth_rate?: number | null
+          id?: string
+          is_rising?: boolean | null
+          sample_question_ids?: Json | null
+          updated_at?: string
         }
         Relationships: []
       }
