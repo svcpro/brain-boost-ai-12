@@ -25,24 +25,11 @@ async function aiCall(prompt: string, systemPrompt: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: systemPrompt + "\n\nIMPORTANT: You MUST respond with ONLY valid JSON. No markdown, no code fences, no explanation. Just the raw JSON object." },
         { role: "user", content: prompt },
       ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "return_structured",
-          description: "Return structured JSON output",
-          parameters: {
-            type: "object",
-            properties: { result: { type: "object" } },
-            required: ["result"],
-          },
-        },
-      }],
-      tool_choice: { type: "function", function: { name: "return_structured" } },
     }),
   });
 
@@ -53,18 +40,19 @@ async function aiCall(prompt: string, systemPrompt: string) {
   }
 
   const json = await res.json();
-  const toolCall = json.choices?.[0]?.message?.tool_calls?.[0];
-  if (toolCall) {
-    return JSON.parse(toolCall.function.arguments).result;
-  }
-  // Fallback: parse content
   const content = json.choices?.[0]?.message?.content || "{}";
-  const match = content.match(/[\[{][\s\S]*[\]}]/);
-  return match ? JSON.parse(match[0]) : {};
+  console.log("AI raw content (first 300):", content.substring(0, 300));
+  
+  // Strip markdown code fences if present
+  const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const match = cleaned.match(/[\[{][\s\S]*[\]}]/);
+  if (!match) throw new Error("AI returned no valid JSON");
+  return JSON.parse(match[0]);
 }
 
 // MODULE 1: Multi-Angle Analysis Generator
 async function generateAnalysis(supabase: any, eventId: string | null, topicTitle: string, topicContext: string) {
+  if (!topicTitle) throw new Error("topic_title is required for generate_analysis");
   const systemPrompt = `You are an expert UPSC exam analyst specializing in multi-dimensional policy analysis for Mains and Interview preparation. Generate comprehensive, exam-oriented analysis.`;
 
   const prompt = `Analyze the following topic for UPSC Mains and Interview preparation:
@@ -228,7 +216,14 @@ Return JSON with:
 
 Make it thought-provoking, multi-dimensional, and relevant to current affairs. Choose topics that have strong arguments on both sides.`;
 
-  return await aiCall(prompt, systemPrompt);
+  const result = await aiCall(prompt, systemPrompt);
+  console.log("generateAITopic result:", JSON.stringify(result).substring(0, 200));
+  
+  // Ensure we have the required fields
+  if (!result.topic_title) {
+    throw new Error("AI failed to generate a valid topic_title. Got: " + JSON.stringify(Object.keys(result)));
+  }
+  return result;
 }
 
 // MODULE 5: AI Answer Generator
