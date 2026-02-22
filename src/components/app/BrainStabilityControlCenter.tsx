@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, ShieldAlert, AlertOctagon, Zap, Brain, Clock, CheckCircle,
   RefreshCw, Sparkles, TrendingUp, ChevronRight, X, Play, Flame, Target,
-  Activity, Radio,
+  Activity, Radio, ArrowRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -237,9 +237,10 @@ interface Props {
   hasTopics: boolean;
   overallHealth: number;
   onStudyTopic?: (subject?: string, topic?: string, minutes?: number) => void;
+  onSurePassClick?: () => void;
 }
 
-const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudyTopic }: Props) => {
+const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudyTopic, onSurePassClick }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -511,7 +512,12 @@ const BrainStabilityControlCenter = ({ atRisk, hasTopics, overallHealth, onStudy
                     animate={{ scale: [1, 1.3, 1], opacity: [0.7, 1, 0.7] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   />
-                  <h2 className="text-xs font-display font-bold text-foreground tracking-tight">Stability Control</h2>
+                  <button onClick={onSurePassClick} className="flex items-center gap-1 group cursor-pointer">
+                    <h2 className="text-xs font-display font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">SurePass</h2>
+                    <motion.div animate={{ x: [0, 4, 0] }} transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}>
+                      <ArrowRight className="w-3 h-3 text-primary" />
+                    </motion.div>
+                  </button>
                   {shieldStreak > 0 && (
                     <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-primary">
                       <Flame className="w-2.5 h-2.5" />{shieldStreak}d
