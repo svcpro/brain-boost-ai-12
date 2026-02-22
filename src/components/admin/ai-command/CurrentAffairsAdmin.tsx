@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCADashboard, useCAEvents, useCAEventDetail, useAddEvent, useCAPipeline, useApproveQuestion } from "@/hooks/useCurrentAffairs";
 import { toast } from "sonner";
+import { EXAM_TYPES } from "@/lib/examTypes";
 
 const ENTITY_ICONS: Record<string, any> = {
   policy: FileText,
@@ -149,7 +150,7 @@ export default function CurrentAffairsAdmin() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[200] bg-popover border border-border shadow-xl">
-                  {["UPSC", "NEET", "JEE", "SSC CGL", "CAT", "GATE", "GRE", "SAT", "CLAT", "NDA"].map(e => (
+                  {EXAM_TYPES.map(e => (
                     <SelectItem key={e} value={e}>{e}</SelectItem>
                   ))}
                 </SelectContent>
