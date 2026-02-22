@@ -233,3 +233,6 @@ verify_jwt = false
 
 [functions.current-affairs-intelligence]
 verify_jwt = false
+
+[functions.ca-auto-pipeline]
+verify_jwt = false
