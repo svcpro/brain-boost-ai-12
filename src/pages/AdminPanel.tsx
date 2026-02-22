@@ -100,7 +100,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "ai", label: "AI Command Center", icon: Cpu, roles: ["super_admin", "admin", "ai_admin"] },
       { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
-      { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
       { key: "autopilot", label: "Autopilot Engine", icon: Workflow, roles: ["super_admin", "admin", "ai_admin"], badge: "v5", badgeColor: "bg-accent/20 text-accent" },
       { key: "notify_intelligence", label: "AI Intelligence", icon: Brain, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
       { key: "growth_center", label: "Growth Engine", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
@@ -117,6 +116,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "users", label: "User Management", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
       { key: "community", label: "Community Hub", icon: Radio, roles: ["super_admin", "admin", "support_admin"] },
+      { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
       { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
     ],
   },
