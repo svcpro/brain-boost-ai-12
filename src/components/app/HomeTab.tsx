@@ -346,25 +346,53 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         <div className="relative z-10 flex items-center justify-center gap-3 mb-5">
           <motion.button
             whileTap={{ scale: 0.9 }}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.08 }}
             onClick={() => onNavigateToYou?.()}
-            className="relative w-11 h-11 rounded-full overflow-hidden shrink-0"
-            style={{ boxShadow: `0 0 0 2px hsl(var(--primary)/0.3), 0 0 12px hsl(var(--primary)/0.15)` }}
+            className="relative w-12 h-12 shrink-0"
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-secondary text-xs font-bold text-primary">
-                {(userName || "S").slice(0, 2).toUpperCase()}
-              </div>
-            )}
-            {/* Online pulse */}
+            {/* Animated glow ring behind avatar */}
             <motion.div
-              className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card"
-              style={{ background: "hsl(var(--success))" }}
-              animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute -inset-1 rounded-full"
+              style={{
+                background: `conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--success)), hsl(var(--primary)/0.4), hsl(var(--primary)))`,
+                filter: "blur(1px)",
+              }}
+              animate={{ rotate: [0, 360] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
             />
+            {/* Inner border mask */}
+            <div className="absolute inset-[2px] rounded-full bg-card" />
+            {/* Avatar content */}
+            <div className="relative w-full h-full rounded-full overflow-hidden" style={{ boxShadow: `0 0 16px hsl(var(--primary)/0.2)` }}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-secondary text-sm font-bold text-primary">
+                  {(userName || "S").slice(0, 2).toUpperCase()}
+                </div>
+              )}
+            </div>
+            {/* Animated online status dot with pulse rings */}
+            <div className="absolute -bottom-0.5 -right-0.5 z-10">
+              <motion.div
+                className="absolute inset-0 w-4 h-4 rounded-full"
+                style={{ background: "hsl(var(--success)/0.3)" }}
+                animate={{ scale: [1, 2.2, 1], opacity: [0.6, 0, 0.6] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+              />
+              <motion.div
+                className="absolute inset-0 w-4 h-4 rounded-full"
+                style={{ background: "hsl(var(--success)/0.2)" }}
+                animate={{ scale: [1, 1.8, 1], opacity: [0.4, 0, 0.4] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.4 }}
+              />
+              <motion.div
+                className="relative w-4 h-4 rounded-full border-[2.5px] border-card"
+                style={{ background: "hsl(var(--success))", boxShadow: "0 0 8px hsl(var(--success)/0.6)" }}
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </div>
           </motion.button>
           <div className="text-left">
             <p className="text-[10px] text-muted-foreground">{greeting}</p>
