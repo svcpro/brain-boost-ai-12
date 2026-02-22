@@ -527,8 +527,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                 <TrendingUp className="w-4 h-4 text-primary" style={{ filter: "drop-shadow(0 0 6px hsl(var(--primary)/0.5))" }} />
               </motion.div>
               <div className="flex items-center justify-center gap-1">
-                <p className="text-lg font-black text-foreground tabular-nums">
-                  {rankV2Data?.predicted_rank ? `#${rankV2Data.predicted_rank.toLocaleString()}` : rankData?.predicted_rank ? `#${rankData.predicted_rank.toLocaleString()}` : "—"}
+              <p className="text-lg font-black text-foreground tabular-nums">
+                  {rankV2Data?.predicted_rank ? `#${rankV2Data.predicted_rank.toLocaleString()}` : "—"}
                 </p>
               </div>
               {rankV2Data?.trend && rankV2Data.trend !== "stable" && (
