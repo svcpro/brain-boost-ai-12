@@ -10,10 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
+const TAB_GLOW = "#00E5FF";
+
 const EXAM_CATEGORIES = [
-  { id: "government", label: "🏛️ Government", color: "#00E5FF" },
-  { id: "entrance", label: "🎓 Entrance", color: "#7C4DFF" },
-  { id: "global", label: "🌍 Global", color: "#00FF94" },
+  { id: "government", label: "🏛️ Government" },
+  { id: "entrance", label: "🎓 Entrance" },
+  { id: "global", label: "🌍 Global" },
 ] as const;
 
 type ExamEntry = { id: string; label: string; desc: string; category: string };
@@ -461,12 +463,12 @@ const OnboardingPage = () => {
                         className="flex-1 py-2 rounded-xl text-[10px] font-bold tracking-wider relative overflow-hidden"
                         style={{
                           background: isActive
-                            ? `linear-gradient(135deg, ${cat.color}20, ${cat.color}08)`
+                            ? `linear-gradient(135deg, ${TAB_GLOW}20, ${TAB_GLOW}08)`
                             : "#ffffff04",
-                          border: `1.5px solid ${isActive ? `${cat.color}60` : "#ffffff08"}`,
-                          color: isActive ? cat.color : "#ffffff40",
+                          border: `1.5px solid ${isActive ? `${TAB_GLOW}60` : "#ffffff08"}`,
+                          color: isActive ? TAB_GLOW : "#ffffff40",
                           boxShadow: isActive
-                            ? `0 0 20px ${cat.color}20, 0 0 40px ${cat.color}08, inset 0 0 15px ${cat.color}06`
+                            ? `0 0 20px ${TAB_GLOW}20, 0 0 40px ${TAB_GLOW}08, inset 0 0 15px ${TAB_GLOW}06`
                             : "none",
                         }}
                       >
@@ -475,7 +477,7 @@ const OnboardingPage = () => {
                           <motion.div
                             className="absolute inset-0 rounded-xl"
                             style={{
-                              background: `linear-gradient(105deg, transparent 40%, ${cat.color}15 50%, transparent 60%)`,
+                              background: `linear-gradient(105deg, transparent 40%, ${TAB_GLOW}15 50%, transparent 60%)`,
                             }}
                             animate={{ x: ["-100%", "200%"] }}
                             transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.5 }}
@@ -489,7 +491,7 @@ const OnboardingPage = () => {
                               width: 40, height: 40,
                               top: "50%", left: "50%",
                               transform: "translate(-50%, -50%)",
-                              background: `radial-gradient(circle, ${cat.color}15, transparent)`,
+                              background: `radial-gradient(circle, ${TAB_GLOW}15, transparent)`,
                             }}
                             animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0.6, 0.3] }}
                             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -501,7 +503,7 @@ const OnboardingPage = () => {
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full"
-                            style={{ background: cat.color, boxShadow: `0 0 6px ${cat.color}` }}
+                            style={{ background: TAB_GLOW, boxShadow: `0 0 6px ${TAB_GLOW}` }}
                           />
                         )}
                         <span className="relative z-10">{cat.label}</span>
@@ -514,7 +516,7 @@ const OnboardingPage = () => {
                 <div className="grid grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-hide">
                   <AnimatePresence mode="popLayout">
                     {EXAM_TYPES.filter(e => e.category === examCategory).map((exam, i) => {
-                      const catColor = EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF";
+                      const catColor = TAB_GLOW;
                       const isSelected = examType === exam.id;
                       const isOtherOption = exam.id.startsWith("other_");
                       return (
@@ -608,9 +610,8 @@ const OnboardingPage = () => {
                         color: "#ffffffdd",
                       }}
                       onFocus={(e) => {
-                        const catColor = EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF";
-                        e.target.style.borderColor = `${catColor}50`;
-                        e.target.style.boxShadow = `0 0 15px ${catColor}10`;
+                        e.target.style.borderColor = `${TAB_GLOW}50`;
+                        e.target.style.boxShadow = `0 0 15px ${TAB_GLOW}10`;
                       }}
                       onBlur={(e) => { e.target.style.borderColor = "#ffffff15"; e.target.style.boxShadow = "none"; }}
                     />
@@ -625,18 +626,18 @@ const OnboardingPage = () => {
                     transition={{ type: "spring", stiffness: 200 }}
                     className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl relative overflow-hidden"
                     style={{
-                      background: `linear-gradient(135deg, ${EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF"}08, transparent)`,
-                      border: `1px solid ${EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF"}20`,
+                      background: `linear-gradient(135deg, ${TAB_GLOW}08, transparent)`,
+                      border: `1px solid ${TAB_GLOW}20`,
                     }}
                   >
                     <motion.div
                       animate={{ rotate: [0, 360] }}
                       transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                     >
-                      <Sparkles className="w-3 h-3" style={{ color: EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF" }} />
+                      <Sparkles className="w-3 h-3" style={{ color: TAB_GLOW }} />
                     </motion.div>
-                    <p className="text-[10px]" style={{ color: `${EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF"}aa` }}>
-                      Locked in: <span className="font-bold" style={{ color: EXAM_CATEGORIES.find(c => c.id === examCategory)?.color || "#00E5FF" }}>
+                    <p className="text-[10px]" style={{ color: `${TAB_GLOW}aa` }}>
+                      Locked in: <span className="font-bold" style={{ color: TAB_GLOW }}>
                         {EXAM_TYPES.find(e => e.id === examType)?.label}
                       </span>
                     </p>
