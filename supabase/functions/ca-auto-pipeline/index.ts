@@ -7,6 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MAX_EVENTS_PER_RUN = 3;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -16,14 +18,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Parse request body for manual trigger flag
     let forceRun = false;
     try {
       const body = await req.json();
       forceRun = body?.force === true;
     } catch { /* no body is fine */ }
 
-    // Check if autopilot is enabled (skip check if force triggered)
     const { data: config } = await supabase
       .from("ca_autopilot_config")
       .select("*")
@@ -37,21 +37,23 @@ serve(async (req) => {
     const categories = config?.categories || ["polity", "economy", "science", "environment", "international"];
     const examTypes = config?.exam_types || ["UPSC CSE"];
 
-    console.log("CA Auto Pipeline: Starting auto-fetch for categories:", categories);
+    console.log("CA Auto Pipeline: Starting for categories:", categories);
 
-    // Step 1: Use AI to generate current affairs events
+    // Step 1: Fetch events (limited count)
     const events = await fetchNewsViaAI(categories);
     if (!events || events.length === 0) {
       return jsonResp({ success: true, events_fetched: 0, message: "No new events found" });
     }
 
-    console.log(`CA Auto Pipeline: Fetched ${events.length} events`);
+    // Limit events to prevent timeout
+    const eventsToProcess = events.slice(0, MAX_EVENTS_PER_RUN);
+    console.log(`CA Auto Pipeline: Processing ${eventsToProcess.length} of ${events.length} events`);
 
     let totalEventsInserted = 0;
     let totalQuestionsGenerated = 0;
 
-    for (const event of events) {
-      // Check for duplicate by title similarity
+    for (const event of eventsToProcess) {
+      // Check for duplicate
       const { data: existing } = await supabase
         .from("ca_events")
         .select("id")
@@ -88,86 +90,63 @@ serve(async (req) => {
       totalEventsInserted++;
       const eventId = inserted.id;
 
-      // Step 2: Extract entities
+      // Step 2: Single combined AI call for entities + graph + syllabus
       try {
-        const entities = await aiCall(
-          `You are an NLP entity extraction engine for exam preparation. Extract structured entities from news content.
-Return a JSON array of objects with: name, entity_type (one of: policy, scheme, govt_body, constitutional_article, act, location, economic_indicator, person, organization), description, relevance_score (0-1).`,
-          `Extract all exam-relevant entities from this news:\n\nTitle: ${event.title}\n\nContent: ${event.summary}`
-        );
-
-        if (entities && Array.isArray(entities)) {
-          let entityCount = 0;
-          for (const ent of entities) {
-            const { data: existing } = await supabase.from("ca_entities")
-              .select("id").eq("name", ent.name).eq("entity_type", ent.entity_type).maybeSingle();
-
-            let entityId: string;
-            if (existing) {
-              entityId = existing.id;
-              await supabase.from("ca_entities").update({
-                occurrence_count: (existing.occurrence_count || 1) + 1,
-                last_seen_at: new Date().toISOString(),
-              }).eq("id", entityId);
-            } else {
-              const { data: newEnt } = await supabase.from("ca_entities").insert({
-                name: ent.name, entity_type: ent.entity_type, description: ent.description,
-              }).select("id").single();
-              entityId = newEnt?.id;
-            }
-
-            if (entityId) {
-              await supabase.from("ca_event_entities").upsert({
-                event_id: eventId, entity_id: entityId,
-                relevance_score: ent.relevance_score || 0.5,
-                context_snippet: ent.description?.substring(0, 200),
-              }, { onConflict: "event_id,entity_id" });
-              entityCount++;
-            }
-          }
-          await supabase.from("ca_events").update({
-            entity_count: entityCount,
-            processing_status: "entities_extracted",
-          }).eq("id", eventId);
-        }
-      } catch (e) { console.error("Entity extraction error:", e); }
-
-      // Step 3: Build knowledge graph
-      try {
-        const graph = await aiCall(
-          `You are a knowledge graph builder for exam preparation. Create connections between this news event and:
-1. Static syllabus topic (edge_type: "syllabus")
-2. Historical context (edge_type: "historical")
-3. Previous year question patterns (edge_type: "pyq")
-4. Related policies/acts (edge_type: "policy")
-5. Economic or social impact (edge_type: "impact")
-Return JSON array of: { edge_type, target_label, weight (0-1), description }`,
+        const enrichment = await aiCall(
+          `You are an exam preparation intelligence engine. Analyze this news event and return a JSON object with three keys:
+1. "entities": Array of {name, entity_type (policy|scheme|govt_body|constitutional_article|act|location|economic_indicator|person|organization), description, relevance_score (0-1)}
+2. "graph_edges": Array of {edge_type (syllabus|historical|pyq|policy|impact), target_label, weight (0-1), description}
+3. "syllabus_links": Array of {exam_type, subject, micro_topic, relevance_score (0-1), tpi_impact (0-1), pattern_detected (boolean), pattern_details}
+For syllabus_links, map to these exams: ${examTypes.join(", ")}
+Return ONLY the JSON object.`,
           `Event: ${event.title}\nSummary: ${event.summary}`
         );
 
-        if (graph && Array.isArray(graph)) {
-          await supabase.from("ca_graph_edges").insert(
-            graph.map((e: any) => ({
-              event_id: eventId, edge_type: e.edge_type,
-              target_label: e.target_label, weight: e.weight || 0.5, description: e.description,
-            }))
-          );
-        }
-      } catch (e) { console.error("Graph build error:", e); }
+        if (enrichment) {
+          // Process entities
+          if (Array.isArray(enrichment.entities)) {
+            let entityCount = 0;
+            for (const ent of enrichment.entities.slice(0, 5)) {
+              const { data: existingEnt } = await supabase.from("ca_entities")
+                .select("id").eq("name", ent.name).eq("entity_type", ent.entity_type).maybeSingle();
 
-      // Step 4: Syllabus linking for each exam type
-      for (const examType of examTypes) {
-        try {
-          const links = await aiCall(
-            `You are a syllabus mapping engine for ${examType} exam. Map this news event to specific micro-topics.
-Return JSON array of: { subject, micro_topic, relevance_score (0-1), tpi_impact (0-1), pattern_detected (boolean), pattern_details (string) }`,
-            `Event: ${event.title}\nSummary: ${event.summary}\nExam: ${examType}`
-          );
+              let entityId: string;
+              if (existingEnt) {
+                entityId = existingEnt.id;
+              } else {
+                const { data: newEnt } = await supabase.from("ca_entities").insert({
+                  name: ent.name, entity_type: ent.entity_type, description: ent.description,
+                }).select("id").single();
+                entityId = newEnt?.id;
+              }
 
-          if (links && Array.isArray(links)) {
+              if (entityId) {
+                await supabase.from("ca_event_entities").upsert({
+                  event_id: eventId, entity_id: entityId,
+                  relevance_score: ent.relevance_score || 0.5,
+                  context_snippet: ent.description?.substring(0, 200),
+                }, { onConflict: "event_id,entity_id" });
+                entityCount++;
+              }
+            }
+            await supabase.from("ca_events").update({ entity_count: entityCount }).eq("id", eventId);
+          }
+
+          // Process graph edges
+          if (Array.isArray(enrichment.graph_edges)) {
+            await supabase.from("ca_graph_edges").insert(
+              enrichment.graph_edges.slice(0, 5).map((e: any) => ({
+                event_id: eventId, edge_type: e.edge_type,
+                target_label: e.target_label, weight: e.weight || 0.5, description: e.description,
+              }))
+            );
+          }
+
+          // Process syllabus links
+          if (Array.isArray(enrichment.syllabus_links)) {
             await supabase.from("ca_syllabus_links").insert(
-              links.map((l: any) => ({
-                event_id: eventId, exam_type: examType,
+              enrichment.syllabus_links.slice(0, 5).map((l: any) => ({
+                event_id: eventId, exam_type: l.exam_type || examTypes[0],
                 subject: l.subject, micro_topic: l.micro_topic,
                 relevance_score: l.relevance_score || 0.5,
                 tpi_impact: l.tpi_impact || 0,
@@ -175,53 +154,52 @@ Return JSON array of: { subject, micro_topic, relevance_score (0-1), tpi_impact 
                 pattern_details: l.pattern_details,
               }))
             );
-            await supabase.from("ca_events").update({ syllabus_link_count: links.length }).eq("id", eventId);
+            await supabase.from("ca_events").update({ syllabus_link_count: enrichment.syllabus_links.length }).eq("id", eventId);
           }
-        } catch (e) { console.error("Syllabus link error:", e); }
+        }
+      } catch (e) { console.error("Enrichment error:", e); }
 
-        // Step 5: Generate questions
-        try {
-          const questions = await aiCall(
-            `You are an exam question generator for ${examType}. Generate exam-ready questions.
-Generate exactly:
+      // Step 3: Generate questions (single call for all types)
+      try {
+        const questions = await aiCall(
+          `You are an exam question generator. Generate exactly 5 questions for this news event:
 1. Two Prelims MCQs (question_type: "prelims_mcq", marks: 2, with 4 options as JSON array, correct_answer as option text)
-2. One Mains 10-mark question (question_type: "mains_10", marks: 10)
-3. One Mains 15-mark question (question_type: "mains_15", marks: 15)
-4. One Interview discussion prompt (question_type: "interview", marks: 0)
-Return JSON array of: { question_type, question_text, options, correct_answer, explanation, difficulty, cognitive_level, marks }`,
-            `Event: ${event.title}\nSummary: ${event.summary}\nExam: ${examType}`
-          );
+2. One Mains 10-mark (question_type: "mains_10", marks: 10)
+3. One Mains 15-mark (question_type: "mains_15", marks: 15)
+4. One Interview prompt (question_type: "interview", marks: 0)
+Return JSON array of: {question_type, question_text, options, correct_answer, explanation, difficulty, cognitive_level, marks}`,
+          `Event: ${event.title}\nSummary: ${event.summary}\nExam: ${examTypes[0]}`
+        );
 
-          if (questions && Array.isArray(questions)) {
-            const qRows = questions.map((q: any) => ({
-              event_id: eventId, exam_type: examType,
-              question_type: q.question_type, question_text: q.question_text,
-              options: q.options || null, correct_answer: q.correct_answer,
-              explanation: q.explanation, difficulty: q.difficulty || "moderate",
-              cognitive_level: q.cognitive_level || "application", marks: q.marks || 0,
-              status: config.auto_approve_questions ? "approved" : "draft",
-            }));
-            await supabase.from("ca_generated_questions").insert(qRows);
-            totalQuestionsGenerated += qRows.length;
-            await supabase.from("ca_events").update({
-              question_count: qRows.length,
-            }).eq("id", eventId);
-          }
-        } catch (e) { console.error("Question gen error:", e); }
-      }
+        if (questions && Array.isArray(questions)) {
+          const qRows = questions.map((q: any) => ({
+            event_id: eventId, exam_type: examTypes[0],
+            question_type: q.question_type, question_text: q.question_text,
+            options: q.options || null, correct_answer: q.correct_answer,
+            explanation: q.explanation, difficulty: q.difficulty || "moderate",
+            cognitive_level: q.cognitive_level || "application", marks: q.marks || 0,
+            status: config?.auto_approve_questions ? "approved" : "draft",
+          }));
+          await supabase.from("ca_generated_questions").insert(qRows);
+          totalQuestionsGenerated += qRows.length;
+          await supabase.from("ca_events").update({ question_count: qRows.length }).eq("id", eventId);
+        }
+      } catch (e) { console.error("Question gen error:", e); }
 
       // Mark event complete
       await supabase.from("ca_events").update({ processing_status: "completed" }).eq("id", eventId);
     }
 
-    // Update autopilot stats
-    await supabase.from("ca_autopilot_config").update({
-      last_auto_run_at: new Date().toISOString(),
-      total_auto_runs: (config.total_auto_runs || 0) + 1,
-      total_events_fetched: (config.total_events_fetched || 0) + totalEventsInserted,
-      total_questions_generated: (config.total_questions_generated || 0) + totalQuestionsGenerated,
-      updated_at: new Date().toISOString(),
-    }).eq("id", config.id);
+    // Update stats
+    if (config?.id) {
+      await supabase.from("ca_autopilot_config").update({
+        last_auto_run_at: new Date().toISOString(),
+        total_auto_runs: (config.total_auto_runs || 0) + 1,
+        total_events_fetched: (config.total_events_fetched || 0) + totalEventsInserted,
+        total_questions_generated: (config.total_questions_generated || 0) + totalQuestionsGenerated,
+        updated_at: new Date().toISOString(),
+      }).eq("id", config.id);
+    }
 
     console.log(`CA Auto Pipeline: Done. Events: ${totalEventsInserted}, Questions: ${totalQuestionsGenerated}`);
 
@@ -246,7 +224,7 @@ function jsonResp(data: any) {
 async function aiCall(systemPrompt: string, userPrompt: string) {
   const resp = await aiFetch({
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-flash-lite",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -254,6 +232,7 @@ async function aiCall(systemPrompt: string, userPrompt: string) {
       temperature: 0.3,
       max_tokens: 4000,
     }),
+    timeoutMs: 30000,
   });
   const data = await resp.json();
   const text = data.choices?.[0]?.message?.content || "";
@@ -266,60 +245,34 @@ async function fetchNewsViaAI(categories: string[]) {
 
   const resp = await aiFetch({
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-2.5-flash-lite",
       messages: [
         {
           role: "system",
-          content: `You are a current affairs content generator for competitive exam preparation in India (UPSC, SSC, Banking, etc.). Your task is to produce exam-relevant current affairs entries based on the most recent events in your knowledge.
-
-IMPORTANT: You MUST always return a valid JSON array. Never refuse or say you cannot generate content. Use your latest available knowledge to create factual, exam-relevant entries.
-
-Return a JSON array of 5-8 events. Each event object must have exactly these fields:
-- "title": Clear, concise headline (string)
-- "summary": 2-3 sentence overview with key facts and implications (string)
-- "raw_content": Detailed 4-6 sentence analysis including background, significance, and exam relevance (string)
-- "category": One of [${categoryList}] (string)
-- "importance_score": 0-1 based on exam relevance (number)
-
-Focus on: Government policies, Supreme Court verdicts, economic data, scientific discoveries, international relations, appointments, awards, defense deals, environmental policies, constitutional amendments, legislative changes.
-
-You MUST return ONLY a JSON array. No explanations, no preamble.`,
+          content: `You are a current affairs content generator for competitive exam preparation in India. Return a JSON array of 3-5 events. Each must have: "title" (string), "summary" (2-3 sentences, string), "raw_content" (4-6 sentences, string), "category" (one of: ${categoryList}), "importance_score" (0-1 number). Focus on government policies, court verdicts, economic data, science, international relations. Return ONLY a JSON array.`,
         },
         {
           role: "user",
-          content: `Generate 5-8 important current affairs events relevant for Indian competitive exams. Categories: ${categoryList}. Return ONLY a JSON array, nothing else.`,
+          content: `Generate 3-5 important current affairs for Indian competitive exams. Categories: ${categoryList}. Return ONLY a JSON array.`,
         },
       ],
       temperature: 0.7,
-      max_tokens: 6000,
+      max_tokens: 3000,
       response_format: { type: "json_object" },
     }),
-    timeoutMs: 60000,
+    timeoutMs: 30000,
   });
 
   const data = await resp.json();
-  console.log("CA Auto Pipeline: AI response status:", resp.status);
   const text = data.choices?.[0]?.message?.content || "";
-  console.log("CA Auto Pipeline: AI raw text length:", text.length, "first 200 chars:", text.substring(0, 200));
-  
-  if (!text) {
-    console.error("CA Auto Pipeline: Empty AI response. Full data:", JSON.stringify(data).substring(0, 500));
-    return [];
-  }
+  if (!text) return [];
 
-  // Try to extract JSON array from the response
   const match = text.match(/\[[\s\S]*\]/);
-  if (!match) {
-    console.error("CA Auto Pipeline: No JSON array found in response. Text:", text.substring(0, 300));
-    return [];
-  }
+  if (!match) return [];
 
   try {
-    const parsed = JSON.parse(match[0]);
-    console.log("CA Auto Pipeline: Parsed", parsed.length, "events");
-    return parsed;
-  } catch (e) {
-    console.error("CA Auto Pipeline: JSON parse error:", e);
+    return JSON.parse(match[0]);
+  } catch {
     return [];
   }
 }
