@@ -4,7 +4,7 @@ import {
   Crosshair, AlertOctagon,
   Brain, ArrowRight, Sparkles,
   Clock, TrendingUp, ChevronDown, BookOpen,
-  Zap, Target, Play, Timer, Lock, ShieldAlert, Shield
+  Zap, Target, Play, Timer, Lock, ShieldAlert, Shield, Newspaper
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import ActiveTaskEngine from "./ActiveTaskEngine";
 import { useExamCountdown } from "@/hooks/useExamCountdown";
 import ExamLockModal from "./ExamLockModal";
+import CAPracticeSession from "./CAPracticeSession";
 
 // ─── Study mode definitions ───
 const studyModes = [
@@ -64,6 +65,16 @@ const studyModes = [
     color: "text-destructive",
     bgClass: "bg-destructive/15",
   },
+  {
+    id: "current-affairs",
+    icon: Newspaper,
+    title: "Current Affairs Quiz",
+    desc: "AI-generated questions from latest news events. Stay exam-ready with daily current affairs practice.",
+    duration: "5-10 min",
+    gain: "+CA readiness",
+    color: "text-primary",
+    bgClass: "bg-primary/15",
+  },
 ];
 
 interface ActionTabProps {
@@ -76,6 +87,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
+  const [caOpen, setCaOpen] = useState(false);
   const [lockModalOpen, setLockModalOpen] = useState(false);
   const [lockedModeName, setLockedModeName] = useState("");
   
@@ -154,6 +166,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       case "revision": setLazyModeOpen(true); break;
       case "mock": setMockOpen(true); break;
       case "emergency": setEmergencyOpen(true); break;
+      case "current-affairs": setCaOpen(true); break;
     }
   };
 
@@ -541,6 +554,20 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
       <FocusModeSession open={focusModeOpen} onClose={() => setFocusModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <EmergencyRecoverySession open={emergencyOpen} onClose={() => setEmergencyOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
       <MockPracticeSession open={mockOpen} onClose={() => setMockOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
+      
+      {/* CA Practice - inline, not modal */}
+      {caOpen && (
+        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto p-4">
+          <div className="max-w-lg mx-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-foreground">Current Affairs Quiz</h2>
+              <button onClick={() => setCaOpen(false)} className="text-xs text-muted-foreground hover:text-foreground">✕ Close</button>
+            </div>
+            <CAPracticeSession />
+          </div>
+        </div>
+      )}
+
       <ExamLockModal
         open={lockModalOpen}
         onClose={() => setLockModalOpen(false)}

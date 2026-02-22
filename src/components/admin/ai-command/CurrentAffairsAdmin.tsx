@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCADashboard, useCAEvents, useCAEventDetail, useCAPipeline, useApproveQuestion } from "@/hooks/useCurrentAffairs";
+import { useCADashboard, useCAEvents, useCAEventDetail, useCAPipeline, useApproveQuestion, usePushToQuestionBank } from "@/hooks/useCurrentAffairs";
 import { useCAAutopilotConfig, useUpdateCAAutopilot, useTriggerAutoPipeline } from "@/hooks/useCAAutopilot";
 import { toast } from "sonner";
 import { EXAM_TYPES } from "@/lib/examTypes";
@@ -78,6 +78,7 @@ export default function CurrentAffairsAdmin() {
   const { data: detail } = useCAEventDetail(selectedEvent);
   const pipeline = useCAPipeline();
   const approveQ = useApproveQuestion();
+  const pushToBank = usePushToQuestionBank();
 
   // Autopilot hooks
   const { data: autoConfig, isLoading: autoLoading } = useCAAutopilotConfig();
@@ -641,6 +642,19 @@ export default function CurrentAffairsAdmin() {
           {/* QUESTIONS TAB */}
           {activeTab === "questions" && (
             <div className="space-y-3">
+              {/* Push to Question Bank button */}
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" className="gap-2 text-xs"
+                  onClick={() => pushToBank.mutate(undefined, {
+                    onSuccess: (data) => toast.success(`Pushed ${data?.pushed || 0} questions to Question Bank`),
+                    onError: () => toast.error("Failed to push to bank"),
+                  })}
+                  disabled={pushToBank.isPending}
+                >
+                  {pushToBank.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpRight className="w-3 h-3" />}
+                  Push Approved → Question Bank
+                </Button>
+              </div>
               {!selectedEvent ? (
                 <div className="text-center py-10 text-muted-foreground">
                   <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-30" />
