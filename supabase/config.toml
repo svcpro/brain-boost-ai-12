@@ -239,3 +239,6 @@ verify_jwt = false
 
 [functions.exam-intel-v10]
 verify_jwt = false
+
+[functions.ca-policy-predictor]
+verify_jwt = false

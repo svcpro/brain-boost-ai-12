@@ -1195,6 +1195,231 @@ export type Database = {
           },
         ]
       }
+      ca_impact_forecasts: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          current_tpi: number | null
+          id: string
+          impact_type: string
+          micro_topics: Json | null
+          policy_analysis_id: string | null
+          predicted_tpi_shift: number | null
+          reasoning: string | null
+          subject: string | null
+          time_horizon: string | null
+          topic_name: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          current_tpi?: number | null
+          id?: string
+          impact_type: string
+          micro_topics?: Json | null
+          policy_analysis_id?: string | null
+          predicted_tpi_shift?: number | null
+          reasoning?: string | null
+          subject?: string | null
+          time_horizon?: string | null
+          topic_name: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          current_tpi?: number | null
+          id?: string
+          impact_type?: string
+          micro_topics?: Json | null
+          policy_analysis_id?: string | null
+          predicted_tpi_shift?: number | null
+          reasoning?: string | null
+          subject?: string | null
+          time_horizon?: string | null
+          topic_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_impact_forecasts_policy_analysis_id_fkey"
+            columns: ["policy_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "ca_policy_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ca_policy_analyses: {
+        Row: {
+          ai_reasoning: string | null
+          controversy_likelihood: number | null
+          created_at: string
+          event_id: string | null
+          exam_types: string[] | null
+          id: string
+          impact_scan_status: string | null
+          overall_impact_score: number | null
+          policy_category: string | null
+          policy_summary: string | null
+          policy_title: string
+          predicted_exam_framing: string | null
+          question_probability_increase: number | null
+          similarity_scan_status: string | null
+          top_similarity_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          controversy_likelihood?: number | null
+          created_at?: string
+          event_id?: string | null
+          exam_types?: string[] | null
+          id?: string
+          impact_scan_status?: string | null
+          overall_impact_score?: number | null
+          policy_category?: string | null
+          policy_summary?: string | null
+          policy_title: string
+          predicted_exam_framing?: string | null
+          question_probability_increase?: number | null
+          similarity_scan_status?: string | null
+          top_similarity_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          controversy_likelihood?: number | null
+          created_at?: string
+          event_id?: string | null
+          exam_types?: string[] | null
+          id?: string
+          impact_scan_status?: string | null
+          overall_impact_score?: number | null
+          policy_category?: string | null
+          policy_summary?: string | null
+          policy_title?: string
+          predicted_exam_framing?: string | null
+          question_probability_increase?: number | null
+          similarity_scan_status?: string | null
+          top_similarity_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_policy_analyses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ca_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ca_policy_similarities: {
+        Row: {
+          created_at: string
+          exam_appearance_count: number | null
+          historical_policy_name: string
+          historical_policy_year: number | null
+          id: string
+          match_dimensions: Json | null
+          pattern_type: string | null
+          policy_analysis_id: string | null
+          similarity_score: number
+        }
+        Insert: {
+          created_at?: string
+          exam_appearance_count?: number | null
+          historical_policy_name: string
+          historical_policy_year?: number | null
+          id?: string
+          match_dimensions?: Json | null
+          pattern_type?: string | null
+          policy_analysis_id?: string | null
+          similarity_score?: number
+        }
+        Update: {
+          created_at?: string
+          exam_appearance_count?: number | null
+          historical_policy_name?: string
+          historical_policy_year?: number | null
+          id?: string
+          match_dimensions?: Json | null
+          pattern_type?: string | null
+          policy_analysis_id?: string | null
+          similarity_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_policy_similarities_policy_analysis_id_fkey"
+            columns: ["policy_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "ca_policy_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ca_probability_adjustments: {
+        Row: {
+          adjustment_reason: string | null
+          adjustment_source: string | null
+          applied_at: string | null
+          created_at: string
+          exam_type: string
+          id: string
+          new_probability: number | null
+          old_probability: number | null
+          policy_analysis_id: string | null
+          status: string | null
+          subject: string | null
+          topic_id: string | null
+          topic_name: string
+        }
+        Insert: {
+          adjustment_reason?: string | null
+          adjustment_source?: string | null
+          applied_at?: string | null
+          created_at?: string
+          exam_type: string
+          id?: string
+          new_probability?: number | null
+          old_probability?: number | null
+          policy_analysis_id?: string | null
+          status?: string | null
+          subject?: string | null
+          topic_id?: string | null
+          topic_name: string
+        }
+        Update: {
+          adjustment_reason?: string | null
+          adjustment_source?: string | null
+          applied_at?: string | null
+          created_at?: string
+          exam_type?: string
+          id?: string
+          new_probability?: number | null
+          old_probability?: number | null
+          policy_analysis_id?: string | null
+          status?: string | null
+          subject?: string | null
+          topic_id?: string | null
+          topic_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_probability_adjustments_policy_analysis_id_fkey"
+            columns: ["policy_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "ca_policy_analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ca_probability_adjustments_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ca_syllabus_links: {
         Row: {
           created_at: string
