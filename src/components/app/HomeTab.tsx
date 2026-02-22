@@ -52,6 +52,7 @@ const MomentumSection = lazy(() => import("./MomentumSection"));
 const BrainStabilityControlCenter = lazy(() => import("./BrainStabilityControlCenter"));
 const DeepAnalyticsSection = lazy(() => import("./DeepAnalyticsSection"));
 const BrainMissionsCard = lazy(() => import("./BrainMissionsCard"));
+const AcceleratorWidget = lazy(() => import("./AcceleratorWidget"));
 const CognitiveEmbeddingCard = lazy(() => import("./CognitiveEmbeddingCard"));
 const RLPolicyCard = lazy(() => import("./RLPolicyCard"));
 const AutoStudySummaryCard = lazy(() => import("./AutoStudySummaryCard"));
@@ -858,6 +859,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       <SectionErrorBoundary name="debate-widget">
         <Suspense fallback={null}>
           <DebateEngineWidgetInline />
+        </Suspense>
+      </SectionErrorBoundary>
+
+      {/* ─── 30-Day Accelerator Widget ─── */}
+      <SectionErrorBoundary name="accelerator-widget">
+        <Suspense fallback={null}>
+          <AcceleratorWidget />
         </Suspense>
       </SectionErrorBoundary>
 
