@@ -914,7 +914,9 @@ export type Database = {
       }
       ca_autopilot_config: {
         Row: {
+          auto_apply_tpi_adjustments: boolean
           auto_approve_questions: boolean
+          auto_policy_analysis_enabled: boolean
           categories: string[]
           exam_types: string[]
           fetch_interval_hours: number
@@ -923,12 +925,16 @@ export type Database = {
           last_auto_run_at: string | null
           total_auto_runs: number
           total_events_fetched: number
+          total_policy_analyses_run: number
           total_questions_generated: number
+          total_tpi_adjustments_applied: number
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          auto_apply_tpi_adjustments?: boolean
           auto_approve_questions?: boolean
+          auto_policy_analysis_enabled?: boolean
           categories?: string[]
           exam_types?: string[]
           fetch_interval_hours?: number
@@ -937,12 +943,16 @@ export type Database = {
           last_auto_run_at?: string | null
           total_auto_runs?: number
           total_events_fetched?: number
+          total_policy_analyses_run?: number
           total_questions_generated?: number
+          total_tpi_adjustments_applied?: number
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          auto_apply_tpi_adjustments?: boolean
           auto_approve_questions?: boolean
+          auto_policy_analysis_enabled?: boolean
           categories?: string[]
           exam_types?: string[]
           fetch_interval_hours?: number
@@ -951,7 +961,9 @@ export type Database = {
           last_auto_run_at?: string | null
           total_auto_runs?: number
           total_events_fetched?: number
+          total_policy_analyses_run?: number
           total_questions_generated?: number
+          total_tpi_adjustments_applied?: number
           updated_at?: string
           updated_by?: string | null
         }
