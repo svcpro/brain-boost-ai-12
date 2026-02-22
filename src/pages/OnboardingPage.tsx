@@ -450,66 +450,67 @@ const OnboardingPage = () => {
                 </div>
                 <p className="text-xs mb-3" style={{ color: "#ffffff40" }}>Pick your target exam. ACRY will customize everything.</p>
 
-                {/* Ultra animated category tabs */}
-                <div className="flex gap-1.5 mb-3 relative">
-                  {EXAM_CATEGORIES.map((cat, idx) => {
-                    const isActive = examCategory === cat.id;
-                    return (
-                      <motion.button
-                        key={cat.id}
-                        whileTap={{ scale: 0.92 }}
-                        whileHover={{ scale: 1.03 }}
-                        onClick={() => setExamCategory(cat.id)}
-                        className="flex-1 py-2 rounded-xl text-[10px] font-bold tracking-wider relative overflow-hidden"
-                        style={{
-                          background: isActive
-                            ? `linear-gradient(135deg, ${TAB_GLOW}20, ${TAB_GLOW}08)`
-                            : "#ffffff04",
-                          border: `1.5px solid ${isActive ? `${TAB_GLOW}60` : "#ffffff08"}`,
-                          color: isActive ? TAB_GLOW : "#ffffff40",
-                          boxShadow: isActive
-                            ? `0 0 20px ${TAB_GLOW}20, 0 0 40px ${TAB_GLOW}08, inset 0 0 15px ${TAB_GLOW}06`
-                            : "none",
-                        }}
-                      >
-                        {/* Shimmer sweep on active */}
-                        {isActive && (
-                          <motion.div
-                            className="absolute inset-0 rounded-xl"
-                            style={{
-                              background: `linear-gradient(105deg, transparent 40%, ${TAB_GLOW}15 50%, transparent 60%)`,
-                            }}
-                            animate={{ x: ["-100%", "200%"] }}
-                            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.5 }}
-                          />
-                        )}
-                        {/* Breathing glow orb */}
-                        {isActive && (
-                          <motion.div
-                            className="absolute rounded-full"
-                            style={{
-                              width: 40, height: 40,
-                              top: "50%", left: "50%",
-                              transform: "translate(-50%, -50%)",
-                              background: `radial-gradient(circle, ${TAB_GLOW}15, transparent)`,
-                            }}
-                            animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0.6, 0.3] }}
-                            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          />
-                        )}
-                        {/* Active indicator dot */}
-                        {isActive && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full"
-                            style={{ background: TAB_GLOW, boxShadow: `0 0 6px ${TAB_GLOW}` }}
-                          />
-                        )}
-                        <span className="relative z-10">{cat.label}</span>
-                      </motion.button>
-                    );
-                  })}
+                {/* Single unified glowing container for all tabs */}
+                <div
+                  className="relative rounded-2xl p-1.5 mb-3 overflow-hidden"
+                  style={{
+                    background: `linear-gradient(135deg, ${TAB_GLOW}10, ${TAB_GLOW}04, ${TAB_GLOW}08)`,
+                    border: `1.5px solid ${TAB_GLOW}20`,
+                    boxShadow: `0 0 25px ${TAB_GLOW}08, 0 0 50px ${TAB_GLOW}04, inset 0 0 20px ${TAB_GLOW}04`,
+                  }}
+                >
+                  {/* Shared shimmer sweep across entire container */}
+                  <motion.div
+                    className="absolute inset-0 rounded-2xl pointer-events-none"
+                    style={{
+                      background: `linear-gradient(105deg, transparent 35%, ${TAB_GLOW}10 50%, transparent 65%)`,
+                    }}
+                    animate={{ x: ["-100%", "200%"] }}
+                    transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 2 }}
+                  />
+                  {/* Shared breathing glow */}
+                  <motion.div
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                      width: 180, height: 60,
+                      top: "50%", left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      background: `radial-gradient(ellipse, ${TAB_GLOW}0a, transparent)`,
+                    }}
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  />
+
+                  <div className="flex gap-1.5 relative z-10">
+                    {EXAM_CATEGORIES.map((cat) => {
+                      const isActive = examCategory === cat.id;
+                      return (
+                        <motion.button
+                          key={cat.id}
+                          whileTap={{ scale: 0.92 }}
+                          whileHover={{ scale: 1.03 }}
+                          onClick={() => setExamCategory(cat.id)}
+                          className="flex-1 py-2 rounded-xl text-[10px] font-bold tracking-wider relative overflow-hidden"
+                          style={{
+                            background: isActive ? `${TAB_GLOW}18` : "transparent",
+                            border: `1.5px solid ${isActive ? `${TAB_GLOW}50` : "transparent"}`,
+                            color: isActive ? TAB_GLOW : "#ffffff40",
+                            boxShadow: isActive ? `0 0 12px ${TAB_GLOW}15` : "none",
+                          }}
+                        >
+                          {isActive && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full"
+                              style={{ background: TAB_GLOW, boxShadow: `0 0 6px ${TAB_GLOW}` }}
+                            />
+                          )}
+                          <span className="relative z-10">{cat.label}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Exam grid with stagger + glow */}
