@@ -234,43 +234,87 @@ function FullAutoPipeline({ examType }: { examType: string }) {
     },
   });
 
+  const invokeStep = async (action: string, params: any) => {
+    const { data, error } = await supabase.functions.invoke("stq-engine", {
+      body: { action, ...params },
+    });
+    if (error) throw new Error(`Step "${action}" failed: ${error.message}`);
+    if (data?.error) throw new Error(`Step "${action}": ${data.error}`);
+    return data;
+  };
+
   const runPipeline = useMutation({
     mutationFn: async () => {
       setPipelineResult(null);
+      const steps: any[] = [];
+      const startTime = Date.now();
+      const params = {
+        exam_type: examType,
+        subjects: selectedSubjects.length ? selectedSubjects : undefined,
+        years: selectedYears.length ? selectedYears : [2024, 2023, 2022, 2021, 2020],
+      };
+
+      // Step 1: Syllabus
       setCurrentStep("syllabus");
-
-      // Simulate step progress visually while the backend runs the full pipeline
-      const stepOrder = ["syllabus", "mining", "tpi", "patterns", "training"];
-      const progressInterval = setInterval(() => {
-        setCurrentStep(prev => {
-          const idx = stepOrder.indexOf(prev || "syllabus");
-          if (idx < stepOrder.length - 1) return stepOrder[idx + 1];
-          return prev;
-        });
-      }, 12000); // Each step ~12s estimate
-
-      try {
-        const { data, error } = await supabase.functions.invoke("stq-engine", {
-          body: {
-            action: "full_pipeline",
-            exam_type: examType,
-            subjects: selectedSubjects.length ? selectedSubjects : undefined,
-            years: selectedYears,
-            skip_syllabus: skipSyllabus,
-          },
-        });
-        clearInterval(progressInterval);
-        if (error) throw error;
-        return data;
-      } catch (e) {
-        clearInterval(progressInterval);
-        throw e;
+      if (!skipSyllabus) {
+        try {
+          const d = await invokeStep("auto_generate_syllabus", { exam_type: examType, subjects: params.subjects });
+          steps.push({ step: "syllabus", status: "completed", count: d.count || 0 });
+        } catch (e: any) {
+          steps.push({ step: "syllabus", status: "failed", error: e.message });
+        }
+      } else {
+        steps.push({ step: "syllabus", status: "skipped" });
       }
+
+      // Step 2: Mining
+      setCurrentStep("mining");
+      try {
+        const d = await invokeStep("auto_mine_questions", { exam_type: examType, years: params.years, subjects: params.subjects });
+        steps.push({ step: "mining", status: "completed", total_mined: d.total_mined || 0 });
+      } catch (e: any) {
+        steps.push({ step: "mining", status: "failed", error: e.message });
+      }
+
+      // Step 3: TPI
+      setCurrentStep("tpi");
+      try {
+        const d = await invokeStep("compute_tpi", { exam_type: examType, prediction_year: new Date().getFullYear() + 1 });
+        steps.push({ step: "tpi", status: "completed", topics_computed: d.topics_computed || 0 });
+      } catch (e: any) {
+        steps.push({ step: "tpi", status: "failed", error: e.message });
+      }
+
+      // Step 4: Patterns
+      setCurrentStep("patterns");
+      try {
+        const d = await invokeStep("detect_patterns", { exam_type: examType });
+        steps.push({ step: "patterns", status: "completed", detections: d.detections_count || 0 });
+      } catch (e: any) {
+        steps.push({ step: "patterns", status: "failed", error: e.message });
+      }
+
+      // Step 5: Training
+      setCurrentStep("training");
+      try {
+        const d = await invokeStep("retrain", { exam_type: examType });
+        steps.push({ step: "training", status: "completed", model_version: d.model_version });
+      } catch (e: any) {
+        steps.push({ step: "training", status: "failed", error: e.message });
+      }
+
+      const duration = Date.now() - startTime;
+      return { success: true, exam_type: examType, duration_ms: duration, steps, engine_version: "v9.0-ultra" };
     },
     onSuccess: (d) => {
       setCurrentStep(null);
       setPipelineResult(d);
-      toast.success(`🚀 Full pipeline completed in ${(d.duration_ms / 1000).toFixed(1)}s!`);
+      const failedCount = d.steps.filter((s: any) => s.status === "failed").length;
+      if (failedCount === 0) {
+        toast.success(`🚀 Full pipeline completed in ${(d.duration_ms / 1000).toFixed(1)}s!`);
+      } else {
+        toast.warning(`Pipeline finished with ${failedCount} failed step(s) in ${(d.duration_ms / 1000).toFixed(1)}s`);
+      }
       qc.invalidateQueries({ queryKey: ["stq-dashboard"] });
       qc.invalidateQueries({ queryKey: ["stq-taxonomy"] });
       qc.invalidateQueries({ queryKey: ["stq-mining"] });
