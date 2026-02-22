@@ -155,9 +155,22 @@ function computeSafePass(
 
   // Estimate total candidates from exam type
   const candidateMap: Record<string, number> = {
-    NEET: 2400000, "JEE Main": 1200000, "JEE Advanced": 250000,
-    UPSC: 1200000, CAT: 300000, GATE: 900000, SSC: 3000000,
-    CLAT: 70000, Boards: 5000000,
+    // Government
+    "SSC CGL": 3000000, "IBPS PO": 800000, "SBI PO": 600000,
+    "RRB NTPC": 12000000, "RRB Group D": 18000000,
+    NDA: 500000, CDS: 400000, "State PSC": 800000, "UGC NET": 1200000,
+    UPSC: 1200000, SSC: 3000000,
+    // Entrance
+    "JEE Advanced": 250000, "JEE Main": 1200000,
+    NEET: 2400000, "NEET UG": 2400000,
+    CAT: 300000, GATE: 900000, CLAT: 70000,
+    "CUET UG": 1500000, BITSAT: 200000, "NIFT Entrance": 50000, XAT: 100000,
+    // Global
+    SAT: 2200000, GRE: 700000, GMAT: 200000,
+    IELTS: 3500000, TOEFL: 2000000, USMLE: 80000,
+    CFA: 250000, "CPA Exam": 150000, MCAT: 90000, ACCA: 500000,
+    // Boards
+    Boards: 5000000,
   };
   const totalCandidates = (examType && candidateMap[examType]) || 1000000;
 

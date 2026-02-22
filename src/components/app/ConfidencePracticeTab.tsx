@@ -22,15 +22,46 @@ const encouragements = [
   "One step closer to your goal! 🌟",
 ];
 
-const examTypes = ["UPSC", "SSC", "Banking", "JEE", "NEET", "State PSC"];
+const examTypes = [
+  // Government
+  "SSC CGL", "IBPS PO", "SBI PO", "RRB NTPC", "RRB Group D", "NDA", "CDS", "State PSC", "UGC NET", "UPSC",
+  // Entrance
+  "JEE Advanced", "JEE Main", "NEET UG", "CAT", "GATE", "CLAT", "CUET UG", "BITSAT", "NIFT", "XAT",
+  // Global
+  "SAT", "GRE", "GMAT", "IELTS", "TOEFL", "USMLE", "CFA", "CPA", "MCAT", "ACCA",
+];
 
 const examSubjectsMap: Record<string, string[]> = {
-  "UPSC": ["General Knowledge", "History", "Geography", "Polity", "Economy", "Science", "English", "Mathematics", "Reasoning"],
-  "SSC": ["General Knowledge", "Mathematics", "Reasoning", "English"],
-  "Banking": ["General Knowledge", "Mathematics", "Reasoning", "English"],
-  "JEE": ["Physics", "Chemistry", "Mathematics"],
-  "NEET": ["Physics", "Chemistry", "Biology"],
+  "SSC CGL": ["General Knowledge", "Mathematics", "Reasoning", "English"],
+  "IBPS PO": ["General Knowledge", "Mathematics", "Reasoning", "English"],
+  "SBI PO": ["General Knowledge", "Mathematics", "Reasoning", "English"],
+  "RRB NTPC": ["General Knowledge", "Mathematics", "Reasoning", "General Science"],
+  "RRB Group D": ["General Knowledge", "Mathematics", "Reasoning", "General Science"],
+  "NDA": ["Mathematics", "General Knowledge", "English", "Science", "History", "Geography"],
+  "CDS": ["Mathematics", "General Knowledge", "English"],
   "State PSC": ["General Knowledge", "History", "Geography", "Polity", "Economy", "Science", "English", "Mathematics", "Reasoning"],
+  "UGC NET": ["General Knowledge", "Reasoning", "English", "Research Aptitude"],
+  "UPSC": ["General Knowledge", "History", "Geography", "Polity", "Economy", "Science", "English", "Mathematics", "Reasoning"],
+  "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
+  "JEE Main": ["Physics", "Chemistry", "Mathematics"],
+  "NEET UG": ["Physics", "Chemistry", "Biology"],
+  "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+  "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  "CLAT": ["English", "General Knowledge", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
+  "CUET UG": ["English", "General Knowledge", "Mathematics", "Science"],
+  "BITSAT": ["Physics", "Chemistry", "Mathematics", "English", "Logical Reasoning"],
+  "NIFT": ["Creative Ability", "General Knowledge", "English", "Quantitative Ability"],
+  "XAT": ["Quantitative Aptitude", "Verbal Ability", "Decision Making", "General Knowledge"],
+  "SAT": ["Mathematics", "Reading", "Writing"],
+  "GRE": ["Verbal Reasoning", "Quantitative Reasoning", "Analytical Writing"],
+  "GMAT": ["Quantitative Reasoning", "Verbal Reasoning", "Integrated Reasoning", "Analytical Writing"],
+  "IELTS": ["Listening", "Reading", "Writing", "Speaking"],
+  "TOEFL": ["Listening", "Reading", "Writing", "Speaking"],
+  "USMLE": ["Anatomy", "Biochemistry", "Pharmacology", "Pathology", "Physiology"],
+  "CFA": ["Ethics", "Quantitative Methods", "Economics", "Financial Reporting", "Corporate Finance"],
+  "CPA": ["Auditing", "Financial Accounting", "Regulation", "Business Environment"],
+  "MCAT": ["Biology", "Chemistry", "Physics", "Psychology", "Critical Analysis"],
+  "ACCA": ["Financial Accounting", "Management Accounting", "Corporate Law", "Taxation"],
 };
 
 const allSubjects = ["General Knowledge", "Mathematics", "Reasoning", "English", "Science", "History", "Geography", "Polity", "Economy", "Physics", "Chemistry", "Biology"];
