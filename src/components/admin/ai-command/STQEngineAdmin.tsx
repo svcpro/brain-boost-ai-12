@@ -313,47 +313,70 @@ export default function STQEngineAdmin() {
         )}
       </AnimatePresence>
 
-      {/* ===== TAB NAVIGATION ===== */}
-      <div className="flex gap-1.5 flex-wrap">
-        {TAB_CONFIG.map((t, i) => {
-          const active = tab === t.key;
-          return (
-            <motion.button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className={`relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-semibold transition-all duration-300 overflow-hidden ${
-                active
-                  ? `${t.activeColor} shadow-lg`
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-              }`}
-              style={active ? {
-                background: `linear-gradient(135deg, hsla(var(--card), 0.9), hsla(var(--secondary), 0.8))`,
-                border: "1px solid hsla(var(--primary), 0.2)",
-              } : {}}
-            >
-              {active && (
-                <motion.div
-                  layoutId="stq-tab-glow"
-                  className="absolute inset-0 rounded-xl opacity-10"
-                  style={{ background: `linear-gradient(135deg, ${t.gradient.replace('from-', '').replace(' to-', ', ').split(', ').map(c => `var(--tw-gradient-${c})`).join(', ') || 'hsl(var(--primary))'})` }}
-                  transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                />
-              )}
-              <t.icon className="w-3.5 h-3.5 relative z-10" />
-              <span className="relative z-10 hidden sm:inline">{t.label}</span>
-              {active && (
-                <motion.div
-                  className="absolute bottom-0 left-1/2 w-6 h-0.5 rounded-full -translate-x-1/2"
-                  style={{ background: "hsl(var(--primary))" }}
-                  layoutId="stq-tab-indicator"
-                />
-              )}
-            </motion.button>
-          );
-        })}
+       {/* ===== TAB NAVIGATION ===== */}
+      <div className="relative rounded-2xl border border-border/40 p-1.5 overflow-hidden" style={{ background: "hsla(var(--card), 0.6)", backdropFilter: "blur(12px)" }}>
+        {/* Subtle animated bg shimmer */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          style={{ background: "linear-gradient(105deg, transparent 40%, hsl(var(--primary)) 50%, transparent 60%)" }}
+          animate={{ x: ["-100%", "200%"] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", repeatDelay: 4 }}
+        />
+
+        <div className="relative flex gap-1 flex-wrap">
+          {TAB_CONFIG.map((t, i) => {
+            const active = tab === t.key;
+            return (
+              <motion.button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.035, type: "spring", stiffness: 300, damping: 25 }}
+                whileHover={{ scale: active ? 1 : 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold transition-all duration-300 ${
+                  active
+                    ? "text-white shadow-lg"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {/* Active background gradient */}
+                {active && (
+                  <motion.div
+                    layoutId="stq-tab-active-bg"
+                    className={`absolute inset-0 rounded-xl bg-gradient-to-r ${t.gradient}`}
+                    transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                    style={{ boxShadow: `0 4px 20px -4px hsla(var(--primary), 0.35)` }}
+                  />
+                )}
+
+                {/* Hover glow for inactive */}
+                {!active && (
+                  <div className="absolute inset-0 rounded-xl bg-secondary/0 hover:bg-secondary/40 transition-colors duration-200" />
+                )}
+
+                {/* Icon with pulse for active */}
+                <motion.div className="relative z-10" animate={active ? { scale: [1, 1.15, 1] } : {}} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}>
+                  <t.icon className="w-3.5 h-3.5" />
+                </motion.div>
+
+                <span className="relative z-10 hidden sm:inline whitespace-nowrap">{t.label}</span>
+
+                {/* Active dot indicator */}
+                {active && (
+                  <motion.div
+                    className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                    style={{ boxShadow: "0 0 6px rgba(255,255,255,0.6)" }}
+                  />
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ===== CONTENT ===== */}
