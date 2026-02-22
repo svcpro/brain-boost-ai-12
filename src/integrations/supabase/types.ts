@@ -969,6 +969,71 @@ export type Database = {
         }
         Relationships: []
       }
+      ca_debate_analyses: {
+        Row: {
+          constitutional_link: string | null
+          counter_arguments: Json | null
+          created_at: string
+          economic_dimension: string | null
+          ethical_dimension: string | null
+          event_id: string | null
+          exam_relevance_score: number | null
+          exam_types: string[] | null
+          frameworks_applied: Json | null
+          id: string
+          international_perspective: string | null
+          pro_arguments: Json | null
+          status: string | null
+          topic_context: string | null
+          topic_title: string
+          updated_at: string
+        }
+        Insert: {
+          constitutional_link?: string | null
+          counter_arguments?: Json | null
+          created_at?: string
+          economic_dimension?: string | null
+          ethical_dimension?: string | null
+          event_id?: string | null
+          exam_relevance_score?: number | null
+          exam_types?: string[] | null
+          frameworks_applied?: Json | null
+          id?: string
+          international_perspective?: string | null
+          pro_arguments?: Json | null
+          status?: string | null
+          topic_context?: string | null
+          topic_title: string
+          updated_at?: string
+        }
+        Update: {
+          constitutional_link?: string | null
+          counter_arguments?: Json | null
+          created_at?: string
+          economic_dimension?: string | null
+          ethical_dimension?: string | null
+          event_id?: string | null
+          exam_relevance_score?: number | null
+          exam_types?: string[] | null
+          frameworks_applied?: Json | null
+          id?: string
+          international_perspective?: string | null
+          pro_arguments?: Json | null
+          status?: string | null
+          topic_context?: string | null
+          topic_title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_debate_analyses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ca_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ca_entities: {
         Row: {
           created_at: string
@@ -1106,6 +1171,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      ca_framework_applications: {
+        Row: {
+          ai_summary: string | null
+          created_at: string
+          debate_analysis_id: string | null
+          framework_data: Json
+          framework_type: string
+          id: string
+          quality_score: number | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          created_at?: string
+          debate_analysis_id?: string | null
+          framework_data?: Json
+          framework_type: string
+          id?: string
+          quality_score?: number | null
+        }
+        Update: {
+          ai_summary?: string | null
+          created_at?: string
+          debate_analysis_id?: string | null
+          framework_data?: Json
+          framework_type?: string
+          id?: string
+          quality_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_framework_applications_debate_analysis_id_fkey"
+            columns: ["debate_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "ca_debate_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ca_generated_questions: {
         Row: {
@@ -1478,6 +1581,83 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "ca_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ca_writing_evaluations: {
+        Row: {
+          ai_feedback: string | null
+          clarity_score: number | null
+          created_at: string
+          debate_analysis_id: string | null
+          depth_score: number | null
+          evaluated_at: string | null
+          evidence_score: number | null
+          id: string
+          improvement_areas: Json | null
+          logical_flow_score: number | null
+          model_answer: string | null
+          overall_score: number | null
+          strengths: Json | null
+          structure_score: number | null
+          time_taken_seconds: number | null
+          topic_title: string
+          updated_at: string
+          user_answer: string
+          user_id: string
+          word_count: number | null
+        }
+        Insert: {
+          ai_feedback?: string | null
+          clarity_score?: number | null
+          created_at?: string
+          debate_analysis_id?: string | null
+          depth_score?: number | null
+          evaluated_at?: string | null
+          evidence_score?: number | null
+          id?: string
+          improvement_areas?: Json | null
+          logical_flow_score?: number | null
+          model_answer?: string | null
+          overall_score?: number | null
+          strengths?: Json | null
+          structure_score?: number | null
+          time_taken_seconds?: number | null
+          topic_title: string
+          updated_at?: string
+          user_answer: string
+          user_id: string
+          word_count?: number | null
+        }
+        Update: {
+          ai_feedback?: string | null
+          clarity_score?: number | null
+          created_at?: string
+          debate_analysis_id?: string | null
+          depth_score?: number | null
+          evaluated_at?: string | null
+          evidence_score?: number | null
+          id?: string
+          improvement_areas?: Json | null
+          logical_flow_score?: number | null
+          model_answer?: string | null
+          overall_score?: number | null
+          strengths?: Json | null
+          structure_score?: number | null
+          time_taken_seconds?: number | null
+          topic_title?: string
+          updated_at?: string
+          user_answer?: string
+          user_id?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ca_writing_evaluations_debate_analysis_id_fkey"
+            columns: ["debate_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "ca_debate_analyses"
             referencedColumns: ["id"]
           },
         ]
