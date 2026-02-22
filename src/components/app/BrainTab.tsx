@@ -169,8 +169,7 @@ const BrainTab = () => {
         onPreventDecay={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
       />
 
-      {/* ═══ v7.0: Rank Prediction 2.0 ═══ */}
-      <RankPredictionV2Card />
+      {/* ═══ v7.0: Rank Prediction 2.0 — hidden per user request ═══ */}
 
       {/* ═══ SECTION 4: AI Intelligence Insights ═══ */}
       <AIIntelligenceInsights onAction={(s, t) => setReviewSession({ subject: s, topic: t })} />
