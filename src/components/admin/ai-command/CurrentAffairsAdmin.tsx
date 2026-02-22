@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCADashboard, useCAEvents, useCAEventDetail, useAddEvent, useCAPipeline, useApproveQuestion } from "@/hooks/useCurrentAffairs";
+import { useCADashboard, useCAEvents, useCAEventDetail, useCAPipeline, useApproveQuestion } from "@/hooks/useCurrentAffairs";
 import { useCAAutopilotConfig, useUpdateCAAutopilot, useTriggerAutoPipeline } from "@/hooks/useCAAutopilot";
 import { toast } from "sonner";
 import { EXAM_TYPES } from "@/lib/examTypes";
@@ -70,14 +70,12 @@ const CA_CATEGORIES = ["polity", "economy", "science", "environment", "internati
 export default function CurrentAffairsAdmin() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
-  const [showAddEvent, setShowAddEvent] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: "", summary: "", raw_content: "", source_url: "", source_name: "", category: "polity" });
+  
   const [examType, setExamType] = useState("UPSC CSE");
 
   const { data: dashboard, isLoading: dashLoading } = useCADashboard();
   const { data: events, isLoading: eventsLoading } = useCAEvents();
   const { data: detail } = useCAEventDetail(selectedEvent);
-  const addEvent = useAddEvent();
   const pipeline = useCAPipeline();
   const approveQ = useApproveQuestion();
 
@@ -85,17 +83,6 @@ export default function CurrentAffairsAdmin() {
   const { data: autoConfig, isLoading: autoLoading } = useCAAutopilotConfig();
   const updateAuto = useUpdateCAAutopilot();
   const triggerAuto = useTriggerAutoPipeline();
-
-  const handleAddEvent = async () => {
-    if (!newEvent.title.trim()) return toast.error("Title is required");
-    try {
-      const created = await addEvent.mutateAsync(newEvent);
-      toast.success("Event added");
-      setShowAddEvent(false);
-      setNewEvent({ title: "", summary: "", raw_content: "", source_url: "", source_name: "", category: "polity" });
-      setSelectedEvent(created.id);
-    } catch { toast.error("Failed to add event"); }
-  };
 
   const runPipeline = (eventId: string) => {
     pipeline.mutate({ event_id: eventId, exam_type: examType }, {
@@ -182,8 +169,8 @@ export default function CurrentAffairsAdmin() {
                 </SelectContent>
               </Select>
             </div>
-            <Button size="sm" className="gap-1.5 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white" onClick={() => setShowAddEvent(true)}>
-              <Plus className="w-3.5 h-3.5" /> Add Event
+            <Button size="sm" disabled={triggerAuto.isPending} className="gap-1.5 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white" onClick={handleTriggerNow}>
+              {triggerAuto.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />} AI Fetch Now
             </Button>
           </div>
         </div>
@@ -278,42 +265,7 @@ export default function CurrentAffairsAdmin() {
         ))}
       </div>
 
-      {/* Add Event Modal */}
-      <AnimatePresence>
-        {showAddEvent && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="rounded-xl border border-border bg-card p-5 space-y-3"
-          >
-            <h3 className="text-sm font-bold text-foreground">Add Current Affairs Event</h3>
-            <Input placeholder="Event Title *" value={newEvent.title} onChange={e => setNewEvent(p => ({ ...p, title: e.target.value }))} className="text-xs" />
-            <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="Source Name" value={newEvent.source_name} onChange={e => setNewEvent(p => ({ ...p, source_name: e.target.value }))} className="text-xs" />
-              <Input placeholder="Source URL" value={newEvent.source_url} onChange={e => setNewEvent(p => ({ ...p, source_url: e.target.value }))} className="text-xs" />
-            </div>
-            <Textarea placeholder="Summary (brief overview)" value={newEvent.summary} onChange={e => setNewEvent(p => ({ ...p, summary: e.target.value }))} className="text-xs min-h-[60px]" />
-            <Textarea placeholder="Full Content (paste article text for AI analysis)" value={newEvent.raw_content} onChange={e => setNewEvent(p => ({ ...p, raw_content: e.target.value }))} className="text-xs min-h-[100px]" />
-            <div className="flex gap-2">
-              <Select value={newEvent.category} onValueChange={v => setNewEvent(p => ({ ...p, category: v }))}>
-                <SelectTrigger className="w-40 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-[200] bg-popover border border-border shadow-xl">
-                  {CA_CATEGORIES.map(c => (
-                    <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex-1" />
-              <Button variant="ghost" size="sm" onClick={() => setShowAddEvent(false)}>Cancel</Button>
-              <Button size="sm" disabled={addEvent.isPending} onClick={handleAddEvent}
-                className="bg-gradient-to-r from-cyan-600 to-emerald-600 text-white">
-                {addEvent.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                Add & Analyze
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Fully AI-driven — no manual add */}
 
       {/* Tab Content */}
       <AnimatePresence mode="wait">
