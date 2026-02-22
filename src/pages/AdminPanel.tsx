@@ -111,8 +111,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "exam_countdown", label: "Exam AI Control", icon: Brain, roles: ["super_admin", "admin"], badge: "AI", badgeColor: "bg-accent/20 text-accent" },
       { key: "stq", label: "STQ Engine v9.0", icon: Database, roles: ["super_admin", "admin", "ai_admin"], badge: "v9", badgeColor: "bg-accent/20 text-accent" },
       { key: "exam_intel", label: "Exam Intel v10.0", icon: Sparkles, roles: ["super_admin", "admin", "ai_admin"], badge: "v10", badgeColor: "bg-violet-500/20 text-violet-400" },
-      { key: "current_affairs", label: "Current Affairs 2.0", icon: Globe, roles: ["super_admin", "admin", "ai_admin"], badge: "v2", badgeColor: "bg-cyan-500/20 text-cyan-400" },
-      { key: "policy_predictor", label: "CA 3.0 Policy Predictor", icon: Shield, roles: ["super_admin", "admin", "ai_admin"], badge: "v3", badgeColor: "bg-fuchsia-500/20 text-fuchsia-400" },
+      { key: "current_affairs", label: "CA v3.0", icon: Globe, roles: ["super_admin", "admin", "ai_admin"], badge: "v3", badgeColor: "bg-cyan-500/20 text-cyan-400" },
     ],
   },
   {
