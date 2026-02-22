@@ -18,6 +18,9 @@ import {
   useRunPolicyAnalysis, useApplyAdjustments, useRevertAdjustments
 } from "@/hooks/usePolicyPredictor";
 import { useCAEvents } from "@/hooks/useCurrentAffairs";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const IMPACT_COLORS: Record<string, string> = {
   direct: "text-rose-400 bg-rose-500/15 border-rose-500/20",
@@ -44,6 +47,7 @@ export default function PolicyPredictorAdmin() {
   const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string>("");
   const [examType, setExamType] = useState("UPSC CSE");
+  const queryClient = useQueryClient();
 
   const { data: dashboard, isLoading: dashLoading } = usePolicyDashboard();
   const { data: analyses } = usePolicyAnalyses();
@@ -52,6 +56,22 @@ export default function PolicyPredictorAdmin() {
   const runAnalysis = useRunPolicyAnalysis();
   const applyAdj = useApplyAdjustments();
   const revertAdj = useRevertAdjustments();
+
+  // Automation config
+  const { data: autoConfig } = useQuery({
+    queryKey: ["ca-autopilot-config"],
+    queryFn: async () => {
+      const { data } = await supabase.from("ca_autopilot_config" as any).select("*").limit(1).single();
+      return data as any;
+    },
+  });
+
+  const toggleAutoPolicy = async (field: string, value: boolean) => {
+    if (!autoConfig?.id) return;
+    await supabase.from("ca_autopilot_config" as any).update({ [field]: value }).eq("id", autoConfig.id);
+    queryClient.invalidateQueries({ queryKey: ["ca-autopilot-config"] });
+    toast.success(`${field.replace(/_/g, " ")} ${value ? "enabled" : "disabled"}`);
+  };
 
   const handleRunAnalysis = () => {
     if (!selectedEvent) { toast.error("Select an event first"); return; }
@@ -164,13 +184,57 @@ export default function PolicyPredictorAdmin() {
           {/* OVERVIEW */}
           {activeTab === "overview" && (
             <div className="space-y-4">
+              {/* Automation Controls */}
+              <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-950/20 to-card/80">
+                <CardContent className="p-4 space-y-3">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-400" /> Full Automation
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">CA 3.0 runs automatically when new events are processed by the CA Auto Pipeline.</p>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/20 border border-border/30">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">Auto Policy Analysis</p>
+                        <p className="text-[10px] text-muted-foreground">Run similarity + impact analysis on every new CA event</p>
+                      </div>
+                      <Switch
+                        checked={autoConfig?.auto_policy_analysis_enabled ?? true}
+                        onCheckedChange={(v) => toggleAutoPolicy("auto_policy_analysis_enabled", v)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/20 border border-border/30">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">Auto-Apply TPI Adjustments</p>
+                        <p className="text-[10px] text-muted-foreground">Automatically update Topic Probability Index after analysis</p>
+                      </div>
+                      <Switch
+                        checked={autoConfig?.auto_apply_tpi_adjustments ?? false}
+                        onCheckedChange={(v) => toggleAutoPolicy("auto_apply_tpi_adjustments", v)}
+                      />
+                    </div>
+                  </div>
+                  {autoConfig && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="p-2 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 text-center">
+                        <p className="text-lg font-black text-fuchsia-400">{autoConfig.total_policy_analyses_run || 0}</p>
+                        <p className="text-[9px] text-muted-foreground">Auto Analyses Run</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                        <p className="text-lg font-black text-amber-400">{autoConfig.total_tpi_adjustments_applied || 0}</p>
+                        <p className="text-[9px] text-muted-foreground">Auto TPI Applied</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Run Analysis */}
               <Card className="border-fuchsia-500/20 bg-gradient-to-br from-fuchsia-950/20 to-card/80">
                 <CardContent className="p-4 space-y-3">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-fuchsia-400" /> Run Policy Impact Analysis
+                    <Zap className="w-4 h-4 text-fuchsia-400" /> Manual Policy Impact Analysis
                   </h3>
-                  <p className="text-[11px] text-muted-foreground">Select a CA event to run the full 3-module prediction pipeline</p>
+                  <p className="text-[11px] text-muted-foreground">Select a CA event to run the full 3-module prediction pipeline manually</p>
                   <div className="flex gap-2">
                     <Select value={selectedEvent} onValueChange={setSelectedEvent}>
                       <SelectTrigger className="flex-1 h-9 text-xs bg-secondary/50 border-border/50">

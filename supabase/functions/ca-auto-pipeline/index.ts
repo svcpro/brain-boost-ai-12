@@ -51,6 +51,8 @@ serve(async (req) => {
 
     let totalEventsInserted = 0;
     let totalQuestionsGenerated = 0;
+    let totalPolicyAnalyses = 0;
+    let totalTpiAdjustments = 0;
 
     for (const event of eventsToProcess) {
       // Check for duplicate
@@ -188,6 +190,52 @@ Return JSON array of: {question_type, question_text, options, correct_answer, ex
 
       // Mark event complete
       await supabase.from("ca_events").update({ processing_status: "completed" }).eq("id", eventId);
+
+      // ── CA 3.0: Auto Policy Impact Analysis ──
+      if (config?.auto_policy_analysis_enabled) {
+        try {
+          console.log(`CA 3.0 Auto: Running policy analysis for event ${eventId}`);
+          const policyResp = await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/ca-policy-predictor`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                action: "analyze_policy",
+                event_id: eventId,
+                exam_types: examTypes,
+              }),
+            }
+          );
+          const policyData = await policyResp.json();
+          console.log(`CA 3.0 Auto: Analysis result:`, policyData);
+          totalPolicyAnalyses++;
+
+          // Auto-apply TPI adjustments if enabled
+          if (config?.auto_apply_tpi_adjustments && policyData?.analysis_id) {
+            const applyResp = await fetch(
+              `${Deno.env.get("SUPABASE_URL")}/functions/v1/ca-policy-predictor`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                },
+                body: JSON.stringify({
+                  action: "apply_adjustments",
+                  analysis_id: policyData.analysis_id,
+                }),
+              }
+            );
+            const applyData = await applyResp.json();
+            totalTpiAdjustments += applyData?.applied || 0;
+            console.log(`CA 3.0 Auto: Applied ${applyData?.applied || 0} TPI adjustments`);
+          }
+        } catch (e) { console.error("CA 3.0 Auto Policy error:", e); }
+      }
     }
 
     // Update stats
@@ -197,11 +245,13 @@ Return JSON array of: {question_type, question_text, options, correct_answer, ex
         total_auto_runs: (config.total_auto_runs || 0) + 1,
         total_events_fetched: (config.total_events_fetched || 0) + totalEventsInserted,
         total_questions_generated: (config.total_questions_generated || 0) + totalQuestionsGenerated,
+        total_policy_analyses_run: (config.total_policy_analyses_run || 0) + totalPolicyAnalyses,
+        total_tpi_adjustments_applied: (config.total_tpi_adjustments_applied || 0) + totalTpiAdjustments,
         updated_at: new Date().toISOString(),
       }).eq("id", config.id);
     }
 
-    console.log(`CA Auto Pipeline: Done. Events: ${totalEventsInserted}, Questions: ${totalQuestionsGenerated}`);
+    console.log(`CA Auto Pipeline: Done. Events: ${totalEventsInserted}, Questions: ${totalQuestionsGenerated}, Policies: ${totalPolicyAnalyses}, TPI: ${totalTpiAdjustments}`);
 
     return jsonResp({
       success: true,
