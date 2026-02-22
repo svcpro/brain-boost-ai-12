@@ -5,11 +5,65 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+const STQ_EXAM_TYPES = [
+  // Government
+  { id: "SSC CGL", category: "Government" },
+  { id: "IBPS PO", category: "Government" },
+  { id: "SBI PO", category: "Government" },
+  { id: "RRB NTPC", category: "Government" },
+  { id: "RRB Group D", category: "Government" },
+  { id: "NDA", category: "Government" },
+  { id: "CDS", category: "Government" },
+  { id: "State PSC", category: "Government" },
+  { id: "UGC NET", category: "Government" },
+  // Entrance
+  { id: "JEE Advanced", category: "Entrance" },
+  { id: "NEET UG", category: "Entrance" },
+  { id: "CAT", category: "Entrance" },
+  { id: "GATE", category: "Entrance" },
+  { id: "CLAT", category: "Entrance" },
+  { id: "CUET UG", category: "Entrance" },
+  { id: "BITSAT", category: "Entrance" },
+  { id: "NIFT", category: "Entrance" },
+  { id: "XAT", category: "Entrance" },
+  // Global
+  { id: "SAT", category: "Global" },
+  { id: "GRE", category: "Global" },
+  { id: "GMAT", category: "Global" },
+  { id: "IELTS", category: "Global" },
+  { id: "TOEFL", category: "Global" },
+  { id: "USMLE", category: "Global" },
+  { id: "CFA", category: "Global" },
+  { id: "CPA", category: "Global" },
+  { id: "MCAT", category: "Global" },
+  { id: "ACCA", category: "Global" },
+];
+
+const STQ_EXAM_SUBJECTS: Record<string, string[]> = {
+  "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
+  "NEET UG": ["Physics", "Chemistry", "Biology"],
+  "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+  "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  "SSC CGL": ["General Intelligence", "English Language", "Quantitative Aptitude", "General Awareness"],
+  "IBPS PO": ["Reasoning", "English Language", "Quantitative Aptitude", "General Awareness", "Computer Aptitude"],
+  "NDA": ["Mathematics", "General Ability Test", "English", "General Knowledge"],
+  "UGC NET": ["General Paper", "Subject Paper"],
+  "SAT": ["Math", "Evidence-Based Reading", "Writing"],
+  "GRE": ["Verbal Reasoning", "Quantitative Reasoning", "Analytical Writing"],
+  "GMAT": ["Quantitative", "Verbal", "Integrated Reasoning", "Analytical Writing"],
+  "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
+  "State PSC": ["General Studies", "CSAT", "Optional Subject"],
+  "CUET UG": ["General Test", "Domain Subject", "Language"],
+  "USMLE": ["Anatomy", "Physiology", "Biochemistry", "Pharmacology", "Pathology", "Microbiology"],
+  "CFA": ["Ethics", "Quantitative Methods", "Economics", "Financial Reporting", "Corporate Finance", "Equity Investments", "Fixed Income", "Derivatives", "Portfolio Management"],
+  "MCAT": ["Biology", "Chemistry", "Physics", "Psychology", "Critical Analysis"],
+};
+
 type STQTab = "dashboard" | "syllabus" | "mining" | "tpi" | "patterns" | "training";
 
 export default function STQEngineAdmin() {
   const [tab, setTab] = useState<STQTab>("dashboard");
-  const [examType, setExamType] = useState("JEE");
+  const [examType, setExamType] = useState("JEE Advanced");
 
   const tabs: { key: STQTab; label: string; icon: any }[] = [
     { key: "dashboard", label: "Dashboard", icon: BarChart3 },
@@ -33,7 +87,13 @@ export default function STQEngineAdmin() {
         </div>
         <select value={examType} onChange={e => setExamType(e.target.value)}
           className="ml-auto px-2 py-1 rounded-lg bg-background border border-border text-xs text-foreground">
-          <option>JEE</option><option>NEET</option><option>UPSC</option><option>general</option>
+          {["Government", "Entrance", "Global"].map(cat => (
+            <optgroup key={cat} label={cat}>
+              {STQ_EXAM_TYPES.filter(e => e.category === cat).map(e => (
+                <option key={e.id} value={e.id}>{e.id}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </div>
 
@@ -156,12 +216,7 @@ function SyllabusParser({ examType }: { examType: string }) {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const qc = useQueryClient();
 
-  const examSubjects: Record<string, string[]> = {
-    JEE: ["Physics", "Chemistry", "Mathematics"],
-    NEET: ["Physics", "Chemistry", "Biology"],
-    UPSC: ["General Studies", "CSAT", "Optional Subject"],
-    general: ["General Knowledge"],
-  };
+  const availableSubjects = STQ_EXAM_SUBJECTS[examType] || [];
 
   const autoGenerate = useMutation({
     mutationFn: async () => {
@@ -312,7 +367,7 @@ function SyllabusParser({ examType }: { examType: string }) {
           <div className="mb-3">
             <p className="text-[10px] font-medium text-foreground mb-1.5">Select Subjects (optional — leave empty for all):</p>
             <div className="flex flex-wrap gap-1.5">
-              {(examSubjects[examType] || examSubjects.general).map(s => (
+              {(availableSubjects.length > 0 ? availableSubjects : ["General"]).map((s: string) => (
                 <button key={s} onClick={() => toggleSubject(s)}
                   className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
                     selectedSubjects.includes(s) ? "bg-primary/15 border-primary/30 text-primary" : "border-border text-muted-foreground hover:bg-secondary"
