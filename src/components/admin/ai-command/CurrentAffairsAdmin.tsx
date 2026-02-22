@@ -149,7 +149,7 @@ export default function CurrentAffairsAdmin() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[200] bg-popover border border-border shadow-xl">
-                  {["UPSC", "NEET", "JEE", "SSC CGL", "CAT", "GATE"].map(e => (
+                  {["UPSC", "NEET", "JEE", "SSC CGL", "CAT", "GATE", "GRE", "SAT", "CLAT", "NDA"].map(e => (
                     <SelectItem key={e} value={e}>{e}</SelectItem>
                   ))}
                 </SelectContent>
