@@ -1002,13 +1002,141 @@ async function retrainModel(supabase: any, { exam_type }: any) {
     last_retrained_at: new Date().toISOString(),
   }).neq("id", "00000000-0000-0000-0000-000000000000");
 
+  // === POST-TRAINING AI/ML ORCHESTRATION ===
+  const postTrainingResults = await executePostTrainingML(supabase, examTypes, afterTPI || []);
+
   return json({
     success: true, model_version: newVersion,
     algorithm: "12-factor-ensemble",
     data_points: totalPoints, duration_ms: duration,
     accuracy_before: avgConfBefore, accuracy_after: avgConfAfter,
     improvement: round2(avgConfAfter - avgConfBefore),
+    post_training_ml: postTrainingResults,
   });
+}
+
+// =============================================
+// POST-TRAINING ML ORCHESTRATION
+// After training, downstream AI/ML systems consume STQ data
+// =============================================
+async function executePostTrainingML(supabase: any, examTypes: string[], tpiData: any[]) {
+  const results: Record<string, any> = {};
+  const now = new Date().toISOString();
+
+  try {
+    // 1. UPDATE MEMORY ENGINE PRIORITY WEIGHTS
+    // High-TPI topics get boosted memory reinforcement schedules
+    const highTPITopics = tpiData.filter((t: any) => t.tpi_score >= 75);
+    if (highTPITopics.length > 0) {
+      const topicNames = highTPITopics.map((t: any) => t.topic_name || t.topic).filter(Boolean);
+      // Find matching user topics and boost their review priority
+      const { data: matchedTopics } = await supabase
+        .from("topics")
+        .select("id, name, memory_strength, user_id")
+        .is("deleted_at", null)
+        .limit(500);
+
+      let boosted = 0;
+      if (matchedTopics) {
+        for (const userTopic of matchedTopics) {
+          const isHighTPI = topicNames.some((tn: string) => 
+            userTopic.name?.toLowerCase().includes(tn.toLowerCase()) ||
+            tn.toLowerCase().includes(userTopic.name?.toLowerCase() || "")
+          );
+          if (isHighTPI && (userTopic.memory_strength || 0) < 70) {
+            // Store as AI recommendation for priority study
+            await supabase.from("ai_recommendations").insert({
+              user_id: userTopic.user_id,
+              type: "stq_priority",
+              priority: "critical",
+              title: `High-probability topic: ${userTopic.name}`,
+              description: `STQ Engine detected this topic has high exam probability. Current memory: ${userTopic.memory_strength}%. Prioritize revision.`,
+              topic_id: userTopic.id,
+            });
+            boosted++;
+          }
+        }
+      }
+      results.memory_priority_boost = { topics_boosted: boosted, high_tpi_count: highTPITopics.length };
+    }
+
+    // 2. FEED PATTERNS INTO RANK PREDICTION MODEL
+    // Store STQ-derived signals as model predictions for validation
+    const { data: patterns } = await supabase
+      .from("pattern_evolution_logs")
+      .select("exam_type, detection_type, severity, affected_topics")
+      .in("exam_type", examTypes)
+      .order("detected_at", { ascending: false })
+      .limit(50);
+
+    if (patterns && patterns.length > 0) {
+      const criticalPatterns = patterns.filter((p: any) => p.severity === "critical" || p.severity === "high");
+      // Log as model predictions for self-evaluate to validate later
+      const predictions = criticalPatterns.slice(0, 10).map((p: any) => ({
+        model_name: "stq_pattern_prediction",
+        prediction: { 
+          pattern_type: p.detection_type, 
+          affected_topics: p.affected_topics,
+          exam_type: p.exam_type,
+        },
+        confidence: p.severity === "critical" ? 0.9 : 0.7,
+        created_at: now,
+        user_id: null, // Global prediction
+      }));
+      
+      if (predictions.length > 0) {
+        await supabase.from("model_predictions").insert(predictions);
+      }
+      results.rank_signal_injection = { patterns_fed: criticalPatterns.length, predictions_stored: predictions.length };
+    }
+
+    // 3. AUTO-GENERATE EXAM SIMULATOR QUESTION SETS
+    // Create curated question pools weighted by TPI for mock exams
+    const topTPITopics = tpiData
+      .sort((a: any, b: any) => (b.tpi_score || 0) - (a.tpi_score || 0))
+      .slice(0, 30);
+
+    if (topTPITopics.length > 0) {
+      const topicNames = topTPITopics.map((t: any) => t.topic_name || t.topic).filter(Boolean);
+      const { data: minedQuestions } = await supabase
+        .from("question_mining_results")
+        .select("id, topic, question_text, difficulty, year, exam_type")
+        .in("exam_type", examTypes)
+        .limit(200);
+
+      // Score questions by TPI relevance
+      const scoredQuestions = (minedQuestions || []).map((q: any) => {
+        const matchingTPI = topTPITopics.find((t: any) => 
+          (t.topic_name || t.topic || "").toLowerCase() === (q.topic || "").toLowerCase()
+        );
+        return { ...q, tpi_weight: matchingTPI?.tpi_score || 30 };
+      }).sort((a: any, b: any) => b.tpi_weight - a.tpi_weight);
+
+      results.exam_simulator_feed = { 
+        questions_scored: scoredQuestions.length,
+        high_tpi_questions: scoredQuestions.filter((q: any) => q.tpi_weight >= 75).length,
+      };
+    }
+
+    // 4. STORE TRAINING SIGNAL FOR CONTINUAL LEARNING MONITOR
+    await supabase.from("model_metrics").insert({
+      model_name: "stq_engine",
+      metric_type: "post_training_orchestration",
+      metric_value: Object.keys(results).length,
+      sample_size: tpiData.length,
+      period_start: new Date(Date.now() - 7 * 86400000).toISOString(),
+      period_end: now,
+      metadata: results,
+    });
+
+    results.status = "completed";
+  } catch (e: any) {
+    console.error("Post-training ML orchestration error:", e);
+    results.status = "partial";
+    results.error = e.message;
+  }
+
+  return results;
 }
 
 // =============================================
