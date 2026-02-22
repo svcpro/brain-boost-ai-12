@@ -53,6 +53,7 @@ const TABS = [
   { key: "events", label: "Events", icon: Newspaper },
   { key: "graph", label: "Event Graph", icon: Network },
   { key: "questions", label: "Questions", icon: Sparkles },
+  { key: "predictions", label: "Predictions", icon: Shield },
 ] as const;
 
 type Tab = typeof TABS[number]["key"];
@@ -62,6 +63,7 @@ const PIPELINE_STAGES = [
   { key: "graph", label: "Knowledge Graph", icon: Network },
   { key: "syllabus", label: "Syllabus Linking", icon: Target },
   { key: "questions", label: "Question Gen", icon: Sparkles },
+  { key: "policy", label: "Policy Prediction", icon: Shield },
   { key: "done", label: "Complete", icon: CheckCircle2 },
 ];
 
@@ -138,11 +140,16 @@ export default function CurrentAffairsAdmin() {
             </motion.div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-xl font-bold text-foreground tracking-tight">Current Affairs 2.0</h2>
-                <Badge className="bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border-cyan-500/30 text-cyan-300 text-[10px] font-mono">v2.0</Badge>
+                <h2 className="text-xl font-bold text-foreground tracking-tight">Current Affairs 3.0</h2>
+                <Badge className="bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border-cyan-500/30 text-cyan-300 text-[10px] font-mono">v3.0</Badge>
                 <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 2, repeat: Infinity }}>
                   <Badge className="bg-emerald-500/15 border-emerald-500/30 text-emerald-400 text-[9px]">
                     <CircleDot className="w-2 h-2 mr-0.5" /> LIVE
+                  </Badge>
+                </motion.div>
+                <motion.div animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 1.8, repeat: Infinity }}>
+                  <Badge className="bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 text-[9px]">
+                    <Shield className="w-2.5 h-2.5 mr-0.5" /> PREDICTIVE
                   </Badge>
                 </motion.div>
                 {autoConfig?.is_enabled && (
@@ -153,7 +160,7 @@ export default function CurrentAffairsAdmin() {
                   </motion.div>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground/80">Event Graph Intelligence · Auto Syllabus Mapping · Exam Question Generation</p>
+              <p className="text-xs text-muted-foreground/80">Event Graph Intelligence · Policy Impact Predictor · Auto Syllabus Mapping · TPI Dynamic Adjustment</p>
             </div>
           </div>
 
@@ -217,13 +224,16 @@ export default function CurrentAffairsAdmin() {
       </AnimatePresence>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
         {[
           { label: "Events", count: dashboard?.events?.count || 0, icon: Newspaper, color: "text-cyan-400", bg: "from-cyan-500/20 to-cyan-500/5", border: "border-cyan-500/20" },
           { label: "Entities", count: dashboard?.entities?.count || 0, icon: Dna, color: "text-violet-400", bg: "from-violet-500/20 to-violet-500/5", border: "border-violet-500/20" },
           { label: "Graph Edges", count: dashboard?.graph_edges?.count || 0, icon: Network, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-500/20" },
           { label: "Syllabus Links", count: dashboard?.syllabus_links?.count || 0, icon: Target, color: "text-amber-400", bg: "from-amber-500/20 to-amber-500/5", border: "border-amber-500/20" },
           { label: "Questions", count: dashboard?.questions?.count || 0, icon: Sparkles, color: "text-rose-400", bg: "from-rose-500/20 to-rose-500/5", border: "border-rose-500/20" },
+          { label: "Predictions", count: dashboard?.policy_analyses?.count || 0, icon: Shield, color: "text-fuchsia-400", bg: "from-fuchsia-500/20 to-fuchsia-500/5", border: "border-fuchsia-500/20" },
+          { label: "Forecasts", count: dashboard?.impact_forecasts?.count || 0, icon: TrendingUp, color: "text-pink-400", bg: "from-pink-500/20 to-pink-500/5", border: "border-pink-500/20" },
+          { label: "TPI Adj.", count: dashboard?.tpi_adjustments?.count || 0, icon: Activity, color: "text-orange-400", bg: "from-orange-500/20 to-orange-500/5", border: "border-orange-500/20" },
         ].map((s, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.06, type: "spring" }} whileHover={{ scale: 1.04, y: -2 }}
@@ -308,7 +318,7 @@ export default function CurrentAffairsAdmin() {
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
                           className="pt-4 border-t border-border/30 space-y-3"
                         >
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="grid grid-cols-5 gap-2">
                             <div className="text-center p-3 rounded-lg bg-secondary/20">
                               <p className="text-xl font-black text-foreground">{autoConfig.total_auto_runs}</p>
                               <p className="text-[9px] text-muted-foreground">Auto Runs</p>
@@ -320,6 +330,14 @@ export default function CurrentAffairsAdmin() {
                             <div className="text-center p-3 rounded-lg bg-secondary/20">
                               <p className="text-xl font-black text-foreground">{autoConfig.total_questions_generated}</p>
                               <p className="text-[9px] text-muted-foreground">Qs Generated</p>
+                            </div>
+                            <div className="text-center p-3 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20">
+                              <p className="text-xl font-black text-fuchsia-400">{autoConfig.total_policy_analyses_run || 0}</p>
+                              <p className="text-[9px] text-muted-foreground">Policies Analyzed</p>
+                            </div>
+                            <div className="text-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                              <p className="text-xl font-black text-amber-400">{autoConfig.total_tpi_adjustments_applied || 0}</p>
+                              <p className="text-[9px] text-muted-foreground">TPI Applied</p>
                             </div>
                           </div>
 
@@ -429,6 +447,32 @@ export default function CurrentAffairsAdmin() {
                         <Switch
                           checked={autoConfig?.auto_approve_questions || false}
                           onCheckedChange={(v) => updateAuto.mutate({ auto_approve_questions: v })}
+                        />
+                      </div>
+
+                      {/* CA 3.0 Policy Prediction toggles */}
+                      <div className="flex items-center justify-between pt-2 border-t border-fuchsia-500/20">
+                        <div>
+                          <p className="text-[11px] font-medium text-foreground flex items-center gap-1">
+                            <Shield className="w-3 h-3 text-fuchsia-400" /> Auto Policy Analysis
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">Run similarity + impact prediction on every event</p>
+                        </div>
+                        <Switch
+                          checked={autoConfig?.auto_policy_analysis_enabled ?? true}
+                          onCheckedChange={(v) => updateAuto.mutate({ auto_policy_analysis_enabled: v })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] font-medium text-foreground flex items-center gap-1">
+                            <Activity className="w-3 h-3 text-amber-400" /> Auto-Apply TPI
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">Automatically update Topic Probability Index</p>
+                        </div>
+                        <Switch
+                          checked={autoConfig?.auto_apply_tpi_adjustments ?? false}
+                          onCheckedChange={(v) => updateAuto.mutate({ auto_apply_tpi_adjustments: v })}
                         />
                       </div>
                     </CardContent>
@@ -726,6 +770,102 @@ export default function CurrentAffairsAdmin() {
               )}
             </div>
           )}
+
+          {/* PREDICTIONS TAB (CA 3.0) */}
+          {activeTab === "predictions" && (
+            <div className="space-y-3">
+              {dashboard?.impact_forecasts?.by_type && Object.keys(dashboard.impact_forecasts.by_type).length > 0 && (
+                <Card className="border-fuchsia-500/20 bg-card/80">
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-fuchsia-400" /> Impact Type Distribution
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {Object.entries(dashboard.impact_forecasts.by_type).map(([type, count]: any) => (
+                        <div key={type} className={`p-3 rounded-lg border text-center ${
+                          type === "direct" ? "border-rose-500/20 bg-rose-500/10" :
+                          type === "indirect_ripple" ? "border-amber-500/20 bg-amber-500/10" :
+                          "border-fuchsia-500/20 bg-fuchsia-500/10"
+                        }`}>
+                          <p className="text-lg font-black text-foreground">{count}</p>
+                          <p className="text-[9px] text-muted-foreground capitalize">{type.replace("_", " ")}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {dashboard?.tpi_adjustments && (
+                <Card className="border-amber-500/20 bg-card/80">
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-amber-400" /> TPI Adjustment Status
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                        <p className="text-2xl font-black text-amber-400">{dashboard.tpi_adjustments.pending}</p>
+                        <p className="text-[10px] text-muted-foreground">Pending</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
+                        <p className="text-2xl font-black text-emerald-400">{dashboard.tpi_adjustments.applied}</p>
+                        <p className="text-[10px] text-muted-foreground">Applied</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-secondary/30 border border-border/30 text-center">
+                        <p className="text-2xl font-black text-foreground">{dashboard.tpi_adjustments.count}</p>
+                        <p className="text-[10px] text-muted-foreground">Total</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card className="border-border/50 bg-card/80">
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-fuchsia-400" /> Recent Policy Analyses
+                  </h3>
+                  {!(dashboard?.policy_analyses?.data?.length) ? (
+                    <div className="text-center py-6">
+                      <Shield className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
+                      <p className="text-xs text-muted-foreground">No policy analyses yet. Enable autopilot or run pipeline on events.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {(dashboard.policy_analyses.data || []).map((a: any) => (
+                        <div key={a.id} className="p-3 rounded-lg bg-secondary/20 border border-border/30">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold text-foreground truncate max-w-[60%]">{a.policy_title}</span>
+                            <div className="flex gap-1">
+                              {a.controversy_likelihood > 0.5 && (
+                                <Badge className="text-[8px] bg-rose-500/15 text-rose-400">Controversial</Badge>
+                              )}
+                              <Badge className="text-[8px] bg-fuchsia-500/15 text-fuchsia-300">
+                                Impact {((a.overall_impact_score || 0) * 100).toFixed(0)}%
+                              </Badge>
+                              <Badge className="text-[8px] bg-violet-500/15 text-violet-300">
+                                Sim {((a.top_similarity_score || 0) * 100).toFixed(0)}%
+                              </Badge>
+                            </div>
+                          </div>
+                          {a.predicted_exam_framing && (
+                            <p className="text-[10px] text-muted-foreground mt-1">{a.predicted_exam_framing}</p>
+                          )}
+                          <p className="text-[9px] text-muted-foreground/60 mt-1">
+                            {a.policy_category} · {new Date(a.created_at).toLocaleDateString()}
+                            {a.question_probability_increase > 0 && (
+                              <span className="text-emerald-400 ml-2">+{a.question_probability_increase}% Q probability</span>
+                            )}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
         </motion.div>
       </AnimatePresence>
     </div>
