@@ -78,7 +78,16 @@ async function computeRankHeatmap(admin: any, userId: string, params: any) {
   const internalPercentile = allAvgs.length > 1 ? (belowCount / allAvgs.length) * 100 : 50;
 
   // Simulated national benchmark (AI-estimated based on exam difficulty)
-  const nationalBenchmarks: Record<string, number> = { JEE: 45, NEET: 50, UPSC: 35, general: 50 };
+  const nationalBenchmarks: Record<string, number> = {
+    JEE: 45, "JEE Main": 45, "JEE Advanced": 40, NEET: 50, "NEET UG": 50,
+    UPSC: 35, CAT: 40, GATE: 42, SSC: 48, "SSC CGL": 48, CLAT: 42,
+    "IBPS PO": 50, "SBI PO": 48, "RRB NTPC": 52, "RRB Group D": 55,
+    NDA: 42, CDS: 44, "State PSC": 38, "UGC NET": 45, "CUET UG": 50,
+    BITSAT: 42, "NIFT Entrance": 40, XAT: 40, Boards: 55,
+    SAT: 50, GRE: 48, GMAT: 45, IELTS: 52, TOEFL: 52,
+    USMLE: 38, CFA: 42, "CPA Exam": 45, MCAT: 40, ACCA: 44,
+    general: 50,
+  };
   const baseBenchmark = nationalBenchmarks[examType] || 50;
   const simulatedNational = Math.min(99, baseBenchmark + (userAvg - 50) * 0.8);
 
