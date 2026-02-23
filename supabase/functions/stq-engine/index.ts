@@ -232,20 +232,11 @@ ${syllabus_text}`;
 // =============================================
 async function autoGenerateSyllabus(supabase: any, { exam_type, subjects }: any) {
   const subjectList = subjects?.length ? subjects.join(", ") : "";
-  const prompt = `You are an expert education curriculum designer. Generate a COMPLETE and EXHAUSTIVE syllabus taxonomy for the ${exam_type} exam.
-${subjectList ? `Focus on these subjects: ${subjectList}` : "Include ALL subjects covered in this exam."}
+  const prompt = `Generate a syllabus taxonomy for the ${exam_type} exam.
+${subjectList ? `Focus on: ${subjectList}` : "Include all main subjects."}
 
-For each entry provide:
-- subject: Main subject name
-- topic: Chapter/topic name  
-- subtopic: Specific subtopic (be granular)
-- normalized_name: Clean standardized name
-- hierarchy_level: 1=subject, 2=topic, 3=subtopic
-- weightage_pct: Estimated weightage percentage based on historical exam patterns
-- importance: "critical" | "high" | "medium" | "low" based on exam frequency
-
-Be EXHAUSTIVE - include every single topic and subtopic that has ever appeared or could appear in ${exam_type}.
-Return a comprehensive JSON array. Aim for 100+ entries with full subtopic coverage.`;
+For each entry: subject, topic, subtopic, normalized_name, hierarchy_level (1=subject,2=topic,3=subtopic), weightage_pct, importance (critical/high/medium/low).
+Include 30-50 key topics with subtopics. Be concise but cover all important areas.`;
 
   const schema = {
     type: "object",
@@ -270,8 +261,8 @@ Return a comprehensive JSON array. Aim for 100+ entries with full subtopic cover
     required: ["items"],
   };
 
-  // Use ensemble for richer taxonomy
-  const result = await ensembleAI(prompt, schema, "generate_syllabus", { models: ["google/gemini-2.5-flash", "openai/gpt-5-mini"], mergeStrategy: "consensus" });
+  // Use single fast model to avoid timeout
+  const result = await ensembleAI(prompt, schema, "generate_syllabus", { models: ["google/gemini-2.5-flash-lite"], mergeStrategy: "best" });
   const items = result.data?.items || result.data || [];
   if (!items.length) throw new Error("No taxonomy items generated");
 
@@ -403,21 +394,26 @@ Return JSON array.`;
 // AUTO MINE QUESTIONS (Multi-model ensemble with dedup)
 // =============================================
 async function autoMineQuestions(supabase: any, { exam_type, years, subjects }: any) {
-  const targetYears = years?.length ? years : [2024, 2023, 2022, 2021, 2020];
+  const targetYears = years?.length ? years.slice(0, 3) : [2024, 2023, 2022]; // Limit to 3 years max
   const { data: taxonomy } = await supabase
     .from("syllabus_taxonomies")
     .select("id, subject, topic, subtopic, normalized_name, weightage_pct")
     .eq("exam_type", exam_type);
 
-  const taxonomyTopics = (taxonomy || []).map((t: any) => `${t.subject} > ${t.topic}${t.subtopic ? ` > ${t.subtopic}` : ""} (wt: ${t.weightage_pct || '?'}%)`);
+  const taxonomyTopics = (taxonomy || []).map((t: any) => `${t.subject} > ${t.topic}${t.subtopic ? ` > ${t.subtopic}` : ""}`);
   const subjectList = subjects?.length ? subjects : [...new Set((taxonomy || []).map((t: any) => t.subject))];
   if (!subjectList.length) throw new Error("No subjects found. Generate syllabus first.");
 
   let totalMined = 0;
   const results: any[] = [];
+  let callCount = 0;
+  const MAX_AI_CALLS = 5; // Hard limit to prevent timeout
 
   for (const year of targetYears) {
+    if (callCount >= MAX_AI_CALLS) break;
     for (const subject of subjectList) {
+      if (callCount >= MAX_AI_CALLS) break;
+
       const { count: existing } = await supabase
         .from("question_mining_results")
         .select("*", { count: "exact", head: true })
@@ -428,26 +424,11 @@ async function autoMineQuestions(supabase: any, { exam_type, years, subjects }: 
         continue;
       }
 
-      const prompt = `You are a world-class exam pattern analyst for ${exam_type}. Generate a HIGHLY REALISTIC and DETAILED analysis of ${subject} questions from the ${year} exam paper.
+      const relevantTopics = taxonomyTopics.filter((t: string) => t.startsWith(subject)).slice(0, 15).join("\n");
 
-Known syllabus topics for ${subject} with weightages:
-${taxonomyTopics.filter((t: string) => t.startsWith(subject)).join("\n") || "Use standard topics for this subject."}
-
-Generate 10-15 realistic question entries for ${exam_type} ${year} ${subject}. For each:
-- topic: The chapter/topic name (MUST map to syllabus above)
-- subtopic: Specific subtopic
-- question_text: Brief description of the question type and concept tested (200 chars)
-- question_type: mcq/numerical/assertion_reason/passage/match
-- difficulty_level: easy/medium/hard/very_hard  
-- marks: Typical marks
-- semantic_cluster: A cluster grouping similar patterns (e.g., "kinematics_projectile", "organic_naming")
-- pattern_tags: Array like ["formula_based", "conceptual", "application", "graph_based", "multi_step", "tricky_options"]
-- cognitive_level: recall/understanding/application/analysis/evaluation
-- bloom_taxonomy: knowledge/comprehension/application/analysis/synthesis/evaluation
-- cross_topic_links: Array of related topics this question connects to
-
-IMPORTANT: Distribute questions realistically based on weightage percentages. Higher weightage = more questions.
-Use EXACT topic names from the syllabus above.`;
+      const prompt = `Analyze ${exam_type} ${year} ${subject} questions. Generate 8-12 realistic entries.
+Topics: ${relevantTopics || "Use standard topics."}
+For each: topic, subtopic, question_text (brief), question_type (mcq/numerical/assertion_reason), difficulty_level, marks, semantic_cluster, pattern_tags (array), cognitive_level, bloom_taxonomy.`;
 
       const schema = {
         type: "object",
@@ -463,7 +444,6 @@ Use EXACT topic names from the syllabus above.`;
                 semantic_cluster: { type: "string" },
                 pattern_tags: { type: "array", items: { type: "string" } },
                 cognitive_level: { type: "string" }, bloom_taxonomy: { type: "string" },
-                cross_topic_links: { type: "array", items: { type: "string" } },
               },
               required: ["topic", "question_text"],
             },
@@ -473,17 +453,16 @@ Use EXACT topic names from the syllabus above.`;
       };
 
       try {
-        await new Promise(r => setTimeout(r, 500));
+        if (callCount > 0) await new Promise(r => setTimeout(r, 300));
+        callCount++;
 
-        // Use ensemble for more accurate mining
         const result = await ensembleAI(prompt, schema, "return_questions", {
-          models: ["google/gemini-2.5-flash", "openai/gpt-5-mini"],
-          mergeStrategy: "consensus",
+          models: ["google/gemini-2.5-flash-lite"],
+          mergeStrategy: "best",
         });
 
         const questions = result.data?.questions || result.data || [];
 
-        // Deduplicate by topic+subtopic combo
         const seen = new Set<string>();
         const uniqueQuestions = questions.filter((q: any) => {
           const key = `${q.topic}::${q.subtopic || ""}::${q.question_text?.substring(0, 50)}`;
@@ -493,7 +472,6 @@ Use EXACT topic names from the syllabus above.`;
         });
 
         const rows = uniqueQuestions.map((q: any) => {
-          // Fuzzy match taxonomy
           const taxMatch = (taxonomy || []).find((t: any) => {
             const topicLower = (q.topic || "").toLowerCase();
             const taxTopicLower = t.topic.toLowerCase();
