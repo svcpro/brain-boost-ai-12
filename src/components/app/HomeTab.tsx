@@ -855,19 +855,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* ─── SECTION 2.6: Brain Feed (Second Brain Feed) ─── */}
       {/* <BrainFeed hasTopics={hasTopics} /> */}
 
-      {/* ─── Debate & Writing Lab Widget ─── */}
-      <SectionErrorBoundary name="debate-widget">
-        <Suspense fallback={null}>
-          <DebateEngineWidgetInline />
-        </Suspense>
-      </SectionErrorBoundary>
-
-      {/* ─── 30-Day Accelerator Widget ─── */}
-      <SectionErrorBoundary name="accelerator-widget">
-        <Suspense fallback={null}>
-          <AcceleratorWidget />
-        </Suspense>
-      </SectionErrorBoundary>
+      {/* Debate & Writing Lab and 30-Day Accelerator hidden */}
 
       {/* ─── SECTION 3: Quick Micro Actions ─── */}
       {hasTopics && (
