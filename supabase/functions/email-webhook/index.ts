@@ -63,7 +63,26 @@ serve(async (req) => {
       // Click redirect — /email-webhook?type=click&rid=<recipient_id>&cid=<campaign_id>&url=<redirect_url>
       if (type === "click" && rid) {
         const now = new Date().toISOString();
-        const redirectUrl = url.searchParams.get("url") || "#";
+        const rawRedirectUrl = url.searchParams.get("url") || "";
+
+        // Validate redirect URL to prevent open redirect attacks
+        let safeRedirectUrl = "https://acry.ai";
+        if (rawRedirectUrl) {
+          try {
+            const decoded = decodeURIComponent(rawRedirectUrl);
+            const target = new URL(decoded);
+            const allowedDomains = ["acry.app", "acry.ai", "www.acry.app", "www.acry.ai"];
+            if (allowedDomains.some(d => target.hostname === d || target.hostname.endsWith("." + d))) {
+              safeRedirectUrl = decoded;
+            } else {
+              console.warn("Blocked open redirect attempt to:", target.hostname);
+              return new Response("Invalid redirect target", { status: 400 });
+            }
+          } catch {
+            console.warn("Invalid redirect URL:", rawRedirectUrl);
+            return new Response("Invalid redirect URL", { status: 400 });
+          }
+        }
 
         // Update recipient clicked_at
         await supabaseAdmin
@@ -97,10 +116,10 @@ serve(async (req) => {
           }
         }
 
-        // 302 redirect to actual URL
+        // 302 redirect to validated URL
         return new Response(null, {
           status: 302,
-          headers: { Location: decodeURIComponent(redirectUrl) },
+          headers: { Location: safeRedirectUrl },
         });
       }
 
