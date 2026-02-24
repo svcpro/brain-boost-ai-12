@@ -42,11 +42,11 @@ export const MagicLinkEmail = ({
         <Hr style={divider} />
         <Heading style={h1}>Your Login Code ⚡</Heading>
         <Text style={text}>
-          Use this 8-digit code to sign in to ACRY. It expires shortly, so enter it now.
+          Use this 6-digit code to sign in to ACRY. It expires shortly, so enter it now.
         </Text>
         <Section style={ctaSection}>
           <div style={otpContainer}>
-            {(token || '--------').split('').map((digit, i) => (
+            {(token || '------').split('').map((digit, i) => (
               <span key={i} style={otpDigit}>{digit}</span>
             ))}
           </div>

@@ -51,9 +51,9 @@ export const SignupEmail = ({
           Confirm your email (<Link href={`mailto:${recipient}`} style={link}>{recipient}</Link>) to get started.
         </Text>
         <Section style={ctaSection}>
-          <Text style={otpLabel}>Your 8-digit verification code:</Text>
+          <Text style={otpLabel}>Your 6-digit verification code:</Text>
           <div style={otpContainer}>
-            {(token || '--------').split('').map((digit: string, i: number) => (
+            {(token || '------').split('').map((digit: string, i: number) => (
               <span key={i} style={otpDigit}>{digit}</span>
             ))}
           </div>

@@ -16,7 +16,7 @@ const AuthPage = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState(["", "", "", "", "", "", "", ""]);
+  const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,7 +37,7 @@ const AuthPage = () => {
       });
       if (error) throw error;
       setOtpSent(true);
-      toast({ title: "OTP Sent!", description: "Check your email for the 8-digit code." });
+      toast({ title: "OTP Sent!", description: "Check your email for the 6-digit code." });
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -48,8 +48,8 @@ const AuthPage = () => {
 
   const handleVerifyOtp = async () => {
     const token = otpCode.join("");
-    if (token.length !== 8) {
-      toast({ title: "Enter the full 8-digit code", variant: "destructive" });
+    if (token.length !== 6) {
+      toast({ title: "Enter the full 6-digit code", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -69,7 +69,7 @@ const AuthPage = () => {
     const newCode = [...otpCode];
     newCode[index] = value.slice(-1);
     setOtpCode(newCode);
-    if (value && index < 7) {
+    if (value && index < 5) {
       otpRefs.current[index + 1]?.focus();
     }
   };
@@ -82,13 +82,13 @@ const AuthPage = () => {
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     const newCode = [...otpCode];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
       newCode[i] = pasted[i] || "";
     }
     setOtpCode(newCode);
-    const nextEmpty = pasted.length < 8 ? pasted.length : 7;
+    const nextEmpty = pasted.length < 6 ? pasted.length : 5;
     otpRefs.current[nextEmpty]?.focus();
   };
 
@@ -337,7 +337,7 @@ const AuthPage = () => {
                 ) : (
                   <>
                     <p className="text-[11px] text-center" style={{ color: "#ffffff60" }}>
-                      Enter the 8-digit code sent to <span style={{ color: "#00E5FFcc" }}>{email}</span>
+                      Enter the 6-digit code sent to <span style={{ color: "#00E5FFcc" }}>{email}</span>
                     </p>
                     <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
                       {otpCode.map((digit, i) => (
@@ -350,7 +350,7 @@ const AuthPage = () => {
                           value={digit}
                           onChange={(e) => handleOtpChange(i, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                          className="w-9 h-10 rounded-lg text-center text-sm font-semibold focus:outline-none transition-all"
+                          className="w-10 h-11 rounded-lg text-center text-base font-semibold focus:outline-none transition-all"
                           style={{
                             background: "#ffffff08",
                             border: digit ? "1px solid #00E5FF40" : "1px solid #ffffff15",
@@ -365,7 +365,7 @@ const AuthPage = () => {
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       onClick={handleVerifyOtp}
-                      disabled={loading || otpCode.join("").length !== 8}
+                      disabled={loading || otpCode.join("").length !== 6}
                       className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
                       style={{
                         background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
@@ -378,7 +378,7 @@ const AuthPage = () => {
                     <div className="flex items-center justify-between">
                       <button
                         type="button"
-                        onClick={() => { setOtpSent(false); setOtpCode(["","","","","","","",""]); }}
+                        onClick={() => { setOtpSent(false); setOtpCode(["","","","","",""]); }}
                         className="text-[10px] hover:underline" style={{ color: "#ffffff40" }}
                       >
                         ← Change email
