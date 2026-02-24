@@ -9,7 +9,7 @@ import AdminMFAVerify from "@/components/admin/AdminMFAVerify";
 import AdminMFASetup from "@/components/admin/AdminMFASetup";
 
 const AdminLogin = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -20,13 +20,16 @@ const AdminLogin = () => {
   const [step, setStep] = useState<"login" | "mfa_verify" | "mfa_setup">("login");
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [autoChecking, setAutoChecking] = useState(false);
 
   // If user is already logged in, check admin role and MFA
   useEffect(() => {
+    if (authLoading) return;
     if (user) {
-      checkAdminAndMFA();
+      setAutoChecking(true);
+      checkAdminAndMFA().finally(() => setAutoChecking(false));
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const checkAdminAndMFA = async () => {
     if (!user) return;
@@ -130,6 +133,15 @@ const AdminLogin = () => {
 
   if (step === "mfa_setup") {
     return <AdminMFASetup onComplete={() => setStep("mfa_verify")} />;
+  }
+
+  // Show loading while auto-detecting an already logged-in user
+  if (authLoading || autoChecking) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
