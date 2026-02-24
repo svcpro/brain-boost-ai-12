@@ -349,7 +349,7 @@ const MomentumSection = ({
 
         {/* ── Bottom row: Rank Badge + Risk Shield ── */}
         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/30">
-          {/* 3. Rank Percentile Badge */}
+        {/* 3. Today's Progress */}
           <motion.div
             className="rounded-xl bg-secondary/40 p-3 text-center relative overflow-hidden"
             whileHover={{ scale: 1.02 }}
@@ -359,30 +359,29 @@ const MomentumSection = ({
               {animateBoost && (
                 <motion.div
                   initial={{ opacity: 0 }} animate={{ opacity: 0.2 }} exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-warning/20 pointer-events-none"
+                  className="absolute inset-0 bg-primary/20 pointer-events-none"
                 />
               )}
             </AnimatePresence>
-            <Trophy className="w-4 h-4 text-warning mx-auto mb-1" />
+            <Zap className="w-4 h-4 text-primary mx-auto mb-1" />
             <motion.p
-              key={rankPredicted}
+              key={todayMinutes}
               initial={{ y: animateBoost ? 10 : 0, opacity: animateBoost ? 0 : 1 }}
               animate={{ y: 0, opacity: 1 }}
               className="text-lg font-bold text-foreground tabular-nums"
             >
-              {rankPredicted ? `#${rankPredicted.toLocaleString()}` : "—"}
+              {todayMinutes}<span className="text-[10px] font-normal text-muted-foreground">/{goalMinutes}m</span>
             </motion.p>
-            {rankDelta !== null && rankDelta !== 0 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className={`text-[9px] font-semibold ${rankDelta > 0 ? "text-success" : "text-destructive"}`}
-              >
-                {rankDelta > 0 ? `↑${rankDelta}` : `↓${Math.abs(rankDelta)}`}
-              </motion.span>
-            )}
-            <p className="text-[9px] text-muted-foreground mt-0.5">
-              {rankPercentile ? `Top ${rankPercentile}%` : "Rank"}
+            <div className="w-full h-1 rounded-full bg-secondary mt-1.5 overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-primary"
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min((todayMinutes / goalMinutes) * 100, 100)}%` }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
+            </div>
+            <p className="text-[9px] text-muted-foreground mt-1">
+              {todayMet ? "Goal reached! 🎉" : "Today's study"}
             </p>
           </motion.div>
 
