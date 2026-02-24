@@ -21,6 +21,7 @@ interface SignupEmailProps {
   siteUrl: string
   recipient: string
   confirmationUrl: string
+  token?: string
 }
 
 export const SignupEmail = ({
@@ -28,6 +29,7 @@ export const SignupEmail = ({
   siteUrl,
   recipient,
   confirmationUrl,
+  token,
 }: SignupEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
@@ -49,9 +51,13 @@ export const SignupEmail = ({
           Confirm your email (<Link href={`mailto:${recipient}`} style={link}>{recipient}</Link>) to get started.
         </Text>
         <Section style={ctaSection}>
-          <Button style={button} href={confirmationUrl}>
-            Get Started →
-          </Button>
+          <Text style={otpLabel}>Your 6-digit verification code:</Text>
+          <div style={otpContainer}>
+            {(token || '------').split('').map((digit: string, i: number) => (
+              <span key={i} style={otpDigit}>{digit}</span>
+            ))}
+          </div>
+          <Text style={otpExpiry}>This code expires in 10 minutes</Text>
         </Section>
         <Text style={footer}>
           Didn't create an ACRY account? Just ignore this email — no action needed.
@@ -93,4 +99,20 @@ const button = {
   padding: '14px 32px',
   textDecoration: 'none',
 }
+const otpLabel: React.CSSProperties = { fontSize: '13px', color: '#555570', margin: '0 0 12px', textAlign: 'center' }
+const otpContainer: React.CSSProperties = { display: 'flex', justifyContent: 'center', gap: '8px', margin: '0 auto 12px' }
+const otpDigit: React.CSSProperties = {
+  display: 'inline-block',
+  width: '40px',
+  height: '48px',
+  lineHeight: '48px',
+  textAlign: 'center',
+  fontSize: '22px',
+  fontWeight: 800,
+  color: '#00BCD4',
+  background: 'linear-gradient(135deg, #0B0F1A, #141832)',
+  borderRadius: '10px',
+  border: '1px solid rgba(0, 188, 212, 0.3)',
+}
+const otpExpiry: React.CSSProperties = { fontSize: '11px', color: '#999999', textAlign: 'center', margin: '0' }
 const footer = { fontSize: '12px', color: '#999999', margin: '24px 0 0' }
