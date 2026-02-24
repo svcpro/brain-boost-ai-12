@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Mail, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/splash/SplashScreen";
 import { useInstitution } from "@/contexts/InstitutionContext";
@@ -14,9 +14,6 @@ const AuthPage = () => {
   const [showSplash, setShowSplash] = useState(showSplashParam);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
@@ -101,45 +98,6 @@ const AuthPage = () => {
     );
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      // Signup only (password)
-      const { error, data } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { display_name: displayName } },
-      });
-      if (error) throw error;
-      if (data.user) {
-        supabase.functions.invoke("send-branded-auth-email", {
-          body: { type: "confirm", email, user_id: data.user.id, redirect_to: `${window.location.origin}/app` },
-        }).catch(() => {});
-      }
-      toast({ title: "Check your email", description: "We sent you a confirmation link to verify your account." });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      toast({ title: "Enter your email first", variant: "destructive" });
-      return;
-    }
-    try {
-      const { error } = await supabase.functions.invoke("send-branded-auth-email", {
-        body: { type: "reset", email, redirect_to: `${window.location.origin}/reset-password` },
-      });
-      if (error) throw error;
-      toast({ title: "📧 Reset email sent!", description: "Check your inbox for the password reset link." });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to send reset email", variant: "destructive" });
-    }
-  };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center"
@@ -336,9 +294,8 @@ const AuthPage = () => {
           }}
         >
           <AnimatePresence mode="wait">
-            {isLogin ? (
               <motion.div
-                key="otp-form"
+                key={`otp-form-${isLogin}`}
                 initial={{ opacity: 0, x: 15 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -15 }}
@@ -433,71 +390,6 @@ const AuthPage = () => {
                   </>
                 )}
               </motion.div>
-            ) : (
-              <motion.form
-                key="signup"
-                initial={{ opacity: 0, x: 15 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -15 }}
-                transition={{ duration: 0.2 }}
-                onSubmit={handleSubmit}
-                className="space-y-2.5"
-              >
-                <motion.div className="relative" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
-                  <input
-                    type="text" placeholder="Display name" value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="w-full rounded-xl pl-10 pr-3 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
-                    style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                    onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
-                    onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
-                    required
-                  />
-                </motion.div>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
-                  <input
-                    type="email" placeholder="Email address" value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl pl-10 pr-3 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
-                    style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                    onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
-                    onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
-                    required
-                  />
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
-                  <input
-                    type={showPassword ? "text" : "password"} placeholder="Password" value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl pl-10 pr-10 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
-                    style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                    onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
-                    onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
-                    required minLength={6}
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: "#ffffff30" }}
-                  >
-                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  type="submit" disabled={loading}
-                  className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
-                  style={{
-                    background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
-                    color: "#0B0F1A",
-                    boxShadow: "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
-                  }}
-                >
-                  {loading ? "Please wait..." : "Create Account"}
-                </motion.button>
-              </motion.form>
-            )}
           </AnimatePresence>
         </motion.div>
 
