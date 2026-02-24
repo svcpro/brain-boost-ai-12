@@ -33,9 +33,15 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         }
         setIsAdmin(true);
 
-        // Check MFA AAL level
-        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        setHasMFA(aal?.currentLevel === "aal2");
+        // OAuth users (Google, Apple) bypass MFA — provider-level auth is sufficient
+        const provider = user.app_metadata?.provider;
+        if (provider && provider !== "email") {
+          setHasMFA(true);
+        } else {
+          // Email/password users require MFA aal2
+          const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          setHasMFA(aal?.currentLevel === "aal2");
+        }
 
         // Auto session expiry timer
         const loginTime = sessionStorage.getItem("admin_login_time");
