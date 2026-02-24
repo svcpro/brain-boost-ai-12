@@ -343,7 +343,11 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
   return (
     <div className="px-5 py-6 space-y-5 max-w-lg mx-auto overflow-x-hidden">
-      {/* ─── SECTION 1: Hero Brain Stability Score — Ultra Animated ─── */}
+
+      {/* ══════════════════════════════════════════════════════════════
+           SECTION 1: HERO — Brain Health Score + Key Stats
+           Purpose: "How am I doing right now?"
+         ══════════════════════════════════════════════════════════════ */}
       <motion.section
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -386,7 +390,6 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             onClick={() => onNavigateToYou?.()}
             className="relative w-12 h-12 shrink-0"
           >
-            {/* Animated glow ring behind avatar */}
             <motion.div
               className="absolute -inset-1 rounded-full"
               style={{
@@ -396,9 +399,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               animate={{ rotate: [0, 360] }}
               transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
             />
-            {/* Inner border mask */}
             <div className="absolute inset-[2px] rounded-full bg-card" />
-            {/* Avatar content */}
             <div className="relative w-full h-full rounded-full overflow-hidden" style={{ boxShadow: `0 0 16px hsl(var(--primary)/0.2)` }}>
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
@@ -408,19 +409,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                 </div>
               )}
             </div>
-            {/* Animated online status dot with pulse rings */}
             <div className="absolute -bottom-0.5 -right-0.5 z-10">
               <motion.div
                 className="absolute inset-0 w-4 h-4 rounded-full"
                 style={{ background: "hsl(var(--success)/0.3)" }}
                 animate={{ scale: [1, 2.2, 1], opacity: [0.6, 0, 0.6] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
-              />
-              <motion.div
-                className="absolute inset-0 w-4 h-4 rounded-full"
-                style={{ background: "hsl(var(--success)/0.2)" }}
-                animate={{ scale: [1, 1.8, 1], opacity: [0.4, 0, 0.4] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.4 }}
               />
               <motion.div
                 className="relative w-4 h-4 rounded-full border-[2.5px] border-card"
@@ -433,51 +427,26 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           <div className="text-left">
             <p className="text-[10px] text-muted-foreground">{greeting}</p>
             {userName && (
-              <motion.p
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-sm font-extrabold text-foreground"
-              >
+              <motion.p initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="text-sm font-extrabold text-foreground">
                 {userName}
               </motion.p>
             )}
           </div>
-          {/* Sparkle icon */}
-          <motion.div
-            className="ml-auto"
-            animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.15, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          >
+          <motion.div className="ml-auto" animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.15, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
             <Sparkles className="w-5 h-5 text-primary" style={{ filter: "drop-shadow(0 0 6px hsl(var(--primary)/0.5))" }} />
           </motion.div>
         </div>
 
-        {/* Circular progress — with glow ring */}
+        {/* Circular progress with glow */}
         <div className="relative z-10 mx-auto w-40 h-40 mb-4">
-          {/* Outer glow ring */}
           <motion.div
             className="absolute inset-[-6px] rounded-full pointer-events-none"
             style={{ border: `2px solid ${healthColor}`, opacity: 0.15 }}
             animate={{ scale: [1, 1.04, 1], opacity: [0.1, 0.25, 0.1] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           />
-          {/* Orbiting particle */}
-          <motion.div
-            className="absolute w-2 h-2 rounded-full pointer-events-none"
-            style={{ background: healthColor, boxShadow: `0 0 8px ${healthColor}`, top: "50%", left: "50%", marginTop: "-4px", marginLeft: "-4px" }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-            // Position the particle on the orbit
-          >
-            <motion.div
-              style={{ transform: "translateY(-76px)" }}
-              className="w-2 h-2 rounded-full"
-            />
-          </motion.div>
           <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
             <circle cx="70" cy="70" r="58" fill="none" stroke="hsl(var(--border))" strokeWidth="6" strokeOpacity="0.3" />
-            {/* Secondary track glow */}
             <motion.circle
               cx="70" cy="70" r="58" fill="none"
               stroke={healthColor}
@@ -505,16 +474,14 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               animate={{ opacity: 1 }}
               transition={{ delay: 0.9 }}
               className="text-[10px] font-semibold mt-0.5 px-2 py-0.5 rounded-full"
-              style={{
-                background: `${healthColor}15`,
-                color: healthColor,
-              }}
+              style={{ background: `${healthColor}15`, color: healthColor }}
             >
               {hasTopics ? healthLabel : "No data yet"}
             </motion.span>
           </div>
         </div>
 
+        {/* SurePass CTA */}
         <div className="relative z-10 flex items-center justify-center gap-3">
           <motion.button
             onClick={() => setSafePassOpen(true)}
@@ -528,7 +495,6 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               <ArrowRight className="w-3 h-3 text-primary" />
             </motion.div>
           </motion.button>
-          {/* Safe Pass Prediction Icon — Ultra animated */}
           <motion.button
             onClick={() => setSafePassOpen(true)}
             className="relative w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
@@ -547,14 +513,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
-            {/* Orbiting ring */}
             <motion.div
               className="absolute inset-[-4px] rounded-full pointer-events-none"
               style={{ border: "1.5px dashed hsl(var(--success)/0.35)" }}
               animate={{ rotate: 360 }}
               transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
             />
-            {/* Multi-color pulsing dot */}
             <motion.div
               className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
               style={{ background: "hsl(var(--success))", boxShadow: "0 0 6px hsl(var(--success)/0.6)" }}
@@ -565,7 +529,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           </motion.button>
         </div>
 
-        {/* Mini stats row — with animated icons */}
+        {/* Key stats: Rank / Streak / Exam */}
         {hasTopics && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -573,64 +537,37 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             transition={{ delay: 0.8 }}
             className="relative z-10 grid grid-cols-3 gap-2.5 mt-5"
           >
-            {/* Rank */}
             <motion.div
               className="rounded-2xl p-3 border backdrop-blur-md"
-              style={{
-                background: "hsl(var(--card)/0.7)",
-                borderColor: "hsl(var(--primary)/0.15)",
-                boxShadow: "0 0 12px hsl(var(--primary)/0.05)",
-              }}
+              style={{ background: "hsl(var(--card)/0.7)", borderColor: "hsl(var(--primary)/0.15)", boxShadow: "0 0 12px hsl(var(--primary)/0.05)" }}
               whileHover={{ scale: 1.03, boxShadow: "0 0 20px hsl(var(--primary)/0.15)" }}
             >
-              <motion.div
-                animate={{ rotate: [0, 8, -8, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="flex justify-center mb-1"
-              >
+              <motion.div animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="flex justify-center mb-1">
                 <TrendingUp className="w-4 h-4 text-primary" style={{ filter: "drop-shadow(0 0 6px hsl(var(--primary)/0.5))" }} />
               </motion.div>
-              <div className="flex items-center justify-center gap-1">
-              <p className="text-lg font-black text-foreground tabular-nums">
-                  {rankV2Data?.predicted_rank ? `#${rankV2Data.predicted_rank.toLocaleString()}` : "—"}
-                </p>
-              </div>
+              <p className="text-lg font-black text-foreground tabular-nums text-center">
+                {rankV2Data?.predicted_rank ? `#${rankV2Data.predicted_rank.toLocaleString()}` : "—"}
+              </p>
               {rankV2Data?.trend && rankV2Data.trend !== "stable" && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className={`text-[9px] font-bold block text-center ${rankV2Data.trend === "rising" ? "text-success" : "text-destructive"}`}
-                >
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className={`text-[9px] font-bold block text-center ${rankV2Data.trend === "rising" ? "text-success" : "text-destructive"}`}>
                   {rankV2Data.trend === "rising" ? "↑ Rising" : "↓ Falling"}
                 </motion.span>
               )}
               <p className="text-[9px] text-muted-foreground text-center mt-0.5">Rank</p>
             </motion.div>
 
-            {/* Streak */}
             <motion.div
               className="rounded-2xl p-3 border backdrop-blur-md"
-              style={{
-                background: "hsl(var(--card)/0.7)",
-                borderColor: "hsl(var(--warning)/0.15)",
-                boxShadow: "0 0 12px hsl(var(--warning)/0.05)",
-              }}
+              style={{ background: "hsl(var(--card)/0.7)", borderColor: "hsl(var(--warning)/0.15)", boxShadow: "0 0 12px hsl(var(--warning)/0.05)" }}
               whileHover={{ scale: 1.03, boxShadow: "0 0 20px hsl(var(--warning)/0.15)" }}
             >
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="flex justify-center mb-1"
-              >
+              <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="flex justify-center mb-1">
                 <Flame className="w-4 h-4 text-warning" style={{ filter: "drop-shadow(0 0 6px hsl(var(--warning)/0.6))" }} />
               </motion.div>
-              <p className="text-lg font-black text-foreground tabular-nums text-center">
-                {streakData?.currentStreak ?? 0}
-              </p>
+              <p className="text-lg font-black text-foreground tabular-nums text-center">{streakData?.currentStreak ?? 0}</p>
               <p className="text-[9px] text-muted-foreground text-center mt-0.5">Streak 🔥</p>
             </motion.div>
 
-            {/* Exam countdown */}
             <motion.div
               className="rounded-2xl p-3 border backdrop-blur-md"
               style={{
@@ -641,9 +578,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               whileHover={{ scale: 1.03 }}
             >
               <motion.div
-                animate={examDaysLeft !== null && examDaysLeft <= 7
-                  ? { scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }
-                  : { rotate: [0, 5, -5, 0] }}
+                animate={examDaysLeft !== null && examDaysLeft <= 7 ? { scale: [1, 1.3, 1], opacity: [1, 0.5, 1] } : { rotate: [0, 5, -5, 0] }}
                 transition={{ duration: examDaysLeft !== null && examDaysLeft <= 7 ? 1 : 3, repeat: Infinity }}
                 className="flex justify-center mb-1"
               >
@@ -661,56 +596,51 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           </motion.div>
         )}
 
-        {/* Exam Readiness & Consistency micro-bar */}
+        {/* Consistency & Decay Shield bars */}
         {hasTopics && rankData?.factors && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1 }}
-              className="relative z-10 grid grid-cols-2 gap-2.5 mt-3"
-            >
-              <div className="rounded-xl bg-card/50 backdrop-blur-sm p-2.5 border border-primary/10">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1">
-                    <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }}>
-                      <Target className="w-3 h-3 text-primary" style={{ filter: "drop-shadow(0 0 3px hsl(var(--primary)/0.4))" }} />
-                    </motion.div>
-                    <span className="text-[8px] text-muted-foreground">Consistency</span>
-                  </div>
-                  <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.consistency_score ?? 0}%</span>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="relative z-10 grid grid-cols-2 gap-2.5 mt-3">
+            <div className="rounded-xl bg-card/50 backdrop-blur-sm p-2.5 border border-primary/10">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }}>
+                    <Target className="w-3 h-3 text-primary" style={{ filter: "drop-shadow(0 0 3px hsl(var(--primary)/0.4))" }} />
+                  </motion.div>
+                  <span className="text-[8px] text-muted-foreground">Consistency</span>
                 </div>
-                <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary)/0.7))", boxShadow: "0 0 8px hsl(var(--primary)/0.3)" }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${rankData.factors.consistency_score ?? 0}%` }}
-                    transition={{ duration: 1.2, delay: 1.2, ease: "easeOut" }}
-                  />
-                </div>
+                <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.consistency_score ?? 0}%</span>
               </div>
-              <div className="rounded-xl bg-card/50 backdrop-blur-sm p-2.5 border border-success/10">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1">
-                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                      <Shield className="w-3 h-3 text-success" style={{ filter: "drop-shadow(0 0 3px hsl(var(--success)/0.4))" }} />
-                    </motion.div>
-                    <span className="text-[8px] text-muted-foreground">Decay Shield</span>
-                  </div>
-                  <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.decay_velocity_score ?? 0}%</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: "linear-gradient(90deg, hsl(var(--success)), hsl(var(--success)/0.7))", boxShadow: "0 0 8px hsl(var(--success)/0.3)" }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${rankData.factors.decay_velocity_score ?? 0}%` }}
-                    transition={{ duration: 1.2, delay: 1.3, ease: "easeOut" }}
-                  />
-                </div>
+              <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary)/0.7))", boxShadow: "0 0 8px hsl(var(--primary)/0.3)" }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${rankData.factors.consistency_score ?? 0}%` }}
+                  transition={{ duration: 1.2, delay: 1.2, ease: "easeOut" }}
+                />
               </div>
-            </motion.div>
-          )}
+            </div>
+            <div className="rounded-xl bg-card/50 backdrop-blur-sm p-2.5 border border-success/10">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+                    <Shield className="w-3 h-3 text-success" style={{ filter: "drop-shadow(0 0 3px hsl(var(--success)/0.4))" }} />
+                  </motion.div>
+                  <span className="text-[8px] text-muted-foreground">Decay Shield</span>
+                </div>
+                <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.decay_velocity_score ?? 0}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: "linear-gradient(90deg, hsl(var(--success)), hsl(var(--success)/0.7))", boxShadow: "0 0 8px hsl(var(--success)/0.3)" }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${rankData.factors.decay_velocity_score ?? 0}%` }}
+                  transition={{ duration: 1.2, delay: 1.3, ease: "easeOut" }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Device sync + Refresh */}
         <div className="relative z-10 flex items-center justify-center gap-3 mt-4">
@@ -723,28 +653,20 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             disabled={analyzing}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.9 }}
-            className="relative z-10 mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors border border-border/30 hover:border-primary/20 backdrop-blur-sm"
-            style={{ background: "hsl(var(--card)/0.5)" }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full transition-all disabled:opacity-50"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--primary)/0.08))",
+              border: "1px solid hsl(var(--primary)/0.2)",
+              boxShadow: "0 2px 8px hsl(var(--primary)/0.1)",
+            }}
           >
-            <motion.div animate={analyzing ? { rotate: 360 } : {}} transition={{ duration: 1, repeat: analyzing ? Infinity : 0, ease: "linear" }}>
-              <RefreshCw className="w-3 h-3" />
-            </motion.div>
-            {analyzing ? "Updating…" : "Refresh brain"}
+            <RefreshCw className={`w-3.5 h-3.5 text-primary ${analyzing ? "animate-spin" : ""}`} />
+            <span className="text-[10px] font-semibold text-primary">{analyzing ? "Analyzing…" : "Refresh AI"}</span>
           </motion.button>
         </div>
       </motion.section>
 
-      {/* AI Autopilot — hidden */}
-      {/* <SectionErrorBoundary name="Autopilot">
-        <Suspense fallback={null}>
-          <AutopilotWidget />
-        </Suspense>
-      </SectionErrorBoundary> */}
-
-      {/* Trial banner */}
-      <TrialBanner />
-
-      {/* Analysis progress */}
+      {/* AI Analysis progress overlay */}
       <AnimatePresence>
         {analyzing && (
           <motion.div
@@ -776,12 +698,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* First-visit welcome */}
       <AnimatePresence>
         {showWelcomeCard && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="rounded-2xl border border-primary/20 bg-primary/5 p-4"
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
             <div className="flex items-center gap-3">
               <Brain className="w-8 h-8 text-primary shrink-0" />
               <div className="flex-1">
@@ -794,8 +711,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         )}
       </AnimatePresence>
 
-
-      {/* Exam urgency banner */}
+      {/* Exam urgency banner (contextual — only when ≤3 days) */}
       {examDaysLeft !== null && examDaysLeft <= 3 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
           <div className="flex items-start gap-3">
@@ -812,27 +728,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </motion.div>
       )}
 
-      {/* Burnout Warning */}
-      {isEnabled('home_burnout_warning') && burnoutData && burnoutData.burnout_score >= 40 && (
-        <SectionErrorBoundary name="burnout">
-        <PlanGateWrapper featureKey="burnout_warning">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`rounded-2xl border p-4 ${burnoutData.risk_level === "high" ? "border-destructive/30 bg-destructive/5" : "border-warning/30 bg-warning/5"}`}>
-            <div className="flex items-center gap-2">
-              <Flame className={`w-4 h-4 ${burnoutData.risk_level === "high" ? "text-destructive" : "text-warning"}`} />
-              <span className="text-sm font-semibold text-foreground">{burnoutData.risk_level === "high" ? "⚠️ High Burnout Risk" : "Moderate Fatigue"}</span>
-              <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${burnoutData.risk_level === "high" ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"}`}>{burnoutData.burnout_score}/100</span>
-            </div>
-            {Array.isArray(burnoutData.recommendations) && burnoutData.recommendations.slice(0, 2).map((tip, i) => (
-              <p key={i} className="text-xs text-muted-foreground mt-1.5">• {typeof tip === 'string' ? tip : JSON.stringify(tip)}</p>
-            ))}
-          </motion.div>
-        </PlanGateWrapper>
-        </SectionErrorBoundary>
-      )}
+      {/* Trial Banner */}
+      <TrialBanner />
 
-      {/* Auto-Detected Study — removed, replaced by fully autonomous AI tracking */}
-
-      {/* ─── SECTION 2: Today's Mission (AI-Powered Single Action) ─── */}
+      {/* ══════════════════════════════════════════════════════════════
+           SECTION 2: TODAY'S MISSION — Single Clear Action
+           Purpose: "What should I do RIGHT NOW?"
+         ══════════════════════════════════════════════════════════════ */}
       <SectionErrorBoundary name="todays-mission">
         <TodaysMission
           hasTopics={hasTopics}
@@ -842,22 +744,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         />
       </SectionErrorBoundary>
 
-      {/* ─── v7.0: Precision Intelligence Score (compact) ─── */}
-      <SectionErrorBoundary name="precision-score">
-        <Suspense fallback={null}>
-          <PrecisionIntelligenceCard compact />
-        </Suspense>
-      </SectionErrorBoundary>
-
-      {/* <SectionErrorBoundary name="voice-brain-capture">
-        <VoiceBrainCapture onSuccess={async () => { await predict(); setInsightsRefreshKey(k => k + 1); }} />
-      </SectionErrorBoundary> */}
-      {/* ─── SECTION 2.6: Brain Feed (Second Brain Feed) ─── */}
-      {/* <BrainFeed hasTopics={hasTopics} /> */}
-
-      {/* Debate & Writing Lab and 30-Day Accelerator hidden */}
-
-      {/* ─── SECTION 3: Quick Micro Actions ─── */}
+      {/* ══════════════════════════════════════════════════════════════
+           SECTION 3: QUICK ACTIONS — 3 One-Tap Power Tools
+           Purpose: "Smart Recall / Risk Shield / Rank Boost"
+         ══════════════════════════════════════════════════════════════ */}
       {hasTopics && (
         <SectionErrorBoundary name="quick-micro-actions">
           <QuickMicroActions
@@ -869,23 +759,12 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </SectionErrorBoundary>
       )}
 
-      {/* ─── SECTION 3.5: Brain Stability Control Center ─── */}
+      {/* ══════════════════════════════════════════════════════════════
+           SECTION 4: MOMENTUM — Progress & Streak Tracking
+           Purpose: "Am I improving?"
+         ══════════════════════════════════════════════════════════════ */}
       {hasTopics && (
-        <SectionErrorBoundary name="brain-stability">
-          <BrainStabilityControlCenter
-            atRisk={atRisk}
-            hasTopics={hasTopics}
-            overallHealth={overallHealth}
-            onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
-            onSurePassClick={() => setSafePassOpen(true)}
-          />
-        </SectionErrorBoundary>
-      )}
-
-      {/* ─── SECTION 4: Progress & Streak Momentum ─── */}
-      {hasTopics && (
-        <>
-          <SectionErrorBoundary name="momentum">
+        <SectionErrorBoundary name="momentum">
           <MomentumSection
             streakData={streakData}
             overallHealth={overallHealth}
@@ -893,113 +772,133 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             rankPercentile={rankData?.percentile ?? null}
             hasTopics={hasTopics}
           />
-          </SectionErrorBoundary>
-
-          {/* DailyGoalTracker hidden - consolidated into MomentumSection */}
-          {isEnabled('home_streak_milestone') && <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />}
-          {isEnabled('home_streak_recovery') && (
-            <StreakRecoveryCard
-              currentStreak={streakData?.currentStreak ?? 0}
-              longestStreak={streakData?.longestStreak ?? 0}
-              todayMet={streakData?.todayMet ?? false}
-              onStartRecovery={() => setRecoverySessionOpen(true)}
-            />
-          )}
-
-          {isEnabled('home_brain_missions') && <PlanGateWrapper featureKey="brain_missions"><BrainMissionsCard /></PlanGateWrapper>}
-        </>
+        </SectionErrorBoundary>
       )}
 
-      {/* ─── SECTION 5: Collapsible Deep Analytics ─── */}
+      {/* Streak celebrations (lightweight) */}
+      {hasTopics && isEnabled('home_streak_milestone') && <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />}
+
+      {/* ══════════════════════════════════════════════════════════════
+           SECTION 5: DEEP INSIGHTS — Collapsible Power Analytics
+           Purpose: "Details on demand for power users"
+         ══════════════════════════════════════════════════════════════ */}
       {hasTopics && (
         <SectionErrorBoundary name="deep-analytics">
-          <DeepAnalyticsSection
-            atRisk={atRisk}
-            allTopics={prediction?.topics || []}
-            overallHealth={overallHealth}
-            streakDays={streakData?.currentStreak ?? 0}
-            rankPredicted={rankData?.predicted_rank ?? null}
-            rankPercentile={rankData?.percentile ?? null}
-          />
-        </SectionErrorBoundary>
-      )}
-
-      {/* Additional analytics (feature-flagged) */}
-      {hasTopics && (
-        <SectionErrorBoundary name="analytics-widgets">
-          <div className="space-y-3">
-            {/* AIRiskReductionEngine hidden — functionality consolidated into MomentumSection */}
-            {/* AutoStudySummaryCard moved above Today's Mission */}
-            {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
-            {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
-            {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
-            {isEnabled('home_recently_studied') && <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />}
-            {isEnabled('home_daily_tip') && <DailyStudyTip />}
-            {isEnabled('home_weekly_reminder') && <PlanGateWrapper featureKey="weekly_reminder"><WeeklyReminderSummary /></PlanGateWrapper>}
-            {isEnabled('home_study_insights') && (
-              <PlanGateWrapper featureKey="study_insights">
-                <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => { setInsightReviewSubject(subject); setInsightReviewTopic(topic); }} />
-              </PlanGateWrapper>
-            )}
-            {isEnabled('home_review_queue') && <PlanGateWrapper featureKey="review_queue"><ReviewQueue /></PlanGateWrapper>}
-            {isEnabled('home_rl_policy') && <PlanGateWrapper featureKey="rl_policy"><RLPolicyCard /></PlanGateWrapper>}
-            {isEnabled('home_recommendations') && recommendations.length > 0 && (
-              <PlanGateWrapper featureKey="ai_recommendations">
-                <div ref={recsRef} className="rounded-2xl border border-border bg-card p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Brain className="w-4 h-4 text-primary" />
-                    <h2 className="font-semibold text-foreground text-sm">AI Recommendations</h2>
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm hover:border-primary/20 transition-all group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--primary)/0.05))" }}>
+                    <BarChart3 className="w-4 h-4 text-primary" />
                   </div>
-                  <div className="space-y-2">
-                    {recommendations.map((rec: any) => (
-                      <motion.div
-                        key={rec.id}
-                        whileTap={{ scale: 0.96 }}
-                        onClick={async () => {
-                          if (navigator.vibrate) navigator.vibrate(20);
-                          const el = document.getElementById(`rec-${rec.id}`);
-                          if (el) { el.style.transition = "all 0.4s ease"; el.style.opacity = "0"; el.style.transform = "translateX(60px) scale(0.95)"; }
-                          await new Promise((r) => setTimeout(r, 350));
-                          await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
-                          loadRecommendations();
-                          triggerHaptic(30);
-                          toast({
-                            title: "✅ Done!",
-                            description: String(rec.title || ""),
-                            action: React.createElement(ToastAction, {
-                              altText: "Undo",
-                              className: "px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold",
-                              onClick: async () => { await supabase.from("ai_recommendations").update({ completed: false }).eq("id", rec.id); loadRecommendations(); },
-                            }, "Undo") as any,
-                          });
-                        }}
-                        id={`rec-${rec.id}`}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 transition-all group"
-                      >
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${rec.priority === "critical" ? "bg-destructive animate-pulse" : rec.priority === "high" ? "bg-warning" : "bg-primary"}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-foreground font-medium truncate">{String(rec.title || "")}</p>
-                          <p className="text-[10px] text-muted-foreground capitalize">{String(rec.type || "")} • {String(rec.priority || "")}</p>
-                        </div>
-                        <CheckCircle className="w-4 h-4 text-muted-foreground/30 group-hover:text-success transition-colors shrink-0" />
-                      </motion.div>
-                    ))}
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-foreground">Deep Insights</p>
+                    <p className="text-[9px] text-muted-foreground">Analytics, predictions & AI intel</p>
                   </div>
                 </div>
-              </PlanGateWrapper>
-            )}
-          </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground group-data-[state=open]:rotate-180 transition-transform duration-300" />
+              </motion.button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-3 space-y-3"
+              >
+                {/* Precision Intelligence */}
+                <Suspense fallback={null}>
+                  <PrecisionIntelligenceCard compact />
+                </Suspense>
+
+                {/* Deep Analytics */}
+                <DeepAnalyticsSection
+                  atRisk={atRisk}
+                  allTopics={prediction?.topics || []}
+                  overallHealth={overallHealth}
+                  streakDays={streakData?.currentStreak ?? 0}
+                  rankPredicted={rankData?.predicted_rank ?? null}
+                  rankPercentile={rankData?.percentile ?? null}
+                />
+
+                {/* Feature-flagged extras */}
+                {isEnabled('home_brain_missions') && <PlanGateWrapper featureKey="brain_missions"><BrainMissionsCard /></PlanGateWrapper>}
+                {isEnabled('home_cognitive_embedding') && <PlanGateWrapper featureKey="cognitive_embedding"><CognitiveEmbeddingCard /></PlanGateWrapper>}
+                {isEnabled('home_risk_digest') && <PlanGateWrapper featureKey="risk_digest"><RiskDigestCard onStudyTopic={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)} /></PlanGateWrapper>}
+                {isEnabled('home_study_insights') && (
+                  <PlanGateWrapper featureKey="study_insights">
+                    <StudyInsights refreshKey={insightsRefreshKey} onReviewTopic={(topic, subject) => { setInsightReviewSubject(subject); setInsightReviewTopic(topic); }} />
+                  </PlanGateWrapper>
+                )}
+                {isEnabled('home_streak_recovery') && (
+                  <StreakRecoveryCard
+                    currentStreak={streakData?.currentStreak ?? 0}
+                    longestStreak={streakData?.longestStreak ?? 0}
+                    todayMet={streakData?.todayMet ?? false}
+                    onStartRecovery={() => setRecoverySessionOpen(true)}
+                  />
+                )}
+                {isEnabled('home_recently_studied') && <RecentlyStudied onQuickLog={() => handleRefresh()} analyzing={analyzing} />}
+                {isEnabled('home_daily_quote') && <PlanGateWrapper featureKey="daily_quote"><DailyQuote currentStreak={streakData?.currentStreak ?? 0} completionRate={latestCompletionRate} /></PlanGateWrapper>}
+                {isEnabled('home_review_queue') && <PlanGateWrapper featureKey="review_queue"><ReviewQueue /></PlanGateWrapper>}
+                {isEnabled('home_rl_policy') && <PlanGateWrapper featureKey="rl_policy"><RLPolicyCard /></PlanGateWrapper>}
+                {isEnabled('home_recommendations') && recommendations.length > 0 && (
+                  <PlanGateWrapper featureKey="ai_recommendations">
+                    <div ref={recsRef} className="rounded-2xl border border-border bg-card p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Brain className="w-4 h-4 text-primary" />
+                        <h2 className="font-semibold text-foreground text-sm">AI Recommendations</h2>
+                      </div>
+                      <div className="space-y-2">
+                        {recommendations.map((rec: any) => (
+                          <motion.div
+                            key={rec.id}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={async () => {
+                              if (navigator.vibrate) navigator.vibrate(20);
+                              const el = document.getElementById(`rec-${rec.id}`);
+                              if (el) { el.style.transition = "all 0.4s ease"; el.style.opacity = "0"; el.style.transform = "translateX(60px) scale(0.95)"; }
+                              await new Promise((r) => setTimeout(r, 350));
+                              await supabase.from("ai_recommendations").update({ completed: true }).eq("id", rec.id);
+                              loadRecommendations();
+                              triggerHaptic(30);
+                              toast({
+                                title: "✅ Done!",
+                                description: String(rec.title || ""),
+                                action: React.createElement(ToastAction, {
+                                  altText: "Undo",
+                                  className: "px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold",
+                                  onClick: async () => { await supabase.from("ai_recommendations").update({ completed: false }).eq("id", rec.id); loadRecommendations(); },
+                                }, "Undo") as any,
+                              });
+                            }}
+                            id={`rec-${rec.id}`}
+                            className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 transition-all group"
+                          >
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${rec.priority === "critical" ? "bg-destructive animate-pulse" : rec.priority === "high" ? "bg-warning" : "bg-primary"}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-foreground font-medium truncate">{String(rec.title || "")}</p>
+                              <p className="text-[10px] text-muted-foreground capitalize">{String(rec.type || "")} • {String(rec.priority || "")}</p>
+                            </div>
+                            <CheckCircle className="w-4 h-4 text-muted-foreground/30 group-hover:text-success transition-colors shrink-0" />
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </PlanGateWrapper>
+                )}
+              </motion.div>
+            </CollapsibleContent>
+          </Collapsible>
         </SectionErrorBoundary>
       )}
-
-      {/* Brain Update Hero — hidden, replaced by AutoStudySummaryCard */}
-      {/* {isEnabled('home_brain_update') && <BrainUpdateHero onOpen={() => openSignalWithPrefill()} overallHealth={overallHealth} hasTopics={hasTopics} />} */}
 
       {/* Weekly Summary */}
       {isEnabled('home_quick_start') && <WeeklySummaryNotification />}
-      
 
-      {/* Modals */}
+      {/* ─── Modals ─── */}
       <QuickStudySignalModal
         open={signalModalOpen}
         onClose={() => setSignalModalOpen(false)}
@@ -1027,7 +926,6 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         autoStart
       />
 
-      {/* Safe Pass Rank Prediction Popup */}
       <SafePassPopup
         open={safePassOpen}
         onClose={() => setSafePassOpen(false)}
