@@ -68,6 +68,75 @@ export type Database = {
         }
         Relationships: []
       }
+      adaptive_lock_config: {
+        Row: {
+          ab_traffic_split: number | null
+          ab_variant_a: string | null
+          ab_variant_b: string | null
+          base_lock_seconds: number
+          breathing_exercise_seconds: number
+          burnout_reduction_factor: number
+          cognitive_state_enabled: boolean
+          dopamine_replacement_enabled: boolean
+          exam_proximity_multiplier: number
+          high_risk_multiplier: number
+          id: string
+          impulse_delay_enabled: boolean
+          impulse_delay_type: string
+          intervention_ab_enabled: boolean
+          max_lock_seconds: number
+          min_lock_seconds: number
+          neural_discipline_enabled: boolean
+          prediction_threshold: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ab_traffic_split?: number | null
+          ab_variant_a?: string | null
+          ab_variant_b?: string | null
+          base_lock_seconds?: number
+          breathing_exercise_seconds?: number
+          burnout_reduction_factor?: number
+          cognitive_state_enabled?: boolean
+          dopamine_replacement_enabled?: boolean
+          exam_proximity_multiplier?: number
+          high_risk_multiplier?: number
+          id?: string
+          impulse_delay_enabled?: boolean
+          impulse_delay_type?: string
+          intervention_ab_enabled?: boolean
+          max_lock_seconds?: number
+          min_lock_seconds?: number
+          neural_discipline_enabled?: boolean
+          prediction_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ab_traffic_split?: number | null
+          ab_variant_a?: string | null
+          ab_variant_b?: string | null
+          base_lock_seconds?: number
+          breathing_exercise_seconds?: number
+          burnout_reduction_factor?: number
+          cognitive_state_enabled?: boolean
+          dopamine_replacement_enabled?: boolean
+          exam_proximity_multiplier?: number
+          high_risk_multiplier?: number
+          id?: string
+          impulse_delay_enabled?: boolean
+          impulse_delay_type?: string
+          intervention_ab_enabled?: boolean
+          max_lock_seconds?: number
+          min_lock_seconds?: number
+          neural_discipline_enabled?: boolean
+          prediction_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_logs: {
         Row: {
           action: string
@@ -495,6 +564,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      attention_predictions: {
+        Row: {
+          app_switch_velocity: number
+          cognitive_state: string
+          context: Json | null
+          distraction_probability: number
+          error_cluster_score: number
+          fatigue_level: number
+          id: string
+          impulse_score: number
+          intervention_stage: number | null
+          intervention_triggered: string | null
+          latency_spike_score: number
+          mock_frustration_score: number
+          model_version: string | null
+          predicted_at: string
+          time_of_day_risk: number
+          user_id: string
+        }
+        Insert: {
+          app_switch_velocity?: number
+          cognitive_state?: string
+          context?: Json | null
+          distraction_probability?: number
+          error_cluster_score?: number
+          fatigue_level?: number
+          id?: string
+          impulse_score?: number
+          intervention_stage?: number | null
+          intervention_triggered?: string | null
+          latency_spike_score?: number
+          mock_frustration_score?: number
+          model_version?: string | null
+          predicted_at?: string
+          time_of_day_risk?: number
+          user_id: string
+        }
+        Update: {
+          app_switch_velocity?: number
+          cognitive_state?: string
+          context?: Json | null
+          distraction_probability?: number
+          error_cluster_score?: number
+          fatigue_level?: number
+          id?: string
+          impulse_score?: number
+          intervention_stage?: number | null
+          intervention_triggered?: string | null
+          latency_spike_score?: number
+          mock_frustration_score?: number
+          model_version?: string | null
+          predicted_at?: string
+          time_of_day_risk?: number
+          user_id?: string
+        }
+        Relationships: []
       }
       autopilot_config: {
         Row: {
@@ -2032,6 +2158,42 @@ export type Database = {
           speed_pattern?: string | null
           total_answers_analyzed?: number | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cognitive_state_history: {
+        Row: {
+          confidence: number
+          duration_seconds: number | null
+          id: string
+          recorded_at: string
+          session_id: string | null
+          signals: Json | null
+          state: string
+          transition_from: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence?: number
+          duration_seconds?: number | null
+          id?: string
+          recorded_at?: string
+          session_id?: string | null
+          signals?: Json | null
+          state?: string
+          transition_from?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence?: number
+          duration_seconds?: number | null
+          id?: string
+          recorded_at?: string
+          session_id?: string | null
+          signals?: Json | null
+          state?: string
+          transition_from?: string | null
           user_id?: string
         }
         Relationships: []
@@ -3766,39 +3928,108 @@ export type Database = {
         }
         Relationships: []
       }
+      focus_interventions: {
+        Row: {
+          cognitive_state: string | null
+          context: Json | null
+          created_at: string
+          distraction_probability: number | null
+          id: string
+          intervention_stage: number
+          intervention_type: string
+          lock_duration_seconds: number | null
+          recall_passed: boolean | null
+          trigger_reason: string | null
+          user_id: string
+          user_response: string | null
+          was_effective: boolean | null
+        }
+        Insert: {
+          cognitive_state?: string | null
+          context?: Json | null
+          created_at?: string
+          distraction_probability?: number | null
+          id?: string
+          intervention_stage?: number
+          intervention_type?: string
+          lock_duration_seconds?: number | null
+          recall_passed?: boolean | null
+          trigger_reason?: string | null
+          user_id: string
+          user_response?: string | null
+          was_effective?: boolean | null
+        }
+        Update: {
+          cognitive_state?: string | null
+          context?: Json | null
+          created_at?: string
+          distraction_probability?: number | null
+          id?: string
+          intervention_stage?: number
+          intervention_type?: string
+          lock_duration_seconds?: number | null
+          recall_passed?: boolean | null
+          trigger_reason?: string | null
+          user_id?: string
+          user_response?: string | null
+          was_effective?: boolean | null
+        }
+        Relationships: []
+      }
       focus_shield_config: {
         Row: {
+          adaptive_lock_enabled: boolean
           auto_freeze_enabled: boolean
+          cognitive_classifier_enabled: boolean
           distraction_threshold: number
+          dopamine_replacement_enabled: boolean
           freeze_duration_seconds: number
           id: string
+          impulse_delay_enabled: boolean
           is_enabled: boolean
           max_warnings_before_freeze: number
           micro_recall_required: boolean
+          neural_discipline_enabled: boolean
+          prediction_enabled: boolean
+          prediction_threshold: number
           updated_at: string
           updated_by: string | null
           warning_cooldown_seconds: number
         }
         Insert: {
+          adaptive_lock_enabled?: boolean
           auto_freeze_enabled?: boolean
+          cognitive_classifier_enabled?: boolean
           distraction_threshold?: number
+          dopamine_replacement_enabled?: boolean
           freeze_duration_seconds?: number
           id?: string
+          impulse_delay_enabled?: boolean
           is_enabled?: boolean
           max_warnings_before_freeze?: number
           micro_recall_required?: boolean
+          neural_discipline_enabled?: boolean
+          prediction_enabled?: boolean
+          prediction_threshold?: number
           updated_at?: string
           updated_by?: string | null
           warning_cooldown_seconds?: number
         }
         Update: {
+          adaptive_lock_enabled?: boolean
           auto_freeze_enabled?: boolean
+          cognitive_classifier_enabled?: boolean
           distraction_threshold?: number
+          dopamine_replacement_enabled?: boolean
           freeze_duration_seconds?: number
           id?: string
+          impulse_delay_enabled?: boolean
           is_enabled?: boolean
           max_warnings_before_freeze?: number
           micro_recall_required?: boolean
+          neural_discipline_enabled?: boolean
+          prediction_enabled?: boolean
+          prediction_threshold?: number
           updated_at?: string
           updated_by?: string | null
           warning_cooldown_seconds?: number
@@ -5203,6 +5434,57 @@ export type Database = {
           rule_value?: Json
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      neural_discipline_scores: {
+        Row: {
+          brain_level_xp_earned: number
+          discipline_score: number
+          distractions_resisted: number
+          distractions_yielded: number
+          dopamine_rewards_earned: number
+          focus_streaks_completed: number
+          id: string
+          impulse_challenges_failed: number
+          impulse_challenges_passed: number
+          longest_focus_minutes: number
+          score_date: string
+          stability_boosts_earned: number
+          streak_multiplier: number
+          user_id: string
+        }
+        Insert: {
+          brain_level_xp_earned?: number
+          discipline_score?: number
+          distractions_resisted?: number
+          distractions_yielded?: number
+          dopamine_rewards_earned?: number
+          focus_streaks_completed?: number
+          id?: string
+          impulse_challenges_failed?: number
+          impulse_challenges_passed?: number
+          longest_focus_minutes?: number
+          score_date?: string
+          stability_boosts_earned?: number
+          streak_multiplier?: number
+          user_id: string
+        }
+        Update: {
+          brain_level_xp_earned?: number
+          discipline_score?: number
+          distractions_resisted?: number
+          distractions_yielded?: number
+          dopamine_rewards_earned?: number
+          focus_streaks_completed?: number
+          id?: string
+          impulse_challenges_failed?: number
+          impulse_challenges_passed?: number
+          longest_focus_minutes?: number
+          score_date?: string
+          stability_boosts_earned?: number
+          streak_multiplier?: number
+          user_id?: string
         }
         Relationships: []
       }
