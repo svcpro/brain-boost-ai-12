@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, KeyRound } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/splash/SplashScreen";
 import { useInstitution } from "@/contexts/InstitutionContext";
@@ -13,7 +13,6 @@ const AuthPage = () => {
   const showSplashParam = searchParams.get("splash") === "1";
   const [showSplash, setShowSplash] = useState(showSplashParam);
   const [isLogin, setIsLogin] = useState(true);
-  const [authMethod, setAuthMethod] = useState<"password" | "otp">("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -106,24 +105,19 @@ const AuthPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate("/app");
-      } else {
-        const { error, data } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { display_name: displayName } },
-        });
-        if (error) throw error;
-        if (data.user) {
-          supabase.functions.invoke("send-branded-auth-email", {
-            body: { type: "confirm", email, user_id: data.user.id, redirect_to: `${window.location.origin}/app` },
-          }).catch(() => {});
-        }
-        toast({ title: "Check your email", description: "We sent you a confirmation link to verify your account." });
+      // Signup only (password)
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: displayName } },
+      });
+      if (error) throw error;
+      if (data.user) {
+        supabase.functions.invoke("send-branded-auth-email", {
+          body: { type: "confirm", email, user_id: data.user.id, redirect_to: `${window.location.origin}/app` },
+        }).catch(() => {});
       }
+      toast({ title: "Check your email", description: "We sent you a confirmation link to verify your account." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -329,42 +323,6 @@ const AuthPage = () => {
           </AnimatePresence>
         </motion.div>
 
-        {/* Auth Method Tabs (only in login mode) */}
-        {isLogin && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.22 }}
-            className="flex gap-1.5 mx-5 mb-2 relative z-10 p-1 rounded-xl"
-            style={{ background: "#ffffff06", border: "1px solid #ffffff08" }}
-          >
-            <button
-              onClick={() => { setAuthMethod("password"); setOtpSent(false); setOtpCode(["","","","","",""]); }}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: authMethod === "password" ? "#ffffff10" : "transparent",
-                color: authMethod === "password" ? "#ffffffcc" : "#ffffff40",
-                border: authMethod === "password" ? "1px solid #ffffff15" : "1px solid transparent",
-              }}
-            >
-              <Lock className="w-3 h-3" />
-              Password
-            </button>
-            <button
-              onClick={() => setAuthMethod("otp")}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: authMethod === "otp" ? "#ffffff10" : "transparent",
-                color: authMethod === "otp" ? "#ffffffcc" : "#ffffff40",
-                border: authMethod === "otp" ? "1px solid #ffffff15" : "1px solid transparent",
-              }}
-            >
-              <KeyRound className="w-3 h-3" />
-              Email OTP
-            </button>
-          </motion.div>
-        )}
-
         {/* Form Card */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -378,7 +336,7 @@ const AuthPage = () => {
           }}
         >
           <AnimatePresence mode="wait">
-            {authMethod === "otp" && isLogin ? (
+            {isLogin ? (
               <motion.div
                 key="otp-form"
                 initial={{ opacity: 0, x: 15 }}
@@ -476,16 +434,15 @@ const AuthPage = () => {
                 )}
               </motion.div>
             ) : (
-            <motion.form
-              key={isLogin ? "login" : "signup"}
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              transition={{ duration: 0.2 }}
-              onSubmit={handleSubmit}
-              className="space-y-2.5"
-            >
-              {!isLogin && (
+              <motion.form
+                key="signup"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                transition={{ duration: 0.2 }}
+                onSubmit={handleSubmit}
+                className="space-y-2.5"
+              >
                 <motion.div className="relative" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
                   <input
@@ -498,58 +455,48 @@ const AuthPage = () => {
                     required
                   />
                 </motion.div>
-              )}
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
-                <input
-                  type="email" placeholder="Email address" value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl pl-10 pr-3 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
-                  style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                  onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
-                  onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
-                  required
-                />
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
-                <input
-                  type={showPassword ? "text" : "password"} placeholder="Password" value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl pl-10 pr-10 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
-                  style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                  onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
-                  onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
-                  required minLength={6}
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: "#ffffff30" }}
-                >
-                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-              {isLogin && (
-                <div className="flex justify-end">
-                  <button type="button" onClick={handleForgotPassword}
-                    className="text-[10px] hover:underline" style={{ color: "#00E5FF80" }}
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
+                  <input
+                    type="email" placeholder="Email address" value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-xl pl-10 pr-3 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
+                    style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                    onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
+                    onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
+                    required
+                  />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
+                  <input
+                    type={showPassword ? "text" : "password"} placeholder="Password" value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl pl-10 pr-10 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
+                    style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                    onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
+                    onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
+                    required minLength={6}
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: "#ffffff30" }}
                   >
-                    Forgot password?
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-              )}
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                type="submit" disabled={loading}
-                className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
-                style={{
-                  background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
-                  color: "#0B0F1A",
-                  boxShadow: "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
-                }}
-              >
-                {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
-              </motion.button>
-            </motion.form>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="submit" disabled={loading}
+                  className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
+                  style={{
+                    background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
+                    color: "#0B0F1A",
+                    boxShadow: "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
+                  }}
+                >
+                  {loading ? "Please wait..." : "Create Account"}
+                </motion.button>
+              </motion.form>
             )}
           </AnimatePresence>
         </motion.div>
