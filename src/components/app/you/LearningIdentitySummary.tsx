@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   GraduationCap, Calendar, Clock, TrendingUp, TrendingDown, BookOpen,
   ChevronRight, Sparkles, Zap, Loader2, RefreshCw, Target, Map, ArrowRight,
-  Shield, Brain, Flame, Star
+  Shield, Brain, Flame, Star, Pencil, CalendarIcon, Check
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { subDays, startOfDay } from "date-fns";
+import { subDays, startOfDay, format } from "date-fns";
+import { EXAM_TYPES } from "@/lib/examTypes";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface SubjectStrength {
   name: string;
@@ -49,6 +53,11 @@ const LearningIdentitySummary = () => {
   const [roadmap, setRoadmap] = useState<string[] | null>(null);
   const [recalibrating, setRecalibrating] = useState(false);
   const [readinessProjection, setReadinessProjection] = useState<number | null>(null);
+  const [editingExam, setEditingExam] = useState(false);
+  const [editExamType, setEditExamType] = useState("");
+  const [editExamDate, setEditExamDate] = useState<Date | undefined>(undefined);
+  const [savingExam, setSavingExam] = useState(false);
+  const [examDateRaw, setExamDateRaw] = useState<string | null>(null);
   const [peakHour, setPeakHour] = useState<number | null>(null);
   const [avgSessionMin, setAvgSessionMin] = useState(0);
   const [totalTopics, setTotalTopics] = useState(0);
@@ -65,6 +74,7 @@ const LearningIdentitySummary = () => {
       .then(({ data }) => {
         if (data) {
           setExamName(data.exam_type || null);
+          setExamDateRaw(data.exam_date || null);
           if (data.exam_date) {
             const days = Math.ceil((new Date(data.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
             setDaysRemaining(days > 0 ? days : null);
@@ -316,18 +326,125 @@ const LearningIdentitySummary = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="rounded-xl bg-secondary/30 p-3 border border-border/30">
-            <p className="text-[10px] text-muted-foreground mb-0.5">Target</p>
-            <p className="text-sm font-semibold text-foreground truncate">{examName || "Not set"}</p>
+        {!editingExam ? (
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="rounded-xl bg-secondary/30 p-3 border border-border/30">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Target</p>
+              <p className="text-sm font-semibold text-foreground truncate">{examName || "Not set"}</p>
+            </div>
+            <div className="rounded-xl bg-secondary/30 p-3 border border-border/30 relative">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Countdown</p>
+              <p className={`text-sm font-semibold ${daysRemaining && daysRemaining <= 30 ? "text-destructive" : daysRemaining && daysRemaining <= 60 ? "text-warning" : "text-foreground"}`}>
+                {daysRemaining ? `${daysRemaining} days` : "—"}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setEditExamType(examName || "");
+                setEditExamDate(examDateRaw ? new Date(examDateRaw) : undefined);
+                setEditingExam(true);
+              }}
+              className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-secondary/40 hover:bg-secondary/60 border border-border/30 transition-all text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <Pencil className="w-3 h-3" />
+              Change Exam / Date
+            </button>
           </div>
-          <div className="rounded-xl bg-secondary/30 p-3 border border-border/30">
-            <p className="text-[10px] text-muted-foreground mb-0.5">Countdown</p>
-            <p className={`text-sm font-semibold ${daysRemaining && daysRemaining <= 30 ? "text-destructive" : daysRemaining && daysRemaining <= 60 ? "text-warning" : "text-foreground"}`}>
-              {daysRemaining ? `${daysRemaining} days` : "—"}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-3 space-y-3 rounded-xl bg-secondary/20 border border-border/40 p-3"
+          >
+            {/* Exam Type Selector */}
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Exam Type</label>
+              <select
+                value={editExamType}
+                onChange={(e) => setEditExamType(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="">Select exam...</option>
+                {EXAM_TYPES.map((ex) => (
+                  <option key={ex} value={ex}>{ex}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Exam Date Picker */}
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Exam Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      "w-full flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-left",
+                      !editExamDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    {editExamDate ? format(editExamDate, "PPP") : "Pick a date"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-50" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={editExamDate}
+                    onSelect={setEditExamDate}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Save / Cancel */}
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (!user) return;
+                  setSavingExam(true);
+                  try {
+                    const updates: Record<string, any> = {};
+                    if (editExamType) updates.exam_type = editExamType;
+                    if (editExamDate) updates.exam_date = format(editExamDate, "yyyy-MM-dd");
+                    if (Object.keys(updates).length === 0) {
+                      setEditingExam(false);
+                      return;
+                    }
+                    const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
+                    if (error) throw error;
+                    if (editExamType) setExamName(editExamType);
+                    if (editExamDate) {
+                      const newDateStr = format(editExamDate, "yyyy-MM-dd");
+                      setExamDateRaw(newDateStr);
+                      const days = Math.ceil((editExamDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                      setDaysRemaining(days > 0 ? days : null);
+                    }
+                    setEditingExam(false);
+                    toast({ title: "✅ Exam updated!", description: "Your exam details have been saved." });
+                  } catch (err: any) {
+                    toast({ title: "Error", description: err.message, variant: "destructive" });
+                  } finally {
+                    setSavingExam(false);
+                  }
+                }}
+                disabled={savingExam}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary text-xs font-semibold transition-all disabled:opacity-50"
+              >
+                {savingExam ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                Save
+              </button>
+              <button
+                onClick={() => setEditingExam(false)}
+                className="px-4 py-2 rounded-xl bg-secondary/40 hover:bg-secondary/60 border border-border/30 text-xs font-medium text-muted-foreground transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Gap-Closing Roadmap */}
         {!roadmap ? (
