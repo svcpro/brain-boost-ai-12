@@ -197,8 +197,13 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed inset-0 z-50 bg-background flex flex-col"
+      className="fixed inset-0 z-50 flex items-center justify-center"
     >
+      {/* Backdrop */}
+      <div className="absolute inset-0 app-shell-bg" />
+
+      {/* Device Frame – mirrors home tab layout */}
+      <div className="relative w-full max-w-[430px] h-[100dvh] md:h-[min(95dvh,920px)] md:rounded-[2.5rem] md:border md:border-border/40 md:shadow-[0_25px_80px_-12px_hsl(0_0%_0%/0.6),0_0_120px_hsl(var(--primary)/0.06)] bg-background flex flex-col overflow-hidden">
       {/* ═══ HEADER ═══ */}
       <header className="relative flex items-center gap-3 px-5 pt-4 pb-3 z-10">
         <motion.button whileTap={{ scale: 0.85 }} onClick={onClose}
@@ -780,6 +785,7 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
           </AnimatePresence>
 
         </div>
+      </div>
       </div>
     </motion.div>
   );
