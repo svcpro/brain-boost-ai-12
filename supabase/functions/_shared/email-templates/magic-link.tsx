@@ -18,15 +18,17 @@ import {
 interface MagicLinkEmailProps {
   siteName: string
   confirmationUrl: string
+  token?: string
 }
 
 export const MagicLinkEmail = ({
   siteName,
   confirmationUrl,
+  token,
 }: MagicLinkEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Your ACRY login link — tap to sign in instantly</Preview>
+    <Preview>Your ACRY login code: {token || '------'}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={logoSection}>
@@ -38,12 +40,22 @@ export const MagicLinkEmail = ({
           </td></tr></table>
         </Section>
         <Hr style={divider} />
-        <Heading style={h1}>Sign in to ACRY ⚡</Heading>
+        <Heading style={h1}>Your Login Code ⚡</Heading>
         <Text style={text}>
-          Tap the button below to sign in securely. This link expires shortly, so use it now.
+          Use this 6-digit code to sign in to ACRY. It expires shortly, so enter it now.
         </Text>
         <Section style={ctaSection}>
-          <Button style={button} href={confirmationUrl}>
+          <div style={otpContainer}>
+            {(token || '------').split('').map((digit, i) => (
+              <span key={i} style={otpDigit}>{digit}</span>
+            ))}
+          </div>
+        </Section>
+        <Text style={{...text, fontSize: '12px', color: '#999999', textAlign: 'center' as const}}>
+          Or tap the button below to sign in directly:
+        </Text>
+        <Section style={ctaSection}>
+          <Button style={{...button, padding: '10px 24px', fontSize: '13px'}} href={confirmationUrl}>
             Sign In →
           </Button>
         </Section>
@@ -85,5 +97,27 @@ const button = {
   borderRadius: '12px',
   padding: '14px 32px',
   textDecoration: 'none',
+}
+const otpContainer: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '16px 20px',
+  background: 'linear-gradient(135deg, #0B0F1A, #141832)',
+  borderRadius: '16px',
+  border: '1px solid rgba(0, 188, 212, 0.3)',
+}
+const otpDigit: React.CSSProperties = {
+  display: 'inline-block',
+  width: '36px',
+  height: '44px',
+  lineHeight: '44px',
+  textAlign: 'center',
+  fontSize: '24px',
+  fontWeight: 800,
+  color: '#00BCD4',
+  background: 'rgba(255,255,255,0.06)',
+  borderRadius: '8px',
+  margin: '0 3px',
+  fontFamily: "'Inter', 'SF Mono', 'Roboto Mono', monospace",
+  letterSpacing: '0',
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '24px 0 0' }
