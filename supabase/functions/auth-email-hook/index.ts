@@ -35,7 +35,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "brain-boost-ai-12"
+const SITE_NAME = "ACRY AI"
 const SENDER_DOMAIN = "notify.acry.ai"
 const ROOT_DOMAIN = "acry.ai"
 const FROM_DOMAIN = "acry.ai" // Domain shown in From address (may be root or sender subdomain)
