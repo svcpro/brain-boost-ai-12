@@ -1,244 +1,167 @@
 project_id = "yvxrsujwgmzdjzsjyqfb"
 
-[functions.memory-engine]
-verify_jwt = false
-
-[functions.leaderboard]
-verify_jwt = false
-
-[functions.extract-pdf-topics]
-verify_jwt = false
-
-[functions.extract-image-topics]
-verify_jwt = false
-
-[functions.extract-voice-topics]
-verify_jwt = false
-
-[functions.transcribe-voice]
-verify_jwt = false
-
-[functions.razorpay-order]
-verify_jwt = false
-
-[functions.check-subscription-expiry]
-verify_jwt = false
-
-[functions.send-study-reminder-emails]
-verify_jwt = false
-
-[functions.send-weekly-report-email]
-verify_jwt = false
-
-[functions.email-unsubscribe]
-verify_jwt = false
-
-[functions.purge-trash]
-verify_jwt = false
-
-[functions.study-insights]
-verify_jwt = false
-
-[functions.ml-feature-engine]
-verify_jwt = false
-
-[functions.burnout-detection]
-verify_jwt = false
-
-[functions.adaptive-difficulty]
-verify_jwt = false
-
-[functions.ai-brain-agent]
-verify_jwt = false
-
-[functions.continual-learning]
-verify_jwt = false
-
-[functions.daily-brain-briefing]
-verify_jwt = false
-
-[functions.on-demand-briefing]
-verify_jwt = false
-
-[functions.cognitive-twin]
-verify_jwt = false
-
-[functions.meta-learning]
-verify_jwt = false
-
-[functions.daily-self-improve]
-verify_jwt = false
-
-[functions.daily-risk-digest]
-verify_jwt = false
-
-[functions.weekly-brain-digest]
-verify_jwt = false
-
-[functions.world-model-simulation]
-verify_jwt = false
-
-[functions.collective-intelligence]
-verify_jwt = false
-
-[functions.ai-self-evaluate]
-verify_jwt = false
-
-[functions.scheduled-benchmark-check]
-verify_jwt = false
-
-[functions.user-embedding]
-verify_jwt = false
-
-[functions.hybrid-prediction]
-verify_jwt = false
-
-[functions.brain-missions]
-verify_jwt = false
-
-[functions.razorpay-webhook]
-verify_jwt = false
-
-[functions.generate-notification]
-verify_jwt = false
-
-[functions.generate-campaign-templates]
-verify_jwt = false
-
-[functions.email-webhook]
-verify_jwt = false
-
-[functions.send-campaign-email]
-verify_jwt = false
-
-[functions.ai-topic-manager]
-verify_jwt = false
-
-[functions.ai-support-chat]
-verify_jwt = false
-
-[functions.ai-community-answer]
-verify_jwt = false
-
-[functions.discussion-intelligence]
-verify_jwt = false
-
-[functions.ai-community-assist]
-verify_jwt = false
-
-[functions.send-whatsapp]
-verify_jwt = false
-
-[functions.whatsapp-webhook]
-verify_jwt = false
-
-[functions.twilio-whatsapp-templates]
-verify_jwt = false
-
-[functions.meta-whatsapp-templates]
-verify_jwt = false
-
-[functions.trigger-email]
-verify_jwt = false
-
-[functions.process-email-queue]
-verify_jwt = false
-
-[functions.daily-brand-email]
-verify_jwt = false
-
-[functions.generate-email-template]
-verify_jwt = false
-
-[functions.generate-push-template]
-verify_jwt = false
-
-[functions.push-automation-engine]
-verify_jwt = false
-
-[functions.send-push-notification]
-verify_jwt = false
-
-[functions.voice-automation-engine]
-verify_jwt = false
-
-[functions.signup-welcome-notifications]
-verify_jwt = false
-
-[functions.whatsapp-automation-engine]
-verify_jwt = false
-
-[functions.whatsapp-notify]
-verify_jwt = false
-
-[functions.resolve-whatsapp-variables]
-verify_jwt = false
-
-[functions.send-branded-auth-email]
-verify_jwt = false
-
-[functions.omnichannel-notify]
-verify_jwt = false
-
-[functions.intelligent-notify-engine]
-verify_jwt = false
-
-[functions.behavioral-notify-cron]
-verify_jwt = false
-
-[functions.growth-engine]
-verify_jwt = false
-
-[functions.exam-countdown-predict]
-verify_jwt = false
-
-[functions.exam-domination-engine]
-verify_jwt = false
-
-[functions.confidence-practice]
-verify_jwt = false
-
-[functions.fetch-pyqs]
-verify_jwt = false
-
-[functions.cognitive-profile-engine]
-verify_jwt = false
-
-[functions.competitive-intelligence]
-verify_jwt = false
-
-[functions.study-pods]
-verify_jwt = false
-
-[functions.autopilot-engine]
-verify_jwt = false
-
-[functions.webhook-dispatch]
-verify_jwt = false
-
-[functions.teacher-practice]
-verify_jwt = false
-
-[functions.ai-behavior-analyzer]
-verify_jwt = false
-
-[functions.memory-decay-cron]
-verify_jwt = false
-
-[functions.stq-engine]
-verify_jwt = false
-
-[functions.exam-intelligence]
-verify_jwt = false
-
-[functions.current-affairs-intelligence]
-verify_jwt = false
-
-[functions.ca-auto-pipeline]
-verify_jwt = false
-
-[functions.exam-intel-v10]
-verify_jwt = false
-
-[functions.ca-policy-predictor]
-verify_jwt = false
+[functions]
+  [functions.adaptive-difficulty]
+    verify_jwt = false
+  [functions.ai-behavior-analyzer]
+    verify_jwt = false
+  [functions.ai-brain-agent]
+    verify_jwt = false
+  [functions.ai-community-answer]
+    verify_jwt = false
+  [functions.ai-community-assist]
+    verify_jwt = false
+  [functions.ai-self-evaluate]
+    verify_jwt = false
+  [functions.ai-support-chat]
+    verify_jwt = false
+  [functions.ai-topic-manager]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.autopilot-engine]
+    verify_jwt = false
+  [functions.behavioral-notify-cron]
+    verify_jwt = false
+  [functions.brain-missions]
+    verify_jwt = false
+  [functions.burnout-detection]
+    verify_jwt = false
+  [functions.ca-auto-pipeline]
+    verify_jwt = false
+  [functions.ca-policy-predictor]
+    verify_jwt = false
+  [functions.check-subscription-expiry]
+    verify_jwt = false
+  [functions.cognitive-profile-engine]
+    verify_jwt = false
+  [functions.cognitive-twin]
+    verify_jwt = false
+  [functions.collective-intelligence]
+    verify_jwt = false
+  [functions.competitive-intelligence]
+    verify_jwt = false
+  [functions.confidence-practice]
+    verify_jwt = false
+  [functions.continual-learning]
+    verify_jwt = false
+  [functions.current-affairs-intelligence]
+    verify_jwt = false
+  [functions.daily-brain-briefing]
+    verify_jwt = false
+  [functions.daily-brand-email]
+    verify_jwt = false
+  [functions.daily-risk-digest]
+    verify_jwt = false
+  [functions.daily-self-improve]
+    verify_jwt = false
+  [functions.discussion-intelligence]
+    verify_jwt = false
+  [functions.email-unsubscribe]
+    verify_jwt = false
+  [functions.email-webhook]
+    verify_jwt = false
+  [functions.exam-countdown-predict]
+    verify_jwt = false
+  [functions.exam-domination-engine]
+    verify_jwt = false
+  [functions.exam-intel-v10]
+    verify_jwt = false
+  [functions.exam-intelligence]
+    verify_jwt = false
+  [functions.extract-image-topics]
+    verify_jwt = false
+  [functions.extract-pdf-topics]
+    verify_jwt = false
+  [functions.extract-voice-topics]
+    verify_jwt = false
+  [functions.fetch-pyqs]
+    verify_jwt = false
+  [functions.generate-campaign-templates]
+    verify_jwt = false
+  [functions.generate-email-template]
+    verify_jwt = false
+  [functions.generate-notification]
+    verify_jwt = false
+  [functions.generate-push-template]
+    verify_jwt = false
+  [functions.growth-engine]
+    verify_jwt = false
+  [functions.hybrid-prediction]
+    verify_jwt = false
+  [functions.intelligent-notify-engine]
+    verify_jwt = false
+  [functions.leaderboard]
+    verify_jwt = false
+  [functions.memory-decay-cron]
+    verify_jwt = false
+  [functions.memory-engine]
+    verify_jwt = false
+  [functions.meta-learning]
+    verify_jwt = false
+  [functions.meta-whatsapp-templates]
+    verify_jwt = false
+  [functions.ml-feature-engine]
+    verify_jwt = false
+  [functions.omnichannel-notify]
+    verify_jwt = false
+  [functions.on-demand-briefing]
+    verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = false
+  [functions.purge-trash]
+    verify_jwt = false
+  [functions.push-automation-engine]
+    verify_jwt = false
+  [functions.razorpay-order]
+    verify_jwt = false
+  [functions.razorpay-webhook]
+    verify_jwt = false
+  [functions.resolve-whatsapp-variables]
+    verify_jwt = false
+  [functions.scheduled-benchmark-check]
+    verify_jwt = false
+  [functions.send-branded-auth-email]
+    verify_jwt = false
+  [functions.send-campaign-email]
+    verify_jwt = false
+  [functions.send-push-notification]
+    verify_jwt = false
+  [functions.send-study-reminder-emails]
+    verify_jwt = false
+  [functions.send-weekly-report-email]
+    verify_jwt = false
+  [functions.send-whatsapp]
+    verify_jwt = false
+  [functions.signup-welcome-notifications]
+    verify_jwt = false
+  [functions.stq-engine]
+    verify_jwt = false
+  [functions.study-insights]
+    verify_jwt = false
+  [functions.study-pods]
+    verify_jwt = false
+  [functions.teacher-practice]
+    verify_jwt = false
+  [functions.transcribe-voice]
+    verify_jwt = false
+  [functions.trigger-email]
+    verify_jwt = false
+  [functions.twilio-whatsapp-templates]
+    verify_jwt = false
+  [functions.user-embedding]
+    verify_jwt = false
+  [functions.voice-automation-engine]
+    verify_jwt = false
+  [functions.webhook-dispatch]
+    verify_jwt = false
+  [functions.weekly-brain-digest]
+    verify_jwt = false
+  [functions.whatsapp-automation-engine]
+    verify_jwt = false
+  [functions.whatsapp-notify]
+    verify_jwt = false
+  [functions.whatsapp-webhook]
+    verify_jwt = false
+  [functions.world-model-simulation]
+    verify_jwt = false
