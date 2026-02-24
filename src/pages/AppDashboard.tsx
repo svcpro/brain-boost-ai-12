@@ -122,7 +122,7 @@ const AppDashboard = () => {
     fetchCount();
     fetchGifts();
     fetchUnreadNotifs();
-  }, [user, activeTab]);
+  }, [user?.id, activeTab]);
 
   // Fetch current plan (resolve UUID to plan_key)
   useEffect(() => {
@@ -140,7 +140,7 @@ const AppDashboard = () => {
       } catch (e) { console.error("fetchPlan error:", e); setCurrentPlan("free"); }
     };
     fetchPlan();
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -163,7 +163,7 @@ const AppDashboard = () => {
       } catch (e) { console.error("checkExpiry error:", e); }
     };
     checkExpiry();
-  }, [user]);
+  }, [user?.id]);
 
   // Fix: move tab-fallback logic into an effect instead of calling setState during render
   useEffect(() => {

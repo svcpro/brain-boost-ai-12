@@ -96,6 +96,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
+    // Helper: only update state when user/session actually changed
+    const updateAuthState = (newSession: Session | null) => {
+      setSession(prev => {
+        // Skip if same access token (avoids re-render cascade)
+        if (prev?.access_token === newSession?.access_token) return prev;
+        return newSession;
+      });
+      setUser(prev => {
+        const newUser = newSession?.user ?? null;
+        // Skip if same user id (avoids re-triggering all [user] effects)
+        if (prev?.id === newUser?.id) return prev;
+        return newUser;
+      });
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!isMounted) return;
@@ -114,8 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (event === "SIGNED_IN" && newSession?.user) {
-          setSession(newSession);
-          setUser(newSession.user);
+          updateAuthState(newSession);
           // If we were waiting for this after an OAuth INITIAL_SESSION(null), unlock now
           if (!initializedRef.current) {
             initializedRef.current = true;
@@ -133,14 +147,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (event === "TOKEN_REFRESHED") {
+          // Only update session token, never change user reference
           setSession(newSession);
           return;
         }
 
-        // Any other event
+        // Any other event — deduplicated update
         if (newSession) {
-          setSession(newSession);
-          setUser(newSession.user ?? null);
+          updateAuthState(newSession);
         }
       }
     );
