@@ -122,10 +122,9 @@ function FocusLevelBadge({ score }: { score: number }) {
   return (
     <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.8 }}
       className="relative">
-      {/* Animated border */}
-      <motion.div className="absolute inset-[-2px] rounded-full opacity-60"
-        animate={{ rotate: 360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-        style={{ background: `conic-gradient(from 0deg, transparent, hsl(var(--primary)), transparent 50%, hsl(var(--accent)), transparent)` }} />
+      {/* Subtle glow border */}
+      <div className="absolute inset-[-1.5px] rounded-full opacity-40"
+        style={{ background: `linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))` }} />
       <div className={`relative bg-gradient-to-r ${bgClass} px-3 py-1 rounded-full flex items-center gap-1.5`}>
         <span className="text-xs">{emoji}</span>
         <span className={`text-[9px] font-black tracking-wider ${textClass}`}>{label}</span>
