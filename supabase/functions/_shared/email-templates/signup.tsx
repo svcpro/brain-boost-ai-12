@@ -36,7 +36,7 @@ export const SignupEmail = ({
       <Container style={container}>
         <Section style={logoSection}>
           <table role="presentation" width="100%"><tr><td align="center">
-            <div style={logoMark}>A</div>
+            <div style={logoMark} dangerouslySetInnerHTML={{ __html: ACRY_LOGO_SVG }} />
           </td></tr><tr><td align="center">
             <p style={brandName}>ACRY</p>
             <p style={brandTagline}>AI SECOND BRAIN</p>
@@ -66,17 +66,16 @@ export default SignupEmail
 const main = { backgroundColor: '#ffffff', fontFamily: "'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" }
 const container = { padding: '32px 28px', maxWidth: '480px', margin: '0 auto' }
 const logoSection = { textAlign: 'center' as const, marginBottom: '8px' }
+const ACRY_LOGO_SVG = `<svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="aGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00BCD4"/><stop offset="60%" stop-color="#7C4DFF"/><stop offset="100%" stop-color="#00BCD4"/></linearGradient></defs><circle cx="24" cy="24" r="22" stroke="url(#aGrad)" stroke-width="1.2" fill="none" opacity="0.4"/><path d="M24 8L38 38H10L24 8Z" stroke="url(#aGrad)" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="15" y1="30" x2="33" y2="30" stroke="url(#aGrad)" stroke-width="1.5" opacity="0.8"/><circle cx="24" cy="8" r="2" fill="#00BCD4"/><circle cx="10" cy="38" r="1.5" fill="#7C4DFF"/><circle cx="38" cy="38" r="1.5" fill="#7C4DFF"/><circle cx="24" cy="30" r="1.2" fill="#00E676"/></svg>`
 const logoMark: React.CSSProperties = {
   display: 'inline-block',
-  width: '48px',
-  height: '48px',
-  lineHeight: '48px',
-  borderRadius: '14px',
-  fontSize: '24px',
-  fontWeight: 900,
-  color: '#ffffff',
-  background: 'linear-gradient(135deg, #00BCD4, #7C4DFF)',
-  textAlign: 'center',
+  width: '56px',
+  height: '56px',
+  borderRadius: '16px',
+  background: 'linear-gradient(135deg, #0B0F1A, #141832)',
+  border: '1px solid rgba(0, 188, 212, 0.3)',
+  padding: '12px',
+  lineHeight: '0',
 }
 const brandName: React.CSSProperties = { fontSize: '20px', fontWeight: 800, color: '#1a1a2e', margin: '8px 0 0', letterSpacing: '-0.5px', textAlign: 'center' }
 const brandTagline: React.CSSProperties = { fontSize: '9px', color: '#00BCD4', letterSpacing: '3px', margin: '2px 0 0', textAlign: 'center', fontWeight: 600 }
