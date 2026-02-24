@@ -9,6 +9,7 @@ import type { TopicPrediction } from "@/hooks/useMemoryEngine";
 import SmartRecallOverlay from "./SmartRecallOverlay";
 import RiskShieldOverlay from "./RiskShieldOverlay";
 import RankBoostOverlay from "./RankBoostOverlay";
+import FocusShieldDashboard from "./FocusShieldDashboard";
 
 interface QuickMicroActionsProps {
   atRisk: TopicPrediction[];
@@ -36,6 +37,7 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
   const [showShield, setShowShield] = useState(false);
   const [showRankBoost, setShowRankBoost] = useState(false);
   const [focusScore, setFocusScore] = useState<number | null>(null);
+  const [showFocusDash, setShowFocusDash] = useState(false);
 
   // Load today's focus score
   useEffect(() => {
@@ -129,13 +131,7 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
       }
 
       if (id === "focus-shield") {
-        // Navigate to focus insights or show toast with today's score
-        toast({
-          title: "🛡️ Focus Shield Active",
-          description: focusScore !== null
-            ? `Today's focus score: ${focusScore}%. Keep it up!`
-            : "Focus tracking is running in the background.",
-        });
+        setShowFocusDash(true);
         setLoadingId(null);
         return;
       }
@@ -210,6 +206,13 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
       <AnimatePresence>
         {showRankBoost && (
           <RankBoostOverlay onClose={() => setShowRankBoost(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Focus Shield Dashboard */}
+      <AnimatePresence>
+        {showFocusDash && (
+          <FocusShieldDashboard onClose={() => setShowFocusDash(false)} />
         )}
       </AnimatePresence>
     </motion.section>
