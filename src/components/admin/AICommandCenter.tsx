@@ -15,6 +15,7 @@ import SystemHealthMonitor from "./ai-command/SystemHealthMonitor";
 import AISimulationLab from "./ai-command/AISimulationLab";
 import TrainingDataControl from "./ai-command/TrainingDataControl";
 import CognitiveProfileViewer from "./ai-command/CognitiveProfileViewer";
+import FocusShieldAdmin from "./FocusShieldAdmin";
 
 
 type CommandTab =
@@ -28,7 +29,8 @@ type CommandTab =
   | "costs"
   | "health"
   | "simulation"
-  | "training";
+  | "training"
+  | "focus_shield";
 
 const TABS: { key: CommandTab; label: string; icon: any; color: string }[] = [
   { key: "agents", label: "Agent Control", icon: Bot, color: "text-primary" },
@@ -42,6 +44,7 @@ const TABS: { key: CommandTab; label: string; icon: any; color: string }[] = [
   { key: "health", label: "System Health", icon: HeartPulse, color: "text-destructive" },
   { key: "simulation", label: "Simulation Lab", icon: FlaskConical, color: "text-accent" },
   { key: "training", label: "Training Data", icon: Database, color: "text-muted-foreground" },
+  { key: "focus_shield", label: "Focus Shield", icon: Fingerprint, color: "text-warning" },
 ];
 
 export default function AICommandCenter() {
@@ -93,6 +96,7 @@ export default function AICommandCenter() {
           {activeTab === "health" && <SystemHealthMonitor />}
           {activeTab === "simulation" && <AISimulationLab />}
           {activeTab === "training" && <TrainingDataControl />}
+          {activeTab === "focus_shield" && <FocusShieldAdmin />}
         </motion.div>
       </AnimatePresence>
     </div>
