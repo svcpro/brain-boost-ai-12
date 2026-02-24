@@ -40,17 +40,25 @@ const AdminLogin = () => {
       .eq("user_id", user.id);
 
     if (!roles || roles.length === 0) {
+      toast({ title: "Access Denied", description: "You don't have admin privileges.", variant: "destructive" });
       setStep("login");
       return;
     }
 
-    // Check MFA enrollment
+    // OAuth users (Google, Apple) bypass MFA — provider-level security is sufficient
+    const provider = user.app_metadata?.provider;
+    if (provider && provider !== "email") {
+      sessionStorage.setItem("admin_login_time", Date.now().toString());
+      navigate("/admin");
+      return;
+    }
+
+    // Email/password users still require MFA
     const { data: factors } = await supabase.auth.mfa.listFactors();
     const totp = factors?.totp;
     if (totp && totp.length > 0) {
       const verified = totp.find(f => f.status === "verified");
       if (verified) {
-        // Check if there's an active MFA challenge already verified in this session
         const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         if (aal?.currentLevel === "aal2") {
           navigate("/admin");
@@ -58,11 +66,9 @@ const AdminLogin = () => {
           setStep("mfa_verify");
         }
       } else {
-        // Factor exists but not verified, re-setup
         setStep("mfa_setup");
       }
     } else {
-      // No MFA enrolled, require setup
       setStep("mfa_setup");
     }
   };
