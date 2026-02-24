@@ -163,6 +163,91 @@ const ACRY_API_ROUTES = [
   { group: "Analytics", path: "analytics/api-usage", method: "GET", desc: "Get API usage analytics", auth: true, request: {}, response: { total_requests: 1200000, by_endpoint: [{ path: "string", count: 45000 }], avg_latency: 95 } },
   { group: "Analytics", path: "analytics/performance", method: "GET", desc: "Get system performance metrics", auth: true, request: {}, response: { avg_response_ms: 95, p95_ms: 250, p99_ms: 450, uptime: 99.95, error_rate: 0.15 } },
   { group: "Analytics", path: "analytics/ai-accuracy", method: "GET", desc: "Get AI prediction accuracy", auth: true, request: {}, response: { overall: 0.87, by_model: [{ model: "memory_engine", accuracy: 0.89 }, { model: "rank_predictor", accuracy: 0.82 }] } },
+
+  // ── Section 16: Topics & Subjects (14 endpoints) ──
+  { group: "Topics & Subjects", path: "subjects/list", method: "GET", desc: "Get all user subjects", auth: true, request: {}, response: { subjects: [{ id: "uuid", name: "Physics", topic_count: 32, avg_strength: 72 }] } },
+  { group: "Topics & Subjects", path: "subjects/create", method: "POST", desc: "Create a new subject", auth: true, request: { name: "Physics" }, response: { id: "uuid", name: "Physics", created_at: "ISO_DATE" } },
+  { group: "Topics & Subjects", path: "subjects/update", method: "PUT", desc: "Rename or update a subject", auth: true, request: { subject_id: "uuid", name: "Advanced Physics" }, response: { success: true } },
+  { group: "Topics & Subjects", path: "subjects/delete", method: "DELETE", desc: "Delete a subject (soft delete)", auth: true, request: { subject_id: "uuid" }, response: { success: true } },
+  { group: "Topics & Subjects", path: "topics/list", method: "GET", desc: "Get all topics (with filters)", auth: true, request: {}, response: { topics: [{ id: "uuid", name: "Thermodynamics", subject_id: "uuid", memory_strength: 0.72, next_review: "ISO_DATE", last_revision_date: "ISO_DATE", revision_count: 8 }] } },
+  { group: "Topics & Subjects", path: "topics/create", method: "POST", desc: "Create topic under a subject", auth: true, request: { name: "Thermodynamics", subject_id: "uuid" }, response: { id: "uuid", name: "Thermodynamics" } },
+  { group: "Topics & Subjects", path: "topics/bulk-create", method: "POST", desc: "Create multiple topics at once", auth: true, request: { subject_id: "uuid", topics: ["Thermodynamics", "Optics", "Mechanics"] }, response: { created: 3, topics: [{ id: "uuid", name: "string" }] } },
+  { group: "Topics & Subjects", path: "topics/update", method: "PUT", desc: "Update topic name or metadata", auth: true, request: { topic_id: "uuid", name: "Advanced Thermodynamics" }, response: { success: true } },
+  { group: "Topics & Subjects", path: "topics/delete", method: "DELETE", desc: "Soft-delete a topic", auth: true, request: { topic_id: "uuid" }, response: { success: true } },
+  { group: "Topics & Subjects", path: "topics/restore", method: "POST", desc: "Restore soft-deleted topic from trash", auth: true, request: { topic_id: "uuid" }, response: { success: true } },
+  { group: "Topics & Subjects", path: "topics/trash", method: "GET", desc: "Get all soft-deleted topics", auth: true, request: {}, response: { topics: [{ id: "uuid", name: "string", deleted_at: "ISO_DATE" }] } },
+  { group: "Topics & Subjects", path: "topics/by-subject", method: "GET", desc: "Get topics filtered by subject", auth: true, request: {}, response: { topics: [{ id: "uuid", name: "string", memory_strength: 0.65 }] } },
+  { group: "Topics & Subjects", path: "topics/ai-extract", method: "POST", desc: "AI-extract topics from text/PDF/image", auth: true, request: { content: "string", source_type: "text" }, response: { extracted_topics: ["string"], subject_suggestion: "Physics" } },
+  { group: "Topics & Subjects", path: "topics/merge", method: "POST", desc: "Merge duplicate topics into one", auth: true, request: { source_topic_ids: ["uuid"], target_topic_id: "uuid" }, response: { success: true, merged_count: 2 } },
+
+  // ── Section 17: Streaks & Gamification (12 endpoints) ──
+  { group: "Streaks & Gamification", path: "streak/status", method: "GET", desc: "Get current streak status", auth: true, request: {}, response: { current_streak: 15, longest_streak: 42, streak_active: true, last_study_date: "ISO_DATE", freeze_count: 2 } },
+  { group: "Streaks & Gamification", path: "streak/history", method: "GET", desc: "Get streak history timeline", auth: true, request: {}, response: { history: [{ date: "ISO_DATE", studied: true, minutes: 45, freeze_used: false }] } },
+  { group: "Streaks & Gamification", path: "streak/freeze/list", method: "GET", desc: "Get available streak freezes", auth: true, request: {}, response: { freezes: [{ id: "uuid", source: "earned", expires_at: "ISO_DATE" }], total: 3 } },
+  { group: "Streaks & Gamification", path: "streak/freeze/use", method: "POST", desc: "Use a streak freeze for today", auth: true, request: { freeze_id: "uuid" }, response: { success: true, remaining_freezes: 2 } },
+  { group: "Streaks & Gamification", path: "streak/freeze/gift", method: "POST", desc: "Gift a streak freeze to another user", auth: true, request: { freeze_id: "uuid", recipient_email: "string" }, response: { gift_id: "uuid", status: "pending" } },
+  { group: "Streaks & Gamification", path: "streak/freeze/accept", method: "POST", desc: "Accept a gifted streak freeze", auth: true, request: { gift_id: "uuid" }, response: { success: true } },
+  { group: "Streaks & Gamification", path: "xp/status", method: "GET", desc: "Get XP and level status", auth: true, request: {}, response: { total_xp: 2450, current_level: 7, xp_to_next: 550, level_name: "Brain Architect" } },
+  { group: "Streaks & Gamification", path: "xp/history", method: "GET", desc: "Get XP earning history", auth: true, request: {}, response: { history: [{ date: "ISO_DATE", xp_earned: 45, source: "study_session" }] } },
+  { group: "Streaks & Gamification", path: "achievements/list", method: "GET", desc: "Get all achievements & badges", auth: true, request: {}, response: { achievements: [{ id: "string", title: "7-Day Streak", unlocked: true, unlocked_at: "ISO_DATE", icon: "flame" }] } },
+  { group: "Streaks & Gamification", path: "leaderboard/global", method: "GET", desc: "Get global leaderboard rankings", auth: true, request: {}, response: { rankings: [{ rank: 1, user_id: "uuid", display_name: "string", xp: 9500 }], my_rank: 234 } },
+  { group: "Streaks & Gamification", path: "leaderboard/friends", method: "GET", desc: "Get friends leaderboard", auth: true, request: {}, response: { rankings: [{ rank: 1, user_id: "uuid", display_name: "string", xp: 5200 }] } },
+  { group: "Streaks & Gamification", path: "missions/active", method: "GET", desc: "Get active brain missions", auth: true, request: {}, response: { missions: [{ id: "uuid", title: "string", target_value: 5, current_value: 3, reward_xp: 50, expires_at: "ISO_DATE" }] } },
+
+  // ── Section 18: Community (14 endpoints) ──
+  { group: "Community", path: "community/list", method: "GET", desc: "List all active communities", auth: true, request: {}, response: { communities: [{ id: "uuid", name: "string", slug: "string", category: "exam", member_count: 1200, is_member: true }] } },
+  { group: "Community", path: "community/create", method: "POST", desc: "Create a new community", auth: true, request: { name: "NEET Warriors", description: "string", category: "exam" }, response: { id: "uuid", slug: "neet-warriors" } },
+  { group: "Community", path: "community/join", method: "POST", desc: "Join a community", auth: true, request: { community_id: "uuid" }, response: { success: true, member_count: 1201 } },
+  { group: "Community", path: "community/leave", method: "POST", desc: "Leave a community", auth: true, request: { community_id: "uuid" }, response: { success: true } },
+  { group: "Community", path: "community/posts/feed", method: "GET", desc: "Get community posts feed", auth: true, request: {}, response: { posts: [{ id: "uuid", title: "string", body: "string", author: "string", upvote_count: 24, comment_count: 8, community_name: "string", created_at: "ISO_DATE" }] } },
+  { group: "Community", path: "community/posts/create", method: "POST", desc: "Create a new community post", auth: true, request: { community_id: "uuid", title: "string", body: "string", tags: ["neet"] }, response: { id: "uuid", slug: "string" } },
+  { group: "Community", path: "community/posts/vote", method: "POST", desc: "Upvote or downvote a post", auth: true, request: { post_id: "uuid", vote_type: "up" }, response: { success: true, new_score: 25 } },
+  { group: "Community", path: "community/posts/comment", method: "POST", desc: "Comment on a community post", auth: true, request: { post_id: "uuid", body: "string" }, response: { comment_id: "uuid" } },
+  { group: "Community", path: "community/posts/bookmark", method: "POST", desc: "Bookmark a community post", auth: true, request: { post_id: "uuid" }, response: { success: true } },
+  { group: "Community", path: "community/posts/saved", method: "GET", desc: "Get all bookmarked/saved posts", auth: true, request: {}, response: { posts: [{ id: "uuid", title: "string", saved_at: "ISO_DATE" }] } },
+  { group: "Community", path: "community/karma", method: "GET", desc: "Get user karma/reputation score", auth: true, request: {}, response: { karma_points: 450, rank_title: "Rising Star" } },
+  { group: "Community", path: "community/study-pods/list", method: "GET", desc: "List available study pods", auth: true, request: {}, response: { pods: [{ id: "uuid", name: "string", members: 5, max_members: 8, subject: "Physics", active: true }] } },
+  { group: "Community", path: "community/study-pods/join", method: "POST", desc: "Join a study pod", auth: true, request: { pod_id: "uuid" }, response: { success: true } },
+  { group: "Community", path: "community/ai-answer", method: "POST", desc: "Get AI-generated answer for a post", auth: true, request: { post_id: "uuid" }, response: { answer: "string", confidence: 0.92 } },
+
+  // ── Section 19: SureShot & Confidence Practice (10 endpoints) ──
+  { group: "SureShot", path: "sureshot/dashboard", method: "GET", desc: "Get SureShot confidence dashboard", auth: true, request: {}, response: { match_score: 87, readiness_level: "high", weak_areas: 3, strong_areas: 18, last_practice: "ISO_DATE" } },
+  { group: "SureShot", path: "sureshot/start-session", method: "POST", desc: "Start confidence practice session", auth: true, request: { exam_type: "NEET", subject: "Physics", difficulty: "medium", question_count: 10 }, response: { session_id: "uuid", questions: [{ id: "uuid", text: "string", options: ["A","B","C","D"], difficulty: "medium" }] } },
+  { group: "SureShot", path: "sureshot/submit-answer", method: "POST", desc: "Submit answer during practice", auth: true, request: { session_id: "uuid", question_id: "uuid", selected_option: 2, time_taken_seconds: 18 }, response: { correct: true, correct_answer: 2, explanation: "string", confidence_delta: 3 } },
+  { group: "SureShot", path: "sureshot/end-session", method: "POST", desc: "End confidence practice session", auth: true, request: { session_id: "uuid" }, response: { score: 82, correct: 8, total: 10, time_used: 180, confidence_improvement: 5, mentor_suggestion: "string" } },
+  { group: "SureShot", path: "sureshot/history", method: "GET", desc: "Get practice session history", auth: true, request: {}, response: { sessions: [{ id: "uuid", exam_type: "NEET", score: 82, date: "ISO_DATE", questions: 10 }] } },
+  { group: "SureShot", path: "sureshot/exam-types", method: "GET", desc: "Get supported exam types & subjects", auth: false, request: {}, response: { exams: [{ name: "NEET", subjects: ["Physics", "Chemistry", "Biology"] }] } },
+  { group: "SureShot", path: "sureshot/weak-analysis", method: "GET", desc: "Get weak area analysis per exam", auth: true, request: {}, response: { weak_areas: [{ subject: "Physics", topic: "Optics", accuracy: 45, attempts: 12 }] } },
+  { group: "SureShot", path: "sureshot/progress-trend", method: "GET", desc: "Get confidence progress over time", auth: true, request: {}, response: { trend: [{ date: "ISO_DATE", accuracy: 72, confidence: 68 }], improvement_rate: 2.5 } },
+  { group: "SureShot", path: "sureshot/mentor-tip", method: "GET", desc: "Get AI mentor suggestion for practice", auth: true, request: {}, response: { tip: "string", focus_area: "Optics", recommended_questions: 15 } },
+  { group: "SureShot", path: "sureshot/download-report", method: "GET", desc: "Download practice performance report", auth: true, request: {}, response: { report_url: "string", generated_at: "ISO_DATE" } },
+
+  // ── Section 20: Current Affairs Intelligence (10 endpoints) ──
+  { group: "Current Affairs", path: "current-affairs/events", method: "GET", desc: "Get latest current affairs events", auth: true, request: {}, response: { events: [{ id: "uuid", title: "string", category: "economy", importance_score: 85, event_date: "ISO_DATE", summary: "string" }] } },
+  { group: "Current Affairs", path: "current-affairs/event-detail", method: "GET", desc: "Get detailed event with analysis", auth: true, request: {}, response: { id: "uuid", title: "string", raw_content: "string", ai_analysis: {}, syllabus_links: [{ subject: "string", micro_topic: "string", relevance_score: 0.9 }] } },
+  { group: "Current Affairs", path: "current-affairs/quiz", method: "POST", desc: "Generate CA quiz from recent events", auth: true, request: { category: "economy", count: 10 }, response: { questions: [{ id: "uuid", text: "string", options: ["A","B","C","D"], correct: 2, event_id: "uuid" }] } },
+  { group: "Current Affairs", path: "current-affairs/debate-topics", method: "GET", desc: "Get debate/essay topics from events", auth: true, request: {}, response: { topics: [{ id: "uuid", title: "string", pro_arguments: ["string"], counter_arguments: ["string"], exam_relevance: 0.85 }] } },
+  { group: "Current Affairs", path: "current-affairs/policy-analysis", method: "GET", desc: "Get policy impact analysis", auth: true, request: {}, response: { policies: [{ id: "uuid", title: "string", impact_score: 0.78, exam_probability: 0.65, affected_topics: ["string"] }] } },
+  { group: "Current Affairs", path: "current-affairs/syllabus-mapping", method: "GET", desc: "Map events to exam syllabus", auth: true, request: {}, response: { mappings: [{ event_id: "uuid", subject: "string", topic: "string", tpi_impact: 0.12 }] } },
+  { group: "Current Affairs", path: "current-affairs/writing-practice", method: "POST", desc: "Submit essay/answer for evaluation", auth: true, request: { topic_id: "uuid", answer: "string" }, response: { overall_score: 78, structure_score: 80, clarity_score: 75, feedback: "string", model_answer: "string" } },
+  { group: "Current Affairs", path: "current-affairs/daily-digest", method: "GET", desc: "Get daily CA digest briefing", auth: true, request: {}, response: { date: "ISO_DATE", events_count: 8, top_events: [{ title: "string", importance: "high" }], exam_alerts: ["string"] } },
+  { group: "Current Affairs", path: "current-affairs/knowledge-graph", method: "GET", desc: "Get CA event knowledge graph", auth: true, request: {}, response: { nodes: [{ id: "uuid", label: "string", type: "event" }], edges: [{ event_id: "uuid", target_label: "string", edge_type: "impacts" }] } },
+  { group: "Current Affairs", path: "current-affairs/probability-adjustments", method: "GET", desc: "Get topic probability shifts from CA", auth: true, request: {}, response: { adjustments: [{ topic_name: "string", old_probability: 0.3, new_probability: 0.45, reason: "string" }] } },
+
+  // ── Section 21: Onboarding & Setup (6 endpoints) ──
+  { group: "Onboarding", path: "onboarding/status", method: "GET", desc: "Check if onboarding is complete", auth: true, request: {}, response: { completed: false, current_step: 2, total_steps: 5, steps_done: ["profile", "exam"] } },
+  { group: "Onboarding", path: "onboarding/save-step", method: "POST", desc: "Save onboarding step data", auth: true, request: { step: "exam_setup", data: { exam_type: "NEET", exam_date: "2025-05-01" } }, response: { success: true, next_step: "subjects" } },
+  { group: "Onboarding", path: "onboarding/complete", method: "POST", desc: "Mark onboarding as complete", auth: true, request: {}, response: { success: true, redirect_to: "/app" } },
+  { group: "Onboarding", path: "onboarding/skip", method: "POST", desc: "Skip remaining onboarding", auth: true, request: {}, response: { success: true } },
+  { group: "Onboarding", path: "onboarding/ai-suggest-topics", method: "POST", desc: "AI suggests topics for exam type", auth: true, request: { exam_type: "NEET" }, response: { subjects: [{ name: "Physics", topics: ["Mechanics", "Optics", "Thermodynamics"] }] } },
+  { group: "Onboarding", path: "onboarding/import-syllabus", method: "POST", desc: "Import full exam syllabus", auth: true, request: { exam_type: "NEET" }, response: { imported_subjects: 3, imported_topics: 45, success: true } },
+
+  // ── Section 22: Storage & File Management (5 endpoints) ──
+  { group: "Storage", path: "storage/upload-avatar", method: "POST", desc: "Upload user avatar image", auth: true, request: { image_base64: "string", content_type: "image/png" }, response: { url: "https://...", size_kb: 85 } },
+  { group: "Storage", path: "storage/upload-note-image", method: "POST", desc: "Upload image attachment for notes", auth: true, request: { image_base64: "string" }, response: { url: "https://..." } },
+  { group: "Storage", path: "storage/upload-voice", method: "POST", desc: "Upload voice recording", auth: true, request: { audio_base64: "string", duration_seconds: 30 }, response: { url: "https://...", transcript: "string" } },
+  { group: "Storage", path: "storage/list-files", method: "GET", desc: "List user uploaded files", auth: true, request: {}, response: { files: [{ name: "string", url: "string", size_kb: 120, type: "image", created_at: "ISO_DATE" }] } },
+  { group: "Storage", path: "storage/delete-file", method: "DELETE", desc: "Delete an uploaded file", auth: true, request: { file_path: "string" }, response: { success: true } },
 ];
 
 const METHOD_COLORS: Record<string, string> = {
@@ -187,6 +272,13 @@ const GROUP_ICONS: Record<string, string> = {
   "Admin Control": "⚙️",
   "API Key Mgmt": "🔑",
   "Analytics": "📈",
+  "Topics & Subjects": "📖",
+  "Streaks & Gamification": "🔥",
+  "Community": "👥",
+  "SureShot": "🎯",
+  "Current Affairs": "📰",
+  "Onboarding": "🚀",
+  "Storage": "📁",
 };
 
 const FlutterApiHub = () => {
@@ -412,6 +504,43 @@ print(profile['data']['display_name']);`} lang="dart" />
               <span className="text-lg">{GROUP_ICONS[group] || "📦"}</span>
               <p className="text-lg font-bold text-foreground">{count}</p>
               <p className="text-[9px] text-muted-foreground leading-tight">{group}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Page-Wise Dashboard Mapping */}
+      <div className="glass rounded-xl p-5 neural-border">
+        <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
+          <BookOpen className="w-3.5 h-3.5 text-primary" /> Page-Wise Dashboard → API Mapping
+        </h4>
+        <p className="text-[10px] text-muted-foreground mb-4">Every screen in the User Dashboard mapped to its required API endpoints for complete Flutter implementation.</p>
+        <div className="space-y-3">
+          {[
+            { page: "🔐 Authentication", route: "/auth", sections: "OTP Login, Google/Apple OAuth, Signup", apis: "auth/send-otp, auth/verify-otp, auth/signup, auth/login, auth/refresh-token, auth/session-status" },
+            { page: "🚀 Onboarding", route: "/onboarding", sections: "Exam Setup, Subject Selection, Topic Import, AI Suggestions", apis: "onboarding/status, onboarding/save-step, onboarding/complete, onboarding/ai-suggest-topics, onboarding/import-syllabus" },
+            { page: "🏠 Home Tab", route: "/app (home)", sections: "Brain Radar, Streak Tracker, Daily Goals, AI Recommendations, Risk Digest, Missions, Autopilot, Study Insights, Weekly Summary, Voice Brain Capture, Debate Engine, Deep Analytics", apis: "brain/status, brain/weak-topics, brain/risk-topics, brain/performance-score, brain/fatigue-level, streak/status, study/daily-summary, ai-agent/recommendations, ai-agent/daily-plan, ai-agent/next-best-topic, missions/active, rank/prediction, rank/range, study/history" },
+            { page: "⚡ Action Tab", route: "/app (action)", sections: "Study Mode Cards (Focus, Revision, Mock, Emergency, CA Quiz, Intel Practice), Active Task Engine, Today's Gains, Session History, Topic Explorer, Exam Countdown", apis: "study/start-session, study/end-session, study/log-session, study/log-recall, study/log-confidence, study/daily-summary, study/history, fix/start-fix-session, fix/submit-answer, fix/end-session, fix/emergency-fix, current-affairs/quiz, topics/list, topics/by-subject" },
+            { page: "🧠 Brain Tab", route: "/app (brain)", sections: "Brain Stability Overview, Interactive Memory Map, Decay Forecast Timeline, AI Intelligence Insights, Growth Identity System, Competitive Intel, Precision Intelligence, Rank Prediction V2, Decay Forecast V2", apis: "brain/status, brain/memory-strength, brain/forget-prediction, brain/knowledge-graph, brain/brain-evolution, brain/cognitive-state, brain/brain-health-report, brain/strong-topics, brain/weak-topics, brain/risk-topics, rank/prediction, rank/range, rank/trend, rank/competition-analysis, rank/probability" },
+            { page: "👥 Community Tab", route: "/app (community)", sections: "Feed (Hot/New/Top), Communities List, Join/Leave, Create Post, Vote, Comment, Bookmark, Saved Posts, Study Pods, AI Answers, Karma Score, Recommendations", apis: "community/list, community/create, community/join, community/leave, community/posts/feed, community/posts/create, community/posts/vote, community/posts/comment, community/posts/bookmark, community/posts/saved, community/karma, community/study-pods/list, community/study-pods/join, community/ai-answer" },
+            { page: "🎯 SureShot Tab", route: "/app (progress)", sections: "Confidence Dashboard, Practice Sessions (30+ exams), Question Flow, Results & Score, Mentor Suggestions, Weak Area Analysis, Progress Trends, Report Download", apis: "sureshot/dashboard, sureshot/start-session, sureshot/submit-answer, sureshot/end-session, sureshot/history, sureshot/exam-types, sureshot/weak-analysis, sureshot/progress-trend, sureshot/mentor-tip, sureshot/download-report" },
+            { page: "👤 You Tab", route: "/app (you)", sections: "Identity Command Center (XP, Level, Avatar), Learning Identity Summary, AI Personal Strategy, Achievement Wall, Monthly Performance, Subscription Overview, AI Personalization Controls, AI Recalibration, Cognitive Profile, Password Management", apis: "user/profile, user/profile/update, user/profile/upload-avatar, user/stats, user/preferences, user/preferences/update, xp/status, xp/history, achievements/list, streak/status, streak/history, subscription/status, subscription/plans, ai-agent/strategy-plan, ai-agent/cognitive-twin, ai-agent/evolution-status" },
+            { page: "🔔 Notifications", route: "Global (all tabs)", sections: "Notification Bell, Unread Count, Mark Read, Mark All Read, Notification History, Push/Email/Voice Preferences", apis: "notification/list, notification/read, notification/read-all, notification/settings, notification/settings/update, notification/history" },
+            { page: "📰 Current Affairs", route: "/debate + Action Tab CA Mode", sections: "Events Feed, Event Detail, CA Quiz, Debate Topics, Policy Analysis, Syllabus Mapping, Writing Practice, Daily Digest, Knowledge Graph", apis: "current-affairs/events, current-affairs/event-detail, current-affairs/quiz, current-affairs/debate-topics, current-affairs/policy-analysis, current-affairs/syllabus-mapping, current-affairs/writing-practice, current-affairs/daily-digest, current-affairs/knowledge-graph, current-affairs/probability-adjustments" },
+            { page: "💬 AI Chat", route: "/ai-chat", sections: "Chat Messages, Voice Input, Voice Response, Suggestions, History, Feedback", apis: "chat/send-message, chat/history, chat/voice-input, chat/voice-response, chat/suggestions, chat/clear-history, chat/support-status, chat/feedback" },
+            { page: "📖 Topics Management", route: "Brain Tab + Action Tab", sections: "Subject CRUD, Topic CRUD, Bulk Create, AI Extract, Merge, Trash/Restore", apis: "subjects/list, subjects/create, subjects/update, subjects/delete, topics/list, topics/create, topics/bulk-create, topics/update, topics/delete, topics/restore, topics/trash, topics/by-subject, topics/ai-extract, topics/merge" },
+          ].map((item) => (
+            <div key={item.page} className="bg-secondary/40 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-foreground">{item.page}</span>
+                <code className="text-[9px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{item.route}</code>
+              </div>
+              <p className="text-[10px] text-muted-foreground mb-2"><strong>Sections:</strong> {item.sections}</p>
+              <div className="flex flex-wrap gap-1">
+                {item.apis.split(", ").map((api) => (
+                  <code key={api} className="text-[8px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">{api}</code>
+                ))}
+              </div>
             </div>
           ))}
         </div>
