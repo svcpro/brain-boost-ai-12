@@ -26,6 +26,8 @@ import { useWeakQuestionReminder } from "@/hooks/useWeakQuestionReminder";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAutoStudyTracker } from "@/hooks/useAutoStudyTracker";
+import { useFocusShield } from "@/hooks/useFocusShield";
+import FocusShieldOverlay from "@/components/app/FocusShieldOverlay";
 
 
 // Export voice context so child components can trigger voice
@@ -62,6 +64,8 @@ const AppDashboard = () => {
   const [dismissedWarning, setDismissedWarning] = useState(false);
   const [currentPlan, setCurrentPlan] = useState("free");
   const voice = useVoiceNotification();
+  
+  const focusShield = useFocusShield();
   
   useStudyReminder();
   useOfflineSync();
@@ -269,6 +273,23 @@ const AppDashboard = () => {
 
           {/* Voice Notification Overlay */}
           <VoiceNotificationOverlay playing={voice.playing} subtitle={voice.subtitle} />
+
+          {/* Focus Shield Overlay */}
+          {focusShield.showWarning && (
+            <FocusShieldOverlay
+              type="warning"
+              microRecallRequired={focusShield.microRecallRequired}
+              onDismiss={(recallPassed) => focusShield.dismissWarning(recallPassed)}
+            />
+          )}
+          {focusShield.showFreeze && (
+            <FocusShieldOverlay
+              type="freeze"
+              microRecallRequired={false}
+              freezeDurationSeconds={focusShield.config.freeze_duration_seconds}
+              onDismiss={() => focusShield.dismissFreeze()}
+            />
+          )}
 
 
           {/* Bottom Nav — contained inside device frame */}

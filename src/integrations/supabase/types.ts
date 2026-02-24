@@ -2597,6 +2597,90 @@ export type Database = {
           },
         ]
       }
+      distraction_events: {
+        Row: {
+          context: Json | null
+          created_at: string
+          duration_seconds: number | null
+          during_focus_session: boolean
+          event_type: string
+          focus_session_id: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          duration_seconds?: number | null
+          during_focus_session?: boolean
+          event_type: string
+          focus_session_id?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          duration_seconds?: number | null
+          during_focus_session?: boolean
+          event_type?: string
+          focus_session_id?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      distraction_scores: {
+        Row: {
+          blur_events: number
+          created_at: string
+          distraction_score: number
+          focus_score: number
+          id: string
+          late_night_minutes: number
+          rapid_switches: number
+          score_date: string
+          stability_correlation: number | null
+          study_overlap_seconds: number
+          tab_switches: number
+          total_distraction_seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          blur_events?: number
+          created_at?: string
+          distraction_score?: number
+          focus_score?: number
+          id?: string
+          late_night_minutes?: number
+          rapid_switches?: number
+          score_date?: string
+          stability_correlation?: number | null
+          study_overlap_seconds?: number
+          tab_switches?: number
+          total_distraction_seconds?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          blur_events?: number
+          created_at?: string
+          distraction_score?: number
+          focus_score?: number
+          id?: string
+          late_night_minutes?: number
+          rapid_switches?: number
+          score_date?: string
+          stability_correlation?: number | null
+          study_overlap_seconds?: number
+          tab_switches?: number
+          total_distraction_seconds?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       drip_sequences: {
         Row: {
           channel: string
@@ -3679,6 +3763,75 @@ export type Database = {
           label?: string | null
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      focus_shield_config: {
+        Row: {
+          auto_freeze_enabled: boolean
+          distraction_threshold: number
+          freeze_duration_seconds: number
+          id: string
+          is_enabled: boolean
+          max_warnings_before_freeze: number
+          micro_recall_required: boolean
+          updated_at: string
+          updated_by: string | null
+          warning_cooldown_seconds: number
+        }
+        Insert: {
+          auto_freeze_enabled?: boolean
+          distraction_threshold?: number
+          freeze_duration_seconds?: number
+          id?: string
+          is_enabled?: boolean
+          max_warnings_before_freeze?: number
+          micro_recall_required?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          warning_cooldown_seconds?: number
+        }
+        Update: {
+          auto_freeze_enabled?: boolean
+          distraction_threshold?: number
+          freeze_duration_seconds?: number
+          id?: string
+          is_enabled?: boolean
+          max_warnings_before_freeze?: number
+          micro_recall_required?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          warning_cooldown_seconds?: number
+        }
+        Relationships: []
+      }
+      focus_shield_warnings: {
+        Row: {
+          created_at: string
+          freeze_duration_seconds: number | null
+          id: string
+          recall_passed: boolean | null
+          user_id: string
+          warning_type: string
+          was_dismissed: boolean
+        }
+        Insert: {
+          created_at?: string
+          freeze_duration_seconds?: number | null
+          id?: string
+          recall_passed?: boolean | null
+          user_id: string
+          warning_type?: string
+          was_dismissed?: boolean
+        }
+        Update: {
+          created_at?: string
+          freeze_duration_seconds?: number | null
+          id?: string
+          recall_passed?: boolean | null
+          user_id?: string
+          warning_type?: string
+          was_dismissed?: boolean
         }
         Relationships: []
       }
