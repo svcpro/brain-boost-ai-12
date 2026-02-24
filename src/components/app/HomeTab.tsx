@@ -529,14 +529,33 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           </motion.button>
         </div>
 
-        {/* Key stats: Streak / Exam (Rank shown in Momentum section) */}
+        {/* Key stats: Rank / Streak / Exam */}
         {hasTopics && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="relative z-10 grid grid-cols-2 gap-3 mt-5"
+            className="relative z-10 grid grid-cols-3 gap-2.5 mt-5"
           >
+            <motion.div
+              className="rounded-2xl p-3 border backdrop-blur-md"
+              style={{ background: "hsl(var(--card)/0.7)", borderColor: "hsl(var(--primary)/0.15)", boxShadow: "0 0 12px hsl(var(--primary)/0.05)" }}
+              whileHover={{ scale: 1.03, boxShadow: "0 0 20px hsl(var(--primary)/0.15)" }}
+            >
+              <motion.div animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="flex justify-center mb-1">
+                <TrendingUp className="w-4 h-4 text-primary" style={{ filter: "drop-shadow(0 0 6px hsl(var(--primary)/0.5))" }} />
+              </motion.div>
+              <p className="text-lg font-black text-foreground tabular-nums text-center">
+                {rankV2Data?.predicted_rank ? `#${rankV2Data.predicted_rank.toLocaleString()}` : "—"}
+              </p>
+              {rankV2Data?.trend && rankV2Data.trend !== "stable" && (
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className={`text-[9px] font-bold block text-center ${rankV2Data.trend === "rising" ? "text-success" : "text-destructive"}`}>
+                  {rankV2Data.trend === "rising" ? "↑ Rising" : "↓ Falling"}
+                </motion.span>
+              )}
+              <p className="text-[9px] text-muted-foreground text-center mt-0.5">Rank</p>
+            </motion.div>
+
             <motion.div
               className="rounded-2xl p-3 border backdrop-blur-md"
               style={{ background: "hsl(var(--card)/0.7)", borderColor: "hsl(var(--warning)/0.15)", boxShadow: "0 0 12px hsl(var(--warning)/0.05)" }}
