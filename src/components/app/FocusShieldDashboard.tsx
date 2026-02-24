@@ -9,10 +9,12 @@ import {
   Sparkles, CheckCircle2, XCircle, Timer, Wifi, Award,
   BatteryCharging, Radar, Fingerprint, Waves, HeartPulse,
   Orbit, Gauge, CircleDot, Diamond, Star, Crown,
-  Bolt, ScanEye, ShieldHalf, TriangleAlert, Swords
+  Bolt, ScanEye, ShieldHalf, TriangleAlert, Swords,
+  Cpu, Dumbbell, Crosshair, Wind
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCognitivePrediction, type PredictionResult } from "@/hooks/useCognitivePrediction";
 
 // ─── Types ───
 interface FocusShieldDashboardProps { onClose: () => void; }
@@ -181,7 +183,7 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
   const [events, setEvents] = useState<DistractionEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "apps" | "timeline" | "insights">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "apps" | "timeline" | "insights" | "predict" | "neural">("overview");
   const [timeRange, setTimeRange] = useState<"week" | "month">("week");
   const [expandedInsight, setExpandedInsight] = useState<string | null>(null);
 
@@ -291,8 +293,12 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
   const focusPercent = todayFocus / 100;
   const circumference = 2 * Math.PI * 54;
 
+  const cogPred = useCognitivePrediction();
+
   const TABS = [
     { key: "overview" as const, icon: Gauge, label: "Overview" },
+    { key: "predict" as const, icon: Crosshair, label: "Predict" },
+    { key: "neural" as const, icon: Dumbbell, label: "Neural" },
     { key: "apps" as const, icon: Smartphone, label: "Apps" },
     { key: "insights" as const, icon: Radar, label: "Insights" },
     { key: "timeline" as const, icon: Activity, label: "Timeline" },
@@ -321,7 +327,7 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
               </motion.div>
               <h1 className="text-sm font-black text-foreground tracking-tight">Focus Shield</h1>
             </div>
-            <p className="text-[8px] text-muted-foreground mt-0.5 tracking-wider uppercase">AI Distraction Intelligence Engine</p>
+            <p className="text-[8px] text-muted-foreground mt-0.5 tracking-wider uppercase">Predictive Cognitive Control System</p>
           </div>
           <StreakFlame streak={focusStreak} />
           <motion.button whileTap={{ scale: 0.85 }} onClick={load}
@@ -841,6 +847,355 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                         <span className="text-[7px] text-muted-foreground">Today</span>
                       </div>
                     )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ─── PREDICT TAB ─── */}
+              {activeTab === "predict" && (
+                <motion.div key="predict" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-3.5">
+
+                  {/* Distraction Probability Hero */}
+                  <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 pointer-events-none">
+                      <motion.div className="absolute inset-0 rounded-2xl"
+                        animate={{ opacity: [0, 0.04, 0] }} transition={{ duration: 3, repeat: Infinity }}
+                        style={{ background: `radial-gradient(circle at 50% 30%, ${(cogPred.prediction?.prediction.distraction_probability ?? 0) > 0.65 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}, transparent)` }} />
+                    </div>
+                    <div className="relative p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Crosshair className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[11px] font-bold text-foreground">Attention Drift Prediction</p>
+                          <p className="text-[8px] text-muted-foreground">ML-powered distraction probability</p>
+                        </div>
+                        <motion.button whileTap={{ scale: 0.9 }} onClick={() => cogPred.predict()}
+                          className="px-3 py-1.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold border border-primary/20">
+                          {cogPred.loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : "Predict"}
+                        </motion.button>
+                      </div>
+
+                      {cogPred.prediction ? (() => {
+                        const dp = cogPred.prediction.prediction.distraction_probability;
+                        const dpPct = Math.round(dp * 100);
+                        const dpColor = dp > 0.7 ? "hsl(var(--destructive))" : dp > 0.5 ? "hsl(var(--warning))" : "hsl(var(--success))";
+                        const dpLabel = dp > 0.7 ? "HIGH RISK" : dp > 0.5 ? "MODERATE" : "LOW RISK";
+                        return (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-5">
+                              {/* DP Ring */}
+                              <div className="relative w-[90px] h-[90px] shrink-0">
+                                <svg viewBox="0 0 100 100" className="w-full h-full">
+                                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="5" opacity={0.1} />
+                                  <motion.circle cx="50" cy="50" r="42" fill="none" stroke={dpColor} strokeWidth="6" strokeLinecap="round"
+                                    strokeDasharray={2 * Math.PI * 42} strokeDashoffset={2 * Math.PI * 42}
+                                    animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - dp) }}
+                                    transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
+                                    transform="rotate(-90 50 50)"
+                                    style={{ filter: `drop-shadow(0 0 6px ${dpColor})` }} />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <span className="text-[22px] font-black tabular-nums" style={{ color: dpColor }}>{dpPct}%</span>
+                                  <span className="text-[7px] text-muted-foreground font-bold">DP</span>
+                                </div>
+                              </div>
+
+                              <div className="flex-1 space-y-2">
+                                <div className="px-2.5 py-1 rounded-full text-[8px] font-black inline-flex items-center gap-1"
+                                  style={{ background: `${dpColor}15`, color: dpColor, border: `1px solid ${dpColor}30` }}>
+                                  {dp > 0.7 ? <AlertTriangle className="w-3 h-3" /> : dp > 0.5 ? <Zap className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
+                                  {dpLabel}
+                                </div>
+                                <p className="text-[9px] text-muted-foreground">
+                                  {dp > 0.7 ? "Distraction imminent — intervention recommended" : dp > 0.5 ? "Moderate risk — stay aware" : "Focus is strong — keep going"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Signal Breakdown */}
+                            <div className="space-y-2">
+                              <p className="text-[9px] font-bold text-foreground uppercase tracking-wider">Signal Analysis</p>
+                              {[
+                                { label: "Time-of-Day Risk", value: cogPred.prediction.prediction.signals.time_of_day, icon: Clock },
+                                { label: "Fatigue Level", value: cogPred.prediction.prediction.signals.fatigue, icon: BatteryCharging },
+                                { label: "Switch Velocity", value: cogPred.prediction.prediction.signals.switch_velocity, icon: Zap },
+                                { label: "Error Clustering", value: cogPred.prediction.prediction.signals.error_cluster, icon: AlertTriangle },
+                                { label: "Latency Spike", value: cogPred.prediction.prediction.signals.latency_spike, icon: Activity },
+                                { label: "Mock Frustration", value: cogPred.prediction.prediction.signals.mock_frustration, icon: Flame },
+                              ].map((sig, i) => {
+                                const pct = Math.round(sig.value * 100);
+                                const sigColor = pct > 70 ? "hsl(var(--destructive))" : pct > 40 ? "hsl(var(--warning))" : "hsl(var(--success))";
+                                return (
+                                  <motion.div key={sig.label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i }}
+                                    className="flex items-center gap-2">
+                                    <sig.icon className="w-3 h-3 text-muted-foreground shrink-0" />
+                                    <span className="text-[9px] text-muted-foreground flex-1">{sig.label}</span>
+                                    <div className="w-20 h-1.5 rounded-full bg-muted/20 overflow-hidden">
+                                      <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: 0.1 + i * 0.05 }}
+                                        className="h-full rounded-full" style={{ background: sigColor }} />
+                                    </div>
+                                    <span className="text-[9px] font-bold tabular-nums w-8 text-right" style={{ color: sigColor }}>{pct}%</span>
+                                  </motion.div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })() : (
+                        <div className="flex flex-col items-center py-8 gap-2">
+                          <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+                            <Crosshair className="w-8 h-8 text-primary/30" />
+                          </motion.div>
+                          <p className="text-[10px] text-muted-foreground">Tap Predict to analyze attention signals</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Cognitive State Classifier */}
+                  {cogPred.prediction && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                      className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-4 relative overflow-hidden">
+                      <div className="absolute inset-0 pointer-events-none">
+                        <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.03, 0.06, 0.03] }} transition={{ duration: 5, repeat: Infinity }}
+                          className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl" style={{ background: "hsl(var(--accent))" }} />
+                      </div>
+                      <div className="flex items-center gap-2 mb-3 relative z-10">
+                        <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
+                          <Cpu className="w-3.5 h-3.5 text-accent" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-foreground">Cognitive State</p>
+                          <p className="text-[8px] text-muted-foreground">AI-classified mental state</p>
+                        </div>
+                      </div>
+
+                      <div className="relative z-10 space-y-3">
+                        {/* Current State Display */}
+                        {(() => {
+                          const stateConfig: Record<string, { emoji: string; color: string; bg: string; label: string; desc: string }> = {
+                            deep_focus: { emoji: "🎯", color: "text-success", bg: "bg-success/12", label: "Deep Focus", desc: "Maximum cognitive engagement detected" },
+                            surface_focus: { emoji: "👀", color: "text-primary", bg: "bg-primary/12", label: "Surface Focus", desc: "Light attention — prone to wandering" },
+                            cognitive_fatigue: { emoji: "😴", color: "text-warning", bg: "bg-warning/12", label: "Cognitive Fatigue", desc: "Mental resources depleted — take a break" },
+                            emotional_frustration: { emoji: "😤", color: "text-destructive", bg: "bg-destructive/12", label: "Emotional Frustration", desc: "High error frustration — mood intervention needed" },
+                            high_impulse: { emoji: "⚡", color: "text-accent", bg: "bg-accent/12", label: "High Impulse", desc: "Rapid switching — impulse control weakened" },
+                          };
+                          const state = cogPred.prediction!.prediction.cognitive_state;
+                          const conf = Math.round(cogPred.prediction!.prediction.state_confidence * 100);
+                          const sc = stateConfig[state] || stateConfig.surface_focus;
+                          return (
+                            <div className={`p-3.5 rounded-xl ${sc.bg} border border-border/20`}>
+                              <div className="flex items-center gap-3">
+                                <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="text-2xl">{sc.emoji}</motion.span>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className={`text-sm font-black ${sc.color}`}>{sc.label}</p>
+                                    <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-card/50 text-muted-foreground font-bold">{conf}% conf</span>
+                                  </div>
+                                  <p className="text-[9px] text-muted-foreground mt-0.5">{sc.desc}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Intervention Ladder */}
+                        {cogPred.prediction.intervention && (
+                          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                            className="p-3 rounded-xl bg-warning/8 border border-warning/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <ShieldAlert className="w-3.5 h-3.5 text-warning" />
+                              <p className="text-[10px] font-bold text-warning">Intervention Stage {cogPred.prediction.intervention.stage}</p>
+                            </div>
+                            <div className="flex gap-1.5">
+                              {[1, 2, 3].map(s => (
+                                <div key={s} className={`flex-1 h-2 rounded-full ${s <= cogPred.prediction!.intervention!.stage ? "bg-warning" : "bg-muted/20"}`}>
+                                  {s <= cogPred.prediction!.intervention!.stage && (
+                                    <motion.div className="h-full rounded-full bg-warning" initial={{ width: 0 }} animate={{ width: "100%" }}
+                                      transition={{ duration: 0.5, delay: s * 0.15 }} />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex justify-between mt-1.5">
+                              <span className="text-[7px] text-muted-foreground">Soft Nudge</span>
+                              <span className="text-[7px] text-muted-foreground">Micro Recall</span>
+                              <span className="text-[7px] text-muted-foreground">Hard Lock</span>
+                            </div>
+                            {cogPred.prediction.intervention.stage === 3 && (
+                              <p className="text-[8px] text-warning/80 mt-2 flex items-center gap-1">
+                                <Lock className="w-3 h-3" />
+                                Lock duration: {Math.round(cogPred.prediction.intervention.lock_duration / 60)}min
+                              </p>
+                            )}
+                          </motion.div>
+                        )}
+
+                        {/* State History */}
+                        {cogPred.stateHistory.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[9px] font-bold text-foreground uppercase tracking-wider">Recent States</p>
+                            <div className="flex gap-[3px] flex-wrap">
+                              {cogPred.stateHistory.slice(0, 20).map((s, i) => {
+                                const stateColors: Record<string, string> = {
+                                  deep_focus: "bg-success", surface_focus: "bg-primary",
+                                  cognitive_fatigue: "bg-warning", emotional_frustration: "bg-destructive",
+                                  high_impulse: "bg-accent",
+                                };
+                                return (
+                                  <motion.div key={i} initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.02 }}
+                                    className={`w-3 h-3 rounded-sm ${stateColors[s.state] || "bg-muted"}`}
+                                    style={{ opacity: 0.3 + s.confidence * 0.7 }}
+                                    title={`${s.state} (${Math.round(s.confidence * 100)}%)`} />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* ─── NEURAL TAB ─── */}
+              {activeTab === "neural" && (
+                <motion.div key="neural" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-3.5">
+
+                  {/* Neural Discipline Score Hero */}
+                  <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-5 relative overflow-hidden">
+                    <div className="absolute inset-0 pointer-events-none">
+                      <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.04, 0.08, 0.04] }} transition={{ duration: 6, repeat: Infinity }}
+                        className="absolute top-[-20%] right-[-10%] w-48 h-48 rounded-full blur-3xl" style={{ background: "hsl(var(--primary))" }} />
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-4 relative z-10">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Dumbbell className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-foreground">Neural Discipline</p>
+                        <p className="text-[8px] text-muted-foreground">Track resisted distractions & earn rewards</p>
+                      </div>
+                    </div>
+
+                    {cogPred.prediction ? (() => {
+                      const disc = cogPred.prediction.discipline;
+                      const dopamine = cogPred.prediction.dopamine;
+                      const scoreColor = disc.score >= 70 ? "text-success" : disc.score >= 40 ? "text-warning" : "text-destructive";
+                      return (
+                        <div className="relative z-10 space-y-4">
+                          <div className="flex items-center gap-5">
+                            <div className="text-center">
+                              <motion.p animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }}
+                                className={`text-4xl font-black tabular-nums ${scoreColor}`}>{disc.score}</motion.p>
+                              <p className="text-[8px] text-muted-foreground mt-0.5">DISCIPLINE</p>
+                            </div>
+                            <div className="flex-1 grid grid-cols-2 gap-2">
+                              {[
+                                { label: "Resisted", value: disc.resisted, icon: ShieldCheck, color: "text-success", bg: "bg-success/8" },
+                                { label: "Yielded", value: disc.yielded, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/8" },
+                                { label: "Multiplier", value: `${disc.streak_multiplier}x`, icon: Flame, color: "text-warning", bg: "bg-warning/8" },
+                                { label: "XP Earned", value: disc.xp_earned, icon: Sparkles, color: "text-accent", bg: "bg-accent/8" },
+                              ].map((stat, i) => (
+                                <motion.div key={stat.label} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 + i * 0.06 }}
+                                  className={`rounded-xl ${stat.bg} p-2 text-center`}>
+                                  <stat.icon className={`w-3 h-3 ${stat.color} mx-auto mb-0.5`} />
+                                  <p className={`text-sm font-black ${stat.color}`}>{stat.value}</p>
+                                  <p className="text-[7px] text-muted-foreground">{stat.label}</p>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Dopamine Replacement Rewards */}
+                          {dopamine.stability_boost_animation && (
+                            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                              className="p-3 rounded-xl bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 text-center">
+                              <motion.p animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 1, repeat: 3 }} className="text-lg">🏆</motion.p>
+                              <p className="text-[10px] font-bold text-primary">Stability Boost Earned!</p>
+                              <p className="text-[8px] text-muted-foreground">Your focus resistance is paying off</p>
+                            </motion.div>
+                          )}
+
+                          {dopamine.motivational_trigger && (
+                            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                              className="p-3 rounded-xl bg-success/8 border border-success/15 flex items-center gap-2">
+                              <motion.span animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-lg">💪</motion.span>
+                              <div className="flex-1">
+                                <p className="text-[10px] font-bold text-success">Discipline Level: Strong</p>
+                                <p className="text-[8px] text-muted-foreground">You're building neural pathways for sustained focus</p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </div>
+                      );
+                    })() : (
+                      <div className="flex flex-col items-center py-8 gap-2 relative z-10">
+                        <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+                          <Dumbbell className="w-8 h-8 text-primary/30" />
+                        </motion.div>
+                        <p className="text-[10px] text-muted-foreground">Run prediction to see discipline score</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Discipline History Chart */}
+                  {cogPred.disciplineHistory.length > 0 && (
+                    <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg bg-success/10 flex items-center justify-center">
+                          <TrendingUp className="w-3.5 h-3.5 text-success" />
+                        </div>
+                        <p className="text-[11px] font-bold text-foreground">Discipline Trend</p>
+                      </div>
+                      <div className="flex items-end gap-[4px]" style={{ height: 80 }}>
+                        {[...cogPred.disciplineHistory].reverse().map((d, i) => {
+                          const h = Math.max(8, d.discipline_score);
+                          const barColor = d.discipline_score >= 70 ? "hsl(var(--success))" : d.discipline_score >= 40 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
+                          return (
+                            <motion.div key={d.score_date} initial={{ height: 0 }} animate={{ height: `${h}%` }}
+                              transition={{ delay: 0.04 * i, type: "spring" }}
+                              className="flex-1 rounded-md" style={{ background: barColor, opacity: 0.6 }} />
+                          );
+                        })}
+                      </div>
+                      <div className="flex justify-between mt-1.5">
+                        <span className="text-[7px] text-muted-foreground">Oldest</span>
+                        <span className="text-[7px] text-muted-foreground">Today</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Impulse Delay Info */}
+                  <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-warning/10 flex items-center justify-center">
+                        <Wind className="w-3.5 h-3.5 text-warning" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-foreground">Impulse Delay Challenge</p>
+                        <p className="text-[8px] text-muted-foreground">Cognitive pause before distraction unlock</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        { icon: Brain, text: "Micro recall question from current topic", color: "text-primary" },
+                        { icon: Wind, text: "30-second breathing exercise option", color: "text-accent" },
+                        { icon: Timer, text: "Adaptive delay based on impulse severity", color: "text-warning" },
+                        { icon: Award, text: "XP bonus for completing challenges", color: "text-success" },
+                      ].map((item, i) => (
+                        <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.08 * i }}
+                          className="flex items-center gap-2.5">
+                          <div className="w-6 h-6 rounded-lg bg-secondary/50 border border-border/20 flex items-center justify-center">
+                            <item.icon className={`w-3 h-3 ${item.color}`} />
+                          </div>
+                          <p className="text-[9px] text-muted-foreground">{item.text}</p>
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
               )}
