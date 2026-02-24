@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Shield, Trophy, Zap, Loader2 } from "lucide-react";
+import { Brain, Shield, Trophy, Zap, Loader2, ShieldAlert, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { triggerHaptic } from "@/lib/feedback";
@@ -35,6 +35,21 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
   const [recallTopic, setRecallTopic] = useState<{ topic?: string; subject?: string }>({});
   const [showShield, setShowShield] = useState(false);
   const [showRankBoost, setShowRankBoost] = useState(false);
+  const [focusScore, setFocusScore] = useState<number | null>(null);
+
+  // Load today's focus score
+  useEffect(() => {
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    supabase.from("distraction_scores")
+      .select("focus_score")
+      .eq("user_id", user.id)
+      .eq("score_date", today)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setFocusScore((data as any).focus_score);
+      });
+  }, [user]);
   // Dynamic reordering based on user state
   const actions = useMemo<MicroAction[]>(() => {
     const items: MicroAction[] = [
@@ -65,12 +80,20 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
         reward: "+1 rank",
         color: "text-accent",
         bg: "bg-accent/10",
-        // Higher priority for users with active streaks (competitive)
         priority: streakDays >= 3 ? 70 : 40,
+      },
+      {
+        id: "focus-shield",
+        icon: ShieldAlert,
+        label: "Focus Shield",
+        reward: focusScore !== null ? `${focusScore}% focus` : "Track focus",
+        color: "text-success",
+        bg: "bg-success/10",
+        priority: 55,
       },
     ];
     return items.sort((a, b) => b.priority - a.priority);
-  }, [atRisk.length, overallHealth, streakDays]);
+  }, [atRisk.length, overallHealth, streakDays, focusScore]);
 
   const handleAction = async (id: string) => {
     triggerHaptic(20);
@@ -104,6 +127,18 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
         setLoadingId(null);
         return;
       }
+
+      if (id === "focus-shield") {
+        // Navigate to focus insights or show toast with today's score
+        toast({
+          title: "🛡️ Focus Shield Active",
+          description: focusScore !== null
+            ? `Today's focus score: ${focusScore}%. Keep it up!`
+            : "Focus tracking is running in the background.",
+        });
+        setLoadingId(null);
+        return;
+      }
     } catch {
       toast({ title: "Something went wrong", variant: "destructive" });
     } finally {
@@ -120,7 +155,7 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">
         Quick Actions
       </p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {actions.map((item, i) => {
           const isLoading = loadingId === item.id;
           return (
