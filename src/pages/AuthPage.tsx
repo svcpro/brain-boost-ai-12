@@ -29,7 +29,12 @@ const AuthPage = () => {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({ email });
+      const { error } = await supabase.auth.signInWithOtp({ 
+        email,
+        options: {
+          shouldCreateUser: true,
+        }
+      });
       if (error) throw error;
       setOtpSent(true);
       toast({ title: "OTP Sent!", description: "Check your email for the 6-digit code." });
