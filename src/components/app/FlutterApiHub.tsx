@@ -1167,10 +1167,6 @@ const ApiTesterSection = () => {
         Accept: "application/json",
       };
 
-      if (parsedBody !== undefined) {
-        headers["Content-Type"] = "application/json";
-      }
-
       if (session?.access_token) {
         headers.Authorization = `Bearer ${session.access_token}`;
       }
@@ -1182,34 +1178,50 @@ const ApiTesterSection = () => {
       let finalStatus = 500;
       let finalParsed: any = null;
 
+      const parseToObject = (params: URLSearchParams) =>
+        Object.fromEntries(Array.from(params.entries()));
+
       for (const candidatePath of candidatePaths) {
-        const url = new URL(`https://api.acry.ai/v1/${candidatePath}`);
-        searchParams.forEach((value, key) => {
-          url.searchParams.set(key, value);
+        const { data, error } = await supabase.functions.invoke("api-gateway-proxy", {
+          body: {
+            method,
+            path: candidatePath,
+            query: parseToObject(searchParams),
+            headers,
+            body: parsedBody,
+          },
         });
 
-        const res = await fetch(url.toString(), {
-          method,
-          headers,
-          ...(parsedBody !== undefined ? { body: JSON.stringify(parsedBody) } : {}),
-        });
-
-        const rawText = await res.text();
-        let parsed: any = rawText;
-        try {
-          parsed = rawText ? JSON.parse(rawText) : null;
-        } catch {
-          // Keep raw text fallback
+        if (error) {
+          finalStatus = 503;
+          finalParsed = {
+            message: "API proxy unavailable",
+            details: error.message,
+          };
+          continue;
         }
 
-        finalStatus = res.status;
-        finalParsed = parsed;
+        const proxyRes = (data && typeof data === "object") ? (data as any) : null;
+        if (!proxyRes) {
+          finalStatus = 500;
+          finalParsed = { message: "Invalid proxy response" };
+          continue;
+        }
 
-        if (res.ok) break;
+        finalStatus = Number(proxyRes.status_code || (proxyRes.ok ? 200 : 500));
+        finalParsed = proxyRes.ok
+          ? proxyRes.data
+          : {
+              message: proxyRes.error || "Request failed",
+              details: proxyRes.details,
+              target_url: proxyRes.target_url,
+              data: proxyRes.data,
+            };
+
+        if (finalStatus < 400) break;
 
         const errorMessage =
-          (typeof parsed === "object" && (parsed?.message || parsed?.error)) ||
-          "";
+          (typeof finalParsed === "object" && (finalParsed as any)?.message) || "";
 
         const isRoutingProxyError =
           typeof errorMessage === "string" &&
