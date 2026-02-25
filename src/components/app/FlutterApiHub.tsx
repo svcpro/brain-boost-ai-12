@@ -1103,12 +1103,14 @@ const ApiTesterSection = () => {
     const parseEndpointInput = (rawPath: string) => {
       let normalized = rawPath.trim();
       let searchParams = new URLSearchParams();
+      let parsedFromFullUrl: URL | null = null;
 
-      if (!normalized) return { path: "", searchParams };
+      if (!normalized) return { path: "", searchParams, parsedFromFullUrl };
 
       if (/^https?:\/\//i.test(normalized)) {
         try {
           const parsed = new URL(normalized);
+          parsedFromFullUrl = parsed;
           normalized = `${parsed.pathname}${parsed.search}`;
         } catch {
           // fall back to raw input
@@ -1127,7 +1129,22 @@ const ApiTesterSection = () => {
         .replace(/^functions\/v\d+\//i, "")
         .replace(/\/+$/, "");
 
-      return { path: cleanPath, searchParams };
+      return { path: cleanPath, searchParams, parsedFromFullUrl };
+    };
+
+    const buildCandidateBases = (parsedFromFullUrl: URL | null) => {
+      const defaults = ["https://api.acry.ai/v1", "https://api.acry.app/v1"];
+
+      if (!parsedFromFullUrl || !/^https?:$/i.test(parsedFromFullUrl.protocol)) {
+        return defaults;
+      }
+
+      const pathname = parsedFromFullUrl.pathname || "";
+      const versionMatch = pathname.match(/^\/v\d+(?=\/|$)/i);
+      const versionPrefix = versionMatch ? versionMatch[0] : "/v1";
+      const preferred = `${parsedFromFullUrl.origin}${versionPrefix}`;
+
+      return Array.from(new Set([preferred, ...defaults]));
     };
 
     const buildCandidatePaths = (cleanPath: string) => {
@@ -1141,8 +1158,9 @@ const ApiTesterSection = () => {
       return Array.from(new Set([base, withoutVersion, withApi, withoutApi].filter(Boolean)));
     };
 
-    const { path: normalizedPath, searchParams } = parseEndpointInput(path);
+    const { path: normalizedPath, searchParams, parsedFromFullUrl } = parseEndpointInput(path);
     const candidatePaths = buildCandidatePaths(normalizedPath);
+    const candidateBases = buildCandidateBases(parsedFromFullUrl);
 
     if (candidatePaths.length === 0) {
       setStatusCode(400);
@@ -1181,53 +1199,66 @@ const ApiTesterSection = () => {
       const parseToObject = (params: URLSearchParams) =>
         Object.fromEntries(Array.from(params.entries()));
 
-      for (const candidatePath of candidatePaths) {
-        const { data, error } = await supabase.functions.invoke("api-gateway-proxy", {
-          body: {
-            method,
-            path: candidatePath,
-            query: parseToObject(searchParams),
-            headers,
-            body: parsedBody,
-          },
-        });
+      const isTransportFailure = (message: string) => {
+        const lower = message.toLowerCase();
+        return lower.includes("handshakefailure") ||
+          lower.includes("tls") ||
+          lower.includes("ssl") ||
+          lower.includes("unable to resolve") ||
+          lower.includes("dns") ||
+          lower.includes("connect");
+      };
 
-        if (error) {
-          finalStatus = 503;
-          finalParsed = {
-            message: "API proxy unavailable",
-            details: error.message,
-          };
-          continue;
-        }
+      outer:
+      for (const candidateBase of candidateBases) {
+        for (const candidatePath of candidatePaths) {
+          const { data, error } = await supabase.functions.invoke("api-gateway-proxy", {
+            body: {
+              method,
+              path: candidatePath,
+              query: parseToObject(searchParams),
+              headers,
+              body: parsedBody,
+              base_url: candidateBase,
+            },
+          });
 
-        const proxyRes = (data && typeof data === "object") ? (data as any) : null;
-        if (!proxyRes) {
-          finalStatus = 500;
-          finalParsed = { message: "Invalid proxy response" };
-          continue;
-        }
-
-        finalStatus = Number(proxyRes.status_code || (proxyRes.ok ? 200 : 500));
-        finalParsed = proxyRes.ok
-          ? proxyRes.data
-          : {
-              message: proxyRes.error || "Request failed",
-              details: proxyRes.details,
-              target_url: proxyRes.target_url,
-              data: proxyRes.data,
+          if (error) {
+            finalStatus = 503;
+            finalParsed = {
+              message: "API proxy unavailable",
+              details: error.message,
+              target_base: candidateBase,
+              target_path: candidatePath,
             };
+            continue;
+          }
 
-        if (finalStatus < 400) break;
+          const proxyRes = (data && typeof data === "object") ? (data as any) : null;
+          if (!proxyRes) {
+            finalStatus = 500;
+            finalParsed = { message: "Invalid proxy response" };
+            continue;
+          }
 
-        const errorMessage =
-          (typeof finalParsed === "object" && (finalParsed as any)?.message) || "";
+          finalStatus = Number(proxyRes.status_code || (proxyRes.ok ? 200 : 500));
+          finalParsed = proxyRes.ok
+            ? proxyRes.data
+            : {
+                message: proxyRes.error || "Request failed",
+                details: proxyRes.details,
+                target_url: proxyRes.target_url,
+                target_base: proxyRes.target_base,
+                data: proxyRes.data,
+              };
 
-        const isRoutingProxyError =
-          typeof errorMessage === "string" &&
-          errorMessage.toLowerCase().includes("failed to send a request to the edge function");
+          if (finalStatus < 400) break outer;
 
-        if (!isRoutingProxyError) break;
+          const errorMessage =
+            (typeof finalParsed === "object" && (finalParsed as any)?.message) || "";
+
+          if (!isTransportFailure(errorMessage)) break outer;
+        }
       }
 
       const elapsed = Date.now() - start;
