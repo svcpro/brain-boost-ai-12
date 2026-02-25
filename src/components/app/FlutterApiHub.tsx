@@ -1124,15 +1124,27 @@ const ApiTesterSection = () => {
       const cleanPath = pathnamePart
         .replace(/^\/+/, "")
         .replace(/^v\d+\//i, "")
-        .replace(/^api\//i, "")
         .replace(/^functions\/v\d+\//i, "")
         .replace(/\/+$/, "");
 
       return { path: cleanPath, searchParams };
     };
 
+    const buildCandidatePaths = (cleanPath: string) => {
+      const base = cleanPath.replace(/^\/+|\/+$/g, "");
+      if (!base) return [] as string[];
+
+      const withoutVersion = base.replace(/^v\d+\//i, "");
+      const withApi = withoutVersion.startsWith("api/") ? withoutVersion : `api/${withoutVersion}`;
+      const withoutApi = withoutVersion.replace(/^api\//i, "");
+
+      return Array.from(new Set([base, withoutVersion, withApi, withoutApi].filter(Boolean)));
+    };
+
     const { path: normalizedPath, searchParams } = parseEndpointInput(path);
-    if (!normalizedPath) {
+    const candidatePaths = buildCandidatePaths(normalizedPath);
+
+    if (candidatePaths.length === 0) {
       setStatusCode(400);
       setLatency(Date.now() - start);
       setResponse(JSON.stringify({ success: false, message: "Invalid endpoint path", error_code: 400 }, null, 2));
@@ -1141,11 +1153,6 @@ const ApiTesterSection = () => {
     }
 
     try {
-      const url = new URL(`https://api.acry.ai/v1/${normalizedPath}`);
-      searchParams.forEach((value, key) => {
-        url.searchParams.set(key, value);
-      });
-
       const parsedBody = method === "GET"
         ? undefined
         : (() => {
@@ -1172,34 +1179,58 @@ const ApiTesterSection = () => {
         headers.apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       }
 
-      const res = await fetch(url.toString(), {
-        method,
-        headers,
-        ...(parsedBody !== undefined ? { body: JSON.stringify(parsedBody) } : {}),
-      });
+      let finalStatus = 500;
+      let finalParsed: any = null;
+
+      for (const candidatePath of candidatePaths) {
+        const url = new URL(`https://api.acry.ai/v1/${candidatePath}`);
+        searchParams.forEach((value, key) => {
+          url.searchParams.set(key, value);
+        });
+
+        const res = await fetch(url.toString(), {
+          method,
+          headers,
+          ...(parsedBody !== undefined ? { body: JSON.stringify(parsedBody) } : {}),
+        });
+
+        const rawText = await res.text();
+        let parsed: any = rawText;
+        try {
+          parsed = rawText ? JSON.parse(rawText) : null;
+        } catch {
+          // Keep raw text fallback
+        }
+
+        finalStatus = res.status;
+        finalParsed = parsed;
+
+        if (res.ok) break;
+
+        const errorMessage =
+          (typeof parsed === "object" && (parsed?.message || parsed?.error)) ||
+          "";
+
+        const isRoutingProxyError =
+          typeof errorMessage === "string" &&
+          errorMessage.toLowerCase().includes("failed to send a request to the edge function");
+
+        if (!isRoutingProxyError) break;
+      }
 
       const elapsed = Date.now() - start;
       setLatency(elapsed);
-      setStatusCode(res.status);
+      setStatusCode(finalStatus);
 
-      const rawText = await res.text();
-      let parsed: any = rawText;
-      try {
-        parsed = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        // Keep raw text fallback
-      }
-
-      if (!res.ok) {
+      if (finalStatus >= 400) {
         const message =
-          (typeof parsed === "object" && parsed?.message) ||
-          (typeof parsed === "object" && parsed?.error) ||
-          res.statusText ||
+          (typeof finalParsed === "object" && finalParsed?.message) ||
+          (typeof finalParsed === "object" && finalParsed?.error) ||
           "Request failed";
 
-        setResponse(JSON.stringify({ success: false, message, error_code: res.status, data: parsed }, null, 2));
+        setResponse(JSON.stringify({ success: false, message, error_code: finalStatus, data: finalParsed }, null, 2));
       } else {
-        setResponse(JSON.stringify({ success: true, message: "OK", data: parsed }, null, 2));
+        setResponse(JSON.stringify({ success: true, message: "OK", data: finalParsed }, null, 2));
       }
     } catch (e: any) {
       setLatency(Date.now() - start);
