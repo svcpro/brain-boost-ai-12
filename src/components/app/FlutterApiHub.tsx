@@ -1099,13 +1099,57 @@ const ApiTesterSection = () => {
     setLoading(true);
     setResponse(null);
     const start = Date.now();
+
+    const normalizePath = (rawPath: string) => {
+      let normalized = rawPath.trim();
+      if (!normalized) return "";
+
+      if (/^https?:\/\//i.test(normalized)) {
+        try {
+          const parsed = new URL(normalized);
+          normalized = parsed.pathname;
+        } catch {
+          // fall back to raw input
+        }
+      }
+
+      normalized = normalized
+        .replace(/^\/+/, "")
+        .replace(/^v\d+\//i, "")
+        .replace(/^api\//i, "")
+        .replace(/^functions\/v\d+\//i, "")
+        .replace(/\/+$/, "");
+
+      return normalized;
+    };
+
+    const normalizedPath = normalizePath(path);
+    if (!normalizedPath) {
+      setStatusCode(400);
+      setLatency(Date.now() - start);
+      setResponse(JSON.stringify({ success: false, message: "Invalid endpoint path", error_code: 400 }, null, 2));
+      setLoading(false);
+      return;
+    }
+
     try {
-      const fnName = path.split("/")[0];
-      const { data, error } = await supabase.functions.invoke(fnName, {
-        body: method === "GET" ? { action: path.split("/").slice(1).join("-") || "status" } : JSON.parse(body),
-      });
+      const [fnName, ...segments] = normalizedPath.split("/");
+      const action = segments.join("-") || "status";
+      const requestBody = method === "GET"
+        ? { action }
+        : (() => {
+            try {
+              return JSON.parse(body || "{}");
+            } catch {
+              throw new Error("Invalid JSON body");
+            }
+          })();
+
+      const { data, error } = await supabase.functions.invoke(fnName, { body: requestBody });
+
       const elapsed = Date.now() - start;
       setLatency(elapsed);
+
       if (error) {
         setStatusCode(500);
         setResponse(JSON.stringify({ success: false, message: error.message, error_code: 500 }, null, 2));
@@ -1118,6 +1162,7 @@ const ApiTesterSection = () => {
       setStatusCode(500);
       setResponse(JSON.stringify({ success: false, message: e.message, error_code: 500 }, null, 2));
     }
+
     setLoading(false);
   }, [path, method, body]);
 
@@ -1176,7 +1221,7 @@ const ApiTesterSection = () => {
             className="px-2 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border outline-none font-mono font-bold">
             <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
           </select>
-          <input value={path} onChange={e => setPath(e.target.value)} placeholder="endpoint/path"
+          <input value={path} onChange={e => setPath(e.target.value)} placeholder="onboarding/exam-types or full URL"
             className="px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-border focus:border-primary outline-none font-mono" />
           <button onClick={execute} disabled={loading}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 flex items-center gap-1.5 disabled:opacity-50">
