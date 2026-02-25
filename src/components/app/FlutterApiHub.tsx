@@ -1100,30 +1100,38 @@ const ApiTesterSection = () => {
     setResponse(null);
     const start = Date.now();
 
-    const normalizePath = (rawPath: string) => {
+    const parseEndpointInput = (rawPath: string) => {
       let normalized = rawPath.trim();
-      if (!normalized) return "";
+      let searchParams = new URLSearchParams();
+
+      if (!normalized) return { path: "", searchParams };
 
       if (/^https?:\/\//i.test(normalized)) {
         try {
           const parsed = new URL(normalized);
-          normalized = parsed.pathname;
+          normalized = `${parsed.pathname}${parsed.search}`;
         } catch {
           // fall back to raw input
         }
       }
 
-      normalized = normalized
+      const [pathnamePart, queryPart] = normalized.split("?");
+
+      if (queryPart) {
+        searchParams = new URLSearchParams(queryPart);
+      }
+
+      const cleanPath = pathnamePart
         .replace(/^\/+/, "")
         .replace(/^v\d+\//i, "")
         .replace(/^api\//i, "")
         .replace(/^functions\/v\d+\//i, "")
         .replace(/\/+$/, "");
 
-      return normalized;
+      return { path: cleanPath, searchParams };
     };
 
-    const normalizedPath = normalizePath(path);
+    const { path: normalizedPath, searchParams } = parseEndpointInput(path);
     if (!normalizedPath) {
       setStatusCode(400);
       setLatency(Date.now() - start);
@@ -1133,10 +1141,13 @@ const ApiTesterSection = () => {
     }
 
     try {
-      const [fnName, ...segments] = normalizedPath.split("/");
-      const action = segments.join("-") || "status";
-      const requestBody = method === "GET"
-        ? { action }
+      const url = new URL(`https://api.acry.ai/v1/${normalizedPath}`);
+      searchParams.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+
+      const parsedBody = method === "GET"
+        ? undefined
         : (() => {
             try {
               return JSON.parse(body || "{}");
@@ -1145,17 +1156,50 @@ const ApiTesterSection = () => {
             }
           })();
 
-      const { data, error } = await supabase.functions.invoke(fnName, { body: requestBody });
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+
+      if (parsedBody !== undefined) {
+        headers["Content-Type"] = "application/json";
+      }
+
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
+      if (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+        headers.apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      }
+
+      const res = await fetch(url.toString(), {
+        method,
+        headers,
+        ...(parsedBody !== undefined ? { body: JSON.stringify(parsedBody) } : {}),
+      });
 
       const elapsed = Date.now() - start;
       setLatency(elapsed);
+      setStatusCode(res.status);
 
-      if (error) {
-        setStatusCode(500);
-        setResponse(JSON.stringify({ success: false, message: error.message, error_code: 500 }, null, 2));
+      const rawText = await res.text();
+      let parsed: any = rawText;
+      try {
+        parsed = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        // Keep raw text fallback
+      }
+
+      if (!res.ok) {
+        const message =
+          (typeof parsed === "object" && parsed?.message) ||
+          (typeof parsed === "object" && parsed?.error) ||
+          res.statusText ||
+          "Request failed";
+
+        setResponse(JSON.stringify({ success: false, message, error_code: res.status, data: parsed }, null, 2));
       } else {
-        setStatusCode(200);
-        setResponse(JSON.stringify({ success: true, message: "OK", data }, null, 2));
+        setResponse(JSON.stringify({ success: true, message: "OK", data: parsed }, null, 2));
       }
     } catch (e: any) {
       setLatency(Date.now() - start);
@@ -1164,7 +1208,7 @@ const ApiTesterSection = () => {
     }
 
     setLoading(false);
-  }, [path, method, body]);
+  }, [path, method, body, session?.access_token]);
 
   const groups = useMemo(() => {
     const g: Record<string, typeof ACRY_API_ROUTES> = {};
