@@ -7228,35 +7228,26 @@ export type Database = {
         Row: {
           id: string
           live_key_id: string | null
-          live_key_secret: string | null
           mode: string
           test_key_id: string | null
-          test_key_secret: string | null
           updated_at: string
           updated_by: string | null
-          webhook_secret: string | null
         }
         Insert: {
           id?: string
           live_key_id?: string | null
-          live_key_secret?: string | null
           mode?: string
           test_key_id?: string | null
-          test_key_secret?: string | null
           updated_at?: string
           updated_by?: string | null
-          webhook_secret?: string | null
         }
         Update: {
           id?: string
           live_key_id?: string | null
-          live_key_secret?: string | null
           mode?: string
           test_key_id?: string | null
-          test_key_secret?: string | null
           updated_at?: string
           updated_by?: string | null
-          webhook_secret?: string | null
         }
         Relationships: []
       }
