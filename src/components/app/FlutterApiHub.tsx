@@ -1125,7 +1125,7 @@ const ApiTesterSection = () => {
 
       const cleanPath = pathnamePart
         .replace(/^\/+/, "")
-        .replace(/^v\d+\//i, "")
+        .replace(/^v\d+(?:\/|$)/i, "")
         .replace(/^functions\/v\d+\//i, "")
         .replace(/\/+$/, "");
 
@@ -1165,7 +1165,7 @@ const ApiTesterSection = () => {
     if (candidatePaths.length === 0) {
       setStatusCode(400);
       setLatency(Date.now() - start);
-      setResponse(JSON.stringify({ success: false, message: "Invalid endpoint path", error_code: 400 }, null, 2));
+      setResponse(JSON.stringify({ success: false, message: "Invalid endpoint path. Add a path like /auth/session-status after /v1.", error_code: 400 }, null, 2));
       setLoading(false);
       return;
     }

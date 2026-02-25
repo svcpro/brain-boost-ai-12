@@ -85,6 +85,15 @@ serve(async (req) => {
         lower.includes("connect");
     };
 
+    const isCloudflareDnsConflict = (status: number, raw: string, parsed: unknown) => {
+      if (status !== 403) return false;
+      const parsedText = typeof parsed === "string"
+        ? parsed
+        : (typeof parsed === "object" && parsed ? JSON.stringify(parsed) : "");
+      const haystack = `${raw}\n${parsedText}`.toLowerCase();
+      return haystack.includes("error 1000") || haystack.includes("dns points to prohibited ip");
+    };
+
     let finalStatus = 503;
     let finalOk = false;
     let finalError: string | null = "Proxy upstream unreachable";
@@ -116,11 +125,15 @@ serve(async (req) => {
           // keep raw text
         }
 
+        const isDnsConflict = isCloudflareDnsConflict(upstream.status, raw, parsed);
+
         const upstreamError =
           upstream.ok
             ? null
-            : (typeof parsed === "object" && parsed && ((parsed as Record<string, unknown>).message || (parsed as Record<string, unknown>).error)) ||
-              `Upstream request failed (${upstream.status})`;
+            : isDnsConflict
+              ? `Cloudflare Error 1000: DNS points to prohibited IP (${new URL(url.toString()).hostname})`
+              : (typeof parsed === "object" && parsed && ((parsed as Record<string, unknown>).message || (parsed as Record<string, unknown>).error)) ||
+                `Upstream request failed (${upstream.status})`;
 
         finalStatus = upstream.status;
         finalOk = upstream.ok;
@@ -128,8 +141,12 @@ serve(async (req) => {
         finalData = parsed;
         finalTargetUrl = url.toString();
         finalTargetBase = targetBase;
+        finalDetails = isDnsConflict
+          ? "Cloudflare DNS for the API domain still points to a prohibited IP or proxied loop. Update DNS/proxy config and retry."
+          : null;
 
         if (upstream.ok) break;
+        if (isDnsConflict) continue;
         if (!upstreamError || !isTransportError(String(upstreamError))) break;
       } catch (fetchErr) {
         const message = fetchErr instanceof Error ? fetchErr.message : "Upstream fetch failed";
