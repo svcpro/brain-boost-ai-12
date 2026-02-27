@@ -84,23 +84,26 @@ serve(async (req) => {
       messages.push({
         role: "user",
         content: [
-          { type: "text", text: "Extract the question from this image. Parse math symbols, equations, diagrams, tables. Solve completely and return JSON as instructed." },
+          { type: "text", text: "Extract the question from this image. Solve completely and return JSON as instructed." },
           { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image_base64}` } }
         ]
       });
     } else {
       messages.push({
         role: "user",
-        content: `Solve this question completely with full ALIS analysis.\n\nQuestion: ${questionText}`
+        content: `Solve completely with ALIS analysis.\n\nQuestion: ${questionText}`
       });
     }
 
+    // Use flash-lite for speed on text, flash for images
+    const model = image_base64 ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
+
     const aiResult = await callAI({
       messages,
-      model: "google/gemini-2.5-flash",
-      temperature: 0.3,
-      maxTokens: 8000,
-      timeoutMs: 55000,
+      model,
+      temperature: 0.2,
+      maxTokens: 4000,
+      timeoutMs: 45000,
     });
 
     if (!aiResult.ok) {
@@ -203,117 +206,23 @@ function buildALISPrompt(profile: any, memoryScores: any[], recentQueries: any[]
   const recentGaps = recentQueries?.map(q => q.cognitive_gap_type).filter(Boolean) || [];
   const recentTopics = recentQueries?.map(q => q.detected_topic).filter(Boolean) || [];
 
-  return `You are ACRY ALIS – Autonomous Learning Intervention System (Omega Level).
-You are a world-class academic solver, cognitive diagnostician, AND predictive learning architect.
+  return `You are ACRY ALIS Ω – an academic solver and cognitive diagnostician. Given a question, return a compact JSON with these fields:
 
-Given a question, return a JSON object with ALL these fields:
+{"detected_topic":"","detected_subtopic":"","detected_difficulty":"easy|medium|hard","detected_exam_type":"","short_answer":"direct answer 1-3 sentences","step_by_step":["step1","step2"],"concept_clarity":"underlying principle","option_elimination":"if MCQ why wrong options fail","shortcut_tricks":"memory tricks",
+"cognitive_gap":{"type":"conceptual_gap|retrieval_failure|interference_confusion|speed_weakness|pattern_unfamiliarity","code":"CG-001 to CG-005","explanation":"","severity":"low|medium|high"},
+"micro_concepts":{"core":"","adjacent_nodes":["c1","c2"],"reinforcement_questions":[{"question":"","difficulty":""}]},
+"exam_impact":{"topic_probability_index":0.5,"estimated_mastery_boost":"5%","readiness_impact":"medium","related_pyq_patterns":[]},
+"explanation_depth":"standard","confidence":0.8,"cross_validation_note":"",
+"pre_query_predictions":{"weak_concepts":[],"preventive_challenge":null,"prediction_confidence":0},
+"silent_repair_plan":{"stealth_questions":[],"unstable_nodes":[],"repair_strategy":""},
+"future_style_questions":[{"question":"","question_dna":"","difficulty":"hard","topic_momentum":"rising","exam_probability":0.5}],
+"cognitive_drift":{"drift_detected":false,"drift_magnitude":0,"recalibration":""},
+"personal_examiner":{"trap_questions":[{"question":"","trap_type":""}],"conceptual_depth_score":50,"robustness_rating":"developing"},
+"strategic_mastery_index":{"smi_score":50,"multi_step_reasoning":50,"transfer_learning":50,"trap_resistance":50,"mastery_verdict":"intermediate"},
+"strategy_switch":{"recommended_mode":"deep_focus","reasoning":"","urgency":"low"}}
 
-{
-  "detected_topic": "main subject",
-  "detected_subtopic": "specific subtopic",
-  "detected_difficulty": "easy|medium|hard",
-  "detected_exam_type": "most likely exam",
-  "short_answer": "direct answer in 1-3 sentences",
-  "step_by_step": ["step 1...", "step 2...", ...],
-  "concept_clarity": "underlying principle explained clearly",
-  "option_elimination": "if MCQ, why each wrong option is wrong",
-  "shortcut_tricks": "memory tricks or shortcuts",
-
-  "cognitive_gap": {
-    "type": "conceptual_gap|retrieval_failure|interference_confusion|speed_weakness|pattern_unfamiliarity",
-    "code": "CG-001 through CG-005",
-    "explanation": "why this gap type was identified",
-    "severity": "low|medium|high"
-  },
-
-  "micro_concepts": {
-    "core": "core micro-concept tested",
-    "adjacent_nodes": ["related concept 1", "concept 2", "concept 3"],
-    "reinforcement_questions": [
-      {"question": "follow-up Q1", "difficulty": "easy|medium|hard"},
-      {"question": "follow-up Q2", "difficulty": "easy|medium|hard"},
-      {"question": "follow-up Q3", "difficulty": "easy|medium|hard"}
-    ]
-  },
-
-  "exam_impact": {
-    "topic_probability_index": 0.0 to 1.0,
-    "estimated_mastery_boost": "percentage",
-    "readiness_impact": "low|medium|high|critical",
-    "related_pyq_patterns": ["pattern 1", "pattern 2"]
-  },
-
-  "explanation_depth": "beginner|standard|advanced|expert",
-  "confidence": 0.0 to 1.0,
-  "cross_validation_note": "brief note on reliability",
-
-  "pre_query_predictions": {
-    "weak_concepts": ["concept the user likely struggles with next based on this topic", "concept 2", "concept 3"],
-    "preventive_challenge": "A proactive question to test an adjacent weak concept BEFORE user encounters it",
-    "prediction_confidence": 0.0 to 1.0
-  },
-
-  "silent_repair_plan": {
-    "stealth_questions": ["disguised recall drill 1", "drill 2"],
-    "unstable_nodes": ["node that needs hidden reinforcement", "node 2"],
-    "repair_strategy": "brief plan for silent cognitive repair"
-  },
-
-  "future_style_questions": [
-    {
-      "question": "evolved exam-style question using structural drift",
-      "question_dna": "structural pattern code (e.g. application+comparison+trap)",
-      "difficulty": "hard",
-      "topic_momentum": "rising|stable|declining",
-      "exam_probability": 0.0 to 1.0
-    },
-    {
-      "question": "second future-style question",
-      "question_dna": "pattern code",
-      "difficulty": "medium|hard",
-      "topic_momentum": "rising|stable|declining",
-      "exam_probability": 0.0 to 1.0
-    }
-  ],
-
-  "cognitive_drift": {
-    "drift_detected": true|false,
-    "drift_magnitude": 0.0 to 1.0,
-    "drift_direction": "overconfidence|underperformance|topic_avoidance|speed_regression",
-    "recalibration": "specific adjustment recommendation",
-    "spacing_adjustment": "increase|maintain|decrease review interval"
-  },
-
-  "personal_examiner": {
-    "trap_questions": [
-      {"question": "trap-based question testing deep robustness", "trap_type": "similar_concept_confusion|edge_case|negative_framing|multi_step_trap"},
-      {"question": "second trap question", "trap_type": "type"}
-    ],
-    "conceptual_depth_score": 0 to 100,
-    "robustness_rating": "fragile|developing|robust|bulletproof"
-  },
-
-  "strategic_mastery_index": {
-    "smi_score": 0 to 100,
-    "multi_step_reasoning": 0 to 100,
-    "transfer_learning": 0 to 100,
-    "trap_resistance": 0 to 100,
-    "mastery_verdict": "novice|intermediate|advanced|master"
-  },
-
-  "strategy_switch": {
-    "recommended_mode": "deep_focus|speed_drill|revision|mock_test|concept_rebuild",
-    "reasoning": "why this mode is optimal now",
-    "urgency": "low|medium|high|critical"
-  }
-}
-
-${profile?.exam_type ? `User is preparing for: ${profile.exam_type}. Tailor exam impact accordingly.` : ""}
-${avgStrength ? `User avg memory strength: ${avgStrength}. Adjust explanation depth.` : "User is new. Use standard depth."}
-${recentGaps.length ? `Recent cognitive gaps: ${recentGaps.join(", ")}. Factor into drift detection.` : ""}
-${recentTopics.length ? `Recent topics studied: ${recentTopics.join(", ")}. Use for pre-query predictions.` : ""}
-
-Respond ONLY with valid JSON. No markdown, no code blocks.`;
+${profile?.exam_type ? `Exam: ${profile.exam_type}.` : ""}${avgStrength ? ` Memory: ${avgStrength}.` : ""}${recentGaps.length ? ` Recent gaps: ${recentGaps.slice(0,3).join(",")}.` : ""}${recentTopics.length ? ` Recent topics: ${recentTopics.slice(0,3).join(",")}.` : ""}
+Respond ONLY with valid JSON. No markdown.`;
 }
 
 /* ═══ ALIS Response Parser ═══ */

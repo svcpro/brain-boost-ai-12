@@ -41,20 +41,36 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
   );
 
   const token = authHeader.replace("Bearer ", "");
+  
+  // Try fast local JWT validation first, fallback to network call for cold starts
+  let userId: string | undefined;
+  let email: string | undefined;
+  let role = "authenticated";
+
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
 
-  if (claimsError || !claimsData?.claims) {
-    throw new Response(
-      JSON.stringify({ error: "Invalid or expired token" }),
-      { status: 401, headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" } }
-    );
+  if (!claimsError && claimsData?.claims?.sub) {
+    userId = claimsData.claims.sub as string;
+    email = claimsData.claims.email as string | undefined;
+    role = (claimsData.claims.role as string) || "authenticated";
+  } else {
+    // Fallback: network call to validate token (handles cold-start race condition)
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
+      throw new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    userId = userData.user.id;
+    email = userData.user.email;
+    role = userData.user.role || "authenticated";
   }
 
-  const claims = claimsData.claims;
   return {
-    userId: claims.sub as string,
-    email: claims.email as string | undefined,
-    role: (claims.role as string) || "authenticated",
+    userId: userId!,
+    email,
+    role,
     supabase,
   };
 }
