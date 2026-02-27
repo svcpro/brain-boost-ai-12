@@ -222,15 +222,37 @@ function buildALISPrompt(profile: any, memoryScores: any[], recentQueries: any[]
 "strategy_switch":{"recommended_mode":"deep_focus","reasoning":"","urgency":"low"}}
 
 ${profile?.exam_type ? `Exam: ${profile.exam_type}.` : ""}${avgStrength ? ` Memory: ${avgStrength}.` : ""}${recentGaps.length ? ` Recent gaps: ${recentGaps.slice(0,3).join(",")}.` : ""}${recentTopics.length ? ` Recent topics: ${recentTopics.slice(0,3).join(",")}.` : ""}
-Respond ONLY with valid JSON. No markdown.`;
+Respond ONLY with valid JSON. No markdown fences. Be concise in step_by_step and short_answer — max 3 sentences each. Do NOT repeat calculations or self-correct verbosely.`;
 }
 
 /* ═══ ALIS Response Parser ═══ */
 function parseALISResponse(rawText: string): any {
+  // Strip markdown code blocks
+  let cleaned = rawText.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+
+  // Try direct parse first
+  try { return JSON.parse(cleaned); } catch { /* continue */ }
+
+  // Extract JSON object from mixed text
   try {
-    const jsonMatch = rawText.match(/[\{][\s\S]*[\}]/);
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      try { return JSON.parse(jsonMatch[0]); } catch {
+        // Repair truncated JSON by closing open braces/brackets
+        let s = jsonMatch[0];
+        let braces = 0, brackets = 0;
+        for (const c of s) {
+          if (c === "{") braces++;
+          else if (c === "}") braces--;
+          else if (c === "[") brackets++;
+          else if (c === "]") brackets--;
+        }
+        // Remove trailing incomplete string value
+        s = s.replace(/,\s*"[^"]*"?\s*:\s*"[^"]*$/, "");
+        while (brackets > 0) { s += "]"; brackets--; }
+        while (braces > 0) { s += "}"; braces--; }
+        try { return JSON.parse(s); } catch { /* fallback */ }
+      }
     }
   } catch { /* fallback */ }
 
