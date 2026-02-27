@@ -1064,6 +1064,8 @@ export type Database = {
       }
       brainlens_queries: {
         Row: {
+          alis_version: string | null
+          cognitive_drift: Json | null
           cognitive_gap_code: string | null
           cognitive_gap_type: string | null
           confidence_score: number | null
@@ -1078,21 +1080,29 @@ export type Database = {
           exam_impact: Json | null
           explanation_depth: string | null
           extracted_text: string | null
+          future_style_questions: Json | null
           id: string
           input_content: string | null
           input_type: string
           knowledge_graph_node: Json | null
           micro_concepts: Json | null
+          personal_examiner: Json | null
           policy_intelligence: Json | null
+          pre_query_predictions: Json | null
           processing_time_ms: number | null
           reinforcement_questions: Json | null
           related_pyqs: Json | null
           short_answer: string | null
+          silent_repair_plan: Json | null
           status: string
+          strategic_mastery_index: Json | null
+          strategy_switch: Json | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          alis_version?: string | null
+          cognitive_drift?: Json | null
           cognitive_gap_code?: string | null
           cognitive_gap_type?: string | null
           confidence_score?: number | null
@@ -1107,21 +1117,29 @@ export type Database = {
           exam_impact?: Json | null
           explanation_depth?: string | null
           extracted_text?: string | null
+          future_style_questions?: Json | null
           id?: string
           input_content?: string | null
           input_type: string
           knowledge_graph_node?: Json | null
           micro_concepts?: Json | null
+          personal_examiner?: Json | null
           policy_intelligence?: Json | null
+          pre_query_predictions?: Json | null
           processing_time_ms?: number | null
           reinforcement_questions?: Json | null
           related_pyqs?: Json | null
           short_answer?: string | null
+          silent_repair_plan?: Json | null
           status?: string
+          strategic_mastery_index?: Json | null
+          strategy_switch?: Json | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          alis_version?: string | null
+          cognitive_drift?: Json | null
           cognitive_gap_code?: string | null
           cognitive_gap_type?: string | null
           confidence_score?: number | null
@@ -1136,17 +1154,23 @@ export type Database = {
           exam_impact?: Json | null
           explanation_depth?: string | null
           extracted_text?: string | null
+          future_style_questions?: Json | null
           id?: string
           input_content?: string | null
           input_type?: string
           knowledge_graph_node?: Json | null
           micro_concepts?: Json | null
+          personal_examiner?: Json | null
           policy_intelligence?: Json | null
+          pre_query_predictions?: Json | null
           processing_time_ms?: number | null
           reinforcement_questions?: Json | null
           related_pyqs?: Json | null
           short_answer?: string | null
+          silent_repair_plan?: Json | null
           status?: string
+          strategic_mastery_index?: Json | null
+          strategy_switch?: Json | null
           updated_at?: string
           user_id?: string
         }
