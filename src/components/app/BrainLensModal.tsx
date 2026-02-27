@@ -121,7 +121,7 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2.5 flex-1">
           <HeaderBrainIcon />
           <div>
-            <h1 className="text-sm font-display font-bold gradient-text leading-tight">BrainLens</h1>
+            <h1 className="text-sm font-bold gradient-text leading-tight" style={{ fontFamily: "'Orbitron', sans-serif", letterSpacing: "0.08em" }}>BrainLens</h1>
             <p className="text-[9px] text-muted-foreground leading-tight">AI Query Resolver</p>
           </div>
         </div>
