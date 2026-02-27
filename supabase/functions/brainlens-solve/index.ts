@@ -49,7 +49,7 @@ serve(async (req) => {
     // Fetch user context in parallel
     const [profileRes, memoryRes, recentQueriesRes] = await Promise.all([
       adminClient.from("profiles").select("exam_type").eq("id", auth.userId).single(),
-      adminClient.from("memory_scores").select("topic_id, memory_strength, stability_score").eq("user_id", auth.userId).order("last_reviewed_at", { ascending: false }).limit(20),
+      adminClient.from("memory_scores").select("topic_id, score").eq("user_id", auth.userId).order("recorded_at", { ascending: false }).limit(20),
       adminClient.from("brainlens_queries").select("detected_topic, detected_subtopic, cognitive_gap_type, confidence_score").eq("user_id", auth.userId).eq("status", "completed").order("created_at", { ascending: false }).limit(10),
     ]);
 
@@ -200,7 +200,7 @@ serve(async (req) => {
 /* ═══ ALIS Prompt Builder ═══ */
 function buildALISPrompt(profile: any, memoryScores: any[], recentQueries: any[]): string {
   const avgStrength = memoryScores?.length
-    ? (memoryScores.reduce((a, s) => a + (s.memory_strength || 0), 0) / memoryScores.length).toFixed(2)
+    ? (memoryScores.reduce((a, s) => a + (s.score || 0), 0) / memoryScores.length).toFixed(2)
     : null;
 
   const recentGaps = recentQueries?.map(q => q.cognitive_gap_type).filter(Boolean) || [];
