@@ -1038,6 +1038,90 @@ export type Database = {
         }
         Relationships: []
       }
+      brainlens_config: {
+        Row: {
+          id: string
+          is_enabled: boolean
+          max_daily_queries_per_user: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          is_enabled?: boolean
+          max_daily_queries_per_user?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          is_enabled?: boolean
+          max_daily_queries_per_user?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      brainlens_queries: {
+        Row: {
+          created_at: string
+          detailed_explanation: Json | null
+          detected_difficulty: string | null
+          detected_exam_type: string | null
+          detected_subtopic: string | null
+          detected_topic: string | null
+          error_message: string | null
+          extracted_text: string | null
+          id: string
+          input_content: string | null
+          input_type: string
+          processing_time_ms: number | null
+          related_pyqs: Json | null
+          short_answer: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detailed_explanation?: Json | null
+          detected_difficulty?: string | null
+          detected_exam_type?: string | null
+          detected_subtopic?: string | null
+          detected_topic?: string | null
+          error_message?: string | null
+          extracted_text?: string | null
+          id?: string
+          input_content?: string | null
+          input_type: string
+          processing_time_ms?: number | null
+          related_pyqs?: Json | null
+          short_answer?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detailed_explanation?: Json | null
+          detected_difficulty?: string | null
+          detected_exam_type?: string | null
+          detected_subtopic?: string | null
+          detected_topic?: string | null
+          error_message?: string | null
+          extracted_text?: string | null
+          id?: string
+          input_content?: string | null
+          input_type?: string
+          processing_time_ms?: number | null
+          related_pyqs?: Json | null
+          short_answer?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ca_autopilot_config: {
         Row: {
           auto_apply_tpi_adjustments: boolean
