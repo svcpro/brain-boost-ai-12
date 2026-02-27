@@ -9,15 +9,21 @@ export default function BrainLensButton() {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    const el = document.querySelector(".app-device-inner") as HTMLElement;
-    if (el) setPortalTarget(el);
+    const find = () => {
+      const el = document.querySelector(".app-device-inner") as HTMLElement;
+      if (el) { setPortalTarget(el); return; }
+      // Retry until found (covers race conditions on mount)
+      const timer = setTimeout(find, 100);
+      return () => clearTimeout(timer);
+    };
+    find();
   }, []);
 
   const buttonContent = (
     <>
       <motion.button
         onClick={() => setOpen(true)}
-        className="absolute bottom-24 right-4 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
+        className="fixed bottom-28 right-4 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
         style={{
           background: "linear-gradient(135deg, hsl(262 100% 65%), hsl(187 100% 50%))",
         }}
