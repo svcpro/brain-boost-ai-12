@@ -23,7 +23,7 @@ export default function BrainLensButton() {
     <>
       <motion.button
         onClick={() => setOpen(true)}
-        className="fixed bottom-28 right-4 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
+        className="absolute bottom-20 right-4 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
         style={{
           background: "linear-gradient(135deg, hsl(262 100% 65%), hsl(187 100% 50%))",
         }}
