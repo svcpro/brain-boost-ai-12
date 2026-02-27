@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, FileText, Link, Type, Brain, CheckCircle, Zap, BookOpen, Target, Lightbulb, ArrowLeft, Sparkles, Activity, Network, BarChart3, Shield, Layers, GraduationCap } from "lucide-react";
+import { Camera, FileText, Link, Type, Brain, CheckCircle, Zap, BookOpen, Target, Lightbulb, ArrowLeft, Sparkles, Activity, Network, BarChart3, Shield, Layers, GraduationCap, Eye, Crosshair, TrendingUp, RefreshCw, Cpu, Gauge } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +29,55 @@ interface ExamImpact {
   related_pyq_patterns: string[];
 }
 
-interface ACQISResult {
+interface PreQueryPredictions {
+  weak_concepts: string[];
+  preventive_challenge: string | null;
+  prediction_confidence: number;
+}
+
+interface SilentRepairPlan {
+  stealth_questions: string[];
+  unstable_nodes: string[];
+  repair_strategy: string;
+}
+
+interface FutureQuestion {
+  question: string;
+  question_dna: string;
+  difficulty: string;
+  topic_momentum: string;
+  exam_probability: number;
+}
+
+interface CognitiveDrift {
+  drift_detected: boolean;
+  drift_magnitude: number;
+  drift_direction?: string;
+  recalibration: string;
+  spacing_adjustment?: string;
+}
+
+interface PersonalExaminer {
+  trap_questions: { question: string; trap_type: string }[];
+  conceptual_depth_score: number;
+  robustness_rating: string;
+}
+
+interface StrategicMasteryIndex {
+  smi_score: number;
+  multi_step_reasoning: number;
+  transfer_learning: number;
+  trap_resistance: number;
+  mastery_verdict?: string;
+}
+
+interface StrategySwitch {
+  recommended_mode: string;
+  reasoning: string;
+  urgency: string;
+}
+
+interface ALISResult {
   short_answer: string;
   step_by_step: string[];
   concept_clarity: string;
@@ -46,6 +94,14 @@ interface ACQISResult {
   exam_impact: ExamImpact;
   explanation_depth: string;
   cross_validation_note: string;
+  // ALIS v3.0
+  pre_query_predictions: PreQueryPredictions;
+  silent_repair_plan: SilentRepairPlan;
+  future_style_questions: FutureQuestion[];
+  cognitive_drift: CognitiveDrift;
+  personal_examiner: PersonalExaminer;
+  strategic_mastery_index: StrategicMasteryIndex;
+  strategy_switch: StrategySwitch;
 }
 
 const INPUT_MODES = [
@@ -63,12 +119,26 @@ const GAP_TYPE_MAP: Record<string, { label: string; color: string; icon: string 
   pattern_unfamiliarity: { label: "Pattern Gap", color: "text-muted-foreground", icon: "🔍" },
 };
 
+const ROBUSTNESS_MAP: Record<string, { color: string; bg: string }> = {
+  fragile: { color: "text-destructive", bg: "bg-destructive/15" },
+  developing: { color: "text-warning", bg: "bg-warning/15" },
+  robust: { color: "text-success", bg: "bg-success/15" },
+  bulletproof: { color: "text-primary", bg: "bg-primary/15" },
+};
+
+const URGENCY_MAP: Record<string, { color: string; bg: string }> = {
+  low: { color: "text-muted-foreground", bg: "bg-secondary" },
+  medium: { color: "text-warning", bg: "bg-warning/15" },
+  high: { color: "text-destructive", bg: "bg-destructive/15" },
+  critical: { color: "text-destructive", bg: "bg-destructive/20" },
+};
+
 export default function BrainLensModal({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<InputMode>("text");
   const [content, setContent] = useState("");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ACQISResult | null>(null);
+  const [result, setResult] = useState<ALISResult | null>(null);
   const [activeSection, setActiveSection] = useState<string | null>("steps");
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -134,14 +204,14 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2.5 flex-1">
           <HeaderBrainIcon />
           <div>
-            <h1 className="text-sm font-bold gradient-text leading-tight" style={{ fontFamily: "'Orbitron', sans-serif", letterSpacing: "0.08em" }}>ACQIS</h1>
-            <p className="text-[8px] text-muted-foreground leading-tight">Cognitive Query Intelligence</p>
+            <h1 className="text-sm font-bold gradient-text leading-tight" style={{ fontFamily: "'Orbitron', sans-serif", letterSpacing: "0.08em" }}>ALIS</h1>
+            <p className="text-[8px] text-muted-foreground leading-tight">Autonomous Learning Intervention</p>
           </div>
         </div>
-        <motion.div className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-accent/30 relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(262 100% 65% / 0.15), hsl(187 100% 50% / 0.1))" }}>
-          <motion.div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent, hsl(262 100% 65% / 0.1), transparent)" }} animate={{ x: ["-100%", "100%"] }} transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }} />
-          <Sparkles className="w-3 h-3 text-accent relative z-10" />
-          <span className="text-[8px] font-bold text-accent relative z-10">v2.0</span>
+        <motion.div className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-destructive/30 relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(0 72% 51% / 0.15), hsl(262 100% 65% / 0.1))" }}>
+          <motion.div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent, hsl(0 72% 51% / 0.1), transparent)" }} animate={{ x: ["-100%", "100%"] }} transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }} />
+          <Cpu className="w-3 h-3 text-destructive relative z-10" />
+          <span className="text-[8px] font-bold text-destructive relative z-10">OMEGA</span>
         </motion.div>
       </header>
 
@@ -157,13 +227,12 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
                     onClick={() => { setMode(key); setImageBase64(null); setContent(""); }}
                     className={`relative flex flex-col items-center gap-1.5 py-3.5 rounded-2xl text-[10px] font-semibold transition-all overflow-hidden ${mode === key ? "glass-strong neural-border" : "glass border border-border/30"}`}
                   >
-                    {mode === key && <motion.div layoutId="acqis-mode-glow" className="absolute inset-0 rounded-2xl" style={{ background: `radial-gradient(circle at 50% 30%, hsl(${glow} / 0.15), transparent 70%)` }} transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
+                    {mode === key && <motion.div layoutId="alis-mode-glow" className="absolute inset-0 rounded-2xl" style={{ background: `radial-gradient(circle at 50% 30%, hsl(${glow} / 0.15), transparent 70%)` }} transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
                     {mode === key && <ModeOrbit color={particleColor} />}
                     <div className="relative">
                       <motion.div className={`w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br ${gradient}`} style={{ opacity: mode === key ? 1 : 0.5 }} animate={mode === key ? { boxShadow: [`0 0 8px hsl(${glow} / 0.3)`, `0 0 20px hsl(${glow} / 0.5)`, `0 0 8px hsl(${glow} / 0.3)`] } : { boxShadow: "0 0 0px transparent" }} transition={{ duration: 2, repeat: Infinity }}>
                         <Icon className="w-4 h-4 text-primary-foreground" />
                       </motion.div>
-                      {mode === key && <motion.div className="absolute -inset-1 rounded-xl" style={{ background: `conic-gradient(from 0deg, hsl(${glow} / 0.6), transparent 30%, transparent 70%, hsl(${glow} / 0.6))`, mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)", maskComposite: "exclude", WebkitMaskComposite: "xor", padding: "1.5px" }} animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} />}
                     </div>
                     <span className={`relative z-10 ${mode === key ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
                   </motion.button>
@@ -209,23 +278,23 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
               {/* Solve Button */}
               <motion.button whileTap={{ scale: 0.97 }} onClick={solve} disabled={loading || (!content && !imageBase64)}
                 className="w-full h-14 rounded-2xl text-sm font-display font-bold text-primary-foreground relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: "linear-gradient(135deg, hsl(262 100% 65%), hsl(187 100% 50%))" }}
+                style={{ background: "linear-gradient(135deg, hsl(0 72% 51%), hsl(262 100% 65%), hsl(187 100% 50%))" }}
               >
                 <motion.div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 30%, hsl(0 0% 100% / 0.2) 50%, transparent 70%)", backgroundSize: "200% 100%" }} animate={{ backgroundPosition: ["-200% center", "200% center"] }} transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }} />
-                <motion.div className="absolute inset-0 rounded-2xl" animate={{ boxShadow: ["0 0 15px hsl(262 100% 65% / 0.4), 0 4px 30px hsl(187 100% 50% / 0.2)", "0 0 30px hsl(262 100% 65% / 0.6), 0 4px 50px hsl(187 100% 50% / 0.35)", "0 0 15px hsl(262 100% 65% / 0.4), 0 4px 30px hsl(187 100% 50% / 0.2)"] }} transition={{ duration: 2, repeat: Infinity }} />
+                <motion.div className="absolute inset-0 rounded-2xl" animate={{ boxShadow: ["0 0 15px hsl(0 72% 51% / 0.4), 0 4px 30px hsl(262 100% 65% / 0.2)", "0 0 30px hsl(262 100% 65% / 0.6), 0 4px 50px hsl(187 100% 50% / 0.35)", "0 0 15px hsl(0 72% 51% / 0.4), 0 4px 30px hsl(262 100% 65% / 0.2)"] }} transition={{ duration: 2, repeat: Infinity }} />
                 {loading ? (
-                  <div className="flex items-center justify-center gap-3 relative z-10"><BrainScanAnimation /><span>ACQIS Analyzing...</span></div>
+                  <div className="flex items-center justify-center gap-3 relative z-10"><BrainScanAnimation /><span>ALIS Intervening...</span></div>
                 ) : (
                   <div className="flex items-center justify-center gap-2 relative z-10">
                     <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 2 }}><Zap className="w-5 h-5" /></motion.div>
-                    <span>Solve with ACQIS</span>
+                    <span>Solve with ALIS Ω</span>
                   </div>
                 )}
               </motion.button>
-              <p className="text-[10px] text-muted-foreground text-center">Powered by ACRY ACQIS v2.0 • Cognitive Intelligence</p>
+              <p className="text-[10px] text-muted-foreground text-center">Powered by ACRY ALIS Ω • Autonomous Cognitive Intelligence</p>
             </>
           ) : (
-            /* ═══ ACQIS Result View ═══ */
+            /* ═══ ALIS Result View ═══ */
             <div className="space-y-3">
               {/* Meta Tags */}
               <div className="flex flex-wrap gap-1.5">
@@ -233,18 +302,43 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
                 {result.detected_subtopic && <MetaPill text={result.detected_subtopic} colorClass="bg-accent/10 text-accent border-accent/20" />}
                 {result.detected_difficulty && <MetaPill text={result.detected_difficulty} colorClass={result.detected_difficulty === "hard" ? "bg-destructive/10 text-destructive border-destructive/20" : result.detected_difficulty === "medium" ? "bg-warning/10 text-warning border-warning/20" : "bg-success/10 text-success border-success/20"} />}
                 {result.detected_exam_type && <MetaPill text={result.detected_exam_type} colorClass="bg-secondary text-secondary-foreground border-border" />}
-                <MetaPill text={result.explanation_depth || "standard"} colorClass="bg-accent/5 text-accent border-accent/10" />
               </div>
 
-              {/* MODULE 1: Cognitive Gap Diagnosis */}
-              {result.cognitive_gap && (
+              {/* ALIS MODULE: Strategic Mastery Index */}
+              {result.strategic_mastery_index?.smi_score > 0 && (
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-strong rounded-2xl p-3.5 neural-border relative overflow-hidden">
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(0 72% 51% / 0.06), transparent 60%)" }} />
+                  <div className="flex items-center gap-2 mb-2.5 relative z-10">
+                    <motion.div className="w-7 h-7 rounded-lg bg-destructive/15 flex items-center justify-center" animate={{ boxShadow: ["0 0 6px hsl(0 72% 51% / 0.2)", "0 0 14px hsl(0 72% 51% / 0.4)", "0 0 6px hsl(0 72% 51% / 0.2)"] }} transition={{ duration: 2, repeat: Infinity }}>
+                      <Gauge className="w-3.5 h-3.5 text-destructive" />
+                    </motion.div>
+                    <span className="text-[10px] font-bold text-destructive uppercase tracking-widest">Strategic Mastery Index</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 relative z-10 mb-2">
+                    <SMIGauge label="SMI" value={result.strategic_mastery_index.smi_score} />
+                    <SMIGauge label="Reasoning" value={result.strategic_mastery_index.multi_step_reasoning} />
+                    <SMIGauge label="Transfer" value={result.strategic_mastery_index.transfer_learning} />
+                    <SMIGauge label="Trap Res." value={result.strategic_mastery_index.trap_resistance} />
+                  </div>
+                  {result.strategic_mastery_index.mastery_verdict && (
+                    <div className="text-center relative z-10">
+                      <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${result.strategic_mastery_index.mastery_verdict === "master" ? "bg-primary/15 text-primary" : result.strategic_mastery_index.mastery_verdict === "advanced" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
+                        {result.strategic_mastery_index.mastery_verdict}
+                      </span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Cognitive Gap Diagnosis */}
+              {result.cognitive_gap && (
+                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-strong rounded-2xl p-3.5 neural-border relative overflow-hidden">
                   <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(262 100% 65% / 0.06), transparent 60%)" }} />
                   <div className="flex items-center gap-2 mb-2 relative z-10">
                     <motion.div className="w-7 h-7 rounded-lg bg-accent/15 flex items-center justify-center" animate={{ boxShadow: ["0 0 6px hsl(262 100% 65% / 0.2)", "0 0 14px hsl(262 100% 65% / 0.4)", "0 0 6px hsl(262 100% 65% / 0.2)"] }} transition={{ duration: 2, repeat: Infinity }}>
                       <Activity className="w-3.5 h-3.5 text-accent" />
                     </motion.div>
-                    <span className="text-[10px] font-bold text-accent uppercase tracking-widest">Cognitive Gap Diagnosis</span>
+                    <span className="text-[10px] font-bold text-accent uppercase tracking-widest">Cognitive Gap</span>
                     <span className="ml-auto text-[9px] font-mono text-muted-foreground bg-secondary/50 px-1.5 py-0.5 rounded">{result.cognitive_gap.code}</span>
                   </div>
                   <div className="flex items-center gap-2 mb-1.5 relative z-10">
@@ -261,9 +355,8 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
               )}
 
               {/* Direct Answer */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-strong rounded-2xl p-4 neural-border relative overflow-hidden">
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-strong rounded-2xl p-4 neural-border relative overflow-hidden">
                 <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(155 100% 50% / 0.08), transparent 60%)" }} />
-                <motion.div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, transparent, hsl(155 100% 50% / 0.04), transparent)" }} animate={{ x: ["-100%", "200%"] }} transition={{ duration: 3, repeat: Infinity }} />
                 <div className="flex items-center gap-2 mb-2.5 relative z-10">
                   <motion.div className="w-7 h-7 rounded-lg bg-success/15 flex items-center justify-center" animate={{ boxShadow: ["0 0 6px hsl(155 100% 50% / 0.2)", "0 0 16px hsl(155 100% 50% / 0.4)", "0 0 6px hsl(155 100% 50% / 0.2)"] }} transition={{ duration: 2, repeat: Infinity }}>
                     <CheckCircle className="w-4 h-4 text-success" />
@@ -277,9 +370,9 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
                 )}
               </motion.div>
 
-              {/* MODULE 3: Exam Impact Model */}
+              {/* Exam Impact */}
               {result.exam_impact && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl p-3.5 relative overflow-hidden">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass rounded-2xl p-3.5 relative overflow-hidden">
                   <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 80% 40% at 50% 0%, hsl(40 100% 50% / 0.05), transparent 60%)" }} />
                   <div className="flex items-center gap-2 mb-2.5 relative z-10">
                     <motion.div className="w-6 h-6 rounded-lg bg-warning/15 flex items-center justify-center" animate={{ boxShadow: ["0 0 4px hsl(40 100% 50% / 0.2)", "0 0 12px hsl(40 100% 50% / 0.4)", "0 0 4px hsl(40 100% 50% / 0.2)"] }} transition={{ duration: 2, repeat: Infinity }}>
@@ -289,37 +382,64 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="grid grid-cols-3 gap-2 relative z-10">
                     <div className="text-center glass rounded-xl p-2">
-                      <div className="text-lg font-bold text-primary" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        {(result.exam_impact.topic_probability_index * 100).toFixed(0)}%
-                      </div>
+                      <div className="text-lg font-bold text-primary" style={{ fontFamily: "'Orbitron', sans-serif" }}>{(result.exam_impact.topic_probability_index * 100).toFixed(0)}%</div>
                       <div className="text-[8px] text-muted-foreground uppercase">TPI</div>
                     </div>
                     <div className="text-center glass rounded-xl p-2">
-                      <div className="text-lg font-bold text-success" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        {result.exam_impact.estimated_mastery_boost}
-                      </div>
+                      <div className="text-lg font-bold text-success" style={{ fontFamily: "'Orbitron', sans-serif" }}>{result.exam_impact.estimated_mastery_boost}</div>
                       <div className="text-[8px] text-muted-foreground uppercase">Boost</div>
                     </div>
                     <div className="text-center glass rounded-xl p-2">
-                      <div className={`text-xs font-bold uppercase ${result.exam_impact.readiness_impact === "critical" ? "text-destructive" : result.exam_impact.readiness_impact === "high" ? "text-warning" : "text-success"}`}>
-                        {result.exam_impact.readiness_impact}
-                      </div>
+                      <div className={`text-xs font-bold uppercase ${result.exam_impact.readiness_impact === "critical" ? "text-destructive" : result.exam_impact.readiness_impact === "high" ? "text-warning" : "text-success"}`}>{result.exam_impact.readiness_impact}</div>
                       <div className="text-[8px] text-muted-foreground uppercase">Impact</div>
                     </div>
                   </div>
-                  {result.exam_impact.related_pyq_patterns?.length > 0 && (
-                    <div className="mt-2 relative z-10">
-                      <p className="text-[9px] text-muted-foreground font-bold mb-1">PYQ Patterns:</p>
-                      {result.exam_impact.related_pyq_patterns.map((p, i) => (
-                        <p key={i} className="text-[10px] text-muted-foreground leading-relaxed">• {p}</p>
-                      ))}
-                    </div>
+                </motion.div>
+              )}
+
+              {/* ALIS: Cognitive Drift Correction */}
+              {result.cognitive_drift?.drift_detected && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="glass rounded-2xl p-3.5 border border-destructive/20 relative overflow-hidden">
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 80% 40% at 50% 0%, hsl(0 72% 51% / 0.06), transparent 60%)" }} />
+                  <div className="flex items-center gap-2 mb-2 relative z-10">
+                    <motion.div className="w-6 h-6 rounded-lg bg-destructive/15 flex items-center justify-center" animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+                      <RefreshCw className="w-3 h-3 text-destructive" />
+                    </motion.div>
+                    <span className="text-[10px] font-bold text-destructive uppercase tracking-widest">Drift Detected</span>
+                    <span className="ml-auto text-[9px] font-mono text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">{(result.cognitive_drift.drift_magnitude * 100).toFixed(0)}%</span>
+                  </div>
+                  {result.cognitive_drift.drift_direction && (
+                    <p className="text-[10px] text-destructive/80 font-semibold mb-1 relative z-10">↗ {result.cognitive_drift.drift_direction.replace(/_/g, " ")}</p>
+                  )}
+                  <p className="text-[11px] text-muted-foreground leading-relaxed relative z-10">{result.cognitive_drift.recalibration}</p>
+                  {result.cognitive_drift.spacing_adjustment && (
+                    <p className="text-[9px] text-muted-foreground mt-1 relative z-10">📐 Spacing: <span className="font-bold text-foreground">{result.cognitive_drift.spacing_adjustment}</span></p>
                   )}
                 </motion.div>
               )}
 
+              {/* ALIS: Strategy Switch */}
+              {result.strategy_switch?.recommended_mode && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-2xl p-3.5 relative overflow-hidden">
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 80% 40% at 50% 0%, hsl(187 100% 50% / 0.05), transparent 60%)" }} />
+                  <div className="flex items-center gap-2 mb-2 relative z-10">
+                    <motion.div className="w-6 h-6 rounded-lg bg-primary/15 flex items-center justify-center" animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+                      <Cpu className="w-3 h-3 text-primary" />
+                    </motion.div>
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Strategy Switch</span>
+                    <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full ${URGENCY_MAP[result.strategy_switch.urgency]?.bg || "bg-secondary"} ${URGENCY_MAP[result.strategy_switch.urgency]?.color || "text-muted-foreground"}`}>
+                      {result.strategy_switch.urgency}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-1.5 relative z-10">
+                    <span className="text-xs font-bold text-foreground capitalize">{result.strategy_switch.recommended_mode.replace(/_/g, " ")}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed relative z-10">{result.strategy_switch.reasoning}</p>
+                </motion.div>
+              )}
+
               {/* Collapsible Sections */}
-              <ResultSection icon={BookOpen} title="Step-by-Step" colorClass="text-primary" glow="187 100% 50%" bgClass="bg-primary/15" active={activeSection === "steps"} onToggle={() => setActiveSection(activeSection === "steps" ? null : "steps")} delay={0.15}>
+              <ResultSection icon={BookOpen} title="Step-by-Step" colorClass="text-primary" glow="187 100% 50%" bgClass="bg-primary/15" active={activeSection === "steps"} onToggle={() => setActiveSection(activeSection === "steps" ? null : "steps")} delay={0.25}>
                 <ol className="space-y-2.5">
                   {result.step_by_step.map((step, i) => (
                     <motion.li key={i} className="flex gap-2.5" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * i }}>
@@ -330,25 +450,25 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
                 </ol>
               </ResultSection>
 
-              <ResultSection icon={Lightbulb} title="Concept Clarity" colorClass="text-accent" glow="262 100% 65%" bgClass="bg-accent/15" active={activeSection === "concept"} onToggle={() => setActiveSection(activeSection === "concept" ? null : "concept")} delay={0.2}>
+              <ResultSection icon={Lightbulb} title="Concept Clarity" colorClass="text-accent" glow="262 100% 65%" bgClass="bg-accent/15" active={activeSection === "concept"} onToggle={() => setActiveSection(activeSection === "concept" ? null : "concept")} delay={0.3}>
                 <p className="text-xs text-muted-foreground leading-relaxed">{result.concept_clarity}</p>
               </ResultSection>
 
               {result.option_elimination && (
-                <ResultSection icon={Target} title="Option Elimination" colorClass="text-destructive" glow="0 72% 51%" bgClass="bg-destructive/15" active={activeSection === "elimination"} onToggle={() => setActiveSection(activeSection === "elimination" ? null : "elimination")} delay={0.25}>
+                <ResultSection icon={Target} title="Option Elimination" colorClass="text-destructive" glow="0 72% 51%" bgClass="bg-destructive/15" active={activeSection === "elimination"} onToggle={() => setActiveSection(activeSection === "elimination" ? null : "elimination")} delay={0.33}>
                   <p className="text-xs text-muted-foreground leading-relaxed">{result.option_elimination}</p>
                 </ResultSection>
               )}
 
               {result.shortcut_tricks && (
-                <ResultSection icon={Zap} title="Shortcut Tricks" colorClass="text-warning" glow="40 100% 50%" bgClass="bg-warning/15" active={activeSection === "tricks"} onToggle={() => setActiveSection(activeSection === "tricks" ? null : "tricks")} delay={0.3}>
+                <ResultSection icon={Zap} title="Shortcut Tricks" colorClass="text-warning" glow="40 100% 50%" bgClass="bg-warning/15" active={activeSection === "tricks"} onToggle={() => setActiveSection(activeSection === "tricks" ? null : "tricks")} delay={0.36}>
                   <p className="text-xs text-muted-foreground leading-relaxed">{result.shortcut_tricks}</p>
                 </ResultSection>
               )}
 
-              {/* MODULE 2: Micro-Concept Expansion */}
+              {/* Knowledge Graph */}
               {result.micro_concepts?.core && (
-                <ResultSection icon={Network} title="Knowledge Graph" colorClass="text-primary" glow="187 100% 50%" bgClass="bg-primary/15" active={activeSection === "graph"} onToggle={() => setActiveSection(activeSection === "graph" ? null : "graph")} delay={0.35}>
+                <ResultSection icon={Network} title="Knowledge Graph" colorClass="text-primary" glow="187 100% 50%" bgClass="bg-primary/15" active={activeSection === "graph"} onToggle={() => setActiveSection(activeSection === "graph" ? null : "graph")} delay={0.39}>
                   <div className="space-y-3">
                     <div>
                       <p className="text-[9px] font-bold text-primary uppercase mb-1">Core Concept</p>
@@ -369,11 +489,93 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
                         <p className="text-[9px] font-bold text-accent uppercase mb-1.5">🎯 Reinforcement Questions</p>
                         {result.micro_concepts.reinforcement_questions.map((rq, i) => (
                           <div key={i} className="glass rounded-xl p-2.5 mb-1.5 flex items-start gap-2">
-                            <div className={`w-4 h-4 rounded shrink-0 mt-0.5 flex items-center justify-center text-[8px] font-bold ${rq.difficulty === "hard" ? "bg-destructive/15 text-destructive" : rq.difficulty === "medium" ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
-                              {i + 1}
-                            </div>
+                            <div className={`w-4 h-4 rounded shrink-0 mt-0.5 flex items-center justify-center text-[8px] font-bold ${rq.difficulty === "hard" ? "bg-destructive/15 text-destructive" : rq.difficulty === "medium" ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>{i + 1}</div>
                             <p className="text-[11px] text-muted-foreground leading-relaxed">{rq.question}</p>
                           </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </ResultSection>
+              )}
+
+              {/* ALIS: Pre-Query Predictions */}
+              {result.pre_query_predictions?.weak_concepts?.length > 0 && (
+                <ResultSection icon={Eye} title="Pre-Query Prediction" colorClass="text-destructive" glow="0 72% 51%" bgClass="bg-destructive/15" active={activeSection === "prediction"} onToggle={() => setActiveSection(activeSection === "prediction" ? null : "prediction")} delay={0.42}>
+                  <div className="space-y-2.5">
+                    <div>
+                      <p className="text-[9px] font-bold text-destructive uppercase mb-1">Predicted Weak Concepts</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.pre_query_predictions.weak_concepts.map((c, i) => (
+                          <span key={i} className="px-2 py-0.5 rounded-full text-[9px] bg-destructive/10 text-destructive border border-destructive/20">{c}</span>
+                        ))}
+                      </div>
+                    </div>
+                    {result.pre_query_predictions.preventive_challenge && (
+                      <div className="glass rounded-xl p-2.5">
+                        <p className="text-[9px] font-bold text-warning uppercase mb-1">⚡ Preventive Challenge</p>
+                        <p className="text-[11px] text-foreground leading-relaxed">{result.pre_query_predictions.preventive_challenge}</p>
+                      </div>
+                    )}
+                  </div>
+                </ResultSection>
+              )}
+
+              {/* ALIS: Personal Examiner */}
+              {result.personal_examiner?.trap_questions?.length > 0 && (
+                <ResultSection icon={Crosshair} title="Personal Examiner" colorClass="text-accent" glow="262 100% 65%" bgClass="bg-accent/15" active={activeSection === "examiner"} onToggle={() => setActiveSection(activeSection === "examiner" ? null : "examiner")} delay={0.45}>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-accent" style={{ fontFamily: "'Orbitron', sans-serif" }}>{result.personal_examiner.conceptual_depth_score}</div>
+                        <div className="text-[8px] text-muted-foreground uppercase">Depth</div>
+                      </div>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${ROBUSTNESS_MAP[result.personal_examiner.robustness_rating]?.bg || "bg-secondary"} ${ROBUSTNESS_MAP[result.personal_examiner.robustness_rating]?.color || "text-muted-foreground"}`}>
+                        {result.personal_examiner.robustness_rating}
+                      </span>
+                    </div>
+                    {result.personal_examiner.trap_questions.map((tq, i) => (
+                      <div key={i} className="glass rounded-xl p-2.5">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[8px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">TRAP</span>
+                          <span className="text-[8px] text-muted-foreground">{tq.trap_type?.replace(/_/g, " ")}</span>
+                        </div>
+                        <p className="text-[11px] text-foreground leading-relaxed">{tq.question}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ResultSection>
+              )}
+
+              {/* ALIS: Future-Style Questions */}
+              {result.future_style_questions?.length > 0 && (
+                <ResultSection icon={TrendingUp} title="Future-Style Questions" colorClass="text-success" glow="155 100% 50%" bgClass="bg-success/15" active={activeSection === "future"} onToggle={() => setActiveSection(activeSection === "future" ? null : "future")} delay={0.48}>
+                  <div className="space-y-2">
+                    {result.future_style_questions.map((fq, i) => (
+                      <div key={i} className="glass rounded-xl p-2.5">
+                        <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                          <span className="text-[8px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">{fq.question_dna}</span>
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${fq.topic_momentum === "rising" ? "bg-success/15 text-success" : fq.topic_momentum === "declining" ? "bg-destructive/15 text-destructive" : "bg-secondary text-muted-foreground"}`}>
+                            {fq.topic_momentum === "rising" ? "↑" : fq.topic_momentum === "declining" ? "↓" : "→"} {fq.topic_momentum}
+                          </span>
+                          <span className="text-[8px] text-muted-foreground">P: {(fq.exam_probability * 100).toFixed(0)}%</span>
+                        </div>
+                        <p className="text-[11px] text-foreground leading-relaxed">{fq.question}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ResultSection>
+              )}
+
+              {/* ALIS: Silent Repair Plan */}
+              {result.silent_repair_plan?.repair_strategy && (
+                <ResultSection icon={Shield} title="Silent Repair Plan" colorClass="text-muted-foreground" glow="0 0% 50%" bgClass="bg-secondary" active={activeSection === "repair"} onToggle={() => setActiveSection(activeSection === "repair" ? null : "repair")} delay={0.51}>
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">{result.silent_repair_plan.repair_strategy}</p>
+                    {result.silent_repair_plan.unstable_nodes?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.silent_repair_plan.unstable_nodes.map((n, i) => (
+                          <span key={i} className="px-2 py-0.5 rounded-full text-[9px] bg-warning/10 text-warning border border-warning/20">⚠ {n}</span>
                         ))}
                       </div>
                     )}
@@ -387,7 +589,7 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
                 <span className="w-1 h-1 rounded-full bg-border" />
                 <span className="text-[9px] text-muted-foreground">🎯 {Math.round(result.confidence * 100)}%</span>
                 <span className="w-1 h-1 rounded-full bg-border" />
-                <span className="text-[9px] text-muted-foreground">📊 {result.explanation_depth}</span>
+                <span className="text-[9px] text-muted-foreground">Ω ALIS v3.0</span>
               </div>
 
               {/* Ask Another */}
@@ -410,11 +612,24 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
 
 /* ═══ Sub-components ═══ */
 
+function SMIGauge({ label, value }: { label: string; value: number }) {
+  const color = value >= 80 ? "text-success" : value >= 50 ? "text-warning" : "text-destructive";
+  return (
+    <div className="text-center glass rounded-xl p-1.5">
+      <motion.div className={`text-sm font-bold ${color}`} style={{ fontFamily: "'Orbitron', sans-serif" }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        {value}
+      </motion.div>
+      <div className="text-[7px] text-muted-foreground uppercase leading-tight">{label}</div>
+    </div>
+  );
+}
+
 function HeaderBrainIcon() {
   return (
-    <motion.div className="w-9 h-9 rounded-xl flex items-center justify-center relative" style={{ background: "linear-gradient(135deg, hsl(262 100% 65% / 0.2), hsl(187 100% 50% / 0.2))" }}>
-      <motion.div className="absolute -inset-0.5 rounded-xl" style={{ background: "conic-gradient(from 0deg, hsl(262 100% 65% / 0.5), transparent 25%, transparent 75%, hsl(187 100% 50% / 0.5))", mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)", maskComposite: "exclude", WebkitMaskComposite: "xor", padding: "1px" }} animate={{ rotate: 360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} />
-      <motion.div className="absolute inset-0 rounded-xl" animate={{ boxShadow: ["0 0 8px hsl(262 100% 65% / 0.3)", "0 0 18px hsl(187 100% 50% / 0.5)", "0 0 8px hsl(262 100% 65% / 0.3)"] }} transition={{ duration: 2, repeat: Infinity }} />
+    <motion.div className="w-9 h-9 rounded-xl flex items-center justify-center relative" style={{ background: "linear-gradient(135deg, hsl(0 72% 51% / 0.2), hsl(262 100% 65% / 0.2), hsl(187 100% 50% / 0.2))" }}>
+      <motion.div className="absolute -inset-0.5 rounded-xl" style={{ background: "conic-gradient(from 0deg, hsl(0 72% 51% / 0.5), hsl(262 100% 65% / 0.5), transparent 40%, transparent 60%, hsl(187 100% 50% / 0.5), hsl(0 72% 51% / 0.5))", mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)", maskComposite: "exclude", WebkitMaskComposite: "xor", padding: "1px" }} animate={{ rotate: 360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} />
+      <motion.div className="absolute inset-0 rounded-xl" animate={{ boxShadow: ["0 0 8px hsl(0 72% 51% / 0.3)", "0 0 18px hsl(262 100% 65% / 0.5)", "0 0 8px hsl(187 100% 50% / 0.3)"] }} transition={{ duration: 2, repeat: Infinity }} />
       <Brain className="w-4.5 h-4.5 text-accent relative z-10" />
     </motion.div>
   );
@@ -469,7 +684,7 @@ function BrainScanAnimation() {
     <div className="relative w-8 h-8">
       <motion.div className="absolute inset-0 rounded-full border-2 border-primary-foreground/40" animate={{ scale: [1, 1.5, 1], opacity: [0.6, 0, 0.6] }} transition={{ duration: 1.2, repeat: Infinity }} />
       <motion.div className="absolute inset-0.5 rounded-full border border-primary-foreground/50" animate={{ scale: [1, 1.3, 1], opacity: [0.8, 0.1, 0.8] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }} />
-      <motion.div className="absolute inset-1 rounded-full" style={{ background: "conic-gradient(from 0deg, hsl(187 100% 50% / 0.4), transparent 30%, transparent 70%, hsl(262 100% 65% / 0.4))" }} animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }} />
+      <motion.div className="absolute inset-1 rounded-full" style={{ background: "conic-gradient(from 0deg, hsl(0 72% 51% / 0.4), hsl(262 100% 65% / 0.4), transparent 40%, transparent 60%, hsl(187 100% 50% / 0.4))" }} animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }} />
       <Brain className="w-4 h-4 absolute inset-0 m-auto text-primary-foreground" />
     </div>
   );
