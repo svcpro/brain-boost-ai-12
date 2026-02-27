@@ -815,8 +815,20 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("memory-engine error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    let errorMsg = "Unknown error";
+    if (e instanceof Error) {
+      errorMsg = e.message;
+    } else if (e && typeof e === "object" && "message" in e) {
+      errorMsg = String((e as any).message);
+    } else if (typeof e === "string") {
+      errorMsg = e;
+    }
+    // Detect transient infrastructure errors
+    if (errorMsg.includes("SSL handshake") || errorMsg.includes("Connection timed out") || errorMsg.includes("525") || errorMsg.includes("522")) {
+      errorMsg = "Temporary connection issue. Please try again in a moment.";
+    }
+    console.error("memory-engine error:", errorMsg);
+    return new Response(JSON.stringify({ error: errorMsg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
