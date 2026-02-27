@@ -36,13 +36,22 @@ serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
+    let userId: string | undefined;
+    
+    // Try getClaims first (fast, local validation)
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!claimsError && claimsData?.claims?.sub) {
+      userId = claimsData.claims.sub;
+    } else {
+      // Fallback to getUser (network call, but reliable on cold starts)
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = userData.user.id;
     }
-    const userId = claimsData.claims.sub;
 
     const body = await req.json();
     const { action } = body;
