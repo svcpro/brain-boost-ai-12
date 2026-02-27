@@ -1,16 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Scan } from "lucide-react";
+import { createPortal } from "react-dom";
 import BrainLensModal from "./BrainLensModal";
 
 export default function BrainLensButton() {
   const [open, setOpen] = useState(false);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-  return (
+  useEffect(() => {
+    const el = document.querySelector(".app-device-inner") as HTMLElement;
+    if (el) setPortalTarget(el);
+  }, []);
+
+  const buttonContent = (
     <>
       <motion.button
         onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
+        className="absolute bottom-24 right-4 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
         style={{
           background: "linear-gradient(135deg, hsl(262 100% 65%), hsl(187 100% 50%))",
         }}
@@ -37,4 +44,7 @@ export default function BrainLensButton() {
       </AnimatePresence>
     </>
   );
+
+  if (portalTarget) return createPortal(buttonContent, portalTarget);
+  return buttonContent;
 }
