@@ -101,8 +101,8 @@ serve(async (req) => {
     const aiResult = await callAI({
       messages,
       model,
-      temperature: 0.2,
-      maxTokens: 4000,
+      temperature: 0.1,
+      maxTokens: 6000,
       timeoutMs: 45000,
     });
 
@@ -206,11 +206,16 @@ function buildALISPrompt(profile: any, memoryScores: any[], recentQueries: any[]
   const recentGaps = recentQueries?.map(q => q.cognitive_gap_type).filter(Boolean) || [];
   const recentTopics = recentQueries?.map(q => q.detected_topic).filter(Boolean) || [];
 
-  return `You are ACRY ALIS Ω – an academic solver and cognitive diagnostician. Given a question, return a compact JSON with these fields:
+  return `You are ACRY ALIS Ω – an academic solver. Given a question, return ONLY a JSON object. CRITICAL RULES:
+- Output raw JSON only. NO markdown, NO code fences, NO explanatory text before/after.
+- short_answer: Give the FINAL answer in 1-2 sentences. Do NOT show your working or self-correct here.
+- step_by_step: Array of 3-5 concise calculation steps. Each step max 1 sentence.
+- NEVER repeat a calculation. NEVER write "Let me re-check" or "Wait" or self-correct. Compute once correctly.
 
-{"detected_topic":"","detected_subtopic":"","detected_difficulty":"easy|medium|hard","detected_exam_type":"","short_answer":"direct answer 1-3 sentences","step_by_step":["step1","step2"],"concept_clarity":"underlying principle","option_elimination":"if MCQ why wrong options fail","shortcut_tricks":"memory tricks",
-"cognitive_gap":{"type":"conceptual_gap|retrieval_failure|interference_confusion|speed_weakness|pattern_unfamiliarity","code":"CG-001 to CG-005","explanation":"","severity":"low|medium|high"},
-"micro_concepts":{"core":"","adjacent_nodes":["c1","c2"],"reinforcement_questions":[{"question":"","difficulty":""}]},
+JSON schema:
+{"detected_topic":"","detected_subtopic":"","detected_difficulty":"easy|medium|hard","detected_exam_type":"","short_answer":"","step_by_step":["",""],"concept_clarity":"","option_elimination":"","shortcut_tricks":"",
+"cognitive_gap":{"type":"conceptual_gap|retrieval_failure|interference_confusion|speed_weakness|pattern_unfamiliarity","code":"CG-001","explanation":"","severity":"low|medium|high"},
+"micro_concepts":{"core":"","adjacent_nodes":[""],"reinforcement_questions":[{"question":"","difficulty":""}]},
 "exam_impact":{"topic_probability_index":0.5,"estimated_mastery_boost":"5%","readiness_impact":"medium","related_pyq_patterns":[]},
 "explanation_depth":"standard","confidence":0.8,"cross_validation_note":"",
 "pre_query_predictions":{"weak_concepts":[],"preventive_challenge":null,"prediction_confidence":0},
@@ -221,41 +226,60 @@ function buildALISPrompt(profile: any, memoryScores: any[], recentQueries: any[]
 "strategic_mastery_index":{"smi_score":50,"multi_step_reasoning":50,"transfer_learning":50,"trap_resistance":50,"mastery_verdict":"intermediate"},
 "strategy_switch":{"recommended_mode":"deep_focus","reasoning":"","urgency":"low"}}
 
-${profile?.exam_type ? `Exam: ${profile.exam_type}.` : ""}${avgStrength ? ` Memory: ${avgStrength}.` : ""}${recentGaps.length ? ` Recent gaps: ${recentGaps.slice(0,3).join(",")}.` : ""}${recentTopics.length ? ` Recent topics: ${recentTopics.slice(0,3).join(",")}.` : ""}
-Respond ONLY with valid JSON. No markdown fences. Be concise in step_by_step and short_answer — max 3 sentences each. Do NOT repeat calculations or self-correct verbosely.`;
+${profile?.exam_type ? `Exam: ${profile.exam_type}.` : ""}${avgStrength ? ` Memory: ${avgStrength}.` : ""}${recentGaps.length ? ` Recent gaps: ${recentGaps.slice(0,3).join(",")}.` : ""}${recentTopics.length ? ` Recent topics: ${recentTopics.slice(0,3).join(",")}.` : ""}`;
 }
 
 /* ═══ ALIS Response Parser ═══ */
 function parseALISResponse(rawText: string): any {
-  // Strip markdown code blocks
+  // Strip markdown code blocks and any preamble text
   let cleaned = rawText.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
 
   // Try direct parse first
   try { return JSON.parse(cleaned); } catch { /* continue */ }
 
   // Extract JSON object from mixed text
-  try {
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try { return JSON.parse(jsonMatch[0]); } catch {
-        // Repair truncated JSON by closing open braces/brackets
-        let s = jsonMatch[0];
-        let braces = 0, brackets = 0;
-        for (const c of s) {
-          if (c === "{") braces++;
-          else if (c === "}") braces--;
-          else if (c === "[") brackets++;
-          else if (c === "]") brackets--;
-        }
-        // Remove trailing incomplete string value
-        s = s.replace(/,\s*"[^"]*"?\s*:\s*"[^"]*$/, "");
-        while (brackets > 0) { s += "]"; brackets--; }
-        while (braces > 0) { s += "}"; braces--; }
-        try { return JSON.parse(s); } catch { /* fallback */ }
-      }
-    }
-  } catch { /* fallback */ }
+  const jsonStart = cleaned.indexOf("{");
+  if (jsonStart === -1) return fallbackResponse(rawText);
 
+  let s = cleaned.substring(jsonStart);
+
+  // Try parsing as-is
+  try { return JSON.parse(s); } catch { /* continue */ }
+
+  // Repair truncated JSON
+  // 1. Remove trailing incomplete key-value pair (e.g. truncated string)
+  s = s.replace(/,\s*"[^"]*"?\s*:\s*"[^"]*$/s, "");
+  // 2. Remove trailing incomplete array/object entries  
+  s = s.replace(/,\s*"[^"]*"?\s*:\s*\{[^}]*$/s, "");
+  s = s.replace(/,\s*"[^"]*"?\s*:\s*\[[^\]]*$/s, "");
+  // 3. Remove any trailing comma
+  s = s.replace(/,\s*$/, "");
+
+  // 4. Close unbalanced braces/brackets
+  let braces = 0, brackets = 0;
+  for (const c of s) {
+    if (c === "{") braces++;
+    else if (c === "}") braces--;
+    else if (c === "[") brackets++;
+    else if (c === "]") brackets--;
+  }
+  while (brackets > 0) { s += "]"; brackets--; }
+  while (braces > 0) { s += "}"; braces--; }
+
+  try { return JSON.parse(s); } catch { /* continue */ }
+
+  // Last resort: try removing control characters
+  s = s.replace(/[\x00-\x1F\x7F]/g, " ");
+  try { return JSON.parse(s); } catch { /* fallback */ }
+
+  return fallbackResponse(rawText);
+}
+
+function fallbackResponse(rawText: string): any {
+  // Try to extract at least the short_answer from the verbose text
+  const shortAnswer = rawText.length > 500 
+    ? rawText.substring(0, 200).replace(/[{}"]/g, "").trim() + "..."
+    : rawText;
   return {
     short_answer: rawText,
     step_by_step: [],
