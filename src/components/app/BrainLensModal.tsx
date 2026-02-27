@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
+import AIProgressBar from "./AIProgressBar";
 
 type InputMode = "scan" | "upload" | "url" | "text";
 
@@ -314,6 +315,25 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
           </div>
         )}
       </motion.button>
+
+      {/* Animated Progress Bar during analysis */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden rounded-2xl"
+            style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(262 100% 65% / 0.12)" }}
+          >
+            <AIProgressBar
+              label="ALIS Ω analyzing your question"
+              sublabel="Deep cognitive scan in progress"
+              estimatedSeconds={6}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <p className="text-[9px] text-foreground/20 text-center tracking-widest uppercase">Powered by ACRY ALIS Ω • Cognitive Intelligence Engine</p>
     </>
