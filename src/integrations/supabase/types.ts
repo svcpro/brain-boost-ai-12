@@ -1064,18 +1064,28 @@ export type Database = {
       }
       brainlens_queries: {
         Row: {
+          cognitive_gap_code: string | null
+          cognitive_gap_type: string | null
+          confidence_score: number | null
           created_at: string
+          cross_validated: boolean | null
           detailed_explanation: Json | null
           detected_difficulty: string | null
           detected_exam_type: string | null
           detected_subtopic: string | null
           detected_topic: string | null
           error_message: string | null
+          exam_impact: Json | null
+          explanation_depth: string | null
           extracted_text: string | null
           id: string
           input_content: string | null
           input_type: string
+          knowledge_graph_node: Json | null
+          micro_concepts: Json | null
+          policy_intelligence: Json | null
           processing_time_ms: number | null
+          reinforcement_questions: Json | null
           related_pyqs: Json | null
           short_answer: string | null
           status: string
@@ -1083,18 +1093,28 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cognitive_gap_code?: string | null
+          cognitive_gap_type?: string | null
+          confidence_score?: number | null
           created_at?: string
+          cross_validated?: boolean | null
           detailed_explanation?: Json | null
           detected_difficulty?: string | null
           detected_exam_type?: string | null
           detected_subtopic?: string | null
           detected_topic?: string | null
           error_message?: string | null
+          exam_impact?: Json | null
+          explanation_depth?: string | null
           extracted_text?: string | null
           id?: string
           input_content?: string | null
           input_type: string
+          knowledge_graph_node?: Json | null
+          micro_concepts?: Json | null
+          policy_intelligence?: Json | null
           processing_time_ms?: number | null
+          reinforcement_questions?: Json | null
           related_pyqs?: Json | null
           short_answer?: string | null
           status?: string
@@ -1102,18 +1122,28 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cognitive_gap_code?: string | null
+          cognitive_gap_type?: string | null
+          confidence_score?: number | null
           created_at?: string
+          cross_validated?: boolean | null
           detailed_explanation?: Json | null
           detected_difficulty?: string | null
           detected_exam_type?: string | null
           detected_subtopic?: string | null
           detected_topic?: string | null
           error_message?: string | null
+          exam_impact?: Json | null
+          explanation_depth?: string | null
           extracted_text?: string | null
           id?: string
           input_content?: string | null
           input_type?: string
+          knowledge_graph_node?: Json | null
+          micro_concepts?: Json | null
+          policy_intelligence?: Json | null
           processing_time_ms?: number | null
+          reinforcement_questions?: Json | null
           related_pyqs?: Json | null
           short_answer?: string | null
           status?: string
