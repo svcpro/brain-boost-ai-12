@@ -167,7 +167,7 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
       });
       if (error) throw error;
       setResult(data);
-      setExpandedCards(new Set(["answer"]));
+      setExpandedCards(new Set(["answer", "concepts", "future", "examiner"]));
     } catch (e: any) {
       toast.error(e.message || "Failed to solve");
     } finally {
