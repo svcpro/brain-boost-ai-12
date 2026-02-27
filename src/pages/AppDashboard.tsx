@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAutoStudyTracker } from "@/hooks/useAutoStudyTracker";
 import { useFocusShield } from "@/hooks/useFocusShield";
 import FocusShieldOverlay from "@/components/app/FocusShieldOverlay";
+import BrainLensButton from "@/components/app/BrainLensButton";
 
 
 // Export voice context so child components can trigger voice
@@ -291,6 +292,9 @@ const AppDashboard = () => {
             />
           )}
 
+
+          {/* BrainLens Floating Button */}
+          <BrainLensButton />
 
           {/* Bottom Nav — contained inside device frame */}
           <nav className="absolute bottom-0 left-0 right-0 glass-strong border-t border-border z-40">

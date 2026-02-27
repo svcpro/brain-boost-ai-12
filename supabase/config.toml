@@ -23,6 +23,8 @@ project_id = "yvxrsujwgmzdjzsjyqfb"
     verify_jwt = false
   [functions.behavioral-notify-cron]
     verify_jwt = false
+  [functions.brainlens-solve]
+    verify_jwt = false
   [functions.brain-missions]
     verify_jwt = false
   [functions.burnout-detection]

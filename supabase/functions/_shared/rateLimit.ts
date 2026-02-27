@@ -34,6 +34,7 @@ const FUNCTION_LIMITS: Record<string, { maxRequests: number; windowSeconds: numb
   "study-insights":       { maxRequests: 10, windowSeconds: 60 },
   "inference-pipeline":   { maxRequests: 5,  windowSeconds: 60 },
   "seo-ai-optimize":      { maxRequests: 5,  windowSeconds: 60 },
+  "brainlens-solve":      { maxRequests: 10, windowSeconds: 60 },
   
   // Medium endpoints
   "memory-engine":        { maxRequests: 30, windowSeconds: 60 },
