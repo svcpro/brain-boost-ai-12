@@ -241,6 +241,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         />
       )}
 
+      {/* ═══ SECTION 4: Subscription Overview (moved above Exam Intelligence) ═══ */}
+      <SubscriptionOverview currentPlan={currentPlan} onManagePlan={() => setShowSubscription(true)} />
+
       {/* ═══ SECTION 2: Learning Identity Summary ═══ */}
       <LearningIdentitySummary />
 
@@ -250,9 +253,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       </PlanGateWrapper>
 
       {/* AI Cognitive Profile hidden per user request */}
-
-      {/* ═══ SECTION 4: Subscription Overview ═══ */}
-      <SubscriptionOverview currentPlan={currentPlan} onManagePlan={() => setShowSubscription(true)} />
 
       {/* ═══ Achievement Wall ═══ */}
       {isEnabled("you_badges") && <AchievementWall />}
