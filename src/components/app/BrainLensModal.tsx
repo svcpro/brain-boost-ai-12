@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
-import AIProgressBar from "./AIProgressBar";
+import ALISProgressOverlay from "./ALISProgressOverlay";
 
 interface Suggestion {
   question: string;
@@ -182,6 +182,9 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
             />
           )}
         </div>
+        <AnimatePresence>
+          {loading && <ALISProgressOverlay />}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
@@ -469,13 +472,9 @@ function InputPanel({ mode, content, setContent, imageBase64, setImageBase64, lo
             )}
           </motion.button>
 
-          {loading && (
-            <div className="rounded-2xl overflow-hidden"
-              style={{ background: "hsl(var(--card) / 0.5)", border: "1px solid hsl(var(--border) / 0.3)" }}
-            >
-              <AIProgressBar label="ALIS Ω deep analysis" sublabel="Cognitive scan in progress" estimatedSeconds={6} />
-            </div>
-          )}
+          <AnimatePresence>
+            {loading && <ALISProgressOverlay />}
+          </AnimatePresence>
         </div>
       </motion.div>
     </motion.div>
