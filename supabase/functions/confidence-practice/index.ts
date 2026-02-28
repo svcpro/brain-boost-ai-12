@@ -1,6 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// Robust JSON parser: strips markdown fences, trailing garbage, and balances braces
+function safeJsonParse(raw: string): any {
+  let text = raw.trim();
+  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  const startBrace = text.indexOf("{");
+  const startBracket = text.indexOf("[");
+  let start = -1;
+  if (startBrace === -1) start = startBracket;
+  else if (startBracket === -1) start = startBrace;
+  else start = Math.min(startBrace, startBracket);
+  if (start === -1) throw new Error("No JSON object found in response");
+  text = text.substring(start);
+  try { return JSON.parse(text); } catch {}
+  const openChar = text[0];
+  let depth = 0, inString = false, escape = false, endPos = -1;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (escape) { escape = false; continue; }
+    if (c === "\\") { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === "{" || c === "[") depth++;
+    if (c === "}" || c === "]") { depth--; if (depth === 0) { endPos = i; break; } }
+  }
+  if (endPos > 0) { try { return JSON.parse(text.substring(0, endPos + 1)); } catch {} }
+  const lastEnd = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+  if (lastEnd > 0) { try { return JSON.parse(text.substring(0, lastEnd + 1)); } catch {} }
+  throw new Error("Could not extract valid JSON from AI response");
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -512,7 +542,7 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
                 const geminiData = await geminiResponse.json();
                 const textContent = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
                 if (textContent) {
-                  const parsed = JSON.parse(textContent);
+                  const parsed = safeJsonParse(textContent);
                   aiData = { choices: [{ message: { content: JSON.stringify(parsed) } }] };
                   console.log(`Direct Gemini ${gModel} succeeded (attempt ${attempt + 1})`);
                   break;
@@ -544,12 +574,12 @@ Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correc
       try {
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
         if (toolCall?.function?.arguments) {
-          const parsed = JSON.parse(toolCall.function.arguments);
+          const parsed = safeJsonParse(toolCall.function.arguments);
           questions = parsed.questions || [];
         } else {
           const content = aiData.choices?.[0]?.message?.content;
           if (content) {
-            const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+            const parsed = safeJsonParse(typeof content === "string" ? content : JSON.stringify(content));
             questions = parsed.questions || [];
           }
         }
