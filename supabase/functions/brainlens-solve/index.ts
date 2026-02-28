@@ -24,59 +24,35 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if BrainLens is enabled
-    const { data: config } = await adminClient
-      .from("brainlens_config")
-      .select("is_enabled, max_daily_queries_per_user")
-      .single();
+    const today = new Date().toISOString().split("T")[0];
 
+    // Run ALL DB queries in parallel – config, daily count, profile, memory, recent queries
+    const [configRes, countRes, profileRes, memoryRes, recentQueriesRes] = await Promise.all([
+      adminClient.from("brainlens_config").select("is_enabled, max_daily_queries_per_user").single(),
+      adminClient.from("brainlens_queries").select("id", { count: "exact", head: true }).eq("user_id", auth.userId).gte("created_at", `${today}T00:00:00Z`),
+      adminClient.from("profiles").select("exam_type").eq("id", auth.userId).single(),
+      adminClient.from("memory_scores").select("topic_id, score").eq("user_id", auth.userId).order("recorded_at", { ascending: false }).limit(10),
+      adminClient.from("brainlens_queries").select("detected_topic, cognitive_gap_type").eq("user_id", auth.userId).eq("status", "completed").order("created_at", { ascending: false }).limit(5),
+    ]);
+
+    const config = configRes.data;
     if (!config?.is_enabled) {
       return errorResponse("BrainLens is currently disabled", 403);
     }
-
-    // Check daily limit
-    const today = new Date().toISOString().split("T")[0];
-    const { count } = await adminClient
-      .from("brainlens_queries")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", auth.userId)
-      .gte("created_at", `${today}T00:00:00Z`);
-
-    if ((count || 0) >= (config.max_daily_queries_per_user || 50)) {
+    if ((countRes.count || 0) >= (config.max_daily_queries_per_user || 50)) {
       return errorResponse("Daily query limit reached", 429);
     }
 
-    // Fetch user context in parallel
-    const [profileRes, memoryRes, recentQueriesRes] = await Promise.all([
-      adminClient.from("profiles").select("exam_type").eq("id", auth.userId).single(),
-      adminClient.from("memory_scores").select("topic_id, score").eq("user_id", auth.userId).order("recorded_at", { ascending: false }).limit(20),
-      adminClient.from("brainlens_queries").select("detected_topic, detected_subtopic, cognitive_gap_type, confidence_score").eq("user_id", auth.userId).eq("status", "completed").order("created_at", { ascending: false }).limit(10),
-    ]);
-
-    const profile = profileRes.data;
-    const memoryScores = memoryRes.data;
-    const recentQueries = recentQueriesRes.data;
-
-    // Insert pending query
-    const { data: query, error: insertErr } = await adminClient
+    // Insert query record (non-blocking – fire and continue)
+    const insertPromise = adminClient
       .from("brainlens_queries")
-      .insert({
-        user_id: auth.userId,
-        input_type,
-        input_content: content || "[image]",
-        status: "processing",
-        alis_version: "v3.0",
-      })
+      .insert({ user_id: auth.userId, input_type, input_content: content || "[image]", status: "processing", alis_version: "v3.1" })
       .select("id")
       .single();
 
-    if (insertErr) return errorResponse("Failed to create query record", 500);
-
     const startTime = Date.now();
-    let questionText = content || "";
-
-    // Build ALIS system prompt
-    const systemPrompt = buildALISPrompt(profile, memoryScores, recentQueries);
+    const questionText = content || "";
+    const systemPrompt = buildALISPrompt(profileRes.data, memoryRes.data, recentQueriesRes.data);
 
     const messages: any[] = [{ role: "system", content: systemPrompt }];
 
@@ -84,34 +60,34 @@ serve(async (req) => {
       messages.push({
         role: "user",
         content: [
-          { type: "text", text: "Extract the question from this image. Solve completely and return JSON as instructed." },
+          { type: "text", text: "Extract question from image. Solve and return JSON." },
           { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image_base64}` } }
         ]
       });
     } else {
-      messages.push({
-        role: "user",
-        content: `Solve completely with ALIS analysis.\n\nQuestion: ${questionText}`
-      });
+      messages.push({ role: "user", content: `Solve:\n${questionText}` });
     }
 
-    // Use flash-lite for speed on text, flash for images
+    // Wait for insert to finish before AI call
+    const { data: query, error: insertErr } = await insertPromise;
+    if (insertErr) return errorResponse("Failed to create query record", 500);
+
+    // Use flash-lite for text (fastest), flash for images
     const model = image_base64 ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
 
     const aiResult = await callAI({
       messages,
       model,
-      temperature: 0.1,
-      maxTokens: 6000,
-      timeoutMs: 45000,
+      temperature: 0.05,
+      maxTokens: 3000,
+      timeoutMs: 30000,
     });
 
     if (!aiResult.ok) {
-      await adminClient.from("brainlens_queries").update({
-        status: "failed",
-        error_message: aiResult.error || "AI call failed",
-        processing_time_ms: Date.now() - startTime,
-      }).eq("id", query.id);
+      // Fire-and-forget error update
+      adminClient.from("brainlens_queries").update({
+        status: "failed", error_message: aiResult.error || "AI call failed", processing_time_ms: Date.now() - startTime,
+      }).eq("id", query.id).then(() => {});
       return errorResponse("AI processing failed", 500);
     }
 
@@ -120,8 +96,8 @@ serve(async (req) => {
     const processingTime = Date.now() - startTime;
     const confidence = parsed.confidence || 0.8;
 
-    // Update query record with full ALIS data
-    await adminClient.from("brainlens_queries").update({
+    // Fire-and-forget DB update – don't block the response
+    adminClient.from("brainlens_queries").update({
       status: "completed",
       extracted_text: image_base64 ? parsed.extracted_question || questionText : questionText,
       detected_topic: parsed.detected_topic || "General",
@@ -151,7 +127,6 @@ serve(async (req) => {
         gap_type: parsed.cognitive_gap?.type,
         timestamp: new Date().toISOString(),
       },
-      // ALIS v3.0 modules
       pre_query_predictions: parsed.pre_query_predictions || null,
       silent_repair_plan: parsed.silent_repair_plan || null,
       future_style_questions: parsed.future_style_questions || null,
@@ -160,8 +135,9 @@ serve(async (req) => {
       strategic_mastery_index: parsed.strategic_mastery_index || null,
       strategy_switch: parsed.strategy_switch || null,
       processing_time_ms: processingTime,
-    }).eq("id", query.id);
+    }).eq("id", query.id).then(() => {});
 
+    // Return response immediately
     return jsonResponse({
       id: query.id,
       short_answer: parsed.short_answer || "",
@@ -173,15 +149,13 @@ serve(async (req) => {
       detected_subtopic: parsed.detected_subtopic || "",
       detected_difficulty: parsed.detected_difficulty || "medium",
       detected_exam_type: parsed.detected_exam_type || "",
-      confidence: confidence,
+      confidence,
       processing_time_ms: processingTime,
-      // ACQIS modules
       cognitive_gap: parsed.cognitive_gap || { type: "conceptual_gap", code: "CG-001", explanation: "", severity: "medium" },
       micro_concepts: parsed.micro_concepts || { core: "", adjacent_nodes: [], reinforcement_questions: [] },
       exam_impact: parsed.exam_impact || { topic_probability_index: 0.5, estimated_mastery_boost: "5%", readiness_impact: "medium", related_pyq_patterns: [] },
       explanation_depth: parsed.explanation_depth || "standard",
       cross_validation_note: parsed.cross_validation_note || "",
-      // ALIS v3.0 modules
       pre_query_predictions: parsed.pre_query_predictions || { weak_concepts: [], preventive_challenge: null, prediction_confidence: 0 },
       silent_repair_plan: parsed.silent_repair_plan || { stealth_questions: [], unstable_nodes: [], repair_strategy: "" },
       future_style_questions: parsed.future_style_questions || [],
@@ -197,107 +171,64 @@ serve(async (req) => {
   }
 });
 
-/* ═══ ALIS Prompt Builder ═══ */
+/* ═══ Compact ALIS Prompt ═══ */
 function buildALISPrompt(profile: any, memoryScores: any[], recentQueries: any[]): string {
-  const avgStrength = memoryScores?.length
-    ? (memoryScores.reduce((a, s) => a + (s.score || 0), 0) / memoryScores.length).toFixed(2)
+  const avgStr = memoryScores?.length
+    ? (memoryScores.reduce((a, s) => a + (s.score || 0), 0) / memoryScores.length).toFixed(1)
     : null;
+  const gaps = recentQueries?.map(q => q.cognitive_gap_type).filter(Boolean).slice(0, 3) || [];
+  const topics = recentQueries?.map(q => q.detected_topic).filter(Boolean).slice(0, 3) || [];
 
-  const recentGaps = recentQueries?.map(q => q.cognitive_gap_type).filter(Boolean) || [];
-  const recentTopics = recentQueries?.map(q => q.detected_topic).filter(Boolean) || [];
-
-  return `You are ACRY ALIS Ω – an academic solver. Given a question, return ONLY a JSON object. CRITICAL RULES:
-- Output raw JSON only. NO markdown, NO code fences, NO explanatory text before/after.
-- short_answer: Give the FINAL answer in 1-2 sentences. Do NOT show your working or self-correct here.
-- step_by_step: Array of 3-5 concise calculation steps. Each step max 1 sentence.
-- NEVER repeat a calculation. NEVER write "Let me re-check" or "Wait" or self-correct. Compute once correctly.
-
-JSON schema:
-{"detected_topic":"","detected_subtopic":"","detected_difficulty":"easy|medium|hard","detected_exam_type":"","short_answer":"","step_by_step":["",""],"concept_clarity":"","option_elimination":"","shortcut_tricks":"",
-"cognitive_gap":{"type":"conceptual_gap|retrieval_failure|interference_confusion|speed_weakness|pattern_unfamiliarity","code":"CG-001","explanation":"","severity":"low|medium|high"},
-"micro_concepts":{"core":"","adjacent_nodes":[""],"reinforcement_questions":[{"question":"","difficulty":""}]},
-"exam_impact":{"topic_probability_index":0.5,"estimated_mastery_boost":"5%","readiness_impact":"medium","related_pyq_patterns":[]},
-"explanation_depth":"standard","confidence":0.8,"cross_validation_note":"",
-"pre_query_predictions":{"weak_concepts":[],"preventive_challenge":null,"prediction_confidence":0},
-"silent_repair_plan":{"stealth_questions":[],"unstable_nodes":[],"repair_strategy":""},
-"future_style_questions":[{"question":"","question_dna":"","difficulty":"hard","topic_momentum":"rising","exam_probability":0.5}],
-"cognitive_drift":{"drift_detected":false,"drift_magnitude":0,"recalibration":""},
-"personal_examiner":{"trap_questions":[{"question":"","trap_type":""}],"conceptual_depth_score":50,"robustness_rating":"developing"},
-"strategic_mastery_index":{"smi_score":50,"multi_step_reasoning":50,"transfer_learning":50,"trap_resistance":50,"mastery_verdict":"intermediate"},
-"strategy_switch":{"recommended_mode":"deep_focus","reasoning":"","urgency":"low"}}
-
-${profile?.exam_type ? `Exam: ${profile.exam_type}.` : ""}${avgStrength ? ` Memory: ${avgStrength}.` : ""}${recentGaps.length ? ` Recent gaps: ${recentGaps.slice(0,3).join(",")}.` : ""}${recentTopics.length ? ` Recent topics: ${recentTopics.slice(0,3).join(",")}.` : ""}`;
+  return `Academic solver. Return ONLY raw JSON. No markdown fences. No self-correction. No "Wait"/"Let me re-check". Compute once correctly.
+Keep short_answer to 1-2 sentences. step_by_step: 3-5 steps, each max 1 sentence. All other string fields max 2 sentences.
+JSON keys: detected_topic,detected_subtopic,detected_difficulty(easy|medium|hard),detected_exam_type,short_answer,step_by_step[],concept_clarity,option_elimination,shortcut_tricks,cognitive_gap{type,code,explanation,severity},micro_concepts{core,adjacent_nodes[],reinforcement_questions[{question,difficulty}]},exam_impact{topic_probability_index,estimated_mastery_boost,readiness_impact,related_pyq_patterns[]},explanation_depth,confidence,cross_validation_note,pre_query_predictions{weak_concepts[],preventive_challenge,prediction_confidence},silent_repair_plan{stealth_questions[],unstable_nodes[],repair_strategy},future_style_questions[{question,difficulty,exam_probability}],cognitive_drift{drift_detected,drift_magnitude,recalibration},personal_examiner{trap_questions[{question,trap_type}],conceptual_depth_score,robustness_rating},strategic_mastery_index{smi_score,multi_step_reasoning,transfer_learning,trap_resistance},strategy_switch{recommended_mode,reasoning,urgency}
+${profile?.exam_type ? `Exam:${profile.exam_type}.` : ""}${avgStr ? `Mem:${avgStr}.` : ""}${gaps.length ? `Gaps:${gaps.join(",")}.` : ""}${topics.length ? `Topics:${topics.join(",")}.` : ""}`;
 }
 
 /* ═══ ALIS Response Parser ═══ */
 function parseALISResponse(rawText: string): any {
-  // Strip markdown code blocks and any preamble text
   let cleaned = rawText.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
-
-  // Try direct parse first
   try { return JSON.parse(cleaned); } catch { /* continue */ }
 
-  // Extract JSON object from mixed text
   const jsonStart = cleaned.indexOf("{");
   if (jsonStart === -1) return fallbackResponse(rawText);
-
   let s = cleaned.substring(jsonStart);
-
-  // Try parsing as-is
   try { return JSON.parse(s); } catch { /* continue */ }
 
   // Repair truncated JSON
-  // 1. Remove trailing incomplete key-value pair (e.g. truncated string)
   s = s.replace(/,\s*"[^"]*"?\s*:\s*"[^"]*$/s, "");
-  // 2. Remove trailing incomplete array/object entries  
   s = s.replace(/,\s*"[^"]*"?\s*:\s*\{[^}]*$/s, "");
   s = s.replace(/,\s*"[^"]*"?\s*:\s*\[[^\]]*$/s, "");
-  // 3. Remove any trailing comma
   s = s.replace(/,\s*$/, "");
 
-  // 4. Close unbalanced braces/brackets
   let braces = 0, brackets = 0;
   for (const c of s) {
-    if (c === "{") braces++;
-    else if (c === "}") braces--;
-    else if (c === "[") brackets++;
-    else if (c === "]") brackets--;
+    if (c === "{") braces++; else if (c === "}") braces--;
+    if (c === "[") brackets++; else if (c === "]") brackets--;
   }
   while (brackets > 0) { s += "]"; brackets--; }
   while (braces > 0) { s += "}"; braces--; }
 
   try { return JSON.parse(s); } catch { /* continue */ }
-
-  // Last resort: try removing control characters
   s = s.replace(/[\x00-\x1F\x7F]/g, " ");
   try { return JSON.parse(s); } catch { /* fallback */ }
-
   return fallbackResponse(rawText);
 }
 
 function fallbackResponse(rawText: string): any {
-  // Try to extract at least the short_answer from the verbose text
-  const shortAnswer = rawText.length > 500 
-    ? rawText.substring(0, 200).replace(/[{}"]/g, "").trim() + "..."
-    : rawText;
   return {
-    short_answer: rawText,
-    step_by_step: [],
-    concept_clarity: "",
-    option_elimination: "",
-    shortcut_tricks: "",
-    cognitive_gap: { type: "conceptual_gap", code: "CG-001", explanation: "Unable to classify", severity: "medium" },
+    short_answer: rawText.length > 300 ? rawText.substring(0, 200) + "..." : rawText,
+    step_by_step: [], concept_clarity: "", option_elimination: "", shortcut_tricks: "",
+    cognitive_gap: { type: "conceptual_gap", code: "CG-001", explanation: "", severity: "medium" },
     micro_concepts: { core: "", adjacent_nodes: [], reinforcement_questions: [] },
     exam_impact: { topic_probability_index: 0.5, estimated_mastery_boost: "5%", readiness_impact: "medium", related_pyq_patterns: [] },
-    explanation_depth: "standard",
-    confidence: 0.5,
-    cross_validation_note: "Fallback parsing used",
+    explanation_depth: "standard", confidence: 0.5, cross_validation_note: "Fallback",
     pre_query_predictions: { weak_concepts: [], preventive_challenge: null, prediction_confidence: 0 },
     silent_repair_plan: { stealth_questions: [], unstable_nodes: [], repair_strategy: "" },
     future_style_questions: [],
     cognitive_drift: { drift_detected: false, drift_magnitude: 0, recalibration: "" },
     personal_examiner: { trap_questions: [], conceptual_depth_score: 0, robustness_rating: "developing" },
-    strategic_mastery_index: { smi_score: 0, multi_step_reasoning: 0, transfer_learning: 0, trap_resistance: 0, mastery_verdict: "novice" },
+    strategic_mastery_index: { smi_score: 0, multi_step_reasoning: 0, transfer_learning: 0, trap_resistance: 0 },
     strategy_switch: { recommended_mode: "deep_focus", reasoning: "Default", urgency: "low" },
   };
 }
