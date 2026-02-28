@@ -35,7 +35,7 @@ const Footer = () => (
       <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/20 to-transparent mt-8 mb-6" />
 
       <p className="text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} ACRY. AI Second Brain for All Exams.
+        © {new Date().getFullYear()} AVC DOTFY LLP. All rights reserved.
       </p>
     </div>
   </footer>
