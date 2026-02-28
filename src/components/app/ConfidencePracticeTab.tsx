@@ -132,16 +132,12 @@ const ConfidencePracticeTab = () => {
   useEffect(() => {
     fetchUserExam().then(exam => {
       if (exam) {
-        // Try exact match first, then prefix/partial match (e.g. "UPSC" → "UPSC CSE", "NEET" → "NEET UG")
-        const lower = exam.toLowerCase().trim();
-        const matched = examTypes.find(e => e.toLowerCase() === lower)
-          || examTypes.find(e => e.toLowerCase().startsWith(lower))
-          || examTypes.find(e => lower.startsWith(e.toLowerCase()))
-          || "";
-        if (matched) {
-          setSelExam(matched);
-          setUserExamType(matched);
-        }
+        const rawExam = exam.trim();
+        // Prefer exact canonical match, otherwise keep onboarding value as-is
+        const exact = examTypes.find(e => e.toLowerCase() === rawExam.toLowerCase());
+        const chosenExam = exact || rawExam;
+        setSelExam(chosenExam);
+        setUserExamType(chosenExam);
       }
       setUserExamLoaded(true);
     });
@@ -149,6 +145,13 @@ const ConfidencePracticeTab = () => {
 
   // Only show the user's onboarded exam type
   const availableExamTypes = userExamType ? [userExamType] : examTypes;
+
+  // Keep predicted setup exam pinned to onboarded exam
+  useEffect(() => {
+    if (section === "predicted_setup" && userExamType && selExam !== userExamType) {
+      setSelExam(userExamType);
+    }
+  }, [section, userExamType, selExam]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
@@ -345,7 +348,7 @@ const ConfidencePracticeTab = () => {
           <motion.button
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => { setSource("predicted"); setSection("predicted_setup"); }}
+            onClick={() => { setSource("predicted"); if (userExamType) setSelExam(userExamType); setSection("predicted_setup"); }}
             className="w-full rounded-3xl p-5 text-left relative overflow-hidden group"
             style={{
               background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
@@ -450,6 +453,7 @@ const ConfidencePracticeTab = () => {
   // ─── SETUP SCREENS ───
   if (section === "bank_setup" || section === "predicted_setup") {
     const isPredicted = section === "predicted_setup";
+    const examSelectionLocked = isPredicted && !!userExamType;
     return (
       <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
         <button onClick={() => setSection("menu")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -468,6 +472,10 @@ const ConfidencePracticeTab = () => {
             <div className="flex flex-wrap gap-2">
                {availableExamTypes.map(e => (
                 <button key={e} onClick={() => {
+                  if (examSelectionLocked) {
+                    setSelExam(e);
+                    return;
+                  }
                   const newExam = selExam === e ? "" : e;
                   setSelExam(newExam);
                   // Clear subject if not valid for new exam
