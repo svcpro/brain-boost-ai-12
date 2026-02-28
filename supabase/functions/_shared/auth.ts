@@ -54,17 +54,29 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
     email = claimsData.claims.email as string | undefined;
     role = (claimsData.claims.role as string) || "authenticated";
   } else {
-    // Fallback: network call to validate token (handles cold-start race condition)
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !userData?.user) {
+    // Fallback: network call with retry for transient auth service restarts
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      if (!userError && userData?.user) {
+        userId = userData.user.id;
+        email = userData.user.email;
+        role = userData.user.role || "authenticated";
+        break;
+      }
+      lastError = userError;
+      if (attempt === 0) {
+        // Brief delay before retry to let auth service recover
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    if (!userId) {
       throw new Response(
         JSON.stringify({ error: "Invalid or expired token" }),
         { status: 401, headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" } }
       );
     }
-    userId = userData.user.id;
-    email = userData.user.email;
-    role = userData.user.role || "authenticated";
   }
 
   return {
