@@ -166,7 +166,7 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
       </header>
 
       {/* ═══ Content ═══ */}
-      <div className="flex-1 overflow-hidden relative z-10">
+      <div className={`flex-1 relative z-10 overflow-x-hidden ${result ? 'overflow-y-auto' : 'overflow-hidden'}`}>
         <div className="px-4 py-4 space-y-5 pb-10">
           {!result ? (
             <InputView
