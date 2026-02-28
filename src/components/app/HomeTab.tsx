@@ -782,21 +782,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </Suspense>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════
-           SECTION 4: MOMENTUM — Progress & Streak Tracking
-           Purpose: "Am I improving?"
-         ══════════════════════════════════════════════════════════════ */}
-      {hasTopics && (
-        <SectionErrorBoundary name="momentum">
-          <MomentumSection
-            streakData={streakData}
-            overallHealth={overallHealth}
-            rankPredicted={rankData?.predicted_rank ?? null}
-            rankPercentile={rankData?.percentile ?? null}
-            hasTopics={hasTopics}
-          />
-        </SectionErrorBoundary>
-      )}
+      {/* ═══ Momentum — hidden per user request ═══ */}
 
       {/* Streak celebrations (lightweight) */}
       {hasTopics && isEnabled('home_streak_milestone') && <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />}
