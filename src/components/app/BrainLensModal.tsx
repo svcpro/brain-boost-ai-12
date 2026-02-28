@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import ALISProgressOverlay from "./ALISProgressOverlay";
+import AIProgressBar from "./AIProgressBar";
+import { getCache, setCache } from "@/lib/offlineCache";
 
 interface Suggestion {
   question: string;
@@ -75,11 +77,28 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
   }, []);
 
   const fetchSuggestions = useCallback(async () => {
+    // Show cached suggestions instantly
+    const cached = getCache<Suggestion[]>("alis-suggestions");
+    if (cached && cached.length > 0) {
+      setSuggestions(cached);
+      // Still refresh in background
+      supabase.functions.invoke("brainlens-solve", { body: { action: "suggest" } })
+        .then(({ data }) => {
+          if (data?.suggestions?.length) {
+            setSuggestions(data.suggestions);
+            setCache("alis-suggestions", data.suggestions);
+          }
+        })
+        .catch(() => {});
+      return;
+    }
     setSuggestionsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("brainlens-solve", { body: { action: "suggest" } });
       if (error) throw error;
-      setSuggestions(data?.suggestions || []);
+      const s = data?.suggestions || [];
+      setSuggestions(s);
+      if (s.length > 0) setCache("alis-suggestions", s);
     } catch { /* Silent */ } finally { setSuggestionsLoading(false); }
   }, []);
 
@@ -255,10 +274,13 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
             </motion.button>
           </div>
           {suggestionsLoading && suggestions.length === 0 ? (
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="min-w-[220px] h-[90px] rounded-2xl bg-secondary/30 border border-border/30 animate-pulse" />
-              ))}
+            <div className="px-1">
+              <AIProgressBar
+                label="Generating personalized suggestions…"
+                sublabel="Analyzing your weak topics & exam patterns"
+                estimatedSeconds={6}
+                compact
+              />
             </div>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
