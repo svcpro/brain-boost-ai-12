@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Trophy, Shield, AlertTriangle, Zap, ArrowUpRight, X, Target, TrendingUp, Brain, Clock, Flame, BookOpen,
+  Trophy, Shield, AlertTriangle, Zap, ArrowUpRight, X, Target, TrendingUp, Brain, Clock, Flame, BookOpen, Camera,
 } from "lucide-react";
+import html2canvas from "html2canvas";
 import { TopicPrediction } from "@/hooks/useMemoryEngine";
 import { RankPredictionData } from "@/hooks/useRankPrediction";
 import { supabase } from "@/integrations/supabase/client";
@@ -417,6 +418,25 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
   const [examDate, setExamDate] = useState<string | null>(null);
   const [examType, setExamType] = useState<string | null>(null);
   const [studyLogs, setStudyLogs] = useState<{ duration_minutes: number; created_at: string }[]>([]);
+  const zoneRef = useRef<HTMLDivElement>(null);
+
+  const handleScreenshot = async () => {
+    if (!zoneRef.current) return;
+    try {
+      const canvas = await html2canvas(zoneRef.current, {
+        backgroundColor: "#111",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const link = document.createElement("a");
+      link.download = `SurePass-Zone-${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (e) {
+      console.error("Screenshot failed", e);
+    }
+  };
 
   useEffect(() => {
     if (!open || !user) return;
@@ -536,9 +556,19 @@ const SafePassPopup: React.FC<SafePassPopupProps> = ({
               <div className="px-5 pb-6 space-y-4">
 
                 {/* ═══ ZONE STATUS HERO ═══ */}
-                <motion.div className="rounded-[20px] p-5 text-center relative overflow-hidden"
+                <motion.div ref={zoneRef} className="rounded-[20px] p-5 text-center relative overflow-hidden"
                   style={{ border: `2px solid ${zone.border}` }}
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+                  {/* Screenshot button */}
+                  <motion.button
+                    whileTap={{ scale: 0.85 }}
+                    onClick={handleScreenshot}
+                    className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md"
+                    style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${zone.border}` }}
+                    title="Save screenshot"
+                  >
+                    <Camera className="w-4 h-4" style={{ color: zone.text }} />
+                  </motion.button>
                   <motion.div className="absolute inset-0 rounded-[20px] pointer-events-none"
                     style={{ boxShadow: `inset 0 0 30px ${zone.pulse}` }}
                     animate={{ opacity: [0.3, 0.7, 0.3] }}
