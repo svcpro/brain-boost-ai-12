@@ -195,6 +195,24 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
    ═══════════════════════════════════════════════════════════════ */
 
 function InputView({ mode, setMode, content, setContent, imageBase64, setImageBase64, loading, solve, fileRef, cameraRef, handleImageCapture, suggestions, suggestionsLoading, onRefreshSuggestions }: any) {
+  const [activePanel, setActivePanel] = useState<InputMode | null>(null);
+
+  const openMode = (key: InputMode) => {
+    setMode(key);
+    setImageBase64(null);
+    setContent("");
+    setActivePanel(key);
+  };
+
+  const closePanel = () => setActivePanel(null);
+
+  const MODE_CARDS: { key: InputMode; icon: typeof Camera; label: string; desc: string; accentVar: string }[] = [
+    { key: "scan", icon: Camera, label: "Scan", desc: "Capture with camera", accentVar: "var(--primary)" },
+    { key: "text", icon: PenTool, label: "Type", desc: "Type your question", accentVar: "var(--accent)" },
+    { key: "upload", icon: ImageIcon, label: "PDF", desc: "Upload document", accentVar: "var(--success)" },
+    { key: "url", icon: Globe, label: "URL", desc: "Paste a link", accentVar: "var(--warning)" },
+  ];
+
   return (
     <>
       {/* ── Welcome Hero ── */}
@@ -210,13 +228,51 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
         </motion.div>
         <h2 className="text-lg font-black font-display text-foreground">What would you like to solve?</h2>
         <p className="text-xs text-muted-foreground/70 max-w-[280px] mx-auto leading-relaxed">
-          Scan, type, or upload — ALIS analyzes instantly with deep cognitive intelligence
+          Choose how you want to ask — ALIS analyzes instantly
         </p>
+      </motion.div>
+
+      {/* ── Mode Selection Grid ── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+        className="grid grid-cols-2 gap-3"
+      >
+        {MODE_CARDS.map(({ key, icon: Icon, label, desc, accentVar }, i) => (
+          <motion.button key={key} onClick={() => openMode(key)}
+            initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 + i * 0.06 }}
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ y: -3 }}
+            className="relative rounded-3xl p-5 flex flex-col items-center gap-3 text-center overflow-hidden group"
+            style={{
+              background: "hsl(var(--card) / 0.5)",
+              border: `1px solid hsl(${accentVar} / 0.15)`,
+              backdropFilter: "blur(20px)",
+            }}
+          >
+            {/* Hover glow */}
+            <motion.div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{ background: `radial-gradient(circle at 50% 50%, hsl(${accentVar} / 0.08), transparent 70%)` }}
+            />
+            {/* Animated icon container */}
+            <motion.div className="w-14 h-14 rounded-2xl flex items-center justify-center relative z-10"
+              style={{ background: `hsl(${accentVar} / 0.1)`, border: `1px solid hsl(${accentVar} / 0.2)` }}
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ duration: 3, repeat: Infinity, delay: i * 0.4 }}
+            >
+              <motion.div animate={{ y: [0, -2, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.3 }}>
+                <Icon className="w-6 h-6" style={{ color: `hsl(${accentVar})` }} />
+              </motion.div>
+            </motion.div>
+            <div className="relative z-10">
+              <p className="text-xs font-bold text-foreground tracking-wider uppercase">{label}</p>
+              <p className="text-[9px] text-muted-foreground/60 mt-0.5">{desc}</p>
+            </div>
+          </motion.button>
+        ))}
       </motion.div>
 
       {/* ── AI Suggestions Carousel ── */}
       {(suggestionsLoading || suggestions.length > 0) && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-2.5">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <motion.div animate={{ y: [0, -2, 0] }} transition={{ duration: 2, repeat: Infinity }}>
@@ -233,7 +289,6 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
               <RefreshCw className="w-3 h-3 text-muted-foreground" />
             </motion.button>
           </div>
-
           {suggestionsLoading && suggestions.length === 0 ? (
             <div className="flex gap-3 overflow-x-auto pb-2">
               {[1, 2, 3].map(i => (
@@ -243,159 +298,12 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
               {suggestions.map((s: Suggestion, i: number) => (
-                <SuggestionCard key={i} s={s} i={i} onClick={() => { setMode("text"); setContent(s.question); setImageBase64(null); }} />
+                <SuggestionCard key={i} s={s} i={i} onClick={() => { setActivePanel("text"); setMode("text"); setContent(s.question); setImageBase64(null); }} />
               ))}
             </div>
           )}
         </motion.div>
       )}
-
-      {/* ── Mode Selector – Pill Tabs ── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-        className="flex gap-2 p-1.5 rounded-2xl bg-secondary/40 border border-border/30 backdrop-blur-xl"
-      >
-        {INPUT_MODES.map(({ key, icon: Icon, label }) => {
-          const active = mode === key;
-          return (
-            <motion.button key={key} onClick={() => { setMode(key); setImageBase64(null); setContent(""); }}
-              className="flex-1 relative flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold tracking-wider transition-all"
-              whileTap={{ scale: 0.93 }}
-            >
-              {active && (
-                <motion.div layoutId="alis-mode-active" className="absolute inset-0 rounded-xl"
-                  style={{
-                    background: "linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1))",
-                    border: "1px solid hsl(var(--primary) / 0.3)",
-                    boxShadow: "0 0 20px hsl(var(--primary) / 0.1), inset 0 1px 0 hsl(0 0% 100% / 0.05)",
-                  }}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <motion.div animate={active ? { scale: [1, 1.15, 1] } : {}} transition={{ duration: 2, repeat: Infinity }}>
-                <Icon className="w-4 h-4 relative z-10" style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
-              </motion.div>
-              <span className="relative z-10 uppercase" style={{ color: active ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))" }}>{label}</span>
-            </motion.button>
-          );
-        })}
-      </motion.div>
-
-      {/* ── Input Area ── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="rounded-3xl p-5 space-y-4 relative overflow-hidden"
-        style={{
-          background: "hsl(var(--card) / 0.6)",
-          border: "1px solid hsl(var(--border) / 0.4)",
-          backdropFilter: "blur(30px)",
-          boxShadow: "0 8px 40px hsl(0 0% 0% / 0.15), inset 0 1px 0 hsl(0 0% 100% / 0.03)",
-        }}
-      >
-        {/* Shimmer accent line */}
-        <motion.div className="absolute top-0 left-0 right-0 h-[2px]"
-          style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.4), transparent)" }}
-          animate={{ opacity: [0.3, 0.8, 0.3] }}
-          transition={{ duration: 4, repeat: Infinity }}
-        />
-
-        <div className="flex items-center gap-2.5 relative z-10">
-          <motion.div className="w-2 h-5 rounded-full"
-            style={{ background: "linear-gradient(180deg, hsl(var(--primary)), hsl(var(--accent)))" }}
-            animate={{ height: ["20px", "16px", "20px"] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
-          <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground">
-            {mode === "scan" ? "Capture Question" : mode === "upload" ? "Upload Document" : mode === "url" ? "Paste Link" : "Your Question"}
-          </span>
-        </div>
-
-        {mode === "scan" && (
-          <>
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageCapture} />
-            <motion.button onClick={() => cameraRef.current?.click()} whileTap={{ scale: 0.97 }}
-              className="w-full h-32 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all relative z-10 group"
-              style={{ border: "2px dashed hsl(var(--primary) / 0.25)", background: "hsl(var(--primary) / 0.04)" }}
-            >
-              <motion.div animate={imageBase64 ? {} : { y: [0, -5, 0], scale: [1, 1.05, 1] }} transition={{ duration: 2.5, repeat: Infinity }}
-                className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: imageBase64 ? "hsl(var(--success) / 0.12)" : "hsl(var(--primary) / 0.1)", border: `1px solid ${imageBase64 ? "hsl(var(--success) / 0.3)" : "hsl(var(--primary) / 0.2)"}` }}
-              >
-                {imageBase64 ? <CheckCircle className="w-6 h-6 text-success" /> : <Camera className="w-6 h-6 text-primary" />}
-              </motion.div>
-              <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                {imageBase64 ? "✓ Image captured" : "Tap to open camera"}
-              </span>
-            </motion.button>
-          </>
-        )}
-        {mode === "upload" && (
-          <>
-            <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleImageCapture} />
-            <motion.button onClick={() => fileRef.current?.click()} whileTap={{ scale: 0.97 }}
-              className="w-full h-32 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all relative z-10 group"
-              style={{ border: "2px dashed hsl(var(--success) / 0.25)", background: "hsl(var(--success) / 0.04)" }}
-            >
-              <motion.div animate={imageBase64 ? {} : { rotate: [0, 5, -5, 0] }} transition={{ duration: 3, repeat: Infinity }}
-                className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: "hsl(var(--success) / 0.1)", border: "1px solid hsl(var(--success) / 0.25)" }}
-              >
-                {imageBase64 ? <CheckCircle className="w-6 h-6 text-success" /> : <FileText className="w-6 h-6 text-success" />}
-              </motion.div>
-              <span className="text-xs font-medium text-muted-foreground">{imageBase64 ? content : "Upload PDF or Image"}</span>
-            </motion.button>
-          </>
-        )}
-        {mode === "url" && (
-          <Input placeholder="https://example.com/question..." value={content} onChange={(e: any) => setContent(e.target.value)}
-            className="bg-secondary/40 border-border/40 rounded-2xl h-14 text-sm text-foreground placeholder:text-muted-foreground/40 relative z-10 focus:border-primary/40 focus:ring-primary/20"
-          />
-        )}
-        {mode === "text" && (
-          <Textarea placeholder="Type or paste your question here..." value={content} onChange={(e: any) => setContent(e.target.value)} rows={5}
-            className="bg-secondary/40 border-border/40 resize-none rounded-2xl text-sm text-foreground placeholder:text-muted-foreground/40 relative z-10 focus:border-primary/40 focus:ring-primary/20 leading-relaxed"
-          />
-        )}
-      </motion.div>
-
-      {/* ── Solve Button ── */}
-      <motion.button whileTap={{ scale: 0.96 }} onClick={solve} disabled={loading || (!content && !imageBase64)}
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="w-full h-[58px] rounded-2xl text-sm font-bold text-primary-foreground relative overflow-hidden disabled:opacity-30 disabled:cursor-not-allowed group"
-        style={{
-          background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.9), hsl(var(--primary)))",
-          backgroundSize: "200% 200%",
-          boxShadow: "0 6px 30px hsl(var(--primary) / 0.25), 0 0 60px hsl(var(--accent) / 0.1)",
-        }}
-      >
-        <motion.div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 20%, hsl(0 0% 100% / 0.1) 50%, transparent 80%)" }}
-          animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-        />
-        {loading ? (
-          <div className="flex items-center justify-center gap-3 relative z-10">
-            <PremiumSpinner />
-            <span className="tracking-[0.15em] uppercase text-[13px]">Analyzing...</span>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center gap-3 relative z-10">
-            <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 3, repeat: Infinity }}>
-              <Zap className="w-5 h-5" />
-            </motion.div>
-            <span className="tracking-[0.15em] uppercase text-[13px]">Analyze with ALIS</span>
-            <Send className="w-4 h-4 opacity-60" />
-          </div>
-        )}
-      </motion.button>
-
-      {/* Loading State */}
-      <AnimatePresence>
-        {loading && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden rounded-2xl"
-            style={{ background: "hsl(var(--card) / 0.5)", border: "1px solid hsl(var(--border) / 0.3)", backdropFilter: "blur(20px)" }}
-          >
-            <AIProgressBar label="ALIS Ω deep analysis" sublabel="Cognitive scan in progress" estimatedSeconds={6} />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Footer */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex items-center justify-center gap-2 py-1">
@@ -404,7 +312,178 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
         </motion.div>
         <span className="text-[8px] tracking-[0.3em] uppercase text-muted-foreground/40 font-medium">ACRY ALIS Ω • Cognitive Engine</span>
       </motion.div>
+
+      {/* ═══ Input Panel Overlay ═══ */}
+      <AnimatePresence>
+        {activePanel && (
+          <InputPanel
+            mode={activePanel} content={content} setContent={setContent}
+            imageBase64={imageBase64} setImageBase64={setImageBase64}
+            loading={loading} solve={() => { closePanel(); solve(); }}
+            fileRef={fileRef} cameraRef={cameraRef} handleImageCapture={handleImageCapture}
+            onClose={closePanel}
+          />
+        )}
+      </AnimatePresence>
     </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INPUT PANEL – Slide-up overlay for each mode
+   ═══════════════════════════════════════════════════════════════ */
+
+function InputPanel({ mode, content, setContent, imageBase64, setImageBase64, loading, solve, fileRef, cameraRef, handleImageCapture, onClose }: any) {
+  const modeConfig: Record<InputMode, { icon: typeof Camera; title: string; accentVar: string }> = {
+    scan: { icon: Camera, title: "Scan Question", accentVar: "var(--primary)" },
+    text: { icon: PenTool, title: "Type Question", accentVar: "var(--accent)" },
+    upload: { icon: ImageIcon, title: "Upload Document", accentVar: "var(--success)" },
+    url: { icon: Globe, title: "Paste URL", accentVar: "var(--warning)" },
+  };
+
+  const cfg = modeConfig[mode as InputMode];
+  const ModeIcon = cfg.icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-end justify-center"
+      style={{ background: "hsl(0 0% 0% / 0.5)", backdropFilter: "blur(8px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="w-full max-w-[430px] rounded-t-[2rem] overflow-hidden flex flex-col"
+        style={{
+          background: "hsl(var(--background))",
+          border: "1px solid hsl(var(--border) / 0.3)",
+          borderBottom: "none",
+          maxHeight: "85vh",
+          boxShadow: "0 -10px 60px hsl(0 0% 0% / 0.3)",
+        }}
+      >
+        {/* Panel Header */}
+        <div className="px-5 pt-4 pb-3 flex items-center gap-3">
+          {/* Drag handle */}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-muted-foreground/20" />
+
+          <motion.div className="w-10 h-10 rounded-2xl flex items-center justify-center"
+            style={{ background: `hsl(${cfg.accentVar} / 0.1)`, border: `1px solid hsl(${cfg.accentVar} / 0.2)` }}
+            animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 3, repeat: Infinity }}
+          >
+            <ModeIcon className="w-5 h-5" style={{ color: `hsl(${cfg.accentVar})` }} />
+          </motion.div>
+          <div className="flex-1">
+            <h3 className="text-sm font-bold text-foreground">{cfg.title}</h3>
+            <p className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">ALIS Ω Analysis</p>
+          </div>
+          <motion.button onClick={onClose} whileTap={{ scale: 0.85 }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center bg-secondary/60 border border-border/40"
+          >
+            <ArrowLeft className="w-4 h-4 text-muted-foreground" />
+          </motion.button>
+        </div>
+
+        {/* Panel Content */}
+        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
+          {/* Input fields per mode */}
+          {mode === "scan" && (
+            <>
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageCapture} />
+              <motion.button onClick={() => cameraRef.current?.click()} whileTap={{ scale: 0.97 }}
+                className="w-full h-40 rounded-2xl flex flex-col items-center justify-center gap-3 group"
+                style={{ border: "2px dashed hsl(var(--primary) / 0.25)", background: "hsl(var(--primary) / 0.04)" }}
+              >
+                <motion.div animate={imageBase64 ? {} : { y: [0, -6, 0], scale: [1, 1.08, 1] }} transition={{ duration: 2.5, repeat: Infinity }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  style={{ background: imageBase64 ? "hsl(var(--success) / 0.12)" : "hsl(var(--primary) / 0.1)", border: `1px solid ${imageBase64 ? "hsl(var(--success) / 0.3)" : "hsl(var(--primary) / 0.2)"}` }}
+                >
+                  {imageBase64 ? <CheckCircle className="w-7 h-7 text-success" /> : <Camera className="w-7 h-7 text-primary" />}
+                </motion.div>
+                <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                  {imageBase64 ? "✓ Image captured" : "Tap to open camera"}
+                </span>
+              </motion.button>
+            </>
+          )}
+
+          {mode === "upload" && (
+            <>
+              <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleImageCapture} />
+              <motion.button onClick={() => fileRef.current?.click()} whileTap={{ scale: 0.97 }}
+                className="w-full h-40 rounded-2xl flex flex-col items-center justify-center gap-3 group"
+                style={{ border: "2px dashed hsl(var(--success) / 0.25)", background: "hsl(var(--success) / 0.04)" }}
+              >
+                <motion.div animate={imageBase64 ? {} : { rotate: [0, 5, -5, 0] }} transition={{ duration: 3, repeat: Infinity }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  style={{ background: "hsl(var(--success) / 0.1)", border: "1px solid hsl(var(--success) / 0.25)" }}
+                >
+                  {imageBase64 ? <CheckCircle className="w-7 h-7 text-success" /> : <FileText className="w-7 h-7 text-success" />}
+                </motion.div>
+                <span className="text-sm font-medium text-muted-foreground">{imageBase64 ? content : "Upload PDF or Image"}</span>
+              </motion.button>
+            </>
+          )}
+
+          {mode === "url" && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Enter URL</label>
+              <Input placeholder="https://example.com/question..." value={content} onChange={(e: any) => setContent(e.target.value)}
+                className="bg-secondary/40 border-border/40 rounded-2xl h-14 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-warning/40 focus:ring-warning/20"
+              />
+            </div>
+          )}
+
+          {mode === "text" && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Your question</label>
+              <Textarea placeholder="Type or paste your question here..." value={content} onChange={(e: any) => setContent(e.target.value)} rows={6}
+                className="bg-secondary/40 border-border/40 resize-none rounded-2xl text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-accent/40 focus:ring-accent/20 leading-relaxed"
+                autoFocus
+              />
+            </div>
+          )}
+
+          {/* Solve Button inside panel */}
+          <motion.button whileTap={{ scale: 0.96 }} onClick={solve} disabled={loading || (!content && !imageBase64)}
+            className="w-full h-[56px] rounded-2xl text-sm font-bold text-primary-foreground relative overflow-hidden disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.9), hsl(var(--primary)))",
+              backgroundSize: "200% 200%",
+              boxShadow: "0 6px 30px hsl(var(--primary) / 0.25), 0 0 60px hsl(var(--accent) / 0.1)",
+            }}
+          >
+            <motion.div className="absolute inset-0"
+              style={{ background: "linear-gradient(90deg, transparent 20%, hsl(0 0% 100% / 0.1) 50%, transparent 80%)" }}
+              animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+            />
+            {loading ? (
+              <div className="flex items-center justify-center gap-3 relative z-10">
+                <PremiumSpinner />
+                <span className="tracking-[0.15em] uppercase text-[13px]">Analyzing...</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-3 relative z-10">
+                <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 3, repeat: Infinity }}>
+                  <Zap className="w-5 h-5" />
+                </motion.div>
+                <span className="tracking-[0.15em] uppercase text-[13px]">Analyze with ALIS</span>
+                <Send className="w-4 h-4 opacity-60" />
+              </div>
+            )}
+          </motion.button>
+
+          {loading && (
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: "hsl(var(--card) / 0.5)", border: "1px solid hsl(var(--border) / 0.3)" }}
+            >
+              <AIProgressBar label="ALIS Ω deep analysis" sublabel="Cognitive scan in progress" estimatedSeconds={6} />
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
