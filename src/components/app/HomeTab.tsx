@@ -353,6 +353,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
   const healthColor = overallHealth > 70 ? "hsl(var(--success))" : overallHealth > 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
   const healthLabel = overallHealth > 70 ? "Strong" : overallHealth > 50 ? "Needs care" : "Critical";
+  const displayedRank = rankV2Data?.predicted_rank ?? rankData?.predicted_rank ?? null;
+  const displayedTrend = (rankV2Data?.trend || rankData?.trend || "neutral") as "rising" | "falling" | "stable" | "neutral";
 
   return (
     <div className="px-5 py-6 space-y-5 max-w-lg mx-auto overflow-x-hidden">
@@ -559,11 +561,11 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                 <TrendingUp className="w-4 h-4 text-primary" style={{ filter: "drop-shadow(0 0 6px hsl(var(--primary)/0.5))" }} />
               </motion.div>
               <p className="text-lg font-black text-foreground tabular-nums text-center">
-                {rankV2Data?.predicted_rank ? `#${rankV2Data.predicted_rank.toLocaleString()}` : "—"}
+                {displayedRank ? `#${displayedRank.toLocaleString()}` : "—"}
               </p>
-              {rankV2Data?.trend && rankV2Data.trend !== "stable" && (
-                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className={`text-[9px] font-bold block text-center ${rankV2Data.trend === "rising" ? "text-success" : "text-destructive"}`}>
-                  {rankV2Data.trend === "rising" ? "↑ Rising" : "↓ Falling"}
+              {displayedTrend !== "stable" && displayedTrend !== "neutral" && (
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className={`text-[9px] font-bold block text-center ${displayedTrend === "rising" ? "text-success" : "text-destructive"}`}>
+                  {displayedTrend === "rising" ? "↑ Rising" : "↓ Falling"}
                 </motion.span>
               )}
               <p className="text-[9px] text-muted-foreground text-center mt-0.5">Rank</p>

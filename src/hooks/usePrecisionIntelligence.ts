@@ -69,6 +69,16 @@ const PRECISION_CACHE = "acry-precision-score";
 const DECAY_CACHE = "acry-decay-v2";
 const RANK_CACHE = "acry-rank-v2";
 
+const isAuthTokenError = (error: unknown): boolean => {
+  const msg = String((error as any)?.message || "").toLowerCase();
+  return (
+    msg.includes("401") ||
+    msg.includes("unauthorized") ||
+    msg.includes("invalid or expired token") ||
+    msg.includes("missing or invalid authorization header")
+  );
+};
+
 export function usePrecisionIntelligence() {
   const { session } = useAuth();
   const [precisionScore, setPrecisionScore] = useState<PrecisionScore | null>(() => getCache(PRECISION_CACHE));
@@ -80,9 +90,21 @@ export function usePrecisionIntelligence() {
 
   const invoke = useCallback(async (action: string, extra: Record<string, any> = {}) => {
     if (!session) return null;
-    const { data, error: fnError } = await supabase.functions.invoke("precision-intelligence", {
-      body: { action, ...extra },
-    });
+
+    const doInvoke = () =>
+      supabase.functions.invoke("precision-intelligence", {
+        body: { action, ...extra },
+      });
+
+    let { data, error: fnError } = await doInvoke();
+
+    if (fnError && isAuthTokenError(fnError)) {
+      await supabase.auth.refreshSession();
+      const retry = await doInvoke();
+      data = retry.data;
+      fnError = retry.error;
+    }
+
     if (fnError) throw fnError;
     return data;
   }, [session]);
