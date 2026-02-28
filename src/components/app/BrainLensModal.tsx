@@ -202,7 +202,7 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
           <ALISLogo />
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-sm font-black tracking-[0.15em] uppercase" style={{ fontFamily: "'Orbitron', sans-serif", background: "linear-gradient(135deg, hsl(187 100% 60%), hsl(262 100% 75%), hsl(0 72% 60%))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ALIS</h1>
+              <h1 className="text-sm font-black tracking-[0.15em] uppercase font-display" style={{ background: "linear-gradient(135deg, hsl(187 100% 60%), hsl(262 100% 75%), hsl(0 72% 60%))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ALIS</h1>
               <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider" style={{ background: "hsl(0 72% 51% / 0.15)", color: "hsl(0 72% 65%)", border: "1px solid hsl(0 72% 51% / 0.2)" }}>Ω</span>
             </div>
             <p className="text-[8px] text-foreground/30 tracking-wider uppercase">Autonomous Learning Intervention</p>
@@ -588,7 +588,7 @@ function ResultView({ result, expandedCards, toggleCard, onReset }: { result: AL
           <div className="space-y-2.5">
             <div className="flex items-center gap-4 mb-2">
               <div className="text-center">
-                <div className="text-lg font-bold" style={{ fontFamily: "'Orbitron', sans-serif", color: "hsl(262 100% 75%)" }}>{result.personal_examiner.conceptual_depth_score}</div>
+                <div className="text-lg font-bold font-display" style={{ color: "hsl(262 100% 75%)" }}>{result.personal_examiner.conceptual_depth_score}</div>
                 <div className="text-[8px] text-foreground/30 uppercase">Depth</div>
               </div>
               <span className="text-[9px] font-bold px-2.5 py-1 rounded-lg" style={{
@@ -724,7 +724,7 @@ function RingGauge({ label, value, color }: { label: string; value: number; colo
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[11px] font-bold" style={{ fontFamily: "'Orbitron', sans-serif", color: `hsl(${color})` }}>{value}</span>
+          <span className="text-[11px] font-bold font-display" style={{ color: `hsl(${color})` }}>{value}</span>
         </div>
       </div>
       <span className="text-[7px] font-bold uppercase tracking-wider text-foreground/25">{label}</span>
@@ -735,7 +735,7 @@ function RingGauge({ label, value, color }: { label: string; value: number; colo
 function StatBlock({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
     <div className="text-center rounded-xl p-2.5" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
-      <div className="text-sm font-bold capitalize" style={{ fontFamily: "'Orbitron', sans-serif", color: `hsl(${accent})` }}>{value}</div>
+      <div className="text-sm font-bold capitalize font-display" style={{ color: `hsl(${accent})` }}>{value}</div>
       <div className="text-[7px] text-foreground/25 uppercase tracking-wider mt-0.5">{label}</div>
     </div>
   );
@@ -780,7 +780,7 @@ function ConfidenceBadge({ value }: { value?: number }) {
   const color = pct >= 80 ? "155 100% 50%" : pct >= 50 ? "40 100% 50%" : "0 72% 51%";
   return (
     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: `hsl(${color} / 0.06)`, border: `1px solid hsl(${color} / 0.15)` }}>
-      <span className="text-[9px] font-bold" style={{ fontFamily: "'Orbitron', sans-serif", color: `hsl(${color})` }}>{pct}%</span>
+      <span className="text-[9px] font-bold font-display" style={{ color: `hsl(${color})` }}>{pct}%</span>
     </div>
   );
 }
