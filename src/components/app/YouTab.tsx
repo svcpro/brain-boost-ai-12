@@ -249,8 +249,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         <AIPersonalStrategy />
       </PlanGateWrapper>
 
-      {/* ═══ SECTION 3.5: AI Cognitive Profile v2.0 ═══ */}
-      <CognitiveProfileCard />
+      {/* AI Cognitive Profile hidden per user request */}
 
       {/* ═══ SECTION 4: Subscription Overview ═══ */}
       <SubscriptionOverview currentPlan={currentPlan} onManagePlan={() => setShowSubscription(true)} />
@@ -261,10 +260,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {/* ═══ Monthly Performance Snapshot ═══ */}
       <MonthlyPerformanceSnapshot />
 
-      {/* ═══ AI Recalibration ═══ */}
-      <PlanGateWrapper featureKey="ai_recalibration">
-        <AIRecalibration />
-      </PlanGateWrapper>
+      {/* AI Recalibration hidden per user request */}
 
       {/* ═══ SECTION 5: AI Personalization Control Center ═══ */}
       <AIPersonalizationControlCenter
