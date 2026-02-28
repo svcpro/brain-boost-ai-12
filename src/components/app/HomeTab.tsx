@@ -292,15 +292,18 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       }
     };
 
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
+
     try {
-      // Fast lane: refresh only user-visible core data
+      // Fast lane: refresh only user-visible core data (8s timeout)
       setAnalysisProgress(12);
       setAnalysisStep("Quick refresh…");
       await Promise.allSettled([
-        safeInvoke(() => predict(), "Memory prediction"),
-        safeInvoke(() => predictRank(), "Rank prediction"),
-        safeInvoke(() => computeRankV2(), "Rank V2"),
-        safeInvoke(() => loadRecommendations(), "Load recommendations"),
+        safeInvoke(() => withTimeout(predict(), 8000), "Memory prediction"),
+        safeInvoke(() => withTimeout(predictRank(), 8000), "Rank prediction"),
+        safeInvoke(() => withTimeout(computeRankV2(), 8000), "Rank V2"),
+        safeInvoke(() => withTimeout(loadRecommendations(), 8000), "Load recommendations"),
       ]);
 
       setRadarLastUpdated(new Date());
