@@ -1,12 +1,19 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, FileText, Link, Type, Brain, CheckCircle, Zap, BookOpen, Target, Lightbulb, ArrowLeft, Sparkles, Activity, Network, BarChart3, Shield, Layers, GraduationCap, Eye, Crosshair, TrendingUp, RefreshCw, Cpu, Gauge, ChevronDown, Atom, Radar, Fingerprint, Orbit } from "lucide-react";
+import { Camera, FileText, Link, Type, Brain, CheckCircle, Zap, BookOpen, Target, Lightbulb, ArrowLeft, Sparkles, Activity, Network, BarChart3, Shield, Layers, GraduationCap, Eye, Crosshair, TrendingUp, RefreshCw, Cpu, Gauge, ChevronDown, Atom, Radar, Fingerprint, Orbit, Wand2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import AIProgressBar from "./AIProgressBar";
+
+interface Suggestion {
+  question: string;
+  subject: string;
+  topic: string;
+  difficulty: string;
+}
 
 type InputMode = "scan" | "upload" | "url" | "text";
 
@@ -130,6 +137,8 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
   const [result, setResult] = useState<ALISResult | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set(["answer"]));
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
@@ -137,6 +146,24 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
     const el = document.querySelector(".app-device-inner") as HTMLElement;
     if (el) setPortalTarget(el);
   }, []);
+
+  const fetchSuggestions = useCallback(async () => {
+    setSuggestionsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("brainlens-solve", {
+        body: { action: "suggest" },
+      });
+      if (error) throw error;
+      setSuggestions(data?.suggestions || []);
+    } catch {
+      // Silent fail – suggestions are optional
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }, []);
+
+  // Auto-fetch suggestions on mount
+  useEffect(() => { fetchSuggestions(); }, [fetchSuggestions]);
 
   const toggleCard = (id: string) => {
     setExpandedCards(prev => {
@@ -223,6 +250,7 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
               imageBase64={imageBase64} setImageBase64={setImageBase64}
               loading={loading} solve={solve}
               fileRef={fileRef} cameraRef={cameraRef} handleImageCapture={handleImageCapture}
+              suggestions={suggestions} suggestionsLoading={suggestionsLoading} onRefreshSuggestions={fetchSuggestions}
             />
           ) : (
             <ResultView result={result} expandedCards={expandedCards} toggleCard={toggleCard}
@@ -242,9 +270,62 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
    INPUT VIEW
    ═══════════════════════════════════════════════════ */
 
-function InputView({ mode, setMode, content, setContent, imageBase64, setImageBase64, loading, solve, fileRef, cameraRef, handleImageCapture }: any) {
+function InputView({ mode, setMode, content, setContent, imageBase64, setImageBase64, loading, solve, fileRef, cameraRef, handleImageCapture, suggestions, suggestionsLoading, onRefreshSuggestions }: any) {
+  const DIFF_COLORS: Record<string, string> = {
+    easy: "var(--success)", medium: "var(--warning)", hard: "var(--destructive)",
+  };
+
   return (
     <>
+      {/* AI Suggested Questions */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wand2 className="w-3.5 h-3.5 text-accent" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">AI Suggestions for You</span>
+          </div>
+          <motion.button onClick={onRefreshSuggestions} disabled={suggestionsLoading}
+            className="p-1.5 rounded-lg bg-secondary/50 border border-border/50"
+            whileTap={{ scale: 0.9 }}
+            animate={suggestionsLoading ? { rotate: 360 } : {}}
+            transition={suggestionsLoading ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
+          >
+            <RefreshCw className="w-3 h-3 text-muted-foreground" />
+          </motion.button>
+        </div>
+
+        {suggestionsLoading && suggestions.length === 0 ? (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="min-w-[200px] h-[72px] rounded-xl glass neural-border animate-pulse" />
+            ))}
+          </div>
+        ) : suggestions.length > 0 ? (
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {suggestions.map((s: Suggestion, i: number) => (
+              <motion.button
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                onClick={() => { setMode("text"); setContent(s.question); setImageBase64(null); }}
+                className="min-w-[210px] max-w-[240px] shrink-0 rounded-xl p-3 text-left glass neural-border hover:border-primary/30 transition-colors group"
+                whileTap={{ scale: 0.97 }}
+              >
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: `hsl(${DIFF_COLORS[s.difficulty] || "var(--muted)"} / 0.15)`, color: `hsl(${DIFF_COLORS[s.difficulty] || "var(--muted-foreground)"})` }}>
+                    {s.difficulty}
+                  </span>
+                  {s.subject && <span className="text-[8px] text-muted-foreground truncate">{s.subject}</span>}
+                  {s.topic && <span className="text-[7px] text-muted-foreground/60 truncate">• {s.topic}</span>}
+                </div>
+                <p className="text-[10px] leading-[1.5] text-foreground/80 line-clamp-2 group-hover:text-foreground transition-colors">{s.question}</p>
+              </motion.button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       {/* Mode Selector */}
       <div className="flex gap-1.5 p-1 rounded-2xl glass neural-border">
         {INPUT_MODES.map(({ key, icon: Icon, label, accent }) => {
