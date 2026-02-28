@@ -13,7 +13,52 @@ serve(async (req) => {
     const rl = await rateLimitMiddleware(auth.userId, "brainlens-solve");
     if (rl) return rl;
 
-    const { input_type, content, image_base64 } = await req.json();
+    const body = await req.json();
+    const { input_type, content, image_base64, action } = body;
+
+    // ── SUGGEST MODE: AI auto-suggestions based on user profile ──
+    if (action === "suggest") {
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      const [profileRes, subjectsRes, weakTopicsRes] = await Promise.all([
+        adminClient.from("profiles").select("exam_type").eq("id", auth.userId).single(),
+        adminClient.from("subjects").select("name").eq("user_id", auth.userId).limit(10),
+        adminClient.from("topics").select("name, memory_strength, subject_id").eq("user_id", auth.userId).order("memory_strength", { ascending: true }).limit(8),
+      ]);
+
+      const examType = profileRes.data?.exam_type || "General";
+      const subjects = subjectsRes.data?.map(s => s.name) || [];
+      const weakTopics = weakTopicsRes.data?.map(t => `${t.name} (${t.memory_strength}%)`) || [];
+
+      const suggestPrompt = `Generate 6 practice questions for a ${examType} exam student.
+${subjects.length ? `Subjects: ${subjects.join(", ")}.` : ""}
+${weakTopics.length ? `Weak topics (prioritize these): ${weakTopics.join(", ")}.` : ""}
+Return ONLY a JSON array of objects: [{"question":"...","subject":"...","topic":"...","difficulty":"easy|medium|hard"}]
+Mix difficulties. Keep questions concise (1-2 lines). No markdown fences.`;
+
+      const aiResult = await callAI({
+        messages: [{ role: "user", content: suggestPrompt }],
+        model: "google/gemini-3-flash-preview",
+        temperature: 0.6,
+        maxTokens: 1200,
+        timeoutMs: 15000,
+      });
+
+      if (!aiResult.ok) return errorResponse("Failed to generate suggestions", 500);
+
+      const raw = getAIText(aiResult);
+      let suggestions = [];
+      try {
+        const cleaned = raw.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+        const match = cleaned.match(/\[[\s\S]*\]/);
+        suggestions = match ? JSON.parse(match[0]) : [];
+      } catch { suggestions = []; }
+
+      return jsonResponse({ suggestions });
+    }
 
     if (!input_type || (!content && !image_base64)) {
       return errorResponse("Missing input_type or content", 400);
