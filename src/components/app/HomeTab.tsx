@@ -293,35 +293,35 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     };
 
     try {
+      // Phase 1: Run all independent AI tasks in parallel for speed
       setAnalysisProgress(10);
-      await safeInvoke(() => predict(), "Memory prediction");
-      setAnalysisProgress(25);
-      setAnalysisStep("Computing cognitive embedding…");
-      await safeInvoke(() => supabase.functions.invoke("user-embedding"), "User embedding");
-      setAnalysisProgress(40);
-      setAnalysisStep("Predicting exam rank…");
-      await safeInvoke(() => predictRank(), "Rank prediction");
-      await safeInvoke(() => computeRankV2(), "Rank V2");
+      setAnalysisStep("Running AI engines in parallel…");
+      await Promise.allSettled([
+        safeInvoke(() => predict(), "Memory prediction"),
+        safeInvoke(() => supabase.functions.invoke("user-embedding"), "User embedding"),
+        safeInvoke(() => predictRank(), "Rank prediction"),
+        safeInvoke(() => computeRankV2(), "Rank V2"),
+        safeInvoke(() => supabase.functions.invoke("hybrid-prediction"), "Hybrid prediction"),
+      ]);
       setRadarLastUpdated(new Date());
       setAnalysisProgress(55);
-      setAnalysisStep("Running hybrid prediction engine…");
-      await safeInvoke(() => supabase.functions.invoke("hybrid-prediction"), "Hybrid prediction");
-      setAnalysisProgress(70);
-      setAnalysisStep("Generating AI recommendations…");
-      await safeInvoke(() => generateRecommendations(), "AI recommendations");
-      setAnalysisProgress(82);
-      setAnalysisStep("Creating brain missions…");
-      await safeInvoke(() => supabase.functions.invoke("brain-missions", { body: { action: "generate" } }), "Brain missions");
+
+      // Phase 2: AI recommendations + missions in parallel
+      setAnalysisStep("Generating recommendations…");
+      await Promise.allSettled([
+        safeInvoke(() => generateRecommendations(), "AI recommendations"),
+        safeInvoke(() => supabase.functions.invoke("brain-missions", { body: { action: "generate" } }), "Brain missions"),
+        safeInvoke(() => supabase.functions.invoke("rl-agent"), "RL agent"),
+      ]);
       setAnalysisProgress(85);
-      setAnalysisStep("Optimizing RL study policy…");
-      await safeInvoke(() => supabase.functions.invoke("rl-agent"), "RL agent");
-      setAnalysisProgress(90);
-      setAnalysisStep("Finalizing insights…");
+
+      // Phase 3: Finalize
+      setAnalysisStep("Finalizing…");
       await safeInvoke(() => loadRecommendations(), "Load recommendations");
       setAnalysisProgress(95);
       notifyFeedback();
       if (user) {
-        await supabase.from("profiles").update({ last_brain_update_at: new Date().toISOString() }).eq("id", user.id);
+        supabase.from("profiles").update({ last_brain_update_at: new Date().toISOString() }).eq("id", user.id);
       }
       setAnalysisProgress(100);
       setAnalysisStep("Complete!");
