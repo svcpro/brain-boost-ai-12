@@ -293,40 +293,40 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     };
 
     try {
-      // Phase 1: Run all independent AI tasks in parallel for speed
-      setAnalysisProgress(10);
-      setAnalysisStep("Running AI engines in parallel…");
+      // Fast lane: refresh only user-visible core data
+      setAnalysisProgress(12);
+      setAnalysisStep("Quick refresh…");
       await Promise.allSettled([
         safeInvoke(() => predict(), "Memory prediction"),
-        safeInvoke(() => supabase.functions.invoke("user-embedding"), "User embedding"),
         safeInvoke(() => predictRank(), "Rank prediction"),
         safeInvoke(() => computeRankV2(), "Rank V2"),
-        safeInvoke(() => supabase.functions.invoke("hybrid-prediction"), "Hybrid prediction"),
+        safeInvoke(() => loadRecommendations(), "Load recommendations"),
       ]);
-      setRadarLastUpdated(new Date());
-      setAnalysisProgress(55);
 
-      // Phase 2: AI recommendations + missions in parallel
-      setAnalysisStep("Generating recommendations…");
-      await Promise.allSettled([
+      setRadarLastUpdated(new Date());
+      setAnalysisProgress(88);
+      setAnalysisStep("Finishing…");
+
+      // Deep lane: run heavy AI tasks in background (non-blocking)
+      void Promise.allSettled([
+        safeInvoke(() => supabase.functions.invoke("user-embedding"), "User embedding"),
+        safeInvoke(() => supabase.functions.invoke("hybrid-prediction"), "Hybrid prediction"),
         safeInvoke(() => generateRecommendations(), "AI recommendations"),
         safeInvoke(() => supabase.functions.invoke("brain-missions", { body: { action: "generate" } }), "Brain missions"),
         safeInvoke(() => supabase.functions.invoke("rl-agent"), "RL agent"),
-      ]);
-      setAnalysisProgress(85);
+        user
+          ? safeInvoke(
+              async () => await supabase.from("profiles").update({ last_brain_update_at: new Date().toISOString() }).eq("id", user.id),
+              "Profile update"
+            )
+          : Promise.resolve(),
+      ]).then(() => setRadarLastUpdated(new Date()));
 
-      // Phase 3: Finalize
-      setAnalysisStep("Finalizing…");
-      await safeInvoke(() => loadRecommendations(), "Load recommendations");
-      setAnalysisProgress(95);
       notifyFeedback();
-      if (user) {
-        supabase.from("profiles").update({ last_brain_update_at: new Date().toISOString() }).eq("id", user.id);
-      }
       setAnalysisProgress(100);
       setAnalysisStep("Complete!");
       triggerHaptic([30, 60, 30]);
-      toast({ title: "✅ AI Analysis complete!", description: "Your brain is fully updated." });
+      toast({ title: "⚡ Quick refresh complete", description: "Deep AI sync continues in background." });
     } catch (err) {
       console.error("[Refresh AI] Critical failure:", err);
       toast({ title: "Analysis failed", description: "Some steps encountered errors. Please try again.", variant: "destructive" });
