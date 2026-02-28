@@ -132,7 +132,12 @@ const ConfidencePracticeTab = () => {
   useEffect(() => {
     fetchUserExam().then(exam => {
       if (exam) {
-        const matched = examTypes.find(e => e.toLowerCase() === exam.toLowerCase()) || "";
+        // Try exact match first, then prefix/partial match (e.g. "UPSC" → "UPSC CSE", "NEET" → "NEET UG")
+        const lower = exam.toLowerCase().trim();
+        const matched = examTypes.find(e => e.toLowerCase() === lower)
+          || examTypes.find(e => e.toLowerCase().startsWith(lower))
+          || examTypes.find(e => lower.startsWith(e.toLowerCase()))
+          || "";
         if (matched) {
           setSelExam(matched);
           setUserExamType(matched);
