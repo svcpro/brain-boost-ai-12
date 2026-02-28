@@ -283,32 +283,41 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     setAnalyzing(true);
     setAnalysisProgress(0);
     setAnalysisStep("Scanning memory patterns…");
+
+    const safeInvoke = async (fn: () => Promise<any>, label: string) => {
+      try {
+        await fn();
+      } catch (err) {
+        console.warn(`[Refresh AI] ${label} failed:`, err);
+      }
+    };
+
     try {
       setAnalysisProgress(10);
-      await predict();
+      await safeInvoke(() => predict(), "Memory prediction");
       setAnalysisProgress(25);
       setAnalysisStep("Computing cognitive embedding…");
-      await supabase.functions.invoke("user-embedding");
+      await safeInvoke(() => supabase.functions.invoke("user-embedding"), "User embedding");
       setAnalysisProgress(40);
       setAnalysisStep("Predicting exam rank…");
-      await predictRank();
-      await computeRankV2();
+      await safeInvoke(() => predictRank(), "Rank prediction");
+      await safeInvoke(() => computeRankV2(), "Rank V2");
       setRadarLastUpdated(new Date());
       setAnalysisProgress(55);
       setAnalysisStep("Running hybrid prediction engine…");
-      await supabase.functions.invoke("hybrid-prediction");
+      await safeInvoke(() => supabase.functions.invoke("hybrid-prediction"), "Hybrid prediction");
       setAnalysisProgress(70);
       setAnalysisStep("Generating AI recommendations…");
-      await generateRecommendations();
+      await safeInvoke(() => generateRecommendations(), "AI recommendations");
       setAnalysisProgress(82);
       setAnalysisStep("Creating brain missions…");
-      await supabase.functions.invoke("brain-missions", { body: { action: "generate" } });
+      await safeInvoke(() => supabase.functions.invoke("brain-missions", { body: { action: "generate" } }), "Brain missions");
       setAnalysisProgress(85);
       setAnalysisStep("Optimizing RL study policy…");
-      await supabase.functions.invoke("rl-agent");
+      await safeInvoke(() => supabase.functions.invoke("rl-agent"), "RL agent");
       setAnalysisProgress(90);
       setAnalysisStep("Finalizing insights…");
-      await loadRecommendations();
+      await safeInvoke(() => loadRecommendations(), "Load recommendations");
       setAnalysisProgress(95);
       notifyFeedback();
       if (user) {
@@ -318,8 +327,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       setAnalysisStep("Complete!");
       triggerHaptic([30, 60, 30]);
       toast({ title: "✅ AI Analysis complete!", description: "Your brain is fully updated." });
-    } catch {
-      toast({ title: "Analysis failed", variant: "destructive" });
+    } catch (err) {
+      console.error("[Refresh AI] Critical failure:", err);
+      toast({ title: "Analysis failed", description: "Some steps encountered errors. Please try again.", variant: "destructive" });
     } finally {
       setTimeout(() => { setAnalyzing(false); setAnalysisProgress(0); setAnalysisStep(""); }, 600);
     }
