@@ -1,10 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { authenticateRequest, handleCors, corsHeaders } from "../_shared/auth.ts";
 
 // Ebbinghaus forgetting curve: R = e^(-t/S) where R=retention, t=time, S=stability
 function calculateRetention(hoursSinceReview: number, stability: number): number {
@@ -17,41 +12,11 @@ function hoursUntilThreshold(stability: number, threshold: number): number {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResp = handleCors(req);
+  if (corsResp) return corsResp;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    let userId: string | undefined;
-    
-    // Try getClaims first (fast, local validation)
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (!claimsError && claimsData?.claims?.sub) {
-      userId = claimsData.claims.sub;
-    } else {
-      // Fallback to getUser (network call, but reliable on cold starts)
-      const { data: userData, error: userError } = await supabase.auth.getUser(token);
-      if (userError || !userData?.user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      userId = userData.user.id;
-    }
+    const { userId, supabase } = await authenticateRequest(req);
 
     const body = await req.json();
     const { action } = body;
@@ -808,6 +773,7 @@ Generate a 7-day study plan (${dayNames[now.getDay()]} through ${dayNames[(now.g
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof Response) return e;
     let errorMsg = "Unknown error";
     if (e instanceof Error) {
       errorMsg = e.message;
