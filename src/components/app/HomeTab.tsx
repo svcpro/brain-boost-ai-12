@@ -57,6 +57,7 @@ const CognitiveEmbeddingCard = lazy(() => import("./CognitiveEmbeddingCard"));
 const RLPolicyCard = lazy(() => import("./RLPolicyCard"));
 const AutoStudySummaryCard = lazy(() => import("./AutoStudySummaryCard"));
 const PrecisionIntelligenceCard = lazy(() => import("./PrecisionIntelligenceCard"));
+const DecayForecastV2Card = lazy(() => import("./DecayForecastV2Card"));
 
 
 function DebateEngineWidgetInline() {
@@ -772,6 +773,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             onStartRecall={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
           />
         </SectionErrorBoundary>
+      )}
+
+      {/* ═══ Forgetting Curve 2.0 ═══ */}
+      {hasTopics && (
+        <Suspense fallback={null}>
+          <DecayForecastV2Card />
+        </Suspense>
       )}
 
       {/* ══════════════════════════════════════════════════════════════
