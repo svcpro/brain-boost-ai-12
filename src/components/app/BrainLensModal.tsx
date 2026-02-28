@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, FileText, Link, Type, Brain, CheckCircle, Zap, BookOpen, Target, Lightbulb, ArrowLeft, Sparkles, Activity, Network, BarChart3, Shield, Layers, GraduationCap, Eye, Crosshair, TrendingUp, RefreshCw, Cpu, Gauge, ChevronDown, Atom, Radar, Fingerprint, Orbit, Wand2 } from "lucide-react";
+import {
+  Camera, FileText, Link, Type, Brain, CheckCircle, Zap, BookOpen, Target,
+  Lightbulb, ArrowLeft, Sparkles, Activity, Network, BarChart3, Shield,
+  GraduationCap, Eye, Crosshair, TrendingUp, RefreshCw, Cpu, Gauge,
+  ChevronDown, Wand2, Send, ImageIcon, Globe, PenTool, Atom, Star,
+  Trophy, Flame, CircleDot, Layers
+} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,116 +23,37 @@ interface Suggestion {
 
 type InputMode = "scan" | "upload" | "url" | "text";
 
-interface CognitiveGap {
-  type: string;
-  code: string;
-  explanation: string;
-  severity: string;
-}
-
-interface MicroConcepts {
-  core: string;
-  adjacent_nodes: string[];
-  reinforcement_questions: { question: string; difficulty: string }[];
-}
-
-interface ExamImpact {
-  topic_probability_index: number;
-  estimated_mastery_boost: string;
-  readiness_impact: string;
-  related_pyq_patterns: string[];
-}
-
-interface PreQueryPredictions {
-  weak_concepts: string[];
-  preventive_challenge: string | null;
-  prediction_confidence: number;
-}
-
-interface SilentRepairPlan {
-  stealth_questions: string[];
-  unstable_nodes: string[];
-  repair_strategy: string;
-}
-
-interface FutureQuestion {
-  question: string;
-  question_dna: string;
-  difficulty: string;
-  topic_momentum: string;
-  exam_probability: number;
-}
-
-interface CognitiveDrift {
-  drift_detected: boolean;
-  drift_magnitude: number;
-  drift_direction?: string;
-  recalibration: string;
-  spacing_adjustment?: string;
-}
-
-interface PersonalExaminer {
-  trap_questions: { question: string; trap_type: string }[];
-  conceptual_depth_score: number;
-  robustness_rating: string;
-}
-
-interface StrategicMasteryIndex {
-  smi_score: number;
-  multi_step_reasoning: number;
-  transfer_learning: number;
-  trap_resistance: number;
-  mastery_verdict?: string;
-}
-
-interface StrategySwitch {
-  recommended_mode: string;
-  reasoning: string;
-  urgency: string;
-}
+interface CognitiveGap { type: string; code: string; explanation: string; severity: string; }
+interface MicroConcepts { core: string; adjacent_nodes: string[]; reinforcement_questions: { question: string; difficulty: string }[]; }
+interface ExamImpact { topic_probability_index: number; estimated_mastery_boost: string; readiness_impact: string; related_pyq_patterns: string[]; }
+interface PreQueryPredictions { weak_concepts: string[]; preventive_challenge: string | null; prediction_confidence: number; }
+interface SilentRepairPlan { stealth_questions: string[]; unstable_nodes: string[]; repair_strategy: string; }
+interface FutureQuestion { question: string; question_dna: string; difficulty: string; topic_momentum: string; exam_probability: number; }
+interface CognitiveDrift { drift_detected: boolean; drift_magnitude: number; drift_direction?: string; recalibration: string; spacing_adjustment?: string; }
+interface PersonalExaminer { trap_questions: { question: string; trap_type: string }[]; conceptual_depth_score: number; robustness_rating: string; }
+interface StrategicMasteryIndex { smi_score: number; multi_step_reasoning: number; transfer_learning: number; trap_resistance: number; mastery_verdict?: string; }
+interface StrategySwitch { recommended_mode: string; reasoning: string; urgency: string; }
 
 interface ALISResult {
-  short_answer: string;
-  step_by_step: string[];
-  concept_clarity: string;
-  option_elimination: string;
-  shortcut_tricks: string;
-  detected_topic: string;
-  detected_subtopic: string;
-  detected_difficulty: string;
-  detected_exam_type: string;
-  confidence: number;
-  processing_time_ms: number;
-  cognitive_gap: CognitiveGap;
-  micro_concepts: MicroConcepts;
-  exam_impact: ExamImpact;
-  explanation_depth: string;
-  cross_validation_note: string;
-  pre_query_predictions: PreQueryPredictions;
-  silent_repair_plan: SilentRepairPlan;
-  future_style_questions: FutureQuestion[];
-  cognitive_drift: CognitiveDrift;
-  personal_examiner: PersonalExaminer;
-  strategic_mastery_index: StrategicMasteryIndex;
+  short_answer: string; step_by_step: string[]; concept_clarity: string; option_elimination: string;
+  shortcut_tricks: string; detected_topic: string; detected_subtopic: string; detected_difficulty: string;
+  detected_exam_type: string; confidence: number; processing_time_ms: number; cognitive_gap: CognitiveGap;
+  micro_concepts: MicroConcepts; exam_impact: ExamImpact; explanation_depth: string; cross_validation_note: string;
+  pre_query_predictions: PreQueryPredictions; silent_repair_plan: SilentRepairPlan; future_style_questions: FutureQuestion[];
+  cognitive_drift: CognitiveDrift; personal_examiner: PersonalExaminer; strategic_mastery_index: StrategicMasteryIndex;
   strategy_switch: StrategySwitch;
 }
 
 const INPUT_MODES = [
-  { key: "scan" as InputMode, icon: Camera, label: "Scan", accent: "187 100% 50%" },
-  { key: "text" as InputMode, icon: Type, label: "Type", accent: "262 100% 65%" },
-  { key: "upload" as InputMode, icon: FileText, label: "PDF", accent: "155 100% 50%" },
-  { key: "url" as InputMode, icon: Link, label: "URL", accent: "35 100% 55%" },
+  { key: "scan" as InputMode, icon: Camera, label: "Scan", gradient: "from-primary to-primary/60" },
+  { key: "text" as InputMode, icon: PenTool, label: "Type", gradient: "from-accent to-accent/60" },
+  { key: "upload" as InputMode, icon: ImageIcon, label: "PDF", gradient: "from-success to-success/60" },
+  { key: "url" as InputMode, icon: Globe, label: "URL", gradient: "from-warning to-warning/60" },
 ];
 
 const GAP_ICONS: Record<string, string> = {
   conceptual_gap: "🧠", retrieval_failure: "🔄", interference_confusion: "⚡",
   speed_weakness: "⏱️", pattern_unfamiliarity: "🔍",
-};
-
-const SEVERITY_STYLES: Record<string, string> = {
-  high: "bg-destructive/15 text-destructive border-destructive/25",
-  medium: "bg-warning/15 text-warning border-warning/25",
-  low: "bg-success/15 text-success border-success/25",
 };
 
 export default function BrainLensModal({ onClose }: { onClose: () => void }) {
@@ -150,45 +77,29 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
   const fetchSuggestions = useCallback(async () => {
     setSuggestionsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("brainlens-solve", {
-        body: { action: "suggest" },
-      });
+      const { data, error } = await supabase.functions.invoke("brainlens-solve", { body: { action: "suggest" } });
       if (error) throw error;
       setSuggestions(data?.suggestions || []);
-    } catch {
-      // Silent fail – suggestions are optional
-    } finally {
-      setSuggestionsLoading(false);
-    }
+    } catch { /* Silent */ } finally { setSuggestionsLoading(false); }
   }, []);
 
-  // Auto-fetch suggestions on mount
   useEffect(() => { fetchSuggestions(); }, [fetchSuggestions]);
 
   const toggleCard = (id: string) => {
-    setExpandedCards(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    setExpandedCards(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   };
 
   const handleImageCapture = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      setImageBase64(base64);
-      setContent(file.name);
-    };
+    reader.onload = () => { setImageBase64((reader.result as string).split(",")[1]); setContent(file.name); };
     reader.readAsDataURL(file);
   }, []);
 
   const solve = async () => {
     if (!content && !imageBase64) { toast.error("Please enter a question or upload an image"); return; }
-    setLoading(true);
-    setResult(null);
+    setLoading(true); setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("brainlens-solve", {
         body: { input_type: mode, content: content || undefined, image_base64: imageBase64 || undefined },
@@ -196,54 +107,67 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
       if (error) throw error;
       setResult(data);
       setExpandedCards(new Set(["answer", "concepts", "future", "examiner"]));
-    } catch (e: any) {
-      toast.error(e.message || "Failed to solve");
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { toast.error(e.message || "Failed to solve"); } finally { setLoading(false); }
   };
 
   const modalContent = (
     <motion.div
       initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-      transition={{ type: "spring", damping: 30, stiffness: 280 }}
-      className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-background"
+      transition={{ type: "spring", damping: 28, stiffness: 260 }}
+      className="absolute inset-0 z-50 flex flex-col overflow-hidden"
+      style={{ background: "linear-gradient(180deg, hsl(var(--background)), hsl(var(--background) / 0.97))" }}
     >
-      {/* Ambient background glows matching home tab */}
+      {/* ═══ Cinematic Ambient Background ═══ */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <motion.div className="absolute w-80 h-80 rounded-full opacity-20 blur-[100px]"
-          style={{ background: "hsl(var(--primary))", top: "-10%", left: "-15%" }}
-          animate={{ opacity: [0.12, 0.22, 0.12], scale: [1, 1.1, 1] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        <motion.div className="absolute w-96 h-96 rounded-full blur-[120px]"
+          style={{ background: "hsl(var(--primary) / 0.12)", top: "-20%", left: "-25%" }}
+          animate={{ opacity: [0.08, 0.2, 0.08], scale: [1, 1.2, 1], x: [0, 30, 0] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
-        <motion.div className="absolute w-72 h-72 rounded-full opacity-15 blur-[100px]"
-          style={{ background: "hsl(var(--accent))", bottom: "-5%", right: "-10%" }}
-          animate={{ opacity: [0.08, 0.18, 0.08], scale: [1, 1.15, 1] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        <motion.div className="absolute w-80 h-80 rounded-full blur-[100px]"
+          style={{ background: "hsl(var(--accent) / 0.1)", bottom: "-15%", right: "-20%" }}
+          animate={{ opacity: [0.06, 0.16, 0.06], scale: [1, 1.15, 1], y: [0, -20, 0] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+        />
+        <motion.div className="absolute w-64 h-64 rounded-full blur-[80px]"
+          style={{ background: "hsl(var(--success) / 0.06)", top: "40%", left: "50%" }}
+          animate={{ opacity: [0.04, 0.1, 0.04] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 5 }}
         />
       </div>
 
-      {/* Header */}
-      <header className="relative px-4 py-3.5 flex items-center gap-3 z-50 glass-strong border-b border-border/50">
-        <motion.button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center glass neural-border" whileTap={{ scale: 0.9 }}>
-          <ArrowLeft className="w-4 h-4 text-muted-foreground" />
-        </motion.button>
-        <div className="flex items-center gap-3 flex-1">
-          <ALISLogo />
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-sm font-black tracking-[0.15em] uppercase font-display gradient-text">ALIS</h1>
-              <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-accent/15 text-accent border border-accent/25">Ω</span>
+      {/* ═══ Premium Header ═══ */}
+      <header className="relative px-4 pt-3 pb-3 z-50">
+        <div className="absolute inset-0 glass-strong" style={{ borderBottom: "1px solid hsl(var(--border) / 0.3)" }} />
+        <div className="relative flex items-center gap-3">
+          <motion.button onClick={onClose} whileTap={{ scale: 0.85 }}
+            className="w-10 h-10 rounded-2xl flex items-center justify-center bg-secondary/60 border border-border/40 backdrop-blur-xl"
+          >
+            <ArrowLeft className="w-4.5 h-4.5 text-muted-foreground" />
+          </motion.button>
+
+          <div className="flex items-center gap-3 flex-1">
+            <HeroLogo />
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-black tracking-[0.2em] uppercase font-display gradient-text">ALIS</h1>
+                <motion.span className="text-[7px] font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-widest border"
+                  style={{ background: "hsl(var(--accent) / 0.12)", color: "hsl(var(--accent))", borderColor: "hsl(var(--accent) / 0.25)" }}
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                >Ω</motion.span>
+              </div>
+              <p className="text-[8px] tracking-[0.25em] uppercase text-muted-foreground/70 font-medium">Cognitive Intelligence</p>
             </div>
-            <p className="text-[8px] tracking-wider uppercase text-muted-foreground">Autonomous Learning Intervention</p>
           </div>
+
+          <StatusPill result={result} />
         </div>
-        <ConfidenceBadge value={result?.confidence} />
       </header>
 
-      {/* Content */}
+      {/* ═══ Content ═══ */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative z-10">
-        <div className="px-4 py-4 space-y-4 pb-8">
+        <div className="px-4 py-4 space-y-5 pb-10">
           {!result ? (
             <InputView
               mode={mode} setMode={setMode} content={content} setContent={setContent}
@@ -266,510 +190,663 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
   return modalContent;
 }
 
-/* ═══════════════════════════════════════════════════
-   INPUT VIEW
-   ═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   INPUT VIEW – Focus-centric, immersive design
+   ═══════════════════════════════════════════════════════════════ */
 
 function InputView({ mode, setMode, content, setContent, imageBase64, setImageBase64, loading, solve, fileRef, cameraRef, handleImageCapture, suggestions, suggestionsLoading, onRefreshSuggestions }: any) {
-  const DIFF_COLORS: Record<string, string> = {
-    easy: "var(--success)", medium: "var(--warning)", hard: "var(--destructive)",
-  };
-
   return (
     <>
-      {/* AI Suggested Questions */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Wand2 className="w-3.5 h-3.5 text-accent" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">AI Suggestions for You</span>
-          </div>
-          <motion.button onClick={onRefreshSuggestions} disabled={suggestionsLoading}
-            className="p-1.5 rounded-lg bg-secondary/50 border border-border/50"
-            whileTap={{ scale: 0.9 }}
-            animate={suggestionsLoading ? { rotate: 360 } : {}}
-            transition={suggestionsLoading ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
-          >
-            <RefreshCw className="w-3 h-3 text-muted-foreground" />
-          </motion.button>
-        </div>
+      {/* ── Welcome Hero ── */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2 py-2">
+        <motion.div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent/10 border border-accent/20"
+          animate={{ boxShadow: ["0 0 0px hsl(var(--accent) / 0)", "0 0 20px hsl(var(--accent) / 0.15)", "0 0 0px hsl(var(--accent) / 0)"] }}
+          transition={{ duration: 4, repeat: Infinity }}
+        >
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 6, repeat: Infinity, ease: "linear" }}>
+            <Atom className="w-3.5 h-3.5 text-accent" />
+          </motion.div>
+          <span className="text-[10px] font-bold tracking-widest uppercase text-accent">Ask anything</span>
+        </motion.div>
+        <h2 className="text-lg font-black font-display text-foreground">What would you like to solve?</h2>
+        <p className="text-xs text-muted-foreground/70 max-w-[280px] mx-auto leading-relaxed">
+          Scan, type, or upload — ALIS analyzes instantly with deep cognitive intelligence
+        </p>
+      </motion.div>
 
-        {suggestionsLoading && suggestions.length === 0 ? (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="min-w-[200px] h-[72px] rounded-xl glass neural-border animate-pulse" />
-            ))}
+      {/* ── AI Suggestions Carousel ── */}
+      {(suggestionsLoading || suggestions.length > 0) && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <motion.div animate={{ y: [0, -2, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+                <Wand2 className="w-3.5 h-3.5 text-warning" />
+              </motion.div>
+              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Suggested for you</span>
+            </div>
+            <motion.button onClick={onRefreshSuggestions} disabled={suggestionsLoading}
+              className="w-7 h-7 rounded-xl flex items-center justify-center bg-secondary/50 border border-border/40"
+              whileTap={{ scale: 0.85 }}
+              animate={suggestionsLoading ? { rotate: 360 } : {}}
+              transition={suggestionsLoading ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
+            >
+              <RefreshCw className="w-3 h-3 text-muted-foreground" />
+            </motion.button>
           </div>
-        ) : suggestions.length > 0 ? (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-            {suggestions.map((s: Suggestion, i: number) => (
-              <motion.button
-                key={i}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}
-                onClick={() => { setMode("text"); setContent(s.question); setImageBase64(null); }}
-                className="min-w-[210px] max-w-[240px] shrink-0 rounded-xl p-3 text-left glass neural-border hover:border-primary/30 transition-colors group"
-                whileTap={{ scale: 0.97 }}
-              >
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: `hsl(${DIFF_COLORS[s.difficulty] || "var(--muted)"} / 0.15)`, color: `hsl(${DIFF_COLORS[s.difficulty] || "var(--muted-foreground)"})` }}>
-                    {s.difficulty}
-                  </span>
-                  {s.subject && <span className="text-[8px] text-muted-foreground truncate">{s.subject}</span>}
-                  {s.topic && <span className="text-[7px] text-muted-foreground/60 truncate">• {s.topic}</span>}
-                </div>
-                <p className="text-[10px] leading-[1.5] text-foreground/80 line-clamp-2 group-hover:text-foreground transition-colors">{s.question}</p>
-              </motion.button>
-            ))}
-          </div>
-        ) : null}
-      </div>
 
-      {/* Mode Selector */}
-      <div className="flex gap-1.5 p-1 rounded-2xl glass neural-border">
-        {INPUT_MODES.map(({ key, icon: Icon, label, accent }) => {
+          {suggestionsLoading && suggestions.length === 0 ? (
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="min-w-[220px] h-[90px] rounded-2xl bg-secondary/30 border border-border/30 animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+              {suggestions.map((s: Suggestion, i: number) => (
+                <SuggestionCard key={i} s={s} i={i} onClick={() => { setMode("text"); setContent(s.question); setImageBase64(null); }} />
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* ── Mode Selector – Pill Tabs ── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+        className="flex gap-2 p-1.5 rounded-2xl bg-secondary/40 border border-border/30 backdrop-blur-xl"
+      >
+        {INPUT_MODES.map(({ key, icon: Icon, label }) => {
           const active = mode === key;
           return (
             <motion.button key={key} onClick={() => { setMode(key); setImageBase64(null); setContent(""); }}
-              className="flex-1 relative flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold transition-all"
-              whileTap={{ scale: 0.95 }}
+              className="flex-1 relative flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold tracking-wider transition-all"
+              whileTap={{ scale: 0.93 }}
             >
               {active && (
-                <motion.div layoutId="alis-mode-pill" className="absolute inset-0 rounded-xl"
-                  style={{ background: `hsl(${accent} / 0.12)`, border: `1px solid hsl(${accent} / 0.3)`, boxShadow: `0 0 12px hsl(${accent} / 0.15)` }}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }} />
+                <motion.div layoutId="alis-mode-active" className="absolute inset-0 rounded-xl"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1))",
+                    border: "1px solid hsl(var(--primary) / 0.3)",
+                    boxShadow: "0 0 20px hsl(var(--primary) / 0.1), inset 0 1px 0 hsl(0 0% 100% / 0.05)",
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
               )}
-              <Icon className="w-3.5 h-3.5 relative z-10" style={{ color: active ? `hsl(${accent})` : "hsl(var(--muted-foreground))" }} />
-              <span className="relative z-10" style={{ color: active ? `hsl(${accent})` : "hsl(var(--muted-foreground))" }}>{label}</span>
+              <motion.div animate={active ? { scale: [1, 1.15, 1] } : {}} transition={{ duration: 2, repeat: Infinity }}>
+                <Icon className="w-4 h-4 relative z-10" style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+              </motion.div>
+              <span className="relative z-10 uppercase" style={{ color: active ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))" }}>{label}</span>
             </motion.button>
           );
         })}
-      </div>
+      </motion.div>
 
-      {/* Input Area */}
-      <motion.div layout className="rounded-2xl p-4 space-y-3 relative overflow-hidden glass neural-border">
-        <div className="flex items-center gap-2 mb-1 relative z-10">
-          <div className="w-1.5 h-4 rounded-full" style={{ background: "linear-gradient(180deg, hsl(var(--primary)), hsl(var(--accent)))" }} />
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            {mode === "scan" ? "Scan Question" : mode === "upload" ? "Upload File" : mode === "url" ? "Paste URL" : "Your Question"}
+      {/* ── Input Area ── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+        className="rounded-3xl p-5 space-y-4 relative overflow-hidden"
+        style={{
+          background: "hsl(var(--card) / 0.6)",
+          border: "1px solid hsl(var(--border) / 0.4)",
+          backdropFilter: "blur(30px)",
+          boxShadow: "0 8px 40px hsl(0 0% 0% / 0.15), inset 0 1px 0 hsl(0 0% 100% / 0.03)",
+        }}
+      >
+        {/* Shimmer accent line */}
+        <motion.div className="absolute top-0 left-0 right-0 h-[2px]"
+          style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.4), transparent)" }}
+          animate={{ opacity: [0.3, 0.8, 0.3] }}
+          transition={{ duration: 4, repeat: Infinity }}
+        />
+
+        <div className="flex items-center gap-2.5 relative z-10">
+          <motion.div className="w-2 h-5 rounded-full"
+            style={{ background: "linear-gradient(180deg, hsl(var(--primary)), hsl(var(--accent)))" }}
+            animate={{ height: ["20px", "16px", "20px"] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+          <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground">
+            {mode === "scan" ? "Capture Question" : mode === "upload" ? "Upload Document" : mode === "url" ? "Paste Link" : "Your Question"}
           </span>
         </div>
 
         {mode === "scan" && (
           <>
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageCapture} />
-            <button onClick={() => cameraRef.current?.click()} className="w-full h-28 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-colors relative z-10" style={{ border: "2px dashed hsl(var(--primary) / 0.3)", background: "hsl(var(--primary) / 0.05)" }}>
-              <motion.div animate={imageBase64 ? {} : { y: [0, -4, 0] }} transition={{ duration: 2, repeat: Infinity }} className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "hsl(var(--primary) / 0.1)" }}>
+            <motion.button onClick={() => cameraRef.current?.click()} whileTap={{ scale: 0.97 }}
+              className="w-full h-32 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all relative z-10 group"
+              style={{ border: "2px dashed hsl(var(--primary) / 0.25)", background: "hsl(var(--primary) / 0.04)" }}
+            >
+              <motion.div animate={imageBase64 ? {} : { y: [0, -5, 0], scale: [1, 1.05, 1] }} transition={{ duration: 2.5, repeat: Infinity }}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: imageBase64 ? "hsl(var(--success) / 0.12)" : "hsl(var(--primary) / 0.1)", border: `1px solid ${imageBase64 ? "hsl(var(--success) / 0.3)" : "hsl(var(--primary) / 0.2)"}` }}
+              >
                 {imageBase64 ? <CheckCircle className="w-6 h-6 text-success" /> : <Camera className="w-6 h-6 text-primary" />}
               </motion.div>
-              <span className="text-[11px] text-muted-foreground">{imageBase64 ? "Image captured ✓" : "Tap to open camera"}</span>
-            </button>
+              <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                {imageBase64 ? "✓ Image captured" : "Tap to open camera"}
+              </span>
+            </motion.button>
           </>
         )}
         {mode === "upload" && (
           <>
             <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleImageCapture} />
-            <button onClick={() => fileRef.current?.click()} className="w-full h-28 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-colors relative z-10" style={{ border: "2px dashed hsl(var(--success) / 0.3)", background: "hsl(var(--success) / 0.05)" }}>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "hsl(var(--success) / 0.1)" }}>
+            <motion.button onClick={() => fileRef.current?.click()} whileTap={{ scale: 0.97 }}
+              className="w-full h-32 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all relative z-10 group"
+              style={{ border: "2px dashed hsl(var(--success) / 0.25)", background: "hsl(var(--success) / 0.04)" }}
+            >
+              <motion.div animate={imageBase64 ? {} : { rotate: [0, 5, -5, 0] }} transition={{ duration: 3, repeat: Infinity }}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: "hsl(var(--success) / 0.1)", border: "1px solid hsl(var(--success) / 0.25)" }}
+              >
                 {imageBase64 ? <CheckCircle className="w-6 h-6 text-success" /> : <FileText className="w-6 h-6 text-success" />}
-              </div>
-              <span className="text-[11px] text-muted-foreground">{imageBase64 ? content : "Upload PDF or Image"}</span>
-            </button>
+              </motion.div>
+              <span className="text-xs font-medium text-muted-foreground">{imageBase64 ? content : "Upload PDF or Image"}</span>
+            </motion.button>
           </>
         )}
-        {mode === "url" && <Input placeholder="https://..." value={content} onChange={(e: any) => setContent(e.target.value)} className="bg-secondary/50 border-border rounded-xl h-12 text-sm text-foreground placeholder:text-muted-foreground/50 relative z-10 focus:border-primary/50" />}
-        {mode === "text" && <Textarea placeholder="Type or paste your question here..." value={content} onChange={(e: any) => setContent(e.target.value)} rows={5} className="bg-secondary/50 border-border resize-none rounded-xl text-sm text-foreground placeholder:text-muted-foreground/50 relative z-10 focus:border-primary/50" />}
+        {mode === "url" && (
+          <Input placeholder="https://example.com/question..." value={content} onChange={(e: any) => setContent(e.target.value)}
+            className="bg-secondary/40 border-border/40 rounded-2xl h-14 text-sm text-foreground placeholder:text-muted-foreground/40 relative z-10 focus:border-primary/40 focus:ring-primary/20"
+          />
+        )}
+        {mode === "text" && (
+          <Textarea placeholder="Type or paste your question here..." value={content} onChange={(e: any) => setContent(e.target.value)} rows={5}
+            className="bg-secondary/40 border-border/40 resize-none rounded-2xl text-sm text-foreground placeholder:text-muted-foreground/40 relative z-10 focus:border-primary/40 focus:ring-primary/20 leading-relaxed"
+          />
+        )}
       </motion.div>
 
-      {/* Solve Button */}
-      <motion.button whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.01 }} onClick={solve} disabled={loading || (!content && !imageBase64)}
-        className="w-full h-14 rounded-2xl text-sm font-bold text-primary-foreground relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed group"
-        style={{ background: "linear-gradient(135deg, hsl(var(--accent)), hsl(var(--primary)))", boxShadow: "0 4px 20px hsl(var(--accent) / 0.3), 0 0 40px hsl(var(--primary) / 0.15)" }}
+      {/* ── Solve Button ── */}
+      <motion.button whileTap={{ scale: 0.96 }} onClick={solve} disabled={loading || (!content && !imageBase64)}
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+        className="w-full h-[58px] rounded-2xl text-sm font-bold text-primary-foreground relative overflow-hidden disabled:opacity-30 disabled:cursor-not-allowed group"
+        style={{
+          background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.9), hsl(var(--primary)))",
+          backgroundSize: "200% 200%",
+          boxShadow: "0 6px 30px hsl(var(--primary) / 0.25), 0 0 60px hsl(var(--accent) / 0.1)",
+        }}
       >
-        <motion.div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 20%, hsl(0 0% 100% / 0.08) 50%, transparent 80%)" }} animate={{ x: ["-200%", "200%"] }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} />
+        <motion.div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 20%, hsl(0 0% 100% / 0.1) 50%, transparent 80%)" }}
+          animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+        />
         {loading ? (
-          <div className="flex items-center justify-center gap-3 relative z-10"><LoadingOrb /><span className="tracking-wider">ALIS Processing...</span></div>
+          <div className="flex items-center justify-center gap-3 relative z-10">
+            <PremiumSpinner />
+            <span className="tracking-[0.15em] uppercase text-[13px]">Analyzing...</span>
+          </div>
         ) : (
-          <div className="flex items-center justify-center gap-2.5 relative z-10">
-            <Zap className="w-4.5 h-4.5" />
-            <span className="tracking-wider uppercase text-[13px]">Analyze with ALIS</span>
+          <div className="flex items-center justify-center gap-3 relative z-10">
+            <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 3, repeat: Infinity }}>
+              <Zap className="w-5 h-5" />
+            </motion.div>
+            <span className="tracking-[0.15em] uppercase text-[13px]">Analyze with ALIS</span>
+            <Send className="w-4 h-4 opacity-60" />
           </div>
         )}
       </motion.button>
 
-      {/* Progress Bar */}
+      {/* Loading State */}
       <AnimatePresence>
         {loading && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden rounded-2xl glass neural-border"
+            className="overflow-hidden rounded-2xl"
+            style={{ background: "hsl(var(--card) / 0.5)", border: "1px solid hsl(var(--border) / 0.3)", backdropFilter: "blur(20px)" }}
           >
-            <AIProgressBar label="ALIS Ω analyzing your question" sublabel="Deep cognitive scan in progress" estimatedSeconds={6} />
+            <AIProgressBar label="ALIS Ω deep analysis" sublabel="Cognitive scan in progress" estimatedSeconds={6} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      <p className="text-[9px] text-center tracking-widest uppercase text-muted-foreground/60">Powered by ACRY ALIS Ω • Cognitive Intelligence Engine</p>
+      {/* Footer */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex items-center justify-center gap-2 py-1">
+        <motion.div animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 3, repeat: Infinity }}>
+          <CircleDot className="w-2.5 h-2.5 text-primary/50" />
+        </motion.div>
+        <span className="text-[8px] tracking-[0.3em] uppercase text-muted-foreground/40 font-medium">ACRY ALIS Ω • Cognitive Engine</span>
+      </motion.div>
     </>
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
+   SUGGESTION CARD
+   ═══════════════════════════════════════════════════════════════ */
+
+function SuggestionCard({ s, i, onClick }: { s: Suggestion; i: number; onClick: () => void }) {
+  const diffColor = s.difficulty === "hard" ? "var(--destructive)" : s.difficulty === "medium" ? "var(--warning)" : "var(--success)";
+  return (
+    <motion.button
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: i * 0.08, type: "spring", stiffness: 300 }}
+      onClick={onClick}
+      className="min-w-[230px] max-w-[260px] shrink-0 rounded-2xl p-4 text-left group relative overflow-hidden"
+      style={{
+        background: "hsl(var(--card) / 0.5)",
+        border: "1px solid hsl(var(--border) / 0.3)",
+        backdropFilter: "blur(20px)",
+      }}
+      whileHover={{ y: -2, boxShadow: "0 8px 30px hsl(0 0% 0% / 0.2)" }}
+      whileTap={{ scale: 0.97 }}
+    >
+      {/* Accent dot */}
+      <motion.div className="absolute top-3 right-3 w-2 h-2 rounded-full"
+        style={{ background: `hsl(${diffColor})` }}
+        animate={{ scale: [1, 1.3, 1], opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+      />
+
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-[8px] font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider"
+          style={{ background: `hsl(${diffColor} / 0.12)`, color: `hsl(${diffColor})`, border: `1px solid hsl(${diffColor} / 0.2)` }}
+        >{s.difficulty}</span>
+        {s.subject && <span className="text-[8px] text-muted-foreground/70 truncate font-medium">{s.subject}</span>}
+      </div>
+      {s.topic && <p className="text-[8px] text-primary/60 font-semibold mb-1.5 truncate">{s.topic}</p>}
+      <p className="text-[10px] leading-[1.6] text-foreground/75 line-clamp-2 group-hover:text-foreground transition-colors">{s.question}</p>
+    </motion.button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    RESULT VIEW
-   ═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 
 function ResultView({ result, expandedCards, toggleCard, onReset }: { result: ALISResult; expandedCards: Set<string>; toggleCard: (id: string) => void; onReset: () => void }) {
   return (
-    <div className="space-y-3">
-      {/* Topic Meta Bar */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap gap-1.5">
-        {result.detected_topic && <TopicTag text={result.detected_topic} accent="var(--accent)" />}
-        {result.detected_subtopic && <TopicTag text={result.detected_subtopic} accent="var(--primary)" />}
+    <div className="space-y-4">
+      {/* Topic Tags */}
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap gap-2">
+        {result.detected_topic && <PillTag text={result.detected_topic} accent="var(--accent)" icon={<Layers className="w-2.5 h-2.5" />} />}
+        {result.detected_subtopic && <PillTag text={result.detected_subtopic} accent="var(--primary)" />}
         {result.detected_difficulty && (
-          <TopicTag text={result.detected_difficulty} accent={result.detected_difficulty === "hard" ? "var(--destructive)" : result.detected_difficulty === "medium" ? "var(--warning)" : "var(--success)"} />
+          <PillTag text={result.detected_difficulty}
+            accent={result.detected_difficulty === "hard" ? "var(--destructive)" : result.detected_difficulty === "medium" ? "var(--warning)" : "var(--success)"}
+            icon={<Flame className="w-2.5 h-2.5" />}
+          />
         )}
-        {result.detected_exam_type && <TopicTag text={result.detected_exam_type} accent="var(--muted-foreground)" />}
+        {result.detected_exam_type && <PillTag text={result.detected_exam_type} accent="var(--muted-foreground)" icon={<GraduationCap className="w-2.5 h-2.5" />} />}
       </motion.div>
 
-      {/* ── COMMAND CENTER: SMI ── */}
+      {/* ── SMI Command Center ── */}
       {result.strategic_mastery_index?.smi_score > 0 && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-          className="rounded-2xl p-4 relative overflow-hidden glass"
-          style={{ border: "1px solid hsl(var(--accent) / 0.25)", boxShadow: "0 0 20px hsl(var(--accent) / 0.08)" }}
+          className="rounded-3xl p-5 relative overflow-hidden"
+          style={{
+            background: "hsl(var(--card) / 0.6)",
+            border: "1px solid hsl(var(--accent) / 0.2)",
+            backdropFilter: "blur(30px)",
+            boxShadow: "0 0 40px hsl(var(--accent) / 0.06), inset 0 1px 0 hsl(0 0% 100% / 0.03)",
+          }}
         >
-          <motion.div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: "linear-gradient(90deg, transparent, hsl(var(--accent) / 0.6), hsl(var(--primary) / 0.5), transparent)" }} animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 3, repeat: Infinity }} />
+          <motion.div className="absolute top-0 left-0 right-0 h-[2px]"
+            style={{ background: "linear-gradient(90deg, transparent, hsl(var(--accent) / 0.6), hsl(var(--primary) / 0.4), transparent)" }}
+            animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 3, repeat: Infinity }}
+          />
 
-          <div className="flex items-center justify-between mb-3 relative z-10">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-accent/15">
-                <Gauge className="w-3.5 h-3.5 text-accent" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <div className="flex items-center gap-2.5">
+              <motion.div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "hsl(var(--accent) / 0.12)", border: "1px solid hsl(var(--accent) / 0.25)" }}
+                animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity }}
+              >
+                <Trophy className="w-4 h-4 text-accent" />
+              </motion.div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Strategic Mastery</span>
+                {result.strategic_mastery_index.mastery_verdict && (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Star className="w-2.5 h-2.5" style={{ color: `hsl(${result.strategic_mastery_index.mastery_verdict === "master" ? "var(--accent)" : result.strategic_mastery_index.mastery_verdict === "advanced" ? "var(--success)" : "var(--warning)"})` }} />
+                    <span className="text-[9px] font-bold capitalize" style={{
+                      color: `hsl(${result.strategic_mastery_index.mastery_verdict === "master" ? "var(--accent)" : result.strategic_mastery_index.mastery_verdict === "advanced" ? "var(--success)" : "var(--warning)"})`,
+                    }}>{result.strategic_mastery_index.mastery_verdict}</span>
+                  </div>
+                )}
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Strategic Mastery</span>
             </div>
-            {result.strategic_mastery_index.mastery_verdict && (
-              <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-md" style={{
-                background: result.strategic_mastery_index.mastery_verdict === "master" ? "hsl(var(--accent) / 0.15)" : result.strategic_mastery_index.mastery_verdict === "advanced" ? "hsl(var(--success) / 0.15)" : "hsl(var(--warning) / 0.15)",
-                color: result.strategic_mastery_index.mastery_verdict === "master" ? "hsl(var(--accent))" : result.strategic_mastery_index.mastery_verdict === "advanced" ? "hsl(var(--success))" : "hsl(var(--warning))",
-              }}>{result.strategic_mastery_index.mastery_verdict}</span>
-            )}
           </div>
 
-          <div className="grid grid-cols-4 gap-2 relative z-10">
-            <RingGauge label="SMI" value={result.strategic_mastery_index.smi_score} color="var(--accent)" />
-            <RingGauge label="Reason" value={result.strategic_mastery_index.multi_step_reasoning} color="var(--primary)" />
-            <RingGauge label="Transfer" value={result.strategic_mastery_index.transfer_learning} color="var(--success)" />
-            <RingGauge label="Trap Res" value={result.strategic_mastery_index.trap_resistance} color="var(--destructive)" />
+          <div className="grid grid-cols-4 gap-3 relative z-10">
+            <AnimatedGauge label="SMI" value={result.strategic_mastery_index.smi_score} color="var(--accent)" delay={0.1} />
+            <AnimatedGauge label="Reason" value={result.strategic_mastery_index.multi_step_reasoning} color="var(--primary)" delay={0.2} />
+            <AnimatedGauge label="Transfer" value={result.strategic_mastery_index.transfer_learning} color="var(--success)" delay={0.3} />
+            <AnimatedGauge label="Trap Res" value={result.strategic_mastery_index.trap_resistance} color="var(--destructive)" delay={0.4} />
           </div>
         </motion.div>
       )}
 
-      {/* ── COGNITIVE GAP DIAGNOSIS ── */}
+      {/* ── Cognitive Gap ── */}
       {result.cognitive_gap && (
-        <ALISCard id="gap" title="Cognitive Diagnosis" icon={<Activity className="w-3.5 h-3.5" />}
-          accent="var(--accent)" badge={result.cognitive_gap.code}
-          expanded={expandedCards.has("gap")} onToggle={() => toggleCard("gap")} delay={0.08}
+        <ResultCard id="gap" title="Cognitive Diagnosis" icon={<Activity />} accent="var(--accent)"
+          badge={result.cognitive_gap.code} expanded={expandedCards.has("gap")} onToggle={() => toggleCard("gap")} delay={0.08}
         >
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-base">{GAP_ICONS[result.cognitive_gap.type] || "🧠"}</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">{GAP_ICONS[result.cognitive_gap.type] || "🧠"}</span>
               <span className="text-xs font-bold capitalize text-foreground">{result.cognitive_gap.type.replace(/_/g, " ")}</span>
-              <span className={`text-[9px] px-2 py-0.5 rounded-md font-bold border ${SEVERITY_STYLES[result.cognitive_gap.severity] || SEVERITY_STYLES.low}`}>
-                {result.cognitive_gap.severity}
-              </span>
+              <SeverityBadge severity={result.cognitive_gap.severity} />
             </div>
-            <p className="text-[11px] leading-[1.7] text-muted-foreground">{result.cognitive_gap.explanation}</p>
+            <p className="text-[11px] leading-[1.8] text-muted-foreground">{result.cognitive_gap.explanation}</p>
           </div>
-        </ALISCard>
+        </ResultCard>
       )}
 
-      {/* ── DIRECT ANSWER ── */}
-      <ALISCard id="answer" title="Answer" icon={<CheckCircle className="w-3.5 h-3.5" />}
-        accent="var(--success)" badge={`${Math.round(result.confidence * 100)}%`}
+      {/* ── Answer ── */}
+      <ResultCard id="answer" title="Answer" icon={<CheckCircle />} accent="var(--success)"
+        badge={`${Math.round(result.confidence * 100)}%`}
         expanded={expandedCards.has("answer")} onToggle={() => toggleCard("answer")} delay={0.1}
       >
-        <p className="text-[13px] font-medium leading-[1.8] text-foreground">{result.short_answer}</p>
+        <p className="text-[13px] font-medium leading-[1.9] text-foreground">{result.short_answer}</p>
         {result.cross_validation_note && (
-          <div className="mt-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
-            <p className="text-[10px] italic text-warning">⚠️ {result.cross_validation_note}</p>
+          <div className="mt-3 px-3.5 py-2.5 rounded-2xl bg-warning/8 border border-warning/15">
+            <p className="text-[10px] italic text-warning/80">⚠️ {result.cross_validation_note}</p>
           </div>
         )}
-      </ALISCard>
+      </ResultCard>
 
-      {/* ── EXAM IMPACT ── */}
+      {/* ── Exam Impact ── */}
       {result.exam_impact && (
-        <ALISCard id="impact" title="Exam Impact" icon={<BarChart3 className="w-3.5 h-3.5" />}
-          accent="var(--warning)" expanded={expandedCards.has("impact")} onToggle={() => toggleCard("impact")} delay={0.13}
+        <ResultCard id="impact" title="Exam Impact" icon={<BarChart3 />} accent="var(--warning)"
+          expanded={expandedCards.has("impact")} onToggle={() => toggleCard("impact")} delay={0.13}
         >
-          <div className="grid grid-cols-3 gap-2">
-            <StatBlock label="TPI" value={`${(result.exam_impact.topic_probability_index * 100).toFixed(0)}%`} accent="var(--accent)" />
-            <StatBlock label="Boost" value={result.exam_impact.estimated_mastery_boost} accent="var(--success)" />
-            <StatBlock label="Impact" value={result.exam_impact.readiness_impact} accent={result.exam_impact.readiness_impact === "critical" ? "var(--destructive)" : result.exam_impact.readiness_impact === "high" ? "var(--warning)" : "var(--success)"} />
+          <div className="grid grid-cols-3 gap-2.5">
+            <GlassStat label="TPI" value={`${(result.exam_impact.topic_probability_index * 100).toFixed(0)}%`} accent="var(--accent)" />
+            <GlassStat label="Boost" value={result.exam_impact.estimated_mastery_boost} accent="var(--success)" />
+            <GlassStat label="Impact" value={result.exam_impact.readiness_impact} accent={result.exam_impact.readiness_impact === "critical" ? "var(--destructive)" : result.exam_impact.readiness_impact === "high" ? "var(--warning)" : "var(--success)"} />
           </div>
-        </ALISCard>
+        </ResultCard>
       )}
 
-      {/* ── COGNITIVE DRIFT ── */}
+      {/* ── Cognitive Drift ── */}
       {result.cognitive_drift?.drift_detected && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="rounded-2xl p-3.5 relative overflow-hidden glass"
-          style={{ border: "1px solid hsl(var(--destructive) / 0.25)" }}
+          className="rounded-3xl p-4 relative overflow-hidden"
+          style={{ background: "hsl(var(--destructive) / 0.06)", border: "1px solid hsl(var(--destructive) / 0.2)", backdropFilter: "blur(20px)" }}
         >
-          <motion.div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: "linear-gradient(90deg, transparent, hsl(var(--destructive) / 0.6), transparent)" }} animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 2, repeat: Infinity }} />
-          <div className="flex items-center gap-2 mb-2 relative z-10">
+          <motion.div className="absolute top-0 left-0 right-0 h-[2px]"
+            style={{ background: "linear-gradient(90deg, transparent, hsl(var(--destructive) / 0.6), transparent)" }}
+            animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity }}
+          />
+          <div className="flex items-center gap-2.5 mb-2.5 relative z-10">
             <motion.div animate={{ rotate: [0, 180, 360] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}>
-              <RefreshCw className="w-3.5 h-3.5 text-destructive" />
+              <RefreshCw className="w-4 h-4 text-destructive" />
             </motion.div>
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-destructive">Drift Alert</span>
-            <span className="ml-auto text-[9px] font-mono px-1.5 py-0.5 rounded-md bg-destructive/15 text-destructive">
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-destructive">Drift Alert</span>
+            <span className="ml-auto text-[9px] font-mono px-2 py-0.5 rounded-lg bg-destructive/12 text-destructive border border-destructive/20">
               {(result.cognitive_drift.drift_magnitude * 100).toFixed(0)}%
             </span>
           </div>
           {result.cognitive_drift.drift_direction && (
-            <p className="text-[10px] font-semibold mb-1 relative z-10 text-destructive/80">↗ {result.cognitive_drift.drift_direction.replace(/_/g, " ")}</p>
+            <p className="text-[10px] font-semibold mb-1.5 relative z-10 text-destructive/80">↗ {result.cognitive_drift.drift_direction.replace(/_/g, " ")}</p>
           )}
-          <p className="text-[11px] leading-[1.6] relative z-10 text-muted-foreground">{result.cognitive_drift.recalibration}</p>
+          <p className="text-[11px] leading-[1.7] relative z-10 text-muted-foreground">{result.cognitive_drift.recalibration}</p>
           {result.cognitive_drift.spacing_adjustment && (
-            <p className="text-[9px] mt-1.5 relative z-10 text-muted-foreground/70">📐 <span className="font-bold text-foreground/80">{result.cognitive_drift.spacing_adjustment}</span></p>
+            <p className="text-[9px] mt-2 relative z-10 text-muted-foreground/70">📐 <span className="font-bold text-foreground/80">{result.cognitive_drift.spacing_adjustment}</span></p>
           )}
         </motion.div>
       )}
 
-      {/* ── STRATEGY SWITCH ── */}
+      {/* ── Strategy Switch ── */}
       {result.strategy_switch?.recommended_mode && (
-        <ALISCard id="strategy" title="Strategy Switch" icon={<Cpu className="w-3.5 h-3.5" />}
-          accent="var(--primary)" badge={result.strategy_switch.urgency}
-          expanded={expandedCards.has("strategy")} onToggle={() => toggleCard("strategy")} delay={0.18}
+        <ResultCard id="strategy" title="Strategy Switch" icon={<Cpu />} accent="var(--primary)"
+          badge={result.strategy_switch.urgency} expanded={expandedCards.has("strategy")} onToggle={() => toggleCard("strategy")} delay={0.18}
         >
           <div className="space-y-2">
             <span className="text-xs font-bold capitalize text-foreground">{result.strategy_switch.recommended_mode.replace(/_/g, " ")}</span>
-            <p className="text-[11px] leading-[1.7] text-muted-foreground">{result.strategy_switch.reasoning}</p>
+            <p className="text-[11px] leading-[1.8] text-muted-foreground">{result.strategy_switch.reasoning}</p>
           </div>
-        </ALISCard>
+        </ResultCard>
       )}
 
-      {/* ── STEP BY STEP ── */}
-      <ALISCard id="steps" title="Step-by-Step" icon={<BookOpen className="w-3.5 h-3.5" />}
-        accent="var(--primary)" expanded={expandedCards.has("steps")} onToggle={() => toggleCard("steps")} delay={0.2}
+      {/* ── Step by Step ── */}
+      <ResultCard id="steps" title="Step-by-Step" icon={<BookOpen />} accent="var(--primary)"
+        expanded={expandedCards.has("steps")} onToggle={() => toggleCard("steps")} delay={0.2}
       >
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {result.step_by_step.map((step, i) => (
-            <motion.div key={i} className="flex gap-3 items-start" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.06 * i }}>
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-primary/15 border border-primary/25">
+            <motion.div key={i} className="flex gap-3 items-start" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i }}>
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                style={{ background: "hsl(var(--primary) / 0.1)", border: "1px solid hsl(var(--primary) / 0.2)" }}
+              >
                 <span className="text-[9px] font-bold text-primary">{i + 1}</span>
               </div>
-              <span className="text-[11px] leading-[1.7] flex-1 text-secondary-foreground">{step}</span>
+              <span className="text-[11px] leading-[1.8] flex-1 text-foreground/80">{step}</span>
             </motion.div>
           ))}
         </div>
-      </ALISCard>
+      </ResultCard>
 
-      {/* ── CONCEPT CLARITY ── */}
-      <ALISCard id="concept" title="Concept Clarity" icon={<Lightbulb className="w-3.5 h-3.5" />}
-        accent="var(--accent)" expanded={expandedCards.has("concept")} onToggle={() => toggleCard("concept")} delay={0.22}
+      {/* ── Concept Clarity ── */}
+      <ResultCard id="concept" title="Concept Clarity" icon={<Lightbulb />} accent="var(--accent)"
+        expanded={expandedCards.has("concept")} onToggle={() => toggleCard("concept")} delay={0.22}
       >
-        <p className="text-[11px] leading-[1.8] text-secondary-foreground">{result.concept_clarity}</p>
-      </ALISCard>
+        <p className="text-[11px] leading-[1.9] text-foreground/80">{result.concept_clarity}</p>
+      </ResultCard>
 
-      {/* ── OPTION ELIMINATION ── */}
+      {/* ── Option Elimination ── */}
       {result.option_elimination && (
-        <ALISCard id="elim" title="Option Elimination" icon={<Target className="w-3.5 h-3.5" />}
-          accent="var(--destructive)" expanded={expandedCards.has("elim")} onToggle={() => toggleCard("elim")} delay={0.24}
+        <ResultCard id="elim" title="Option Elimination" icon={<Target />} accent="var(--destructive)"
+          expanded={expandedCards.has("elim")} onToggle={() => toggleCard("elim")} delay={0.24}
         >
-          <p className="text-[11px] leading-[1.8] text-secondary-foreground">{result.option_elimination}</p>
-        </ALISCard>
+          <p className="text-[11px] leading-[1.9] text-foreground/80">{result.option_elimination}</p>
+        </ResultCard>
       )}
 
-      {/* ── SHORTCUT TRICKS ── */}
+      {/* ── Shortcut Tricks ── */}
       {result.shortcut_tricks && (
-        <ALISCard id="tricks" title="Shortcut Tricks" icon={<Zap className="w-3.5 h-3.5" />}
-          accent="var(--warning)" expanded={expandedCards.has("tricks")} onToggle={() => toggleCard("tricks")} delay={0.26}
+        <ResultCard id="tricks" title="Shortcut Tricks" icon={<Zap />} accent="var(--warning)"
+          expanded={expandedCards.has("tricks")} onToggle={() => toggleCard("tricks")} delay={0.26}
         >
-          <p className="text-[11px] leading-[1.8] text-secondary-foreground">{result.shortcut_tricks}</p>
-        </ALISCard>
+          <p className="text-[11px] leading-[1.9] text-foreground/80">{result.shortcut_tricks}</p>
+        </ResultCard>
       )}
 
-      {/* ── KNOWLEDGE GRAPH ── */}
+      {/* ── Knowledge Graph ── */}
       {result.micro_concepts?.core && (
-        <ALISCard id="graph" title="Knowledge Graph" icon={<Network className="w-3.5 h-3.5" />}
-          accent="var(--primary)" expanded={expandedCards.has("graph")} onToggle={() => toggleCard("graph")} delay={0.28}
+        <ResultCard id="graph" title="Knowledge Graph" icon={<Network />} accent="var(--primary)"
+          expanded={expandedCards.has("graph")} onToggle={() => toggleCard("graph")} delay={0.28}
         >
           <div className="space-y-3">
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.15em] mb-1 text-primary">Core Node</p>
-              <p className="text-xs font-medium text-foreground">{result.micro_concepts.core}</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] mb-1.5 text-primary">Core Node</p>
+              <p className="text-xs font-semibold text-foreground">{result.micro_concepts.core}</p>
             </div>
             {result.micro_concepts.adjacent_nodes?.length > 0 && (
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] mb-1.5 text-muted-foreground">Adjacent Nodes</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] mb-2 text-muted-foreground">Adjacent</p>
                 <div className="flex flex-wrap gap-1.5">
                   {result.micro_concepts.adjacent_nodes.map((n, i) => (
-                    <span key={i} className="px-2.5 py-1 rounded-lg text-[9px] font-medium bg-primary/10 text-primary border border-primary/20">{n}</span>
+                    <span key={i} className="px-2.5 py-1.5 rounded-xl text-[9px] font-semibold"
+                      style={{ background: "hsl(var(--primary) / 0.08)", color: "hsl(var(--primary))", border: "1px solid hsl(var(--primary) / 0.15)" }}
+                    >{n}</span>
                   ))}
                 </div>
               </div>
             )}
             {result.micro_concepts.reinforcement_questions?.length > 0 && (
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] mb-2 text-accent">🎯 Reinforcement</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] mb-2 text-accent">🎯 Reinforcement</p>
                 {result.micro_concepts.reinforcement_questions.map((rq, i) => (
-                  <div key={i} className="rounded-xl p-2.5 mb-1.5 flex items-start gap-2.5 glass-strong">
-                    <div className="w-5 h-5 rounded-md shrink-0 mt-0.5 flex items-center justify-center text-[8px] font-bold" style={{
-                      background: rq.difficulty === "hard" ? "hsl(var(--destructive) / 0.15)" : rq.difficulty === "medium" ? "hsl(var(--warning) / 0.15)" : "hsl(var(--success) / 0.15)",
-                      color: rq.difficulty === "hard" ? "hsl(var(--destructive))" : rq.difficulty === "medium" ? "hsl(var(--warning))" : "hsl(var(--success))",
-                    }}>{i + 1}</div>
-                    <p className="text-[11px] leading-[1.6] text-secondary-foreground">{rq.question}</p>
+                  <div key={i} className="rounded-xl p-3 mb-2" style={{ background: "hsl(var(--secondary) / 0.5)", border: "1px solid hsl(var(--border) / 0.3)" }}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <DifficultyDot difficulty={rq.difficulty} />
+                      <span className="text-[8px] font-bold uppercase text-muted-foreground">{rq.difficulty}</span>
+                    </div>
+                    <p className="text-[11px] leading-[1.7] text-foreground/80">{rq.question}</p>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </ALISCard>
+        </ResultCard>
       )}
 
-      {/* ── PRE-QUERY PREDICTIONS ── */}
+      {/* ── Pre-Query Predictions ── */}
       {result.pre_query_predictions?.weak_concepts?.length > 0 && (
-        <ALISCard id="predict" title="Pre-Query Prediction" icon={<Eye className="w-3.5 h-3.5" />}
-          accent="var(--destructive)" expanded={expandedCards.has("predict")} onToggle={() => toggleCard("predict")} delay={0.3}
+        <ResultCard id="predict" title="Pre-Query Prediction" icon={<Eye />} accent="var(--destructive)"
+          expanded={expandedCards.has("predict")} onToggle={() => toggleCard("predict")} delay={0.3}
         >
-          <div className="space-y-2.5">
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.15em] mb-1.5 text-destructive">Predicted Weak Concepts</p>
-              <div className="flex flex-wrap gap-1.5">
-                {result.pre_query_predictions.weak_concepts.map((c, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-lg text-[9px] font-medium bg-destructive/10 text-destructive border border-destructive/20">{c}</span>
-                ))}
-              </div>
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {result.pre_query_predictions.weak_concepts.map((c, i) => (
+                <span key={i} className="px-2.5 py-1.5 rounded-xl text-[9px] font-semibold"
+                  style={{ background: "hsl(var(--destructive) / 0.08)", color: "hsl(var(--destructive))", border: "1px solid hsl(var(--destructive) / 0.15)" }}
+                >{c}</span>
+              ))}
             </div>
             {result.pre_query_predictions.preventive_challenge && (
-              <div className="rounded-xl p-3 bg-warning/10 border border-warning/20">
+              <div className="rounded-xl p-3" style={{ background: "hsl(var(--warning) / 0.08)", border: "1px solid hsl(var(--warning) / 0.15)" }}>
                 <p className="text-[9px] font-bold uppercase mb-1 text-warning">⚡ Preventive Challenge</p>
-                <p className="text-[11px] leading-[1.6] text-secondary-foreground">{result.pre_query_predictions.preventive_challenge}</p>
+                <p className="text-[11px] leading-[1.7] text-foreground/80">{result.pre_query_predictions.preventive_challenge}</p>
               </div>
             )}
           </div>
-        </ALISCard>
+        </ResultCard>
       )}
 
-      {/* ── PERSONAL EXAMINER ── */}
+      {/* ── Personal Examiner ── */}
       {result.personal_examiner?.trap_questions?.length > 0 && (
-        <ALISCard id="examiner" title="Personal Examiner" icon={<Crosshair className="w-3.5 h-3.5" />}
-          accent="var(--accent)" expanded={expandedCards.has("examiner")} onToggle={() => toggleCard("examiner")} delay={0.32}
+        <ResultCard id="examiner" title="Personal Examiner" icon={<Crosshair />} accent="var(--accent)"
+          expanded={expandedCards.has("examiner")} onToggle={() => toggleCard("examiner")} delay={0.32}
         >
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             <div className="flex items-center gap-4 mb-2">
               <div className="text-center">
-                <div className="text-lg font-bold font-display text-accent">{result.personal_examiner.conceptual_depth_score}</div>
-                <div className="text-[8px] uppercase text-muted-foreground">Depth</div>
+                <div className="text-xl font-bold font-display text-accent">{result.personal_examiner.conceptual_depth_score}</div>
+                <div className="text-[7px] uppercase tracking-wider text-muted-foreground mt-0.5">Depth</div>
               </div>
-              <span className="text-[9px] font-bold px-2.5 py-1 rounded-lg" style={{
-                background: result.personal_examiner.robustness_rating === "bulletproof" ? "hsl(var(--accent) / 0.15)" : result.personal_examiner.robustness_rating === "robust" ? "hsl(var(--success) / 0.15)" : result.personal_examiner.robustness_rating === "developing" ? "hsl(var(--warning) / 0.15)" : "hsl(var(--destructive) / 0.15)",
-                color: result.personal_examiner.robustness_rating === "bulletproof" ? "hsl(var(--accent))" : result.personal_examiner.robustness_rating === "robust" ? "hsl(var(--success))" : result.personal_examiner.robustness_rating === "developing" ? "hsl(var(--warning))" : "hsl(var(--destructive))",
-              }}>{result.personal_examiner.robustness_rating}</span>
+              <RobustnessBadge rating={result.personal_examiner.robustness_rating} />
             </div>
             {result.personal_examiner.trap_questions.map((tq, i) => (
-              <div key={i} className="rounded-xl p-2.5 glass-strong">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-destructive/15 text-destructive">TRAP</span>
-                  <span className="text-[8px] text-muted-foreground">{tq.trap_type?.replace(/_/g, " ")}</span>
+              <div key={i} className="rounded-xl p-3" style={{ background: "hsl(var(--secondary) / 0.5)", border: "1px solid hsl(var(--border) / 0.3)" }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[8px] font-extrabold px-2 py-0.5 rounded-lg bg-destructive/12 text-destructive border border-destructive/15">TRAP</span>
+                  <span className="text-[8px] text-muted-foreground capitalize">{tq.trap_type?.replace(/_/g, " ")}</span>
                 </div>
-                <p className="text-[11px] leading-[1.6] text-secondary-foreground">{tq.question}</p>
+                <p className="text-[11px] leading-[1.7] text-foreground/80">{tq.question}</p>
               </div>
             ))}
           </div>
-        </ALISCard>
+        </ResultCard>
       )}
 
-      {/* ── FUTURE-STYLE QUESTIONS ── */}
+      {/* ── Future Questions ── */}
       {result.future_style_questions?.length > 0 && (
-        <ALISCard id="future" title="Future Questions" icon={<TrendingUp className="w-3.5 h-3.5" />}
-          accent="var(--success)" expanded={expandedCards.has("future")} onToggle={() => toggleCard("future")} delay={0.34}
+        <ResultCard id="future" title="Future Questions" icon={<TrendingUp />} accent="var(--success)"
+          expanded={expandedCards.has("future")} onToggle={() => toggleCard("future")} delay={0.34}
         >
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {result.future_style_questions.map((fq, i) => (
-              <div key={i} className="rounded-xl p-2.5 glass-strong">
-                <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-md bg-primary/15 text-primary">{fq.question_dna}</span>
-                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{
-                    background: fq.topic_momentum === "rising" ? "hsl(var(--success) / 0.15)" : fq.topic_momentum === "declining" ? "hsl(var(--destructive) / 0.15)" : "hsl(var(--muted) / 0.5)",
-                    color: fq.topic_momentum === "rising" ? "hsl(var(--success))" : fq.topic_momentum === "declining" ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))",
-                  }}>{fq.topic_momentum === "rising" ? "↑" : fq.topic_momentum === "declining" ? "↓" : "→"} {fq.topic_momentum}</span>
-                  <span className="text-[8px] text-muted-foreground">P: {(fq.exam_probability * 100).toFixed(0)}%</span>
+              <div key={i} className="rounded-xl p-3" style={{ background: "hsl(var(--secondary) / 0.5)", border: "1px solid hsl(var(--border) / 0.3)" }}>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-[8px] font-mono px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/15">{fq.question_dna}</span>
+                  <MomentumBadge momentum={fq.topic_momentum} />
+                  <span className="text-[8px] text-muted-foreground ml-auto">P: {(fq.exam_probability * 100).toFixed(0)}%</span>
                 </div>
-                <p className="text-[11px] leading-[1.6] text-secondary-foreground">{fq.question}</p>
+                <p className="text-[11px] leading-[1.7] text-foreground/80">{fq.question}</p>
               </div>
             ))}
           </div>
-        </ALISCard>
+        </ResultCard>
       )}
 
-      {/* ── SILENT REPAIR ── */}
+      {/* ── Silent Repair ── */}
       {result.silent_repair_plan?.repair_strategy && (
-        <ALISCard id="repair" title="Silent Repair Plan" icon={<Shield className="w-3.5 h-3.5" />}
-          accent="var(--muted-foreground)" expanded={expandedCards.has("repair")} onToggle={() => toggleCard("repair")} delay={0.36}
+        <ResultCard id="repair" title="Silent Repair Plan" icon={<Shield />} accent="var(--muted-foreground)"
+          expanded={expandedCards.has("repair")} onToggle={() => toggleCard("repair")} delay={0.36}
         >
-          <div className="space-y-2">
-            <p className="text-[11px] leading-[1.7] text-secondary-foreground">{result.silent_repair_plan.repair_strategy}</p>
+          <div className="space-y-2.5">
+            <p className="text-[11px] leading-[1.8] text-foreground/80">{result.silent_repair_plan.repair_strategy}</p>
             {result.silent_repair_plan.unstable_nodes?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {result.silent_repair_plan.unstable_nodes.map((n, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-lg text-[9px] font-medium bg-warning/10 text-warning border border-warning/20">⚠ {n}</span>
+                  <span key={i} className="px-2.5 py-1.5 rounded-xl text-[9px] font-semibold"
+                    style={{ background: "hsl(var(--warning) / 0.08)", color: "hsl(var(--warning))", border: "1px solid hsl(var(--warning) / 0.15)" }}
+                  >⚠ {n}</span>
                 ))}
               </div>
             )}
           </div>
-        </ALISCard>
+        </ResultCard>
       )}
 
       {/* Footer Stats */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="flex items-center justify-center gap-4 py-2">
-        <FooterStat icon="⚡" text={`${(result.processing_time_ms / 1000).toFixed(1)}s`} />
-        <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-        <FooterStat icon="🎯" text={`${Math.round(result.confidence * 100)}%`} />
-        <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-        <FooterStat icon="Ω" text="ALIS v3.1" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+        className="flex items-center justify-center gap-5 py-3"
+      >
+        <FooterChip icon="⚡" text={`${(result.processing_time_ms / 1000).toFixed(1)}s`} />
+        <div className="w-1 h-1 rounded-full bg-border" />
+        <FooterChip icon="🎯" text={`${Math.round(result.confidence * 100)}%`} />
+        <div className="w-1 h-1 rounded-full bg-border" />
+        <FooterChip icon="Ω" text="ALIS v3.1" />
       </motion.div>
 
       {/* Ask Another */}
-      <motion.button whileTap={{ scale: 0.97 }} onClick={onReset}
-        className="w-full h-12 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 relative overflow-hidden glass neural-border"
+      <motion.button whileTap={{ scale: 0.96 }} onClick={onReset}
+        className="w-full h-14 rounded-2xl text-sm font-bold flex items-center justify-center gap-2.5 relative overflow-hidden group"
+        style={{
+          background: "hsl(var(--secondary) / 0.5)",
+          border: "1px solid hsl(var(--border) / 0.4)",
+          backdropFilter: "blur(20px)",
+        }}
       >
-        <Sparkles className="w-4 h-4 relative z-10 text-accent" />
-        <span className="relative z-10 text-foreground">Ask Another Question</span>
+        <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}>
+          <Sparkles className="w-4.5 h-4.5 text-accent" />
+        </motion.div>
+        <span className="text-foreground tracking-wider">Ask Another Question</span>
       </motion.button>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    REUSABLE COMPONENTS
-   ═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 
-function ALISCard({ id, title, icon, accent, badge, expanded, onToggle, delay = 0, children }: {
+function ResultCard({ id, title, icon, accent, badge, expanded, onToggle, delay = 0, children }: {
   id: string; title: string; icon: React.ReactNode; accent: string; badge?: string;
   expanded: boolean; onToggle: () => void; delay?: number; children: React.ReactNode;
 }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="rounded-2xl overflow-hidden relative glass"
-      style={{ border: `1px solid hsl(${accent} / ${expanded ? 0.3 : 0.12})`, boxShadow: expanded ? `0 0 15px hsl(${accent} / 0.1)` : "none", transition: "border-color 0.3s, box-shadow 0.3s" }}
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
+      className="rounded-3xl overflow-hidden relative"
+      style={{
+        background: "hsl(var(--card) / 0.5)",
+        border: `1px solid hsl(${accent} / ${expanded ? 0.25 : 0.1})`,
+        backdropFilter: "blur(25px)",
+        boxShadow: expanded ? `0 0 25px hsl(${accent} / 0.06)` : "none",
+        transition: "border-color 0.4s, box-shadow 0.4s",
+      }}
     >
-      {expanded && <motion.div className="absolute top-0 left-0 right-0 h-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ background: `linear-gradient(90deg, transparent, hsl(${accent} / 0.6), transparent)` }} />}
-      <button onClick={onToggle} className="w-full flex items-center gap-2.5 px-3.5 py-3 relative z-10">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `hsl(${accent} / 0.12)`, color: `hsl(${accent})` }}>
-          {icon}
-        </div>
-        <span className="text-[11px] font-bold uppercase tracking-[0.12em] flex-1 text-left text-foreground/80">{title}</span>
+      {expanded && (
+        <motion.div className="absolute top-0 left-0 right-0 h-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          style={{ background: `linear-gradient(90deg, transparent 10%, hsl(${accent} / 0.5) 50%, transparent 90%)` }}
+        />
+      )}
+      <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3.5 relative z-10">
+        <motion.div className="w-8 h-8 rounded-xl flex items-center justify-center"
+          style={{ background: `hsl(${accent} / 0.1)`, color: `hsl(${accent})`, border: `1px solid hsl(${accent} / 0.15)` }}
+          animate={expanded ? { scale: [1, 1.08, 1] } : {}}
+          transition={{ duration: 3, repeat: Infinity }}
+        >
+          {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5" })}
+        </motion.div>
+        <span className="text-[11px] font-bold uppercase tracking-[0.15em] flex-1 text-left text-foreground/85">{title}</span>
         {badge && (
-          <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-md" style={{ background: `hsl(${accent} / 0.12)`, color: `hsl(${accent})`, border: `1px solid hsl(${accent} / 0.2)` }}>{badge}</span>
+          <span className="text-[8px] font-mono font-bold px-2 py-0.5 rounded-lg"
+            style={{ background: `hsl(${accent} / 0.1)`, color: `hsl(${accent})`, border: `1px solid hsl(${accent} / 0.15)` }}
+          >{badge}</span>
         )}
-        <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.25 }}>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.3 }}>
+          <ChevronDown className="w-4 h-4 text-muted-foreground/60" />
         </motion.div>
       </button>
       <AnimatePresence>
         {expanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: "easeOut" }} className="overflow-hidden">
-            <div className="px-3.5 pb-3.5">{children}</div>
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }} className="overflow-hidden"
+          >
+            <div className="px-4 pb-4">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -777,87 +854,152 @@ function ALISCard({ id, title, icon, accent, badge, expanded, onToggle, delay = 
   );
 }
 
-function RingGauge({ label, value, color }: { label: string; value: number; color: string }) {
-  const r = 22, c = 2 * Math.PI * r;
+import React from "react";
+
+function AnimatedGauge({ label, value, color, delay = 0 }: { label: string; value: number; color: string; delay?: number }) {
+  const r = 24, c = 2 * Math.PI * r;
   const offset = c * (1 - Math.min(value, 100) / 100);
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative w-[52px] h-[52px]">
-        <svg viewBox="0 0 56 56" className="w-full h-full -rotate-90">
-          <circle cx="28" cy="28" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="3" />
-          <motion.circle cx="28" cy="28" r={r} fill="none" stroke={`hsl(${color})`} strokeWidth="3" strokeLinecap="round"
+    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay }}
+      className="flex flex-col items-center gap-1.5"
+    >
+      <div className="relative w-[56px] h-[56px]">
+        <svg viewBox="0 0 60 60" className="w-full h-full -rotate-90">
+          <circle cx="30" cy="30" r={r} fill="none" stroke="hsl(var(--border) / 0.3)" strokeWidth="3" />
+          <motion.circle cx="30" cy="30" r={r} fill="none" stroke={`hsl(${color})`} strokeWidth="3.5" strokeLinecap="round"
             strokeDasharray={c} initial={{ strokeDashoffset: c }} animate={{ strokeDashoffset: offset }}
-            transition={{ duration: 1.2, ease: "easeOut", delay: 0.3 }}
-            style={{ filter: `drop-shadow(0 0 4px hsl(${color} / 0.4))` }}
+            transition={{ duration: 1.5, ease: "easeOut", delay: delay + 0.3 }}
+            style={{ filter: `drop-shadow(0 0 6px hsl(${color} / 0.4))` }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[11px] font-bold font-display" style={{ color: `hsl(${color})` }}>{value}</span>
+          <span className="text-[12px] font-bold font-display" style={{ color: `hsl(${color})` }}>{value}</span>
         </div>
       </div>
-      <span className="text-[7px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
-function StatBlock({ label, value, accent }: { label: string; value: string; accent: string }) {
-  return (
-    <div className="text-center rounded-xl p-2.5 glass-strong">
-      <div className="text-sm font-bold capitalize font-display" style={{ color: `hsl(${accent})` }}>{value}</div>
-      <div className="text-[7px] uppercase tracking-wider mt-0.5 text-muted-foreground">{label}</div>
-    </div>
-  );
-}
-
-function TopicTag({ text, accent }: { text: string; accent: string }) {
-  return (
-    <motion.span initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-      className="px-2.5 py-1 rounded-lg text-[9px] font-bold capitalize"
-      style={{ background: `hsl(${accent} / 0.12)`, color: `hsl(${accent})`, border: `1px solid hsl(${accent} / 0.2)` }}
-    >{text}</motion.span>
-  );
-}
-
-function FooterStat({ icon, text }: { icon: string; text: string }) {
-  return <span className="text-[9px] text-muted-foreground">{icon} {text}</span>;
-}
-
-function ALISLogo() {
-  return (
-    <motion.div className="w-10 h-10 rounded-xl flex items-center justify-center relative glass"
-      style={{ border: "1px solid hsl(var(--accent) / 0.3)" }}
-    >
-      <motion.div className="absolute -inset-[1px] rounded-xl"
-        style={{ background: "conic-gradient(from 0deg, hsl(var(--accent) / 0.5), hsl(var(--primary) / 0.4), transparent 40%, transparent 60%, hsl(var(--destructive) / 0.3), hsl(var(--accent) / 0.5))", mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)", maskComposite: "exclude", WebkitMaskComposite: "xor", padding: "1px" }}
-        animate={{ rotate: 360 }} transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-      />
-      <Brain className="w-5 h-5 relative z-10 text-accent" />
+      <span className="text-[7px] font-bold uppercase tracking-widest text-muted-foreground/70">{label}</span>
     </motion.div>
   );
 }
 
-function ConfidenceBadge({ value }: { value?: number }) {
-  if (!value) return (
-    <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-success/10 border border-success/20">
-      <motion.div className="w-1.5 h-1.5 rounded-full bg-success" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 2, repeat: Infinity }} />
-      <span className="text-[8px] font-bold uppercase tracking-wider text-success">Ready</span>
-    </div>
-  );
-  const pct = Math.round(value * 100);
-  const colorClass = pct >= 80 ? "success" : pct >= 50 ? "warning" : "destructive";
+function GlassStat({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
-    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-${colorClass}/10 border border-${colorClass}/20`}>
-      <span className={`text-[9px] font-bold font-display text-${colorClass}`}>{pct}%</span>
+    <div className="text-center rounded-2xl p-3"
+      style={{ background: "hsl(var(--secondary) / 0.4)", border: "1px solid hsl(var(--border) / 0.3)" }}
+    >
+      <div className="text-sm font-bold capitalize font-display" style={{ color: `hsl(${accent})` }}>{value}</div>
+      <div className="text-[7px] uppercase tracking-widest mt-1 text-muted-foreground/70">{label}</div>
     </div>
   );
 }
 
-function LoadingOrb() {
+function PillTag({ text, accent, icon }: { text: string; accent: string; icon?: React.ReactNode }) {
+  return (
+    <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-bold capitalize"
+      style={{ background: `hsl(${accent} / 0.1)`, color: `hsl(${accent})`, border: `1px solid hsl(${accent} / 0.15)` }}
+    >
+      {icon && React.cloneElement(icon as React.ReactElement, { style: { color: `hsl(${accent})` } })}
+      {text}
+    </motion.span>
+  );
+}
+
+function SeverityBadge({ severity }: { severity: string }) {
+  const styles: Record<string, { bg: string; color: string; border: string }> = {
+    high: { bg: "hsl(var(--destructive) / 0.1)", color: "hsl(var(--destructive))", border: "hsl(var(--destructive) / 0.2)" },
+    medium: { bg: "hsl(var(--warning) / 0.1)", color: "hsl(var(--warning))", border: "hsl(var(--warning) / 0.2)" },
+    low: { bg: "hsl(var(--success) / 0.1)", color: "hsl(var(--success))", border: "hsl(var(--success) / 0.2)" },
+  };
+  const s = styles[severity] || styles.low;
+  return (
+    <span className="text-[9px] px-2 py-0.5 rounded-lg font-bold border" style={{ background: s.bg, color: s.color, borderColor: s.border }}>
+      {severity}
+    </span>
+  );
+}
+
+function DifficultyDot({ difficulty }: { difficulty: string }) {
+  const color = difficulty === "hard" ? "var(--destructive)" : difficulty === "medium" ? "var(--warning)" : "var(--success)";
+  return <motion.div className="w-2 h-2 rounded-full" style={{ background: `hsl(${color})` }} animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 2, repeat: Infinity }} />;
+}
+
+function MomentumBadge({ momentum }: { momentum: string }) {
+  const cfg = momentum === "rising" ? { color: "var(--success)", arrow: "↑" } : momentum === "declining" ? { color: "var(--destructive)", arrow: "↓" } : { color: "var(--muted-foreground)", arrow: "→" };
+  return (
+    <span className="text-[8px] font-bold px-2 py-0.5 rounded-lg"
+      style={{ background: `hsl(${cfg.color} / 0.1)`, color: `hsl(${cfg.color})`, border: `1px solid hsl(${cfg.color} / 0.15)` }}
+    >{cfg.arrow} {momentum}</span>
+  );
+}
+
+function RobustnessBadge({ rating }: { rating: string }) {
+  const color = rating === "bulletproof" ? "var(--accent)" : rating === "robust" ? "var(--success)" : rating === "developing" ? "var(--warning)" : "var(--destructive)";
+  return (
+    <span className="text-[9px] font-bold px-3 py-1 rounded-xl"
+      style={{ background: `hsl(${color} / 0.1)`, color: `hsl(${color})`, border: `1px solid hsl(${color} / 0.15)` }}
+    >{rating}</span>
+  );
+}
+
+function FooterChip({ icon, text }: { icon: string; text: string }) {
+  return <span className="text-[9px] text-muted-foreground/60 font-medium">{icon} {text}</span>;
+}
+
+function HeroLogo() {
+  return (
+    <motion.div className="w-11 h-11 rounded-2xl flex items-center justify-center relative"
+      style={{
+        background: "linear-gradient(135deg, hsl(var(--accent) / 0.15), hsl(var(--primary) / 0.1))",
+        border: "1px solid hsl(var(--accent) / 0.25)",
+        boxShadow: "0 0 20px hsl(var(--accent) / 0.1)",
+      }}
+    >
+      <motion.div className="absolute -inset-[1px] rounded-2xl"
+        style={{
+          background: "conic-gradient(from 0deg, hsl(var(--accent) / 0.5), hsl(var(--primary) / 0.4), transparent 40%, transparent 60%, hsl(var(--success) / 0.2), hsl(var(--accent) / 0.5))",
+          mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)", maskComposite: "exclude", WebkitMaskComposite: "xor", padding: "1px",
+        }}
+        animate={{ rotate: 360 }} transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+      />
+      <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 4, repeat: Infinity }}>
+        <Brain className="w-5 h-5 relative z-10 text-accent" />
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function StatusPill({ result }: { result: ALISResult | null }) {
+  if (!result) return (
+    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+      style={{ background: "hsl(var(--success) / 0.08)", border: "1px solid hsl(var(--success) / 0.15)" }}
+    >
+      <motion.div className="w-1.5 h-1.5 rounded-full bg-success" animate={{ opacity: [1, 0.3, 1], scale: [1, 0.8, 1] }} transition={{ duration: 2, repeat: Infinity }} />
+      <span className="text-[8px] font-bold uppercase tracking-widest text-success">Ready</span>
+    </div>
+  );
+  const pct = Math.round(result.confidence * 100);
+  const color = pct >= 80 ? "var(--success)" : pct >= 50 ? "var(--warning)" : "var(--destructive)";
+  return (
+    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+      style={{ background: `hsl(${color} / 0.08)`, border: `1px solid hsl(${color} / 0.15)` }}
+    >
+      <span className="text-[9px] font-bold font-display" style={{ color: `hsl(${color})` }}>{pct}%</span>
+    </div>
+  );
+}
+
+function PremiumSpinner() {
   return (
     <div className="relative w-8 h-8">
-      <motion.div className="absolute inset-0 rounded-full border-2 border-white/20" />
-      <motion.div className="absolute inset-0 rounded-full" style={{ border: "2px solid transparent", borderTopColor: "hsl(var(--accent))", borderRightColor: "hsl(var(--primary))" }} animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} />
-      <motion.div className="absolute inset-1.5 rounded-full" style={{ border: "1.5px solid transparent", borderBottomColor: "hsl(var(--destructive))" }} animate={{ rotate: -360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }} />
+      <motion.div className="absolute inset-0 rounded-full" style={{ border: "2px solid hsl(0 0% 100% / 0.1)" }} />
+      <motion.div className="absolute inset-0 rounded-full"
+        style={{ border: "2px solid transparent", borderTopColor: "hsl(var(--accent))", borderRightColor: "hsl(var(--primary))" }}
+        animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+      />
+      <motion.div className="absolute inset-1.5 rounded-full"
+        style={{ border: "1.5px solid transparent", borderBottomColor: "hsl(0 0% 100% / 0.4)" }}
+        animate={{ rotate: -360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+      />
       <Brain className="w-3 h-3 absolute inset-0 m-auto text-white/90" />
     </div>
   );
