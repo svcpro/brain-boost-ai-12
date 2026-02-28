@@ -232,47 +232,9 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
         </p>
       </motion.div>
 
-      {/* ── Mode Selection Grid ── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="grid grid-cols-2 gap-3"
-      >
-        {MODE_CARDS.map(({ key, icon: Icon, label, desc, accentVar }, i) => (
-          <motion.button key={key} onClick={() => openMode(key)}
-            initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 + i * 0.06 }}
-            whileTap={{ scale: 0.95 }}
-            whileHover={{ y: -3 }}
-            className="relative rounded-3xl p-5 flex flex-col items-center gap-3 text-center overflow-hidden group"
-            style={{
-              background: "hsl(var(--card) / 0.5)",
-              border: `1px solid hsl(${accentVar} / 0.15)`,
-              backdropFilter: "blur(20px)",
-            }}
-          >
-            {/* Hover glow */}
-            <motion.div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              style={{ background: `radial-gradient(circle at 50% 50%, hsl(${accentVar} / 0.08), transparent 70%)` }}
-            />
-            {/* Animated icon container */}
-            <motion.div className="w-14 h-14 rounded-2xl flex items-center justify-center relative z-10"
-              style={{ background: `hsl(${accentVar} / 0.1)`, border: `1px solid hsl(${accentVar} / 0.2)` }}
-              animate={{ scale: [1, 1.06, 1] }}
-              transition={{ duration: 3, repeat: Infinity, delay: i * 0.4 }}
-            >
-              <motion.div animate={{ y: [0, -2, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.3 }}>
-                <Icon className="w-6 h-6" style={{ color: `hsl(${accentVar})` }} />
-              </motion.div>
-            </motion.div>
-            <div className="relative z-10">
-              <p className="text-xs font-bold text-foreground tracking-wider uppercase">{label}</p>
-              <p className="text-[9px] text-muted-foreground/60 mt-0.5">{desc}</p>
-            </div>
-          </motion.button>
-        ))}
-      </motion.div>
-
       {/* ── AI Suggestions Carousel ── */}
       {(suggestionsLoading || suggestions.length > 0) && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="space-y-2.5">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <motion.div animate={{ y: [0, -2, 0] }} transition={{ duration: 2, repeat: Infinity }}>
@@ -304,6 +266,39 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
           )}
         </motion.div>
       )}
+
+      {/* ── Mode Selection – Single Row ── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+        className="flex items-center justify-between gap-2"
+      >
+        {MODE_CARDS.map(({ key, icon: Icon, label, accentVar }, i) => (
+          <motion.button key={key} onClick={() => openMode(key)}
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 + i * 0.05 }}
+            whileTap={{ scale: 0.9 }}
+            whileHover={{ y: -3 }}
+            className="flex-1 flex flex-col items-center gap-2 py-3 rounded-2xl relative overflow-hidden group"
+            style={{
+              background: "hsl(var(--card) / 0.5)",
+              border: `1px solid hsl(${accentVar} / 0.15)`,
+              backdropFilter: "blur(20px)",
+            }}
+          >
+            <motion.div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{ background: `radial-gradient(circle at 50% 50%, hsl(${accentVar} / 0.1), transparent 70%)` }}
+            />
+            <motion.div className="w-10 h-10 rounded-xl flex items-center justify-center relative z-10"
+              style={{ background: `hsl(${accentVar} / 0.1)`, border: `1px solid hsl(${accentVar} / 0.2)` }}
+              animate={{ scale: [1, 1.08, 1] }}
+              transition={{ duration: 3, repeat: Infinity, delay: i * 0.4 }}
+            >
+              <motion.div animate={{ y: [0, -2, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.3 }}>
+                <Icon className="w-5 h-5" style={{ color: `hsl(${accentVar})` }} />
+              </motion.div>
+            </motion.div>
+            <p className="text-[10px] font-bold text-foreground tracking-wider uppercase relative z-10">{label}</p>
+          </motion.button>
+        ))}
+      </motion.div>
 
       {/* Footer */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex items-center justify-center gap-2 py-1">
