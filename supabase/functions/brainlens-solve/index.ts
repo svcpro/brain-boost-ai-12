@@ -72,15 +72,15 @@ serve(async (req) => {
     const { data: query, error: insertErr } = await insertPromise;
     if (insertErr) return errorResponse("Failed to create query record", 500);
 
-    // Use flash-lite for text (fastest), flash for images
-    const model = image_base64 ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
+    // Use gemini-3-flash-preview for all queries (fastest next-gen model)
+    const model = "google/gemini-3-flash-preview";
 
     const aiResult = await callAI({
       messages,
       model,
-      temperature: 0.05,
-      maxTokens: 3000,
-      timeoutMs: 30000,
+      temperature: 0.02,
+      maxTokens: 2500,
+      timeoutMs: 25000,
     });
 
     if (!aiResult.ok) {
