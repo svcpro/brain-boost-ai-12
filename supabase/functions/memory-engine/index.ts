@@ -81,53 +81,36 @@ serve(async (req) => {
       const now = new Date();
       const updatedTopics = [];
 
+      // Build predictions in-memory first (no sequential DB calls in loop)
+      const topicUpdates: { id: string; memory_strength: number; next_predicted_drop_date: string }[] = [];
+      const scoreInserts: { user_id: string; topic_id: string; score: number; predicted_drop_date: string }[] = [];
+
       for (const topic of topics) {
-        // Get study logs for this topic
         const topicLogs = (studyLogs || []).filter((l: any) => l.topic_id === topic.id);
         const reviewCount = topicLogs.length;
 
-        // Calculate stability based on review count and confidence
-        // More reviews = higher stability (slower forgetting)
-        const baseStability = 24; // 24 hours base
-        const reviewBonus = reviewCount * 12; // Each review adds ~12 hours
+        const baseStability = 24;
+        const reviewBonus = reviewCount * 12;
         const confidenceBonus = topicLogs.reduce((sum: number, l: any) => {
           if (l.confidence_level === "high") return sum + 24;
           if (l.confidence_level === "medium") return sum + 12;
           return sum + 4;
         }, 0) / Math.max(reviewCount, 1);
-
         const stability = baseStability + reviewBonus + confidenceBonus;
 
-        // Calculate hours since last revision
         const lastRevision = topic.last_revision_date
           ? new Date(topic.last_revision_date)
           : topic.created_at ? new Date(topic.created_at) : now;
         const hoursSinceReview = (now.getTime() - lastRevision.getTime()) / (1000 * 60 * 60);
 
-        // Calculate current memory strength (retention)
         const retention = calculateRetention(hoursSinceReview, stability);
-        const memoryStrength = Math.round(retention * 100 * 100) / 100; // percentage with 2 decimals
+        const memoryStrength = Math.round(retention * 100 * 100) / 100;
 
-        // Calculate when memory drops below 50% (danger zone)
         const hoursUntilDrop = hoursUntilThreshold(stability, 0.5);
         const dropDate = new Date(lastRevision.getTime() + hoursUntilDrop * 60 * 60 * 1000);
 
-        // Update topic in database
-        await supabase
-          .from("topics")
-          .update({
-            memory_strength: memoryStrength,
-            next_predicted_drop_date: dropDate.toISOString(),
-          })
-          .eq("id", topic.id);
-
-        // Record memory score snapshot
-        await supabase.from("memory_scores").insert({
-          user_id: userId,
-          topic_id: topic.id,
-          score: memoryStrength,
-          predicted_drop_date: dropDate.toISOString(),
-        });
+        topicUpdates.push({ id: topic.id, memory_strength: memoryStrength, next_predicted_drop_date: dropDate.toISOString() });
+        scoreInserts.push({ user_id: userId!, topic_id: topic.id, score: memoryStrength, predicted_drop_date: dropDate.toISOString() });
 
         updatedTopics.push({
           id: topic.id,
@@ -141,6 +124,16 @@ serve(async (req) => {
           risk_level: memoryStrength < 30 ? "critical" : memoryStrength < 50 ? "high" : memoryStrength < 70 ? "medium" : "low",
         });
       }
+
+      // Batch DB writes concurrently instead of sequential per-topic
+      const dbWrites = [
+        ...topicUpdates.map(u =>
+          supabase.from("topics").update({ memory_strength: u.memory_strength, next_predicted_drop_date: u.next_predicted_drop_date }).eq("id", u.id)
+        ),
+        supabase.from("memory_scores").insert(scoreInserts),
+      ];
+      // Fire-and-forget so response returns fast; errors are non-critical
+      Promise.allSettled(dbWrites).catch(() => {});
 
       // Overall brain health = average memory strength
       const overallHealth = updatedTopics.length > 0
