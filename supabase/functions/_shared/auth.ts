@@ -42,43 +42,36 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
 
   const token = authHeader.replace("Bearer ", "");
   
-  // Try fast local JWT validation first, fallback to network call for cold starts
   let userId: string | undefined;
   let email: string | undefined;
   let role = "authenticated";
 
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+  // Use service role client for reliable token validation (bypasses cold-start issues)
+  const adminClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
 
-  if (!claimsError && claimsData?.claims?.sub) {
-    userId = claimsData.claims.sub as string;
-    email = claimsData.claims.email as string | undefined;
-    role = (claimsData.claims.role as string) || "authenticated";
-  } else {
-    // Fallback: network call with retry for transient auth service restarts
-    let lastError: any = null;
-    const MAX_RETRIES = 3;
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const { data: userData, error: userError } = await supabase.auth.getUser(token);
-      if (!userError && userData?.user) {
-        userId = userData.user.id;
-        email = userData.user.email;
-        role = userData.user.role || "authenticated";
-        break;
-      }
-      lastError = userError;
-      console.warn(`[Auth] getUser attempt ${attempt + 1}/${MAX_RETRIES} failed:`, userError?.message);
-      if (attempt < MAX_RETRIES - 1) {
-        // Exponential backoff: 800ms, 1600ms
-        await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
-      }
+  const MAX_RETRIES = 3;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+    if (!userError && userData?.user) {
+      userId = userData.user.id;
+      email = userData.user.email;
+      role = userData.user.role || "authenticated";
+      break;
     }
+    console.warn(`[Auth] getUser attempt ${attempt + 1}/${MAX_RETRIES} failed:`, userError?.message);
+    if (attempt < MAX_RETRIES - 1) {
+      await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
+    }
+  }
 
-    if (!userId) {
-      throw new Response(
-        JSON.stringify({ error: "Invalid or expired token" }),
-        { status: 401, headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" } }
-      );
-    }
+  if (!userId) {
+    throw new Response(
+      JSON.stringify({ error: "Invalid or expired token" }),
+      { status: 401, headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   return {
