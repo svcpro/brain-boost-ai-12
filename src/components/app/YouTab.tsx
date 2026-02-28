@@ -31,6 +31,7 @@ import AIRecalibration from "./you/AIRecalibration";
 import AIPersonalizationControlCenter from "./you/AIPersonalizationControlCenter";
 import CognitiveProfileCard from "./CognitiveProfileCard";
 import PasswordManagement from "./you/PasswordManagement";
+import DataBackup from "./DataBackup";
 
 interface YouTabProps {
   autoOpenVoiceSettings?: boolean;
@@ -282,6 +283,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
       {/* ═══ Password Management ═══ */}
       <PasswordManagement />
+
+      {/* ═══ Data Backup ═══ */}
+      <DataBackup />
 
       {/* Sign Out */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
