@@ -23,6 +23,16 @@ export interface MemoryPrediction {
 
 const CACHE_KEY = "memory-prediction";
 
+const isAuthTokenError = (error: unknown): boolean => {
+  const msg = String((error as any)?.message || "").toLowerCase();
+  return (
+    msg.includes("401") ||
+    msg.includes("unauthorized") ||
+    msg.includes("invalid or expired token") ||
+    msg.includes("missing or invalid authorization header")
+  );
+};
+
 export function useMemoryEngine() {
   const [prediction, setPrediction] = useState<MemoryPrediction | null>(() => getCache<MemoryPrediction>(CACHE_KEY));
   const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -35,9 +45,20 @@ export function useMemoryEngine() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("memory-engine", {
-        body: { action: "predict" },
-      });
+      const invokePredict = () =>
+        supabase.functions.invoke("memory-engine", {
+          body: { action: "predict" },
+        });
+
+      let { data, error: fnError } = await invokePredict();
+
+      if (fnError && isAuthTokenError(fnError)) {
+        await supabase.auth.refreshSession();
+        const retry = await invokePredict();
+        data = retry.data;
+        fnError = retry.error;
+      }
+
       if (fnError) throw fnError;
       setPrediction(data);
       setCache(CACHE_KEY, data);
@@ -55,9 +76,20 @@ export function useMemoryEngine() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("memory-engine", {
-        body: { action: "generate_recommendations" },
-      });
+      const invokeRecommendations = () =>
+        supabase.functions.invoke("memory-engine", {
+          body: { action: "generate_recommendations" },
+        });
+
+      let { data, error: fnError } = await invokeRecommendations();
+
+      if (fnError && isAuthTokenError(fnError)) {
+        await supabase.auth.refreshSession();
+        const retry = await invokeRecommendations();
+        data = retry.data;
+        fnError = retry.error;
+      }
+
       if (fnError) throw fnError;
       setRecommendations(data.recommendations || []);
       return data;

@@ -35,6 +35,16 @@ export interface RankPredictionData {
 
 const CACHE_KEY = "rank-prediction";
 
+const isAuthTokenError = (error: unknown): boolean => {
+  const msg = String((error as any)?.message || "").toLowerCase();
+  return (
+    msg.includes("401") ||
+    msg.includes("unauthorized") ||
+    msg.includes("invalid or expired token") ||
+    msg.includes("missing or invalid authorization header")
+  );
+};
+
 export function useRankPrediction() {
   const [data, setData] = useState<RankPredictionData | null>(() => getCache<RankPredictionData>(CACHE_KEY));
   const [loading, setLoading] = useState(false);
@@ -46,9 +56,20 @@ export function useRankPrediction() {
     setLoading(true);
     setError(null);
     try {
-      const { data: result, error: fnError } = await supabase.functions.invoke("memory-engine", {
-        body: { action: "predict_rank" },
-      });
+      const invokeRankPrediction = () =>
+        supabase.functions.invoke("memory-engine", {
+          body: { action: "predict_rank" },
+        });
+
+      let { data: result, error: fnError } = await invokeRankPrediction();
+
+      if (fnError && isAuthTokenError(fnError)) {
+        await supabase.auth.refreshSession();
+        const retry = await invokeRankPrediction();
+        result = retry.data;
+        fnError = retry.error;
+      }
+
       if (fnError) throw fnError;
       setData(result);
       setCache(CACHE_KEY, result);
