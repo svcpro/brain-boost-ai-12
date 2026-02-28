@@ -33,18 +33,19 @@ serve(async (req) => {
       const subjects = subjectsRes.data?.map(s => s.name) || [];
       const weakTopics = weakTopicsRes.data?.map(t => `${t.name} (${t.memory_strength}%)`) || [];
 
-      const suggestPrompt = `Generate 6 practice questions for a ${examType} exam student.
+      const seed = Math.floor(Math.random() * 100000);
+      const suggestPrompt = `Generate 6 unique practice questions for a ${examType} exam student. Seed=${seed}.
 ${subjects.length ? `Subjects: ${subjects.join(", ")}.` : ""}
 ${weakTopics.length ? `Weak topics (prioritize these): ${weakTopics.join(", ")}.` : ""}
 Return ONLY a JSON array of objects: [{"question":"...","subject":"...","topic":"...","difficulty":"easy|medium|hard"}]
-Mix difficulties. Keep questions concise (1-2 lines). No markdown fences.`;
+Mix difficulties. Keep questions concise (1-2 lines). Make them completely different from any previous set. No markdown fences.`;
 
       const aiResult = await callAI({
         messages: [{ role: "user", content: suggestPrompt }],
-        model: "google/gemini-3-flash-preview",
-        temperature: 0.6,
-        maxTokens: 1200,
-        timeoutMs: 15000,
+        model: "google/gemini-2.5-flash-lite",
+        temperature: 0.95,
+        maxTokens: 900,
+        timeoutMs: 8000,
       });
 
       if (!aiResult.ok) return errorResponse("Failed to generate suggestions", 500);
