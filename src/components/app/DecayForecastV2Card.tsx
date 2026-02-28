@@ -2,13 +2,13 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Activity, AlertTriangle, Clock, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { usePrecisionIntelligence } from "@/hooks/usePrecisionIntelligence";
-import FocusModeSession from "./FocusModeSession";
+import QuickFixQuiz from "./QuickFixQuiz";
 
 export default function DecayForecastV2Card() {
   const { decayData, loading, computeDecayV2 } = usePrecisionIntelligence();
   const [expanded, setExpanded] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [fixSession, setFixSession] = useState<{ subject: string; topic: string } | null>(null);
+  const [fixSession, setFixSession] = useState<{ subject: string; topic: string; retention: number } | null>(null);
 
   useEffect(() => {
     if (!hasLoaded) {
@@ -49,6 +49,7 @@ export default function DecayForecastV2Card() {
     setFixSession({
       subject: topic.subject_name || "",
       topic: topic.topic_name,
+      retention: Math.round(topic.predicted_retention * 100),
     });
   };
 
@@ -149,19 +150,17 @@ export default function DecayForecastV2Card() {
         </div>
       </motion.div>
 
-      {/* Focus Mode Session — 3-min quiz fix */}
-      <FocusModeSession
+      {/* Quick Fix Quiz popup */}
+      <QuickFixQuiz
         open={!!fixSession}
         onClose={() => {
           setFixSession(null);
-          // Re-compute decay data after session to reflect updated memory
           computeDecayV2();
-        }}
-        onSessionComplete={() => {
           window.dispatchEvent(new Event("insights-refresh"));
         }}
-        initialSubject={fixSession?.subject}
-        initialTopic={fixSession?.topic}
+        topicName={fixSession?.topic || ""}
+        subjectName={fixSession?.subject || ""}
+        retentionPct={fixSession?.retention || 0}
       />
     </>
   );
