@@ -793,50 +793,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       {/* Streak celebrations (lightweight) */}
       {hasTopics && isEnabled('home_streak_milestone') && <StreakMilestoneCelebration currentStreak={streakData?.currentStreak ?? 0} />}
 
-      {/* ══════════════════════════════════════════════════════════════
-           SECTION 5: DEEP INSIGHTS — Collapsible Power Analytics
-           Purpose: "Details on demand for power users"
-         ══════════════════════════════════════════════════════════════ */}
+      {/* ═══ Deep Insights — moved to Brain Tab ═══ */}
       {hasTopics && (
         <SectionErrorBoundary name="deep-analytics">
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm hover:border-primary/20 transition-all group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--primary)/0.05))" }}>
-                    <BarChart3 className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-bold text-foreground">Deep Insights</p>
-                    <p className="text-[9px] text-muted-foreground">Analytics, predictions & AI intel</p>
-                  </div>
-                </div>
-                <ChevronDown className="w-4 h-4 text-muted-foreground group-data-[state=open]:rotate-180 transition-transform duration-300" />
-              </motion.button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-3 space-y-3"
-              >
-                {/* Precision Intelligence */}
-                <Suspense fallback={null}>
-                  <PrecisionIntelligenceCard compact />
-                </Suspense>
-
-                {/* Deep Analytics */}
-                <DeepAnalyticsSection
-                  atRisk={atRisk}
-                  allTopics={prediction?.topics || []}
-                  overallHealth={overallHealth}
-                  streakDays={streakData?.currentStreak ?? 0}
-                  rankPredicted={rankData?.predicted_rank ?? null}
-                  rankPercentile={rankData?.percentile ?? null}
-                />
+          <div className="space-y-3">
 
                 {/* Feature-flagged extras */}
                 {isEnabled('home_brain_missions') && <PlanGateWrapper featureKey="brain_missions"><BrainMissionsCard /></PlanGateWrapper>}
@@ -904,9 +864,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
                     </div>
                   </PlanGateWrapper>
                 )}
-              </motion.div>
-            </CollapsibleContent>
-          </Collapsible>
+          </div>
         </SectionErrorBoundary>
       )}
 

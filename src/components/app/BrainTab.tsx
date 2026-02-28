@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback, Component, type ReactNode } from "react";
+import { useEffect, useState, useCallback, Component, Suspense, lazy, type ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Brain, RefreshCw, Sparkles } from "lucide-react";
+import { Brain, RefreshCw, Sparkles, BarChart3, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemoryEngine } from "@/hooks/useMemoryEngine";
@@ -29,6 +30,7 @@ import FocusModeSession from "./FocusModeSession";
 import AITopicManager from "./AITopicManager";
 import SafePassPopup from "./SafePassPopup";
 
+const DeepAnalyticsSection = lazy(() => import("./DeepAnalyticsSection"));
 interface TopicInfo {
   id: string;
   name: string;
@@ -160,8 +162,47 @@ const BrainTab = () => {
         onReview={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
       />
 
-      {/* ═══ v7.0: Forgetting Curve 2.0 ═══ */}
-      <DecayForecastV2Card />
+      {/* ═══ Deep Insights (moved from Home Tab) ═══ */}
+      {hasData && (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm hover:border-primary/20 transition-all group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--primary)/0.05))" }}>
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-foreground">Deep Insights</p>
+                    <p className="text-[9px] text-muted-foreground">Analytics, predictions & AI intel</p>
+                  </div>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground group-data-[state=open]:rotate-180 transition-transform duration-300" />
+              </motion.button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 space-y-3">
+                <Suspense fallback={null}>
+                  <PrecisionIntelligenceCard compact />
+                </Suspense>
+                <Suspense fallback={null}>
+                  <DeepAnalyticsSection
+                    atRisk={prediction?.topics?.filter((t: any) => t.risk_level === "high" || t.risk_level === "critical") || []}
+                    allTopics={prediction?.topics || []}
+                    overallHealth={overallHealth}
+                    streakDays={0}
+                    rankPredicted={null}
+                    rankPercentile={null}
+                  />
+                </Suspense>
+              </motion.div>
+            </CollapsibleContent>
+          </Collapsible>
+        </motion.div>
+      )}
 
       {/* ═══ SECTION 3: Decay Forecast Timeline ═══ */}
       <DecayForecastTimeline
