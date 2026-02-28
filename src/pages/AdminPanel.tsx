@@ -6,7 +6,7 @@ import {
   Loader2, AlertTriangle, Search, MoreVertical, Eye,
   Ban, Trash2, RefreshCw, Send, Clock, TrendingUp,
   Activity, Zap, Database, BarChart3, UserPlus, ChevronDown,
-  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone,
+  CheckCircle2, XCircle, ArrowLeft, Home, User, Download, Upload, CalendarIcon, Check, Smartphone, HardDrive,
   Plus, Pencil, IndianRupee, ToggleLeft, ToggleRight, Star, GripVertical, Key, Sparkles, MessageSquare, Globe,
   Search as SearchIcon, Mail, Volume2, Menu, X, Workflow, Server, Wallet, Radio, Target, Rocket,
   Cpu, Building2, GraduationCap, Megaphone, Lock, Fingerprint, FileText, PanelLeftClose, PanelLeft, Swords
@@ -58,7 +58,8 @@ import CurrentAffairsAdmin from "@/components/admin/ai-command/CurrentAffairsAdm
 import PolicyPredictorAdmin from "@/components/admin/ai-command/PolicyPredictorAdmin";
 import DebateEngineAdmin from "@/components/admin/ai-command/DebateEngineAdmin";
 import CompetitiveIntelAdmin from "@/components/admin/ai-command/CompetitiveIntelAdmin";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode";
+import AdminBackup from "@/components/admin/AdminBackup";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -190,6 +191,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "admins", label: "Admin Roles", icon: Fingerprint, roles: ["super_admin"] },
       { key: "audit", label: "Audit Logs", icon: FileText, roles: ["super_admin", "admin"] },
+      { key: "backup", label: "Full Backup", icon: HardDrive, roles: ["super_admin"], badge: "NEW", badgeColor: "bg-emerald-500/20 text-emerald-400" },
       { key: "profile", label: "My Profile", icon: User, roles: ["super_admin", "admin", "ai_admin", "support_admin", "finance_admin"] },
     ],
   },
@@ -577,6 +579,7 @@ const AdminPanel = () => {
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}
               {section === "settings" && <SettingsSection toast={toast} />}
+              {section === "backup" && <AdminBackup />}
               {section === "profile" && <AdminProfile />}
             </motion.div>
           </AnimatePresence>
