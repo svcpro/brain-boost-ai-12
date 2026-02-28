@@ -56,7 +56,8 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
   } else {
     // Fallback: network call with retry for transient auth service restarts
     let lastError: any = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const MAX_RETRIES = 3;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const { data: userData, error: userError } = await supabase.auth.getUser(token);
       if (!userError && userData?.user) {
         userId = userData.user.id;
@@ -65,9 +66,10 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
         break;
       }
       lastError = userError;
-      if (attempt === 0) {
-        // Brief delay before retry to let auth service recover
-        await new Promise(r => setTimeout(r, 500));
+      console.warn(`[Auth] getUser attempt ${attempt + 1}/${MAX_RETRIES} failed:`, userError?.message);
+      if (attempt < MAX_RETRIES - 1) {
+        // Exponential backoff: 800ms, 1600ms
+        await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
       }
     }
 
