@@ -92,6 +92,7 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
         .catch(() => {});
       return;
     }
+    // Don't show full loading if we have no cache — show skeleton instead
     setSuggestionsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("brainlens-solve", { body: { action: "suggest" } });
@@ -238,7 +239,7 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
   return (
     <>
       {/* ── Welcome Hero ── */}
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2 py-2">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="text-center space-y-2 py-2">
         <motion.div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent/10 border border-accent/20"
           animate={{ boxShadow: ["0 0 0px hsl(var(--accent) / 0)", "0 0 20px hsl(var(--accent) / 0.15)", "0 0 0px hsl(var(--accent) / 0)"] }}
           transition={{ duration: 4, repeat: Infinity }}
@@ -256,7 +257,7 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
 
       {/* ── AI Suggestions Carousel ── */}
       {(suggestionsLoading || suggestions.length > 0) && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-2.5">
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }} className="space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <motion.div animate={{ y: [0, -2, 0] }} transition={{ duration: 2, repeat: Infinity }}>
@@ -293,12 +294,12 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
       )}
 
       {/* ── Mode Selection – Single Row ── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15, delay: 0.05 }}
         className="flex items-center justify-between gap-2"
       >
         {MODE_CARDS.map(({ key, icon: Icon, label, accentVar }, i) => (
           <motion.button key={key} onClick={() => openMode(key)}
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 + i * 0.05 }}
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03, duration: 0.15 }}
             whileTap={{ scale: 0.9 }}
             whileHover={{ y: -3 }}
             className="flex-1 flex flex-col items-center gap-2 py-3 rounded-2xl relative overflow-hidden group"
@@ -511,9 +512,9 @@ function SuggestionCard({ s, i, onClick }: { s: Suggestion; i: number; onClick: 
   const diffColor = s.difficulty === "hard" ? "var(--destructive)" : s.difficulty === "medium" ? "var(--warning)" : "var(--success)";
   return (
     <motion.button
-      initial={{ opacity: 0, x: 20 }}
+      initial={{ opacity: 0, x: 12 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: i * 0.08, type: "spring", stiffness: 300 }}
+      transition={{ delay: i * 0.04, duration: 0.15 }}
       onClick={onClick}
       className="min-w-[230px] max-w-[260px] shrink-0 rounded-2xl p-4 text-left group relative overflow-hidden"
       style={{
