@@ -158,7 +158,13 @@ async function callGeminiDirect(
     }
 
     const data = await resp.json();
-    const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    // Gemini 2.5 Pro "thinking" models return multiple parts: thought parts first, then text.
+    // We need the actual text content, not the thinking/reasoning trace.
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const textParts = parts.filter((p: any) => p.text !== undefined && !p.thought);
+    const textContent = textParts.length > 0 
+      ? textParts.map((p: any) => p.text).join("") 
+      : (parts[parts.length - 1]?.text || "");
 
     // Normalize to OpenAI-compatible format
     const normalized: any = {

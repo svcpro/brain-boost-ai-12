@@ -106,8 +106,8 @@ Concise questions (1 line max). No markdown.`;
         messages,
         model: "google/gemini-2.5-pro",
         temperature: 0.0,
-        maxTokens: 3000,
-        timeoutMs: 30000,
+        maxTokens: 4096,
+        timeoutMs: 45000,
       }),
     ]);
 
@@ -231,13 +231,53 @@ Keys:detected_topic,detected_subtopic,detected_difficulty(easy|medium|hard),dete
 ${profile?.exam_type ? `Exam:${profile.exam_type}.` : ""}${avgStr ? `Mem:${avgStr}%.` : ""}${gaps.length ? `Gaps:${gaps.join(",")}.` : ""}`;
 }
 
-/* ═══ ALIS Response Parser ═══ */
+/* ═══ ALIS Response Parser with brace-matching ═══ */
 function parseALISResponse(rawText: string): any {
+  if (!rawText || rawText.trim().length === 0) {
+    console.error("ALIS: Empty AI response");
+    return fallbackResponse("Empty response");
+  }
+
+  // Strip markdown fences
   let cleaned = rawText.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+
+  // Direct parse
   try { return JSON.parse(cleaned); } catch { /* continue */ }
 
+  // Find the main JSON object using brace-depth matching
   const jsonStart = cleaned.indexOf("{");
-  if (jsonStart === -1) return fallbackResponse(rawText);
+  if (jsonStart === -1) {
+    console.error("ALIS: No JSON object found in response. First 500 chars:", cleaned.slice(0, 500));
+    return fallbackResponse(rawText);
+  }
+
+  // Use brace-depth counting to find the matching closing brace
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let endIdx = -1;
+
+  for (let i = jsonStart; i < cleaned.length; i++) {
+    const c = cleaned[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\' && inString) { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) { endIdx = i; break; }
+    }
+  }
+
+  if (endIdx > jsonStart) {
+    const extracted = cleaned.substring(jsonStart, endIdx + 1);
+    try { return JSON.parse(extracted); } catch (e) {
+      console.error("ALIS: Extracted JSON failed to parse:", (e as Error).message, "First 300 chars:", extracted.slice(0, 300));
+    }
+  }
+
+  // Fallback: grab from first { to end with brace repair
   let s = cleaned.substring(jsonStart);
   try { return JSON.parse(s); } catch { /* continue */ }
 
@@ -257,7 +297,9 @@ function parseALISResponse(rawText: string): any {
 
   try { return JSON.parse(s); } catch { /* continue */ }
   s = s.replace(/[\x00-\x1F\x7F]/g, " ");
-  try { return JSON.parse(s); } catch { /* fallback */ }
+  try { return JSON.parse(s); } catch {
+    console.error("ALIS: All parse attempts failed. First 500 chars:", rawText.slice(0, 500));
+  }
   return fallbackResponse(rawText);
 }
 
