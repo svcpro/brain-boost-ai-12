@@ -104,10 +104,10 @@ Concise questions (1 line max). No markdown.`;
         .select("id").single(),
       callAI({
         messages,
-        model: "google/gemini-3-flash-preview",
-        temperature: 0.02,
-        maxTokens: 2000,
-        timeoutMs: 20000,
+        model: "google/gemini-2.5-pro",
+        temperature: 0.0,
+        maxTokens: 3000,
+        timeoutMs: 30000,
       }),
     ]);
 
@@ -209,8 +209,24 @@ function buildALISPrompt(profile: any, memoryScores: any[], recentQueries: any[]
     : null;
   const gaps = recentQueries?.map((q: any) => q.cognitive_gap_type).filter(Boolean).slice(0, 3) || [];
 
-  return `Expert solver. Return ONLY raw JSON, no markdown. Compute once, no self-correction.
-short_answer:1-2 sentences. step_by_step:3-5 steps max 1 sentence each. All strings max 2 sentences.
+  return `You are a world-class subject matter expert and exam coach. Your answers MUST be 100% accurate. Follow these rules strictly:
+
+ACCURACY PROTOCOL:
+1. THINK step-by-step before answering. Show your complete reasoning chain.
+2. VERIFY your answer by solving the problem using TWO different methods when possible.
+3. If multiple-choice: eliminate wrong options with explicit reasoning for each.
+4. If numerical: double-check every calculation step.
+5. If conceptual: cite the exact principle/law/theorem with its standard definition.
+6. Set confidence=1.0 ONLY if you are absolutely certain. Otherwise set lower and explain why in cross_validation_note.
+7. In cross_validation_note, state your verification method and any edge cases considered.
+
+Return ONLY raw JSON, no markdown/code fences.
+short_answer: precise 1-2 sentence answer with the correct option/value stated clearly.
+step_by_step: 3-6 steps, each showing clear reasoning. Include verification step.
+concept_clarity: the core concept/formula/law used, stated precisely.
+option_elimination: for MCQs, explain why each wrong option is wrong.
+shortcut_tricks: exam-relevant shortcuts if applicable.
+
 Keys:detected_topic,detected_subtopic,detected_difficulty(easy|medium|hard),detected_exam_type,short_answer,step_by_step[],concept_clarity,option_elimination,shortcut_tricks,cognitive_gap{type,code,explanation,severity},micro_concepts{core,adjacent_nodes[],reinforcement_questions[{question,difficulty}]},exam_impact{topic_probability_index,estimated_mastery_boost,readiness_impact,related_pyq_patterns[]},explanation_depth,confidence,cross_validation_note,pre_query_predictions{weak_concepts[],preventive_challenge,prediction_confidence},silent_repair_plan{stealth_questions[],unstable_nodes[],repair_strategy},future_style_questions[{question,difficulty,exam_probability}],cognitive_drift{drift_detected,drift_magnitude,recalibration},personal_examiner{trap_questions[{question,trap_type}],conceptual_depth_score,robustness_rating},strategic_mastery_index{smi_score,multi_step_reasoning,transfer_learning,trap_resistance},strategy_switch{recommended_mode,reasoning,urgency}
 ${profile?.exam_type ? `Exam:${profile.exam_type}.` : ""}${avgStr ? `Mem:${avgStr}%.` : ""}${gaps.length ? `Gaps:${gaps.join(",")}.` : ""}`;
 }
