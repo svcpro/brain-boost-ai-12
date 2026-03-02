@@ -3,17 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, ArrowLeft } from "lucide-react";
+import { Mail, ArrowLeft, Phone, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/splash/SplashScreen";
 import { useInstitution } from "@/contexts/InstitutionContext";
+
+type AuthMethod = "email" | "mobile";
 
 const AuthPage = () => {
   const [searchParams] = useSearchParams();
   const showSplashParam = searchParams.get("splash") === "1";
   const [showSplash, setShowSplash] = useState(showSplashParam);
   const [isLogin, setIsLogin] = useState(true);
+  const [authMethod, setAuthMethod] = useState<AuthMethod>("mobile");
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [countryCode, setCountryCode] = useState("91");
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
@@ -22,7 +27,8 @@ const AuthPage = () => {
   const { toast } = useToast();
   const { institution, isInstitutionDomain } = useInstitution();
 
-  const handleSendOtp = async () => {
+  /* ═══ Email OTP Handlers ═══ */
+  const handleSendEmailOtp = async () => {
     if (!email) {
       toast({ title: "Enter your email first", variant: "destructive" });
       return;
@@ -31,9 +37,7 @@ const AuthPage = () => {
     try {
       const { error } = await supabase.auth.signInWithOtp({ 
         email,
-        options: {
-          shouldCreateUser: true,
-        }
+        options: { shouldCreateUser: true },
       });
       if (error) throw error;
       setOtpSent(true);
@@ -46,7 +50,7 @@ const AuthPage = () => {
     }
   };
 
-  const handleVerifyOtp = async () => {
+  const handleVerifyEmailOtp = async () => {
     const token = otpCode.join("");
     if (token.length !== 6) {
       toast({ title: "Enter the full 6-digit code", variant: "destructive" });
@@ -63,6 +67,83 @@ const AuthPage = () => {
       setLoading(false);
     }
   };
+
+  /* ═══ Mobile OTP Handlers (MSG91) ═══ */
+  const fullMobile = `${countryCode}${mobile.replace(/\D/g, "")}`;
+
+  const handleSendMobileOtp = async () => {
+    if (!mobile || mobile.replace(/\D/g, "").length < 10) {
+      toast({ title: "Enter a valid mobile number", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("msg91-otp", {
+        body: { action: "send", mobile: fullMobile },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setOtpSent(true);
+      toast({ title: "OTP Sent!", description: `Code sent to +${fullMobile}` });
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyMobileOtp = async () => {
+    const otp = otpCode.join("");
+    if (otp.length !== 6) {
+      toast({ title: "Enter the full 6-digit code", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("msg91-otp", {
+        body: { action: "verify", mobile: fullMobile, otp },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.verified && data?.token_hash) {
+        // Use the token_hash to verify OTP on client and establish session
+        const { error: verifyErr } = await supabase.auth.verifyOtp({
+          token_hash: data.token_hash,
+          type: "magiclink",
+        });
+        if (verifyErr) throw verifyErr;
+        navigate("/app");
+      } else {
+        throw new Error("Verification failed");
+      }
+    } catch (error: any) {
+      toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
+      setOtpCode(["", "", "", "", "", ""]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendMobileOtp = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("msg91-otp", {
+        body: { action: "resend", mobile: fullMobile },
+      });
+      if (error) throw error;
+      toast({ title: "OTP Resent", description: data?.message || "Check your phone" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ═══ Unified handlers ═══ */
+  const handleSendOtp = authMethod === "email" ? handleSendEmailOtp : handleSendMobileOtp;
+  const handleVerifyOtp = authMethod === "email" ? handleVerifyEmailOtp : handleVerifyMobileOtp;
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -92,6 +173,11 @@ const AuthPage = () => {
     otpRefs.current[nextEmpty]?.focus();
   };
 
+  const resetOtp = () => {
+    setOtpSent(false);
+    setOtpCode(["", "", "", "", "", ""]);
+  };
+
   if (showSplash) {
     return (
       <SplashScreen
@@ -102,7 +188,6 @@ const AuthPage = () => {
       />
     );
   }
-
 
   return (
     <div className="fixed inset-0 flex items-center justify-center"
@@ -131,7 +216,6 @@ const AuthPage = () => {
             animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0.4, 0.2] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
           />
-          {/* Floating particles */}
           {Array.from({ length: 12 }, (_, i) => (
             <motion.div
               key={i}
@@ -169,7 +253,6 @@ const AuthPage = () => {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="flex flex-col items-center mt-6 mb-5 relative z-10"
         >
-          {/* Animated logo icon */}
           {isInstitutionDomain && institution?.logo_url ? (
             <motion.div
               className="relative"
@@ -230,8 +313,6 @@ const AuthPage = () => {
                   <motion.circle cx="38" cy="38" r="1.3" fill="#7C4DFF" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 1.3, type: "spring" }} />
                   <motion.circle cx="24" cy="30" r="1" fill="#00FF94" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 1.4, type: "spring" }} />
                 </svg>
-
-                {/* Light sweep */}
                 <motion.div className="absolute inset-0 overflow-hidden rounded-2xl">
                   <motion.div
                     className="absolute top-0 -left-full w-1/2 h-full"
@@ -242,24 +323,15 @@ const AuthPage = () => {
                 </motion.div>
               </div>
             </motion.div>
-
-            {/* Orbiting ring */}
             <motion.div
               className="absolute inset-[-4px] rounded-[1.1rem] pointer-events-none"
               style={{ border: "1px solid #00E5FF10" }}
               animate={{ rotate: 360 }}
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
             />
-
-            {/* Pulsing glow */}
             <motion.div
               className="absolute inset-[-6px] rounded-[1.2rem] pointer-events-none"
-              animate={{
-                boxShadow: [
-                  "0 0 0 0 #00E5FF15",
-                  "0 0 0 8px #00E5FF00",
-                ],
-              }}
+              animate={{ boxShadow: ["0 0 0 0 #00E5FF15", "0 0 0 8px #00E5FF00"] }}
               transition={{ duration: 2, repeat: Infinity }}
             />
           </motion.div>
@@ -286,6 +358,33 @@ const AuthPage = () => {
           </AnimatePresence>
         </motion.div>
 
+        {/* Auth Method Toggle (Email / Mobile) */}
+        {!otpSent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex mx-5 mb-3 rounded-xl p-0.5 relative z-10"
+            style={{ background: "#ffffff06", border: "1px solid #ffffff0a" }}
+          >
+            {(["mobile", "email"] as AuthMethod[]).map((method) => (
+              <button
+                key={method}
+                onClick={() => { setAuthMethod(method); resetOtp(); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: authMethod === method ? "#ffffff0f" : "transparent",
+                  color: authMethod === method ? "#ffffffdd" : "#ffffff50",
+                  border: authMethod === method ? "1px solid #ffffff15" : "1px solid transparent",
+                }}
+              >
+                {method === "mobile" ? <Smartphone className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                {method === "mobile" ? "Mobile" : "Email"}
+              </button>
+            ))}
+          </motion.div>
+        )}
+
         {/* Form Card */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -299,16 +398,18 @@ const AuthPage = () => {
           }}
         >
           <AnimatePresence mode="wait">
-              <motion.div
-                key={`otp-form-${isLogin}`}
-                initial={{ opacity: 0, x: 15 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -15 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-3"
-              >
-                {!otpSent ? (
-                  <>
+            <motion.div
+              key={`otp-form-${authMethod}-${isLogin}`}
+              initial={{ opacity: 0, x: 15 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -15 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-3"
+            >
+              {!otpSent ? (
+                <>
+                  {authMethod === "email" ? (
+                    /* Email input */
                     <div className="relative">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
                       <input
@@ -320,81 +421,116 @@ const AuthPage = () => {
                         onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
                       />
                     </div>
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handleSendOtp}
-                      disabled={loading || !email}
-                      className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
-                      style={{
-                        background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
-                        color: "#0B0F1A",
-                        boxShadow: "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
-                      }}
-                    >
-                      {loading ? "Sending..." : "Send OTP Code"}
-                    </motion.button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[11px] text-center" style={{ color: "#ffffff60" }}>
-                      Enter the 6-digit code sent to <span style={{ color: "#00E5FFcc" }}>{email}</span>
-                    </p>
-                    <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
-                      {otpCode.map((digit, i) => (
+                  ) : (
+                    /* Mobile input with country code */
+                    <div className="flex gap-2">
+                      <div className="relative w-[72px]">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "#ffffff50" }}>+</span>
                         <input
-                          key={i}
-                          ref={(el) => { otpRefs.current[i] = el; }}
                           type="text"
                           inputMode="numeric"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleOtpChange(i, e.target.value)}
-                          onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                          className="w-10 h-11 rounded-lg text-center text-base font-semibold focus:outline-none transition-all"
-                          style={{
-                            background: "#ffffff08",
-                            border: digit ? "1px solid #00E5FF40" : "1px solid #ffffff15",
-                            color: "#ffffffee",
-                            boxShadow: digit ? "0 0 8px #00E5FF10" : "none",
-                          }}
-                          onFocus={(e) => e.target.style.borderColor = "#00E5FF50"}
-                          onBlur={(e) => e.target.style.borderColor = digit ? "#00E5FF40" : "#ffffff15"}
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                          className="w-full rounded-xl pl-6 pr-2 py-2.5 text-sm text-center placeholder:opacity-40 focus:outline-none transition-all"
+                          style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                          onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
+                          onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
                         />
-                      ))}
+                      </div>
+                      <div className="relative flex-1">
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          placeholder="Mobile number"
+                          value={mobile}
+                          onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                          className="w-full rounded-xl pl-10 pr-3 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
+                          style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                          onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
+                          onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
+                        />
+                      </div>
                     </div>
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handleVerifyOtp}
-                      disabled={loading || otpCode.join("").length !== 6}
-                      className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
-                      style={{
-                        background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
-                        color: "#0B0F1A",
-                        boxShadow: "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
-                      }}
+                  )}
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleSendOtp}
+                    disabled={loading || (authMethod === "email" ? !email : !mobile || mobile.length < 10)}
+                    className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
+                    style={{
+                      background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
+                      color: "#0B0F1A",
+                      boxShadow: "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
+                    }}
+                  >
+                    {loading ? "Sending..." : "Send OTP Code"}
+                  </motion.button>
+                </>
+              ) : (
+                <>
+                  <p className="text-[11px] text-center" style={{ color: "#ffffff60" }}>
+                    Enter the 6-digit code sent to{" "}
+                    <span style={{ color: "#00E5FFcc" }}>
+                      {authMethod === "email" ? email : `+${fullMobile}`}
+                    </span>
+                  </p>
+                  <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                    {otpCode.map((digit, i) => (
+                      <input
+                        key={i}
+                        ref={(el) => { otpRefs.current[i] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpChange(i, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                        className="w-10 h-11 rounded-lg text-center text-base font-semibold focus:outline-none transition-all"
+                        style={{
+                          background: "#ffffff08",
+                          border: digit ? "1px solid #00E5FF40" : "1px solid #ffffff15",
+                          color: "#ffffffee",
+                          boxShadow: digit ? "0 0 8px #00E5FF10" : "none",
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = "#00E5FF50"}
+                        onBlur={(e) => e.target.style.borderColor = digit ? "#00E5FF40" : "#ffffff15"}
+                      />
+                    ))}
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleVerifyOtp}
+                    disabled={loading || otpCode.join("").length !== 6}
+                    className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
+                    style={{
+                      background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
+                      color: "#0B0F1A",
+                      boxShadow: "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
+                    }}
+                  >
+                    {loading ? "Verifying..." : "Verify & Sign In"}
+                  </motion.button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={resetOtp}
+                      className="text-[10px] hover:underline" style={{ color: "#ffffff40" }}
                     >
-                      {loading ? "Verifying..." : "Verify & Sign In"}
-                    </motion.button>
-                    <div className="flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => { setOtpSent(false); setOtpCode(["","","","","",""]); }}
-                        className="text-[10px] hover:underline" style={{ color: "#ffffff40" }}
-                      >
-                        ← Change email
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSendOtp}
-                        disabled={loading}
-                        className="text-[10px] hover:underline disabled:opacity-40" style={{ color: "#00E5FF80" }}
-                      >
-                        Resend code
-                      </button>
-                    </div>
-                  </>
-                )}
-              </motion.div>
+                      ← {authMethod === "email" ? "Change email" : "Change number"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={authMethod === "email" ? handleSendEmailOtp : handleResendMobileOtp}
+                      disabled={loading}
+                      className="text-[10px] hover:underline disabled:opacity-40" style={{ color: "#00E5FF80" }}
+                    >
+                      Resend code
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
           </AnimatePresence>
         </motion.div>
 
