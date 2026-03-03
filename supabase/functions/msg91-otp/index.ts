@@ -34,7 +34,8 @@ Deno.serve(async (req) => {
     }
 
     /* ═══ SEND OTP ═══ */
-    if (action === "send") {
+    if (action === "send" || action === "send_whatsapp") {
+      // Step 1: Send OTP via SMS (generates and stores the OTP in MSG91)
       const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${normalizedMobile}&authkey=${authKey}&otp_expiry=5&otp_length=4&realTimeResponse=1`;
       const resp = await fetch(url, {
         method: "POST",
@@ -43,10 +44,26 @@ Deno.serve(async (req) => {
       const data = await resp.json();
       console.log("[MSG91] Send OTP response:", JSON.stringify(data));
 
-      if (data.type === "success" || data.type === "success" || resp.ok) {
-        return json({ success: true, message: "OTP sent successfully", type: data.type });
+      if (!(data.type === "success" || resp.ok)) {
+        return json({ error: data.message || "Failed to send OTP", details: data }, 400);
       }
-      return json({ error: data.message || "Failed to send OTP", details: data }, 400);
+
+      // Step 2: If WhatsApp requested, immediately retry via WhatsApp channel
+      if (action === "send_whatsapp") {
+        const retryUrl = `https://control.msg91.com/api/v5/otp/retry?authkey=${authKey}&retrytype=whatsapp&mobile=${normalizedMobile}`;
+        const retryResp = await fetch(retryUrl, { method: "GET" });
+        const retryData = await retryResp.json();
+        console.log("[MSG91] WhatsApp retry response:", JSON.stringify(retryData));
+
+        return json({
+          success: true,
+          message: "OTP sent via WhatsApp",
+          type: retryData.type,
+          channel: "whatsapp",
+        });
+      }
+
+      return json({ success: true, message: "OTP sent successfully", type: data.type });
     }
 
     /* ═══ VERIFY OTP ═══ */
@@ -169,6 +186,19 @@ Deno.serve(async (req) => {
       return json({
         success: data.type === "success",
         message: data.message || (data.type === "success" ? "OTP resent" : "Failed to resend"),
+      });
+    }
+
+    /* ═══ RESEND OTP VIA WHATSAPP ═══ */
+    if (action === "resend_whatsapp") {
+      const url = `https://control.msg91.com/api/v5/otp/retry?authkey=${authKey}&retrytype=whatsapp&mobile=${normalizedMobile}`;
+      const resp = await fetch(url, { method: "GET" });
+      const data = await resp.json();
+      console.log("[MSG91] Resend WhatsApp OTP response:", JSON.stringify(data));
+
+      return json({
+        success: data.type === "success",
+        message: data.message || (data.type === "success" ? "OTP resent via WhatsApp" : "Failed to resend"),
       });
     }
 

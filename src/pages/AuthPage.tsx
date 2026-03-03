@@ -3,12 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, ArrowLeft, Phone, Smartphone } from "lucide-react";
+import { Mail, ArrowLeft, Phone, Smartphone, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/splash/SplashScreen";
 import { useInstitution } from "@/contexts/InstitutionContext";
 
-type AuthMethod = "email" | "mobile";
+type AuthMethod = "email" | "mobile" | "whatsapp";
 
 const AuthPage = () => {
   const [searchParams] = useSearchParams();
@@ -70,6 +70,29 @@ const AuthPage = () => {
 
   /* ═══ Mobile OTP Handlers (MSG91) ═══ */
   const fullMobile = `${countryCode}${mobile.replace(/\D/g, "")}`;
+
+  const handleSendWhatsAppOtp = async () => {
+    if (!mobile || mobile.replace(/\D/g, "").length < 10) {
+      toast({ title: "Enter a valid mobile number", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("msg91-otp", {
+        body: { action: "send_whatsapp", mobile: fullMobile },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setOtpSent(true);
+      toast({ title: "OTP Sent!", description: `Code sent to WhatsApp +${fullMobile}` });
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const handleSendMobileOtp = async () => {
     if (!mobile || mobile.replace(/\D/g, "").length < 10) {
@@ -141,8 +164,23 @@ const AuthPage = () => {
     }
   };
 
+  const handleResendWhatsAppOtp = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("msg91-otp", {
+        body: { action: "resend_whatsapp", mobile: fullMobile },
+      });
+      if (error) throw error;
+      toast({ title: "OTP Resent", description: data?.message || "Check your WhatsApp" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ═══ Unified handlers ═══ */
-  const handleSendOtp = authMethod === "email" ? handleSendEmailOtp : handleSendMobileOtp;
+  const handleSendOtp = authMethod === "email" ? handleSendEmailOtp : authMethod === "whatsapp" ? handleSendWhatsAppOtp : handleSendMobileOtp;
   const handleVerifyOtp = authMethod === "email" ? handleVerifyEmailOtp : handleVerifyMobileOtp;
 
   const handleOtpChange = (index: number, value: string) => {
@@ -358,7 +396,7 @@ const AuthPage = () => {
           </AnimatePresence>
         </motion.div>
 
-        {/* Auth Method Toggle (Email / Mobile) */}
+        {/* Auth Method Toggle (Mobile / WhatsApp / Email) */}
         {!otpSent && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -367,7 +405,7 @@ const AuthPage = () => {
             className="flex mx-5 mb-3 rounded-xl p-0.5 relative z-10"
             style={{ background: "#ffffff06", border: "1px solid #ffffff0a" }}
           >
-            {(["mobile", "email"] as AuthMethod[]).map((method) => (
+            {(["mobile", "whatsapp", "email"] as AuthMethod[]).map((method) => (
               <button
                 key={method}
                 onClick={() => { setAuthMethod(method); resetOtp(); }}
@@ -378,8 +416,8 @@ const AuthPage = () => {
                   border: authMethod === method ? "1px solid #ffffff15" : "1px solid transparent",
                 }}
               >
-                {method === "mobile" ? <Smartphone className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
-                {method === "mobile" ? "Mobile" : "Email"}
+                {method === "mobile" ? <Smartphone className="w-3.5 h-3.5" /> : method === "whatsapp" ? <MessageCircle className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                {method === "mobile" ? "SMS" : method === "whatsapp" ? "WhatsApp" : "Email"}
               </button>
             ))}
           </motion.div>
@@ -422,36 +460,44 @@ const AuthPage = () => {
                       />
                     </div>
                   ) : (
-                    /* Mobile input with country code */
-                    <div className="flex gap-2">
-                      <div className="relative w-[72px]">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "#ffffff50" }}>+</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={countryCode}
-                          onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                          className="w-full rounded-xl pl-6 pr-2 py-2.5 text-sm text-center placeholder:opacity-40 focus:outline-none transition-all"
-                          style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                          onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
-                          onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
-                        />
+                    /* Mobile input with country code (shared for SMS & WhatsApp) */
+                    <>
+                      {authMethod === "whatsapp" && (
+                        <div className="flex items-center gap-1.5 justify-center mb-1">
+                          <MessageCircle className="w-3.5 h-3.5" style={{ color: "#25D366" }} />
+                          <span className="text-[10px] font-medium" style={{ color: "#25D366" }}>OTP will be sent to your WhatsApp</span>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <div className="relative w-[72px]">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "#ffffff50" }}>+</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={countryCode}
+                            onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                            className="w-full rounded-xl pl-6 pr-2 py-2.5 text-sm text-center placeholder:opacity-40 focus:outline-none transition-all"
+                            style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                            onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
+                            onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
+                          />
+                        </div>
+                        <div className="relative flex-1">
+                          <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
+                          <input
+                            type="tel"
+                            inputMode="numeric"
+                            placeholder="Mobile number"
+                            value={mobile}
+                            onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            className="w-full rounded-xl pl-10 pr-3 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
+                            style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                            onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
+                            onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
+                          />
+                        </div>
                       </div>
-                      <div className="relative flex-1">
-                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          placeholder="Mobile number"
-                          value={mobile}
-                          onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                          className="w-full rounded-xl pl-10 pr-3 py-2.5 text-sm placeholder:opacity-40 focus:outline-none transition-all"
-                          style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                          onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
-                          onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
-                        />
-                      </div>
-                    </div>
+                    </>
                   )}
                   <motion.button
                     whileTap={{ scale: 0.97 }}
@@ -459,19 +505,23 @@ const AuthPage = () => {
                     disabled={loading || (authMethod === "email" ? !email : !mobile || mobile.length < 10)}
                     className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
                     style={{
-                      background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
-                      color: "#0B0F1A",
-                      boxShadow: "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
+                      background: authMethod === "whatsapp" 
+                        ? "linear-gradient(135deg, #25D366, #128C7E)" 
+                        : "linear-gradient(135deg, #00E5FF, #7C4DFF)",
+                      color: authMethod === "whatsapp" ? "#ffffff" : "#0B0F1A",
+                      boxShadow: authMethod === "whatsapp"
+                        ? "0 0 20px #25D36615, 0 0 40px #128C7E08"
+                        : "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
                     }}
                   >
-                    {loading ? "Sending..." : "Send OTP Code"}
+                    {loading ? "Sending..." : authMethod === "whatsapp" ? "Send OTP via WhatsApp" : "Send OTP Code"}
                   </motion.button>
                 </>
               ) : (
                 <>
                   <p className="text-[11px] text-center" style={{ color: "#ffffff60" }}>
-                    Enter the 4-digit code sent to{" "}
-                    <span style={{ color: "#00E5FFcc" }}>
+                    Enter the 4-digit code sent {authMethod === "whatsapp" ? "via WhatsApp " : ""}to{" "}
+                    <span style={{ color: authMethod === "whatsapp" ? "#25D366cc" : "#00E5FFcc" }}>
                       {authMethod === "email" ? email : `+${fullMobile}`}
                     </span>
                   </p>
@@ -521,7 +571,7 @@ const AuthPage = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={authMethod === "email" ? handleSendEmailOtp : handleResendMobileOtp}
+                      onClick={authMethod === "email" ? handleSendEmailOtp : authMethod === "whatsapp" ? handleResendWhatsAppOtp : handleResendMobileOtp}
                       disabled={loading}
                       className="text-[10px] hover:underline disabled:opacity-40" style={{ color: "#00E5FF80" }}
                     >
