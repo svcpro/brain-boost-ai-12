@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     /* ═══ SEND OTP ═══ */
     if (action === "send") {
-      const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${normalizedMobile}&authkey=${authKey}&otp_expiry=5&realTimeResponse=1`;
+      const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${normalizedMobile}&authkey=${authKey}&otp_expiry=5&otp_length=4&realTimeResponse=1`;
       const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
 
     /* ═══ VERIFY OTP ═══ */
     if (action === "verify") {
-      if (!otp || otp.length !== 6) {
+      if (!otp || otp.length !== 4) {
         return json({ error: "Invalid OTP" }, 400);
       }
 
