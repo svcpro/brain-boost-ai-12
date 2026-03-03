@@ -12,9 +12,15 @@ import { useAuth } from "@/contexts/AuthContext";
 
 // ─── Complete ACRY API Route Registry (120+ endpoints) ───
 const ACRY_API_ROUTES = [
-  // ── Section 2: Authentication — OTP-First + OAuth (14 endpoints) ──
-  // PRIMARY FLOW: Passwordless Email OTP (used for both login & signup)
-  { group: "Authentication", path: "auth/send-otp", method: "POST", desc: "Send 6-digit OTP to email (primary auth method — creates user if new)", auth: false, request: { email: "string", options: { shouldCreateUser: true } }, response: { success: true, expires_in: 300, message: "6-digit OTP sent to email" } },
+  // ── Section 2: Authentication — OTP-First + OAuth (19 endpoints) ──
+  // PRIMARY FLOW: Passwordless Mobile OTP via MSG91 (SMS & WhatsApp)
+  { group: "Authentication", path: "msg91-otp/send", method: "POST", desc: "Send 4-digit OTP via SMS to mobile number using MSG91", auth: false, request: { action: "send", mobile: "919876543210" }, response: { success: true, message: "OTP sent via SMS", channel: "sms" } },
+  { group: "Authentication", path: "msg91-otp/send-whatsapp", method: "POST", desc: "Send 4-digit OTP via WhatsApp template message (no SMS sent)", auth: false, request: { action: "send_whatsapp", mobile: "919876543210" }, response: { success: true, message: "OTP sent via WhatsApp only", channel: "whatsapp" } },
+  { group: "Authentication", path: "msg91-otp/verify", method: "POST", desc: "Verify 4-digit OTP (works for both SMS & WhatsApp). Returns magiclink token on success.", auth: false, request: { action: "verify", mobile: "919876543210", otp: "1234" }, response: { success: true, verified: true, isNewUser: false, userId: "uuid", token_hash: "string", verification_type: "magiclink" } },
+  { group: "Authentication", path: "msg91-otp/resend", method: "POST", desc: "Resend OTP via SMS (rate-limited by MSG91)", auth: false, request: { action: "resend", mobile: "919876543210" }, response: { success: true, message: "OTP resent via SMS", channel: "sms" } },
+  { group: "Authentication", path: "msg91-otp/resend-whatsapp", method: "POST", desc: "Resend OTP via WhatsApp only (generates new 4-digit OTP, no SMS)", auth: false, request: { action: "resend_whatsapp", mobile: "919876543210" }, response: { success: true, message: "OTP resent via WhatsApp only", channel: "whatsapp" } },
+  // SECONDARY FLOW: Passwordless Email OTP
+  { group: "Authentication", path: "auth/send-otp", method: "POST", desc: "Send 6-digit OTP to email (secondary auth method — creates user if new)", auth: false, request: { email: "string", options: { shouldCreateUser: true } }, response: { success: true, expires_in: 300, message: "6-digit OTP sent to email" } },
   { group: "Authentication", path: "auth/verify-otp", method: "POST", desc: "Verify 6-digit OTP code and get session (works for both login & signup)", auth: false, request: { email: "string", token: "123456", type: "email" }, response: { access_token: "JWT_TOKEN", refresh_token: "string", user: { id: "uuid", email: "string", created_at: "ISO_DATE" }, expires_in: 3600 } },
   { group: "Authentication", path: "auth/resend-otp", method: "POST", desc: "Resend OTP to same email (rate-limited to 1/60s)", auth: false, request: { email: "string" }, response: { success: true, expires_in: 300 } },
   // OAUTH FLOW: Google & Apple (via Lovable Cloud managed OAuth)
