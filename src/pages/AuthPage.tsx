@@ -470,7 +470,7 @@ const AuthPage = () => {
               ) : (
                 <>
                   <p className="text-[11px] text-center" style={{ color: "#ffffff60" }}>
-                    Enter the 6-digit code sent to{" "}
+                    Enter the 4-digit code sent to{" "}
                     <span style={{ color: "#00E5FFcc" }}>
                       {authMethod === "email" ? email : `+${fullMobile}`}
                     </span>
