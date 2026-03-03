@@ -21,7 +21,7 @@ const AuthPage = () => {
   const [countryCode, setCountryCode] = useState("91");
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
+  const [otpCode, setOtpCode] = useState(["", "", "", ""]);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -52,8 +52,8 @@ const AuthPage = () => {
 
   const handleVerifyEmailOtp = async () => {
     const token = otpCode.join("");
-    if (token.length !== 6) {
-      toast({ title: "Enter the full 6-digit code", variant: "destructive" });
+    if (token.length !== 4) {
+      toast({ title: "Enter the full 4-digit code", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -95,8 +95,8 @@ const AuthPage = () => {
 
   const handleVerifyMobileOtp = async () => {
     const otp = otpCode.join("");
-    if (otp.length !== 6) {
-      toast({ title: "Enter the full 6-digit code", variant: "destructive" });
+    if (otp.length !== 4) {
+      toast({ title: "Enter the full 4-digit code", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -120,7 +120,7 @@ const AuthPage = () => {
       }
     } catch (error: any) {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
-      setOtpCode(["", "", "", "", "", ""]);
+      setOtpCode(["", "", "", ""]);
     } finally {
       setLoading(false);
     }
@@ -150,7 +150,7 @@ const AuthPage = () => {
     const newCode = [...otpCode];
     newCode[index] = value.slice(-1);
     setOtpCode(newCode);
-    if (value && index < 5) {
+    if (value && index < 3) {
       otpRefs.current[index + 1]?.focus();
     }
   };
@@ -163,19 +163,19 @@ const AuthPage = () => {
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
     const newCode = [...otpCode];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       newCode[i] = pasted[i] || "";
     }
     setOtpCode(newCode);
-    const nextEmpty = pasted.length < 6 ? pasted.length : 5;
+    const nextEmpty = pasted.length < 4 ? pasted.length : 3;
     otpRefs.current[nextEmpty]?.focus();
   };
 
   const resetOtp = () => {
     setOtpSent(false);
-    setOtpCode(["", "", "", "", "", ""]);
+    setOtpCode(["", "", "", ""]);
   };
 
   if (showSplash) {
@@ -501,7 +501,7 @@ const AuthPage = () => {
                   <motion.button
                     whileTap={{ scale: 0.97 }}
                     onClick={handleVerifyOtp}
-                    disabled={loading || otpCode.join("").length !== 6}
+                    disabled={loading || otpCode.join("").length !== 4}
                     className="w-full py-2.5 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-50 transition-all"
                     style={{
                       background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
