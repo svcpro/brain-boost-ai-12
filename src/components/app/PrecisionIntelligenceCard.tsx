@@ -33,8 +33,8 @@ export default function PrecisionIntelligenceCard({ compact = false, onComputeCo
 
   const score = precisionScore;
   const pct = score ? Math.round(score.unified_precision_score * 100) : 0;
-  const ciLow = score ? Math.round(score.confidence_interval.low * 100) : 0;
-  const ciHigh = score ? Math.round(score.confidence_interval.high * 100) : 0;
+  const ciLow = score?.confidence_interval ? Math.round(score.confidence_interval.low * 100) : 0;
+  const ciHigh = score?.confidence_interval ? Math.round(score.confidence_interval.high * 100) : 0;
 
   const getScoreColor = (pct: number) => {
     if (pct >= 75) return "text-chart-2";

@@ -60,7 +60,7 @@ export default function RankPredictionV2Card() {
         <div className="text-center mb-4">
           <p className="text-3xl font-black text-foreground">#{data.predicted_rank.toLocaleString()}</p>
           <p className="text-[10px] text-muted-foreground mt-1">
-            Range: #{data.rank_band.low.toLocaleString()} – #{data.rank_band.high.toLocaleString()}
+            Range: #{data.rank_band?.low?.toLocaleString() ?? '—'} – #{data.rank_band?.high?.toLocaleString() ?? '—'}
           </p>
         </div>
 
@@ -71,7 +71,7 @@ export default function RankPredictionV2Card() {
             <p className="text-[9px] text-muted-foreground">Percentile</p>
           </div>
           <div className="flex-1 text-center px-3 py-2 rounded-xl bg-secondary/50 border border-border/50">
-            <p className="text-xs font-bold text-foreground">{data.confidence_interval.low}–{data.confidence_interval.high}%</p>
+            <p className="text-xs font-bold text-foreground">{data.confidence_interval?.low ?? '—'}–{data.confidence_interval?.high ?? '—'}%</p>
             <p className="text-[9px] text-muted-foreground">Confidence Interval</p>
           </div>
         </div>
