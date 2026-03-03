@@ -759,21 +759,8 @@ const AuthPage = () => {
         {/* Security Badge */}
         <SecurityBadge />
 
-        {/* Toggle Login/Signup — pinned to bottom */}
-        <div className="mt-auto pb-8 pt-3 relative z-10">
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="text-center text-xs"
-            style={{ color: "#ffffff35" }}
-          >
-            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button onClick={() => setIsLogin(!isLogin)} className="font-medium hover:underline" style={{ color: accentColor }}>
-              {isLogin ? "Sign up" : "Sign in"}
-            </button>
-          </motion.p>
-        </div>
+        {/* Bottom spacer */}
+        <div className="mt-auto pb-8" />
       </div>
     </div>
   );
