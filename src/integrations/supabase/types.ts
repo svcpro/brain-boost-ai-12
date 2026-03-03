@@ -9412,6 +9412,33 @@ export type Database = {
           },
         ]
       }
+      whatsapp_otps: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          mobile: string
+          otp: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          mobile: string
+          otp: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          mobile?: string
+          otp?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       whatsapp_queue: {
         Row: {
           category: string | null
