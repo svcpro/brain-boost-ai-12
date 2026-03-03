@@ -34,8 +34,7 @@ Deno.serve(async (req) => {
     }
 
     /* ═══ SEND OTP ═══ */
-    if (action === "send" || action === "send_whatsapp") {
-      // Step 1: Send OTP via SMS (generates and stores the OTP in MSG91)
+    if (action === "send") {
       const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${normalizedMobile}&authkey=${authKey}&otp_expiry=5&otp_length=4&realTimeResponse=1`;
       const resp = await fetch(url, {
         method: "POST",
@@ -48,22 +47,67 @@ Deno.serve(async (req) => {
         return json({ error: data.message || "Failed to send OTP", details: data }, 400);
       }
 
-      // Step 2: If WhatsApp requested, immediately retry via WhatsApp channel
-      if (action === "send_whatsapp") {
-        const retryUrl = `https://control.msg91.com/api/v5/otp/retry?authkey=${authKey}&retrytype=whatsapp&mobile=${normalizedMobile}`;
-        const retryResp = await fetch(retryUrl, { method: "GET" });
-        const retryData = await retryResp.json();
-        console.log("[MSG91] WhatsApp retry response:", JSON.stringify(retryData));
-
-        return json({
-          success: true,
-          message: "OTP sent via WhatsApp",
-          type: retryData.type,
-          channel: "whatsapp",
-        });
-      }
-
       return json({ success: true, message: "OTP sent successfully", type: data.type });
+    }
+
+    /* ═══ SEND OTP VIA WHATSAPP (Direct Template API) ═══ */
+    if (action === "send_whatsapp") {
+      // Generate a 4-digit OTP
+      const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
+
+      // Step 1: Register OTP with MSG91 so verify endpoint works
+      const registerUrl = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${normalizedMobile}&authkey=${authKey}&otp=${generatedOtp}&otp_expiry=5&otp_length=4&realTimeResponse=1`;
+      const registerResp = await fetch(registerUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const registerData = await registerResp.json();
+      console.log("[MSG91] Register OTP for WhatsApp:", JSON.stringify(registerData));
+
+      // Step 2: Send OTP via WhatsApp direct template API
+      const whatsappPayload = {
+        integrated_number: "919211788450",
+        content_type: "template",
+        payload: {
+          messaging_product: "whatsapp",
+          type: "template",
+          template: {
+            name: "acry_login_otp",
+            language: { code: "en", policy: "deterministic" },
+            namespace: "34be867f_2430_42e1_bcd8_1831c618f724",
+            to_and_components: [
+              {
+                to: [normalizedMobile],
+                components: {
+                  body_1: { type: "text", value: generatedOtp },
+                  button_1: { subtype: "url", type: "text", value: generatedOtp },
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const waResp = await fetch(
+        "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authkey: authKey,
+          },
+          body: JSON.stringify(whatsappPayload),
+        }
+      );
+      const waData = await waResp.json();
+      console.log("[MSG91] WhatsApp template response:", JSON.stringify(waData));
+
+      return json({
+        success: true,
+        message: "OTP sent via WhatsApp",
+        channel: "whatsapp",
+        whatsapp_response: waData,
+      });
     }
 
     /* ═══ VERIFY OTP ═══ */
@@ -189,16 +233,57 @@ Deno.serve(async (req) => {
       });
     }
 
-    /* ═══ RESEND OTP VIA WHATSAPP ═══ */
+    /* ═══ RESEND OTP VIA WHATSAPP (Direct Template API) ═══ */
     if (action === "resend_whatsapp") {
-      const url = `https://control.msg91.com/api/v5/otp/retry?authkey=${authKey}&retrytype=whatsapp&mobile=${normalizedMobile}`;
-      const resp = await fetch(url, { method: "GET" });
-      const data = await resp.json();
-      console.log("[MSG91] Resend WhatsApp OTP response:", JSON.stringify(data));
+      // Generate new OTP and re-register with MSG91
+      const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
+
+      const registerUrl = `https://control.msg91.com/api/v5/otp/retry?authkey=${authKey}&retrytype=text&mobile=${normalizedMobile}`;
+      await fetch(registerUrl, { method: "GET" });
+
+      // Re-register with specific OTP
+      const reRegUrl = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${normalizedMobile}&authkey=${authKey}&otp=${generatedOtp}&otp_expiry=5&otp_length=4&realTimeResponse=1`;
+      await fetch(reRegUrl, { method: "POST", headers: { "Content-Type": "application/json" } });
+
+      // Send via WhatsApp template
+      const whatsappPayload = {
+        integrated_number: "919211788450",
+        content_type: "template",
+        payload: {
+          messaging_product: "whatsapp",
+          type: "template",
+          template: {
+            name: "acry_login_otp",
+            language: { code: "en", policy: "deterministic" },
+            namespace: "34be867f_2430_42e1_bcd8_1831c618f724",
+            to_and_components: [
+              {
+                to: [normalizedMobile],
+                components: {
+                  body_1: { type: "text", value: generatedOtp },
+                  button_1: { subtype: "url", type: "text", value: generatedOtp },
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const waResp = await fetch(
+        "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", authkey: authKey },
+          body: JSON.stringify(whatsappPayload),
+        }
+      );
+      const waData = await waResp.json();
+      console.log("[MSG91] Resend WhatsApp template response:", JSON.stringify(waData));
 
       return json({
-        success: data.type === "success",
-        message: data.message || (data.type === "success" ? "OTP resent via WhatsApp" : "Failed to resend"),
+        success: true,
+        message: "OTP resent via WhatsApp",
+        channel: "whatsapp",
       });
     }
 
