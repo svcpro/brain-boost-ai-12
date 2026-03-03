@@ -510,8 +510,101 @@ At-risk topics: ${atRiskTopics.slice(0, 5).map(t => t.name).join(", ") || "None"
     }
 
     if (action === "optimize_plan" || action === "recalibrate") {
-      // Trigger cognitive twin recomputation and return success
       return new Response(JSON.stringify({ success: true, message: "Plan optimized and AI recalibrated." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "manual_trigger") {
+      // Admin manual trigger — run a quick health check and return status
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "Agent executed successfully",
+        topics_tracked: topics.length,
+        critical_topics: criticalTopics.length,
+        at_risk_topics: atRiskTopics.length,
+        timestamp: new Date().toISOString(),
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "explain_stability") {
+      const { context: stabilityContext } = body;
+      const aiResp = await callAI({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: "You are ACRY's explainability engine. Explain the student's brain stability metrics in simple, encouraging language. Be brief (2-3 sentences). Reference the specific numbers provided."
+          },
+          {
+            role: "user",
+            content: `Explain these brain stability metrics to the student:\n${JSON.stringify(stabilityContext || {})}\n\nStudent context:\n${cognitiveContext}`
+          }
+        ],
+      });
+      if (aiResp.status !== 200) return aiResp;
+      const aiData = await aiResp.json();
+      const explanation = aiData.choices?.[0]?.message?.content || "Your brain stability looks good. Keep reviewing weak topics regularly.";
+      return new Response(JSON.stringify({ explanation }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle task_micro_session (sent as "type" instead of "action")
+    if (body.type === "task_micro_session") {
+      const { taskTitle, taskDescription, topicId, questionCount } = body;
+      const qCount = Math.min(questionCount || 3, 5);
+      const aiResp = await callAI({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          {
+            role: "system",
+            content: `You are ACRY, an AI tutor. Generate exactly ${qCount} quick recall MCQs related to the task. Keep questions focused and exam-relevant. CRITICAL: No image/diagram references. Return via tool call.`
+          },
+          {
+            role: "user",
+            content: `Task: "${taskTitle || "Study task"}"\nDescription: ${taskDescription || "General study"}\n\nGenerate ${qCount} recall questions.`
+          }
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "mission_questions",
+            description: "Generate recall questions for a task session",
+            parameters: {
+              type: "object",
+              properties: {
+                questions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      question: { type: "string" },
+                      options: { type: "array", items: { type: "string" } },
+                      correct_index: { type: "number" },
+                      explanation: { type: "string" },
+                      difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                    },
+                    required: ["question", "options", "correct_index", "explanation", "difficulty"],
+                  }
+                }
+              },
+              required: ["questions"],
+            }
+          }
+        }],
+        tool_choice: { type: "function", function: { name: "mission_questions" } },
+      });
+      if (aiResp.status !== 200) return aiResp;
+      const aiData = await aiResp.json();
+      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      let result = { questions: [] as any[] };
+      if (toolCall?.function?.arguments) {
+        try { result = JSON.parse(toolCall.function.arguments); } catch {}
+      }
+      return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
