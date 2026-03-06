@@ -45,6 +45,77 @@
 
   <body>
     <div id="root"></div>
+
+    <script>
+      (function () {
+        const RECOVERY_FLAG = "acry_blank_recovery_attempted";
+        const BLANK_CHECK_DELAY_MS = 4000;
+        const alreadyAttempted = sessionStorage.getItem(RECOVERY_FLAG) === "1";
+
+        const isChunkLoadError = (message) => {
+          if (typeof message !== "string") return false;
+          return (
+            message.includes("Failed to fetch dynamically imported module") ||
+            message.includes("Loading chunk") ||
+            message.includes("Importing a module script failed")
+          );
+        };
+
+        const purgeCachesAndWorkers = async () => {
+          try {
+            if ("caches" in window) {
+              const cacheNames = await caches.keys();
+              await Promise.all(cacheNames.map((name) => caches.delete(name)));
+            }
+          } catch (_) {}
+
+          try {
+            if ("serviceWorker" in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map((reg) => reg.unregister()));
+            }
+          } catch (_) {}
+        };
+
+        const recoverFromBlank = async () => {
+          if (sessionStorage.getItem(RECOVERY_FLAG) === "1") return;
+          sessionStorage.setItem(RECOVERY_FLAG, "1");
+          await purgeCachesAndWorkers();
+
+          const next = new URL(window.location.href);
+          next.searchParams.set("_cache_bust", String(Date.now()));
+          window.location.replace(next.toString());
+        };
+
+        window.addEventListener("error", (event) => {
+          const msg = event?.message || event?.error?.message || "";
+          if (isChunkLoadError(msg)) recoverFromBlank();
+        });
+
+        window.addEventListener("unhandledrejection", (event) => {
+          const msg = event?.reason?.message || String(event?.reason || "");
+          if (isChunkLoadError(msg)) {
+            event.preventDefault?.();
+            recoverFromBlank();
+          }
+        });
+
+        window.addEventListener("DOMContentLoaded", () => {
+          window.setTimeout(() => {
+            const root = document.getElementById("root");
+            if (!root || alreadyAttempted) return;
+
+            const hasMountedContent =
+              root.childElementCount > 0 || (root.textContent || "").trim().length > 0;
+
+            if (!hasMountedContent) {
+              recoverFromBlank();
+            }
+          }, BLANK_CHECK_DELAY_MS);
+        });
+      })();
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
