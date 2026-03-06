@@ -48,9 +48,12 @@
 
     <script>
       (function () {
-        const RECOVERY_FLAG = "acry_blank_recovery_attempted";
-        const BLANK_CHECK_DELAY_MS = 4000;
-        const alreadyAttempted = sessionStorage.getItem(RECOVERY_FLAG) === "1";
+        const RECOVERY_KEY = "acry_blank_recovery_count";
+        const RECOVERY_MAX_ATTEMPTS = 2;
+        const BLANK_CHECK_DELAY_MS = 4500;
+
+        const getRecoveryCount = () => Number(sessionStorage.getItem(RECOVERY_KEY) || "0");
+        const setRecoveryCount = (count) => sessionStorage.setItem(RECOVERY_KEY, String(count));
 
         const isChunkLoadError = (message) => {
           if (typeof message !== "string") return false;
@@ -59,6 +62,20 @@
             message.includes("Loading chunk") ||
             message.includes("Importing a module script failed")
           );
+        };
+
+        const isReactBootstrapError = (message, stack) => {
+          const combined = `${message || ""} ${stack || ""}`;
+          return (
+            combined.includes("__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED") ||
+            combined.includes("Cannot read properties of undefined (reading 'useContext')") ||
+            combined.includes("Cannot read properties of undefined (reading 'useRef')") ||
+            combined.includes("Cannot read properties of undefined (reading 'createElement')")
+          );
+        };
+
+        const shouldRecover = (message, stack) => {
+          return isChunkLoadError(message) || isReactBootstrapError(message, stack);
         };
 
         const purgeCachesAndWorkers = async () => {
@@ -77,40 +94,81 @@
           } catch (_) {}
         };
 
-        const recoverFromBlank = async () => {
-          if (sessionStorage.getItem(RECOVERY_FLAG) === "1") return;
-          sessionStorage.setItem(RECOVERY_FLAG, "1");
+        const showRecoveryFallback = () => {
+          const root = document.getElementById("root");
+          if (!root) return;
+
+          root.innerHTML = `
+            <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b0e1a;color:#e2e8f0;font-family:Inter,sans-serif;">
+              <div style="max-width:420px;text-align:center;border:1px solid rgba(148,163,184,.25);border-radius:16px;padding:24px;background:rgba(15,23,42,.45)">
+                <h1 style="margin:0 0 10px;font-size:20px;font-weight:700;">We hit a loading issue</h1>
+                <p style="margin:0 0 16px;font-size:14px;line-height:1.5;opacity:.9;">Please refresh once more to load the latest version.</p>
+                <button id="acry-reload-btn" style="cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:600;background:#38bdf8;color:#0b0e1a;">Reload now</button>
+              </div>
+            </div>
+          `;
+
+          const button = document.getElementById("acry-reload-btn");
+          button?.addEventListener("click", () => {
+            sessionStorage.removeItem(RECOVERY_KEY);
+            const next = new URL(window.location.href);
+            next.searchParams.set("_cache_bust", String(Date.now()));
+            window.location.replace(next.toString());
+          });
+        };
+
+        const recoverFromBlank = async (reason) => {
+          const attempts = getRecoveryCount();
+          if (attempts >= RECOVERY_MAX_ATTEMPTS) {
+            showRecoveryFallback();
+            return;
+          }
+
+          setRecoveryCount(attempts + 1);
           await purgeCachesAndWorkers();
 
           const next = new URL(window.location.href);
           next.searchParams.set("_cache_bust", String(Date.now()));
+          next.searchParams.set("_recover", reason || "runtime");
           window.location.replace(next.toString());
         };
 
         window.addEventListener("error", (event) => {
-          const msg = event?.message || event?.error?.message || "";
-          if (isChunkLoadError(msg)) recoverFromBlank();
+          const message = event?.message || event?.error?.message || "";
+          const stack = event?.error?.stack || "";
+          if (shouldRecover(message, stack)) recoverFromBlank("error");
         });
 
         window.addEventListener("unhandledrejection", (event) => {
-          const msg = event?.reason?.message || String(event?.reason || "");
-          if (isChunkLoadError(msg)) {
+          const reason = event?.reason;
+          const message = reason?.message || String(reason || "");
+          const stack = reason?.stack || "";
+
+          if (shouldRecover(message, stack)) {
             event.preventDefault?.();
-            recoverFromBlank();
+            recoverFromBlank("promise");
           }
         });
 
         window.addEventListener("DOMContentLoaded", () => {
           window.setTimeout(() => {
             const root = document.getElementById("root");
-            if (!root || alreadyAttempted) return;
+            if (!root) return;
 
             const hasMountedContent =
               root.childElementCount > 0 || (root.textContent || "").trim().length > 0;
 
-            if (!hasMountedContent) {
-              recoverFromBlank();
+            if (hasMountedContent) {
+              setRecoveryCount(0);
+              return;
             }
+
+            if (getRecoveryCount() >= RECOVERY_MAX_ATTEMPTS) {
+              showRecoveryFallback();
+              return;
+            }
+
+            recoverFromBlank("blank-root");
           }, BLANK_CHECK_DELAY_MS);
         });
       })();
