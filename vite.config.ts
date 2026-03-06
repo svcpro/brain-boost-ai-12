@@ -76,14 +76,5 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: "esnext",
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          ui: ["framer-motion", "recharts"],
-          supabase: ["@supabase/supabase-js"],
-        },
-      },
-    },
   },
 }));
