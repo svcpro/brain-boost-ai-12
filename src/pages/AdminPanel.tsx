@@ -59,7 +59,8 @@ import PolicyPredictorAdmin from "@/components/admin/ai-command/PolicyPredictorA
 import DebateEngineAdmin from "@/components/admin/ai-command/DebateEngineAdmin";
 import CompetitiveIntelAdmin from "@/components/admin/ai-command/CompetitiveIntelAdmin";
 import AdminBackup from "@/components/admin/AdminBackup";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup";
+import SmsCommandCenter from "@/components/admin/SmsCommandCenter";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -143,6 +144,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
       { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
       { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
+      { key: "sms", label: "SMS Command Center", icon: Smartphone, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-blue-500/20 text-blue-400" },
     ],
   },
   {
@@ -569,6 +571,7 @@ const AdminPanel = () => {
               {section === "push" && <PushNotificationManagement />}
               {section === "voice" && <VoiceNotificationManagement />}
               {section === "email" && <EmailManagement />}
+              {section === "sms" && <SmsCommandCenter />}
               {section === "notify_intelligence" && <NotificationIntelligence />}
               {section === "growth_center" && <GrowthControlCenter />}
               {section === "coming_soon" && <ComingSoonControlPanel />}
