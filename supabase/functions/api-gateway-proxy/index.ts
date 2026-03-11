@@ -9,6 +9,20 @@ const corsHeaders = {
 const DEFAULT_TARGET_BASE = "https://api.acry.ai/v1";
 const FALLBACK_TARGET_BASE = "https://api.acry.app/v1";
 
+// Known edge functions that should route directly to Supabase Functions
+const EDGE_FUNCTION_PATHS = new Set([
+  "msg91-otp",
+  "api-gateway-proxy",
+  "ai-brain-agent",
+  "rl-agent",
+  "burnout-detection",
+  "memory-engine",
+  "adaptive-difficulty",
+  "cognitive-twin",
+  "meta-learning",
+  "continual-learning",
+]);
+
 const normalizeTargetBase = (rawBase?: unknown) => {
   const candidate = typeof rawBase === "string" ? rawBase.trim().replace(/\/+$/g, "") : "";
   if (!candidate) return DEFAULT_TARGET_BASE;
@@ -62,6 +76,51 @@ serve(async (req) => {
 
     if (!path) {
       return json({ ok: false, status_code: 400, error: "Missing path" });
+    }
+
+    // Check if this is a known edge function — route directly to Supabase Functions
+    const pathSegments = path.split("/");
+    const firstSegment = pathSegments[0];
+    if (EDGE_FUNCTION_PATHS.has(firstSegment)) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const functionUrl = `${supabaseUrl}/functions/v1/${path}`;
+
+      const edgeHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        apikey: Deno.env.get("SUPABASE_ANON_KEY") || "",
+        Authorization: authHeader,
+      };
+
+      try {
+        const edgeMethod = method === "GET" ? "POST" : method; // Edge functions typically use POST
+        const edgeResp = await fetch(functionUrl, {
+          method: edgeMethod,
+          headers: edgeHeaders,
+          body: JSON.stringify(body ?? {}),
+        });
+
+        const raw = await edgeResp.text();
+        let parsed: unknown = raw;
+        try { parsed = raw ? JSON.parse(raw) : null; } catch { /* keep raw */ }
+
+        return json({
+          ok: edgeResp.ok,
+          status_code: edgeResp.status,
+          error: edgeResp.ok ? null : (typeof parsed === "object" && parsed ? (parsed as any).error || `Edge function error (${edgeResp.status})` : `Edge function error (${edgeResp.status})`),
+          data: parsed,
+          target_url: functionUrl,
+          target_base: `${supabaseUrl}/functions/v1`,
+          details: edgeResp.ok ? null : "Routed directly to edge function",
+        });
+      } catch (e) {
+        return json({
+          ok: false,
+          status_code: 503,
+          error: e instanceof Error ? e.message : "Edge function unreachable",
+          target_url: functionUrl,
+          target_base: `${supabaseUrl}/functions/v1`,
+        });
+      }
     }
 
     const forwardHeaders: Record<string, string> = {
