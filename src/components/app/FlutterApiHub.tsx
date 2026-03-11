@@ -1247,11 +1247,13 @@ const ApiTesterSection = () => {
             continue;
           }
 
-          finalStatus = Number(proxyRes.status_code || (proxyRes.ok ? 200 : 500));
-          finalParsed = proxyRes.ok
-            ? proxyRes.data
+          // Support both old format (ok/status_code) and new format (success/message)
+          const isOk = proxyRes.ok === true || proxyRes.success === true;
+          finalStatus = Number(proxyRes.status_code || (isOk ? 200 : 500));
+          finalParsed = isOk
+            ? (proxyRes.data ?? proxyRes)
             : {
-                message: proxyRes.error || "Request failed",
+                message: proxyRes.error || proxyRes.message || "Request failed",
                 details: proxyRes.details,
                 target_url: proxyRes.target_url,
                 target_base: proxyRes.target_base,
