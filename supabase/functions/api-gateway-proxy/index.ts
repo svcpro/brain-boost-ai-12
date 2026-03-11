@@ -104,13 +104,9 @@ serve(async (req) => {
         try { parsed = raw ? JSON.parse(raw) : null; } catch { /* keep raw */ }
 
         return json({
-          ok: edgeResp.ok,
-          status_code: edgeResp.status,
-          error: edgeResp.ok ? null : (typeof parsed === "object" && parsed ? (parsed as any).error || `Edge function error (${edgeResp.status})` : `Edge function error (${edgeResp.status})`),
+          success: edgeResp.ok,
+          message: edgeResp.ok ? "OK" : "Error",
           data: parsed,
-          target_url: functionUrl,
-          target_base: `${supabaseUrl}/functions/v1`,
-          details: edgeResp.ok ? null : "Routed directly to edge function",
         });
       } catch (e) {
         return json({
