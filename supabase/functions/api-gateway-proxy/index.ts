@@ -103,18 +103,23 @@ serve(async (req) => {
         let parsed: unknown = raw;
         try { parsed = raw ? JSON.parse(raw) : null; } catch { /* keep raw */ }
 
-        return json({
+        const statusCode = edgeResp.status;
+        return new Response(JSON.stringify({
           success: edgeResp.ok,
-          message: edgeResp.ok ? "OK" : "Error",
+          message: edgeResp.ok ? "OK" : (typeof parsed === "object" && parsed ? (parsed as any).error || "Error" : "Error"),
           data: parsed,
+        }), {
+          status: statusCode,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } catch (e) {
-        return json({
-          ok: false,
-          status_code: 503,
-          error: e instanceof Error ? e.message : "Edge function unreachable",
-          target_url: functionUrl,
-          target_base: `${supabaseUrl}/functions/v1`,
+        return new Response(JSON.stringify({
+          success: false,
+          message: e instanceof Error ? e.message : "Edge function unreachable",
+          data: null,
+        }), {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
