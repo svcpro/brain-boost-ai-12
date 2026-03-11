@@ -9,6 +9,20 @@ const corsHeaders = {
 const DEFAULT_TARGET_BASE = "https://api.acry.ai/v1";
 const FALLBACK_TARGET_BASE = "https://api.acry.app/v1";
 
+// Known edge functions that should route directly to Supabase Functions
+const EDGE_FUNCTION_PATHS = new Set([
+  "msg91-otp",
+  "api-gateway-proxy",
+  "ai-brain-agent",
+  "rl-agent",
+  "burnout-detection",
+  "memory-engine",
+  "adaptive-difficulty",
+  "cognitive-twin",
+  "meta-learning",
+  "continual-learning",
+]);
+
 const normalizeTargetBase = (rawBase?: unknown) => {
   const candidate = typeof rawBase === "string" ? rawBase.trim().replace(/\/+$/g, "") : "";
   if (!candidate) return DEFAULT_TARGET_BASE;
