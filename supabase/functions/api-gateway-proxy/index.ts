@@ -100,7 +100,15 @@ serve(async (req) => {
     const body = method === "GET" || method === "HEAD"
       ? undefined
       : hasEnvelope
-        ? payload.body
+        ? (payload.body !== undefined ? payload.body : (() => {
+            // If envelope keys are present but no explicit "body", extract non-envelope fields as body
+            const envelopeKeys = new Set(["method", "path", "query", "body", "base_url"]);
+            const extracted: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(payload)) {
+              if (!envelopeKeys.has(k)) extracted[k] = v;
+            }
+            return Object.keys(extracted).length > 0 ? extracted : {};
+          })())
         : parsedPayload;
     const requestedBase = normalizeTargetBase(hasEnvelope ? payload.base_url : undefined);
     const candidateBases = Array.from(new Set([requestedBase, DEFAULT_TARGET_BASE, FALLBACK_TARGET_BASE]));
