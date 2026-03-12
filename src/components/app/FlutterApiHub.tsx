@@ -1247,11 +1247,38 @@ const ApiTesterSection = () => {
             continue;
           }
 
-          // Support both old format (ok/status_code) and new format (success/message)
-          const isOk = proxyRes.ok === true || proxyRes.success === true;
-          finalStatus = Number(proxyRes.status_code || (isOk ? 200 : 500));
+          // Support old/new proxy formats and recover from nested wrappers
+          const hasSuccessFlag = (value: any) =>
+            Boolean(value && typeof value === "object" && (value.ok === true || value.success === true));
+
+          const normalizedSuccessPayload = hasSuccessFlag(proxyRes?.data?.data)
+            ? proxyRes.data.data
+            : hasSuccessFlag(proxyRes?.data)
+              ? proxyRes.data
+              : hasSuccessFlag(proxyRes)
+                ? proxyRes
+                : (proxyRes.data ?? proxyRes);
+
+          const isOk =
+            hasSuccessFlag(proxyRes) ||
+            hasSuccessFlag(proxyRes?.data) ||
+            hasSuccessFlag(proxyRes?.data?.data);
+
+          const rawStatus = Number(
+            proxyRes.status_code ??
+            proxyRes.status ??
+            proxyRes?.data?.status_code ??
+            proxyRes?.data?.status
+          );
+
+          finalStatus = Number.isFinite(rawStatus) && rawStatus > 0
+            ? rawStatus
+            : (isOk ? 200 : 500);
+
+          if (isOk && finalStatus >= 400) finalStatus = 200;
+
           finalParsed = isOk
-            ? (proxyRes.data ?? proxyRes)
+            ? normalizedSuccessPayload
             : {
                 message: proxyRes.error || proxyRes.message || "Request failed",
                 details: proxyRes.details,
