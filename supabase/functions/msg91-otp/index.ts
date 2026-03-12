@@ -26,7 +26,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, mobile, otp } = await req.json();
+    const url = new URL(req.url);
+    let action: string | undefined;
+    let mobile: string | undefined;
+    let otp: string | undefined;
+
+    // Try JSON body first, fall back to query params
+    try {
+      const body = await req.json();
+      action = body.action;
+      mobile = body.mobile;
+      otp = body.otp;
+    } catch {
+      // No JSON body — use query params
+    }
+
+    // Merge query params (they take priority if present)
+    action = url.searchParams.get("action") || action;
+    mobile = url.searchParams.get("mobile") || mobile;
+    otp = url.searchParams.get("otp") || otp;
+
     const authKey = Deno.env.get("MSG91_AUTH_KEY");
     const templateId = Deno.env.get("MSG91_TEMPLATE_ID");
 
