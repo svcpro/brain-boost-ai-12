@@ -1,10 +1,19 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+/* ═══════════════════════════════════════════════════════════
+   MSG91 OTP Edge Function — aligned with official docs:
+   https://docs.msg91.com/otp/sendotp
+   https://docs.msg91.com/otp/verify-otp
+   https://docs.msg91.com/otp/resend-otp
+   ═══════════════════════════════════════════════════════════ */
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// ─── Utilities ───────────────────────────────────────────
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -20,81 +29,361 @@ function getAdminClient() {
   );
 }
 
+/** Normalize Indian mobile numbers to 91XXXXXXXXXX format */
 function normalizeIndianMobile(rawMobile: unknown): string | null {
   if (rawMobile === null || rawMobile === undefined) return null;
+  const raw = typeof rawMobile === "string" || typeof rawMobile === "number" ? String(rawMobile) : "";
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
 
-  const raw = typeof rawMobile === "string" || typeof rawMobile === "number"
-    ? String(rawMobile)
-    : "";
+  const cleaned = digits.startsWith("00") ? digits.slice(2) : digits;
 
-  const digitsOnly = raw.replace(/\D/g, "");
-  if (!digitsOnly) return null;
-
-  const withoutIntlPrefix = digitsOnly.startsWith("00")
-    ? digitsOnly.slice(2)
-    : digitsOnly;
-
-  // 10-digit local number -> convert to 91XXXXXXXXXX
-  if (/^\d{10}$/.test(withoutIntlPrefix)) {
-    return `91${withoutIntlPrefix}`;
-  }
-
-  // 0XXXXXXXXXX -> trim leading 0 and convert
-  if (/^0\d{10}$/.test(withoutIntlPrefix)) {
-    return `91${withoutIntlPrefix.slice(1)}`;
-  }
-
-  // Already with country code 91
-  if (/^91\d{10}$/.test(withoutIntlPrefix)) {
-    return withoutIntlPrefix;
-  }
+  if (/^\d{10}$/.test(cleaned)) return `91${cleaned}`;
+  if (/^0\d{10}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
+  if (/^91\d{10}$/.test(cleaned)) return cleaned;
 
   return null;
 }
 
-function toParamString(value: unknown): string | undefined {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
+// ─── Parameter Extraction ────────────────────────────────
 
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(Math.trunc(value));
-  }
-
+function toStr(v: unknown): string | undefined {
+  if (typeof v === "string") { const t = v.trim(); return t.length > 0 ? t : undefined; }
+  if (typeof v === "number" && Number.isFinite(v)) return String(Math.trunc(v));
   return undefined;
 }
 
-function readParam(source: unknown, key: string): string | undefined {
-  if (!source || typeof source !== "object" || Array.isArray(source)) return undefined;
-  return toParamString((source as Record<string, unknown>)[key]);
+function readParam(src: unknown, key: string): string | undefined {
+  if (!src || typeof src !== "object" || Array.isArray(src)) return undefined;
+  return toStr((src as Record<string, unknown>)[key]);
 }
 
-function toSearchParams(value: unknown): URLSearchParams {
-  if (!value) return new URLSearchParams();
+function extractParams(req: Request, url: URL, decodedPath: string, bodyPayload: Record<string, unknown>) {
+  const embeddedQS = decodedPath.includes("?") ? decodedPath.split("?").slice(1).join("?") : "";
+  const embeddedParams = new URLSearchParams(embeddedQS);
 
-  if (typeof value === "string") {
-    return new URLSearchParams(value.startsWith("?") ? value.slice(1) : value);
+  const bodyNested = bodyPayload.body && typeof bodyPayload.body === "object" && !Array.isArray(bodyPayload.body)
+    ? bodyPayload.body as Record<string, unknown> : undefined;
+
+  const bodyQueryParams = bodyPayload.query ? new URLSearchParams(
+    Object.entries(bodyPayload.query as Record<string, unknown>)
+      .filter(([, v]) => Boolean(toStr(v)))
+      .map(([k, v]) => [k, toStr(v) as string])
+  ) : new URLSearchParams();
+
+  const bodyPathStr = typeof bodyPayload.path === "string" && bodyPayload.path.includes("?")
+    ? new URLSearchParams(bodyPayload.path.split("?").slice(1).join("?")) : new URLSearchParams();
+
+  const pick = (key: string) =>
+    toStr(url.searchParams.get(key)) ||
+    toStr(embeddedParams.get(key)) ||
+    toStr(bodyQueryParams.get(key)) ||
+    toStr(bodyPathStr.get(key)) ||
+    readParam(bodyPayload, key) ||
+    readParam(bodyNested, key);
+
+  let action = pick("action");
+  let mobile = pick("mobile");
+  const otp = pick("otp");
+
+  // Fallback: check proxy headers for mobile
+  if (!mobile) {
+    for (const hdr of ["x-original-url", "x-forwarded-uri", "x-rewrite-url", "x-original-uri"]) {
+      const val = req.headers.get(hdr);
+      if (!val) continue;
+      const qs = val.includes("?") ? val.split("?").slice(1).join("?") : "";
+      const hp = new URLSearchParams(qs);
+      if (!action) action = toStr(hp.get("action"));
+      const m = toStr(hp.get("mobile"));
+      if (m) { mobile = m; break; }
+    }
   }
 
-  if (typeof value === "object" && !Array.isArray(value)) {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => [k, toParamString(v)] as const)
-      .filter(([, v]) => Boolean(v))
-      .map(([k, v]) => [k, v as string]);
-    return new URLSearchParams(entries);
+  // Fallback: action from path segment
+  if (!action) {
+    const lastSeg = decodedPath.split("/").filter(Boolean).pop() || "";
+    const map: Record<string, string> = {
+      send: "send", "send-whatsapp": "send_whatsapp",
+      verify: "verify", resend: "resend", "resend-whatsapp": "resend_whatsapp",
+    };
+    action = map[lastSeg] || action;
   }
 
-  return new URLSearchParams();
+  return { action, mobile, otp };
 }
 
-function extractPathParams(pathValue: unknown): URLSearchParams {
-  if (typeof pathValue !== "string" || !pathValue.includes("?")) {
-    return new URLSearchParams();
+async function parseBody(req: Request): Promise<Record<string, unknown>> {
+  if (req.method === "GET" || req.method === "HEAD") return {};
+  const raw = await req.text();
+  if (!raw.trim()) return {};
+
+  const ct = (req.headers.get("content-type") || "").toLowerCase();
+  const trimmed = raw.trim();
+
+  // Try JSON first
+  if (ct.includes("application/json") || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    } catch { /* fall through */ }
   }
 
-  return new URLSearchParams(pathValue.split("?").slice(1).join("?"));
+  // Try form-encoded
+  const fp = new URLSearchParams(trimmed.startsWith("?") ? trimmed.slice(1) : trimmed);
+  if (Array.from(fp.keys()).length > 0) return Object.fromEntries(fp.entries());
+
+  return {};
 }
+
+// ─── MSG91 API Calls (per official docs) ─────────────────
+
+/**
+ * POST https://control.msg91.com/api/v5/otp
+ * Query: template_id, mobile
+ * Headers: authkey, Content-Type: application/json
+ * Optional query: otp_expiry, otp_length, realTimeResponse
+ */
+async function msg91SendOTP(authKey: string, templateId: string, mobile: string) {
+  const url = new URL("https://control.msg91.com/api/v5/otp");
+  url.searchParams.set("template_id", templateId);
+  url.searchParams.set("mobile", mobile);
+  url.searchParams.set("otp_expiry", "5");
+  url.searchParams.set("otp_length", "4");
+  url.searchParams.set("realTimeResponse", "1");
+
+  const resp = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authkey: authKey,
+    },
+  });
+  const data = await resp.json();
+  console.log("[MSG91] SendOTP response:", JSON.stringify(data));
+  return { data, ok: resp.ok };
+}
+
+/**
+ * GET https://control.msg91.com/api/v5/otp/verify
+ * Query: otp, mobile
+ * Headers: authkey
+ */
+async function msg91VerifyOTP(authKey: string, mobile: string, otp: string) {
+  const url = new URL("https://control.msg91.com/api/v5/otp/verify");
+  url.searchParams.set("otp", otp);
+  url.searchParams.set("mobile", mobile);
+
+  const resp = await fetch(url.toString(), {
+    method: "GET",
+    headers: { authkey: authKey },
+  });
+  const data = await resp.json();
+  console.log("[MSG91] VerifyOTP response:", JSON.stringify(data));
+  return { data, ok: resp.ok };
+}
+
+/**
+ * GET https://control.msg91.com/api/v5/otp/retry
+ * Query: authkey, retrytype, mobile
+ */
+async function msg91ResendOTP(authKey: string, mobile: string, retryType: string = "text") {
+  const url = new URL("https://control.msg91.com/api/v5/otp/retry");
+  url.searchParams.set("authkey", authKey);
+  url.searchParams.set("retrytype", retryType);
+  url.searchParams.set("mobile", mobile);
+
+  const resp = await fetch(url.toString(), { method: "GET" });
+  const data = await resp.json();
+  console.log("[MSG91] ResendOTP response:", JSON.stringify(data));
+  return { data, ok: resp.ok };
+}
+
+// ─── WhatsApp OTP Helpers ────────────────────────────────
+
+function generateOTP4(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, otp: string) {
+  await adminClient.from("whatsapp_otps").delete().eq("mobile", mobile).eq("verified", false);
+  const { error } = await adminClient.from("whatsapp_otps").insert({
+    mobile,
+    otp,
+    expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+  });
+  return error;
+}
+
+async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string) {
+  const payload = {
+    integrated_number: "919211788450",
+    content_type: "template",
+    payload: {
+      messaging_product: "whatsapp",
+      type: "template",
+      template: {
+        name: "acry_login_otp",
+        language: { code: "en", policy: "deterministic" },
+        namespace: "34be867f_2430_42e1_bcd8_1831c618f724",
+        to_and_components: [{
+          to: [mobile],
+          components: {
+            body_1: { type: "text", value: otp },
+            button_1: { subtype: "url", type: "text", value: otp },
+          },
+        }],
+      },
+    },
+  };
+
+  const resp = await fetch("https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", authkey: authKey },
+    body: JSON.stringify(payload),
+  });
+  const data = await resp.json();
+  console.log("[MSG91] WhatsApp template response:", JSON.stringify(data));
+  return data;
+}
+
+// ─── User Session Helpers ────────────────────────────────
+
+async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
+  const phoneE164 = `+${normalizedMobile}`;
+
+  const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+  const existingUser = existingUsers?.users?.find(
+    (u) => u.phone === phoneE164 || u.phone === normalizedMobile
+  );
+
+  if (existingUser) {
+    const { data: sessionData, error } = await adminClient.auth.admin.generateLink({
+      type: "magiclink",
+      email: existingUser.email || `${normalizedMobile}@phone.acry.ai`,
+    });
+    if (error) throw error;
+
+    return {
+      isNewUser: false,
+      userId: existingUser.id,
+      email: existingUser.email,
+      token_hash: sessionData.properties?.hashed_token,
+      verification_type: "magiclink",
+    };
+  }
+
+  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
+  const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+    phone: phoneE164,
+    email: placeholderEmail,
+    email_confirm: true,
+    phone_confirm: true,
+    user_metadata: {
+      phone: phoneE164,
+      signup_method: "mobile_otp",
+      display_name: `User${normalizedMobile.slice(-4)}`,
+    },
+  });
+
+  if (createError) throw createError;
+
+  const { data: sessionData, error: sessionError } = await adminClient.auth.admin.generateLink({
+    type: "magiclink",
+    email: placeholderEmail,
+  });
+  if (sessionError) throw sessionError;
+
+  return {
+    isNewUser: true,
+    userId: newUser.user.id,
+    token_hash: sessionData.properties?.hashed_token,
+    verification_type: "magiclink",
+  };
+}
+
+// ─── Action Handlers ─────────────────────────────────────
+
+async function handleSendSMS(authKey: string, templateId: string, mobile: string) {
+  const { data, ok } = await msg91SendOTP(authKey, templateId, mobile);
+  if (!(data.type === "success" || ok)) {
+    return json({ error: data.message || "Failed to send OTP", details: data }, 400);
+  }
+  return json({ success: true, message: "OTP sent via SMS", channel: "sms" });
+}
+
+async function handleSendWhatsApp(authKey: string, mobile: string) {
+  const otp = generateOTP4();
+  const adminClient = getAdminClient();
+
+  const storeErr = await storeWhatsAppOTP(adminClient, mobile, otp);
+  if (storeErr) {
+    console.error("[MSG91] Failed to store WhatsApp OTP:", storeErr);
+    return json({ error: "Failed to generate OTP" }, 500);
+  }
+
+  await sendWhatsAppTemplate(authKey, mobile, otp);
+  return json({ success: true, message: "OTP sent via WhatsApp only", channel: "whatsapp" });
+}
+
+async function handleVerify(authKey: string, mobile: string, otp: string | undefined) {
+  if (!otp || otp.length !== 4) {
+    return json({ error: "Invalid OTP" }, 400);
+  }
+
+  const adminClient = getAdminClient();
+
+  // Check WhatsApp OTP in DB first
+  const { data: waOtp } = await adminClient
+    .from("whatsapp_otps")
+    .select("*")
+    .eq("mobile", mobile)
+    .eq("otp", otp)
+    .eq("verified", false)
+    .gte("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  let otpVerified = false;
+
+  if (waOtp) {
+    await adminClient.from("whatsapp_otps").update({ verified: true }).eq("id", waOtp.id);
+    otpVerified = true;
+    console.log("[MSG91] WhatsApp OTP verified from DB");
+  } else {
+    // Fallback to MSG91 SMS verify (per docs: GET with authkey header)
+    const { data } = await msg91VerifyOTP(authKey, mobile, otp);
+    otpVerified = data.type === "success";
+  }
+
+  if (otpVerified) {
+    const userResult = await findOrCreateUserAndGenerateLink(adminClient, mobile);
+    return json({ success: true, verified: true, ...userResult });
+  }
+
+  return json({ success: false, verified: false, error: "OTP verification failed" }, 400);
+}
+
+async function handleResendSMS(authKey: string, mobile: string) {
+  const { data } = await msg91ResendOTP(authKey, mobile, "text");
+  return json({
+    success: data.type === "success",
+    message: data.message || (data.type === "success" ? "OTP resent via SMS" : "Failed to resend"),
+    channel: "sms",
+  });
+}
+
+async function handleResendWhatsApp(authKey: string, mobile: string) {
+  const otp = generateOTP4();
+  const adminClient = getAdminClient();
+
+  await storeWhatsAppOTP(adminClient, mobile, otp);
+  await sendWhatsAppTemplate(authKey, mobile, otp);
+
+  return json({ success: true, message: "OTP resent via WhatsApp only", channel: "whatsapp" });
+}
+
+// ─── Main Handler ────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -104,105 +393,8 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const decodedPath = decodeURIComponent(url.pathname);
-    const embeddedQueryString = decodedPath.includes("?")
-      ? decodedPath.split("?").slice(1).join("?")
-      : "";
-    const embeddedParams = new URLSearchParams(embeddedQueryString);
-
-    let action: string | undefined;
-    let mobile: string | undefined;
-    let otp: string | undefined;
-
-    const contentType = (req.headers.get("content-type") || "").toLowerCase();
-    const rawBody = req.method === "GET" || req.method === "HEAD"
-      ? ""
-      : await req.text();
-
-    let bodyPayload: Record<string, unknown> = {};
-    if (rawBody.trim().length > 0) {
-      const trimmedBody = rawBody.trim();
-      const couldBeJson =
-        contentType.includes("application/json") ||
-        trimmedBody.startsWith("{") ||
-        trimmedBody.startsWith("[");
-
-      if (couldBeJson) {
-        try {
-          const parsed = JSON.parse(trimmedBody);
-          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-            bodyPayload = parsed as Record<string, unknown>;
-          }
-        } catch {
-          // fall through to query-string parsing
-        }
-      }
-
-      if (Object.keys(bodyPayload).length === 0) {
-        const formParams = new URLSearchParams(
-          trimmedBody.startsWith("?") ? trimmedBody.slice(1) : trimmedBody,
-        );
-        if (Array.from(formParams.keys()).length > 0) {
-          bodyPayload = Object.fromEntries(formParams.entries());
-        }
-      }
-    }
-
-    const bodyNested =
-      bodyPayload.body && typeof bodyPayload.body === "object" && !Array.isArray(bodyPayload.body)
-        ? bodyPayload.body as Record<string, unknown>
-        : undefined;
-
-    const bodyQueryParams = toSearchParams(bodyPayload.query);
-    const bodyPathParams = extractPathParams(bodyPayload.path);
-
-    const pickParam = (key: "action" | "mobile" | "otp") =>
-      toParamString(url.searchParams.get(key)) ||
-      toParamString(embeddedParams.get(key)) ||
-      toParamString(bodyQueryParams.get(key)) ||
-      toParamString(bodyPathParams.get(key)) ||
-      readParam(bodyPayload, key) ||
-      readParam(bodyNested, key);
-
-    action = pickParam("action");
-    mobile = pickParam("mobile");
-    otp = pickParam("otp");
-
-    if (!mobile) {
-      const originalUrlHeaders = [
-        req.headers.get("x-original-url"),
-        req.headers.get("x-forwarded-uri"),
-        req.headers.get("x-rewrite-url"),
-        req.headers.get("x-original-uri"),
-      ].filter(Boolean) as string[];
-
-      for (const headerUrl of originalUrlHeaders) {
-        const headerQuery = headerUrl.includes("?")
-          ? headerUrl.split("?").slice(1).join("?")
-          : "";
-        const headerParams = toSearchParams(headerQuery);
-        const candidateMobile = toParamString(headerParams.get("mobile"));
-        const candidateAction = toParamString(headerParams.get("action"));
-
-        if (!action && candidateAction) action = candidateAction;
-        if (candidateMobile) {
-          mobile = candidateMobile;
-          break;
-        }
-      }
-    }
-
-    // Also support action as path segment: /msg91-otp/send, /verify, /resend, etc.
-    if (!action) {
-      const lastSegment = decodedPath.split("/").filter(Boolean).pop() || "";
-      const actionMap: Record<string, string> = {
-        send: "send",
-        "send-whatsapp": "send_whatsapp",
-        verify: "verify",
-        resend: "resend",
-        "resend-whatsapp": "resend_whatsapp",
-      };
-      action = actionMap[lastSegment] || action;
-    }
+    const bodyPayload = await parseBody(req);
+    const { action, mobile, otp } = extractParams(req, url, decodedPath, bodyPayload);
 
     const authKey = Deno.env.get("MSG91_AUTH_KEY");
     const templateId = Deno.env.get("MSG91_TEMPLATE_ID");
@@ -213,258 +405,24 @@ Deno.serve(async (req) => {
 
     const normalizedMobile = normalizeIndianMobile(mobile);
     if (!normalizedMobile) {
-      console.warn("[MSG91] Mobile parse failed", {
-        action,
-        mobile,
-        method: req.method,
-        url: req.url,
-        hasBody: rawBody.trim().length > 0,
-      });
+      console.warn("[MSG91] Mobile parse failed", { action, mobile, method: req.method, url: req.url });
       return json({ error: "Invalid mobile number. Use Indian format like 9876543210 or 919876543210" }, 400);
     }
 
-    /* ═══ SEND OTP via SMS ONLY ═══ */
-    if (action === "send") {
-      const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${normalizedMobile}&authkey=${authKey}&otp_expiry=5&otp_length=4&realTimeResponse=1`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await resp.json();
-      console.log("[MSG91] Send SMS OTP response:", JSON.stringify(data));
-
-      if (!(data.type === "success" || resp.ok)) {
-        return json({ error: data.message || "Failed to send OTP", details: data }, 400);
-      }
-
-      return json({ success: true, message: "OTP sent via SMS", channel: "sms" });
+    switch (action) {
+      case "send":
+        return await handleSendSMS(authKey, templateId, normalizedMobile);
+      case "send_whatsapp":
+        return await handleSendWhatsApp(authKey, normalizedMobile);
+      case "verify":
+        return await handleVerify(authKey, normalizedMobile, otp);
+      case "resend":
+        return await handleResendSMS(authKey, normalizedMobile);
+      case "resend_whatsapp":
+        return await handleResendWhatsApp(authKey, normalizedMobile);
+      default:
+        return json({ error: "Invalid action. Use: send, send_whatsapp, verify, resend, resend_whatsapp" }, 400);
     }
-
-    /* ═══ SEND OTP via WHATSAPP ONLY (no SMS) ═══ */
-    if (action === "send_whatsapp") {
-      const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
-      const adminClient = getAdminClient();
-
-      // Store OTP in database (NOT MSG91 — avoids SMS being sent)
-      // First, invalidate any existing OTPs for this number
-      await adminClient.from("whatsapp_otps").delete().eq("mobile", normalizedMobile).eq("verified", false);
-
-      const { error: insertErr } = await adminClient.from("whatsapp_otps").insert({
-        mobile: normalizedMobile,
-        otp: generatedOtp,
-        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-      });
-
-      if (insertErr) {
-        console.error("[MSG91] Failed to store WhatsApp OTP:", insertErr);
-        return json({ error: "Failed to generate OTP" }, 500);
-      }
-
-      // Send OTP via WhatsApp template ONLY
-      const whatsappPayload = {
-        integrated_number: "919211788450",
-        content_type: "template",
-        payload: {
-          messaging_product: "whatsapp",
-          type: "template",
-          template: {
-            name: "acry_login_otp",
-            language: { code: "en", policy: "deterministic" },
-            namespace: "34be867f_2430_42e1_bcd8_1831c618f724",
-            to_and_components: [
-              {
-                to: [normalizedMobile],
-                components: {
-                  body_1: { type: "text", value: generatedOtp },
-                  button_1: { subtype: "url", type: "text", value: generatedOtp },
-                },
-              },
-            ],
-          },
-        },
-      };
-
-      const waResp = await fetch(
-        "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", authkey: authKey },
-          body: JSON.stringify(whatsappPayload),
-        }
-      );
-      const waData = await waResp.json();
-      console.log("[MSG91] WhatsApp template response:", JSON.stringify(waData));
-
-      return json({ success: true, message: "OTP sent via WhatsApp only", channel: "whatsapp" });
-    }
-
-    /* ═══ VERIFY OTP ═══ */
-    if (action === "verify") {
-      if (!otp || otp.length !== 4) {
-        return json({ error: "Invalid OTP" }, 400);
-      }
-
-      const adminClient = getAdminClient();
-
-      // First check if there's a WhatsApp OTP stored in DB
-      const { data: waOtp } = await adminClient
-        .from("whatsapp_otps")
-        .select("*")
-        .eq("mobile", normalizedMobile)
-        .eq("otp", otp)
-        .eq("verified", false)
-        .gte("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      let otpVerified = false;
-
-      if (waOtp) {
-        // WhatsApp OTP found and matches — mark as verified
-        await adminClient.from("whatsapp_otps").update({ verified: true }).eq("id", waOtp.id);
-        otpVerified = true;
-        console.log("[MSG91] WhatsApp OTP verified from DB");
-      } else {
-        // Fall back to MSG91 verify (SMS OTP path)
-        const url = `https://control.msg91.com/api/v5/otp/verify?otp=${otp}&mobile=${normalizedMobile}`;
-        const resp = await fetch(url, {
-          method: "GET",
-          headers: { authkey: authKey },
-        });
-        const data = await resp.json();
-        console.log("[MSG91] SMS OTP verify response:", JSON.stringify(data));
-        otpVerified = data.type === "success";
-      }
-
-      if (otpVerified) {
-        const phoneE164 = `+${normalizedMobile}`;
-
-        const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-        const existingUser = existingUsers?.users?.find(
-          (u) => u.phone === phoneE164 || u.phone === normalizedMobile
-        );
-
-        if (existingUser) {
-          const { data: sessionData, error: sessionError } = await adminClient.auth.admin.generateLink({
-            type: "magiclink",
-            email: existingUser.email || `${normalizedMobile}@phone.acry.ai`,
-          });
-          if (sessionError) throw sessionError;
-
-          return json({
-            success: true,
-            verified: true,
-            isNewUser: false,
-            userId: existingUser.id,
-            email: existingUser.email,
-            token_hash: sessionData.properties?.hashed_token,
-            verification_type: "magiclink",
-          });
-        } else {
-          const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
-          const { data: newUser, error: createError } =
-            await adminClient.auth.admin.createUser({
-              phone: phoneE164,
-              email: placeholderEmail,
-              email_confirm: true,
-              phone_confirm: true,
-              user_metadata: {
-                phone: phoneE164,
-                signup_method: "mobile_otp",
-                display_name: `User${normalizedMobile.slice(-4)}`,
-              },
-            });
-
-          if (createError) {
-            console.error("[MSG91] Create user error:", createError);
-            return json({ error: createError.message }, 500);
-          }
-
-          const { data: sessionData, error: sessionError } = await adminClient.auth.admin.generateLink({
-            type: "magiclink",
-            email: placeholderEmail,
-          });
-          if (sessionError) throw sessionError;
-
-          return json({
-            success: true,
-            verified: true,
-            isNewUser: true,
-            userId: newUser.user.id,
-            token_hash: sessionData.properties?.hashed_token,
-            verification_type: "magiclink",
-          });
-        }
-      }
-
-      return json({ success: false, verified: false, error: "OTP verification failed" }, 400);
-    }
-
-    /* ═══ RESEND SMS OTP ═══ */
-    if (action === "resend") {
-      const url = `https://control.msg91.com/api/v5/otp/retry?authkey=${authKey}&retrytype=text&mobile=${normalizedMobile}`;
-      const resp = await fetch(url, { method: "GET" });
-      const data = await resp.json();
-      console.log("[MSG91] Resend SMS OTP response:", JSON.stringify(data));
-
-      return json({
-        success: data.type === "success",
-        message: data.message || (data.type === "success" ? "OTP resent via SMS" : "Failed to resend"),
-        channel: "sms",
-      });
-    }
-
-    /* ═══ RESEND WHATSAPP OTP (no SMS) ═══ */
-    if (action === "resend_whatsapp") {
-      const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
-      const adminClient = getAdminClient();
-
-      // Invalidate old and store new
-      await adminClient.from("whatsapp_otps").delete().eq("mobile", normalizedMobile).eq("verified", false);
-      await adminClient.from("whatsapp_otps").insert({
-        mobile: normalizedMobile,
-        otp: generatedOtp,
-        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-      });
-
-      // Send via WhatsApp template only
-      const whatsappPayload = {
-        integrated_number: "919211788450",
-        content_type: "template",
-        payload: {
-          messaging_product: "whatsapp",
-          type: "template",
-          template: {
-            name: "acry_login_otp",
-            language: { code: "en", policy: "deterministic" },
-            namespace: "34be867f_2430_42e1_bcd8_1831c618f724",
-            to_and_components: [
-              {
-                to: [normalizedMobile],
-                components: {
-                  body_1: { type: "text", value: generatedOtp },
-                  button_1: { subtype: "url", type: "text", value: generatedOtp },
-                },
-              },
-            ],
-          },
-        },
-      };
-
-      await fetch(
-        "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", authkey: authKey },
-          body: JSON.stringify(whatsappPayload),
-        }
-      );
-
-      return json({ success: true, message: "OTP resent via WhatsApp only", channel: "whatsapp" });
-    }
-
-    return json({ error: "Invalid action. Use: send, send_whatsapp, verify, resend, resend_whatsapp" }, 400);
   } catch (err) {
     console.error("[MSG91] Error:", err);
     return json({ error: (err as Error).message || "Internal error" }, 500);
