@@ -20,6 +20,38 @@ function getAdminClient() {
   );
 }
 
+function normalizeIndianMobile(rawMobile: unknown): string | null {
+  if (rawMobile === null || rawMobile === undefined) return null;
+
+  const raw = typeof rawMobile === "string" || typeof rawMobile === "number"
+    ? String(rawMobile)
+    : "";
+
+  const digitsOnly = raw.replace(/\D/g, "");
+  if (!digitsOnly) return null;
+
+  const withoutIntlPrefix = digitsOnly.startsWith("00")
+    ? digitsOnly.slice(2)
+    : digitsOnly;
+
+  // 10-digit local Indian number -> convert to 91XXXXXXXXXX
+  if (/^[6-9]\d{9}$/.test(withoutIntlPrefix)) {
+    return `91${withoutIntlPrefix}`;
+  }
+
+  // 0XXXXXXXXXX -> trim leading 0 and convert
+  if (/^0[6-9]\d{9}$/.test(withoutIntlPrefix)) {
+    return `91${withoutIntlPrefix.slice(1)}`;
+  }
+
+  // Already with country code 91
+  if (/^91[6-9]\d{9}$/.test(withoutIntlPrefix)) {
+    return withoutIntlPrefix;
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
