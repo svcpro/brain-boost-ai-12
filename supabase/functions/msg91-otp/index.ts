@@ -27,24 +27,43 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
+    const decodedPath = decodeURIComponent(url.pathname);
+    const embeddedQueryString = decodedPath.includes("?")
+      ? decodedPath.split("?").slice(1).join("?")
+      : "";
+    const embeddedParams = new URLSearchParams(embeddedQueryString);
+
     let action: string | undefined;
     let mobile: string | undefined;
     let otp: string | undefined;
 
-    // Try JSON body first, fall back to query params
+    // Try JSON body first, fall back to query/path params
     try {
       const body = await req.json();
       action = body.action;
       mobile = body.mobile;
       otp = body.otp;
     } catch {
-      // No JSON body — use query params
+      // No JSON body — fall through to query/path parsing
     }
 
-    // Merge query params (they take priority if present)
-    action = url.searchParams.get("action") || action;
-    mobile = url.searchParams.get("mobile") || mobile;
-    otp = url.searchParams.get("otp") || otp;
+    // Merge query params (explicit query has highest priority)
+    action = url.searchParams.get("action") || embeddedParams.get("action") || action;
+    mobile = url.searchParams.get("mobile") || embeddedParams.get("mobile") || mobile;
+    otp = url.searchParams.get("otp") || embeddedParams.get("otp") || otp;
+
+    // Also support action as path segment: /msg91-otp/send, /verify, /resend, etc.
+    if (!action) {
+      const lastSegment = decodedPath.split("/").filter(Boolean).pop() || "";
+      const actionMap: Record<string, string> = {
+        send: "send",
+        "send-whatsapp": "send_whatsapp",
+        verify: "verify",
+        resend: "resend",
+        "resend-whatsapp": "resend_whatsapp",
+      };
+      action = actionMap[lastSegment] || action;
+    }
 
     const authKey = Deno.env.get("MSG91_AUTH_KEY");
     const templateId = Deno.env.get("MSG91_TEMPLATE_ID");
