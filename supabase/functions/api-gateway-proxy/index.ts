@@ -66,12 +66,43 @@ serve(async (req) => {
       return json({ ok: false, status_code: 401, error: "Unauthorized" });
     }
 
-    const payload = await req.json();
-    const method = String(payload?.method || "GET").toUpperCase();
-    const path = String(payload?.path || "").replace(/^\/+|\/+$/g, "");
-    const query = payload?.query && typeof payload.query === "object" ? payload.query : {};
-    const body = payload?.body;
-    const requestedBase = normalizeTargetBase(payload?.base_url);
+    const requestUrl = new URL(req.url);
+    const pathFromUrl = requestUrl.pathname
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/^functions\/v1\/api-gateway-proxy\/?/i, "")
+      .replace(/^api-gateway-proxy\/?/i, "");
+
+    let parsedPayload: Record<string, unknown> | null = null;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      const rawBody = await req.text();
+      if (rawBody.trim().length > 0) {
+        try {
+          const candidate = JSON.parse(rawBody);
+          parsedPayload = candidate && typeof candidate === "object"
+            ? candidate as Record<string, unknown>
+            : { body: candidate };
+        } catch {
+          return json({ ok: false, status_code: 400, error: "Invalid JSON body" });
+        }
+      }
+    }
+
+    const payload = parsedPayload ?? {};
+    const hasEnvelope = ["method", "path", "query", "body", "base_url"].some((key) =>
+      Object.prototype.hasOwnProperty.call(payload, key)
+    );
+
+    const method = String((hasEnvelope ? payload.method : req.method) || req.method || "GET").toUpperCase();
+    const path = String((hasEnvelope ? payload.path : pathFromUrl) || pathFromUrl || "").replace(/^\/+|\/+$/g, "");
+    const query = hasEnvelope && payload.query && typeof payload.query === "object"
+      ? payload.query as Record<string, unknown>
+      : Object.fromEntries(requestUrl.searchParams.entries());
+    const body = method === "GET" || method === "HEAD"
+      ? undefined
+      : hasEnvelope
+        ? payload.body
+        : parsedPayload;
+    const requestedBase = normalizeTargetBase(hasEnvelope ? payload.base_url : undefined);
     const candidateBases = Array.from(new Set([requestedBase, DEFAULT_TARGET_BASE, FALLBACK_TARGET_BASE]));
 
     if (!path) {
