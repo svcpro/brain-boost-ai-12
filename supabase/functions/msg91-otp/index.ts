@@ -52,6 +52,50 @@ function normalizeIndianMobile(rawMobile: unknown): string | null {
   return null;
 }
 
+function toParamString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+
+  return undefined;
+}
+
+function readParam(source: unknown, key: string): string | undefined {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return undefined;
+  return toParamString((source as Record<string, unknown>)[key]);
+}
+
+function toSearchParams(value: unknown): URLSearchParams {
+  if (!value) return new URLSearchParams();
+
+  if (typeof value === "string") {
+    return new URLSearchParams(value.startsWith("?") ? value.slice(1) : value);
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => [k, toParamString(v)] as const)
+      .filter(([, v]) => Boolean(v))
+      .map(([k, v]) => [k, v as string]);
+    return new URLSearchParams(entries);
+  }
+
+  return new URLSearchParams();
+}
+
+function extractPathParams(pathValue: unknown): URLSearchParams {
+  if (typeof pathValue !== "string" || !pathValue.includes("?")) {
+    return new URLSearchParams();
+  }
+
+  return new URLSearchParams(pathValue.split("?").slice(1).join("?"));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -69,20 +113,83 @@ Deno.serve(async (req) => {
     let mobile: string | undefined;
     let otp: string | undefined;
 
-    // Try JSON body first, fall back to query/path params
-    try {
-      const body = await req.json();
-      action = body.action;
-      mobile = body.mobile;
-      otp = body.otp;
-    } catch {
-      // No JSON body — fall through to query/path parsing
+    const contentType = (req.headers.get("content-type") || "").toLowerCase();
+    const rawBody = req.method === "GET" || req.method === "HEAD"
+      ? ""
+      : await req.text();
+
+    let bodyPayload: Record<string, unknown> = {};
+    if (rawBody.trim().length > 0) {
+      const trimmedBody = rawBody.trim();
+      const couldBeJson =
+        contentType.includes("application/json") ||
+        trimmedBody.startsWith("{") ||
+        trimmedBody.startsWith("[");
+
+      if (couldBeJson) {
+        try {
+          const parsed = JSON.parse(trimmedBody);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            bodyPayload = parsed as Record<string, unknown>;
+          }
+        } catch {
+          // fall through to query-string parsing
+        }
+      }
+
+      if (Object.keys(bodyPayload).length === 0) {
+        const formParams = new URLSearchParams(
+          trimmedBody.startsWith("?") ? trimmedBody.slice(1) : trimmedBody,
+        );
+        if (Array.from(formParams.keys()).length > 0) {
+          bodyPayload = Object.fromEntries(formParams.entries());
+        }
+      }
     }
 
-    // Merge query params (explicit query has highest priority)
-    action = url.searchParams.get("action") || embeddedParams.get("action") || action;
-    mobile = url.searchParams.get("mobile") || embeddedParams.get("mobile") || mobile;
-    otp = url.searchParams.get("otp") || embeddedParams.get("otp") || otp;
+    const bodyNested =
+      bodyPayload.body && typeof bodyPayload.body === "object" && !Array.isArray(bodyPayload.body)
+        ? bodyPayload.body as Record<string, unknown>
+        : undefined;
+
+    const bodyQueryParams = toSearchParams(bodyPayload.query);
+    const bodyPathParams = extractPathParams(bodyPayload.path);
+
+    const pickParam = (key: "action" | "mobile" | "otp") =>
+      toParamString(url.searchParams.get(key)) ||
+      toParamString(embeddedParams.get(key)) ||
+      toParamString(bodyQueryParams.get(key)) ||
+      toParamString(bodyPathParams.get(key)) ||
+      readParam(bodyPayload, key) ||
+      readParam(bodyNested, key);
+
+    action = pickParam("action");
+    mobile = pickParam("mobile");
+    otp = pickParam("otp");
+
+    if (!mobile) {
+      const originalUrlHeaders = [
+        req.headers.get("x-original-url"),
+        req.headers.get("x-forwarded-uri"),
+        req.headers.get("x-rewrite-url"),
+        req.headers.get("x-original-uri"),
+      ].filter(Boolean) as string[];
+
+      for (const headerUrl of originalUrlHeaders) {
+        const headerQuery = headerUrl.includes("?")
+          ? headerUrl.split("?").slice(1).join("?")
+          : "";
+        const headerParams = toSearchParams(headerQuery);
+        const candidateMobile = toParamString(headerParams.get("mobile"));
+        const candidateAction = toParamString(headerParams.get("action"));
+
+        if (!action && candidateAction) action = candidateAction;
+        if (candidateMobile) {
+          mobile = candidateMobile;
+          break;
+        }
+      }
+    }
 
     // Also support action as path segment: /msg91-otp/send, /verify, /resend, etc.
     if (!action) {
@@ -106,6 +213,13 @@ Deno.serve(async (req) => {
 
     const normalizedMobile = normalizeIndianMobile(mobile);
     if (!normalizedMobile) {
+      console.warn("[MSG91] Mobile parse failed", {
+        action,
+        mobile,
+        method: req.method,
+        url: req.url,
+        hasBody: rawBody.trim().length > 0,
+      });
       return json({ error: "Invalid mobile number. Use Indian format like 9876543210 or 919876543210" }, 400);
     }
 
