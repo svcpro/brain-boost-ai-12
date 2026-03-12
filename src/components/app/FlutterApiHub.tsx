@@ -1247,22 +1247,35 @@ const ApiTesterSection = () => {
             continue;
           }
 
-          // Support old/new proxy formats and recover from nested wrappers
-          const hasSuccessFlag = (value: any) =>
-            Boolean(value && typeof value === "object" && (value.ok === true || value.success === true));
+          // Support old/new proxy formats and recover from deeply nested wrappers
+          const isObject = (value: unknown): value is Record<string, unknown> =>
+            Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-          const normalizedSuccessPayload = hasSuccessFlag(proxyRes?.data?.data)
-            ? proxyRes.data.data
-            : hasSuccessFlag(proxyRes?.data)
-              ? proxyRes.data
-              : hasSuccessFlag(proxyRes)
-                ? proxyRes
-                : (proxyRes.data ?? proxyRes);
+          const hasSuccessFlag = (value: unknown) =>
+            isObject(value) && (value.ok === true || value.success === true);
 
-          const isOk =
-            hasSuccessFlag(proxyRes) ||
-            hasSuccessFlag(proxyRes?.data) ||
-            hasSuccessFlag(proxyRes?.data?.data);
+          const extractSuccessPayload = (value: unknown, depth = 0): Record<string, unknown> | null => {
+            if (!isObject(value) || depth > 6) return null;
+            if (hasSuccessFlag(value)) return value;
+
+            const nestedCandidates = [
+              value.data,
+              value.payload,
+              value.result,
+              value.response,
+            ];
+
+            for (const candidate of nestedCandidates) {
+              const hit = extractSuccessPayload(candidate, depth + 1);
+              if (hit) return hit;
+            }
+
+            return null;
+          };
+
+          const successPayload = extractSuccessPayload(proxyRes);
+          const normalizedSuccessPayload = successPayload ?? (proxyRes.data ?? proxyRes);
+          const isOk = Boolean(successPayload);
 
           const rawStatus = Number(
             proxyRes.status_code ??
