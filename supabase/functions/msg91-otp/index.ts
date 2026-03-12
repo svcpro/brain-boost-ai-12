@@ -113,20 +113,83 @@ Deno.serve(async (req) => {
     let mobile: string | undefined;
     let otp: string | undefined;
 
-    // Try JSON body first, fall back to query/path params
-    try {
-      const body = await req.json();
-      action = body.action;
-      mobile = body.mobile;
-      otp = body.otp;
-    } catch {
-      // No JSON body — fall through to query/path parsing
+    const contentType = (req.headers.get("content-type") || "").toLowerCase();
+    const rawBody = req.method === "GET" || req.method === "HEAD"
+      ? ""
+      : await req.text();
+
+    let bodyPayload: Record<string, unknown> = {};
+    if (rawBody.trim().length > 0) {
+      const trimmedBody = rawBody.trim();
+      const couldBeJson =
+        contentType.includes("application/json") ||
+        trimmedBody.startsWith("{") ||
+        trimmedBody.startsWith("[");
+
+      if (couldBeJson) {
+        try {
+          const parsed = JSON.parse(trimmedBody);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            bodyPayload = parsed as Record<string, unknown>;
+          }
+        } catch {
+          // fall through to query-string parsing
+        }
+      }
+
+      if (Object.keys(bodyPayload).length === 0) {
+        const formParams = new URLSearchParams(
+          trimmedBody.startsWith("?") ? trimmedBody.slice(1) : trimmedBody,
+        );
+        if (Array.from(formParams.keys()).length > 0) {
+          bodyPayload = Object.fromEntries(formParams.entries());
+        }
+      }
     }
 
-    // Merge query params (explicit query has highest priority)
-    action = url.searchParams.get("action") || embeddedParams.get("action") || action;
-    mobile = url.searchParams.get("mobile") || embeddedParams.get("mobile") || mobile;
-    otp = url.searchParams.get("otp") || embeddedParams.get("otp") || otp;
+    const bodyNested =
+      bodyPayload.body && typeof bodyPayload.body === "object" && !Array.isArray(bodyPayload.body)
+        ? bodyPayload.body as Record<string, unknown>
+        : undefined;
+
+    const bodyQueryParams = toSearchParams(bodyPayload.query);
+    const bodyPathParams = extractPathParams(bodyPayload.path);
+
+    const pickParam = (key: "action" | "mobile" | "otp") =>
+      toParamString(url.searchParams.get(key)) ||
+      toParamString(embeddedParams.get(key)) ||
+      toParamString(bodyQueryParams.get(key)) ||
+      toParamString(bodyPathParams.get(key)) ||
+      readParam(bodyPayload, key) ||
+      readParam(bodyNested, key);
+
+    action = pickParam("action");
+    mobile = pickParam("mobile");
+    otp = pickParam("otp");
+
+    if (!mobile) {
+      const originalUrlHeaders = [
+        req.headers.get("x-original-url"),
+        req.headers.get("x-forwarded-uri"),
+        req.headers.get("x-rewrite-url"),
+        req.headers.get("x-original-uri"),
+      ].filter(Boolean) as string[];
+
+      for (const headerUrl of originalUrlHeaders) {
+        const headerQuery = headerUrl.includes("?")
+          ? headerUrl.split("?").slice(1).join("?")
+          : "";
+        const headerParams = toSearchParams(headerQuery);
+        const candidateMobile = toParamString(headerParams.get("mobile"));
+        const candidateAction = toParamString(headerParams.get("action"));
+
+        if (!action && candidateAction) action = candidateAction;
+        if (candidateMobile) {
+          mobile = candidateMobile;
+          break;
+        }
+      }
+    }
 
     // Also support action as path segment: /msg91-otp/send, /verify, /resend, etc.
     if (!action) {
