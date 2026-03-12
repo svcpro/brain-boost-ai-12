@@ -122,7 +122,12 @@ serve(async (req) => {
     const firstSegment = pathSegments[0];
     if (EDGE_FUNCTION_PATHS.has(firstSegment)) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const functionUrl = `${supabaseUrl}/functions/v1/${path}`;
+      const functionUrl = new URL(`${supabaseUrl}/functions/v1/${path}`);
+      for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined && value !== null) {
+          functionUrl.searchParams.set(key, String(value));
+        }
+      }
 
       const edgeHeaders: Record<string, string> = {
         "Content-Type": "application/json",
@@ -132,10 +137,16 @@ serve(async (req) => {
 
       try {
         const edgeMethod = method === "GET" ? "POST" : method; // Edge functions typically use POST
-        const edgeResp = await fetch(functionUrl, {
+        const hasBodyObject = body && typeof body === "object" && !Array.isArray(body);
+        const bodyRecord = hasBodyObject ? body as Record<string, unknown> : null;
+        const edgePayload = bodyRecord && Object.keys(bodyRecord).length > 0
+          ? body
+          : (Object.keys(query).length > 0 ? query : (body ?? {}));
+
+        const edgeResp = await fetch(functionUrl.toString(), {
           method: edgeMethod,
           headers: edgeHeaders,
-          body: JSON.stringify(body ?? {}),
+          body: JSON.stringify(edgePayload),
         });
 
         const raw = await edgeResp.text();
