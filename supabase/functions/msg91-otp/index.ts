@@ -34,18 +34,18 @@ function normalizeIndianMobile(rawMobile: unknown): string | null {
     ? digitsOnly.slice(2)
     : digitsOnly;
 
-  // 10-digit local Indian number -> convert to 91XXXXXXXXXX
-  if (/^[6-9]\d{9}$/.test(withoutIntlPrefix)) {
+  // 10-digit local number -> convert to 91XXXXXXXXXX
+  if (/^\d{10}$/.test(withoutIntlPrefix)) {
     return `91${withoutIntlPrefix}`;
   }
 
   // 0XXXXXXXXXX -> trim leading 0 and convert
-  if (/^0[6-9]\d{9}$/.test(withoutIntlPrefix)) {
+  if (/^0\d{10}$/.test(withoutIntlPrefix)) {
     return `91${withoutIntlPrefix.slice(1)}`;
   }
 
   // Already with country code 91
-  if (/^91[6-9]\d{9}$/.test(withoutIntlPrefix)) {
+  if (/^91\d{10}$/.test(withoutIntlPrefix)) {
     return withoutIntlPrefix;
   }
 
