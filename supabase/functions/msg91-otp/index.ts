@@ -104,9 +104,9 @@ Deno.serve(async (req) => {
       return json({ error: "MSG91 not configured" }, 500);
     }
 
-    const normalizedMobile = mobile?.replace(/\s+/g, "").replace(/^\+/, "");
-    if (!normalizedMobile || normalizedMobile.length < 10) {
-      return json({ error: "Invalid mobile number" }, 400);
+    const normalizedMobile = normalizeIndianMobile(mobile);
+    if (!normalizedMobile) {
+      return json({ error: "Invalid mobile number. Use Indian format like 9876543210 or 919876543210" }, 400);
     }
 
     /* ═══ SEND OTP via SMS ONLY ═══ */
