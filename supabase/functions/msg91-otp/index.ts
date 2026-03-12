@@ -74,16 +74,6 @@ Deno.serve(async (req) => {
 
     const normalizedMobile = mobile?.replace(/\s+/g, "").replace(/^\+/, "");
     if (!normalizedMobile || normalizedMobile.length < 10) {
-      console.warn("[MSG91] Invalid mobile payload", {
-        reqUrl: req.url,
-        path: url.pathname,
-        query: Object.fromEntries(url.searchParams.entries()),
-        action,
-        mobile,
-        otp,
-        xForwardedUri: req.headers.get("x-forwarded-uri"),
-        xOriginalUrl: req.headers.get("x-original-url"),
-      });
       return json({ error: "Invalid mobile number" }, 400);
     }
 
