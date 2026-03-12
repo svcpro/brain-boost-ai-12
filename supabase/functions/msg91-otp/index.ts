@@ -52,6 +52,50 @@ function normalizeIndianMobile(rawMobile: unknown): string | null {
   return null;
 }
 
+function toParamString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+
+  return undefined;
+}
+
+function readParam(source: unknown, key: string): string | undefined {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return undefined;
+  return toParamString((source as Record<string, unknown>)[key]);
+}
+
+function toSearchParams(value: unknown): URLSearchParams {
+  if (!value) return new URLSearchParams();
+
+  if (typeof value === "string") {
+    return new URLSearchParams(value.startsWith("?") ? value.slice(1) : value);
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => [k, toParamString(v)] as const)
+      .filter(([, v]) => Boolean(v))
+      .map(([k, v]) => [k, v as string]);
+    return new URLSearchParams(entries);
+  }
+
+  return new URLSearchParams();
+}
+
+function extractPathParams(pathValue: unknown): URLSearchParams {
+  if (typeof pathValue !== "string" || !pathValue.includes("?")) {
+    return new URLSearchParams();
+  }
+
+  return new URLSearchParams(pathValue.split("?").slice(1).join("?"));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
