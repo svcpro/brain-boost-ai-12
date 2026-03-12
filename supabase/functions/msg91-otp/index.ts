@@ -213,6 +213,13 @@ Deno.serve(async (req) => {
 
     const normalizedMobile = normalizeIndianMobile(mobile);
     if (!normalizedMobile) {
+      console.warn("[MSG91] Mobile parse failed", {
+        action,
+        mobile,
+        method: req.method,
+        url: req.url,
+        hasBody: rawBody.trim().length > 0,
+      });
       return json({ error: "Invalid mobile number. Use Indian format like 9876543210 or 919876543210" }, 400);
     }
 
