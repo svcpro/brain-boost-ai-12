@@ -207,7 +207,14 @@ async function msg91ResendOTP(authKey: string, mobile: string, retryType: string
   url.searchParams.set("mobile", mobile);
 
   const resp = await fetch(url.toString(), { method: "GET" });
-  const data = await resp.json();
+  const rawText = await resp.text();
+  let data: unknown;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    console.error("[MSG91] ResendOTP returned non-JSON:", rawText.slice(0, 500));
+    data = { type: "error", message: rawText.slice(0, 200) };
+  }
   console.log("[MSG91] ResendOTP response:", JSON.stringify(data));
   return { data, ok: resp.ok };
 }
