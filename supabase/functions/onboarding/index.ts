@@ -54,9 +54,12 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
+    const requestBody = ["POST", "PUT", "PATCH"].includes(req.method)
+      ? await req.clone().json().catch(() => ({}))
+      : {};
     // The function name "onboarding" is the base, so action comes from query or body
-    const action = url.searchParams.get("action") || 
-      (req.method === "POST" ? (await req.clone().json().catch(() => ({}))).action : null) ||
+    const action = url.searchParams.get("action") ||
+      requestBody.action ||
       pathParts[pathParts.length - 1]; // fallback: last path segment
 
     const json = (data: any, status = 200) =>
@@ -75,14 +78,29 @@ Deno.serve(async (req) => {
 
     // --- ONBOARDING STATUS ---
     if (action === "status") {
-      const authHeader = req.headers.get("Authorization")?.trim() || "";
-      const apikeyHeader = req.headers.get("apikey")?.trim() || "";
-      if (!authHeader && !apikeyHeader) return json({ error: "Unauthorized" }, 401);
+      const queryAuthorization = url.searchParams.get("Authorization") || url.searchParams.get("authorization") || "";
+      const queryApiKey = url.searchParams.get("apikey") || url.searchParams.get("apiKey") || "";
+      const bodyAuthorization = requestBody.Authorization || requestBody.authorization || "";
+      const bodyApiKey = requestBody.apikey || requestBody.apiKey || "";
+
+      const authHeader = (req.headers.get("Authorization") || queryAuthorization || bodyAuthorization || "").trim();
+      const apikeyHeader = (req.headers.get("apikey") || queryApiKey || bodyApiKey || "").trim();
+      if (!authHeader && !apikeyHeader) {
+        console.log("[onboarding/status] Missing auth inputs", {
+          hasAuthHeader: !!req.headers.get("Authorization"),
+          hasApikeyHeader: !!req.headers.get("apikey"),
+          hasQueryAuthorization: !!queryAuthorization,
+          hasQueryApikey: !!queryApiKey,
+          hasBodyAuthorization: !!bodyAuthorization,
+          hasBodyApikey: !!bodyApiKey,
+        });
+        return json({ error: "Unauthorized" }, 401);
+      }
 
       const token = authHeader.startsWith("Bearer ")
         ? authHeader.replace("Bearer ", "").trim()
         : authHeader;
-      
+
       // Service role client for lookups
       const adminClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -104,17 +122,15 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Try 2: API key-based auth fallback (support raw API keys in either apikey or bearer token)
+      // Try 2: API key-based auth fallback (support raw API keys from header, query, body, or bearer field)
       if (!userId) {
-        const apiKeyCandidates = [
-          req.headers.get("apikey") || "",
-          token,
-        ].map((value) => value.trim()).filter(Boolean);
+        const apiKeyCandidates = [apikeyHeader, token]
+          .map((value) => value.trim())
+          .filter(Boolean);
 
         for (const candidate of apiKeyCandidates) {
           if (!candidate.startsWith("acry_")) continue;
 
-          // api_keys.key_prefix is stored as rawKey.substring(0, 10) + "..."
           const storedPrefix = `${candidate.substring(0, 10)}...`;
           const { data: keyRow } = await adminClient
             .from("api_keys")
@@ -130,7 +146,7 @@ Deno.serve(async (req) => {
         }
 
         // Legacy direct hash match fallback
-        if (!userId) {
+        if (!userId && token) {
           const { data: keyRow } = await adminClient
             .from("api_keys")
             .select("created_by")
@@ -144,14 +160,22 @@ Deno.serve(async (req) => {
       }
 
       // Try 3: getUser with service role as last resort
-      if (!userId) {
+      if (!userId && token) {
         const { data: userData } = await adminClient.auth.getUser(token);
         if (userData?.user?.id) {
           userId = userData.user.id;
         }
       }
 
-      if (!userId) return json({ error: "Unauthorized" }, 401);
+      if (!userId) {
+        console.log("[onboarding/status] Auth resolution failed", {
+          hasAuthHeader: !!authHeader,
+          hasApikeyHeader: !!apikeyHeader,
+          tokenLooksLikeJwt: token.split(".").length === 3,
+          apiKeyLooksValid: apikeyHeader.startsWith("acry_"),
+        });
+        return json({ error: "Unauthorized" }, 401);
+      }
 
       const { data: prefs } = await adminClient
         .from("user_preferences")
@@ -171,8 +195,7 @@ Deno.serve(async (req) => {
 
     // --- SUGGESTED SUBJECTS for exam type ---
     if (action === "suggested-subjects" || action === "suggested_subjects") {
-      const body = req.method === "POST" ? await req.json() : {};
-      const examType = body.exam_type || url.searchParams.get("exam_type");
+      const examType = requestBody.exam_type || url.searchParams.get("exam_type");
       
       // Return common subjects based on exam type category
       const subjectMap: Record<string, string[]> = {
