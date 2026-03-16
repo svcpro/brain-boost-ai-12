@@ -75,10 +75,13 @@ Deno.serve(async (req) => {
 
     // --- ONBOARDING STATUS ---
     if (action === "status") {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader) return json({ error: "Unauthorized" }, 401);
+      const authHeader = req.headers.get("Authorization")?.trim() || "";
+      const apikeyHeader = req.headers.get("apikey")?.trim() || "";
+      if (!authHeader && !apikeyHeader) return json({ error: "Unauthorized" }, 401);
 
-      const token = authHeader.replace("Bearer ", "").trim();
+      const token = authHeader.startsWith("Bearer ")
+        ? authHeader.replace("Bearer ", "").trim()
+        : authHeader;
       
       // Service role client for lookups
       const adminClient = createClient(
@@ -89,14 +92,16 @@ Deno.serve(async (req) => {
       let userId: string | null = null;
 
       // Try 1: JWT-based auth via getClaims
-      const jwtClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(token);
-      if (!claimsErr && claims?.claims?.sub) {
-        userId = claims.claims.sub as string;
+      if (authHeader.startsWith("Bearer ") && token.split(".").length === 3) {
+        const jwtClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(token);
+        if (!claimsErr && claims?.claims?.sub) {
+          userId = claims.claims.sub as string;
+        }
       }
 
       // Try 2: API key-based auth fallback (support raw API keys in either apikey or bearer token)
