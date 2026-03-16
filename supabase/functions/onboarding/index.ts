@@ -78,17 +78,20 @@ Deno.serve(async (req) => {
 
     // --- ONBOARDING STATUS ---
     if (action === "status") {
-      const queryAuthorization = url.searchParams.get("Authorization") || url.searchParams.get("authorization") || "";
-      const queryApiKey = url.searchParams.get("apikey") || url.searchParams.get("apiKey") || "";
-      const bodyAuthorization = requestBody.Authorization || requestBody.authorization || "";
-      const bodyApiKey = requestBody.apikey || requestBody.apiKey || "";
+      const queryAuthorization = String(url.searchParams.get("Authorization") || url.searchParams.get("authorization") || "").trim();
+      const queryApiKey = String(url.searchParams.get("apikey") || url.searchParams.get("apiKey") || "").trim();
+      const bodyAuthorization = String(requestBody.Authorization || requestBody.authorization || "").trim();
+      const bodyApiKey = String(requestBody.apikey || requestBody.apiKey || "").trim();
+      const headerAuthorization = String(req.headers.get("Authorization") || "").trim();
+      const headerApiKey = String(req.headers.get("apikey") || "").trim();
 
-      const authHeader = (req.headers.get("Authorization") || queryAuthorization || bodyAuthorization || "").trim();
-      const apikeyHeader = (req.headers.get("apikey") || queryApiKey || bodyApiKey || "").trim();
-      if (!authHeader && !apikeyHeader) {
+      const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
+      const apiKeySources = [headerApiKey, queryApiKey, bodyApiKey].filter(Boolean);
+
+      if (authSources.length === 0 && apiKeySources.length === 0) {
         console.log("[onboarding/status] Missing auth inputs", {
-          hasAuthHeader: !!req.headers.get("Authorization"),
-          hasApikeyHeader: !!req.headers.get("apikey"),
+          hasAuthHeader: !!headerAuthorization,
+          hasApikeyHeader: !!headerApiKey,
           hasQueryAuthorization: !!queryAuthorization,
           hasQueryApikey: !!queryApiKey,
           hasBodyAuthorization: !!bodyAuthorization,
@@ -97,9 +100,11 @@ Deno.serve(async (req) => {
         return json({ error: "Unauthorized" }, 401);
       }
 
-      const token = authHeader.startsWith("Bearer ")
-        ? authHeader.replace("Bearer ", "").trim()
-        : authHeader;
+      const bearerTokens = authSources
+        .map((value) => value.startsWith("Bearer ") ? value.replace("Bearer ", "").trim() : value)
+        .filter(Boolean);
+      const primaryAuthHeader = authSources[0] || "";
+      const primaryToken = bearerTokens[0] || "";
 
       // Service role client for lookups
       const adminClient = createClient(
@@ -110,21 +115,25 @@ Deno.serve(async (req) => {
       let userId: string | null = null;
 
       // Try 1: JWT-based auth via getClaims
-      if (authHeader.startsWith("Bearer ") && token.split(".").length === 3) {
+      for (let i = 0; i < authSources.length && !userId; i++) {
+        const authSource = authSources[i];
+        const sourceToken = bearerTokens[i] || "";
+        if (!(authSource.startsWith("Bearer ") && sourceToken.split(".").length === 3)) continue;
+
         const jwtClient = createClient(
           Deno.env.get("SUPABASE_URL")!,
           Deno.env.get("SUPABASE_ANON_KEY")!,
-          { global: { headers: { Authorization: authHeader } } }
+          { global: { headers: { Authorization: authSource } } }
         );
-        const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(token);
+        const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(sourceToken);
         if (!claimsErr && claims?.claims?.sub) {
           userId = claims.claims.sub as string;
         }
       }
 
-      // Try 2: API key-based auth fallback (support raw API keys from header, query, body, or bearer field)
+      // Try 2: API key-based auth fallback (support raw API keys from any source)
       if (!userId) {
-        const apiKeyCandidates = [apikeyHeader, token]
+        const apiKeyCandidates = [...apiKeySources, ...bearerTokens]
           .map((value) => value.trim())
           .filter(Boolean);
 
