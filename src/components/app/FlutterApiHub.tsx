@@ -378,6 +378,7 @@ const METHOD_COLORS: Record<string, string> = {
 };
 
 const GROUP_ICONS: Record<string, string> = {
+  "Home Dashboard": "🏠",
   "Authentication": "🔐",
   "User Profile": "👤",
   "Brain Intelligence": "🧠",
