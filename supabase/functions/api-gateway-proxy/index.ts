@@ -27,6 +27,7 @@ const EDGE_FUNCTION_PATHS = new Set([
   "meta-learning",
   "continual-learning",
   "onboarding",
+  "home-api",
 ]);
 
 const normalizeTargetBase = (rawBase?: unknown) => {
