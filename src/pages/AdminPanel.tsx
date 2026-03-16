@@ -127,7 +127,7 @@ const NAV_GROUPS: NavGroup[] = [
     gradient: "from-blue-500/20 to-blue-500/5",
     dotColor: "bg-blue-400",
     items: [
-      { key: "users", label: "User Management", icon: Users, roles: ["super_admin", "admin", "support_admin"] },
+      { key: "users", label: "User Management", icon: Users, roles: ["super_admin", "admin", "support_admin", "api_admin"] },
       { key: "community", label: "Community Hub", icon: Radio, roles: ["super_admin", "admin", "support_admin"] },
       { key: "knowledge", label: "Knowledge DB", icon: BookOpen, roles: ["super_admin", "admin"] },
       { key: "leaderboard", label: "Leaderboard", icon: Star, roles: ["super_admin", "admin"] },
