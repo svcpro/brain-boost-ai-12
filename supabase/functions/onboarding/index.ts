@@ -78,17 +78,51 @@ Deno.serve(async (req) => {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) return json({ error: "Unauthorized" }, 401);
 
-      const supabase = createClient(
+      const token = authHeader.replace("Bearer ", "").trim();
+      
+      // Service role client for lookups
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      let userId: string | null = null;
+
+      // Try 1: JWT-based auth via getClaims
+      const jwtClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_ANON_KEY")!,
         { global: { headers: { Authorization: authHeader } } }
       );
-      const token = authHeader.replace("Bearer ", "");
-      const { data: claims, error } = await supabase.auth.getClaims(token);
-      if (error || !claims?.claims?.sub) return json({ error: "Unauthorized" }, 401);
+      const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(token);
+      if (!claimsErr && claims?.claims?.sub) {
+        userId = claims.claims.sub as string;
+      }
 
-      const userId = claims.claims.sub;
-      const { data: prefs } = await supabase
+      // Try 2: API key-based auth fallback
+      if (!userId) {
+        const { data: keyRow } = await adminClient
+          .from("api_keys")
+          .select("created_by, is_active")
+          .eq("key_hash", token)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (keyRow?.created_by) {
+          userId = keyRow.created_by;
+        }
+      }
+
+      // Try 3: getUser with service role as last resort
+      if (!userId) {
+        const { data: userData } = await adminClient.auth.getUser(token);
+        if (userData?.user?.id) {
+          userId = userData.user.id;
+        }
+      }
+
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+
+      const { data: prefs } = await adminClient
         .from("user_preferences")
         .select("onboarded, exam_type, target_exam_date, study_mode")
         .eq("user_id", userId)
