@@ -327,6 +327,24 @@ Deno.serve(async (req) => {
       return json({ success: true, next_step: 5 });
     }
 
+    // --- Suggested subjects for an exam type ---
+    if (action === "suggested-subjects" || action === "suggested_subjects") {
+      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      const subjectMap: Record<string, string[]> = {
+        "NEET UG": ["Physics", "Chemistry", "Biology"],
+        "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
+        "JEE Main": ["Physics", "Chemistry", "Mathematics"],
+        "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
+        "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+        "UPSC CSE": ["History", "Geography", "Polity", "Economy", "Science & Technology", "Environment", "Ethics", "Essay"],
+        "SSC CGL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
+        "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+        "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
+      };
+      const subjects = subjectMap[examType] || ["General Studies", "Aptitude", "Reasoning"];
+      return json({ success: true, subjects, exam_type: examType });
+    }
+
     // --- Suggested topics for a subject ---
     if (action === "suggested-topics" || action === "suggested_topics") {
       const subject = requestBody.subject || url.searchParams.get("subject") || "";
