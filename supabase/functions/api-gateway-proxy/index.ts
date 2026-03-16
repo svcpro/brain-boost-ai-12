@@ -3,11 +3,16 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-api-key, api-key, x-api-token, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const DEFAULT_TARGET_BASE = "https://api.acry.ai/v1";
 const FALLBACK_TARGET_BASE = "https://api.acry.app/v1";
+
+const adminClient = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
 
 // Known edge functions that should route directly to Supabase Functions
 const EDGE_FUNCTION_PATHS = new Set([
@@ -46,26 +51,141 @@ const json = (payload: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+const pickString = (record: Record<string, unknown> | null, keys: string[]) => {
+  if (!record) return "";
+
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+
+  return "";
+};
+
+const extractApiKey = (value: string) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
+
+const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPayload: Record<string, unknown> | null) => {
+  const payloadBody = parsedPayload?.body && typeof parsedPayload.body === "object" && !Array.isArray(parsedPayload.body)
+    ? parsedPayload.body as Record<string, unknown>
+    : null;
+
+  const headerAuthorization = String(req.headers.get("Authorization") || "").trim();
+  const headerApiKeyCandidates = [
+    req.headers.get("x-api-key"),
+    req.headers.get("api-key"),
+    req.headers.get("x-api-token"),
+    req.headers.get("apikey"),
+  ].map((value) => String(value || "").trim()).filter(Boolean);
+
+  const queryAuthorization = String(requestUrl.searchParams.get("Authorization") || requestUrl.searchParams.get("authorization") || "").trim();
+  const queryApiKeyCandidates = [
+    requestUrl.searchParams.get("x-api-key"),
+    requestUrl.searchParams.get("api-key"),
+    requestUrl.searchParams.get("x-api-token"),
+    requestUrl.searchParams.get("apikey"),
+    requestUrl.searchParams.get("apiKey"),
+  ].map((value) => String(value || "").trim()).filter(Boolean);
+
+  const bodyAuthorization = [parsedPayload, payloadBody]
+    .map((record) => pickString(record, ["Authorization", "authorization"]))
+    .find(Boolean) || "";
+  const bodyApiKeyCandidates = [parsedPayload, payloadBody]
+    .map((record) => pickString(record, ["x-api-key", "api-key", "x-api-token", "apikey", "apiKey"]))
+    .filter(Boolean);
+
+  const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
+  const apiKeySources = [...headerApiKeyCandidates, ...queryApiKeyCandidates, ...bodyApiKeyCandidates].filter(Boolean);
+
+  let userId: string | null = null;
+  let forwardedAuthorization = "";
+  let forwardedApiKey = apiKeySources.map(extractApiKey).find(Boolean) || "";
+
+  const bearerToken = headerAuthorization.startsWith("Bearer ")
+    ? headerAuthorization.replace("Bearer ", "").trim()
+    : "";
+
+  if (bearerToken) {
+    const MAX_RETRIES = 3;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const { data: userData, error: userError } = await adminClient.auth.getUser(bearerToken);
+      if (!userError && userData?.user?.id) {
+        userId = userData.user.id;
+        forwardedAuthorization = headerAuthorization;
+        break;
+      }
+
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+      }
+    }
+  }
+
+  if (!userId) {
+    const apiKeyCandidates = [...apiKeySources, ...authSources]
+      .map((value) => value.startsWith("Bearer ") ? value.replace("Bearer ", "").trim() : value.trim())
+      .filter(Boolean);
+
+    for (const candidate of apiKeyCandidates) {
+      const extractedApiKey = extractApiKey(candidate);
+      if (!extractedApiKey) continue;
+
+      const storedPrefix = `${extractedApiKey.substring(0, 10)}...`;
+      const { data: keyRow } = await adminClient
+        .from("api_keys")
+        .select("created_by")
+        .eq("key_prefix", storedPrefix)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (keyRow?.created_by) {
+        userId = keyRow.created_by;
+        forwardedApiKey = extractedApiKey;
+        break;
+      }
+    }
+
+    if (!userId) {
+      for (const candidate of apiKeyCandidates) {
+        const normalizedCandidate = candidate.startsWith("Bearer ")
+          ? candidate.replace("Bearer ", "").trim()
+          : candidate.trim();
+        if (!normalizedCandidate) continue;
+
+        const { data: keyRow } = await adminClient
+          .from("api_keys")
+          .select("created_by")
+          .eq("key_hash", normalizedCandidate)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (keyRow?.created_by) {
+          userId = keyRow.created_by;
+          forwardedApiKey = forwardedApiKey || extractApiKey(normalizedCandidate);
+          break;
+        }
+      }
+    }
+  }
+
+  return {
+    userId,
+    forwardedAuthorization,
+    forwardedApiKey,
+    debug: {
+      hasAuthHeader: !!headerAuthorization,
+      hasApiKeyHeader: headerApiKeyCandidates.length > 0,
+      hasQueryAuthorization: !!queryAuthorization,
+      hasQueryApiKey: queryApiKeyCandidates.length > 0,
+      hasBodyAuthorization: !!bodyAuthorization,
+      hasBodyApiKey: bodyApiKeyCandidates.length > 0,
+    },
+  };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return json({ ok: false, status_code: 401, error: "Unauthorized" });
-    }
-
-    const authClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-
-    const { data: { user }, error: userErr } = await authClient.auth.getUser();
-    if (userErr || !user) {
-      return json({ ok: false, status_code: 401, error: "Unauthorized" });
-    }
-
     const requestUrl = new URL(req.url);
     const pathFromUrl = requestUrl.pathname
       .replace(/^\/+|\/+$/g, "")
@@ -85,6 +205,12 @@ serve(async (req) => {
           return json({ ok: false, status_code: 400, error: "Invalid JSON body" });
         }
       }
+    }
+
+    const { userId, forwardedAuthorization, forwardedApiKey, debug } = await resolveRequestIdentity(req, requestUrl, parsedPayload);
+    if (!userId) {
+      console.log("[api-gateway-proxy] auth resolution failed", debug);
+      return json({ ok: false, status_code: 401, error: "Unauthorized" });
     }
 
     const payload = parsedPayload ?? {};
@@ -132,8 +258,15 @@ serve(async (req) => {
       const edgeHeaders: Record<string, string> = {
         "Content-Type": "application/json",
         apikey: Deno.env.get("SUPABASE_ANON_KEY") || "",
-        Authorization: authHeader,
       };
+
+      if (forwardedAuthorization) {
+        edgeHeaders.Authorization = forwardedAuthorization;
+      }
+      if (forwardedApiKey) {
+        edgeHeaders["x-api-key"] = forwardedApiKey;
+        edgeHeaders["api-key"] = forwardedApiKey;
+      }
 
       try {
         const edgeMethod = method === "GET" ? "POST" : method; // Edge functions typically use POST
@@ -177,8 +310,14 @@ serve(async (req) => {
     const forwardHeaders: Record<string, string> = {
       Accept: "application/json",
       apikey: Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "",
-      Authorization: authHeader,
     };
+    if (forwardedAuthorization) {
+      forwardHeaders.Authorization = forwardedAuthorization;
+    }
+    if (forwardedApiKey) {
+      forwardHeaders["x-api-key"] = forwardedApiKey;
+      forwardHeaders["api-key"] = forwardedApiKey;
+    }
 
     const shouldSendBody = method !== "GET" && method !== "HEAD";
     if (shouldSendBody) {
