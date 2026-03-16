@@ -218,11 +218,73 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- SUGGESTED SUBJECTS for exam type ---
-    if (action === "suggested-subjects" || action === "suggested_subjects") {
-      const examType = requestBody.exam_type || url.searchParams.get("exam_type");
-      
-      // Return common subjects based on exam type category
+    // --- Helper: resolve userId from request (reuse status auth logic) ---
+    const resolveUserId = async (): Promise<string | null> => {
+      const queryAuthorization = String(url.searchParams.get("Authorization") || url.searchParams.get("authorization") || "").trim();
+      const queryApiKey = String(url.searchParams.get("apikey") || url.searchParams.get("apiKey") || url.searchParams.get("x-api-key") || "").trim();
+      const bodyAuthorization = String(requestBody.Authorization || requestBody.authorization || "").trim();
+      const bodyApiKey = String(requestBody.apikey || requestBody.apiKey || requestBody["x-api-key"] || requestBody["api-key"] || "").trim();
+      const headerAuthorization = String(req.headers.get("Authorization") || "").trim();
+      const headerApiKeyCandidates = [
+        req.headers.get("x-api-key"), req.headers.get("api-key"), req.headers.get("x-api-token"), req.headers.get("apikey"),
+      ].map(v => String(v || "").trim()).filter(Boolean);
+
+      const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
+      const apiKeySources = [...headerApiKeyCandidates, queryApiKey, bodyApiKey].filter(Boolean);
+      if (authSources.length === 0 && apiKeySources.length === 0) return null;
+
+      const bearerTokens = authSources
+        .map(v => v.startsWith("Bearer ") ? v.replace("Bearer ", "").trim() : v)
+        .filter(Boolean);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      let uid: string | null = null;
+
+      // JWT auth
+      for (const token of bearerTokens) {
+        if (token.split(".").length !== 3) continue;
+        const { data: userData } = await adminClient.auth.getUser(token);
+        if (userData?.user?.id) { uid = userData.user.id; break; }
+      }
+
+      // API key auth
+      if (!uid) {
+        const candidates = [...apiKeySources, ...bearerTokens].map(v => v.startsWith("Bearer ") ? v.replace("Bearer ", "").trim() : v.trim()).filter(Boolean);
+        for (const c of candidates) {
+          const extracted = c.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
+          if (!extracted) continue;
+          const prefix = `${extracted.substring(0, 10)}...`;
+          const { data: keyRow } = await adminClient.from("api_keys").select("created_by").eq("key_prefix", prefix).eq("is_active", true).maybeSingle();
+          if (keyRow?.created_by) { uid = keyRow.created_by; break; }
+        }
+      }
+
+      return uid;
+    };
+
+    // --- STEP 1: Save display name ---
+    if (action === "step1-name" || action === "step1_name") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const displayName = String(requestBody.display_name || "").trim();
+      if (displayName.length < 2) return json({ error: "Display name must be at least 2 characters" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await adminClient.from("profiles").update({ display_name: displayName }).eq("id", userId);
+      return json({ success: true, next_step: 2 });
+    }
+
+    // --- STEP 2: Save exam type ---
+    if (action === "step2-exam" || action === "step2_exam") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const examType = String(requestBody.exam_type || "").trim();
+      if (!examType) return json({ error: "exam_type is required" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await adminClient.from("profiles").update({ exam_type: examType }).eq("id", userId);
+
+      // Return suggested subjects
       const subjectMap: Record<string, string[]> = {
         "NEET UG": ["Physics", "Chemistry", "Biology"],
         "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
@@ -234,12 +296,150 @@ Deno.serve(async (req) => {
         "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
         "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
       };
-
-      const subjects = subjectMap[examType || ""] || ["General Studies", "Aptitude", "Reasoning"];
-      return json({ success: true, subjects: subjects.map(s => ({ name: s })) });
+      const subjects = subjectMap[examType] || ["General Studies", "Aptitude", "Reasoning"];
+      return json({ success: true, suggested_subjects: subjects, next_step: 3 });
     }
 
-    return json({ error: "Invalid action. Supported: exam-types, status, suggested-subjects" }, 400);
+    // --- STEP 3: Save exam date ---
+    if (action === "step3-date" || action === "step3_date") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const examDate = String(requestBody.exam_date || "").trim();
+      if (!examDate) return json({ error: "exam_date is required" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await adminClient.from("profiles").update({ exam_date: examDate }).eq("id", userId);
+      const daysUntil = Math.max(0, Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000));
+      return json({ success: true, days_until_exam: daysUntil, next_step: 4 });
+    }
+
+    // --- STEP 4: Save subjects ---
+    if (action === "step4-subjects" || action === "step4_subjects") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const subjects: string[] = requestBody.subjects || [];
+      if (!Array.isArray(subjects) || subjects.length === 0) return json({ error: "subjects array is required" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      for (const name of subjects) {
+        await adminClient.from("subjects").upsert({ user_id: userId, name: String(name).trim() }, { onConflict: "user_id,name", ignoreDuplicates: true });
+      }
+      return json({ success: true, next_step: 5 });
+    }
+
+    // --- Suggested topics for a subject ---
+    if (action === "suggested-topics" || action === "suggested_topics") {
+      const subject = requestBody.subject || url.searchParams.get("subject") || "";
+      const topicMap: Record<string, string[]> = {
+        "Physics": ["Mechanics", "Thermodynamics", "Optics", "Electromagnetism", "Modern Physics", "Waves"],
+        "Chemistry": ["Organic Chemistry", "Inorganic Chemistry", "Physical Chemistry"],
+        "Biology": ["Cell Biology", "Genetics", "Ecology", "Human Physiology", "Plant Biology", "Evolution"],
+        "Mathematics": ["Algebra", "Calculus", "Trigonometry", "Coordinate Geometry", "Probability & Statistics"],
+        "History": ["Ancient India", "Medieval India", "Modern India", "World History"],
+        "Geography": ["Physical Geography", "Indian Geography", "World Geography", "Climatology"],
+        "Polity": ["Constitution", "Governance", "Panchayati Raj", "Judiciary"],
+        "Economy": ["Microeconomics", "Macroeconomics", "Indian Economy", "Banking & Finance"],
+      };
+      const topics = topicMap[subject] || ["Fundamentals", "Advanced Concepts", "Practice Problems"];
+      return json({ success: true, topics });
+    }
+
+    // --- STEP 5: Save topics ---
+    if (action === "step5-topics" || action === "step5_topics") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const topicsBySubject: Record<string, string[]> = requestBody.topics_by_subject || {};
+      if (Object.keys(topicsBySubject).length === 0) return json({ error: "topics_by_subject is required" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      let totalTopics = 0;
+      for (const [subjectName, topics] of Object.entries(topicsBySubject)) {
+        const { data: subjectRow } = await adminClient.from("subjects").select("id").eq("user_id", userId).eq("name", subjectName).maybeSingle();
+        const subjectId = subjectRow?.id;
+        if (!subjectId) continue;
+        for (const topicName of (topics as string[])) {
+          await adminClient.from("topics").upsert({ user_id: userId, subject_id: subjectId, name: String(topicName).trim() }, { onConflict: "user_id,subject_id,name", ignoreDuplicates: true });
+          totalTopics++;
+        }
+      }
+      return json({ success: true, total_topics: totalTopics, next_step: 6 });
+    }
+
+    // --- STEP 6: Save study mode ---
+    if (action === "step6-mode" || action === "step6_mode") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const studyMode = String(requestBody.study_mode || "focus").trim();
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await adminClient.from("profiles").update({ study_preferences: { study_mode: studyMode } }).eq("id", userId);
+      return json({ success: true });
+    }
+
+    // --- SAVE STEP (generic) ---
+    if (action === "save-step" || action === "save_step") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const step = requestBody.step;
+      const data = requestBody.data || {};
+      if (!step) return json({ error: "step is required" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const updates: Record<string, unknown> = {};
+      if (data.display_name) updates.display_name = data.display_name;
+      if (data.exam_type) updates.exam_type = data.exam_type;
+      if (data.exam_date) updates.exam_date = data.exam_date;
+      if (data.study_mode) updates.study_preferences = { study_mode: data.study_mode };
+      if (Object.keys(updates).length > 0) {
+        await adminClient.from("profiles").update(updates).eq("id", userId);
+      }
+      return json({ success: true, next_step: step + 1 });
+    }
+
+    // --- COMPLETE onboarding ---
+    if (action === "complete") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const updates: Record<string, unknown> = {};
+      if (requestBody.display_name) updates.display_name = requestBody.display_name;
+      if (requestBody.exam_type) updates.exam_type = requestBody.exam_type;
+      if (requestBody.exam_date) updates.exam_date = requestBody.exam_date;
+      if (requestBody.study_mode) updates.study_preferences = { study_mode: requestBody.study_mode };
+      if (Object.keys(updates).length > 0) {
+        await adminClient.from("profiles").update(updates).eq("id", userId);
+      }
+
+      let subjectsCreated = 0, topicsCreated = 0;
+      if (requestBody.subjects && Array.isArray(requestBody.subjects)) {
+        for (const name of requestBody.subjects) {
+          await adminClient.from("subjects").upsert({ user_id: userId, name: String(name).trim() }, { onConflict: "user_id,name", ignoreDuplicates: true });
+          subjectsCreated++;
+        }
+      }
+      if (requestBody.topics_by_subject && typeof requestBody.topics_by_subject === "object") {
+        for (const [subjectName, topics] of Object.entries(requestBody.topics_by_subject)) {
+          const { data: subjectRow } = await adminClient.from("subjects").select("id").eq("user_id", userId).eq("name", subjectName).maybeSingle();
+          if (!subjectRow?.id) continue;
+          for (const topicName of (topics as string[])) {
+            await adminClient.from("topics").upsert({ user_id: userId, subject_id: subjectRow.id, name: String(topicName).trim() }, { onConflict: "user_id,subject_id,name", ignoreDuplicates: true });
+            topicsCreated++;
+          }
+        }
+      }
+
+      return json({ success: true, redirect_to: "/app", profile_updated: true, subjects_created: subjectsCreated, topics_created: topicsCreated });
+    }
+
+    // --- SKIP onboarding ---
+    if (action === "skip") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      return json({ success: true, redirect_to: "/app" });
+    }
+
+    return json({ error: "Invalid action. Supported: exam-types, status, suggested-subjects, suggested-topics, step1-name, step2-exam, step3-date, step4-subjects, step5-topics, step6-mode, save-step, complete, skip" }, 400);
   } catch (e) {
     console.error("onboarding error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
