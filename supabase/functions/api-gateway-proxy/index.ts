@@ -258,8 +258,15 @@ serve(async (req) => {
       const edgeHeaders: Record<string, string> = {
         "Content-Type": "application/json",
         apikey: Deno.env.get("SUPABASE_ANON_KEY") || "",
-        Authorization: authHeader,
       };
+
+      if (forwardedAuthorization) {
+        edgeHeaders.Authorization = forwardedAuthorization;
+      }
+      if (forwardedApiKey) {
+        edgeHeaders["x-api-key"] = forwardedApiKey;
+        edgeHeaders["api-key"] = forwardedApiKey;
+      }
 
       try {
         const edgeMethod = method === "GET" ? "POST" : method; // Edge functions typically use POST
@@ -303,8 +310,14 @@ serve(async (req) => {
     const forwardHeaders: Record<string, string> = {
       Accept: "application/json",
       apikey: Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "",
-      Authorization: authHeader,
     };
+    if (forwardedAuthorization) {
+      forwardHeaders.Authorization = forwardedAuthorization;
+    }
+    if (forwardedApiKey) {
+      forwardHeaders["x-api-key"] = forwardedApiKey;
+      forwardHeaders["api-key"] = forwardedApiKey;
+    }
 
     const shouldSendBody = method !== "GET" && method !== "HEAD";
     if (shouldSendBody) {
