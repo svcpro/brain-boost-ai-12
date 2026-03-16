@@ -186,22 +186,6 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return json({ ok: false, status_code: 401, error: "Unauthorized" });
-    }
-
-    const authClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-
-    const { data: { user }, error: userErr } = await authClient.auth.getUser();
-    if (userErr || !user) {
-      return json({ ok: false, status_code: 401, error: "Unauthorized" });
-    }
-
     const requestUrl = new URL(req.url);
     const pathFromUrl = requestUrl.pathname
       .replace(/^\/+|\/+$/g, "")
@@ -221,6 +205,12 @@ serve(async (req) => {
           return json({ ok: false, status_code: 400, error: "Invalid JSON body" });
         }
       }
+    }
+
+    const { userId, forwardedAuthorization, forwardedApiKey, debug } = await resolveRequestIdentity(req, requestUrl, parsedPayload);
+    if (!userId) {
+      console.log("[api-gateway-proxy] auth resolution failed", debug);
+      return json({ ok: false, status_code: 401, error: "Unauthorized" });
     }
 
     const payload = parsedPayload ?? {};
