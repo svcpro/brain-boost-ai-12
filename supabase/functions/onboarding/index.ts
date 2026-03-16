@@ -266,7 +266,7 @@ Deno.serve(async (req) => {
     if (action === "step1-name" || action === "step1_name") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
-      const displayName = String(requestBody.display_name || "").trim();
+      const displayName = String(requestBody.display_name || url.searchParams.get("display_name") || "").trim();
       if (displayName.length < 2) return json({ error: "Display name must be at least 2 characters" }, 400);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
