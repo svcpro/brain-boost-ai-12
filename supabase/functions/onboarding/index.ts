@@ -75,10 +75,13 @@ Deno.serve(async (req) => {
 
     // --- ONBOARDING STATUS ---
     if (action === "status") {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader) return json({ error: "Unauthorized" }, 401);
+      const authHeader = req.headers.get("Authorization")?.trim() || "";
+      const apikeyHeader = req.headers.get("apikey")?.trim() || "";
+      if (!authHeader && !apikeyHeader) return json({ error: "Unauthorized" }, 401);
 
-      const token = authHeader.replace("Bearer ", "").trim();
+      const token = authHeader.startsWith("Bearer ")
+        ? authHeader.replace("Bearer ", "").trim()
+        : authHeader;
       
       // Service role client for lookups
       const adminClient = createClient(
@@ -89,37 +92,48 @@ Deno.serve(async (req) => {
       let userId: string | null = null;
 
       // Try 1: JWT-based auth via getClaims
-      const jwtClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(token);
-      if (!claimsErr && claims?.claims?.sub) {
-        userId = claims.claims.sub as string;
+      if (authHeader.startsWith("Bearer ") && token.split(".").length === 3) {
+        const jwtClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(token);
+        if (!claimsErr && claims?.claims?.sub) {
+          userId = claims.claims.sub as string;
+        }
       }
 
-      // Try 2: API key-based auth fallback (check both apikey header and bearer token)
+      // Try 2: API key-based auth fallback (support raw API keys in either apikey or bearer token)
       if (!userId) {
-        const apikeyHeader = req.headers.get("apikey") || "";
-        // Try matching by key_prefix from apikey header
-        if (apikeyHeader && apikeyHeader.startsWith("acry_")) {
-          const prefix = apikeyHeader.substring(0, 15); // e.g. "acry_xBYXF..."
+        const apiKeyCandidates = [
+          req.headers.get("apikey") || "",
+          token,
+        ].map((value) => value.trim()).filter(Boolean);
+
+        for (const candidate of apiKeyCandidates) {
+          if (!candidate.startsWith("acry_")) continue;
+
+          // api_keys.key_prefix is stored as rawKey.substring(0, 10) + "..."
+          const storedPrefix = `${candidate.substring(0, 10)}...`;
           const { data: keyRow } = await adminClient
             .from("api_keys")
-            .select("created_by, is_active")
-            .like("key_prefix", `${prefix}%`)
+            .select("created_by")
+            .eq("key_prefix", storedPrefix)
             .eq("is_active", true)
             .maybeSingle();
+
           if (keyRow?.created_by) {
             userId = keyRow.created_by;
+            break;
           }
         }
-        // Also try matching bearer token against key_hash
+
+        // Legacy direct hash match fallback
         if (!userId) {
           const { data: keyRow } = await adminClient
             .from("api_keys")
-            .select("created_by, is_active")
+            .select("created_by")
             .eq("key_hash", token)
             .eq("is_active", true)
             .maybeSingle();
