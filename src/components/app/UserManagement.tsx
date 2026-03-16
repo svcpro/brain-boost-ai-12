@@ -1041,8 +1041,10 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         )}
       </div>
 
-      {/* Delete User Section */}
-      <DeleteUserSection userId={user.id} userName={user.display_name || "Anonymous"} onDeleted={onBack} toast={toast} logAudit={logAudit} />
+      {/* Delete User Section - only for super_admin & api_admin */}
+      {hasAnyRole("super_admin", "api_admin") && (
+        <DeleteUserSection userId={user.id} userName={user.display_name || "Anonymous"} onDeleted={onBack} toast={toast} logAudit={logAudit} />
+      )}
     </div>
   );
 };
