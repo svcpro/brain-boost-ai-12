@@ -99,27 +99,36 @@ Deno.serve(async (req) => {
         userId = claims.claims.sub as string;
       }
 
-      // Try 2: API key-based auth fallback (check both apikey header and bearer token)
+      // Try 2: API key-based auth fallback (support raw API keys in either apikey or bearer token)
       if (!userId) {
-        const apikeyHeader = req.headers.get("apikey") || "";
-        // Try matching by key_prefix from apikey header
-        if (apikeyHeader && apikeyHeader.startsWith("acry_")) {
-          const prefix = apikeyHeader.substring(0, 15); // e.g. "acry_xBYXF..."
+        const apiKeyCandidates = [
+          req.headers.get("apikey") || "",
+          token,
+        ].map((value) => value.trim()).filter(Boolean);
+
+        for (const candidate of apiKeyCandidates) {
+          if (!candidate.startsWith("acry_")) continue;
+
+          // api_keys.key_prefix is stored as rawKey.substring(0, 10) + "..."
+          const storedPrefix = `${candidate.substring(0, 10)}...`;
           const { data: keyRow } = await adminClient
             .from("api_keys")
-            .select("created_by, is_active")
-            .like("key_prefix", `${prefix}%`)
+            .select("created_by")
+            .eq("key_prefix", storedPrefix)
             .eq("is_active", true)
             .maybeSingle();
+
           if (keyRow?.created_by) {
             userId = keyRow.created_by;
+            break;
           }
         }
-        // Also try matching bearer token against key_hash
+
+        // Legacy direct hash match fallback
         if (!userId) {
           const { data: keyRow } = await adminClient
             .from("api_keys")
-            .select("created_by, is_active")
+            .select("created_by")
             .eq("key_hash", token)
             .eq("is_active", true)
             .maybeSingle();
