@@ -583,6 +583,7 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   toast: any;
 }) => {
   const { user: adminUser } = useAuth();
+  const { hasAnyRole } = useAdminRole();
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     display_name: user.display_name || "",
