@@ -79,14 +79,19 @@ Deno.serve(async (req) => {
     // --- ONBOARDING STATUS ---
     if (action === "status") {
       const queryAuthorization = String(url.searchParams.get("Authorization") || url.searchParams.get("authorization") || "").trim();
-      const queryApiKey = String(url.searchParams.get("apikey") || url.searchParams.get("apiKey") || "").trim();
+      const queryApiKey = String(url.searchParams.get("apikey") || url.searchParams.get("apiKey") || url.searchParams.get("x-api-key") || "").trim();
       const bodyAuthorization = String(requestBody.Authorization || requestBody.authorization || "").trim();
-      const bodyApiKey = String(requestBody.apikey || requestBody.apiKey || "").trim();
+      const bodyApiKey = String(requestBody.apikey || requestBody.apiKey || requestBody["x-api-key"] || requestBody["api-key"] || "").trim();
       const headerAuthorization = String(req.headers.get("Authorization") || "").trim();
-      const headerApiKey = String(req.headers.get("apikey") || "").trim();
+      const headerApiKeyCandidates = [
+        req.headers.get("x-api-key"),
+        req.headers.get("api-key"),
+        req.headers.get("x-api-token"),
+        req.headers.get("apikey"),
+      ].map((value) => String(value || "").trim()).filter(Boolean);
 
       const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
-      const apiKeySources = [headerApiKey, queryApiKey, bodyApiKey].filter(Boolean);
+      const apiKeySources = [...headerApiKeyCandidates, queryApiKey, bodyApiKey].filter(Boolean);
 
       if (authSources.length === 0 && apiKeySources.length === 0) {
         console.log("[onboarding/status] Missing auth inputs", {
