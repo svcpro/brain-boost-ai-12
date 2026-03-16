@@ -1039,6 +1039,95 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
           </div>
         )}
       </div>
+
+      {/* Delete User Section */}
+      <DeleteUserSection userId={user.id} userName={user.display_name || "Anonymous"} onDeleted={onBack} toast={toast} logAudit={logAudit} />
+    </div>
+  );
+};
+
+// ─── Delete User Section ───
+const DeleteUserSection = ({ userId, userName, onDeleted, toast, logAudit }: {
+  userId: string;
+  userName: string;
+  onDeleted: () => void;
+  toast: any;
+  logAudit: (action: string, details: Record<string, any>) => Promise<void>;
+}) => {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (confirmText !== "DELETE") return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { target_user_id: userId },
+      });
+      if (error || data?.error) {
+        toast({ title: data?.error || error?.message || "Failed to delete user", variant: "destructive" });
+        setDeleting(false);
+        return;
+      }
+      toast({ title: `User "${userName}" has been permanently deleted` });
+      onDeleted();
+    } catch (e: any) {
+      toast({ title: e.message || "Failed to delete user", variant: "destructive" });
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="glass rounded-xl neural-border p-4 space-y-3 border-destructive/20">
+      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+        <Trash2 className="w-4 h-4 text-destructive" /> Danger Zone
+      </h3>
+      <div className="p-3 bg-destructive/5 rounded-lg border border-destructive/20">
+        <p className="text-xs text-foreground font-medium">Permanently delete this user</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5">
+          This action cannot be undone. All user data including profile, study logs, subscriptions, and exam history will be permanently removed.
+        </p>
+      </div>
+
+      {!showConfirm ? (
+        <button
+          onClick={() => setShowConfirm(true)}
+          className="px-4 py-2 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors flex items-center gap-1.5"
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Delete User
+        </button>
+      ) : (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-3">
+          <div>
+            <label className="text-[10px] text-muted-foreground mb-1 block">
+              Type <span className="font-bold text-destructive">DELETE</span> to confirm
+            </label>
+            <input
+              value={confirmText}
+              onChange={e => setConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground border border-destructive/30 focus:border-destructive outline-none font-mono"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setShowConfirm(false); setConfirmText(""); }}
+              disabled={deleting}
+              className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting || confirmText !== "DELETE"}
+              className="px-4 py-1.5 bg-destructive text-destructive-foreground rounded-lg text-xs font-medium flex items-center gap-1 disabled:opacity-50 transition-colors"
+            >
+              {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />} Permanently Delete
+            </button>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };
