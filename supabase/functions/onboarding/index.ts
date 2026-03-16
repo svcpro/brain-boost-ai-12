@@ -138,9 +138,13 @@ Deno.serve(async (req) => {
           .filter(Boolean);
 
         for (const candidate of apiKeyCandidates) {
-          if (!candidate.startsWith("acry_")) continue;
+          const normalizedCandidate = candidate.startsWith("Bearer ")
+            ? candidate.replace("Bearer ", "").trim()
+            : candidate;
+          const extractedApiKey = normalizedCandidate.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
+          if (!extractedApiKey) continue;
 
-          const storedPrefix = `${candidate.substring(0, 10)}...`;
+          const storedPrefix = `${extractedApiKey.substring(0, 10)}...`;
           const { data: keyRow } = await adminClient
             .from("api_keys")
             .select("created_by")
@@ -155,33 +159,40 @@ Deno.serve(async (req) => {
         }
 
         // Legacy direct hash match fallback
-        if (!userId && token) {
-          const { data: keyRow } = await adminClient
-            .from("api_keys")
-            .select("created_by")
-            .eq("key_hash", token)
-            .eq("is_active", true)
-            .maybeSingle();
-          if (keyRow?.created_by) {
-            userId = keyRow.created_by;
+        if (!userId) {
+          for (const candidate of bearerTokens) {
+            const { data: keyRow } = await adminClient
+              .from("api_keys")
+              .select("created_by")
+              .eq("key_hash", candidate)
+              .eq("is_active", true)
+              .maybeSingle();
+            if (keyRow?.created_by) {
+              userId = keyRow.created_by;
+              break;
+            }
           }
         }
       }
 
       // Try 3: getUser with service role as last resort
-      if (!userId && token) {
-        const { data: userData } = await adminClient.auth.getUser(token);
-        if (userData?.user?.id) {
-          userId = userData.user.id;
+      if (!userId) {
+        for (const candidate of bearerTokens) {
+          const { data: userData } = await adminClient.auth.getUser(candidate);
+          if (userData?.user?.id) {
+            userId = userData.user.id;
+            break;
+          }
         }
       }
 
       if (!userId) {
         console.log("[onboarding/status] Auth resolution failed", {
-          hasAuthHeader: !!authHeader,
-          hasApikeyHeader: !!apikeyHeader,
-          tokenLooksLikeJwt: token.split(".").length === 3,
-          apiKeyLooksValid: apikeyHeader.startsWith("acry_"),
+          authSourcePrefixes: authSources.map((value) => value.slice(0, 18)),
+          apiKeySourcePrefixes: apiKeySources.map((value) => value.slice(0, 18)),
+          primaryAuthLooksLikeJwt: primaryToken.split(".").length === 3,
+          primaryApiKeyExtracted: !!apiKeySources.map((value) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "").find(Boolean),
+          primaryAuthHeaderPrefix: primaryAuthHeader.slice(0, 18),
         });
         return json({ error: "Unauthorized" }, 401);
       }
