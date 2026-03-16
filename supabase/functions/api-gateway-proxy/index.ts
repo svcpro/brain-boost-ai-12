@@ -26,6 +26,7 @@ const EDGE_FUNCTION_PATHS = new Set([
   "cognitive-twin",
   "meta-learning",
   "continual-learning",
+  "onboarding",
 ]);
 
 const normalizeTargetBase = (rawBase?: unknown) => {
