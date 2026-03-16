@@ -42,11 +42,12 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", caller.id);
 
-    const isAdmin = roles && roles.length > 0;
     const isSuperAdmin = roles?.some((r: any) => r.role === "super_admin");
+    const isApiAdmin = roles?.some((r: any) => r.role === "api_admin");
+    const canDelete = isSuperAdmin || isApiAdmin;
 
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden: Admin role required" }), {
+    if (!canDelete) {
+      return new Response(JSON.stringify({ error: "Forbidden: Only super_admin or api_admin can delete users" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

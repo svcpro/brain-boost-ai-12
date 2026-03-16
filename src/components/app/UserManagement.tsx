@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
+import { useAdminRole } from "@/hooks/useAdminRole";
 
 interface UserProfile {
   id: string;
@@ -583,6 +584,7 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   toast: any;
 }) => {
   const { user: adminUser } = useAuth();
+  const { hasAnyRole } = useAdminRole();
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     display_name: user.display_name || "",
@@ -1040,8 +1042,10 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         )}
       </div>
 
-      {/* Delete User Section */}
-      <DeleteUserSection userId={user.id} userName={user.display_name || "Anonymous"} onDeleted={onBack} toast={toast} logAudit={logAudit} />
+      {/* Delete User Section - only for super_admin & api_admin */}
+      {hasAnyRole("super_admin", "api_admin") && (
+        <DeleteUserSection userId={user.id} userName={user.display_name || "Anonymous"} onDeleted={onBack} toast={toast} logAudit={logAudit} />
+      )}
     </div>
   );
 };
