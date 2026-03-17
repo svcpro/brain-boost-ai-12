@@ -12,6 +12,17 @@ const json = (data: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+const sanitizeNulls = (value: unknown): unknown => {
+  if (value === null) return "";
+  if (Array.isArray(value)) return value.map(sanitizeNulls);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, nestedValue]) => [key, sanitizeNulls(nestedValue)]),
+    );
+  }
+  return value;
+};
+
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
@@ -721,63 +732,86 @@ Deno.serve(async (req) => {
             const w = weakest[0] as any;
             todaysMission = { mission: { id: `weak-${w.id}`, title: `Strengthen: ${w.name}`, description: `Memory strength is ${Math.round(w.memory_strength ?? 0)}%. A quick review will help!`, type: "review", priority: "medium", topic_id: w.id }, source: "weak_topic" };
           } else {
-            todaysMission = { mission: { id: "onboard-start", title: "🚀 Add Your First Topic", description: "Start by adding a subject and topic to begin your AI-powered study journey!", type: "onboarding", priority: "high", topic_id: null }, source: "system" };
+            todaysMission = { mission: { id: "onboard-start", title: "🚀 Add Your First Topic", description: "Start by adding a subject and topic to begin your AI-powered study journey!", type: "onboarding", priority: "high", topic_id: "" }, source: "system" };
           }
         }
 
-        // ── Rank Prediction (smart defaults) ──
-        let rankPrediction: any;
-        if (pred) {
-          rankPrediction = {
-            predicted_rank: pred.predicted_rank,
-            rank_range: { min: pred.rank_range_min ?? pred.predicted_rank, max: pred.rank_range_max ?? pred.predicted_rank },
-            trend: pred.trend || "stable",
-            confidence: pred.confidence ?? 0,
-            factors: pred.factors ?? {},
-          };
-        } else {
-          // Generate estimated rank based on available data
-          const estimatedConfidence = Math.min(100, total * 5 + weekLogs.length * 2);
-          const baseRank = total > 0 ? Math.max(1, Math.round(5000 - (avgHealth * 40) - (total * 10) - (studiedMin * 2))) : null;
-          rankPrediction = {
-            predicted_rank: baseRank,
-            rank_range: baseRank ? { min: Math.max(1, baseRank - Math.round(baseRank * 0.15)), max: baseRank + Math.round(baseRank * 0.15) } : { min: 4000, max: 5000 },
-            trend: weekTotal > 60 ? "rising" : weekTotal > 0 ? "stable" : "needs_data",
-            confidence: estimatedConfidence,
-            factors: {
-              memory_strength: avgHealth,
-              topics_covered: total,
-              study_minutes_this_week: weekTotal,
-              consistency: streak?.current_streak ?? 0,
-              note: total === 0 ? "Add topics and study to get accurate rank predictions" : "Rank improves as you study more consistently",
-            },
-          };
-        }
+        const defaultTopic = {
+          id: "",
+          name: "",
+          memory_strength: 0,
+          risk_level: "low",
+          subject_id: "",
+        };
 
-        // ── Trial Status (smart defaults) ──
-        let trialStatus: any;
-        if (sub) {
-          trialStatus = {
-            plan_key: subPlan?.plan_key ?? "unknown",
-            plan_name: subPlan?.name ?? "Unknown",
-            is_trial: sub.is_trial ?? false,
-            trial_days_remaining: trialDaysRemaining,
-            status: sub.status,
-            expires_at: sub.expires_at,
-          };
-        } else {
-          trialStatus = {
-            plan_key: "free",
-            plan_name: "Free Brain",
-            is_trial: false,
-            trial_days_remaining: null,
-            status: "free",
-            expires_at: null,
-            upgrade_prompt: "Upgrade to Premium for AI-powered study plans, unlimited topics, and rank predictions!",
-          };
-        }
+        const safeExamCountdown = examCountdown.exam_date
+          ? examCountdown
+          : { days_left: 0, exam_date: "", urgency: "normal" };
 
-        return json({
+        const safeSmartRecallTopic = weakest[0] || defaultTopic;
+        const safeRiskTopic = riskTopicsList[0] || defaultTopic;
+
+        const estimatedConfidence = Math.min(100, total * 5 + weekLogs.length * 2);
+        const fallbackRank = total > 0
+          ? Math.max(1, Math.round(5000 - (avgHealth * 40) - (total * 10) - (studiedMin * 2)))
+          : 4500;
+
+        // ── Rank Prediction (never null) ──
+        const resolvedPredictedRank = pred?.predicted_rank
+          ?? (pred?.rank_range_min && pred?.rank_range_max
+            ? Math.round((pred.rank_range_min + pred.rank_range_max) / 2)
+            : fallbackRank);
+        const resolvedRankMin = pred?.rank_range_min ?? Math.max(1, resolvedPredictedRank - Math.round(resolvedPredictedRank * 0.15));
+        const resolvedRankMax = pred?.rank_range_max ?? resolvedPredictedRank + Math.round(resolvedPredictedRank * 0.15);
+
+        const rankPrediction = {
+          predicted_rank: resolvedPredictedRank,
+          rank_range: { min: resolvedRankMin, max: resolvedRankMax },
+          trend: pred?.trend || (weekTotal > 60 ? "rising" : weekTotal > 0 ? "stable" : "needs_data"),
+          confidence: pred?.confidence ?? estimatedConfidence,
+          factors: pred?.factors ?? {
+            memory_strength: avgHealth,
+            topics_covered: total,
+            study_minutes_this_week: weekTotal,
+            consistency: streak?.current_streak ?? 0,
+            note: total === 0 ? "Add topics and study to get accurate rank predictions" : "Rank improves as you study more consistently",
+          },
+        };
+
+        // ── Trial Status (never null) ──
+        const trialStatus = sub
+          ? {
+              plan_key: subPlan?.plan_key ?? "unknown",
+              plan_name: subPlan?.name ?? "Unknown",
+              is_trial: sub.is_trial ?? false,
+              trial_days_remaining: trialDaysRemaining ?? 0,
+              status: sub.status,
+              expires_at: sub.expires_at ?? "",
+              upgrade_prompt: "",
+            }
+          : {
+              plan_key: "free",
+              plan_name: "Free Brain",
+              is_trial: false,
+              trial_days_remaining: 0,
+              status: "free",
+              expires_at: "",
+              upgrade_prompt: "Upgrade to Premium for AI-powered study plans, unlimited topics, and rank predictions!",
+            };
+
+        const safeAutopilotSession = autopilotRes.data ?? {
+          id: "",
+          session_date: today,
+          status: "not_started",
+          completed_sessions: 0,
+          total_sessions: 0,
+          planned_schedule: {},
+          performance_summary: {},
+          emergency_triggered: false,
+          mode_switches: [],
+        };
+
+        return json(sanitizeNulls({
           brain_health: {
             overall_health: avgHealth,
             health_label: avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : total === 0 ? "Not started" : "Critical",
@@ -785,10 +819,10 @@ Deno.serve(async (req) => {
             total_topics: total,
             strong_topics: strong,
             weak_topics: weak,
-            tip: total === 0 ? "Add your first topic to start tracking brain health!" : avgHealth < 40 ? "Review your weakest topics to boost brain health" : null,
+            tip: total === 0 ? "Add your first topic to start tracking brain health!" : avgHealth < 40 ? "Review your weakest topics to boost brain health" : "Keep going — your brain health is improving.",
           },
           rank_prediction: rankPrediction,
-          exam_countdown: examCountdown,
+          exam_countdown: safeExamCountdown,
           daily_goal: {
             goal_minutes: goalMin,
             studied_minutes: studiedMin,
@@ -803,14 +837,17 @@ Deno.serve(async (req) => {
             freezes_available: freezeCountRes.count ?? 0,
             next_milestone: getNextMilestone(streak?.current_streak ?? 0),
             streak_at_risk: streakAtRisk,
-            motivation: (streak?.current_streak ?? 0) === 0 ? "Start a study session to build your streak!" : streakAtRisk ? "Study now to keep your streak alive!" : null,
+            motivation: (streak?.current_streak ?? 0) === 0 ? "Start a study session to build your streak!" : streakAtRisk ? "Study now to keep your streak alive!" : "Nice work — keep the momentum going!",
           },
           todays_mission: todaysMission,
-          ai_recommendations: { recommendations: allRecs, tip: allRecs.length === 0 ? "Complete a few study sessions to unlock AI recommendations" : null },
+          ai_recommendations: {
+            recommendations: allRecs,
+            tip: allRecs.length === 0 ? "Complete a few study sessions to unlock AI recommendations" : "You already have AI recommendations ready.",
+          },
           brain_missions: { missions: missionsRes.data || [] },
           quick_actions: {
-            smart_recall: { available: total > 0, topic: weakest[0] || null, label: total === 0 ? "Add topics first" : "Smart Recall" },
-            risk_shield: { available: riskTopicsList.length > 0, count: riskTopicsList.length, top_topic: riskTopicsList[0] || null },
+            smart_recall: { available: total > 0, topic: safeSmartRecallTopic, label: total === 0 ? "Add topics first" : "Smart Recall" },
+            risk_shield: { available: riskTopicsList.length > 0, count: riskTopicsList.length, top_topic: safeRiskTopic },
             rank_boost: { available: total > 0 },
             focus_shield: { available: true },
           },
@@ -822,14 +859,27 @@ Deno.serve(async (req) => {
             top_subjects: topSubjects,
             summary: weekLogs.length === 0 ? "No study sessions this week. Start today!" : `You studied ${weekTotal} minutes across ${weekLogs.length} sessions this week.`,
           },
-          recently_studied: { sessions: recentLogsRes.data || [], tip: (recentLogsRes.data || []).length === 0 ? "Your recent sessions will appear here" : null },
+          recently_studied: {
+            sessions: recentLogsRes.data || [],
+            tip: (recentLogsRes.data || []).length === 0 ? "Your recent sessions will appear here" : "Your latest study sessions are shown here.",
+          },
           brain_feed: { feed: reportsRes.data || [] },
-          autopilot: { enabled: autopilotCfgRes.data?.is_enabled ?? false, today_session: autopilotRes.data ?? null, completed: autopilotRes.data?.completed_sessions ?? 0, total: autopilotRes.data?.total_sessions ?? 0 },
+          autopilot: {
+            enabled: autopilotCfgRes.data?.is_enabled ?? false,
+            today_session: safeAutopilotSession,
+            completed: safeAutopilotSession.completed_sessions ?? 0,
+            total: safeAutopilotSession.total_sessions ?? 0,
+          },
           trial_status: trialStatus,
           completion_rate: { completion_rate: Math.round(compCurrent), trend: compCurrent > compPrev + 2 ? "improving" : compCurrent < compPrev - 2 ? "declining" : "stable" },
-          welcome: { show_welcome: isNew, display_name: profile?.display_name ?? null, avatar_url: profile?.avatar_url ?? null, greeting },
+          welcome: {
+            show_welcome: isNew,
+            display_name: profile?.display_name?.trim() || "Learner",
+            avatar_url: profile?.avatar_url || "",
+            greeting,
+          },
           daily_quote: quotes[dayIndex],
-        });
+        }));
       }
 
       default:
