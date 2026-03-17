@@ -45,6 +45,67 @@ function normalizeIndianMobile(rawMobile: unknown): string | null {
   return null;
 }
 
+function buildPhoneVariants(normalizedMobile: string): string[] {
+  const localMobile = normalizedMobile.slice(-10);
+  return [...new Set([normalizedMobile, `+${normalizedMobile}`, localMobile])];
+}
+
+async function purgeUserRows(adminClient: ReturnType<typeof getAdminClient>, userIds: string[]) {
+  const uniqueUserIds = [...new Set(userIds.filter(Boolean))];
+  if (uniqueUserIds.length === 0) return;
+
+  const purgeResults = await Promise.allSettled([
+    adminClient.from("topics").delete().in("user_id", uniqueUserIds),
+    adminClient.from("subjects").delete().in("user_id", uniqueUserIds),
+    adminClient.from("api_keys").delete().in("created_by", uniqueUserIds),
+    adminClient.from("user_roles").delete().in("user_id", uniqueUserIds),
+    adminClient.from("user_settings").delete().in("user_id", uniqueUserIds),
+    adminClient.from("profiles").delete().in("id", uniqueUserIds),
+  ]);
+
+  const failedPurges = purgeResults
+    .filter((result): result is PromiseFulfilledResult<{ error: { message: string } | null }> | PromiseRejectedResult =>
+      result.status === "rejected" || !!result.value.error
+    )
+    .map((result) => result.status === "rejected" ? result.reason : result.value.error?.message)
+    .filter(Boolean);
+
+  if (failedPurges.length > 0) {
+    throw new Error(`Failed to purge stale phone signup data: ${failedPurges.join("; ")}`);
+  }
+}
+
+async function cleanupStalePhoneSignupData(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
+  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
+  const staleUserIds = new Set<string>();
+
+  for (const phoneVariant of buildPhoneVariants(normalizedMobile)) {
+    const { data: profileRows, error } = await adminClient
+      .from("profiles")
+      .select("id")
+      .eq("phone", phoneVariant);
+
+    if (error) {
+      throw new Error(`Failed to look up stale phone profile (${phoneVariant}): ${error.message}`);
+    }
+
+    profileRows?.forEach((row) => staleUserIds.add(row.id));
+  }
+
+  const { data: emailRows, error: emailLookupError } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("email", placeholderEmail);
+
+  if (emailLookupError) {
+    throw new Error(`Failed to look up stale phone email profile: ${emailLookupError.message}`);
+  }
+
+  emailRows?.forEach((row) => staleUserIds.add(row.id));
+
+  await purgeUserRows(adminClient, [...staleUserIds]);
+}
+
 // ─── Parameter Extraction ────────────────────────────────
 
 function toStr(v: unknown): string | undefined {
