@@ -208,7 +208,16 @@ Deno.serve(async (req) => {
         .eq("id", userId)
         .maybeSingle();
 
-      const onboarded = profile?.onboarding_completed === true;
+      const studyPreferences = profile?.study_preferences && typeof profile.study_preferences === "object" && !Array.isArray(profile.study_preferences)
+        ? profile.study_preferences as Record<string, unknown>
+        : {};
+      const studyMode = typeof studyPreferences.study_mode === "string" && studyPreferences.study_mode.trim()
+        ? studyPreferences.study_mode.trim()
+        : typeof studyPreferences.mode === "string" && studyPreferences.mode.trim()
+          ? studyPreferences.mode.trim()
+          : "";
+      const onboarded = profile?.onboarding_completed === true || studyPreferences.onboarded === true;
+
       // Determine current step based on what data exists
       let currentStep = 0;
       if (profile?.display_name) currentStep = 1;
@@ -226,7 +235,7 @@ Deno.serve(async (req) => {
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       if ((topicCount || 0) > 0) currentStep = 5;
-      if (profile?.study_preferences) currentStep = 6;
+      if (studyMode) currentStep = 6;
       if (onboarded) currentStep = 6;
 
       return json({
@@ -236,7 +245,7 @@ Deno.serve(async (req) => {
         display_name: profile?.display_name,
         exam_type: profile?.exam_type,
         exam_date: profile?.exam_date,
-        study_mode: (profile?.study_preferences as any)?.study_mode,
+        study_mode: studyMode || null,
         subjects_count: subjectCount || 0,
         topics_count: topicCount || 0,
       });
