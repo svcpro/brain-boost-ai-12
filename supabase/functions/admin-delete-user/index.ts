@@ -15,13 +15,66 @@ function buildPhoneVariants(rawPhone: unknown): string[] {
   return [...new Set([phone, digits, localMobile, `+${digits}`].filter(Boolean))];
 }
 
+async function findAuthUserByIdentifiers(
+  serviceClient: ReturnType<typeof createClient>,
+  targetUserId: string | null,
+  targetPhone: string | null,
+  targetEmail: string | null,
+) {
+  if (targetUserId) {
+    const { data, error } = await serviceClient.auth.admin.getUserById(targetUserId);
+    if (!error && data.user) {
+      return {
+        user: data.user,
+        resolvedUserId: data.user.id,
+        resolvedPhone: data.user.phone ?? targetPhone,
+        resolvedEmail: data.user.email ?? targetEmail,
+      };
+    }
+  }
+
+  if (!targetPhone && !targetEmail) {
+    return {
+      user: null,
+      resolvedUserId: targetUserId,
+      resolvedPhone: targetPhone,
+      resolvedEmail: targetEmail,
+    };
+  }
+
+  const { data: usersData, error: listUsersError } = await serviceClient.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+
+  if (listUsersError) {
+    throw new Error(`Failed to resolve auth user by identifier: ${listUsersError.message}`);
+  }
+
+  const phoneVariants = targetPhone ? buildPhoneVariants(targetPhone) : [];
+  const emailNeedle = targetEmail?.toLowerCase() ?? "";
+  const authUser = usersData.users.find((candidate) => {
+    const candidateEmail = candidate.email?.toLowerCase() ?? "";
+    const candidatePhones = buildPhoneVariants(candidate.phone ?? "");
+    return (emailNeedle && candidateEmail === emailNeedle)
+      || phoneVariants.some((variant) => candidatePhones.includes(variant));
+  }) ?? null;
+
+  return {
+    user: authUser,
+    resolvedUserId: authUser?.id ?? targetUserId,
+    resolvedPhone: authUser?.phone ?? targetPhone,
+    resolvedEmail: authUser?.email ?? targetEmail,
+  };
+}
+
 async function purgeUserData(
   serviceClient: ReturnType<typeof createClient>,
-  targetUserId: string,
+  seedUserIds: string[],
   targetPhone: unknown,
   targetEmail: string | null | undefined,
 ) {
-  const staleUserIds = new Set<string>([targetUserId]);
+  const staleUserIds = new Set<string>(seedUserIds.filter(Boolean));
 
   for (const phoneVariant of buildPhoneVariants(targetPhone)) {
     const { data: profileRows, error } = await serviceClient
@@ -50,6 +103,10 @@ async function purgeUserData(
   }
 
   const userIds = [...staleUserIds];
+  if (userIds.length === 0) {
+    throw new Error("No matching user data found to purge");
+  }
+
   const purgeResults = await Promise.allSettled([
     serviceClient.from("topics").delete().in("user_id", userIds),
     serviceClient.from("subjects").delete().in("user_id", userIds),
