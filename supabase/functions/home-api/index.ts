@@ -570,8 +570,143 @@ Deno.serve(async (req) => {
         return json({ completion_rate: Math.round(current), trend });
       }
 
+      // ═══ UNIFIED DASHBOARD — All data in one call ═══
+      case "dashboard":
+      case "all": {
+        const today = new Date().toISOString().split("T")[0];
+        const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+
+        // Run ALL queries in parallel for maximum speed
+        const [
+          topicsRes, profileRes, streakRes, freezeCountRes,
+          recsRes, missionsRes, logsToday, logsWeek,
+          rankPredRes, reportsRes, recentLogsRes,
+          autopilotRes, autopilotCfgRes, subRes,
+          completionRes, reviewQueueRes, riskTopicsRes
+        ] = await Promise.all([
+          adminClient.from("topics").select("id, name, memory_strength, risk_level, next_review_at, decay_rate, subject_id").eq("user_id", userId).is("deleted_at", null),
+          adminClient.from("profiles").select("display_name, avatar_url, exam_date, daily_study_goal_minutes, created_at").eq("id", userId).maybeSingle(),
+          adminClient.from("study_streaks").select("*").eq("user_id", userId).maybeSingle(),
+          adminClient.from("streak_freezes").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_used", false),
+          adminClient.from("ai_recommendations").select("id, title, description, type, priority, topic_id").eq("user_id", userId).eq("completed", false).order("created_at", { ascending: false }).limit(5),
+          adminClient.from("brain_missions").select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, expires_at").eq("user_id", userId).eq("status", "active").order("created_at", { ascending: false }).limit(10),
+          adminClient.from("study_logs").select("duration_minutes").eq("user_id", userId).gte("created_at", `${today}T00:00:00Z`),
+          adminClient.from("study_logs").select("duration_minutes, subject_name, topic_name, created_at").eq("user_id", userId).gte("created_at", weekAgo),
+          adminClient.from("rank_predictions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          adminClient.from("brain_reports").select("id, report_type, summary, metrics, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
+          adminClient.from("study_logs").select("id, subject_name, topic_name, duration_minutes, mode, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
+          adminClient.from("autopilot_sessions").select("*").eq("user_id", userId).eq("session_date", today).maybeSingle(),
+          adminClient.from("autopilot_config").select("is_enabled").limit(1).maybeSingle(),
+          adminClient.from("user_subscriptions").select("*, plan:subscription_plans(plan_key, name)").eq("user_id", userId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          adminClient.from("plan_quality_logs").select("overall_completion_rate").eq("user_id", userId).order("created_at", { ascending: false }).limit(2),
+          adminClient.from("topics").select("id, name, memory_strength, risk_level, next_review_at, subject_id").eq("user_id", userId).is("deleted_at", null).not("next_review_at", "is", null).lte("next_review_at", new Date().toISOString()).order("next_review_at", { ascending: true }).limit(10),
+          adminClient.from("topics").select("id, name, memory_strength, risk_level, subject_id").eq("user_id", userId).is("deleted_at", null).in("risk_level", ["critical", "high"]).order("memory_strength", { ascending: true }).limit(10),
+        ]);
+
+        const allTopics = topicsRes.data || [];
+        const profile = profileRes.data;
+        const streak = streakRes.data;
+        const allRecs = recsRes.data || [];
+        const todayLogs = logsToday.data || [];
+        const weekLogs = logsWeek.data || [];
+
+        // ── Brain Health ──
+        const total = allTopics.length;
+        const strong = allTopics.filter((t: any) => (t.memory_strength ?? 0) >= 70).length;
+        const weak = allTopics.filter((t: any) => (t.memory_strength ?? 0) < 40).length;
+        const atRisk = allTopics.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high").length;
+        const avgHealth = total > 0 ? Math.round(allTopics.reduce((s: number, t: any) => s + (t.memory_strength ?? 0), 0) / total) : 0;
+
+        // ── Exam Countdown ──
+        let examCountdown = { days_left: null as number | null, exam_date: null as string | null, urgency: "normal" };
+        if (profile?.exam_date) {
+          const daysLeft = Math.max(0, Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000));
+          examCountdown = { days_left: daysLeft, exam_date: profile.exam_date, urgency: daysLeft <= 3 ? "critical" : daysLeft <= 14 ? "warning" : "normal" };
+        }
+
+        // ── Daily Goal ──
+        const goalMin = profile?.daily_study_goal_minutes ?? 60;
+        const studiedMin = todayLogs.reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+
+        // ── Streak ──
+        const streakAtRisk = (streak?.current_streak ?? 0) > 0 && !(streak?.today_met);
+
+        // ── Rank ──
+        const pred = rankPredRes.data;
+
+        // ── Weekly Summary ──
+        const weekTotal = weekLogs.reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+        const subjectMap: Record<string, number> = {};
+        weekLogs.forEach((l: any) => { const n = l.subject_name || "Unknown"; subjectMap[n] = (subjectMap[n] || 0) + (l.duration_minutes || 0); });
+        const topSubjects = Object.entries(subjectMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, minutes]) => ({ name, minutes }));
+
+        // ── Trial ──
+        const sub = subRes.data;
+        const subPlan = sub?.plan as any;
+        const trialDaysRemaining = sub?.is_trial && sub?.trial_end_date ? Math.max(0, Math.ceil((new Date(sub.trial_end_date).getTime() - Date.now()) / 86400000)) : null;
+
+        // ── Completion Rate ──
+        const compData = completionRes.data || [];
+        const compCurrent = ((compData as any)[0]?.overall_completion_rate ?? 0.5) * 100;
+        const compPrev = (compData as any)[1]?.overall_completion_rate ? (compData as any)[1].overall_completion_rate * 100 : compCurrent;
+
+        // ── Welcome ──
+        const h = new Date().getHours();
+        const greeting = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+        const isNew = profile?.created_at ? (Date.now() - new Date(profile.created_at).getTime()) < 86400000 : false;
+
+        // ── Daily Quote ──
+        const quotes = [
+          { quote: "The secret of getting ahead is getting started.", author: "Mark Twain", category: "motivation" },
+          { quote: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier", category: "consistency" },
+          { quote: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson", category: "persistence" },
+          { quote: "The only way to do great work is to love what you do.", author: "Steve Jobs", category: "passion" },
+          { quote: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela", category: "education" },
+        ];
+        const dayIndex = Math.floor(Date.now() / 86400000) % quotes.length;
+
+        // ── Today's Mission ──
+        let todaysMission: any = { mission: null, source: null };
+        if (allRecs.length > 0) {
+          todaysMission = { mission: allRecs[0], source: "ai_recommendation" };
+        } else {
+          const riskArr = riskTopicsRes.data || [];
+          if (riskArr.length > 0) {
+            const t = riskArr[0] as any;
+            todaysMission = { mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}%`, type: "review", priority: t.risk_level, topic_id: t.id }, source: "risk_topic" };
+          }
+        }
+
+        // ── Quick Actions ──
+        const weakest = [...allTopics].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
+        const riskTopicsList = riskTopicsRes.data || [];
+
+        return json({
+          brain_health: { overall_health: avgHealth, health_label: avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : "Critical", at_risk_count: atRisk, total_topics: total, strong_topics: strong, weak_topics: weak },
+          rank_prediction: pred ? { predicted_rank: pred.predicted_rank, rank_range: { min: pred.rank_range_min ?? pred.predicted_rank, max: pred.rank_range_max ?? pred.predicted_rank }, trend: pred.trend || "stable", confidence: pred.confidence ?? 0, factors: pred.factors ?? {} } : { predicted_rank: null, rank_range: null, trend: "stable", confidence: 0, factors: {} },
+          exam_countdown: examCountdown,
+          daily_goal: { goal_minutes: goalMin, studied_minutes: studiedMin, completion_pct: Math.min(100, Math.round((studiedMin / goalMin) * 100)) },
+          streak: { current_streak: streak?.current_streak ?? 0, longest_streak: streak?.longest_streak ?? 0, today_met: streak?.today_met ?? false, auto_shield_used: streak?.auto_shield_used ?? false, freezes_available: freezeCountRes.count ?? 0, next_milestone: getNextMilestone(streak?.current_streak ?? 0), streak_at_risk: streakAtRisk },
+          todays_mission: todaysMission,
+          ai_recommendations: { recommendations: allRecs },
+          brain_missions: { missions: missionsRes.data || [] },
+          quick_actions: { smart_recall: { available: total > 0, topic: weakest[0] || null }, risk_shield: { available: riskTopicsList.length > 0, count: riskTopicsList.length, top_topic: riskTopicsList[0] || null }, rank_boost: { available: total > 0 }, focus_shield: { available: true } },
+          review_queue: { queue: reviewQueueRes.data || [], count: (reviewQueueRes.data || []).length },
+          risk_digest: { risk_topics: riskTopicsList, count: riskTopicsList.length },
+          weekly_summary: { total_minutes: weekTotal, sessions: weekLogs.length, top_subjects: topSubjects },
+          recently_studied: { sessions: recentLogsRes.data || [] },
+          brain_feed: { feed: reportsRes.data || [] },
+          autopilot: { enabled: autopilotCfgRes.data?.is_enabled ?? false, today_session: autopilotRes.data ?? null, completed: autopilotRes.data?.completed_sessions ?? 0, total: autopilotRes.data?.total_sessions ?? 0 },
+          trial_status: sub ? { plan_key: subPlan?.plan_key ?? "unknown", plan_name: subPlan?.name ?? "Unknown", is_trial: sub.is_trial ?? false, trial_days_remaining: trialDaysRemaining, status: sub.status, expires_at: sub.expires_at } : { plan_key: "free", plan_name: "Free Brain", is_trial: false, trial_days_remaining: null, status: "free", expires_at: null },
+          completion_rate: { completion_rate: Math.round(compCurrent), trend: compCurrent > compPrev + 2 ? "improving" : compCurrent < compPrev - 2 ? "declining" : "stable" },
+          welcome: { show_welcome: isNew, display_name: profile?.display_name ?? null, avatar_url: profile?.avatar_url ?? null, greeting },
+          daily_quote: quotes[dayIndex],
+        });
+      }
+
       default:
         return json({ error: `Unknown home route: ${route}`, available_routes: [
+          "dashboard", "all",
           "brain-health", "rank-prediction", "exam-countdown", "refresh-ai",
           "ai-recommendations", "burnout-status", "streak-status", "streak-details",
           "daily-goal", "todays-mission", "quick-actions", "review-queue",
