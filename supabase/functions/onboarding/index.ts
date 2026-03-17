@@ -117,6 +117,11 @@ Deno.serve(async (req) => {
       const { userId } = await resolveIdentityFromSources(adminClient, authSources, apiKeySources);
 
       if (!userId) {
+        const normalizedAuthHeader = primaryAuthHeader.startsWith("Bearer ")
+          ? primaryAuthHeader.replace("Bearer ", "").trim()
+          : primaryAuthHeader.trim();
+        const likelyTokenHash = Boolean(normalizedAuthHeader) && !looksLikeJwtToken(primaryAuthHeader) && /^[a-f0-9]{16,}$/i.test(normalizedAuthHeader);
+
         console.log("[onboarding/status] Auth resolution failed", {
           authSourcePrefixes: authSources.map((value) => value.slice(0, 18)),
           apiKeySourcePrefixes: apiKeySources.map((value) => value.slice(0, 18)),
@@ -124,8 +129,13 @@ Deno.serve(async (req) => {
           primaryApiKeyExtracted: !!apiKeySources.map((value) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "").find(Boolean),
           hasJwtCandidateOutsideAuthorization: apiKeySources.some(looksLikeJwtToken),
           primaryAuthHeaderPrefix: primaryAuthHeader.slice(0, 18),
+          likelyTokenHash,
         });
-        return json({ error: "Unauthorized" }, 401);
+        return json({
+          error: likelyTokenHash
+            ? "Invalid token in Authorization header. Use the access_token returned by msg91-otp/verify, not token_hash."
+            : "Unauthorized",
+        }, 401);
       }
 
       const { data: profile } = await adminClient

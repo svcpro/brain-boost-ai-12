@@ -31,6 +31,20 @@ function getAdminClient() {
   );
 }
 
+function getPublicClient() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    }
+  );
+}
+
 /** Normalize Indian mobile numbers to 91XXXXXXXXXX format */
 function normalizeIndianMobile(rawMobile: unknown): string | null {
   if (rawMobile === null || rawMobile === undefined) return null;
@@ -370,6 +384,24 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   };
 }
 
+async function createSessionFromTokenHash(tokenHash: string) {
+  const publicClient = getPublicClient();
+  const { data, error } = await publicClient.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "magiclink",
+  });
+
+  if (error) {
+    throw new Error(`Failed to create session: ${error.message}`);
+  }
+
+  if (!data.session?.access_token || !data.session?.refresh_token) {
+    throw new Error("Session creation failed");
+  }
+
+  return data.session;
+}
+
 // ─── Action Handlers ─────────────────────────────────────
 
 async function handleSendSMS(authKey: string, templateId: string, mobile: string) {
@@ -427,13 +459,26 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
 
   if (otpVerified) {
     const userResult = await findOrCreateUserAndGenerateLink(adminClient, mobile);
+    const { token_hash: tokenHash, ...safeUserResult } = userResult;
+    const session = await createSessionFromTokenHash(tokenHash);
     const apiKey = await issueUserApiKey(adminClient, userResult.userId, {
       name: "Mobile OTP API Key",
       permissions: ["user_api"],
       rateLimitPerMinute: 120,
     });
 
-    return json({ success: true, verified: true, api_key: apiKey, ...userResult });
+    return json({
+      success: true,
+      verified: true,
+      api_key: apiKey,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: session.expires_at ?? null,
+      expires_in: session.expires_in ?? null,
+      token_type: session.token_type ?? "bearer",
+      user: session.user ?? null,
+      ...safeUserResult,
+    });
   }
 
   return json({ success: false, verified: false, error: "OTP verification failed" }, 400);
