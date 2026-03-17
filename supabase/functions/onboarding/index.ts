@@ -208,16 +208,7 @@ Deno.serve(async (req) => {
         .eq("id", userId)
         .maybeSingle();
 
-      const studyPreferences = profile?.study_preferences && typeof profile.study_preferences === "object" && !Array.isArray(profile.study_preferences)
-        ? profile.study_preferences as Record<string, unknown>
-        : {};
-      const studyMode = typeof studyPreferences.study_mode === "string" && studyPreferences.study_mode.trim()
-        ? studyPreferences.study_mode.trim()
-        : typeof studyPreferences.mode === "string" && studyPreferences.mode.trim()
-          ? studyPreferences.mode.trim()
-          : "";
-      const onboarded = profile?.onboarding_completed === true || studyPreferences.onboarded === true;
-
+      const onboarded = profile?.onboarding_completed === true;
       // Determine current step based on what data exists
       let currentStep = 0;
       if (profile?.display_name) currentStep = 1;
@@ -235,7 +226,7 @@ Deno.serve(async (req) => {
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       if ((topicCount || 0) > 0) currentStep = 5;
-      if (studyMode) currentStep = 6;
+      if (profile?.study_preferences) currentStep = 6;
       if (onboarded) currentStep = 6;
 
       return json({
@@ -245,7 +236,7 @@ Deno.serve(async (req) => {
         display_name: profile?.display_name,
         exam_type: profile?.exam_type,
         exam_date: profile?.exam_date,
-        study_mode: studyMode || null,
+        study_mode: (profile?.study_preferences as any)?.study_mode,
         subjects_count: subjectCount || 0,
         topics_count: topicCount || 0,
       });
@@ -423,17 +414,7 @@ Deno.serve(async (req) => {
       const studyMode = String(requestBody.study_mode || "focus").trim();
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const { data: existingProfile } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
-      const existingPreferences = existingProfile?.study_preferences && typeof existingProfile.study_preferences === "object" && !Array.isArray(existingProfile.study_preferences)
-        ? existingProfile.study_preferences as Record<string, unknown>
-        : {};
-      await adminClient.from("profiles").update({
-        study_preferences: {
-          ...existingPreferences,
-          study_mode: studyMode,
-          mode: studyMode,
-        },
-      }).eq("id", userId);
+      await adminClient.from("profiles").update({ study_preferences: { study_mode: studyMode } }).eq("id", userId);
       return json({ success: true });
     }
 
@@ -450,17 +431,7 @@ Deno.serve(async (req) => {
       if (data.display_name) updates.display_name = data.display_name;
       if (data.exam_type) updates.exam_type = data.exam_type;
       if (data.exam_date) updates.exam_date = data.exam_date;
-      if (data.study_mode) {
-        const { data: existingProfile } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
-        const existingPreferences = existingProfile?.study_preferences && typeof existingProfile.study_preferences === "object" && !Array.isArray(existingProfile.study_preferences)
-          ? existingProfile.study_preferences as Record<string, unknown>
-          : {};
-        updates.study_preferences = {
-          ...existingPreferences,
-          study_mode: data.study_mode,
-          mode: data.study_mode,
-        };
-      }
+      if (data.study_mode) updates.study_preferences = { study_mode: data.study_mode };
       if (Object.keys(updates).length > 0) {
         await adminClient.from("profiles").update(updates).eq("id", userId);
       }
@@ -477,18 +448,7 @@ Deno.serve(async (req) => {
       if (requestBody.display_name) updates.display_name = requestBody.display_name;
       if (requestBody.exam_type) updates.exam_type = requestBody.exam_type;
       if (requestBody.exam_date) updates.exam_date = requestBody.exam_date;
-      if (requestBody.study_mode) {
-        const { data: existingProfile } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
-        const existingPreferences = existingProfile?.study_preferences && typeof existingProfile.study_preferences === "object" && !Array.isArray(existingProfile.study_preferences)
-          ? existingProfile.study_preferences as Record<string, unknown>
-          : {};
-        updates.study_preferences = {
-          ...existingPreferences,
-          study_mode: requestBody.study_mode,
-          mode: requestBody.study_mode,
-          onboarded: true,
-        };
-      }
+      if (requestBody.study_mode) updates.study_preferences = { study_mode: requestBody.study_mode };
       if (Object.keys(updates).length > 0) {
         await adminClient.from("profiles").update(updates).eq("id", userId);
       }
