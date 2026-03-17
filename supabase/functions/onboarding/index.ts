@@ -202,19 +202,43 @@ Deno.serve(async (req) => {
         return json({ error: "Unauthorized" }, 401);
       }
 
-      const { data: prefs } = await adminClient
-        .from("user_preferences")
-        .select("onboarded, exam_type, target_exam_date, study_mode")
-        .eq("user_id", userId)
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("display_name, exam_type, exam_date, study_preferences, onboarding_completed")
+        .eq("id", userId)
         .maybeSingle();
+
+      const onboarded = profile?.onboarding_completed === true;
+      // Determine current step based on what data exists
+      let currentStep = 0;
+      if (profile?.display_name) currentStep = 1;
+      if (profile?.exam_type) currentStep = 2;
+      if (profile?.exam_date) currentStep = 3;
+      // Check if subjects exist
+      const { count: subjectCount } = await adminClient
+        .from("subjects")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if ((subjectCount || 0) > 0) currentStep = 4;
+      // Check if topics exist
+      const { count: topicCount } = await adminClient
+        .from("topics")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if ((topicCount || 0) > 0) currentStep = 5;
+      if (profile?.study_preferences) currentStep = 6;
+      if (onboarded) currentStep = 6;
 
       return json({
         success: true,
-        onboarded: prefs?.onboarded || false,
-        current_step: prefs?.onboarded ? 6 : 0,
-        exam_type: prefs?.exam_type,
-        target_exam_date: prefs?.target_exam_date,
-        study_mode: prefs?.study_mode,
+        onboarded,
+        current_step: currentStep,
+        display_name: profile?.display_name,
+        exam_type: profile?.exam_type,
+        exam_date: profile?.exam_date,
+        study_mode: (profile?.study_preferences as any)?.study_mode,
+        subjects_count: subjectCount || 0,
+        topics_count: topicCount || 0,
       });
     }
 
