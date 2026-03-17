@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveApiKeyIdentity } from "../_shared/api-key-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
