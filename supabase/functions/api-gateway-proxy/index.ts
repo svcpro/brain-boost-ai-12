@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { resolveApiKeyIdentity } from "../_shared/api-key-auth.ts";
+import { looksLikeJwtToken, resolveIdentityFromSources } from "../_shared/request-identity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
