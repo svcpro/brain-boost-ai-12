@@ -423,7 +423,17 @@ Deno.serve(async (req) => {
       const studyMode = String(requestBody.study_mode || "focus").trim();
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await adminClient.from("profiles").update({ study_preferences: { study_mode: studyMode } }).eq("id", userId);
+      const { data: existingProfile } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
+      const existingPreferences = existingProfile?.study_preferences && typeof existingProfile.study_preferences === "object" && !Array.isArray(existingProfile.study_preferences)
+        ? existingProfile.study_preferences as Record<string, unknown>
+        : {};
+      await adminClient.from("profiles").update({
+        study_preferences: {
+          ...existingPreferences,
+          study_mode: studyMode,
+          mode: studyMode,
+        },
+      }).eq("id", userId);
       return json({ success: true });
     }
 
