@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { issueUserApiKey } from "../_shared/api-key-auth.ts";
 import { buildPhoneVariants, purgeUserGraph } from "../_shared/user-purge.ts";
 
 /* ═══════════════════════════════════════════════════════════
