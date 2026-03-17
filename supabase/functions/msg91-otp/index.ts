@@ -307,36 +307,7 @@ async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string
   return data;
 }
 
-// ─── User Session Helpers ────────────────────────────────
-
-async function exchangeMagicLinkForSession(tokenHash: string) {
-  const authClient = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    }
-  );
-
-  const { data, error } = await authClient.auth.verifyOtp({
-    token_hash: tokenHash,
-    type: "magiclink",
-  });
-
-  if (error) {
-    console.error("[MSG91] Failed to exchange magic link for session:", error);
-    throw error;
-  }
-
-  if (!data.session?.access_token || !data.session.refresh_token) {
-    throw new Error("Session exchange did not return access credentials");
-  }
-
-  return data.session;
-}
+// ─── User Creation / Lookup ──────────────────────────────
 
 async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
   const phoneE164 = `+${normalizedMobile}`;
@@ -357,18 +328,12 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
     const tokenHash = sessionData.properties?.hashed_token;
     if (!tokenHash) throw new Error("Magic link generation failed");
 
-    const session = await exchangeMagicLinkForSession(tokenHash);
-
     return {
       isNewUser: false,
       userId: existingUser.id,
       email: existingUser.email,
       token_hash: tokenHash,
-      verification_type: "magiclink",
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-      expires_in: session.expires_in,
-      token_type: session.token_type,
+      verification_type: "magiclink" as const,
     };
   }
 
@@ -397,17 +362,11 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   const tokenHash = sessionData.properties?.hashed_token;
   if (!tokenHash) throw new Error("Magic link generation failed");
 
-  const session = await exchangeMagicLinkForSession(tokenHash);
-
   return {
     isNewUser: true,
     userId: newUser.user.id,
     token_hash: tokenHash,
-    verification_type: "magiclink",
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_in: session.expires_in,
-    token_type: session.token_type,
+    verification_type: "magiclink" as const,
   };
 }
 
