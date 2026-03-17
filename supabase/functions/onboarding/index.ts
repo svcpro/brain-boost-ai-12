@@ -200,22 +200,9 @@ Deno.serve(async (req) => {
         .filter(Boolean);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      let uid: string | null = null;
+      const { userId } = await resolveIdentityFromSources(adminClient, authSources, apiKeySources);
 
-      // JWT auth
-      for (const token of bearerTokens) {
-        if (token.split(".").length !== 3) continue;
-        const { data: userData } = await adminClient.auth.getUser(token);
-        if (userData?.user?.id) { uid = userData.user.id; break; }
-      }
-
-      // API key auth
-      if (!uid) {
-        const apiKeyIdentity = await resolveApiKeyIdentity(adminClient, [...apiKeySources, ...bearerTokens]);
-        uid = apiKeyIdentity.userId;
-      }
-
-      return uid;
+      return userId;
     };
 
     // --- STEP 1: Save display name ---
