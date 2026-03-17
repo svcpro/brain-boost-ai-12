@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { resolveApiKeyIdentity } from "../_shared/api-key-auth.ts";
+import { looksLikeJwtToken, resolveIdentityFromSources } from "../_shared/request-identity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,11 +106,7 @@ Deno.serve(async (req) => {
         return json({ error: "Unauthorized" }, 401);
       }
 
-      const bearerTokens = authSources
-        .map((value) => value.startsWith("Bearer ") ? value.replace("Bearer ", "").trim() : value)
-        .filter(Boolean);
       const primaryAuthHeader = authSources[0] || "";
-      const primaryToken = bearerTokens[0] || "";
 
       // Service role client for lookups
       const adminClient = createClient(
@@ -118,48 +114,15 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      let userId: string | null = null;
-
-      // Try 1: JWT-based auth via getClaims
-      for (let i = 0; i < authSources.length && !userId; i++) {
-        const authSource = authSources[i];
-        const sourceToken = bearerTokens[i] || "";
-        if (!(authSource.startsWith("Bearer ") && sourceToken.split(".").length === 3)) continue;
-
-        const jwtClient = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_ANON_KEY")!,
-          { global: { headers: { Authorization: authSource } } }
-        );
-        const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(sourceToken);
-        if (!claimsErr && claims?.claims?.sub) {
-          userId = claims.claims.sub as string;
-        }
-      }
-
-      // Try 2: API key-based auth fallback (support raw API keys from any source)
-      if (!userId) {
-        const apiKeyIdentity = await resolveApiKeyIdentity(adminClient, [...apiKeySources, ...bearerTokens]);
-        userId = apiKeyIdentity.userId;
-      }
-
-      // Try 3: getUser with service role as last resort
-      if (!userId) {
-        for (const candidate of bearerTokens) {
-          const { data: userData } = await adminClient.auth.getUser(candidate);
-          if (userData?.user?.id) {
-            userId = userData.user.id;
-            break;
-          }
-        }
-      }
+      const { userId } = await resolveIdentityFromSources(adminClient, authSources, apiKeySources);
 
       if (!userId) {
         console.log("[onboarding/status] Auth resolution failed", {
           authSourcePrefixes: authSources.map((value) => value.slice(0, 18)),
           apiKeySourcePrefixes: apiKeySources.map((value) => value.slice(0, 18)),
-          primaryAuthLooksLikeJwt: primaryToken.split(".").length === 3,
+          primaryAuthLooksLikeJwt: looksLikeJwtToken(primaryAuthHeader),
           primaryApiKeyExtracted: !!apiKeySources.map((value) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "").find(Boolean),
+          hasJwtCandidateOutsideAuthorization: apiKeySources.some(looksLikeJwtToken),
           primaryAuthHeaderPrefix: primaryAuthHeader.slice(0, 18),
         });
         return json({ error: "Unauthorized" }, 401);
@@ -234,22 +197,9 @@ Deno.serve(async (req) => {
         .filter(Boolean);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      let uid: string | null = null;
+      const { userId } = await resolveIdentityFromSources(adminClient, authSources, apiKeySources);
 
-      // JWT auth
-      for (const token of bearerTokens) {
-        if (token.split(".").length !== 3) continue;
-        const { data: userData } = await adminClient.auth.getUser(token);
-        if (userData?.user?.id) { uid = userData.user.id; break; }
-      }
-
-      // API key auth
-      if (!uid) {
-        const apiKeyIdentity = await resolveApiKeyIdentity(adminClient, [...apiKeySources, ...bearerTokens]);
-        uid = apiKeyIdentity.userId;
-      }
-
-      return uid;
+      return userId;
     };
 
     // --- STEP 1: Save display name ---

@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { resolveApiKeyIdentity } from "../_shared/api-key-auth.ts";
+import { looksLikeJwtToken, resolveIdentityFromSources } from "../_shared/request-identity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,8 +64,6 @@ const pickString = (record: Record<string, unknown> | null, keys: string[]) => {
   return "";
 };
 
-const extractApiKey = (value: string) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
-
 const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPayload: Record<string, unknown> | null) => {
   const payloadBody = parsedPayload?.body && typeof parsedPayload.body === "object" && !Array.isArray(parsedPayload.body)
     ? parsedPayload.body as Record<string, unknown>
@@ -98,35 +96,11 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
   const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
   const apiKeySources = [...headerApiKeyCandidates, ...queryApiKeyCandidates, ...bodyApiKeyCandidates].filter(Boolean);
 
-  let userId: string | null = null;
-  let forwardedAuthorization = "";
-  let forwardedApiKey = apiKeySources.map(extractApiKey).find(Boolean) || "";
-
-  const bearerToken = headerAuthorization.startsWith("Bearer ")
-    ? headerAuthorization.replace("Bearer ", "").trim()
-    : "";
-
-  if (bearerToken) {
-    const MAX_RETRIES = 3;
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const { data: userData, error: userError } = await adminClient.auth.getUser(bearerToken);
-      if (!userError && userData?.user?.id) {
-        userId = userData.user.id;
-        forwardedAuthorization = headerAuthorization;
-        break;
-      }
-
-      if (attempt < MAX_RETRIES - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
-      }
-    }
-  }
-
-  if (!userId) {
-    const apiKeyIdentity = await resolveApiKeyIdentity(adminClient, [...apiKeySources, ...authSources]);
-    userId = apiKeyIdentity.userId;
-    forwardedApiKey = apiKeyIdentity.apiKey || forwardedApiKey;
-  }
+  const { userId, forwardedAuthorization, forwardedApiKey } = await resolveIdentityFromSources(
+    adminClient,
+    authSources,
+    apiKeySources,
+  );
 
   return {
     userId,
@@ -139,6 +113,7 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
       hasQueryApiKey: queryApiKeyCandidates.length > 0,
       hasBodyAuthorization: !!bodyAuthorization,
       hasBodyApiKey: bodyApiKeyCandidates.length > 0,
+      hasJwtCandidateOutsideAuthorization: apiKeySources.some(looksLikeJwtToken),
     },
   };
 };
