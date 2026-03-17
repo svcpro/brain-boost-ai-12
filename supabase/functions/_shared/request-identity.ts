@@ -1,3 +1,4 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { extractApiKey, resolveApiKeyIdentity, type AdminClient } from "./api-key-auth.ts";
 
 const normalizeCredential = (value: string) =>
@@ -8,19 +9,47 @@ export const looksLikeJwtToken = (value: string) => {
   return normalized.split(".").length === 3;
 };
 
+const looksLikeTokenHash = (value: string) => /^[a-f0-9]{16,}$/i.test(normalizeCredential(value));
+
+const getPublicClient = () => createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_ANON_KEY")!,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  },
+);
+
+const exchangeTokenHashForSession = async (tokenHash: string) => {
+  const publicClient = getPublicClient();
+  const { data, error } = await publicClient.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "magiclink",
+  });
+
+  if (error || !data.session?.access_token || !data.user?.id) {
+    return null;
+  }
+
+  return {
+    userId: data.user.id,
+    jwtToken: data.session.access_token,
+  };
+};
+
 export async function resolveIdentityFromSources(
   adminClient: AdminClient,
   authSources: string[],
   apiKeySources: string[],
 ) {
-  const jwtCandidates = Array.from(
-    new Set(
-      [...authSources, ...apiKeySources]
-        .map(normalizeCredential)
-        .filter(Boolean)
-        .filter(looksLikeJwtToken),
-    ),
+  const normalizedCandidates = Array.from(
+    new Set([...authSources, ...apiKeySources].map(normalizeCredential).filter(Boolean)),
   );
+  const jwtCandidates = normalizedCandidates.filter(looksLikeJwtToken);
+  const tokenHashCandidates = normalizedCandidates.filter((value) => !looksLikeJwtToken(value) && looksLikeTokenHash(value));
 
   let userId: string | null = null;
   let jwtToken = "";
@@ -42,6 +71,17 @@ export async function resolveIdentityFromSources(
     }
 
     if (userId) break;
+  }
+
+  if (!userId) {
+    for (const candidate of tokenHashCandidates) {
+      const exchangedIdentity = await exchangeTokenHashForSession(candidate);
+      if (exchangedIdentity?.userId && exchangedIdentity.jwtToken) {
+        userId = exchangedIdentity.userId;
+        jwtToken = exchangedIdentity.jwtToken;
+        break;
+      }
+    }
   }
 
   let apiKey = apiKeySources.map(extractApiKey).find(Boolean) || "";
