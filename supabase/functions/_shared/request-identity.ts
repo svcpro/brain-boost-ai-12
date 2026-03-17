@@ -25,13 +25,23 @@ export async function resolveIdentityFromSources(
   let userId: string | null = null;
   let jwtToken = "";
 
+  const MAX_RETRIES = 3;
+
   for (const candidate of jwtCandidates) {
-    const { data: userData, error: userError } = await adminClient.auth.getUser(candidate);
-    if (!userError && userData?.user?.id) {
-      userId = userData.user.id;
-      jwtToken = candidate;
-      break;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const { data: userData, error: userError } = await adminClient.auth.getUser(candidate);
+      if (!userError && userData?.user?.id) {
+        userId = userData.user.id;
+        jwtToken = candidate;
+        break;
+      }
+
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+      }
     }
+
+    if (userId) break;
   }
 
   let apiKey = apiKeySources.map(extractApiKey).find(Boolean) || "";

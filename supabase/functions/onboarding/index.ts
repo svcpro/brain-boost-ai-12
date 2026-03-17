@@ -106,9 +106,6 @@ Deno.serve(async (req) => {
         return json({ error: "Unauthorized" }, 401);
       }
 
-      const bearerTokens = authSources
-        .map((value) => value.startsWith("Bearer ") ? value.replace("Bearer ", "").trim() : value)
-        .filter(Boolean);
       const primaryAuthHeader = authSources[0] || "";
 
       // Service role client for lookups
