@@ -123,50 +123,9 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
   }
 
   if (!userId) {
-    const apiKeyCandidates = [...apiKeySources, ...authSources]
-      .map((value) => value.startsWith("Bearer ") ? value.replace("Bearer ", "").trim() : value.trim())
-      .filter(Boolean);
-
-    for (const candidate of apiKeyCandidates) {
-      const extractedApiKey = extractApiKey(candidate);
-      if (!extractedApiKey) continue;
-
-      const storedPrefix = `${extractedApiKey.substring(0, 10)}...`;
-      const { data: keyRow } = await adminClient
-        .from("api_keys")
-        .select("created_by")
-        .eq("key_prefix", storedPrefix)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (keyRow?.created_by) {
-        userId = keyRow.created_by;
-        forwardedApiKey = extractedApiKey;
-        break;
-      }
-    }
-
-    if (!userId) {
-      for (const candidate of apiKeyCandidates) {
-        const normalizedCandidate = candidate.startsWith("Bearer ")
-          ? candidate.replace("Bearer ", "").trim()
-          : candidate.trim();
-        if (!normalizedCandidate) continue;
-
-        const { data: keyRow } = await adminClient
-          .from("api_keys")
-          .select("created_by")
-          .eq("key_hash", normalizedCandidate)
-          .eq("is_active", true)
-          .maybeSingle();
-
-        if (keyRow?.created_by) {
-          userId = keyRow.created_by;
-          forwardedApiKey = forwardedApiKey || extractApiKey(normalizedCandidate);
-          break;
-        }
-      }
-    }
+    const apiKeyIdentity = await resolveApiKeyIdentity(adminClient, [...apiKeySources, ...authSources]);
+    userId = apiKeyIdentity.userId;
+    forwardedApiKey = apiKeyIdentity.apiKey || forwardedApiKey;
   }
 
   return {
