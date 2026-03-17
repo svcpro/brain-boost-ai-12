@@ -459,13 +459,26 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
 
   if (otpVerified) {
     const userResult = await findOrCreateUserAndGenerateLink(adminClient, mobile);
+    const { token_hash: tokenHash, ...safeUserResult } = userResult;
+    const session = await createSessionFromTokenHash(tokenHash);
     const apiKey = await issueUserApiKey(adminClient, userResult.userId, {
       name: "Mobile OTP API Key",
       permissions: ["user_api"],
       rateLimitPerMinute: 120,
     });
 
-    return json({ success: true, verified: true, api_key: apiKey, ...userResult });
+    return json({
+      success: true,
+      verified: true,
+      api_key: apiKey,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: session.expires_at ?? null,
+      expires_in: session.expires_in ?? null,
+      token_type: session.token_type ?? "bearer",
+      user: session.user ?? null,
+      ...safeUserResult,
+    });
   }
 
   return json({ success: false, verified: false, error: "OTP verification failed" }, 400);
