@@ -384,6 +384,24 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   };
 }
 
+async function createSessionFromTokenHash(tokenHash: string) {
+  const publicClient = getPublicClient();
+  const { data, error } = await publicClient.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "magiclink",
+  });
+
+  if (error) {
+    throw new Error(`Failed to create session: ${error.message}`);
+  }
+
+  if (!data.session?.access_token || !data.session?.refresh_token) {
+    throw new Error("Session creation failed");
+  }
+
+  return data.session;
+}
+
 // ─── Action Handlers ─────────────────────────────────────
 
 async function handleSendSMS(authKey: string, templateId: string, mobile: string) {
