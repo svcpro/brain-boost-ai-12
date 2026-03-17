@@ -42,6 +42,7 @@ const ACRY_API_ROUTES = [
   { group: "Home Dashboard", path: "home-api/trial-status", method: "GET", desc: "Get subscription trial status — plan details, trial days remaining", auth: true, request: {}, response: { plan_key: "premium", plan_name: "Premium Brain", is_trial: true, trial_days_remaining: 8, status: "active", expires_at: "ISO_DATE" } },
   { group: "Home Dashboard", path: "home-api/welcome-status", method: "GET", desc: "Get welcome screen data — greeting, display name, avatar, new user check", auth: true, request: {}, response: { show_welcome: false, display_name: "Rahul", avatar_url: "https://...", greeting: "Good morning" } },
   { group: "Home Dashboard", path: "home-api/completion-rate", method: "GET", desc: "Get overall study plan completion rate with trend direction", auth: true, request: {}, response: { completion_rate: 72, trend: "improving" } },
+  { group: "Home Dashboard", path: "home-api/dashboard", method: "GET", desc: "⚡ UNIFIED — All Home Tab data in one call", auth: true, request: {}, response: { brain_health: {}, rank_prediction: {}, exam_countdown: {}, daily_goal: {}, streak: {}, todays_mission: {}, ai_recommendations: {}, brain_missions: {}, quick_actions: {}, review_queue: {}, risk_digest: {}, weekly_summary: {}, recently_studied: {}, brain_feed: {}, autopilot: {}, trial_status: {}, completion_rate: {}, welcome: {}, daily_quote: {} } },
 
   // ── Section 2: Authentication — OTP-First + OAuth (19 endpoints) ──
   // PRIMARY FLOW: Passwordless Mobile OTP via MSG91 (SMS & WhatsApp)
