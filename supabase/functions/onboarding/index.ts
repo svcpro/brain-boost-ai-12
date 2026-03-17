@@ -245,14 +245,8 @@ Deno.serve(async (req) => {
 
       // API key auth
       if (!uid) {
-        const candidates = [...apiKeySources, ...bearerTokens].map(v => v.startsWith("Bearer ") ? v.replace("Bearer ", "").trim() : v.trim()).filter(Boolean);
-        for (const c of candidates) {
-          const extracted = c.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
-          if (!extracted) continue;
-          const prefix = `${extracted.substring(0, 10)}...`;
-          const { data: keyRow } = await adminClient.from("api_keys").select("created_by").eq("key_prefix", prefix).eq("is_active", true).maybeSingle();
-          if (keyRow?.created_by) { uid = keyRow.created_by; break; }
-        }
+        const apiKeyIdentity = await resolveApiKeyIdentity(adminClient, [...apiKeySources, ...bearerTokens]);
+        uid = apiKeyIdentity.userId;
       }
 
       return uid;
