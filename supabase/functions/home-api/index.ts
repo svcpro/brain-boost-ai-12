@@ -19,11 +19,50 @@ const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBL
 const adminClient = createClient(supabaseUrl, serviceKey);
 
 async function resolveUser(req: Request): Promise<string | null> {
+  // 1. Try Bearer JWT token
   const auth = req.headers.get("authorization") ?? "";
-  if (!auth.startsWith("Bearer ")) return null;
-  const token = auth.replace("Bearer ", "").trim();
-  const { data } = await adminClient.auth.getUser(token);
-  return data?.user?.id ?? null;
+  if (auth.startsWith("Bearer ")) {
+    const token = auth.replace("Bearer ", "").trim();
+    const { data } = await adminClient.auth.getUser(token);
+    if (data?.user?.id) return data.user.id;
+  }
+
+  // 2. Try x-api-key / api-key headers (acry_ prefixed keys)
+  const apiKeyCandidates = [
+    req.headers.get("x-api-key"),
+    req.headers.get("api-key"),
+    req.headers.get("apikey"),
+  ].filter(Boolean).map(k => k!.trim()).filter(Boolean);
+
+  // Also check Authorization header as raw key (non-Bearer)
+  if (auth && !auth.startsWith("Bearer ")) {
+    apiKeyCandidates.push(auth.trim());
+  }
+
+  for (const candidate of apiKeyCandidates) {
+    const acryMatch = candidate.match(/acry_[A-Za-z0-9]+/)?.[0];
+    if (acryMatch) {
+      const storedPrefix = `${acryMatch.substring(0, 10)}...`;
+      const { data: keyRow } = await adminClient
+        .from("api_keys")
+        .select("created_by")
+        .eq("key_prefix", storedPrefix)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (keyRow?.created_by) return keyRow.created_by;
+    }
+
+    // Fallback: match by key_hash
+    const { data: hashRow } = await adminClient
+      .from("api_keys")
+      .select("created_by")
+      .eq("key_hash", candidate)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (hashRow?.created_by) return hashRow.created_by;
+  }
+
+  return null;
 }
 
 function userClient(authHeader: string) {
