@@ -339,6 +339,7 @@ async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string
 
 async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
   const phoneE164 = `+${normalizedMobile}`;
+  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
 
   const { data: existingUsers } = await adminClient.auth.admin.listUsers();
   const existingUser = existingUsers?.users?.find(
@@ -348,7 +349,7 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   if (existingUser) {
     const { data: sessionData, error } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
-      email: existingUser.email || `${normalizedMobile}@phone.acry.ai`,
+      email: existingUser.email || placeholderEmail,
     });
     if (error) throw error;
 
@@ -361,7 +362,8 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
     };
   }
 
-  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
+  await cleanupStalePhoneSignupData(adminClient, normalizedMobile);
+
   const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
     phone: phoneE164,
     email: placeholderEmail,
