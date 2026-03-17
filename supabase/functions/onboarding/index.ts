@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
       if (authSources.length === 0 && apiKeySources.length === 0) {
         console.log("[onboarding/status] Missing auth inputs", {
           hasAuthHeader: !!headerAuthorization,
-          hasApikeyHeader: !!headerApiKey,
+          hasApikeyHeader: headerApiKeyCandidates.length > 0,
           hasQueryAuthorization: !!queryAuthorization,
           hasQueryApikey: !!queryApiKey,
           hasBodyAuthorization: !!bodyAuthorization,
@@ -139,46 +139,8 @@ Deno.serve(async (req) => {
 
       // Try 2: API key-based auth fallback (support raw API keys from any source)
       if (!userId) {
-        const apiKeyCandidates = [...apiKeySources, ...bearerTokens]
-          .map((value) => value.trim())
-          .filter(Boolean);
-
-        for (const candidate of apiKeyCandidates) {
-          const normalizedCandidate = candidate.startsWith("Bearer ")
-            ? candidate.replace("Bearer ", "").trim()
-            : candidate;
-          const extractedApiKey = normalizedCandidate.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
-          if (!extractedApiKey) continue;
-
-          const storedPrefix = `${extractedApiKey.substring(0, 10)}...`;
-          const { data: keyRow } = await adminClient
-            .from("api_keys")
-            .select("created_by")
-            .eq("key_prefix", storedPrefix)
-            .eq("is_active", true)
-            .maybeSingle();
-
-          if (keyRow?.created_by) {
-            userId = keyRow.created_by;
-            break;
-          }
-        }
-
-        // Legacy direct hash match fallback
-        if (!userId) {
-          for (const candidate of bearerTokens) {
-            const { data: keyRow } = await adminClient
-              .from("api_keys")
-              .select("created_by")
-              .eq("key_hash", candidate)
-              .eq("is_active", true)
-              .maybeSingle();
-            if (keyRow?.created_by) {
-              userId = keyRow.created_by;
-              break;
-            }
-          }
-        }
+        const apiKeyIdentity = await resolveApiKeyIdentity(adminClient, [...apiKeySources, ...bearerTokens]);
+        userId = apiKeyIdentity.userId;
       }
 
       // Try 3: getUser with service role as last resort
