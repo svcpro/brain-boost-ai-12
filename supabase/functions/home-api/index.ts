@@ -704,6 +704,10 @@ Deno.serve(async (req) => {
         ];
         const dayIndex = Math.floor(Date.now() / 86400000) % quotes.length;
 
+        // ── Quick Actions ──
+        const weakest = [...allTopics].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
+        const riskTopicsList = riskTopicsRes.data || [];
+
         // ── Today's Mission ──
         let todaysMission: any = { mission: null, source: null };
         if (allRecs.length > 0) {
@@ -713,19 +717,13 @@ Deno.serve(async (req) => {
           if (riskArr.length > 0) {
             const t = riskArr[0] as any;
             todaysMission = { mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}%`, type: "review", priority: t.risk_level, topic_id: t.id }, source: "risk_topic" };
-          } else if (total > 0) {
-            // Fallback: suggest reviewing weakest topic
+          } else if (total > 0 && weakest.length > 0) {
             const w = weakest[0] as any;
             todaysMission = { mission: { id: `weak-${w.id}`, title: `Strengthen: ${w.name}`, description: `Memory strength is ${Math.round(w.memory_strength ?? 0)}%. A quick review will help!`, type: "review", priority: "medium", topic_id: w.id }, source: "weak_topic" };
           } else {
-            // No topics at all — suggest onboarding action
             todaysMission = { mission: { id: "onboard-start", title: "🚀 Add Your First Topic", description: "Start by adding a subject and topic to begin your AI-powered study journey!", type: "onboarding", priority: "high", topic_id: null }, source: "system" };
           }
         }
-
-        // ── Quick Actions ──
-        const weakest = [...allTopics].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
-        const riskTopicsList = riskTopicsRes.data || [];
 
         // ── Rank Prediction (smart defaults) ──
         let rankPrediction: any;
