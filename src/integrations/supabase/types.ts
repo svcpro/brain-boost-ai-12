@@ -6646,6 +6646,7 @@ export type Database = {
           id: string
           is_banned: boolean
           last_brain_update_at: string | null
+          onboarding_completed: boolean | null
           opt_in_leaderboard: boolean
           phone: string | null
           push_notification_prefs: Json
@@ -6676,6 +6677,7 @@ export type Database = {
           id: string
           is_banned?: boolean
           last_brain_update_at?: string | null
+          onboarding_completed?: boolean | null
           opt_in_leaderboard?: boolean
           phone?: string | null
           push_notification_prefs?: Json
@@ -6706,6 +6708,7 @@ export type Database = {
           id?: string
           is_banned?: boolean
           last_brain_update_at?: string | null
+          onboarding_completed?: boolean | null
           opt_in_leaderboard?: boolean
           phone?: string | null
           push_notification_prefs?: Json
