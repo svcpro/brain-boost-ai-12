@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { buildPhoneVariants, purgeUserGraph } from "../_shared/user-purge.ts";
 
 /* ═══════════════════════════════════════════════════════════
    MSG91 OTP Edge Function — aligned with official docs:
@@ -43,40 +44,6 @@ function normalizeIndianMobile(rawMobile: unknown): string | null {
   if (/^91\d{10}$/.test(cleaned)) return cleaned;
 
   return null;
-}
-
-function buildPhoneVariants(normalizedMobile: string): string[] {
-  const localMobile = normalizedMobile.slice(-10);
-  return [...new Set([normalizedMobile, `+${normalizedMobile}`, localMobile])];
-}
-
-async function purgeUserRows(adminClient: ReturnType<typeof getAdminClient>, userIds: string[]) {
-  const uniqueUserIds = [...new Set(userIds.filter(Boolean))];
-  if (uniqueUserIds.length === 0) return;
-
-  const purgeResults = await Promise.allSettled([
-    adminClient.from("topics").delete().in("user_id", uniqueUserIds),
-    adminClient.from("subjects").delete().in("user_id", uniqueUserIds),
-    adminClient.from("api_keys").delete().in("created_by", uniqueUserIds),
-    adminClient.from("user_roles").delete().in("user_id", uniqueUserIds),
-    adminClient.from("user_settings").delete().in("user_id", uniqueUserIds),
-    adminClient.from("profiles").delete().in("id", uniqueUserIds),
-  ]);
-
-  const failedPurges: string[] = [];
-  for (const result of purgeResults) {
-    if (result.status === "rejected") {
-      failedPurges.push(String(result.reason));
-      continue;
-    }
-    if (result.value.error?.message) {
-      failedPurges.push(result.value.error.message);
-    }
-  }
-
-  if (failedPurges.length > 0) {
-    throw new Error(`Failed to purge stale phone signup data: ${failedPurges.join("; ")}`);
-  }
 }
 
 async function cleanupStalePhoneSignupData(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {

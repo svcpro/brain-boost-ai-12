@@ -1,19 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { buildPhoneVariants, purgeUserGraph } from "../_shared/user-purge.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-function buildPhoneVariants(rawPhone: unknown): string[] {
-  const phone = typeof rawPhone === "string" ? rawPhone.trim() : "";
-  const digits = phone.replace(/\D/g, "");
-  if (!digits) return [];
-
-  const localMobile = digits.length > 10 ? digits.slice(-10) : digits;
-  return [...new Set([phone, digits, localMobile, `+${digits}`].filter(Boolean))];
-}
 
 async function findAuthUserByIdentifiers(
   serviceClient: ReturnType<typeof createClient>,
