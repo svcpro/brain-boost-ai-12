@@ -33,9 +33,12 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         }
         setIsAdmin(true);
 
+        // Check if user is api_admin — they bypass MFA
+        const isApiAdmin = roles.some((r: any) => r.role === "api_admin");
+
         // OAuth users (Google, Apple) bypass MFA — provider-level auth is sufficient
         const provider = user.app_metadata?.provider;
-        if (provider && provider !== "email") {
+        if (isApiAdmin || (provider && provider !== "email")) {
           setHasMFA(true);
         } else {
           // Email/password users require MFA aal2
