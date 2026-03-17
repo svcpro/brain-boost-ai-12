@@ -450,7 +450,17 @@ Deno.serve(async (req) => {
       if (data.display_name) updates.display_name = data.display_name;
       if (data.exam_type) updates.exam_type = data.exam_type;
       if (data.exam_date) updates.exam_date = data.exam_date;
-      if (data.study_mode) updates.study_preferences = { study_mode: data.study_mode };
+      if (data.study_mode) {
+        const { data: existingProfile } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
+        const existingPreferences = existingProfile?.study_preferences && typeof existingProfile.study_preferences === "object" && !Array.isArray(existingProfile.study_preferences)
+          ? existingProfile.study_preferences as Record<string, unknown>
+          : {};
+        updates.study_preferences = {
+          ...existingPreferences,
+          study_mode: data.study_mode,
+          mode: data.study_mode,
+        };
+      }
       if (Object.keys(updates).length > 0) {
         await adminClient.from("profiles").update(updates).eq("id", userId);
       }
