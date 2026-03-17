@@ -1,19 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { buildPhoneVariants, purgeUserGraph } from "../_shared/user-purge.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-function buildPhoneVariants(rawPhone: unknown): string[] {
-  const phone = typeof rawPhone === "string" ? rawPhone.trim() : "";
-  const digits = phone.replace(/\D/g, "");
-  if (!digits) return [];
-
-  const localMobile = digits.length > 10 ? digits.slice(-10) : digits;
-  return [...new Set([phone, digits, localMobile, `+${digits}`].filter(Boolean))];
-}
 
 async function findAuthUserByIdentifiers(
   serviceClient: ReturnType<typeof createClient>,
@@ -107,29 +99,7 @@ async function purgeUserData(
     throw new Error("No matching user data found to purge");
   }
 
-  const purgeResults = await Promise.allSettled([
-    serviceClient.from("topics").delete().in("user_id", userIds),
-    serviceClient.from("subjects").delete().in("user_id", userIds),
-    serviceClient.from("api_keys").delete().in("created_by", userIds),
-    serviceClient.from("user_roles").delete().in("user_id", userIds),
-    serviceClient.from("user_settings").delete().in("user_id", userIds),
-    serviceClient.from("profiles").delete().in("id", userIds),
-  ]);
-
-  const failures: string[] = [];
-  for (const result of purgeResults) {
-    if (result.status === "rejected") {
-      failures.push(String(result.reason));
-      continue;
-    }
-    if (result.value.error?.message) {
-      failures.push(result.value.error.message);
-    }
-  }
-
-  if (failures.length > 0) {
-    throw new Error(`Failed to purge deleted user data: ${failures.join("; ")}`);
-  }
+  await purgeUserGraph(serviceClient, userIds);
 }
 
 Deno.serve(async (req) => {
