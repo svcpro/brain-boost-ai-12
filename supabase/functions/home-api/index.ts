@@ -704,6 +704,10 @@ Deno.serve(async (req) => {
         ];
         const dayIndex = Math.floor(Date.now() / 86400000) % quotes.length;
 
+        // ── Quick Actions ──
+        const weakest = [...allTopics].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
+        const riskTopicsList = riskTopicsRes.data || [];
+
         // ── Today's Mission ──
         let todaysMission: any = { mission: null, source: null };
         if (allRecs.length > 0) {
@@ -713,30 +717,115 @@ Deno.serve(async (req) => {
           if (riskArr.length > 0) {
             const t = riskArr[0] as any;
             todaysMission = { mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}%`, type: "review", priority: t.risk_level, topic_id: t.id }, source: "risk_topic" };
+          } else if (total > 0 && weakest.length > 0) {
+            const w = weakest[0] as any;
+            todaysMission = { mission: { id: `weak-${w.id}`, title: `Strengthen: ${w.name}`, description: `Memory strength is ${Math.round(w.memory_strength ?? 0)}%. A quick review will help!`, type: "review", priority: "medium", topic_id: w.id }, source: "weak_topic" };
+          } else {
+            todaysMission = { mission: { id: "onboard-start", title: "🚀 Add Your First Topic", description: "Start by adding a subject and topic to begin your AI-powered study journey!", type: "onboarding", priority: "high", topic_id: null }, source: "system" };
           }
         }
 
-        // ── Quick Actions ──
-        const weakest = [...allTopics].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
-        const riskTopicsList = riskTopicsRes.data || [];
+        // ── Rank Prediction (smart defaults) ──
+        let rankPrediction: any;
+        if (pred) {
+          rankPrediction = {
+            predicted_rank: pred.predicted_rank,
+            rank_range: { min: pred.rank_range_min ?? pred.predicted_rank, max: pred.rank_range_max ?? pred.predicted_rank },
+            trend: pred.trend || "stable",
+            confidence: pred.confidence ?? 0,
+            factors: pred.factors ?? {},
+          };
+        } else {
+          // Generate estimated rank based on available data
+          const estimatedConfidence = Math.min(100, total * 5 + weekLogs.length * 2);
+          const baseRank = total > 0 ? Math.max(1, Math.round(5000 - (avgHealth * 40) - (total * 10) - (studiedMin * 2))) : null;
+          rankPrediction = {
+            predicted_rank: baseRank,
+            rank_range: baseRank ? { min: Math.max(1, baseRank - Math.round(baseRank * 0.15)), max: baseRank + Math.round(baseRank * 0.15) } : { min: 4000, max: 5000 },
+            trend: weekTotal > 60 ? "rising" : weekTotal > 0 ? "stable" : "needs_data",
+            confidence: estimatedConfidence,
+            factors: {
+              memory_strength: avgHealth,
+              topics_covered: total,
+              study_minutes_this_week: weekTotal,
+              consistency: streak?.current_streak ?? 0,
+              note: total === 0 ? "Add topics and study to get accurate rank predictions" : "Rank improves as you study more consistently",
+            },
+          };
+        }
+
+        // ── Trial Status (smart defaults) ──
+        let trialStatus: any;
+        if (sub) {
+          trialStatus = {
+            plan_key: subPlan?.plan_key ?? "unknown",
+            plan_name: subPlan?.name ?? "Unknown",
+            is_trial: sub.is_trial ?? false,
+            trial_days_remaining: trialDaysRemaining,
+            status: sub.status,
+            expires_at: sub.expires_at,
+          };
+        } else {
+          trialStatus = {
+            plan_key: "free",
+            plan_name: "Free Brain",
+            is_trial: false,
+            trial_days_remaining: null,
+            status: "free",
+            expires_at: null,
+            upgrade_prompt: "Upgrade to Premium for AI-powered study plans, unlimited topics, and rank predictions!",
+          };
+        }
 
         return json({
-          brain_health: { overall_health: avgHealth, health_label: avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : "Critical", at_risk_count: atRisk, total_topics: total, strong_topics: strong, weak_topics: weak },
-          rank_prediction: pred ? { predicted_rank: pred.predicted_rank, rank_range: { min: pred.rank_range_min ?? pred.predicted_rank, max: pred.rank_range_max ?? pred.predicted_rank }, trend: pred.trend || "stable", confidence: pred.confidence ?? 0, factors: pred.factors ?? {} } : { predicted_rank: null, rank_range: null, trend: "stable", confidence: 0, factors: {} },
+          brain_health: {
+            overall_health: avgHealth,
+            health_label: avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : total === 0 ? "Not started" : "Critical",
+            at_risk_count: atRisk,
+            total_topics: total,
+            strong_topics: strong,
+            weak_topics: weak,
+            tip: total === 0 ? "Add your first topic to start tracking brain health!" : avgHealth < 40 ? "Review your weakest topics to boost brain health" : null,
+          },
+          rank_prediction: rankPrediction,
           exam_countdown: examCountdown,
-          daily_goal: { goal_minutes: goalMin, studied_minutes: studiedMin, completion_pct: Math.min(100, Math.round((studiedMin / goalMin) * 100)) },
-          streak: { current_streak: streak?.current_streak ?? 0, longest_streak: streak?.longest_streak ?? 0, today_met: streak?.today_met ?? false, auto_shield_used: streak?.auto_shield_used ?? false, freezes_available: freezeCountRes.count ?? 0, next_milestone: getNextMilestone(streak?.current_streak ?? 0), streak_at_risk: streakAtRisk },
+          daily_goal: {
+            goal_minutes: goalMin,
+            studied_minutes: studiedMin,
+            completion_pct: Math.min(100, Math.round((studiedMin / goalMin) * 100)),
+            status: studiedMin >= goalMin ? "completed" : studiedMin > 0 ? "in_progress" : "not_started",
+          },
+          streak: {
+            current_streak: streak?.current_streak ?? 0,
+            longest_streak: streak?.longest_streak ?? 0,
+            today_met: streak?.today_met ?? false,
+            auto_shield_used: streak?.auto_shield_used ?? false,
+            freezes_available: freezeCountRes.count ?? 0,
+            next_milestone: getNextMilestone(streak?.current_streak ?? 0),
+            streak_at_risk: streakAtRisk,
+            motivation: (streak?.current_streak ?? 0) === 0 ? "Start a study session to build your streak!" : streakAtRisk ? "Study now to keep your streak alive!" : null,
+          },
           todays_mission: todaysMission,
-          ai_recommendations: { recommendations: allRecs },
+          ai_recommendations: { recommendations: allRecs, tip: allRecs.length === 0 ? "Complete a few study sessions to unlock AI recommendations" : null },
           brain_missions: { missions: missionsRes.data || [] },
-          quick_actions: { smart_recall: { available: total > 0, topic: weakest[0] || null }, risk_shield: { available: riskTopicsList.length > 0, count: riskTopicsList.length, top_topic: riskTopicsList[0] || null }, rank_boost: { available: total > 0 }, focus_shield: { available: true } },
+          quick_actions: {
+            smart_recall: { available: total > 0, topic: weakest[0] || null, label: total === 0 ? "Add topics first" : "Smart Recall" },
+            risk_shield: { available: riskTopicsList.length > 0, count: riskTopicsList.length, top_topic: riskTopicsList[0] || null },
+            rank_boost: { available: total > 0 },
+            focus_shield: { available: true },
+          },
           review_queue: { queue: reviewQueueRes.data || [], count: (reviewQueueRes.data || []).length },
           risk_digest: { risk_topics: riskTopicsList, count: riskTopicsList.length },
-          weekly_summary: { total_minutes: weekTotal, sessions: weekLogs.length, top_subjects: topSubjects },
-          recently_studied: { sessions: recentLogsRes.data || [] },
+          weekly_summary: {
+            total_minutes: weekTotal,
+            sessions: weekLogs.length,
+            top_subjects: topSubjects,
+            summary: weekLogs.length === 0 ? "No study sessions this week. Start today!" : `You studied ${weekTotal} minutes across ${weekLogs.length} sessions this week.`,
+          },
+          recently_studied: { sessions: recentLogsRes.data || [], tip: (recentLogsRes.data || []).length === 0 ? "Your recent sessions will appear here" : null },
           brain_feed: { feed: reportsRes.data || [] },
           autopilot: { enabled: autopilotCfgRes.data?.is_enabled ?? false, today_session: autopilotRes.data ?? null, completed: autopilotRes.data?.completed_sessions ?? 0, total: autopilotRes.data?.total_sessions ?? 0 },
-          trial_status: sub ? { plan_key: subPlan?.plan_key ?? "unknown", plan_name: subPlan?.name ?? "Unknown", is_trial: sub.is_trial ?? false, trial_days_remaining: trialDaysRemaining, status: sub.status, expires_at: sub.expires_at } : { plan_key: "free", plan_name: "Free Brain", is_trial: false, trial_days_remaining: null, status: "free", expires_at: null },
+          trial_status: trialStatus,
           completion_rate: { completion_rate: Math.round(compCurrent), trend: compCurrent > compPrev + 2 ? "improving" : compCurrent < compPrev - 2 ? "declining" : "stable" },
           welcome: { show_welcome: isNew, display_name: profile?.display_name ?? null, avatar_url: profile?.avatar_url ?? null, greeting },
           daily_quote: quotes[dayIndex],
