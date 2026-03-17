@@ -381,7 +381,8 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
   } else {
     // Fallback to MSG91 SMS verify (per docs: GET with authkey header)
     const { data } = await msg91VerifyOTP(authKey, mobile, otp);
-    otpVerified = data.type === "success";
+    otpVerified = data.type === "success" || 
+      (data.message && data.message.toLowerCase().includes("already verified"));
   }
 
   if (otpVerified) {
