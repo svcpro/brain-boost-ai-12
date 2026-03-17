@@ -64,6 +64,12 @@ export async function purgeUserGraph(adminClient: AdminClient, userIds: string[]
     { label: "behavioral_micro_events_by_user", promise: adminClient.from("behavioral_micro_events").delete().in("user_id", uniqueUserIds) },
     { label: "autopilot_sessions_by_user", promise: adminClient.from("autopilot_sessions").delete().in("user_id", uniqueUserIds) },
     { label: "ai_recommendations_by_user", promise: adminClient.from("ai_recommendations").delete().in("user_id", uniqueUserIds) },
+    { label: "distraction_events_by_user", promise: adminClient.from("distraction_events").delete().in("user_id", uniqueUserIds) },
+    { label: "distraction_scores_by_user", promise: adminClient.from("distraction_scores").delete().in("user_id", uniqueUserIds) },
+    { label: "focus_shield_warnings_by_user", promise: adminClient.from("focus_shield_warnings").delete().in("user_id", uniqueUserIds) },
+    { label: "user_autopilot_preferences_by_user", promise: adminClient.from("user_autopilot_preferences").delete().in("user_id", uniqueUserIds) },
+    { label: "rank_predictions_by_user", promise: adminClient.from("rank_predictions").delete().in("user_id", uniqueUserIds) },
+    { label: "brain_reports_by_user", promise: adminClient.from("brain_reports").delete().in("user_id", uniqueUserIds) },
   ], "Failed to purge user-linked records");
 
   if (topicIds.length > 0) {
@@ -84,6 +90,13 @@ export async function purgeUserGraph(adminClient: AdminClient, userIds: string[]
       { label: "study_logs_by_subject", promise: adminClient.from("study_logs").delete().in("subject_id", subjectIds) },
     ], "Failed to purge subject-linked records");
   }
+
+  await runBatch([
+    { label: "autopilot_config_updated_by", promise: adminClient.from("autopilot_config").update({ updated_by: null }).in("updated_by", uniqueUserIds) },
+    { label: "exam_countdown_config_updated_by", promise: adminClient.from("exam_countdown_config").update({ updated_by: null }).in("updated_by", uniqueUserIds) },
+    { label: "focus_shield_config_updated_by", promise: adminClient.from("focus_shield_config").update({ updated_by: null }).in("updated_by", uniqueUserIds) },
+    { label: "sureshot_admin_config_updated_by", promise: adminClient.from("sureshot_admin_config").update({ updated_by: null }).in("updated_by", uniqueUserIds) },
+  ], "Failed to detach config ownership");
 
   await runBatch([
     { label: "topics", promise: adminClient.from("topics").delete().in("user_id", uniqueUserIds) },
