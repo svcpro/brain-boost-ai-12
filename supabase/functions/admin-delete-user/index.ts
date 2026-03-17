@@ -59,12 +59,16 @@ async function purgeUserData(
     serviceClient.from("profiles").delete().in("id", userIds),
   ]);
 
-  const failures = purgeResults
-    .filter((result): result is PromiseFulfilledResult<{ error: { message: string } | null }> | PromiseRejectedResult =>
-      result.status === "rejected" || !!result.value.error
-    )
-    .map((result) => result.status === "rejected" ? String(result.reason) : result.value.error?.message)
-    .filter(Boolean);
+  const failures: string[] = [];
+  for (const result of purgeResults) {
+    if (result.status === "rejected") {
+      failures.push(String(result.reason));
+      continue;
+    }
+    if (result.value.error?.message) {
+      failures.push(result.value.error.message);
+    }
+  }
 
   if (failures.length > 0) {
     throw new Error(`Failed to purge deleted user data: ${failures.join("; ")}`);

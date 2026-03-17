@@ -63,12 +63,16 @@ async function purgeUserRows(adminClient: ReturnType<typeof getAdminClient>, use
     adminClient.from("profiles").delete().in("id", uniqueUserIds),
   ]);
 
-  const failedPurges = purgeResults
-    .filter((result): result is PromiseFulfilledResult<{ error: { message: string } | null }> | PromiseRejectedResult =>
-      result.status === "rejected" || !!result.value.error
-    )
-    .map((result) => result.status === "rejected" ? result.reason : result.value.error?.message)
-    .filter(Boolean);
+  const failedPurges: string[] = [];
+  for (const result of purgeResults) {
+    if (result.status === "rejected") {
+      failedPurges.push(String(result.reason));
+      continue;
+    }
+    if (result.value.error?.message) {
+      failedPurges.push(result.value.error.message);
+    }
+  }
 
   if (failedPurges.length > 0) {
     throw new Error(`Failed to purge stale phone signup data: ${failedPurges.join("; ")}`);
