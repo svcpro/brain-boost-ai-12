@@ -176,68 +176,83 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id } = await req.json();
+    const requestBody = await req.json().catch(() => ({}));
+    const targetUserId = typeof requestBody.target_user_id === "string" && requestBody.target_user_id.trim()
+      ? requestBody.target_user_id.trim()
+      : null;
+    const targetEmail = typeof requestBody.target_email === "string" && requestBody.target_email.trim()
+      ? requestBody.target_email.trim().toLowerCase()
+      : null;
+    const targetPhone = typeof requestBody.target_phone === "string" && requestBody.target_phone.trim()
+      ? requestBody.target_phone.trim()
+      : null;
 
-    if (!target_user_id || typeof target_user_id !== "string") {
-      return new Response(JSON.stringify({ error: "target_user_id is required" }), {
+    if (!targetUserId && !targetEmail && !targetPhone) {
+      return new Response(JSON.stringify({ error: "target_user_id, target_email, or target_phone is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (target_user_id === caller.id) {
+    const resolvedTarget = await findAuthUserByIdentifiers(
+      serviceClient,
+      targetUserId,
+      targetPhone,
+      targetEmail,
+    );
+
+    if (resolvedTarget.resolvedUserId === caller.id) {
       return new Response(JSON.stringify({ error: "Cannot delete your own account" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: targetRoles } = await serviceClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", target_user_id);
+    if (resolvedTarget.resolvedUserId) {
+      const { data: targetRoles } = await serviceClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", resolvedTarget.resolvedUserId);
 
-    const targetIsSuperAdmin = targetRoles?.some((r: any) => r.role === "super_admin");
+      const targetIsSuperAdmin = targetRoles?.some((r: any) => r.role === "super_admin");
 
-    if (targetIsSuperAdmin && !isSuperAdmin) {
-      return new Response(
-        JSON.stringify({ error: "Only super admins can delete other super admins" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (targetIsSuperAdmin && !isSuperAdmin) {
+        return new Response(
+          JSON.stringify({ error: "Only super admins can delete other super admins" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
-
-    const { data: targetUserData, error: targetUserError } = await serviceClient.auth.admin.getUserById(target_user_id);
-    if (targetUserError) {
-      return new Response(JSON.stringify({ error: targetUserError.message }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const targetUser = targetUserData.user;
 
     await serviceClient.from("admin_audit_logs").insert({
       admin_id: caller.id,
       action: "user_deleted",
       target_type: "user",
-      target_id: target_user_id,
-      details: { deleted_by: caller.id, phone: targetUser?.phone ?? null, email: targetUser?.email ?? null },
+      target_id: resolvedTarget.resolvedUserId,
+      details: {
+        deleted_by: caller.id,
+        phone: resolvedTarget.resolvedPhone,
+        email: resolvedTarget.resolvedEmail,
+        auth_user_found: !!resolvedTarget.user,
+      },
     });
 
     await purgeUserData(
       serviceClient,
-      target_user_id,
-      targetUser?.phone ?? targetUser?.user_metadata?.phone ?? null,
-      targetUser?.email,
+      resolvedTarget.resolvedUserId ? [resolvedTarget.resolvedUserId] : [],
+      resolvedTarget.resolvedPhone,
+      resolvedTarget.resolvedEmail,
     );
 
-    const { error: deleteError } = await serviceClient.auth.admin.deleteUser(target_user_id);
+    if (resolvedTarget.user?.id) {
+      const { error: deleteError } = await serviceClient.auth.admin.deleteUser(resolvedTarget.user.id);
 
-    if (deleteError) {
-      return new Response(JSON.stringify({ error: deleteError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (deleteError) {
+        return new Response(JSON.stringify({ error: deleteError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), {
