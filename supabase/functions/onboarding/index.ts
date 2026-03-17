@@ -110,7 +110,6 @@ Deno.serve(async (req) => {
         .map((value) => value.startsWith("Bearer ") ? value.replace("Bearer ", "").trim() : value)
         .filter(Boolean);
       const primaryAuthHeader = authSources[0] || "";
-      const primaryToken = bearerTokens[0] || "";
 
       // Service role client for lookups
       const adminClient = createClient(
@@ -118,48 +117,15 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      let userId: string | null = null;
-
-      // Try 1: JWT-based auth via getClaims
-      for (let i = 0; i < authSources.length && !userId; i++) {
-        const authSource = authSources[i];
-        const sourceToken = bearerTokens[i] || "";
-        if (!(authSource.startsWith("Bearer ") && sourceToken.split(".").length === 3)) continue;
-
-        const jwtClient = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_ANON_KEY")!,
-          { global: { headers: { Authorization: authSource } } }
-        );
-        const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(sourceToken);
-        if (!claimsErr && claims?.claims?.sub) {
-          userId = claims.claims.sub as string;
-        }
-      }
-
-      // Try 2: API key-based auth fallback (support raw API keys from any source)
-      if (!userId) {
-        const apiKeyIdentity = await resolveApiKeyIdentity(adminClient, [...apiKeySources, ...bearerTokens]);
-        userId = apiKeyIdentity.userId;
-      }
-
-      // Try 3: getUser with service role as last resort
-      if (!userId) {
-        for (const candidate of bearerTokens) {
-          const { data: userData } = await adminClient.auth.getUser(candidate);
-          if (userData?.user?.id) {
-            userId = userData.user.id;
-            break;
-          }
-        }
-      }
+      const { userId } = await resolveIdentityFromSources(adminClient, authSources, apiKeySources);
 
       if (!userId) {
         console.log("[onboarding/status] Auth resolution failed", {
           authSourcePrefixes: authSources.map((value) => value.slice(0, 18)),
           apiKeySourcePrefixes: apiKeySources.map((value) => value.slice(0, 18)),
-          primaryAuthLooksLikeJwt: primaryToken.split(".").length === 3,
+          primaryAuthLooksLikeJwt: looksLikeJwtToken(primaryAuthHeader),
           primaryApiKeyExtracted: !!apiKeySources.map((value) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "").find(Boolean),
+          hasJwtCandidateOutsideAuthorization: apiKeySources.some(looksLikeJwtToken),
           primaryAuthHeaderPrefix: primaryAuthHeader.slice(0, 18),
         });
         return json({ error: "Unauthorized" }, 401);
