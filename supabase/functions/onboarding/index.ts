@@ -471,6 +471,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Mark onboarding as completed
+      await adminClient.from("profiles").update({ onboarding_completed: true }).eq("id", userId);
+
       return json({ success: true, redirect_to: "/app", profile_updated: true, subjects_created: subjectsCreated, topics_created: topicsCreated });
     }
 
@@ -478,6 +481,8 @@ Deno.serve(async (req) => {
     if (action === "skip") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await adminClient.from("profiles").update({ onboarding_completed: true }).eq("id", userId);
       return json({ success: true, redirect_to: "/app" });
     }
 
