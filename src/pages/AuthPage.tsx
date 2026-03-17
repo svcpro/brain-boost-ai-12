@@ -229,22 +229,12 @@ const AuthPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      if (data?.verified) {
-        if (data?.access_token && data?.refresh_token) {
-          const { error: sessionErr } = await supabase.auth.setSession({
-            access_token: data.access_token,
-            refresh_token: data.refresh_token,
-          });
-          if (sessionErr) throw sessionErr;
-        } else if (data?.token_hash) {
-          const { error: verifyErr } = await supabase.auth.verifyOtp({
-            token_hash: data.token_hash,
-            type: "magiclink",
-          });
-          if (verifyErr) throw verifyErr;
-        } else {
-          throw new Error("Verification failed");
-        }
+      if (data?.verified && data?.token_hash) {
+        const { error: verifyErr } = await supabase.auth.verifyOtp({
+          token_hash: data.token_hash,
+          type: "magiclink",
+        });
+        if (verifyErr) throw verifyErr;
 
         setVerifySuccess(true);
         setTimeout(() => navigate("/app"), 800);
