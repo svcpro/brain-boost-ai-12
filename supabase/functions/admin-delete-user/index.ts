@@ -99,29 +99,7 @@ async function purgeUserData(
     throw new Error("No matching user data found to purge");
   }
 
-  const purgeResults = await Promise.allSettled([
-    serviceClient.from("topics").delete().in("user_id", userIds),
-    serviceClient.from("subjects").delete().in("user_id", userIds),
-    serviceClient.from("api_keys").delete().in("created_by", userIds),
-    serviceClient.from("user_roles").delete().in("user_id", userIds),
-    serviceClient.from("user_settings").delete().in("user_id", userIds),
-    serviceClient.from("profiles").delete().in("id", userIds),
-  ]);
-
-  const failures: string[] = [];
-  for (const result of purgeResults) {
-    if (result.status === "rejected") {
-      failures.push(String(result.reason));
-      continue;
-    }
-    if (result.value.error?.message) {
-      failures.push(result.value.error.message);
-    }
-  }
-
-  if (failures.length > 0) {
-    throw new Error(`Failed to purge deleted user data: ${failures.join("; ")}`);
-  }
+  await purgeUserGraph(serviceClient, userIds);
 }
 
 Deno.serve(async (req) => {

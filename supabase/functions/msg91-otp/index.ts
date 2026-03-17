@@ -74,7 +74,7 @@ async function cleanupStalePhoneSignupData(adminClient: ReturnType<typeof getAdm
 
   emailRows?.forEach((row) => staleUserIds.add(row.id));
 
-  await purgeUserRows(adminClient, [...staleUserIds]);
+  await purgeUserGraph(adminClient, [...staleUserIds]);
 }
 
 // ─── Parameter Extraction ────────────────────────────────
