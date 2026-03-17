@@ -1044,26 +1044,16 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
 
       {/* Delete User Section - only for super_admin & api_admin */}
       {hasAnyRole("super_admin", "api_admin") && (
-        <DeleteUserSection
-          userId={user.id}
-          userName={user.display_name || "Anonymous"}
-          userEmail={user.email}
-          userPhone={user.phone || user.whatsapp_number}
-          onDeleted={onBack}
-          toast={toast}
-          logAudit={logAudit}
-        />
+        <DeleteUserSection userId={user.id} userName={user.display_name || "Anonymous"} onDeleted={onBack} toast={toast} logAudit={logAudit} />
       )}
     </div>
   );
 };
 
 // ─── Delete User Section ───
-const DeleteUserSection = ({ userId, userName, userEmail, userPhone, onDeleted, toast, logAudit }: {
+const DeleteUserSection = ({ userId, userName, onDeleted, toast, logAudit }: {
   userId: string;
   userName: string;
-  userEmail: string | null;
-  userPhone: string | null;
   onDeleted: () => void;
   toast: any;
   logAudit: (action: string, details: Record<string, any>) => Promise<void>;
@@ -1077,11 +1067,7 @@ const DeleteUserSection = ({ userId, userName, userEmail, userPhone, onDeleted, 
     setDeleting(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-delete-user", {
-        body: {
-          target_user_id: userId,
-          target_email: userEmail,
-          target_phone: userPhone,
-        },
+        body: { target_user_id: userId },
       });
       if (error || data?.error) {
         toast({ title: data?.error || error?.message || "Failed to delete user", variant: "destructive" });

@@ -1,6 +1,4 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { issueUserApiKey } from "../_shared/api-key-auth.ts";
-import { buildPhoneVariants, purgeUserGraph } from "../_shared/user-purge.ts";
 
 /* ═══════════════════════════════════════════════════════════
    MSG91 OTP Edge Function — aligned with official docs:
@@ -31,20 +29,6 @@ function getAdminClient() {
   );
 }
 
-function getPublicClient() {
-  return createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-    }
-  );
-}
-
 /** Normalize Indian mobile numbers to 91XXXXXXXXXX format */
 function normalizeIndianMobile(rawMobile: unknown): string | null {
   if (rawMobile === null || rawMobile === undefined) return null;
@@ -59,37 +43,6 @@ function normalizeIndianMobile(rawMobile: unknown): string | null {
   if (/^91\d{10}$/.test(cleaned)) return cleaned;
 
   return null;
-}
-
-async function cleanupStalePhoneSignupData(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
-  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
-  const staleUserIds = new Set<string>();
-
-  for (const phoneVariant of buildPhoneVariants(normalizedMobile)) {
-    const { data: profileRows, error } = await adminClient
-      .from("profiles")
-      .select("id")
-      .eq("phone", phoneVariant);
-
-    if (error) {
-      throw new Error(`Failed to look up stale phone profile (${phoneVariant}): ${error.message}`);
-    }
-
-    profileRows?.forEach((row) => staleUserIds.add(row.id));
-  }
-
-  const { data: emailRows, error: emailLookupError } = await adminClient
-    .from("profiles")
-    .select("id")
-    .eq("email", placeholderEmail);
-
-  if (emailLookupError) {
-    throw new Error(`Failed to look up stale phone email profile: ${emailLookupError.message}`);
-  }
-
-  emailRows?.forEach((row) => staleUserIds.add(row.id));
-
-  await purgeUserGraph(adminClient, [...staleUserIds]);
 }
 
 // ─── Parameter Extraction ────────────────────────────────
@@ -321,11 +274,10 @@ async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string
   return data;
 }
 
-// ─── User Creation / Lookup ──────────────────────────────
+// ─── User Session Helpers ────────────────────────────────
 
 async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
   const phoneE164 = `+${normalizedMobile}`;
-  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
 
   const { data: existingUsers } = await adminClient.auth.admin.listUsers();
   const existingUser = existingUsers?.users?.find(
@@ -335,24 +287,20 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   if (existingUser) {
     const { data: sessionData, error } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
-      email: existingUser.email || placeholderEmail,
+      email: existingUser.email || `${normalizedMobile}@phone.acry.ai`,
     });
     if (error) throw error;
-
-    const tokenHash = sessionData.properties?.hashed_token;
-    if (!tokenHash) throw new Error("Magic link generation failed");
 
     return {
       isNewUser: false,
       userId: existingUser.id,
       email: existingUser.email,
-      token_hash: tokenHash,
-      verification_type: "magiclink" as const,
+      token_hash: sessionData.properties?.hashed_token,
+      verification_type: "magiclink",
     };
   }
 
-  await cleanupStalePhoneSignupData(adminClient, normalizedMobile);
-
+  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
   const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
     phone: phoneE164,
     email: placeholderEmail,
@@ -373,33 +321,12 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   });
   if (sessionError) throw sessionError;
 
-  const tokenHash = sessionData.properties?.hashed_token;
-  if (!tokenHash) throw new Error("Magic link generation failed");
-
   return {
     isNewUser: true,
     userId: newUser.user.id,
-    token_hash: tokenHash,
-    verification_type: "magiclink" as const,
+    token_hash: sessionData.properties?.hashed_token,
+    verification_type: "magiclink",
   };
-}
-
-async function createSessionFromTokenHash(tokenHash: string) {
-  const publicClient = getPublicClient();
-  const { data, error } = await publicClient.auth.verifyOtp({
-    token_hash: tokenHash,
-    type: "magiclink",
-  });
-
-  if (error) {
-    throw new Error(`Failed to create session: ${error.message}`);
-  }
-
-  if (!data.session?.access_token || !data.session?.refresh_token) {
-    throw new Error("Session creation failed");
-  }
-
-  return data.session;
 }
 
 // ─── Action Handlers ─────────────────────────────────────
@@ -459,26 +386,7 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
 
   if (otpVerified) {
     const userResult = await findOrCreateUserAndGenerateLink(adminClient, mobile);
-    const { token_hash: tokenHash, ...safeUserResult } = userResult;
-    const session = await createSessionFromTokenHash(tokenHash);
-    const apiKey = await issueUserApiKey(adminClient, userResult.userId, {
-      name: "Mobile OTP API Key",
-      permissions: ["user_api"],
-      rateLimitPerMinute: 120,
-    });
-
-    return json({
-      success: true,
-      verified: true,
-      api_key: apiKey,
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-      expires_at: session.expires_at ?? null,
-      expires_in: session.expires_in ?? null,
-      token_type: session.token_type ?? "bearer",
-      user: session.user ?? null,
-      ...safeUserResult,
-    });
+    return json({ success: true, verified: true, ...userResult });
   }
 
   return json({ success: false, verified: false, error: "OTP verification failed" }, 400);

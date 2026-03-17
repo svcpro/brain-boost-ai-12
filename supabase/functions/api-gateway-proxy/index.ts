@@ -1,5 +1,5 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { looksLikeJwtToken, resolveIdentityFromSources } from "../_shared/request-identity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,6 +64,8 @@ const pickString = (record: Record<string, unknown> | null, keys: string[]) => {
   return "";
 };
 
+const extractApiKey = (value: string) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
+
 const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPayload: Record<string, unknown> | null) => {
   const payloadBody = parsedPayload?.body && typeof parsedPayload.body === "object" && !Array.isArray(parsedPayload.body)
     ? parsedPayload.body as Record<string, unknown>
@@ -96,11 +98,76 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
   const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
   const apiKeySources = [...headerApiKeyCandidates, ...queryApiKeyCandidates, ...bodyApiKeyCandidates].filter(Boolean);
 
-  const { userId, forwardedAuthorization, forwardedApiKey } = await resolveIdentityFromSources(
-    adminClient,
-    authSources,
-    apiKeySources,
-  );
+  let userId: string | null = null;
+  let forwardedAuthorization = "";
+  let forwardedApiKey = apiKeySources.map(extractApiKey).find(Boolean) || "";
+
+  const bearerToken = headerAuthorization.startsWith("Bearer ")
+    ? headerAuthorization.replace("Bearer ", "").trim()
+    : "";
+
+  if (bearerToken) {
+    const MAX_RETRIES = 3;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const { data: userData, error: userError } = await adminClient.auth.getUser(bearerToken);
+      if (!userError && userData?.user?.id) {
+        userId = userData.user.id;
+        forwardedAuthorization = headerAuthorization;
+        break;
+      }
+
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+      }
+    }
+  }
+
+  if (!userId) {
+    const apiKeyCandidates = [...apiKeySources, ...authSources]
+      .map((value) => value.startsWith("Bearer ") ? value.replace("Bearer ", "").trim() : value.trim())
+      .filter(Boolean);
+
+    for (const candidate of apiKeyCandidates) {
+      const extractedApiKey = extractApiKey(candidate);
+      if (!extractedApiKey) continue;
+
+      const storedPrefix = `${extractedApiKey.substring(0, 10)}...`;
+      const { data: keyRow } = await adminClient
+        .from("api_keys")
+        .select("created_by")
+        .eq("key_prefix", storedPrefix)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (keyRow?.created_by) {
+        userId = keyRow.created_by;
+        forwardedApiKey = extractedApiKey;
+        break;
+      }
+    }
+
+    if (!userId) {
+      for (const candidate of apiKeyCandidates) {
+        const normalizedCandidate = candidate.startsWith("Bearer ")
+          ? candidate.replace("Bearer ", "").trim()
+          : candidate.trim();
+        if (!normalizedCandidate) continue;
+
+        const { data: keyRow } = await adminClient
+          .from("api_keys")
+          .select("created_by")
+          .eq("key_hash", normalizedCandidate)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (keyRow?.created_by) {
+          userId = keyRow.created_by;
+          forwardedApiKey = forwardedApiKey || extractApiKey(normalizedCandidate);
+          break;
+        }
+      }
+    }
+  }
 
   return {
     userId,
@@ -113,12 +180,11 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
       hasQueryApiKey: queryApiKeyCandidates.length > 0,
       hasBodyAuthorization: !!bodyAuthorization,
       hasBodyApiKey: bodyApiKeyCandidates.length > 0,
-      hasJwtCandidateOutsideAuthorization: apiKeySources.some(looksLikeJwtToken),
     },
   };
 };
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
