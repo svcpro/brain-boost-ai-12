@@ -811,7 +811,7 @@ Deno.serve(async (req) => {
           mode_switches: [],
         };
 
-        return json({
+        return json(sanitizeNulls({
           brain_health: {
             overall_health: avgHealth,
             health_label: avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : total === 0 ? "Not started" : "Critical",
@@ -879,7 +879,7 @@ Deno.serve(async (req) => {
             greeting,
           },
           daily_quote: quotes[dayIndex],
-        });
+        }));
       }
 
       default:
