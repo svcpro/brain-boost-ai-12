@@ -607,18 +607,19 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (!sub) return json({ plan_key: "free", plan_name: "Free Brain", is_trial: false, trial_days_remaining: null, status: "free", expires_at: null });
+        if (!sub) return json({ plan_key: "free", plan_name: "Free Brain", is_trial: false, trial_days_remaining: 0, status: "free", expires_at: "", upgrade_prompt: "Upgrade to Premium for AI-powered study plans, unlimited topics, and rank predictions!" });
         const plan = sub.plan as any;
         const trialDaysRemaining = sub.is_trial && sub.trial_end_date
           ? Math.max(0, Math.ceil((new Date(sub.trial_end_date).getTime() - Date.now()) / 86400000))
-          : null;
+          : 0;
         return json({
           plan_key: plan?.plan_key ?? "unknown",
           plan_name: plan?.name ?? "Unknown",
           is_trial: sub.is_trial ?? false,
           trial_days_remaining: trialDaysRemaining,
           status: sub.status,
-          expires_at: sub.expires_at,
+          expires_at: sub.expires_at ?? "",
+          upgrade_prompt: "",
         });
       }
 
