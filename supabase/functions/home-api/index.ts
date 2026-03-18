@@ -125,8 +125,9 @@ Deno.serve(async (req) => {
         const weak = all.filter((t: any) => (t.memory_strength ?? 0) < 40).length;
         const atRisk = all.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high").length;
         const avgHealth = total > 0 ? Math.round(all.reduce((s: number, t: any) => s + (t.memory_strength ?? 0), 0) / total) : 0;
-        const healthLabel = avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : "Critical";
-        return json({ overall_health: avgHealth, health_label: healthLabel, at_risk_count: atRisk, total_topics: total, strong_topics: strong, weak_topics: weak });
+        const healthLabel = total === 0 ? "Not started" : avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : "Critical";
+        const tip = total === 0 ? "Add your first topic to start tracking brain health!" : avgHealth < 40 ? "Review your weakest topics to boost brain health" : "Keep going — your brain health is improving.";
+        return json({ overall_health: avgHealth, health_label: healthLabel, at_risk_count: atRisk, total_topics: total, strong_topics: strong, weak_topics: weak, tip });
       }
 
       // ─── Rank Prediction ───
