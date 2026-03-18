@@ -1031,17 +1031,6 @@ Deno.serve(async (req) => {
         });
       }
 
-        const buildTopicView = (topic: Record<string, unknown>) => {
-          const memoryStrength = Number(topic.memory_strength ?? 0);
-          return {
-            id: String(topic.id ?? ""),
-            name: String(topic.name ?? ""),
-            memory_strength: memoryStrength,
-            risk_level: getRiskLevel(memoryStrength),
-            subject_id: String(topic.subject_id ?? ""),
-            next_review_at: String(topic.next_predicted_drop_date ?? ""),
-          };
-        };
 
         const calculateStreak = (entries: Array<{ created_at: string }>) => {
           const dateSet = new Set(entries.map((entry) => entry.created_at.split("T")[0]));
