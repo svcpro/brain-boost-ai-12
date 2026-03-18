@@ -6,11 +6,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-api-key, api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const json = (data: unknown, status = 200) =>
+const rawJson = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+
+const json = (data: unknown, status = 200) => rawJson(sanitizeNulls(data), status);
 
 const sanitizeNulls = (value: unknown): unknown => {
   if (value === null) return "";
@@ -123,8 +125,9 @@ Deno.serve(async (req) => {
         const weak = all.filter((t: any) => (t.memory_strength ?? 0) < 40).length;
         const atRisk = all.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high").length;
         const avgHealth = total > 0 ? Math.round(all.reduce((s: number, t: any) => s + (t.memory_strength ?? 0), 0) / total) : 0;
-        const healthLabel = avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : "Critical";
-        return json({ overall_health: avgHealth, health_label: healthLabel, at_risk_count: atRisk, total_topics: total, strong_topics: strong, weak_topics: weak });
+        const healthLabel = total === 0 ? "Not started" : avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : "Critical";
+        const tip = total === 0 ? "Add your first topic to start tracking brain health!" : avgHealth < 40 ? "Review your weakest topics to boost brain health" : "Keep going — your brain health is improving.";
+        return json({ overall_health: avgHealth, health_label: healthLabel, at_risk_count: atRisk, total_topics: total, strong_topics: strong, weak_topics: weak, tip });
       }
 
       // ─── Rank Prediction ───
@@ -136,10 +139,13 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (!pred) return json({ predicted_rank: null, rank_range: null, trend: "stable", confidence: 0, factors: {} });
+        if (!pred) {
+          return json({ predicted_rank: 4500, rank_range: { min: 3825, max: 5175 }, trend: "needs_data", confidence: 0, factors: { memory_strength: 0, topics_covered: 0, study_minutes_this_week: 0, consistency: 0, note: "Add topics and study to get accurate rank predictions" } });
+        }
+        const predictedRank = pred.predicted_rank ?? Math.round(((pred.rank_range_min ?? 4000) + (pred.rank_range_max ?? 5000)) / 2);
         return json({
-          predicted_rank: pred.predicted_rank,
-          rank_range: { min: pred.rank_range_min ?? pred.predicted_rank, max: pred.rank_range_max ?? pred.predicted_rank },
+          predicted_rank: predictedRank,
+          rank_range: { min: pred.rank_range_min ?? Math.max(1, predictedRank - Math.round(predictedRank * 0.15)), max: pred.rank_range_max ?? predictedRank + Math.round(predictedRank * 0.15) },
           trend: pred.trend || "stable",
           confidence: pred.confidence ?? 0,
           factors: pred.factors ?? {},
@@ -153,7 +159,7 @@ Deno.serve(async (req) => {
           .select("exam_date")
           .eq("id", userId)
           .maybeSingle();
-        if (!profile?.exam_date) return json({ days_left: null, exam_date: null, urgency: "normal" });
+        if (!profile?.exam_date) return json({ days_left: 0, exam_date: "", urgency: "normal" });
         const daysLeft = Math.max(0, Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000));
         const urgency = daysLeft <= 3 ? "critical" : daysLeft <= 14 ? "warning" : "normal";
         return json({ days_left: daysLeft, exam_date: profile.exam_date, urgency });
@@ -216,7 +222,7 @@ Deno.serve(async (req) => {
           .eq("completed", false)
           .order("created_at", { ascending: false })
           .limit(limit);
-        return json({ recommendations: data || [] });
+        return json({ recommendations: data || [], tip: (data || []).length === 0 ? "Complete a few study sessions to unlock AI recommendations" : "" });
       }
 
       // ─── Burnout Status ───
@@ -240,6 +246,7 @@ Deno.serve(async (req) => {
           .select("id", { count: "exact", head: true })
           .eq("user_id", userId)
           .eq("is_used", false);
+        const streakAtRisk = (streak?.current_streak ?? 0) > 0 && !(streak?.today_met);
         return json({
           current_streak: streak?.current_streak ?? 0,
           longest_streak: streak?.longest_streak ?? 0,
@@ -247,6 +254,8 @@ Deno.serve(async (req) => {
           auto_shield_used: streak?.auto_shield_used ?? false,
           freezes_available: freezeCount ?? 0,
           next_milestone: getNextMilestone(streak?.current_streak ?? 0),
+          streak_at_risk: streakAtRisk,
+          motivation: (streak?.current_streak ?? 0) === 0 ? "Start a study session to build your streak!" : streakAtRisk ? "Study now to keep your streak alive!" : "Nice work — keep the momentum going!",
         });
       }
 
@@ -259,7 +268,8 @@ Deno.serve(async (req) => {
         ]);
         const goal = profileRes.data?.daily_study_goal_minutes ?? 60;
         const studied = (logsRes.data || []).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
-        return json({ goal_minutes: goal, studied_minutes: studied, completion_pct: Math.min(100, Math.round((studied / goal) * 100)) });
+        const completionPct = Math.min(100, Math.round((studied / goal) * 100));
+        return json({ goal_minutes: goal, studied_minutes: studied, completion_pct: completionPct, status: studied >= goal ? "completed" : studied > 0 ? "in_progress" : "not_started" });
       }
 
       // ─── Today's Mission ───
@@ -285,11 +295,31 @@ Deno.serve(async (req) => {
         if (riskTopics && riskTopics.length > 0) {
           const t = riskTopics[0];
           return json({
-            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}%`, type: "review", priority: t.risk_level, topic_id: t.id },
+            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}%`, type: "review", priority: t.risk_level || "high", topic_id: t.id },
             source: "risk_topic",
           });
         }
-        return json({ mission: null, source: null });
+
+        // Check for any weak topics
+        const { data: weakTopics } = await adminClient
+          .from("topics")
+          .select("id, name, memory_strength")
+          .eq("user_id", userId)
+          .is("deleted_at", null)
+          .order("memory_strength", { ascending: true })
+          .limit(1);
+        if (weakTopics && weakTopics.length > 0) {
+          const w = weakTopics[0];
+          return json({
+            mission: { id: `weak-${w.id}`, title: `Strengthen: ${w.name}`, description: `Memory strength is ${Math.round(w.memory_strength ?? 0)}%. A quick review will help!`, type: "review", priority: "medium", topic_id: w.id },
+            source: "weak_topic",
+          });
+        }
+
+        return json({
+          mission: { id: "onboard-start", title: "🚀 Add Your First Topic", description: "Start by adding a subject and topic to begin your AI-powered study journey!", type: "onboarding", priority: "high", topic_id: "" },
+          source: "system",
+        });
       }
 
       // ─── Quick Actions ───
@@ -302,9 +332,10 @@ Deno.serve(async (req) => {
         const all = topics || [];
         const atRisk = all.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high");
         const weakest = [...all].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
+        const defaultTopic = { id: "", name: "", memory_strength: 0, risk_level: "low" };
         return json({
-          smart_recall: { available: all.length > 0, topic: weakest[0] || null },
-          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] || null },
+          smart_recall: { available: all.length > 0, topic: weakest[0] || defaultTopic, label: all.length === 0 ? "Add topics first" : "Smart Recall" },
+          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] || defaultTopic },
           rank_boost: { available: all.length > 0 },
           focus_shield: { available: true },
         });
@@ -472,7 +503,7 @@ Deno.serve(async (req) => {
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(10);
-        return json({ sessions: logs || [] });
+        return json({ sessions: logs || [], tip: (logs || []).length === 0 ? "Your recent sessions will appear here" : "" });
       }
 
       // ─── Study Insights ───
@@ -497,11 +528,12 @@ Deno.serve(async (req) => {
           .select("is_enabled")
           .limit(1)
           .maybeSingle();
+        const safeSession = data ?? { id: "", session_date: today, status: "not_started", completed_sessions: 0, total_sessions: 0, planned_schedule: {}, performance_summary: {}, emergency_triggered: false, mode_switches: [] };
         return json({
           enabled: config?.is_enabled ?? false,
-          today_session: data ?? null,
-          completed: data?.completed_sessions ?? 0,
-          total: data?.total_sessions ?? 0,
+          today_session: safeSession,
+          completed: safeSession.completed_sessions ?? 0,
+          total: safeSession.total_sessions ?? 0,
         });
       }
 
@@ -537,6 +569,8 @@ Deno.serve(async (req) => {
           sessions: thisWeek.length,
           topics_covered: topicSet.size,
           improvement_pct: improvementPct,
+          top_subjects: topSubjects,
+          summary: thisWeek.length === 0 ? "No study sessions this week. Start today!" : `You studied ${thisTotal} minutes across ${thisWeek.length} sessions this week.`,
           highlights: [],
           weak_areas: [],
         });
@@ -573,18 +607,19 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (!sub) return json({ plan_key: "free", plan_name: "Free Brain", is_trial: false, trial_days_remaining: null, status: "free", expires_at: null });
+        if (!sub) return json({ plan_key: "free", plan_name: "Free Brain", is_trial: false, trial_days_remaining: 0, status: "free", expires_at: "", upgrade_prompt: "Upgrade to Premium for AI-powered study plans, unlimited topics, and rank predictions!" });
         const plan = sub.plan as any;
         const trialDaysRemaining = sub.is_trial && sub.trial_end_date
           ? Math.max(0, Math.ceil((new Date(sub.trial_end_date).getTime() - Date.now()) / 86400000))
-          : null;
+          : 0;
         return json({
           plan_key: plan?.plan_key ?? "unknown",
           plan_name: plan?.name ?? "Unknown",
           is_trial: sub.is_trial ?? false,
           trial_days_remaining: trialDaysRemaining,
           status: sub.status,
-          expires_at: sub.expires_at,
+          expires_at: sub.expires_at ?? "",
+          upgrade_prompt: "",
         });
       }
 
@@ -600,8 +635,8 @@ Deno.serve(async (req) => {
         const isNew = profile?.created_at ? (Date.now() - new Date(profile.created_at).getTime()) < 86400000 : false;
         return json({
           show_welcome: isNew,
-          display_name: profile?.display_name ?? null,
-          avatar_url: profile?.avatar_url ?? null,
+          display_name: profile?.display_name?.trim() || "Learner",
+          avatar_url: profile?.avatar_url || "",
           greeting,
         });
       }
