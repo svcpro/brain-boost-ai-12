@@ -635,8 +635,8 @@ Deno.serve(async (req) => {
         const isNew = profile?.created_at ? (Date.now() - new Date(profile.created_at).getTime()) < 86400000 : false;
         return json({
           show_welcome: isNew,
-          display_name: profile?.display_name ?? null,
-          avatar_url: profile?.avatar_url ?? null,
+          display_name: profile?.display_name?.trim() || "Learner",
+          avatar_url: profile?.avatar_url || "",
           greeting,
         });
       }
