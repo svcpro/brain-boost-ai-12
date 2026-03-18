@@ -1030,15 +1030,6 @@ Deno.serve(async (req) => {
           daily_quote: quotes[dayIndex],
         });
       }
-        const yearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
-        const nowIso = new Date().toISOString();
-
-        const getRiskLevel = (memoryStrength: number) => {
-          if (memoryStrength < 20) return "critical";
-          if (memoryStrength < 40) return "high";
-          if (memoryStrength < 60) return "medium";
-          return "low";
-        };
 
         const buildTopicView = (topic: Record<string, unknown>) => {
           const memoryStrength = Number(topic.memory_strength ?? 0);
