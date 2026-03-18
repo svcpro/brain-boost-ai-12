@@ -144,7 +144,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
       { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
       { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
-      { key: "sms", label: "SMS Command Center", icon: Smartphone, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-blue-500/20 text-blue-400" },
+      { key: "sms", label: "SMS Command Center", icon: Smartphone, roles: ["super_admin", "admin", "api_admin"], badge: "NEW", badgeColor: "bg-blue-500/20 text-blue-400" },
     ],
   },
   {
