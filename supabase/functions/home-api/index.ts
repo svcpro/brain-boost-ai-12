@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
           .eq("completed", false)
           .order("created_at", { ascending: false })
           .limit(limit);
-        return json({ recommendations: data || [] });
+        return json({ recommendations: data || [], tip: (data || []).length === 0 ? "Complete a few study sessions to unlock AI recommendations" : "" });
       }
 
       // ─── Burnout Status ───
