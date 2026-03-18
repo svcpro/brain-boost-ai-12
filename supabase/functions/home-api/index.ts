@@ -132,23 +132,40 @@ Deno.serve(async (req) => {
 
       // ─── Rank Prediction ───
       case "rank-prediction": {
-        const { data: pred } = await adminClient
-          .from("rank_predictions")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (!pred) {
+        const [predV2Res, predV1Res] = await Promise.all([
+          adminClient
+            .from("rank_predictions_v2")
+            .select("predicted_rank, rank_band_low, rank_band_high, percentile_estimation, factors_breakdown, computed_at")
+            .eq("user_id", userId)
+            .order("computed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          adminClient
+            .from("rank_predictions")
+            .select("predicted_rank, percentile, factors, recorded_at")
+            .eq("user_id", userId)
+            .order("recorded_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+        const predV2 = predV2Res.data;
+        const predV1 = predV1Res.data;
+        const predictedRank = predV2?.predicted_rank ?? predV1?.predicted_rank ?? 4500;
+
+        if (!predV2 && !predV1) {
           return json({ predicted_rank: 4500, rank_range: { min: 3825, max: 5175 }, trend: "needs_data", confidence: 0, factors: { memory_strength: 0, topics_covered: 0, study_minutes_this_week: 0, consistency: 0, note: "Add topics and study to get accurate rank predictions" } });
         }
-        const predictedRank = pred.predicted_rank ?? Math.round(((pred.rank_range_min ?? 4000) + (pred.rank_range_max ?? 5000)) / 2);
+
         return json({
           predicted_rank: predictedRank,
-          rank_range: { min: pred.rank_range_min ?? Math.max(1, predictedRank - Math.round(predictedRank * 0.15)), max: pred.rank_range_max ?? predictedRank + Math.round(predictedRank * 0.15) },
-          trend: pred.trend || "stable",
-          confidence: pred.confidence ?? 0,
-          factors: pred.factors ?? {},
+          rank_range: {
+            min: predV2?.rank_band_low ?? Math.max(1, Math.round(predictedRank * 0.85)),
+            max: predV2?.rank_band_high ?? Math.round(predictedRank * 1.15),
+          },
+          trend: "stable",
+          confidence: predV2?.percentile_estimation ?? predV1?.percentile ?? 0,
+          factors: predV1?.factors ?? {},
         });
       }
 
