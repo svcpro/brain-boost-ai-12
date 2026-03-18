@@ -740,7 +740,7 @@ Deno.serve(async (req) => {
         const [
           topicsRes, profileRes, freezeCountRes,
           recsRes, missionsRes, logsTodayRes, logsWeekRes,
-          rankPredRes, reportsRes, recentLogsRes,
+          rankPredV2Res, rankPredRes, reportsRes, recentLogsRes,
           autopilotRes, autopilotCfgRes, subRes,
           completionRes, reviewQueueRes, streakLogsRes,
         ] = await Promise.all([
@@ -751,6 +751,7 @@ Deno.serve(async (req) => {
           adminClient.from("brain_missions").select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, expires_at").eq("user_id", userId).eq("status", "active").order("created_at", { ascending: false }).limit(10),
           adminClient.from("study_logs").select("duration_minutes").eq("user_id", userId).gte("created_at", `${today}T00:00:00Z`),
           adminClient.from("study_logs").select("duration_minutes, subject_id, topic_id, created_at, study_mode").eq("user_id", userId).gte("created_at", weekAgo),
+          adminClient.from("rank_predictions_v2").select("predicted_rank, rank_band_low, rank_band_high, percentile_estimation, factors_breakdown, computed_at").eq("user_id", userId).order("computed_at", { ascending: false }).limit(1).maybeSingle(),
           adminClient.from("rank_predictions").select("id, predicted_rank, percentile, factors, recorded_at").eq("user_id", userId).order("recorded_at", { ascending: false }).limit(1).maybeSingle(),
           adminClient.from("brain_reports").select("id, report_type, summary, metrics, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
           adminClient.from("study_logs").select("id, duration_minutes, study_mode, subject_id, topic_id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
@@ -837,7 +838,8 @@ Deno.serve(async (req) => {
         const studiedMin = todayLogs.reduce((sum: number, log: any) => sum + (log.duration_minutes || 0), 0);
         const streakAtRisk = streakInfo.current_streak > 0 && !streakInfo.today_met;
 
-        const pred = rankPredRes.data;
+        const predV2 = rankPredV2Res.data;
+        const predV1 = rankPredRes.data;
         const weekTotal = weekLogs.reduce((sum: number, log: any) => sum + (log.duration_minutes || 0), 0);
         const weeklySubjectMap: Record<string, number> = {};
         weekLogs.forEach((log: any) => {
@@ -924,16 +926,16 @@ Deno.serve(async (req) => {
 
         const estimatedConfidence = Math.min(100, total * 5 + weekLogs.length * 2);
         const fallbackRank = total > 0 ? Math.max(1, Math.round(10000 * Math.exp(-4.5 * (Math.min(99.9, Math.max(0.1, avgHealth)) / 100)))) : 4500;
-        const resolvedPredictedRank = pred?.predicted_rank ?? fallbackRank;
-        const resolvedRankMin = Math.max(1, Math.round(resolvedPredictedRank * 0.85));
-        const resolvedRankMax = Math.round(resolvedPredictedRank * 1.15);
+        const resolvedPredictedRank = predV2?.predicted_rank ?? predV1?.predicted_rank ?? fallbackRank;
+        const resolvedRankMin = predV2?.rank_band_low ?? Math.max(1, Math.round(resolvedPredictedRank * 0.85));
+        const resolvedRankMax = predV2?.rank_band_high ?? Math.round(resolvedPredictedRank * 1.15);
 
         const rankPrediction = {
           predicted_rank: resolvedPredictedRank,
           rank_range: { min: resolvedRankMin, max: resolvedRankMax },
           trend: weekTotal > 60 ? "rising" : weekTotal > 0 ? "stable" : "needs_data",
-          confidence: pred?.percentile ?? estimatedConfidence,
-          factors: pred?.factors ?? {
+          confidence: predV2?.percentile_estimation ?? predV1?.percentile ?? estimatedConfidence,
+          factors: predV1?.factors ?? {
             memory_strength: avgHealth,
             topics_covered: total,
             study_minutes_this_week: weekTotal,
