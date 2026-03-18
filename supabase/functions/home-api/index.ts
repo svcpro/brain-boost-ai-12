@@ -332,9 +332,10 @@ Deno.serve(async (req) => {
         const all = topics || [];
         const atRisk = all.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high");
         const weakest = [...all].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
+        const defaultTopic = { id: "", name: "", memory_strength: 0, risk_level: "low" };
         return json({
-          smart_recall: { available: all.length > 0, topic: weakest[0] || null },
-          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] || null },
+          smart_recall: { available: all.length > 0, topic: weakest[0] || defaultTopic, label: all.length === 0 ? "Add topics first" : "Smart Recall" },
+          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] || defaultTopic },
           rank_boost: { available: all.length > 0 },
           focus_shield: { available: true },
         });
