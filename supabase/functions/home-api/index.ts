@@ -268,7 +268,8 @@ Deno.serve(async (req) => {
         ]);
         const goal = profileRes.data?.daily_study_goal_minutes ?? 60;
         const studied = (logsRes.data || []).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
-        return json({ goal_minutes: goal, studied_minutes: studied, completion_pct: Math.min(100, Math.round((studied / goal) * 100)) });
+        const completionPct = Math.min(100, Math.round((studied / goal) * 100));
+        return json({ goal_minutes: goal, studied_minutes: studied, completion_pct: completionPct, status: studied >= goal ? "completed" : studied > 0 ? "in_progress" : "not_started" });
       }
 
       // ─── Today's Mission ───
