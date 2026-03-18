@@ -286,17 +286,14 @@ serve(async (req) => {
         });
 
         const raw = await edgeResp.text();
-        let parsed: unknown = raw;
-        try { parsed = raw ? JSON.parse(raw) : null; } catch { /* keep raw */ }
+        const contentType = edgeResp.headers.get("content-type") || "application/json";
 
-        const statusCode = edgeResp.status;
-        return new Response(JSON.stringify({
-          success: edgeResp.ok,
-          message: edgeResp.ok ? "OK" : (typeof parsed === "object" && parsed ? (parsed as any).error || "Error" : "Error"),
-          data: parsed,
-        }), {
-          status: statusCode,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(raw, {
+          status: edgeResp.status,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": contentType,
+          },
         });
       } catch (e) {
         return new Response(JSON.stringify({
