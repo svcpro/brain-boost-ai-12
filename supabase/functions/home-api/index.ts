@@ -803,6 +803,376 @@ Deno.serve(async (req) => {
         const strong = allTopics.filter((topic) => topic.memory_strength >= 70).length;
         const weak = allTopics.filter((topic) => topic.memory_strength < 40).length;
         const atRisk = riskTopicsList.length;
+        const avgHealth = total > 0 ? Math.round(allTopics.reduce((sum, topic) => sum + topic.memory_strength, 0) / total) : 0;
+
+        const examCountdown = profile?.exam_date
+          ? (() => {
+              const daysLeft = Math.max(0, Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000));
+              return {
+                days_left: daysLeft,
+                exam_date: profile.exam_date,
+                urgency: daysLeft <= 3 ? "critical" : daysLeft <= 14 ? "warning" : "normal",
+              };
+            })()
+          : { days_left: 0, exam_date: "", urgency: "normal" };
+
+        const goalMin = profile?.daily_study_goal_minutes ?? 60;
+        const studiedMin = todayLogs.reduce((sum: number, log: any) => sum + (log.duration_minutes || 0), 0);
+        const streakAtRisk = streakInfo.current_streak > 0 && !streakInfo.today_met;
+
+        const pred = rankPredRes.data;
+        const weekTotal = weekLogs.reduce((sum: number, log: any) => sum + (log.duration_minutes || 0), 0);
+        const weeklySubjectMap: Record<string, number> = {};
+        weekLogs.forEach((log: any) => {
+          const subjectName = log.subject_name || "General";
+          weeklySubjectMap[subjectName] = (weeklySubjectMap[subjectName] || 0) + (log.duration_minutes || 0);
+        });
+        const topSubjects = Object.entries(weeklySubjectMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([name, minutes]) => ({ name, minutes }));
+
+        const sub = subRes.data;
+        const subPlan = sub?.plan as any;
+        const trialDaysRemaining = sub?.is_trial && sub?.trial_end_date ? Math.max(0, Math.ceil((new Date(sub.trial_end_date).getTime() - Date.now()) / 86400000)) : 0;
+
+        const compData = completionRes.data || [];
+        const compCurrent = ((compData as any)[0]?.overall_completion_rate ?? 0.5) * 100;
+        const compPrev = (compData as any)[1]?.overall_completion_rate ? (compData as any)[1].overall_completion_rate * 100 : compCurrent;
+
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+        const isNew = profile?.created_at ? (Date.now() - new Date(profile.created_at).getTime()) < 86400000 : false;
+
+        const quotes = [
+          { quote: "The secret of getting ahead is getting started.", author: "Mark Twain", category: "motivation" },
+          { quote: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier", category: "consistency" },
+          { quote: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson", category: "persistence" },
+          { quote: "The only way to do great work is to love what you do.", author: "Steve Jobs", category: "passion" },
+          { quote: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela", category: "education" },
+        ];
+        const dayIndex = Math.floor(Date.now() / 86400000) % quotes.length;
+
+        let todaysMission: any = { mission: null, source: null };
+        if (allRecs.length > 0) {
+          todaysMission = { mission: allRecs[0], source: "ai_recommendation" };
+        } else if (riskTopicsList.length > 0) {
+          const topic = riskTopicsList[0];
+          todaysMission = {
+            mission: {
+              id: `risk-${topic.id}`,
+              title: `Review: ${topic.name}`,
+              description: `Memory at ${Math.round(topic.memory_strength)}%`,
+              type: "review",
+              priority: topic.risk_level,
+              topic_id: topic.id,
+            },
+            source: "risk_topic",
+          };
+        } else if (weakest.length > 0) {
+          const topic = weakest[0];
+          todaysMission = {
+            mission: {
+              id: `weak-${topic.id}`,
+              title: `Strengthen: ${topic.name}`,
+              description: `Memory strength is ${Math.round(topic.memory_strength)}%. A quick review will help!`,
+              type: "review",
+              priority: "medium",
+              topic_id: topic.id,
+            },
+            source: "weak_topic",
+          };
+        } else {
+          todaysMission = {
+            mission: {
+              id: "onboard-start",
+              title: "🚀 Add Your First Topic",
+              description: "Start by adding a subject and topic to begin your AI-powered study journey!",
+              type: "onboarding",
+              priority: "high",
+              topic_id: "",
+            },
+            source: "system",
+          };
+        }
+
+        const defaultTopic = {
+          id: "",
+          name: "",
+          memory_strength: 0,
+          risk_level: "low",
+          subject_id: "",
+          next_review_at: "",
+        };
+
+        const estimatedConfidence = Math.min(100, total * 5 + weekLogs.length * 2);
+        const fallbackRank = total > 0 ? Math.max(1, Math.round(5000 - (avgHealth * 40) - (total * 10) - (studiedMin * 2))) : 4500;
+        const resolvedPredictedRank = pred?.predicted_rank ?? fallbackRank;
+        const resolvedRankMin = Math.max(1, Math.round(resolvedPredictedRank * 0.85));
+        const resolvedRankMax = Math.round(resolvedPredictedRank * 1.15);
+
+        const rankPrediction = {
+          predicted_rank: resolvedPredictedRank,
+          rank_range: { min: resolvedRankMin, max: resolvedRankMax },
+          trend: weekTotal > 60 ? "rising" : weekTotal > 0 ? "stable" : "needs_data",
+          confidence: pred?.percentile ?? estimatedConfidence,
+          factors: pred?.factors ?? {
+            memory_strength: avgHealth,
+            topics_covered: total,
+            study_minutes_this_week: weekTotal,
+            consistency: streakInfo.current_streak,
+            note: total === 0 ? "Add topics and study to get accurate rank predictions" : "Rank improves as you study more consistently",
+          },
+        };
+
+        const trialStatus = sub
+          ? {
+              plan_key: subPlan?.plan_key ?? "unknown",
+              plan_name: subPlan?.name ?? "Unknown",
+              is_trial: sub.is_trial ?? false,
+              trial_days_remaining: trialDaysRemaining,
+              status: sub.status,
+              expires_at: sub.expires_at ?? "",
+              upgrade_prompt: "",
+            }
+          : {
+              plan_key: "free",
+              plan_name: "Free Brain",
+              is_trial: false,
+              trial_days_remaining: 0,
+              status: "free",
+              expires_at: "",
+              upgrade_prompt: "Upgrade to Premium for AI-powered study plans, unlimited topics, and rank predictions!",
+            };
+
+        const safeAutopilotSession = autopilotRes.data ?? {
+          id: "",
+          session_date: today,
+          status: "not_started",
+          completed_sessions: 0,
+          total_sessions: 0,
+          planned_schedule: {},
+          performance_summary: {},
+          emergency_triggered: false,
+          mode_switches: [],
+        };
+
+        return json({
+          brain_health: {
+            overall_health: avgHealth,
+            health_label: avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : total === 0 ? "Not started" : "Critical",
+            at_risk_count: atRisk,
+            total_topics: total,
+            strong_topics: strong,
+            weak_topics: weak,
+            tip: total === 0 ? "Add your first topic to start tracking brain health!" : avgHealth < 40 ? "Review your weakest topics to boost brain health" : "Keep going — your brain health is improving.",
+          },
+          rank_prediction: rankPrediction,
+          exam_countdown: examCountdown,
+          daily_goal: {
+            goal_minutes: goalMin,
+            studied_minutes: studiedMin,
+            completion_pct: Math.min(100, Math.round((studiedMin / goalMin) * 100)),
+            status: studiedMin >= goalMin ? "completed" : studiedMin > 0 ? "in_progress" : "not_started",
+          },
+          streak: {
+            current_streak: streakInfo.current_streak,
+            longest_streak: streakInfo.longest_streak,
+            today_met: streakInfo.today_met,
+            auto_shield_used: false,
+            freezes_available: freezeCountRes.count ?? 0,
+            next_milestone: getNextMilestone(streakInfo.current_streak),
+            streak_at_risk: streakAtRisk,
+            motivation: streakInfo.current_streak === 0 ? "Start a study session to build your streak!" : streakAtRisk ? "Study now to keep your streak alive!" : "Nice work — keep the momentum going!",
+          },
+          todays_mission: todaysMission,
+          ai_recommendations: {
+            recommendations: allRecs,
+            tip: allRecs.length === 0 ? "Complete a few study sessions to unlock AI recommendations" : "You already have AI recommendations ready.",
+          },
+          brain_missions: { missions: missionsRes.data || [] },
+          quick_actions: {
+            smart_recall: { available: total > 0, topic: weakest[0] || defaultTopic, label: total === 0 ? "Add topics first" : "Smart Recall" },
+            risk_shield: { available: riskTopicsList.length > 0, count: riskTopicsList.length, top_topic: riskTopicsList[0] || defaultTopic },
+            rank_boost: { available: total > 0 },
+            focus_shield: { available: true },
+          },
+          review_queue: { queue: reviewQueue, count: reviewQueue.length },
+          risk_digest: { risk_topics: riskTopicsList, count: riskTopicsList.length },
+          weekly_summary: {
+            total_minutes: weekTotal,
+            sessions: weekLogs.length,
+            top_subjects: topSubjects,
+            summary: weekLogs.length === 0 ? "No study sessions this week. Start today!" : `You studied ${weekTotal} minutes across ${weekLogs.length} sessions this week.`,
+          },
+          recently_studied: {
+            sessions: recentLogs,
+            tip: recentLogs.length === 0 ? "Your recent sessions will appear here" : "Your latest study sessions are shown here.",
+          },
+          brain_feed: { feed: reportsRes.data || [] },
+          autopilot: {
+            enabled: autopilotCfgRes.data?.is_enabled ?? false,
+            today_session: safeAutopilotSession,
+            completed: safeAutopilotSession.completed_sessions ?? 0,
+            total: safeAutopilotSession.total_sessions ?? 0,
+          },
+          trial_status: trialStatus,
+          completion_rate: {
+            completion_rate: Math.round(compCurrent),
+            trend: compCurrent > compPrev + 2 ? "improving" : compCurrent < compPrev - 2 ? "declining" : "stable",
+          },
+          welcome: {
+            show_welcome: isNew,
+            display_name: profile?.display_name?.trim() || "Learner",
+            avatar_url: profile?.avatar_url || "",
+            greeting,
+          },
+          daily_quote: quotes[dayIndex],
+        });
+      }
+        const yearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
+        const nowIso = new Date().toISOString();
+
+        const getRiskLevel = (memoryStrength: number) => {
+          if (memoryStrength < 20) return "critical";
+          if (memoryStrength < 40) return "high";
+          if (memoryStrength < 60) return "medium";
+          return "low";
+        };
+
+        const buildTopicView = (topic: Record<string, unknown>) => {
+          const memoryStrength = Number(topic.memory_strength ?? 0);
+          return {
+            id: String(topic.id ?? ""),
+            name: String(topic.name ?? ""),
+            memory_strength: memoryStrength,
+            risk_level: getRiskLevel(memoryStrength),
+            subject_id: String(topic.subject_id ?? ""),
+            next_review_at: String(topic.next_predicted_drop_date ?? ""),
+          };
+        };
+
+        const calculateStreak = (entries: Array<{ created_at: string }>) => {
+          const dateSet = new Set(entries.map((entry) => entry.created_at.split("T")[0]));
+          const todayDate = new Date(`${today}T00:00:00Z`);
+          const yesterdayDate = new Date(todayDate.getTime() - 86400000);
+          const hasToday = dateSet.has(today);
+
+          let cursor = hasToday ? todayDate : yesterdayDate;
+          let currentStreak = 0;
+
+          while (dateSet.has(cursor.toISOString().split("T")[0])) {
+            currentStreak += 1;
+            cursor = new Date(cursor.getTime() - 86400000);
+          }
+
+          const orderedDates = Array.from(dateSet).sort();
+          let longestStreak = 0;
+          let runningStreak = 0;
+          let previousDate: Date | null = null;
+
+          for (const dateString of orderedDates) {
+            const currentDate = new Date(`${dateString}T00:00:00Z`);
+            if (!previousDate) {
+              runningStreak = 1;
+            } else {
+              const dayDelta = Math.round((currentDate.getTime() - previousDate.getTime()) / 86400000);
+              runningStreak = dayDelta === 1 ? runningStreak + 1 : 1;
+            }
+            longestStreak = Math.max(longestStreak, runningStreak);
+            previousDate = currentDate;
+          }
+
+          return {
+            current_streak: currentStreak,
+            longest_streak: longestStreak,
+            today_met: hasToday,
+          };
+        };
+
+        const [
+          topicsRes, profileRes, freezeCountRes,
+          recsRes, missionsRes, logsTodayRes, logsWeekRes,
+          rankPredRes, reportsRes, recentLogsRes,
+          autopilotRes, autopilotCfgRes, subRes,
+          completionRes, reviewQueueRes, streakLogsRes,
+        ] = await Promise.all([
+          adminClient.from("topics").select("id, name, memory_strength, next_predicted_drop_date, subject_id").eq("user_id", userId).is("deleted_at", null),
+          adminClient.from("profiles").select("display_name, avatar_url, exam_date, daily_study_goal_minutes, created_at").eq("id", userId).maybeSingle(),
+          adminClient.from("streak_freezes").select("id", { count: "exact", head: true }).eq("user_id", userId).is("used_date", null),
+          adminClient.from("ai_recommendations").select("id, title, description, type, priority, topic_id").eq("user_id", userId).eq("completed", false).order("created_at", { ascending: false }).limit(5),
+          adminClient.from("brain_missions").select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, expires_at").eq("user_id", userId).eq("status", "active").order("created_at", { ascending: false }).limit(10),
+          adminClient.from("study_logs").select("duration_minutes").eq("user_id", userId).gte("created_at", `${today}T00:00:00Z`),
+          adminClient.from("study_logs").select("duration_minutes, subject_id, topic_id, created_at, study_mode").eq("user_id", userId).gte("created_at", weekAgo),
+          adminClient.from("rank_predictions").select("id, predicted_rank, percentile, factors, recorded_at").eq("user_id", userId).order("recorded_at", { ascending: false }).limit(1).maybeSingle(),
+          adminClient.from("brain_reports").select("id, report_type, summary, metrics, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
+          adminClient.from("study_logs").select("id, duration_minutes, study_mode, subject_id, topic_id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
+          adminClient.from("autopilot_sessions").select("*").eq("user_id", userId).eq("session_date", today).maybeSingle(),
+          adminClient.from("autopilot_config").select("is_enabled").limit(1).maybeSingle(),
+          adminClient.from("user_subscriptions").select("*, plan:subscription_plans(plan_key, name)").eq("user_id", userId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          adminClient.from("plan_quality_logs").select("overall_completion_rate").eq("user_id", userId).order("created_at", { ascending: false }).limit(2),
+          adminClient.from("topics").select("id, name, memory_strength, next_predicted_drop_date, subject_id").eq("user_id", userId).is("deleted_at", null).not("next_predicted_drop_date", "is", null).lte("next_predicted_drop_date", nowIso).order("next_predicted_drop_date", { ascending: true }).limit(10),
+          adminClient.from("study_logs").select("created_at").eq("user_id", userId).gte("created_at", yearAgo).order("created_at", { ascending: false }).limit(500),
+        ]);
+
+        const profile = profileRes.data;
+        const allRecs = recsRes.data || [];
+        const todayLogs = logsTodayRes.data || [];
+        const rawWeekLogs = logsWeekRes.data || [];
+        const rawRecentLogs = recentLogsRes.data || [];
+
+        const allTopics = (topicsRes.data || []).map((topic) => buildTopicView(topic as Record<string, unknown>));
+        const reviewQueue = (reviewQueueRes.data || []).map((topic) => buildTopicView(topic as Record<string, unknown>));
+        const riskTopicsList = [...allTopics]
+          .filter((topic) => topic.risk_level === "critical" || topic.risk_level === "high")
+          .sort((a, b) => a.memory_strength - b.memory_strength)
+          .slice(0, 10);
+        const weakest = [...allTopics].sort((a, b) => a.memory_strength - b.memory_strength).slice(0, 3);
+
+        const subjectIds = Array.from(new Set([
+          ...allTopics.map((topic) => topic.subject_id),
+          ...rawWeekLogs.map((log: any) => String(log.subject_id ?? "")),
+          ...rawRecentLogs.map((log: any) => String(log.subject_id ?? "")),
+        ].filter(Boolean)));
+        const topicIds = Array.from(new Set([
+          ...rawWeekLogs.map((log: any) => String(log.topic_id ?? "")),
+          ...rawRecentLogs.map((log: any) => String(log.topic_id ?? "")),
+        ].filter(Boolean)));
+
+        const [subjectsRes, topicsLookupRes] = await Promise.all([
+          subjectIds.length > 0
+            ? adminClient.from("subjects").select("id, name").in("id", subjectIds)
+            : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+          topicIds.length > 0
+            ? adminClient.from("topics").select("id, name").in("id", topicIds)
+            : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+        ]);
+
+        const subjectMap = Object.fromEntries((subjectsRes.data || []).map((subject: any) => [subject.id, subject.name]));
+        const topicMap = Object.fromEntries((topicsLookupRes.data || []).map((topic: any) => [topic.id, topic.name]));
+
+        const weekLogs = rawWeekLogs.map((log: any) => ({
+          ...log,
+          subject_name: subjectMap[String(log.subject_id ?? "")] || "General",
+          topic_name: topicMap[String(log.topic_id ?? "")] || "",
+          mode: log.study_mode || "focus",
+        }));
+
+        const recentLogs = rawRecentLogs.map((log: any) => ({
+          id: log.id,
+          subject_name: subjectMap[String(log.subject_id ?? "")] || "General",
+          topic_name: topicMap[String(log.topic_id ?? "")] || "",
+          duration_minutes: log.duration_minutes ?? 0,
+          mode: log.study_mode || "focus",
+          created_at: log.created_at,
+        }));
+
+        const streakInfo = calculateStreak((streakLogsRes.data || []) as Array<{ created_at: string }>);
+
+        const total = allTopics.length;
+        const strong = allTopics.filter((topic) => topic.memory_strength >= 70).length;
+        const weak = allTopics.filter((topic) => topic.memory_strength < 40).length;
+        const atRisk = riskTopicsList.length;
         const avgHealth = total > 0
           ? Math.round(allTopics.reduce((sum, topic) => sum + topic.memory_strength, 0) / total)
           : 0;
