@@ -246,6 +246,7 @@ Deno.serve(async (req) => {
           .select("id", { count: "exact", head: true })
           .eq("user_id", userId)
           .eq("is_used", false);
+        const streakAtRisk = (streak?.current_streak ?? 0) > 0 && !(streak?.today_met);
         return json({
           current_streak: streak?.current_streak ?? 0,
           longest_streak: streak?.longest_streak ?? 0,
@@ -253,6 +254,8 @@ Deno.serve(async (req) => {
           auto_shield_used: streak?.auto_shield_used ?? false,
           freezes_available: freezeCount ?? 0,
           next_milestone: getNextMilestone(streak?.current_streak ?? 0),
+          streak_at_risk: streakAtRisk,
+          motivation: (streak?.current_streak ?? 0) === 0 ? "Start a study session to build your streak!" : streakAtRisk ? "Study now to keep your streak alive!" : "Nice work — keep the momentum going!",
         });
       }
 
