@@ -906,7 +906,7 @@ Deno.serve(async (req) => {
         };
 
         const estimatedConfidence = Math.min(100, total * 5 + weekLogs.length * 2);
-        const fallbackRank = total > 0 ? Math.max(1, Math.round(5000 - (avgHealth * 40) - (total * 10) - (studiedMin * 2))) : 4500;
+        const fallbackRank = total > 0 ? Math.max(1, Math.round(10000 * Math.exp(-4.5 * (Math.min(99.9, Math.max(0.1, avgHealth)) / 100)))) : 4500;
         const resolvedPredictedRank = pred?.predicted_rank ?? fallbackRank;
         const resolvedRankMin = Math.max(1, Math.round(resolvedPredictedRank * 0.85));
         const resolvedRankMax = Math.round(resolvedPredictedRank * 1.15);
