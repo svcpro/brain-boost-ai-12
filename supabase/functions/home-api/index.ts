@@ -528,11 +528,12 @@ Deno.serve(async (req) => {
           .select("is_enabled")
           .limit(1)
           .maybeSingle();
+        const safeSession = data ?? { id: "", session_date: today, status: "not_started", completed_sessions: 0, total_sessions: 0, planned_schedule: {}, performance_summary: {}, emergency_triggered: false, mode_switches: [] };
         return json({
           enabled: config?.is_enabled ?? false,
-          today_session: data ?? null,
-          completed: data?.completed_sessions ?? 0,
-          total: data?.total_sessions ?? 0,
+          today_session: safeSession,
+          completed: safeSession.completed_sessions ?? 0,
+          total: safeSession.total_sessions ?? 0,
         });
       }
 
