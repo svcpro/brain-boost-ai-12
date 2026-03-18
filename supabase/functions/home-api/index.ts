@@ -503,7 +503,7 @@ Deno.serve(async (req) => {
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(10);
-        return json({ sessions: logs || [] });
+        return json({ sessions: logs || [], tip: (logs || []).length === 0 ? "Your recent sessions will appear here" : "" });
       }
 
       // ─── Study Insights ───
