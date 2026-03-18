@@ -139,10 +139,13 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (!pred) return json({ predicted_rank: null, rank_range: null, trend: "stable", confidence: 0, factors: {} });
+        if (!pred) {
+          return json({ predicted_rank: 4500, rank_range: { min: 3825, max: 5175 }, trend: "needs_data", confidence: 0, factors: { memory_strength: 0, topics_covered: 0, study_minutes_this_week: 0, consistency: 0, note: "Add topics and study to get accurate rank predictions" } });
+        }
+        const predictedRank = pred.predicted_rank ?? Math.round(((pred.rank_range_min ?? 4000) + (pred.rank_range_max ?? 5000)) / 2);
         return json({
-          predicted_rank: pred.predicted_rank,
-          rank_range: { min: pred.rank_range_min ?? pred.predicted_rank, max: pred.rank_range_max ?? pred.predicted_rank },
+          predicted_rank: predictedRank,
+          rank_range: { min: pred.rank_range_min ?? Math.max(1, predictedRank - Math.round(predictedRank * 0.15)), max: pred.rank_range_max ?? predictedRank + Math.round(predictedRank * 0.15) },
           trend: pred.trend || "stable",
           confidence: pred.confidence ?? 0,
           factors: pred.factors ?? {},
