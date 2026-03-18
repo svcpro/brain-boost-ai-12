@@ -569,6 +569,8 @@ Deno.serve(async (req) => {
           sessions: thisWeek.length,
           topics_covered: topicSet.size,
           improvement_pct: improvementPct,
+          top_subjects: topSubjects,
+          summary: thisWeek.length === 0 ? "No study sessions this week. Start today!" : `You studied ${thisTotal} minutes across ${thisWeek.length} sessions this week.`,
           highlights: [],
           weak_areas: [],
         });
