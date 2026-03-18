@@ -295,11 +295,31 @@ Deno.serve(async (req) => {
         if (riskTopics && riskTopics.length > 0) {
           const t = riskTopics[0];
           return json({
-            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}%`, type: "review", priority: t.risk_level, topic_id: t.id },
+            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}%`, type: "review", priority: t.risk_level || "high", topic_id: t.id },
             source: "risk_topic",
           });
         }
-        return json({ mission: null, source: null });
+
+        // Check for any weak topics
+        const { data: weakTopics } = await adminClient
+          .from("topics")
+          .select("id, name, memory_strength")
+          .eq("user_id", userId)
+          .is("deleted_at", null)
+          .order("memory_strength", { ascending: true })
+          .limit(1);
+        if (weakTopics && weakTopics.length > 0) {
+          const w = weakTopics[0];
+          return json({
+            mission: { id: `weak-${w.id}`, title: `Strengthen: ${w.name}`, description: `Memory strength is ${Math.round(w.memory_strength ?? 0)}%. A quick review will help!`, type: "review", priority: "medium", topic_id: w.id },
+            source: "weak_topic",
+          });
+        }
+
+        return json({
+          mission: { id: "onboard-start", title: "🚀 Add Your First Topic", description: "Start by adding a subject and topic to begin your AI-powered study journey!", type: "onboarding", priority: "high", topic_id: "" },
+          source: "system",
+        });
       }
 
       // ─── Quick Actions ───
