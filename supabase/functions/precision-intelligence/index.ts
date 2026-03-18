@@ -384,8 +384,10 @@ serve(async (req) => {
         (1 - (topics.filter((t: any) => (t.memory_strength || 0) < 30).length / Math.max(topics.length, 1))) * 0.05;
 
       const percentile = Math.min(99.5, Math.max(0.5, compositeScore * 100));
-      const totalPop = 100000;
-      const predictedRank = Math.max(1, Math.round(totalPop * (1 - percentile / 100)));
+      // Non-linear exponential mapping for realistic exam ranks
+      const maxRank = 10000;
+      const k = 4.5;
+      const predictedRank = Math.max(1, Math.round(maxRank * Math.exp(-k * (percentile / 100))));
 
       // Confidence interval based on data maturity and volatility
       const dataMaturity = Math.min(1, logs.length / 150);

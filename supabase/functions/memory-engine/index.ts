@@ -212,10 +212,14 @@ serve(async (req) => {
         (avgConfidence * 0.05) +
         (examPressureScore * 0.05);
 
-      // Map composite to rank in simulated population
-      const totalPopulation = 100000;
+      // Map composite to rank using non-linear curve for realistic exam ranks
+      // Uses exponential decay: higher scores → dramatically better ranks
       const percentile = Math.min(99.9, Math.max(0.1, compositeScore));
-      const predictedRank = Math.max(1, Math.round(totalPopulation * (1 - percentile / 100)));
+      const maxRank = 10000; // realistic top-range for competitive exams
+      // Exponential mapping: rank = maxRank * e^(-k * percentile/100)
+      // At 50% → ~1350, at 60% → ~740, at 70% → ~400, at 80% → ~220, at 90% → ~120
+      const k = 4.5;
+      const predictedRank = Math.max(1, Math.round(maxRank * Math.exp(-k * (percentile / 100))));
 
       // Get historical rank predictions for trend
       const { data: history } = await supabase
