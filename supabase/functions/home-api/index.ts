@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
           .select("exam_date")
           .eq("id", userId)
           .maybeSingle();
-        if (!profile?.exam_date) return json({ days_left: null, exam_date: null, urgency: "normal" });
+        if (!profile?.exam_date) return json({ days_left: 0, exam_date: "", urgency: "normal" });
         const daysLeft = Math.max(0, Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000));
         const urgency = daysLeft <= 3 ? "critical" : daysLeft <= 14 ? "warning" : "normal";
         return json({ days_left: daysLeft, exam_date: profile.exam_date, urgency });
