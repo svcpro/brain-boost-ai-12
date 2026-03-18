@@ -6,11 +6,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-api-key, api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const json = (data: unknown, status = 200) =>
+const rawJson = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+
+const json = (data: unknown, status = 200) => rawJson(sanitizeNulls(data), status);
 
 const sanitizeNulls = (value: unknown): unknown => {
   if (value === null) return "";
