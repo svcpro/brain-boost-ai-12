@@ -121,14 +121,14 @@ Deno.serve(async (req) => {
       case "brain-health": {
         const { data: topics } = await adminClient
           .from("topics")
-          .select("id, memory_strength, risk_level")
+          .select("id, memory_strength")
           .eq("user_id", userId)
           .is("deleted_at", null);
         const all = topics || [];
         const total = all.length;
         const strong = all.filter((t: any) => (t.memory_strength ?? 0) >= 70).length;
         const weak = all.filter((t: any) => (t.memory_strength ?? 0) < 40).length;
-        const atRisk = all.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high").length;
+        const atRisk = all.filter((t: any) => (t.memory_strength ?? 0) < 40).length;
         const avgHealth = total > 0 ? Math.round(all.reduce((s: number, t: any) => s + (t.memory_strength ?? 0), 0) / total) : 0;
         const healthLabel = total === 0 ? "Not started" : avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : "Critical";
         const tip = total === 0 ? "Add your first topic to start tracking brain health!" : avgHealth < 40 ? "Review your weakest topics to boost brain health" : "Keep going — your brain health is improving.";
