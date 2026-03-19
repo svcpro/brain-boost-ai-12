@@ -163,8 +163,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     try {
       // Use home-api/todays-mission so web app matches the external API response
       const { data, error: fnError } = await supabase.functions.invoke("home-api", {
-        body: {},
-        headers: { "x-route": "todays-mission" },
+        body: { route: "todays-mission" },
       });
       
       // home-api returns { mission: {...}, source: "..." }
