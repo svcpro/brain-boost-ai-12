@@ -369,15 +369,31 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Priority 6: All strong — practice mode
-        const { count: topicCount } = await adminClient
+        // Priority 6: All strong — practice mode with a specific topic
+        const { data: practiceTopics } = await adminClient
           .from("topics")
-          .select("id", { count: "exact", head: true })
+          .select("id, name, memory_strength, subject_id")
           .eq("user_id", userId)
-          .is("deleted_at", null);
-        if ((topicCount ?? 0) > 0) {
+          .is("deleted_at", null)
+          .order("memory_strength", { ascending: true })
+          .limit(5);
+        if (practiceTopics && practiceTopics.length > 0) {
+          // Pick a random topic from the weakest 5 for variety
+          const pick = practiceTopics[Math.floor(Math.random() * practiceTopics.length)];
+          let subjectName = "General";
+          if (pick.subject_id) {
+            const { data: subj } = await adminClient.from("subjects").select("name").eq("id", pick.subject_id).maybeSingle();
+            if (subj?.name) subjectName = subj.name;
+          }
           return json({
-            mission: { id: "all-strong", title: "🎯 Practice Mode", description: "All topics are strong! Take a practice quiz to stay sharp.", type: "practice", priority: "low", topic_id: "" },
+            mission: {
+              id: `practice-${pick.id}`,
+              title: `Practice: ${subjectName}`,
+              description: `Complete 10 practice questions on ${pick.name}.`,
+              type: "practice",
+              priority: "low",
+              topic_id: pick.id,
+            },
             source: "maintenance",
           });
         }
@@ -991,16 +1007,20 @@ Deno.serve(async (req) => {
             source: "review_queue",
           };
         }
-        // Priority 6: All topics strong — encourage practice
+        // Priority 6: All topics strong — pick a specific topic for practice
         else if (total > 0) {
+          // Pick from weakest topics for variety
+          const practicePool = weakest.length > 0 ? weakest : allTopics.slice(0, 5);
+          const pick = practicePool[Math.floor(Math.random() * practicePool.length)];
+          const pickSubjectName = pick?.subject_id ? (subjectMap[pick.subject_id] || "General") : "General";
           todaysMission = {
             mission: {
-              id: "all-strong",
-              title: "🎯 Practice Mode",
-              description: "All topics are strong! Take a practice quiz to stay sharp.",
+              id: `practice-${pick?.id || ""}`,
+              title: `Practice: ${pickSubjectName}`,
+              description: `Complete 10 practice questions on ${pick?.name || "mixed topics"}.`,
               type: "practice",
               priority: "low",
-              topic_id: weakest.length > 0 ? weakest[0].id : "",
+              topic_id: pick?.id || "",
             },
             source: "maintenance",
           };
