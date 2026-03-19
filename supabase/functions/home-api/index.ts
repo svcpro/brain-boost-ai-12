@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     // Extract route: e.g. "brain-health" from various path patterns
     const rawPath = url.pathname.replace(/^\/+|\/+$/g, "");
-    const route = rawPath
+    let route = rawPath
       .replace(/^functions\/v1\/home-api\/?/i, "")
       .replace(/^home-api\/?/i, "")
       .replace(/^api\/home\/?/i, "")
@@ -111,19 +111,24 @@ Deno.serve(async (req) => {
     // Also check query params
     const query = Object.fromEntries(url.searchParams.entries());
 
+    // If route is empty (SDK invoke), resolve from x-route header or body.route/body.action
+    if (!route) {
+      route = req.headers.get("x-route") || String(body.route || body.action || query.route || "");
+    }
+
     switch (route) {
       // ─── Brain Health (Hero Section) ───
       case "brain-health": {
         const { data: topics } = await adminClient
           .from("topics")
-          .select("id, memory_strength, risk_level")
+          .select("id, memory_strength")
           .eq("user_id", userId)
           .is("deleted_at", null);
         const all = topics || [];
         const total = all.length;
         const strong = all.filter((t: any) => (t.memory_strength ?? 0) >= 70).length;
         const weak = all.filter((t: any) => (t.memory_strength ?? 0) < 40).length;
-        const atRisk = all.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high").length;
+        const atRisk = all.filter((t: any) => (t.memory_strength ?? 0) < 40).length;
         const avgHealth = total > 0 ? Math.round(all.reduce((s: number, t: any) => s + (t.memory_strength ?? 0), 0) / total) : 0;
         const healthLabel = total === 0 ? "Not started" : avgHealth > 70 ? "Strong" : avgHealth > 50 ? "Needs care" : "Critical";
         const tip = total === 0 ? "Add your first topic to start tracking brain health!" : avgHealth < 40 ? "Review your weakest topics to boost brain health" : "Keep going — your brain health is improving.";
@@ -355,12 +360,12 @@ Deno.serve(async (req) => {
         // Priority 5: Topics due for spaced repetition
         const { data: dueTopics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, next_review_at")
+          .select("id, name, memory_strength, next_predicted_drop_date")
           .eq("user_id", userId)
           .is("deleted_at", null)
-          .not("next_review_at", "is", null)
-          .lte("next_review_at", new Date().toISOString())
-          .order("next_review_at", { ascending: true })
+          .not("next_predicted_drop_date", "is", null)
+          .lte("next_predicted_drop_date", new Date().toISOString())
+          .order("next_predicted_drop_date", { ascending: true })
           .limit(1);
         if (dueTopics && dueTopics.length > 0) {
           const d = dueTopics[0];
@@ -410,16 +415,16 @@ Deno.serve(async (req) => {
       case "quick-actions": {
         const { data: topics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, risk_level")
+          .select("id, name, memory_strength")
           .eq("user_id", userId)
           .is("deleted_at", null);
         const all = topics || [];
-        const atRisk = all.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high");
+        const atRisk = all.filter((t: any) => (t.memory_strength ?? 0) < 40);
         const weakest = [...all].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
         const defaultTopic = { id: "", name: "", memory_strength: 0, risk_level: "low" };
         return json({
-          smart_recall: { available: all.length > 0, topic: weakest[0] || defaultTopic, label: all.length === 0 ? "Add topics first" : "Smart Recall" },
-          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] || defaultTopic },
+          smart_recall: { available: all.length > 0, topic: weakest[0] ? { ...weakest[0], risk_level: (weakest[0].memory_strength ?? 0) < 40 ? "high" : "low" } : defaultTopic, label: all.length === 0 ? "Add topics first" : "Smart Recall" },
+          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] ? { ...atRisk[0], risk_level: "high" } : defaultTopic },
           rank_boost: { available: all.length > 0 },
           focus_shield: { available: true },
         });
@@ -529,7 +534,7 @@ Deno.serve(async (req) => {
         const limit = parseInt(query.limit || "10") || 10;
         const { data: topics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, risk_level, next_review_at, decay_rate, subject_id")
+          .select("id, name, memory_strength, next_predicted_drop_date, subject_id")
           .eq("user_id", userId)
           .is("deleted_at", null)
           .order("memory_strength", { ascending: true })
@@ -547,11 +552,11 @@ Deno.serve(async (req) => {
           topic_name: t.name,
           subject_name: subjectMap[t.subject_id] || "Unknown",
           memory_strength: t.memory_strength ?? 0,
-          predicted_drop_date: t.next_review_at,
-          decay_rate: t.decay_rate ?? 0,
+          predicted_drop_date: t.next_predicted_drop_date || "",
+          decay_rate: 0,
           urgency: (t.memory_strength ?? 0) < 20 ? "critical" : (t.memory_strength ?? 0) < 40 ? "high" : (t.memory_strength ?? 0) < 60 ? "medium" : "low",
         }));
-        const overallDecay = allTopics.length > 0 ? Math.round(allTopics.reduce((s: number, t: any) => s + (t.decay_rate ?? 0), 0) / allTopics.length * 100) / 100 : 0;
+        const overallDecay = 0;
         return json({ at_risk_topics: atRiskTopics, overall_decay_rate: overallDecay });
       }
 
@@ -559,13 +564,17 @@ Deno.serve(async (req) => {
       case "risk-digest": {
         const { data: topics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, risk_level, subject_id")
+          .select("id, name, memory_strength, subject_id")
           .eq("user_id", userId)
           .is("deleted_at", null)
-          .in("risk_level", ["critical", "high"])
+          .lt("memory_strength", 40)
           .order("memory_strength", { ascending: true })
           .limit(10);
-        return json({ risk_topics: topics || [], count: (topics || []).length });
+        const riskDigestTopics = (topics || []).map((t: any) => ({
+          ...t,
+          risk_level: (t.memory_strength ?? 0) < 20 ? "critical" : "high",
+        }));
+        return json({ risk_topics: riskDigestTopics, count: riskDigestTopics.length });
       }
 
       // ─── Brain Feed ───
