@@ -12,7 +12,8 @@ serve(async (req) => {
   try {
     const { userId, supabase } = await authenticateRequest(req);
 
-    const { action } = await req.json();
+    const body = await req.json();
+    const { action } = body;
 
     if (action === "generate") {
       return new Response(JSON.stringify(await generateMissions(supabase, userId)), {
@@ -34,7 +35,7 @@ serve(async (req) => {
     }
 
     if (action === "complete") {
-      const { mission_id } = await req.json().catch(() => ({}));
+      const mission_id = body.mission_id;
       if (mission_id) {
         await supabase.from("brain_missions").update({
           status: "completed",
