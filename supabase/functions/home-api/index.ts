@@ -1177,13 +1177,174 @@ Deno.serve(async (req) => {
         });
       }
 
+      // ─── Mission Generate (AI-powered daily mission) ───
+      case "mission-generate": {
+        const client = userClient(req.headers.get("authorization") || "");
+        try {
+          const { data: genData, error: genErr } = await client.functions.invoke("ai-brain-agent", {
+            body: { action: "daily_mission" },
+          });
+          if (genErr) throw genErr;
+
+          // Also check brain_missions table for any active missions generated today
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const { data: todayMissions } = await adminClient
+            .from("brain_missions")
+            .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at, reasoning, created_at")
+            .eq("user_id", userId)
+            .gte("created_at", todayStart.toISOString())
+            .in("status", ["active", "in_progress"])
+            .order("created_at", { ascending: false })
+            .limit(5);
+
+          return json({
+            success: true,
+            ai_mission: genData ?? {},
+            active_missions: todayMissions || [],
+            message: "Daily mission generated",
+          });
+        } catch (e: any) {
+          return json({ success: false, error: e.message, ai_mission: {}, active_missions: [] }, 500);
+        }
+      }
+
+      // ─── Mission Progress (update current_value while in_progress) ───
+      case "mission-progress": {
+        const missionId = (body.mission_id || query.mission_id) as string;
+        const progressValue = Number(body.progress_value ?? body.current_value ?? 0);
+        if (!missionId) return json({ error: "mission_id is required" }, 400);
+
+        const { data: missionProg } = await adminClient
+          .from("brain_missions")
+          .select("id, title, status, target_value, current_value, mission_type")
+          .eq("id", missionId)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!missionProg) return json({ error: "Mission not found" }, 404);
+        if (missionProg.status === "completed") return json({ error: "Mission already completed" }, 409);
+
+        const newValue = progressValue || ((missionProg.current_value ?? 0) + 1);
+        const targetReached = missionProg.target_value ? newValue >= missionProg.target_value : false;
+
+        await adminClient
+          .from("brain_missions")
+          .update({ current_value: newValue, updated_at: new Date().toISOString() })
+          .eq("id", missionId)
+          .eq("user_id", userId);
+
+        return json({
+          success: true,
+          mission_id: missionId,
+          current_value: newValue,
+          target_value: missionProg.target_value ?? 0,
+          target_reached: targetReached,
+          progress_pct: missionProg.target_value ? Math.min(100, Math.round((newValue / missionProg.target_value) * 100)) : 0,
+          message: targetReached ? "🎯 Target reached! You can now complete this mission." : `Progress updated: ${newValue}/${missionProg.target_value ?? "∞"}`,
+        });
+      }
+
+      // ─── Today's Mission Flow (complete end-to-end guide) ───
+      case "todays-mission-flow": {
+        // Return full lifecycle documentation + current state for this user
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const { data: activeMissions } = await adminClient
+          .from("brain_missions")
+          .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at, reasoning, completed_at, created_at")
+          .eq("user_id", userId)
+          .gte("created_at", todayStart.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        const missions = activeMissions || [];
+        const currentMission = missions.find((m: any) => m.status === "in_progress") || missions.find((m: any) => m.status === "active") || null;
+        const completedToday = missions.filter((m: any) => m.status === "completed");
+
+        return json({
+          current_state: {
+            has_mission: !!currentMission,
+            current_mission: currentMission,
+            completed_today: completedToday.length,
+            all_todays_missions: missions,
+          },
+          flow_steps: [
+            {
+              step: 1,
+              name: "Generate Mission",
+              endpoint: "POST /home-api/mission-generate",
+              description: "Generate AI-powered daily mission. Call once per day or when no active mission exists.",
+              request: {},
+              when_to_call: "On app launch if no active mission found",
+            },
+            {
+              step: 2,
+              name: "Fetch Active Missions",
+              endpoint: "POST /home-api/brain-missions",
+              description: "Get list of active missions with their IDs. Use the mission ID for subsequent steps.",
+              request: { status: "active" },
+              response_key: "missions[0].id → use as mission_id",
+            },
+            {
+              step: 3,
+              name: "Start Mission",
+              endpoint: "POST /home-api/mission-start",
+              description: "Mark mission as in_progress. Returns action_hint (what to do) and navigate_to (where to go in app).",
+              request: { mission_id: "uuid-from-step-2" },
+              response_keys: ["action_hint", "navigate_to", "mission.status"],
+            },
+            {
+              step: 4,
+              name: "Update Progress (Optional)",
+              endpoint: "POST /home-api/mission-progress",
+              description: "Update current_value while user is working. Returns target_reached boolean when done.",
+              request: { mission_id: "uuid", progress_value: 3 },
+              response_keys: ["current_value", "target_value", "target_reached", "progress_pct"],
+            },
+            {
+              step: 5,
+              name: "Complete Mission",
+              endpoint: "POST /home-api/mission-complete",
+              description: "Mark mission as completed. Returns reward info (XP) and remaining mission count.",
+              request: { mission_id: "uuid" },
+              response_keys: ["completed_mission", "remaining_missions", "message"],
+            },
+          ],
+          flutter_example: {
+            code: `
+// Step 1: Generate (once per day)
+await api.post('/home-api/mission-generate');
+
+// Step 2: Fetch missions
+final missions = await api.post('/home-api/brain-missions', body: {"status": "active"});
+final missionId = missions['missions'][0]['id'];
+
+// Step 3: Start
+final start = await api.post('/home-api/mission-start', body: {"mission_id": missionId});
+final navigateTo = start['navigate_to'];
+// Navigate user to study screen
+
+// Step 4: Progress (optional, during study)
+await api.post('/home-api/mission-progress', body: {"mission_id": missionId, "progress_value": 2});
+
+// Step 5: Complete
+final result = await api.post('/home-api/mission-complete', body: {"mission_id": missionId});
+// Show reward: result['completed_mission']['reward_value']
+`,
+          },
+        });
+      }
+
       default:
         return json({ error: `Unknown home route: ${route}`, available_routes: [
           "dashboard", "all",
           "brain-health", "rank-prediction", "exam-countdown", "refresh-ai",
           "ai-recommendations", "burnout-status", "streak-status", "streak-details",
           "daily-goal", "todays-mission", "quick-actions", "review-queue",
-          "brain-missions", "mission-start", "mission-complete", "cognitive-embedding", "rl-policy", "auto-study-summary",
+          "brain-missions", "mission-generate", "mission-start", "mission-progress", "mission-complete", "todays-mission-flow",
+          "cognitive-embedding", "rl-policy", "auto-study-summary",
           "precision-intelligence", "decay-forecast", "risk-digest", "brain-feed",
           "recently-studied", "study-insights", "autopilot-status", "daily-quote",
           "weekly-summary", "streak-recovery", "trial-status", "welcome-status",
