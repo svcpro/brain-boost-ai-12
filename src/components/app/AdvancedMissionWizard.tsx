@@ -262,66 +262,75 @@ export default function AdvancedMissionWizard({
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* ─── HEADER ─── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/90 backdrop-blur-md safe-area-top">
-        <div className="flex items-center gap-2.5">
-          {wizardStep !== "briefing" && wizardStep !== "results" && wizardStep !== "impact" && (
-            <button onClick={onClose} className="p-1 -ml-1 rounded-lg hover:bg-secondary/80 transition-colors active:scale-95">
-              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-            </button>
-          )}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Crosshair className="w-3.5 h-3.5 text-primary" />
-            </div>
+      {/* ─── MOBILE NATIVE HEADER ─── */}
+      <div className="bg-card/95 backdrop-blur-xl border-b border-border/40 safe-area-top">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+          <div className="flex items-center gap-2.5">
+            {(wizardStep === "briefing" || wizardStep === "questions") && (
+              <button onClick={onClose} className="w-8 h-8 rounded-xl bg-secondary/60 flex items-center justify-center active:scale-90 transition-transform">
+                {wizardStep === "briefing" ? <X className="w-4 h-4 text-muted-foreground" /> : <ChevronLeft className="w-4 h-4 text-foreground" />}
+              </button>
+            )}
             <div>
-              <span className="text-xs font-bold text-foreground">{headerTitle}</span>
+              <h1 className="text-[13px] font-bold text-foreground leading-tight">{headerTitle}</h1>
               {wizardStep === "questions" && (
-                <p className="text-[9px] text-muted-foreground">Step {missionStep + 1} of {MISSION_STEPS.length}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Step {missionStep + 1} of {MISSION_STEPS.length}</p>
               )}
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
           {timerActive && (
-            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg ${timerBg} ${timeRemaining < 60 ? "animate-pulse" : ""}`}>
-              <Timer className={`w-3 h-3 ${timerColor}`} />
-              <span className={`text-[11px] font-bold tabular-nums ${timerColor}`}>{formatTime(timeRemaining)}</span>
+            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${timerBg} ${timeRemaining < 60 ? "animate-pulse" : ""}`}>
+              <Timer className={`w-3.5 h-3.5 ${timerColor}`} />
+              <span className={`text-xs font-bold tabular-nums ${timerColor}`}>{formatTime(timeRemaining)}</span>
             </motion.div>
           )}
-          {(wizardStep === "briefing") && (
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary/80 transition-colors active:scale-95">
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
-          )}
         </div>
-      </div>
 
-      {/* ─── STEP PROGRESS ─── */}
-      {wizardStep === "questions" && (
-        <div className="px-4 py-3 bg-card/50 border-b border-border/30">
-          <div className="flex items-center gap-1.5">
-            {MISSION_STEPS.map((step, i) => {
-              const StepIcon = step.icon;
-              const isActive = i === missionStep;
-              const isDone = i < missionStep;
-              return (
-                <div key={step.key} className="flex-1 flex flex-col items-center gap-1.5">
-                  <div className={`w-full h-1.5 rounded-full transition-all duration-500 ${isDone ? "bg-primary" : isActive ? "bg-primary/50" : "bg-secondary"}`}>
-                    {isActive && <motion.div className="h-full rounded-full bg-primary" initial={{ width: "0%" }} animate={{ width: `${((currentQ + 1) / Math.max(questions.length, 1)) * 100}%` }} transition={{ duration: 0.3 }} />}
+        {/* Step progress — mobile native pill bar */}
+        {wizardStep === "questions" && (
+          <div className="px-4 pt-0.5 pb-3">
+            <div className="flex gap-1.5 mb-2">
+              {MISSION_STEPS.map((step, i) => {
+                const isActive = i === missionStep;
+                const isDone = i < missionStep;
+                return (
+                  <div key={step.key} className="flex-1 h-[5px] rounded-full bg-secondary/80 overflow-hidden">
+                    {isDone && <div className="h-full w-full rounded-full bg-primary" />}
+                    {isActive && (
+                      <motion.div className="h-full rounded-full bg-primary"
+                        initial={{ width: "0%" }}
+                        animate={{ width: `${((currentQ + (showFeedback ? 1 : 0.5)) / Math.max(questions.length, 1)) * 100}%` }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                      />
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <StepIcon className={`w-2.5 h-2.5 ${isDone ? "text-primary" : isActive ? step.color : "text-muted-foreground/40"}`} />
-                    <span className={`text-[8px] font-semibold ${isDone ? "text-primary" : isActive ? "text-foreground" : "text-muted-foreground/40"}`}>
+                );
+              })}
+            </div>
+            <div className="flex">
+              {MISSION_STEPS.map((step, i) => {
+                const StepIcon = step.icon;
+                const isActive = i === missionStep;
+                const isDone = i < missionStep;
+                return (
+                  <div key={step.key} className="flex-1 flex items-center justify-center gap-1">
+                    {isDone ? (
+                      <CheckCircle2 className="w-3 h-3 text-primary" />
+                    ) : (
+                      <StepIcon className={`w-3 h-3 ${isActive ? "text-primary" : "text-muted-foreground/30"}`} />
+                    )}
+                    <span className={`text-[9px] font-semibold ${isDone ? "text-primary" : isActive ? "text-foreground" : "text-muted-foreground/30"}`}>
                       {step.label.split(" ")[0]}
                     </span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ─── CONTENT ─── */}
       <div className="flex-1 overflow-y-auto">
