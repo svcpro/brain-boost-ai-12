@@ -1183,7 +1183,7 @@ Deno.serve(async (req) => {
           "brain-health", "rank-prediction", "exam-countdown", "refresh-ai",
           "ai-recommendations", "burnout-status", "streak-status", "streak-details",
           "daily-goal", "todays-mission", "quick-actions", "review-queue",
-          "brain-missions", "mission-complete", "cognitive-embedding", "rl-policy", "auto-study-summary",
+          "brain-missions", "mission-start", "mission-complete", "cognitive-embedding", "rl-policy", "auto-study-summary",
           "precision-intelligence", "decay-forecast", "risk-digest", "brain-feed",
           "recently-studied", "study-insights", "autopilot-status", "daily-quote",
           "weekly-summary", "streak-recovery", "trial-status", "welcome-status",
