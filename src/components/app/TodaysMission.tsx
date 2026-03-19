@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Target, Clock, TrendingUp, Zap, ArrowRight, Sparkles, CheckCircle2, Brain } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { setCache, getCache } from "@/lib/offlineCache";
+import { setCache, getCache, clearCache } from "@/lib/offlineCache";
 import { triggerHaptic } from "@/lib/feedback";
 import { useToast } from "@/hooks/use-toast";
 import MicroMissionFlow from "./MicroMissionFlow";
@@ -67,8 +67,8 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       if (cached && cached.generated_date === today && cached.title && cached.title !== "AI Mission") {
         setMission(cached);
       }
-      // Also clear legacy cache keys so old data doesn't persist
-      try { localStorage.removeItem(`acry-daily-mission-${user.id}`); } catch {}
+      clearCache(`acry-daily-mission-${user.id}`);
+      clearCache(`acry-home-mission-${user.id}`);
     } catch {}
   }, [user, today]);
 
