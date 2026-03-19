@@ -161,11 +161,42 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     setLoading(true);
     setError(false);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("ai-brain-agent", {
-        body: { action: "daily_mission" },
+      // Use home-api/todays-mission so web app matches the external API response
+      const { data, error: fnError } = await supabase.functions.invoke("home-api", {
+        body: {},
+        headers: { "x-route": "todays-mission" },
       });
-      if (fnError) throw fnError;
       
+      // home-api returns { mission: {...}, source: "..." }
+      // Try parsing the home-api format first
+      const apiMission = data?.mission;
+      if (apiMission && apiMission.title) {
+        const missionData: DailyMission = {
+          title: String(apiMission.title || "Your Daily Mission").slice(0, 80),
+          description: String(apiMission.description || ""),
+          topic_name: apiMission.topic_name || undefined,
+          subject_name: apiMission.subject_name || undefined,
+          estimated_minutes: safeNum(apiMission.estimated_minutes, 10),
+          brain_improvement_pct: safeNum(apiMission.brain_improvement_pct, 5),
+          urgency: (["critical", "high", "medium"].includes(apiMission.priority) ? apiMission.priority : "medium") as DailyMission["urgency"],
+          reasoning: String(apiMission.reasoning || data?.source || "Personalized by your AI brain agent."),
+          mission_type: (() => {
+            const raw = String(apiMission.type || "review").toLowerCase();
+            if (raw.includes("recall") || raw.includes("remember")) return "recall";
+            if (raw.includes("practice") || raw.includes("solve")) return "practice";
+            if (raw.includes("strengthen") || raw.includes("deep")) return "strengthen";
+            return "review";
+          })() as DailyMission["mission_type"],
+          generated_date: today,
+        };
+        setMission(missionData);
+        setCache(cacheKey, missionData);
+        setCompleted(false);
+        return;
+      }
+
+      // Fallback: try parsing as legacy ai-brain-agent response
+      if (fnError) throw fnError;
       const missionData = parseMissionResponse(data);
       if (missionData) {
         setMission(missionData);
