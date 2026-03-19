@@ -317,19 +317,20 @@ Deno.serve(async (req) => {
           .limit(1);
         if (recs && recs.length > 0) return json({ mission: recs[0], source: "ai_recommendation" });
 
-        // Priority 3: Critical/high risk topics
+        // Priority 3: Critical/high risk topics (memory_strength < 40)
         const { data: riskTopics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, risk_level, subject_id")
+          .select("id, name, memory_strength, subject_id")
           .eq("user_id", userId)
           .is("deleted_at", null)
-          .in("risk_level", ["critical", "high"])
+          .lt("memory_strength", 40)
           .order("memory_strength", { ascending: true })
           .limit(1);
         if (riskTopics && riskTopics.length > 0) {
           const t = riskTopics[0];
+          const riskLevel = Number(t.memory_strength) < 20 ? "critical" : "high";
           return json({
-            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}% — needs urgent review`, type: "review", priority: t.risk_level || "high", topic_id: t.id },
+            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}% — needs urgent review`, type: "review", priority: riskLevel, topic_id: t.id },
             source: "risk_topic",
           });
         }
@@ -814,7 +815,7 @@ Deno.serve(async (req) => {
           adminClient.from("profiles").select("display_name, avatar_url, exam_date, daily_study_goal_minutes, created_at").eq("id", userId).maybeSingle(),
           adminClient.from("streak_freezes").select("id", { count: "exact", head: true }).eq("user_id", userId).is("used_date", null),
           adminClient.from("ai_recommendations").select("id, title, description, type, priority, topic_id").eq("user_id", userId).eq("completed", false).order("created_at", { ascending: false }).limit(5),
-          adminClient.from("brain_missions").select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, expires_at").eq("user_id", userId).eq("status", "active").order("created_at", { ascending: false }).limit(10),
+          adminClient.from("brain_missions").select("id, title, description, mission_type, priority, status, target_topic_id, target_value, current_value, reward_type, reward_value, expires_at").eq("user_id", userId).in("status", ["active", "in_progress"]).order("created_at", { ascending: false }).limit(10),
           adminClient.from("study_logs").select("duration_minutes").eq("user_id", userId).gte("created_at", `${today}T00:00:00Z`),
           adminClient.from("study_logs").select("duration_minutes, subject_id, topic_id, created_at, study_mode").eq("user_id", userId).gte("created_at", weekAgo),
           adminClient.from("rank_predictions_v2").select("predicted_rank, rank_band_low, rank_band_high, percentile_estimation, factors_breakdown, computed_at").eq("user_id", userId).order("computed_at", { ascending: false }).limit(1).maybeSingle(),
