@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     // Extract route: e.g. "brain-health" from various path patterns
     const rawPath = url.pathname.replace(/^\/+|\/+$/g, "");
-    const route = rawPath
+    let route = rawPath
       .replace(/^functions\/v1\/home-api\/?/i, "")
       .replace(/^home-api\/?/i, "")
       .replace(/^api\/home\/?/i, "")
@@ -110,6 +110,11 @@ Deno.serve(async (req) => {
 
     // Also check query params
     const query = Object.fromEntries(url.searchParams.entries());
+
+    // If route is empty (SDK invoke), resolve from x-route header or body.route/body.action
+    if (!route) {
+      route = req.headers.get("x-route") || String(body.route || body.action || query.route || "");
+    }
 
     switch (route) {
       // ─── Brain Health (Hero Section) ───
