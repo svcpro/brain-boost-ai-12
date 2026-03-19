@@ -1209,6 +1209,84 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ─── Mission Questions ───
+      case "mission-questions": {
+        const missionId = (body.mission_id || query.mission_id) as string | undefined;
+        const rawCount = Number(body.count ?? query.count ?? 4);
+        const count = Number.isFinite(rawCount) ? Math.min(Math.max(Math.trunc(rawCount), 1), 5) : 4;
+        const difficulty = String(body.difficulty || query.difficulty || "medium");
+        let topicName = String(body.topic_name || query.topic_name || "").trim();
+        let subjectName = String(body.subject_name || query.subject_name || "").trim();
+        let mission: Record<string, unknown> | null = null;
+
+        if (missionId) {
+          const { data: missionRow } = await adminClient
+            .from("brain_missions")
+            .select("id, title, status, mission_type, target_topic_id, target_metric")
+            .eq("id", missionId)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (!missionRow) return json({ error: "Mission not found" }, 404);
+          mission = missionRow;
+
+          if (missionRow.target_topic_id && !topicName) {
+            const { data: topicRow } = await adminClient
+              .from("topics")
+              .select("id, name, subject_id")
+              .eq("id", missionRow.target_topic_id)
+              .eq("user_id", userId)
+              .is("deleted_at", null)
+              .maybeSingle();
+
+            if (topicRow) {
+              topicName = topicRow.name || "";
+
+              if (topicRow.subject_id && !subjectName) {
+                const { data: subjectRow } = await adminClient
+                  .from("subjects")
+                  .select("name")
+                  .eq("id", topicRow.subject_id)
+                  .maybeSingle();
+                subjectName = subjectRow?.name || "";
+              }
+            }
+          }
+        }
+
+        const client = userClient(req.headers.get("authorization") || "");
+        const { data: questionData, error: questionError } = await client.functions.invoke("ai-brain-agent", {
+          body: {
+            action: "mission_questions",
+            topic_name: topicName || undefined,
+            subject_name: subjectName || undefined,
+            count,
+            difficulty,
+          },
+        });
+
+        if (questionError) {
+          return json({
+            success: false,
+            error: questionError.message,
+            mission,
+            topic_name: topicName,
+            subject_name: subjectName,
+            questions: [],
+          }, 500);
+        }
+
+        return json({
+          success: true,
+          mission,
+          topic_name: topicName,
+          subject_name: subjectName,
+          difficulty,
+          count,
+          questions: questionData?.questions || [],
+        });
+      }
+
       // ─── Mission Progress (update current_value while in_progress) ───
       case "mission-progress": {
         const missionId = (body.mission_id || query.mission_id) as string;
@@ -1313,6 +1391,14 @@ Deno.serve(async (req) => {
             },
             {
               step: 4,
+              name: "Fetch Mission Questions",
+              endpoint: "POST /home-api/mission-questions",
+              description: "Fetch topic-based questions for the mission. Pass mission_id and optionally count/difficulty.",
+              request: { mission_id: "uuid-from-step-2", count: 4, difficulty: "medium" },
+              response_keys: ["questions", "topic_name", "subject_name"],
+            },
+            {
+              step: 5,
               name: "Update Progress (Optional)",
               endpoint: "POST /home-api/mission-progress",
               description: "Update current_value while user is working. Returns target_reached boolean when done.",
@@ -1320,7 +1406,7 @@ Deno.serve(async (req) => {
               response_keys: ["current_value", "target_value", "target_reached", "progress_pct"],
             },
             {
-              step: 5,
+              step: 6,
               name: "Complete Mission",
               endpoint: "POST /home-api/mission-complete",
               description: "Mark mission as completed. Returns reward info (XP) and remaining mission count.",
@@ -1340,12 +1426,19 @@ final missionId = missions['missions'][0]['id'];
 // Step 3: Start
 final start = await api.post('/home-api/mission-start', body: {"mission_id": missionId});
 final navigateTo = start['navigate_to'];
-// Navigate user to study screen
 
-// Step 4: Progress (optional, during study)
+// Step 4: Fetch questions
+final questionRes = await api.post('/home-api/mission-questions', body: {
+  "mission_id": missionId,
+  "count": 4,
+  "difficulty": "medium"
+});
+final questions = questionRes['questions'];
+
+// Step 5: Progress (optional, during study)
 await api.post('/home-api/mission-progress', body: {"mission_id": missionId, "progress_value": 2});
 
-// Step 5: Complete
+// Step 6: Complete
 final result = await api.post('/home-api/mission-complete', body: {"mission_id": missionId});
 // Show reward: result['completed_mission']['reward_value']
 `,
@@ -1359,7 +1452,7 @@ final result = await api.post('/home-api/mission-complete', body: {"mission_id":
           "brain-health", "rank-prediction", "exam-countdown", "refresh-ai",
           "ai-recommendations", "burnout-status", "streak-status", "streak-details",
           "daily-goal", "todays-mission", "quick-actions", "review-queue",
-          "brain-missions", "mission-generate", "mission-start", "mission-progress", "mission-complete", "todays-mission-flow",
+          "brain-missions", "mission-generate", "mission-start", "mission-questions", "mission-progress", "mission-complete", "todays-mission-flow",
           "cognitive-embedding", "rl-policy", "auto-study-summary",
           "precision-intelligence", "decay-forecast", "risk-digest", "brain-feed",
           "recently-studied", "study-insights", "autopilot-status", "daily-quote",
