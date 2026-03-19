@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Target, Clock, TrendingUp, Zap, ArrowRight, Sparkles, CheckCircle2, Brain } from "lucide-react";
+import { Target, Clock, TrendingUp, Zap, ArrowRight, Sparkles, CheckCircle2, Brain, Flame, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { clearCache } from "@/lib/offlineCache";
 import { triggerHaptic } from "@/lib/feedback";
 import { useToast } from "@/hooks/use-toast";
-import MicroMissionFlow from "./MicroMissionFlow";
+import AdvancedMissionWizard from "./AdvancedMissionWizard";
 import { safeStr, safeNum } from "@/lib/safeRender";
 
 interface DailyMission {
