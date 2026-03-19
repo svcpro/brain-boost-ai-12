@@ -1280,8 +1280,11 @@ Deno.serve(async (req) => {
           current_state: {
             has_mission: !!currentMission,
             current_mission: currentMission,
+            active_missions_count: activeMissionsList.length,
             completed_today: completedToday.length,
-            all_todays_missions: missions,
+            all_active_missions: activeMissionsList,
+            completed_today_missions: completedToday,
+            all_todays_missions: allMissions,
           },
           flow_steps: [
             {
