@@ -291,7 +291,23 @@ Deno.serve(async (req) => {
 
       // ─── Today's Mission ───
       case "todays-mission": {
-        // Get top recommendation or top at-risk topic
+        // Priority 1: Active brain missions
+        const { data: activeMissions } = await adminClient
+          .from("brain_missions")
+          .select("id, title, description, mission_type, priority, target_topic_id, status")
+          .eq("user_id", userId)
+          .in("status", ["active", "in_progress"])
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (activeMissions && activeMissions.length > 0) {
+          const bm = activeMissions[0];
+          return json({
+            mission: { id: bm.id, title: bm.title, description: bm.description || `Complete this ${bm.mission_type} mission`, type: bm.mission_type || "review", priority: bm.priority || "medium", topic_id: bm.target_topic_id || "" },
+            source: "brain_mission",
+          });
+        }
+
+        // Priority 2: AI recommendation
         const { data: recs } = await adminClient
           .from("ai_recommendations")
           .select("id, title, description, type, priority, topic_id")
@@ -301,6 +317,7 @@ Deno.serve(async (req) => {
           .limit(1);
         if (recs && recs.length > 0) return json({ mission: recs[0], source: "ai_recommendation" });
 
+        // Priority 3: Critical/high risk topics
         const { data: riskTopics } = await adminClient
           .from("topics")
           .select("id, name, memory_strength, risk_level, subject_id")
@@ -312,27 +329,60 @@ Deno.serve(async (req) => {
         if (riskTopics && riskTopics.length > 0) {
           const t = riskTopics[0];
           return json({
-            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}%`, type: "review", priority: t.risk_level || "high", topic_id: t.id },
+            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}% — needs urgent review`, type: "review", priority: t.risk_level || "high", topic_id: t.id },
             source: "risk_topic",
           });
         }
 
-        // Check for any weak topics
+        // Priority 4: Only truly weak topics (< 60%)
         const { data: weakTopics } = await adminClient
           .from("topics")
           .select("id, name, memory_strength")
           .eq("user_id", userId)
           .is("deleted_at", null)
+          .lt("memory_strength", 60)
           .order("memory_strength", { ascending: true })
           .limit(1);
         if (weakTopics && weakTopics.length > 0) {
           const w = weakTopics[0];
           return json({
-            mission: { id: `weak-${w.id}`, title: `Strengthen: ${w.name}`, description: `Memory strength is ${Math.round(w.memory_strength ?? 0)}%. A quick review will help!`, type: "review", priority: "medium", topic_id: w.id },
+            mission: { id: `weak-${w.id}`, title: `Strengthen: ${w.name}`, description: `Memory strength is ${Math.round(w.memory_strength ?? 0)}%. A quick review will help!`, type: "review", priority: Number(w.memory_strength) < 30 ? "high" : "medium", topic_id: w.id },
             source: "weak_topic",
           });
         }
 
+        // Priority 5: Topics due for spaced repetition
+        const { data: dueTopics } = await adminClient
+          .from("topics")
+          .select("id, name, memory_strength, next_review_at")
+          .eq("user_id", userId)
+          .is("deleted_at", null)
+          .not("next_review_at", "is", null)
+          .lte("next_review_at", new Date().toISOString())
+          .order("next_review_at", { ascending: true })
+          .limit(1);
+        if (dueTopics && dueTopics.length > 0) {
+          const d = dueTopics[0];
+          return json({
+            mission: { id: `review-${d.id}`, title: `Review: ${d.name}`, description: `Scheduled for spaced repetition review`, type: "review", priority: "medium", topic_id: d.id },
+            source: "review_queue",
+          });
+        }
+
+        // Priority 6: All strong — practice mode
+        const { count: topicCount } = await adminClient
+          .from("topics")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .is("deleted_at", null);
+        if ((topicCount ?? 0) > 0) {
+          return json({
+            mission: { id: "all-strong", title: "🎯 Practice Mode", description: "All topics are strong! Take a practice quiz to stay sharp.", type: "practice", priority: "low", topic_id: "" },
+            source: "maintenance",
+          });
+        }
+
+        // Priority 7: No topics
         return json({
           mission: { id: "onboard-start", title: "🚀 Add Your First Topic", description: "Start by adding a subject and topic to begin your AI-powered study journey!", type: "onboarding", priority: "high", topic_id: "" },
           source: "system",
@@ -873,22 +923,46 @@ Deno.serve(async (req) => {
         const dayIndex = Math.floor(Date.now() / 86400000) % quotes.length;
 
         let todaysMission: any = { mission: null, source: null };
-        if (allRecs.length > 0) {
+
+        // Priority 1: Active brain mission (from AI-generated missions)
+        const activeBrainMissions = (missionsRes.data || []).filter(
+          (m: any) => m.status === "active" || m.status === "in_progress"
+        );
+        if (activeBrainMissions.length > 0) {
+          const bm = activeBrainMissions[0];
+          todaysMission = {
+            mission: {
+              id: bm.id,
+              title: bm.title,
+              description: bm.description || `Complete this ${bm.mission_type} mission`,
+              type: bm.mission_type || "review",
+              priority: bm.priority || "medium",
+              topic_id: bm.target_topic_id || "",
+            },
+            source: "brain_mission",
+          };
+        }
+        // Priority 2: AI recommendation
+        else if (allRecs.length > 0) {
           todaysMission = { mission: allRecs[0], source: "ai_recommendation" };
-        } else if (riskTopicsList.length > 0) {
+        }
+        // Priority 3: Critical/high risk topics
+        else if (riskTopicsList.length > 0) {
           const topic = riskTopicsList[0];
           todaysMission = {
             mission: {
               id: `risk-${topic.id}`,
               title: `Review: ${topic.name}`,
-              description: `Memory at ${Math.round(topic.memory_strength)}%`,
+              description: `Memory at ${Math.round(topic.memory_strength)}% — needs urgent review`,
               type: "review",
               priority: topic.risk_level,
               topic_id: topic.id,
             },
             source: "risk_topic",
           };
-        } else if (weakest.length > 0) {
+        }
+        // Priority 4: Only truly weak topics (< 60% memory)
+        else if (weakest.length > 0 && Number(weakest[0].memory_strength) < 60) {
           const topic = weakest[0];
           todaysMission = {
             mission: {
@@ -896,12 +970,43 @@ Deno.serve(async (req) => {
               title: `Strengthen: ${topic.name}`,
               description: `Memory strength is ${Math.round(topic.memory_strength)}%. A quick review will help!`,
               type: "review",
-              priority: "medium",
+              priority: Number(topic.memory_strength) < 30 ? "high" : "medium",
               topic_id: topic.id,
             },
             source: "weak_topic",
           };
-        } else {
+        }
+        // Priority 5: Topics due for review (spaced repetition)
+        else if (reviewQueue.length > 0) {
+          const rq = reviewQueue[0];
+          todaysMission = {
+            mission: {
+              id: `review-${rq.id}`,
+              title: `Review: ${rq.name}`,
+              description: `Scheduled for spaced repetition review`,
+              type: "review",
+              priority: "medium",
+              topic_id: rq.id,
+            },
+            source: "review_queue",
+          };
+        }
+        // Priority 6: All topics strong — encourage practice
+        else if (total > 0) {
+          todaysMission = {
+            mission: {
+              id: "all-strong",
+              title: "🎯 Practice Mode",
+              description: "All topics are strong! Take a practice quiz to stay sharp.",
+              type: "practice",
+              priority: "low",
+              topic_id: weakest.length > 0 ? weakest[0].id : "",
+            },
+            source: "maintenance",
+          };
+        }
+        // Priority 7: No topics at all
+        else {
           todaysMission = {
             mission: {
               id: "onboard-start",
