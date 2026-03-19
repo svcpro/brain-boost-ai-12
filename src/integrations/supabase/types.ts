@@ -5258,6 +5258,168 @@ export type Database = {
         }
         Relationships: []
       }
+      mission_sessions: {
+        Row: {
+          accuracy_pct: number | null
+          badges_earned: Json | null
+          brain_boost_pct: number | null
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          difficulty_changes: number | null
+          final_difficulty: string
+          id: string
+          initial_difficulty: string
+          memory_after: number | null
+          memory_before: number | null
+          mission_id: string
+          mission_title: string
+          mission_type: string
+          next_mission_preview: Json | null
+          questions_correct: number
+          questions_total: number
+          rank_after: number | null
+          rank_before: number | null
+          score: number | null
+          speed_bonus_pct: number | null
+          started_at: string
+          status: string
+          steps: Json
+          streak_extended: boolean | null
+          subject_name: string | null
+          time_limit_seconds: number | null
+          time_used_seconds: number | null
+          topic_id: string | null
+          topic_name: string | null
+          total_steps: number
+          updated_at: string
+          user_id: string
+          xp_earned: number | null
+        }
+        Insert: {
+          accuracy_pct?: number | null
+          badges_earned?: Json | null
+          brain_boost_pct?: number | null
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          difficulty_changes?: number | null
+          final_difficulty?: string
+          id?: string
+          initial_difficulty?: string
+          memory_after?: number | null
+          memory_before?: number | null
+          mission_id: string
+          mission_title: string
+          mission_type?: string
+          next_mission_preview?: Json | null
+          questions_correct?: number
+          questions_total?: number
+          rank_after?: number | null
+          rank_before?: number | null
+          score?: number | null
+          speed_bonus_pct?: number | null
+          started_at?: string
+          status?: string
+          steps?: Json
+          streak_extended?: boolean | null
+          subject_name?: string | null
+          time_limit_seconds?: number | null
+          time_used_seconds?: number | null
+          topic_id?: string | null
+          topic_name?: string | null
+          total_steps?: number
+          updated_at?: string
+          user_id: string
+          xp_earned?: number | null
+        }
+        Update: {
+          accuracy_pct?: number | null
+          badges_earned?: Json | null
+          brain_boost_pct?: number | null
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          difficulty_changes?: number | null
+          final_difficulty?: string
+          id?: string
+          initial_difficulty?: string
+          memory_after?: number | null
+          memory_before?: number | null
+          mission_id?: string
+          mission_title?: string
+          mission_type?: string
+          next_mission_preview?: Json | null
+          questions_correct?: number
+          questions_total?: number
+          rank_after?: number | null
+          rank_before?: number | null
+          score?: number | null
+          speed_bonus_pct?: number | null
+          started_at?: string
+          status?: string
+          steps?: Json
+          streak_extended?: boolean | null
+          subject_name?: string | null
+          time_limit_seconds?: number | null
+          time_used_seconds?: number | null
+          topic_id?: string | null
+          topic_name?: string | null
+          total_steps?: number
+          updated_at?: string
+          user_id?: string
+          xp_earned?: number | null
+        }
+        Relationships: []
+      }
+      mission_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          current_tier: string
+          id: string
+          last_completed_date: string | null
+          longest_streak: number
+          tier_progress_pct: number | null
+          total_missions_completed: number
+          total_xp_earned: number
+          updated_at: string
+          user_id: string
+          weekly_missions_completed: number | null
+          weekly_reset_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          current_tier?: string
+          id?: string
+          last_completed_date?: string | null
+          longest_streak?: number
+          tier_progress_pct?: number | null
+          total_missions_completed?: number
+          total_xp_earned?: number
+          updated_at?: string
+          user_id: string
+          weekly_missions_completed?: number | null
+          weekly_reset_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          current_tier?: string
+          id?: string
+          last_completed_date?: string | null
+          longest_streak?: number
+          tier_progress_pct?: number | null
+          total_missions_completed?: number
+          total_xp_earned?: number
+          updated_at?: string
+          user_id?: string
+          weekly_missions_completed?: number | null
+          weekly_reset_at?: string | null
+        }
+        Relationships: []
+      }
       ml_events: {
         Row: {
           created_at: string
