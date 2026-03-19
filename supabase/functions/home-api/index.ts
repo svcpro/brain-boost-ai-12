@@ -1007,16 +1007,20 @@ Deno.serve(async (req) => {
             source: "review_queue",
           };
         }
-        // Priority 6: All topics strong — encourage practice
+        // Priority 6: All topics strong — pick a specific topic for practice
         else if (total > 0) {
+          // Pick from weakest topics for variety
+          const practicePool = weakest.length > 0 ? weakest : allTopics.slice(0, 5);
+          const pick = practicePool[Math.floor(Math.random() * practicePool.length)];
+          const pickSubjectName = pick?.subject_id ? (subjectMap[pick.subject_id] || "General") : "General";
           todaysMission = {
             mission: {
-              id: "all-strong",
-              title: "🎯 Practice Mode",
-              description: "All topics are strong! Take a practice quiz to stay sharp.",
+              id: `practice-${pick?.id || ""}`,
+              title: `Practice: ${pickSubjectName}`,
+              description: `Complete 10 practice questions on ${pick?.name || "mixed topics"}.`,
               type: "practice",
               priority: "low",
-              topic_id: weakest.length > 0 ? weakest[0].id : "",
+              topic_id: pick?.id || "",
             },
             source: "maintenance",
           };
