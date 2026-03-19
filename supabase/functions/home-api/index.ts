@@ -564,13 +564,17 @@ Deno.serve(async (req) => {
       case "risk-digest": {
         const { data: topics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, risk_level, subject_id")
+          .select("id, name, memory_strength, subject_id")
           .eq("user_id", userId)
           .is("deleted_at", null)
-          .in("risk_level", ["critical", "high"])
+          .lt("memory_strength", 40)
           .order("memory_strength", { ascending: true })
           .limit(10);
-        return json({ risk_topics: topics || [], count: (topics || []).length });
+        const riskDigestTopics = (topics || []).map((t: any) => ({
+          ...t,
+          risk_level: (t.memory_strength ?? 0) < 20 ? "critical" : "high",
+        }));
+        return json({ risk_topics: riskDigestTopics, count: riskDigestTopics.length });
       }
 
       // ─── Brain Feed ───
