@@ -862,6 +862,15 @@ const GeneratedOtps = () => {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={
+                          o.channel === "sms"
+                            ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                            : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                        }>
+                          {o.channel === "sms" ? "SMS" : "WhatsApp"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={
                           status === "verified"
                             ? "bg-success/15 text-success border-success/30"
                             : status === "active"
