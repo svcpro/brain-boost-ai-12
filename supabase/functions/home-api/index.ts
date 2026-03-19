@@ -1251,24 +1251,40 @@ Deno.serve(async (req) => {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        const { data: activeMissions } = await adminClient
-          .from("brain_missions")
-          .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at, reasoning, completed_at, created_at")
-          .eq("user_id", userId)
-          .gte("created_at", todayStart.toISOString())
-          .order("created_at", { ascending: false })
-          .limit(10);
+        // Fetch ALL active/in_progress missions (regardless of creation date)
+        const [activeRes, completedTodayRes] = await Promise.all([
+          adminClient
+            .from("brain_missions")
+            .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at, reasoning, completed_at, created_at, updated_at")
+            .eq("user_id", userId)
+            .in("status", ["active", "in_progress"])
+            .order("priority", { ascending: true })
+            .order("created_at", { ascending: false })
+            .limit(10),
+          adminClient
+            .from("brain_missions")
+            .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at, reasoning, completed_at, created_at, updated_at")
+            .eq("user_id", userId)
+            .eq("status", "completed")
+            .gte("completed_at", todayStart.toISOString())
+            .order("completed_at", { ascending: false })
+            .limit(10),
+        ]);
 
-        const missions = activeMissions || [];
-        const currentMission = missions.find((m: any) => m.status === "in_progress") || missions.find((m: any) => m.status === "active") || null;
-        const completedToday = missions.filter((m: any) => m.status === "completed");
+        const activeMissionsList = activeRes.data || [];
+        const completedToday = completedTodayRes.data || [];
+        const allMissions = [...activeMissionsList, ...completedToday];
+        const currentMission = activeMissionsList.find((m: any) => m.status === "in_progress") || activeMissionsList.find((m: any) => m.status === "active") || null;
 
         return json({
           current_state: {
             has_mission: !!currentMission,
             current_mission: currentMission,
+            active_missions_count: activeMissionsList.length,
             completed_today: completedToday.length,
-            all_todays_missions: missions,
+            all_active_missions: activeMissionsList,
+            completed_today_missions: completedToday,
+            all_todays_missions: allMissions,
           },
           flow_steps: [
             {
