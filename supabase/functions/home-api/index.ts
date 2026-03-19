@@ -1050,13 +1050,66 @@ Deno.serve(async (req) => {
         });
       }
 
+      // ─── Mission Complete ───
+      case "mission-complete": {
+        const missionId = (body.mission_id || query.mission_id) as string;
+        if (!missionId) return json({ error: "mission_id is required" }, 400);
+
+        // Verify mission belongs to user and is active
+        const { data: mission } = await adminClient
+          .from("brain_missions")
+          .select("id, title, mission_type, reward_value, reward_type, status, target_value, current_value")
+          .eq("id", missionId)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!mission) return json({ error: "Mission not found" }, 404);
+        if (mission.status === "completed") return json({ error: "Mission already completed", mission }, 409);
+        if (mission.status !== "active" && mission.status !== "in_progress") {
+          return json({ error: `Mission is ${mission.status}, cannot complete` }, 400);
+        }
+
+        // Mark as completed
+        const now = new Date().toISOString();
+        await adminClient
+          .from("brain_missions")
+          .update({
+            status: "completed",
+            completed_at: now,
+            current_value: mission.target_value ?? mission.current_value,
+          })
+          .eq("id", missionId)
+          .eq("user_id", userId);
+
+        // Fetch remaining active missions count
+        const { count: remainingCount } = await adminClient
+          .from("brain_missions")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .in("status", ["active", "in_progress"]);
+
+        return json({
+          success: true,
+          completed_mission: {
+            id: mission.id,
+            title: mission.title,
+            mission_type: mission.mission_type,
+            reward_value: mission.reward_value ?? 0,
+            reward_type: mission.reward_type ?? "xp",
+          },
+          completed_at: now,
+          remaining_missions: remainingCount ?? 0,
+          message: `🎉 Mission "${mission.title}" completed! +${mission.reward_value ?? 0} ${mission.reward_type ?? "XP"}`,
+        });
+      }
+
       default:
         return json({ error: `Unknown home route: ${route}`, available_routes: [
           "dashboard", "all",
           "brain-health", "rank-prediction", "exam-countdown", "refresh-ai",
           "ai-recommendations", "burnout-status", "streak-status", "streak-details",
           "daily-goal", "todays-mission", "quick-actions", "review-queue",
-          "brain-missions", "cognitive-embedding", "rl-policy", "auto-study-summary",
+          "brain-missions", "mission-complete", "cognitive-embedding", "rl-policy", "auto-study-summary",
           "precision-intelligence", "decay-forecast", "risk-digest", "brain-feed",
           "recently-studied", "study-insights", "autopilot-status", "daily-quote",
           "weekly-summary", "streak-recovery", "trial-status", "welcome-status",
