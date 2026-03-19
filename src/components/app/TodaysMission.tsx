@@ -59,17 +59,16 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
 
   const today = getToday();
 
-  // Load cached mission when user becomes available — skip broken cache entries
+  // Load cached mission as placeholder, but always re-fetch from API
   useEffect(() => {
     if (!user) return;
     try {
       const cached = getCache<DailyMission>(`${BASE_CACHE_KEY}-${user.id}`);
       if (cached && cached.generated_date === today && cached.title && cached.title !== "AI Mission") {
         setMission(cached);
-      } else {
-        // Clear stale/broken cache so a fresh fetch is triggered
-        setCache(`${BASE_CACHE_KEY}-${user.id}`, null);
       }
+      // Also clear legacy cache keys so old data doesn't persist
+      try { localStorage.removeItem(`acry-daily-mission-${user.id}`); } catch {}
     } catch {}
   }, [user, today]);
 
