@@ -67,8 +67,8 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       if (cached && cached.generated_date === today && cached.title && cached.title !== "AI Mission") {
         setMission(cached);
       }
-      // Also clear legacy cache keys so old data doesn't persist
-      try { localStorage.removeItem(`acry-daily-mission-${user.id}`); } catch {}
+      clearCache(`acry-daily-mission-${user.id}`);
+      clearCache(BASE_CACHE_KEY.replace("-v2", "") + `-${user.id}`);
     } catch {}
   }, [user, today]);
 
