@@ -209,12 +209,12 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     }
   }, [user, session, today, cacheKey]);
 
-  // Auto-generate on mount if no mission for today
+  // Always fetch fresh mission from API on mount
   useEffect(() => {
-    if (!hasTopics || mission || loading || !session || fetchAttempted) return;
+    if (!hasTopics || loading || !session || fetchAttempted) return;
     setFetchAttempted(true);
     generateMission();
-  }, [hasTopics, mission, loading, generateMission, session, fetchAttempted]);
+  }, [hasTopics, loading, generateMission, session, fetchAttempted]);
 
   // Check completion status from localStorage
   useEffect(() => {
