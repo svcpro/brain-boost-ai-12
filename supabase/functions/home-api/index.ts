@@ -988,11 +988,30 @@ Deno.serve(async (req) => {
         }
         // Priority 2: AI recommendation
         else if (allRecs.length > 0) {
-          todaysMission = { mission: allRecs[0], source: "ai_recommendation" };
+          const rec = allRecs[0];
+          let recTopicName = "";
+          let recSubjectName = "";
+          if (rec.topic_id) {
+            const mt = allTopics.find((t: any) => t.id === rec.topic_id);
+            if (mt) { recTopicName = mt.name || ""; recSubjectName = subjectMap[mt.subject_id] || ""; }
+          }
+          todaysMission = {
+            mission: {
+              ...rec,
+              topic_name: recTopicName,
+              subject_name: recSubjectName,
+              estimated_minutes: 15,
+              brain_improvement_pct: 5,
+              reasoning: rec.description || "AI recommendation based on your learning patterns.",
+            },
+            source: "ai_recommendation",
+          };
         }
         // Priority 3: Critical/high risk topics
         else if (riskTopicsList.length > 0) {
           const topic = riskTopicsList[0];
+          const topicSubjectName = subjectMap[topic.subject_id] || "";
+          const brainPct = topic.memory_strength < 20 ? 15 : 10;
           todaysMission = {
             mission: {
               id: `risk-${topic.id}`,
@@ -1001,6 +1020,11 @@ Deno.serve(async (req) => {
               type: "review",
               priority: topic.risk_level,
               topic_id: topic.id,
+              topic_name: topic.name,
+              subject_name: topicSubjectName,
+              estimated_minutes: 15,
+              brain_improvement_pct: brainPct,
+              reasoning: `${topic.name} memory is critically low at ${Math.round(topic.memory_strength)}%. Reviewing now will prevent further decay.`,
             },
             source: "risk_topic",
           };
@@ -1008,6 +1032,7 @@ Deno.serve(async (req) => {
         // Priority 4: Only truly weak topics (< 60% memory)
         else if (weakest.length > 0 && Number(weakest[0].memory_strength) < 60) {
           const topic = weakest[0];
+          const topicSubjectName = subjectMap[topic.subject_id] || "";
           todaysMission = {
             mission: {
               id: `weak-${topic.id}`,
@@ -1016,6 +1041,11 @@ Deno.serve(async (req) => {
               type: "review",
               priority: Number(topic.memory_strength) < 30 ? "high" : "medium",
               topic_id: topic.id,
+              topic_name: topic.name,
+              subject_name: topicSubjectName,
+              estimated_minutes: 10,
+              brain_improvement_pct: 8,
+              reasoning: `Strengthening ${topic.name} will boost your overall brain health.`,
             },
             source: "weak_topic",
           };
@@ -1023,6 +1053,7 @@ Deno.serve(async (req) => {
         // Priority 5: Topics due for review (spaced repetition)
         else if (reviewQueue.length > 0) {
           const rq = reviewQueue[0];
+          const rqSubjectName = subjectMap[rq.subject_id] || "";
           todaysMission = {
             mission: {
               id: `review-${rq.id}`,
@@ -1031,13 +1062,17 @@ Deno.serve(async (req) => {
               type: "review",
               priority: "medium",
               topic_id: rq.id,
+              topic_name: rq.name,
+              subject_name: rqSubjectName,
+              estimated_minutes: 10,
+              brain_improvement_pct: 5,
+              reasoning: `${rq.name} is due for spaced repetition to maintain long-term retention.`,
             },
             source: "review_queue",
           };
         }
         // Priority 6: All topics strong — pick a specific topic for practice
         else if (total > 0) {
-          // Pick from weakest topics for variety
           const practicePool = weakest.length > 0 ? weakest : allTopics.slice(0, 5);
           const pick = practicePool[Math.floor(Math.random() * practicePool.length)];
           const pickSubjectName = pick?.subject_id ? (subjectMap[pick.subject_id] || "General") : "General";
@@ -1049,6 +1084,11 @@ Deno.serve(async (req) => {
               type: "practice",
               priority: "low",
               topic_id: pick?.id || "",
+              topic_name: pick?.name || "",
+              subject_name: pickSubjectName,
+              estimated_minutes: 15,
+              brain_improvement_pct: 3,
+              reasoning: `All topics are strong! Practice keeps your skills sharp.`,
             },
             source: "maintenance",
           };
