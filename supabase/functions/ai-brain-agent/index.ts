@@ -375,9 +375,22 @@ ${cognitiveContext}`
     }
 
     if (action === "mission_questions") {
-      const qCount = Math.min(reqCount || 4, 5);
+      const qCount = Math.min(reqCount || 5, 5);
       const diff = reqDifficulty || "medium";
-      const topicCtx = topic_name ? `Focus on the topic "${topic_name}"${subject_name ? ` (subject: ${subject_name})` : ""}.` : "Pick from the student's weakest topics.";
+
+      // Build focused topic instruction
+      let topicInstruction: string;
+      if (topic_name) {
+        topicInstruction = `ALL questions MUST be specifically about the topic "${topic_name}"${subject_name ? ` from the subject "${subject_name}"` : ""}. Do NOT generate questions about any other topic.`;
+      } else if (criticalTopics.length > 0) {
+        const picked = criticalTopics[0];
+        topicInstruction = `Focus all questions on "${picked.name}" which is the student's weakest topic at ${Math.round(Number(picked.memory_strength))}% memory strength.`;
+      } else if (topics.length > 0) {
+        const picked = topics[0];
+        topicInstruction = `Focus all questions on "${picked.name}" which needs review.`;
+      } else {
+        topicInstruction = "Generate general knowledge questions suitable for exam preparation.";
+      }
 
       const trimmedContext = `Student: ${profile?.display_name || "Student"}, Exam: ${profile?.exam_type || "General"}${daysToExam ? ` in ${daysToExam} days` : ""}.
 Weak topics: ${criticalTopics.slice(0, 5).map(t => t.name).join(", ") || "None"}.
@@ -389,11 +402,21 @@ At-risk topics: ${atRiskTopics.slice(0, 5).map(t => t.name).join(", ") || "None"
         messages: [
           {
             role: "system",
-            content: `You are ACRY, an AI tutor. Generate exactly ${qCount} MCQs at "${diff}" difficulty. ${topicCtx} Each question tests recall/understanding. Keep explanations to 1 sentence. CRITICAL: Do NOT generate questions that reference images, diagrams, figures, graphs, or any visual content. All questions must be fully self-contained as text only. Return via the tool call.`
+            content: `You are ACRY, an AI tutor for exam preparation. Generate exactly ${qCount} MCQs at "${diff}" difficulty level.
+
+${topicInstruction}
+
+Rules:
+- Each question must test recall or understanding of the specified topic
+- Keep explanations to 1 concise sentence
+- CRITICAL: Do NOT reference images, diagrams, figures, graphs, or any visual content
+- All questions must be fully self-contained as text only
+- Each question must have exactly 4 options with one correct answer
+- Return via the tool call`
           },
           {
             role: "user",
-            content: `${trimmedContext}\n\nGenerate ${qCount} ${diff} recall questions.`
+            content: `${trimmedContext}\n\nGenerate ${qCount} ${diff} recall questions about the specified topic.`
           }
         ],
         tools: [{
