@@ -1050,6 +1050,80 @@ Deno.serve(async (req) => {
         });
       }
 
+      // ─── Mission Start ───
+      case "mission-start": {
+        const missionId = (body.mission_id || query.mission_id) as string;
+        if (!missionId) return json({ error: "mission_id is required" }, 400);
+
+        // Verify mission belongs to user
+        const { data: missionToStart } = await adminClient
+          .from("brain_missions")
+          .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at")
+          .eq("id", missionId)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!missionToStart) return json({ error: "Mission not found" }, 404);
+        if (missionToStart.status === "completed") return json({ error: "Mission already completed" }, 409);
+        if (missionToStart.status === "in_progress") {
+          // Already started — return current state
+          return json({
+            success: true,
+            already_started: true,
+            mission: missionToStart,
+            message: `Mission "${missionToStart.title}" is already in progress`,
+          });
+        }
+        if (missionToStart.status !== "active") {
+          return json({ error: `Mission is ${missionToStart.status}, cannot start` }, 400);
+        }
+
+        // Mark as in_progress
+        const startedAt = new Date().toISOString();
+        await adminClient
+          .from("brain_missions")
+          .update({ status: "in_progress", updated_at: startedAt })
+          .eq("id", missionId)
+          .eq("user_id", userId);
+
+        // Build action guidance based on mission type
+        let action_hint = "";
+        let navigate_to = "";
+        switch (missionToStart.mission_type) {
+          case "rescue":
+          case "recall_boost":
+          case "challenge":
+            action_hint = `Review the topic to improve your ${missionToStart.target_metric ?? "memory"}`;
+            navigate_to = missionToStart.target_topic_id ? `/study/${missionToStart.target_topic_id}` : "/study";
+            break;
+          case "consistency":
+            action_hint = "Start a study session to complete this mission";
+            navigate_to = "/study";
+            break;
+          case "recovery":
+            action_hint = "Take a break, then do one easy review session";
+            navigate_to = "/dashboard";
+            break;
+          case "exploration":
+            action_hint = "Study this new topic for the first time";
+            navigate_to = missionToStart.target_topic_id ? `/study/${missionToStart.target_topic_id}` : "/topics";
+            break;
+          default:
+            action_hint = "Complete the mission objective";
+            navigate_to = "/study";
+        }
+
+        return json({
+          success: true,
+          already_started: false,
+          mission: { ...missionToStart, status: "in_progress" },
+          started_at: startedAt,
+          action_hint,
+          navigate_to,
+          message: `🚀 Mission "${missionToStart.title}" started!`,
+        });
+      }
+
       // ─── Mission Complete ───
       case "mission-complete": {
         const missionId = (body.mission_id || query.mission_id) as string;
@@ -1109,7 +1183,7 @@ Deno.serve(async (req) => {
           "brain-health", "rank-prediction", "exam-countdown", "refresh-ai",
           "ai-recommendations", "burnout-status", "streak-status", "streak-details",
           "daily-goal", "todays-mission", "quick-actions", "review-queue",
-          "brain-missions", "mission-complete", "cognitive-embedding", "rl-policy", "auto-study-summary",
+          "brain-missions", "mission-start", "mission-complete", "cognitive-embedding", "rl-policy", "auto-study-summary",
           "precision-intelligence", "decay-forecast", "risk-digest", "brain-feed",
           "recently-studied", "study-insights", "autopilot-status", "daily-quote",
           "weekly-summary", "streak-recovery", "trial-status", "welcome-status",
