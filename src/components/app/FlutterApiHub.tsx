@@ -423,6 +423,7 @@ const GROUP_ICONS: Record<string, string> = {
   "Debate & Writing": "✍️",
   "Voice & Push": "🔊",
   "Exam Simulator": "📝",
+  "Mission Sessions": "🎮",
 };
 
 const FlutterApiHub = () => {
