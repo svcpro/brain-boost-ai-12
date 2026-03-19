@@ -68,7 +68,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
         setMission(cached);
       }
       clearCache(`acry-daily-mission-${user.id}`);
-      clearCache(BASE_CACHE_KEY.replace("-v2", "") + `-${user.id}`);
+      clearCache(`acry-home-mission-${user.id}`);
     } catch {}
   }, [user, today]);
 
