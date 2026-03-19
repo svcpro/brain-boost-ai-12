@@ -454,16 +454,20 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
           )}
         </AnimatePresence>
       )}
-      {/* Micro Mission Flow overlay */}
+      {/* Advanced Mission Wizard overlay */}
       <AnimatePresence>
         {showMissionFlow && mission && (
-          <MicroMissionFlow
+          <AdvancedMissionWizard
+            missionId={`mission-${today}`}
             missionTitle={mission.title}
+            missionType={mission.mission_type}
             topicName={mission.topic_name}
             subjectName={mission.subject_name}
             estimatedMinutes={mission.estimated_minutes}
             brainImprovementPct={mission.brain_improvement_pct}
-            onComplete={() => {
+            urgency={mission.urgency}
+            reasoning={mission.reasoning}
+            onComplete={(sessionData) => {
               handleComplete();
             }}
             onClose={() => setShowMissionFlow(false)}
