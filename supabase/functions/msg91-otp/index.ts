@@ -143,10 +143,11 @@ async function parseBody(req: Request): Promise<Record<string, unknown>> {
  * Headers: authkey, Content-Type: application/json
  * Optional query: otp_expiry, otp_length, realTimeResponse
  */
-async function msg91SendOTP(authKey: string, templateId: string, mobile: string) {
+async function msg91SendOTP(authKey: string, templateId: string, mobile: string, customOtp: string) {
   const url = new URL("https://control.msg91.com/api/v5/otp");
   url.searchParams.set("template_id", templateId);
   url.searchParams.set("mobile", mobile);
+  url.searchParams.set("otp", customOtp);
   url.searchParams.set("otp_expiry", "5");
   url.searchParams.set("otp_length", "4");
   url.searchParams.set("realTimeResponse", "1");
@@ -333,20 +334,17 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
 // ─── Action Handlers ─────────────────────────────────────
 
 async function handleSendSMS(authKey: string, templateId: string, mobile: string) {
-  const { data, ok } = await msg91SendOTP(authKey, templateId, mobile);
+  const otp = generateOTP4();
+  const adminClient = getAdminClient();
+
+  const { data, ok } = await msg91SendOTP(authKey, templateId, mobile, otp);
   if (!(data.type === "success" || ok)) {
     return json({ error: data.message || "Failed to send OTP", details: data }, 400);
   }
 
-  // Log SMS OTP in database for admin visibility
+  // Store SMS OTP in database for admin visibility and verification
   try {
-    const adminClient = getAdminClient();
-    await adminClient.from("whatsapp_otps").insert({
-      mobile,
-      otp: "MSG91", // MSG91 manages the actual OTP internally
-      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-      channel: "sms",
-    });
+    await storeWhatsAppOTP(adminClient, mobile, otp, "sms");
   } catch (e) {
     console.error("[MSG91] Failed to log SMS OTP:", e);
   }
