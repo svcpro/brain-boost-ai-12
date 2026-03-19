@@ -1219,6 +1219,16 @@ Deno.serve(async (req) => {
         let subjectName = String(body.subject_name || query.subject_name || "").trim();
         let mission: Record<string, unknown> | null = null;
 
+        const resolveSubjectName = async (subjectId?: string | null) => {
+          if (!subjectId || subjectName) return;
+          const { data: subjectRow } = await adminClient
+            .from("subjects")
+            .select("name")
+            .eq("id", subjectId)
+            .maybeSingle();
+          subjectName = subjectRow?.name || "";
+        };
+
         if (missionId) {
           const { data: missionRow } = await adminClient
             .from("brain_missions")
@@ -1241,27 +1251,42 @@ Deno.serve(async (req) => {
 
             if (topicRow) {
               topicName = topicRow.name || "";
-
-              if (topicRow.subject_id && !subjectName) {
-                const { data: subjectRow } = await adminClient
-                  .from("subjects")
-                  .select("name")
-                  .eq("id", topicRow.subject_id)
-                  .maybeSingle();
-                subjectName = subjectRow?.name || "";
-              }
+              await resolveSubjectName(topicRow.subject_id);
             }
           }
         }
 
-        const client = userClient(req.headers.get("authorization") || "");
-        const { data: questionData, error: questionError } = await client.functions.invoke("ai-brain-agent", {
+        if (!topicName) {
+          const { data: fallbackTopic } = await adminClient
+            .from("topics")
+            .select("id, name, subject_id, memory_strength")
+            .eq("user_id", userId)
+            .is("deleted_at", null)
+            .order("memory_strength", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (fallbackTopic) {
+            topicName = fallbackTopic.name || "";
+            await resolveSubjectName(fallbackTopic.subject_id);
+          }
+        }
+
+        const authHeader = req.headers.get("authorization") || "";
+        const aiClient = authHeader.startsWith("Bearer ")
+          ? userClient(authHeader)
+          : createClient(supabaseUrl, serviceKey, {
+              global: { headers: { Authorization: `Bearer ${serviceKey}` } },
+            });
+
+        const { data: questionData, error: questionError } = await aiClient.functions.invoke("ai-brain-agent", {
           body: {
             action: "mission_questions",
             topic_name: topicName || undefined,
             subject_name: subjectName || undefined,
             count,
             difficulty,
+            user_id: userId,
           },
         });
 

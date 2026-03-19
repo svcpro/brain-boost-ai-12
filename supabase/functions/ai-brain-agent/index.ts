@@ -15,13 +15,35 @@ serve(async (req) => {
   if (corsResp) return corsResp;
 
   try {
-    const { userId, supabase } = await authenticateRequest(req);
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const body = await req.json().catch(() => ({}));
+    const isInternalServiceCall = authHeader === `Bearer ${serviceRoleKey}`;
+
+    let userId = "";
+    let supabase: ReturnType<typeof createClient>;
+
+    if (isInternalServiceCall) {
+      const internalUserId = typeof body.user_id === "string" ? body.user_id.trim() : "";
+      if (!internalUserId) {
+        return new Response(JSON.stringify({ error: "user_id is required for internal calls" }), {
+          status: 400,
+          headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      userId = internalUserId;
+      supabase = createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey);
+    } else {
+      const authResult = await authenticateRequest(req);
+      userId = authResult.userId;
+      supabase = authResult.supabase;
+    }
 
     // Rate limit AI-heavy endpoint
     const rateLimited = await rateLimitMiddleware(userId, "ai-brain-agent");
     if (rateLimited) return rateLimited;
 
-    const body = await req.json();
     const { action, message, topic_name, subject_name, difficulty: reqDifficulty, count: reqCount } = body;
 
     // Gather comprehensive user context in parallel
