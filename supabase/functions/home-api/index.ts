@@ -360,12 +360,12 @@ Deno.serve(async (req) => {
         // Priority 5: Topics due for spaced repetition
         const { data: dueTopics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, next_review_at")
+          .select("id, name, memory_strength, next_predicted_drop_date")
           .eq("user_id", userId)
           .is("deleted_at", null)
-          .not("next_review_at", "is", null)
-          .lte("next_review_at", new Date().toISOString())
-          .order("next_review_at", { ascending: true })
+          .not("next_predicted_drop_date", "is", null)
+          .lte("next_predicted_drop_date", new Date().toISOString())
+          .order("next_predicted_drop_date", { ascending: true })
           .limit(1);
         if (dueTopics && dueTopics.length > 0) {
           const d = dueTopics[0];
