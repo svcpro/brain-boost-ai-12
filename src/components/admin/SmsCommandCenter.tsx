@@ -837,11 +837,12 @@ const GeneratedOtps = () => {
           <p className="text-xs text-muted-foreground text-center py-8">No OTPs found</p>
         ) : (
           <ScrollArea className="h-[420px]">
-            <Table>
+             <Table>
               <TableHeader>
                 <TableRow className="text-[10px]">
                   <TableHead className="text-[10px]">Mobile</TableHead>
                   <TableHead className="text-[10px]">OTP</TableHead>
+                  <TableHead className="text-[10px]">Channel</TableHead>
                   <TableHead className="text-[10px]">Status</TableHead>
                   <TableHead className="text-[10px]">Created</TableHead>
                   <TableHead className="text-[10px]">Expires</TableHead>

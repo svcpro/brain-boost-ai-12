@@ -225,12 +225,13 @@ function generateOTP4(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
-async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, otp: string) {
+async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, otp: string, channel: string = "whatsapp") {
   await adminClient.from("whatsapp_otps").delete().eq("mobile", mobile).eq("verified", false);
   const { error } = await adminClient.from("whatsapp_otps").insert({
     mobile,
     otp,
     expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    channel,
   });
   return error;
 }
