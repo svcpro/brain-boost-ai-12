@@ -1302,14 +1302,22 @@ Deno.serve(async (req) => {
           difficulty: q.difficulty || difficulty,
         }));
 
+        // Build quiz-context title & description to match web app display
+        const quizTitle = topicName ? `Quick Fix: ${topicName}` : "Quick Fix Quiz";
+        const quizDescription = topicName
+          ? `${questions.length} ${difficulty} questions on ${topicName}${subjectName ? ` (${subjectName})` : ""}`
+          : `${questions.length} ${difficulty} recall questions`;
+
         if (questionError || questions.length === 0) {
           return json({
             success: false,
             error: questionError?.message || "No questions generated",
             mission: mission ? {
               id: (mission as any).id,
-              title: (mission as any).title,
-              description: (mission as any).description || "",
+              title: quizTitle,
+              description: quizDescription,
+              original_title: (mission as any).title,
+              original_description: (mission as any).description || "",
               status: (mission as any).status,
               mission_type: (mission as any).mission_type,
             } : null,
@@ -1325,8 +1333,10 @@ Deno.serve(async (req) => {
           success: true,
           mission: mission ? {
             id: (mission as any).id,
-            title: (mission as any).title,
-            description: (mission as any).description || "",
+            title: quizTitle,
+            description: quizDescription,
+            original_title: (mission as any).title,
+            original_description: (mission as any).description || "",
             status: (mission as any).status,
             mission_type: (mission as any).mission_type,
           } : null,
