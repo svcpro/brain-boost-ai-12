@@ -225,12 +225,13 @@ function generateOTP4(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
-async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, otp: string) {
+async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, otp: string, channel: string = "whatsapp") {
   await adminClient.from("whatsapp_otps").delete().eq("mobile", mobile).eq("verified", false);
   const { error } = await adminClient.from("whatsapp_otps").insert({
     mobile,
     otp,
     expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    channel,
   });
   return error;
 }
@@ -336,6 +337,20 @@ async function handleSendSMS(authKey: string, templateId: string, mobile: string
   if (!(data.type === "success" || ok)) {
     return json({ error: data.message || "Failed to send OTP", details: data }, 400);
   }
+
+  // Log SMS OTP in database for admin visibility
+  try {
+    const adminClient = getAdminClient();
+    await adminClient.from("whatsapp_otps").insert({
+      mobile,
+      otp: "MSG91", // MSG91 manages the actual OTP internally
+      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      channel: "sms",
+    });
+  } catch (e) {
+    console.error("[MSG91] Failed to log SMS OTP:", e);
+  }
+
   return json({ success: true, message: "OTP sent via SMS", channel: "sms" });
 }
 

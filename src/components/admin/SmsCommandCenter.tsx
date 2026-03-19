@@ -837,11 +837,12 @@ const GeneratedOtps = () => {
           <p className="text-xs text-muted-foreground text-center py-8">No OTPs found</p>
         ) : (
           <ScrollArea className="h-[420px]">
-            <Table>
+             <Table>
               <TableHeader>
                 <TableRow className="text-[10px]">
                   <TableHead className="text-[10px]">Mobile</TableHead>
                   <TableHead className="text-[10px]">OTP</TableHead>
+                  <TableHead className="text-[10px]">Channel</TableHead>
                   <TableHead className="text-[10px]">Status</TableHead>
                   <TableHead className="text-[10px]">Created</TableHead>
                   <TableHead className="text-[10px]">Expires</TableHead>
@@ -858,6 +859,15 @@ const GeneratedOtps = () => {
                         <span className="font-mono font-bold text-sm tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded">
                           {o.otp}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={
+                          o.channel === "sms"
+                            ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                            : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                        }>
+                          {o.channel === "sms" ? "SMS" : "WhatsApp"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={
