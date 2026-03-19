@@ -534,7 +534,7 @@ Deno.serve(async (req) => {
         const limit = parseInt(query.limit || "10") || 10;
         const { data: topics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, risk_level, next_review_at, decay_rate, subject_id")
+          .select("id, name, memory_strength, next_predicted_drop_date, subject_id")
           .eq("user_id", userId)
           .is("deleted_at", null)
           .order("memory_strength", { ascending: true })
@@ -552,11 +552,11 @@ Deno.serve(async (req) => {
           topic_name: t.name,
           subject_name: subjectMap[t.subject_id] || "Unknown",
           memory_strength: t.memory_strength ?? 0,
-          predicted_drop_date: t.next_review_at,
-          decay_rate: t.decay_rate ?? 0,
+          predicted_drop_date: t.next_predicted_drop_date || "",
+          decay_rate: 0,
           urgency: (t.memory_strength ?? 0) < 20 ? "critical" : (t.memory_strength ?? 0) < 40 ? "high" : (t.memory_strength ?? 0) < 60 ? "medium" : "low",
         }));
-        const overallDecay = allTopics.length > 0 ? Math.round(allTopics.reduce((s: number, t: any) => s + (t.decay_rate ?? 0), 0) / allTopics.length * 100) / 100 : 0;
+        const overallDecay = 0;
         return json({ at_risk_topics: atRiskTopics, overall_decay_rate: overallDecay });
       }
 
