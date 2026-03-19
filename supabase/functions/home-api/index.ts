@@ -317,19 +317,20 @@ Deno.serve(async (req) => {
           .limit(1);
         if (recs && recs.length > 0) return json({ mission: recs[0], source: "ai_recommendation" });
 
-        // Priority 3: Critical/high risk topics
+        // Priority 3: Critical/high risk topics (memory_strength < 40)
         const { data: riskTopics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, risk_level, subject_id")
+          .select("id, name, memory_strength, subject_id")
           .eq("user_id", userId)
           .is("deleted_at", null)
-          .in("risk_level", ["critical", "high"])
+          .lt("memory_strength", 40)
           .order("memory_strength", { ascending: true })
           .limit(1);
         if (riskTopics && riskTopics.length > 0) {
           const t = riskTopics[0];
+          const riskLevel = Number(t.memory_strength) < 20 ? "critical" : "high";
           return json({
-            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}% — needs urgent review`, type: "review", priority: t.risk_level || "high", topic_id: t.id },
+            mission: { id: `risk-${t.id}`, title: `Review: ${t.name}`, description: `Memory at ${Math.round(t.memory_strength ?? 0)}% — needs urgent review`, type: "review", priority: riskLevel, topic_id: t.id },
             source: "risk_topic",
           });
         }
