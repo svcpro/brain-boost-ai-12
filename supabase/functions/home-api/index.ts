@@ -415,16 +415,16 @@ Deno.serve(async (req) => {
       case "quick-actions": {
         const { data: topics } = await adminClient
           .from("topics")
-          .select("id, name, memory_strength, risk_level")
+          .select("id, name, memory_strength")
           .eq("user_id", userId)
           .is("deleted_at", null);
         const all = topics || [];
-        const atRisk = all.filter((t: any) => t.risk_level === "critical" || t.risk_level === "high");
+        const atRisk = all.filter((t: any) => (t.memory_strength ?? 0) < 40);
         const weakest = [...all].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
         const defaultTopic = { id: "", name: "", memory_strength: 0, risk_level: "low" };
         return json({
-          smart_recall: { available: all.length > 0, topic: weakest[0] || defaultTopic, label: all.length === 0 ? "Add topics first" : "Smart Recall" },
-          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] || defaultTopic },
+          smart_recall: { available: all.length > 0, topic: weakest[0] ? { ...weakest[0], risk_level: (weakest[0].memory_strength ?? 0) < 40 ? "high" : "low" } : defaultTopic, label: all.length === 0 ? "Add topics first" : "Smart Recall" },
+          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] ? { ...atRisk[0], risk_level: "high" } : defaultTopic },
           rank_boost: { available: all.length > 0 },
           focus_shield: { available: true },
         });
