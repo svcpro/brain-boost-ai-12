@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Target, Clock, TrendingUp, Zap, ArrowRight, Sparkles, CheckCircle2, Brain, Flame } from "lucide-react";
+import { Target, Clock, TrendingUp, Zap, ArrowRight, Sparkles, CheckCircle2, Brain, Flame, Shield, Crosshair } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { triggerHaptic } from "@/lib/feedback";
@@ -28,14 +28,14 @@ interface TodaysMissionProps {
   onStartMission: (subject?: string, topic?: string, minutes?: number) => void;
 }
 
-const missionTypeConfig: Record<string, { icon: typeof Target; label: string }> = {
-  recall: { icon: Brain, label: "Recall" },
-  review: { icon: Target, label: "Review" },
-  practice: { icon: Zap, label: "Practice" },
-  strengthen: { icon: TrendingUp, label: "Strengthen" },
-  rescue: { icon: Zap, label: "Rescue" },
-  consistency: { icon: Clock, label: "Consistency" },
-  onboarding: { icon: Target, label: "Get Started" },
+const missionTypeConfig: Record<string, { icon: typeof Target; label: string; gradient: string }> = {
+  recall: { icon: Brain, label: "Recall", gradient: "from-violet-500/20 to-primary/10" },
+  review: { icon: Target, label: "Review", gradient: "from-primary/20 to-cyan-500/10" },
+  practice: { icon: Zap, label: "Practice", gradient: "from-amber-500/20 to-orange-500/10" },
+  strengthen: { icon: TrendingUp, label: "Strengthen", gradient: "from-emerald-500/20 to-green-500/10" },
+  rescue: { icon: Shield, label: "Rescue", gradient: "from-destructive/20 to-red-500/10" },
+  consistency: { icon: Clock, label: "Consistency", gradient: "from-blue-500/20 to-primary/10" },
+  onboarding: { icon: Crosshair, label: "Get Started", gradient: "from-primary/20 to-violet-500/10" },
 };
 
 export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissionProps) {
@@ -67,9 +67,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
 
   const normalizePriority = (value: unknown): DailyMission["urgency"] => {
     const raw = safeStr(value, "medium").toLowerCase();
-    return ["critical", "high", "medium", "low"].includes(raw)
-      ? (raw as DailyMission["urgency"])
-      : "medium";
+    return ["critical", "high", "medium", "low"].includes(raw) ? (raw as DailyMission["urgency"]) : "medium";
   };
 
   const normalizeMissionType = (value: unknown): DailyMission["mission_type"] => {
@@ -83,7 +81,6 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     return "review";
   };
 
-  /** Normalize API mission response into a consistent DailyMission */
   const normalizeMission = (apiMission: any, source: string): DailyMission => ({
     id: safeStr(apiMission?.id, `mission-${today}`),
     title: safeStr(apiMission?.title, "Your Daily Mission").slice(0, 80),
@@ -103,32 +100,24 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     if (!user || !session) return;
     setLoading(true);
     setError(false);
-
     try {
-      // Single source of truth: home-api/todays-mission route
       const { data, error: fnError } = await supabase.functions.invoke("home-api", {
         body: { route: "todays-mission" },
       });
-
       if (fnError) throw fnError;
-
       if (data?.mission) {
         setMission(normalizeMission(data.mission, safeStr(data.source, "api")));
         setCompleted(false);
         return;
       }
-
-      // Fallback: try dashboard endpoint
       const { data: dashData, error: dashErr } = await supabase.functions.invoke("home-api", {
         body: { route: "dashboard" },
       });
-
       if (!dashErr && dashData?.todays_mission?.mission) {
         setMission(normalizeMission(dashData.todays_mission.mission, safeStr(dashData.todays_mission.source, "dashboard")));
         setCompleted(false);
         return;
       }
-
       setError(true);
     } catch (e: any) {
       console.error("Mission fetch failed:", e);
@@ -144,7 +133,6 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     fetchMission();
   }, [hasTopics, loading, fetchMission, session, fetchAttempted]);
 
-  // Check completion status from localStorage
   useEffect(() => {
     const completedDate = localStorage.getItem(completedKey);
     if (completedDate === today) setCompleted(true);
@@ -159,35 +147,30 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     triggerHaptic([30, 60, 30, 80]);
     setCompleted(true);
     localStorage.setItem(completedKey, today);
-
     try {
       const { default: confetti } = await import("canvas-confetti");
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["hsl(var(--primary))", "#FFD700", "#4ECDC4", "#FF6B6B"],
-      });
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ["hsl(var(--primary))", "#FFD700", "#4ECDC4", "#FF6B6B"] });
     } catch {}
-
     toast({ title: "🎉 Mission Complete!", description: `+${mission?.brain_improvement_pct || 5}% brain stability boost` });
   };
 
   if (!hasTopics) return null;
 
-  // Error state with retry
+  // Error state
   if (error && !mission && !loading) {
     return (
       <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">
-          Today's Mission
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5 px-1 flex items-center gap-1.5">
+          <Crosshair className="w-3 h-3" /> Today's Mission
         </p>
-        <div className="rounded-2xl border border-border bg-card p-5 text-center">
-          <Target className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+        <div className="rounded-2xl border border-border bg-card p-6 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
+            <Target className="w-6 h-6 text-muted-foreground" />
+          </div>
           <p className="text-xs text-muted-foreground mb-3">Couldn't load your mission</p>
           <button
             onClick={() => { setError(false); setFetchAttempted(false); fetchMission(); }}
-            className="text-xs text-primary font-medium px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/15 transition-colors"
+            className="text-xs text-primary font-semibold px-5 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/15 transition-colors active:scale-95"
           >
             Try Again
           </button>
@@ -196,37 +179,36 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     );
   }
 
-  const urgencyStyles = {
-    critical: { border: "border-destructive/30", badge: "bg-destructive/15 text-destructive", glow: "hsl(var(--destructive))" },
-    high: { border: "border-warning/30", badge: "bg-warning/15 text-warning", glow: "hsl(var(--warning))" },
-    medium: { border: "border-primary/20", badge: "bg-primary/15 text-primary", glow: "hsl(var(--primary))" },
-    low: { border: "border-border", badge: "bg-secondary text-secondary-foreground", glow: "hsl(var(--muted))" },
+  const urgencyConfig = {
+    critical: { border: "border-destructive/30", bg: "bg-destructive/8", text: "text-destructive", dot: "bg-destructive" },
+    high: { border: "border-warning/30", bg: "bg-warning/8", text: "text-warning", dot: "bg-warning" },
+    medium: { border: "border-primary/25", bg: "bg-primary/8", text: "text-primary", dot: "bg-primary" },
+    low: { border: "border-border", bg: "bg-secondary/50", text: "text-muted-foreground", dot: "bg-muted-foreground" },
   };
 
-  const styles = urgencyStyles[mission?.urgency || "medium"];
-  const MissionIcon = missionTypeConfig[mission?.mission_type || "review"]?.icon || Target;
+  const urg = urgencyConfig[mission?.urgency || "medium"];
+  const typeConf = missionTypeConfig[mission?.mission_type || "review"] || missionTypeConfig.review;
+  const MissionIcon = typeConf.icon;
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-    >
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">
-        Today's Mission
+    <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5 px-1 flex items-center gap-1.5">
+        <Crosshair className="w-3 h-3" /> Today's Mission
       </p>
 
       {/* Loading skeleton */}
       {loading && !mission && (
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-3 animate-pulse">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-secondary" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 bg-secondary rounded w-3/4" />
-              <div className="h-3 bg-secondary rounded w-1/2" />
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="p-5 space-y-3 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-secondary" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-secondary rounded-lg w-3/4" />
+                <div className="h-3 bg-secondary rounded-lg w-1/2" />
+              </div>
             </div>
+            <div className="h-12 bg-secondary rounded-xl" />
           </div>
-          <div className="h-10 bg-secondary rounded-xl" />
         </div>
       )}
 
@@ -238,22 +220,20 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
               key="completed"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative rounded-2xl border border-primary/30 overflow-hidden"
+              className="rounded-2xl border border-primary/20 overflow-hidden"
               style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.06), hsl(var(--card)))" }}
             >
-              <div className="p-5 text-center">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-                >
-                  <CheckCircle2 className="w-12 h-12 text-primary mx-auto mb-3" />
+              <div className="p-6 text-center">
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, delay: 0.1 }}>
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle2 className="w-8 h-8 text-primary" />
+                  </div>
                 </motion.div>
                 <h3 className="text-sm font-bold text-foreground">Mission Complete! 🎉</h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 mb-3">
                   +{mission.brain_improvement_pct}% brain stability boost earned
                 </p>
-                <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+                <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary/8 text-primary text-[10px] font-medium">
                   <TrendingUp className="w-3 h-3" />
                   Come back tomorrow for your next mission
                 </div>
@@ -264,78 +244,100 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
               key="active"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className={`relative rounded-2xl border ${styles.border} overflow-hidden`}
-              style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--card)))" }}
+              className={`rounded-2xl border ${urg.border} overflow-hidden relative`}
             >
-              {/* Glow accent */}
-              <div
-                className="absolute top-0 right-0 w-28 h-28 rounded-full opacity-20 blur-3xl pointer-events-none"
-                style={{ background: styles.glow }}
-              />
+              {/* Background gradient */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${typeConf.gradient} pointer-events-none`} />
+              
+              {/* Accent orb */}
+              <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-primary/8 blur-3xl pointer-events-none" />
 
-              <div className="relative z-10 p-5">
-                {/* Header */}
-                <div className="flex items-start gap-3 mb-3">
-                  <motion.div
-                    animate={{ rotate: [0, 5, -5, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                    className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0"
-                  >
-                    <MissionIcon className="w-5 h-5 text-primary" />
-                  </motion.div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-foreground leading-tight">
-                      {mission.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {mission.description}
+              <div className="relative z-10">
+                {/* Top bar with urgency & type */}
+                <div className="flex items-center justify-between px-4 pt-4 pb-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${urg.dot} ${mission.urgency === "critical" ? "animate-pulse" : ""}`} />
+                    <span className={`text-[10px] font-semibold uppercase tracking-wider ${urg.text}`}>
+                      {mission.urgency} priority
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-secondary/60">
+                    {typeConf.label}
+                  </span>
+                </div>
+
+                {/* Main content */}
+                <div className="px-4 pb-2 pt-2">
+                  <div className="flex items-start gap-3 mb-3">
+                    <motion.div
+                      animate={{ rotate: [0, 5, -5, 0] }}
+                      transition={{ duration: 3, repeat: Infinity, repeatDelay: 4 }}
+                      className="w-12 h-12 rounded-2xl bg-primary/12 flex items-center justify-center shrink-0 border border-primary/10"
+                    >
+                      <MissionIcon className="w-6 h-6 text-primary" />
+                    </motion.div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[15px] font-bold text-foreground leading-tight mb-1">
+                        {mission.title}
+                      </h3>
+                      {mission.description && (
+                        <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                          {mission.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats chips */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-background/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-border/50">
+                      <Clock className="w-3 h-3" />
+                      <span className="font-medium">{mission.estimated_minutes} min</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-primary bg-primary/8 px-2.5 py-1.5 rounded-lg font-semibold border border-primary/10">
+                      <Brain className="w-3 h-3" />
+                      +{mission.brain_improvement_pct}%
+                    </div>
+                    {mission.topic_name && (
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-background/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-border/50 truncate max-w-[120px]">
+                        <Target className="w-3 h-3 shrink-0" />
+                        <span className="truncate font-medium">{mission.topic_name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* AI reasoning */}
+                  <div className="flex items-start gap-2 mb-4 px-3 py-2.5 rounded-xl bg-background/40 backdrop-blur-sm border border-border/30">
+                    <Sparkles className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+                      {mission.reasoning}
                     </p>
                   </div>
                 </div>
 
-                {/* Stats row */}
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-secondary/60 px-2 py-1 rounded-full">
-                    <Clock className="w-3 h-3" />
-                    {mission.estimated_minutes} min
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] text-primary bg-primary/10 px-2 py-1 rounded-full font-medium">
-                    <TrendingUp className="w-3 h-3" />
-                    +{mission.brain_improvement_pct}% brain
-                  </span>
-                  <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${styles.badge}`}>
-                    {mission.urgency}
-                  </span>
+                {/* CTA section */}
+                <div className="px-4 pb-4 space-y-2">
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleStart}
+                    className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 active:opacity-90 transition-all relative overflow-hidden group"
+                    style={{ boxShadow: "0 4px 24px hsl(var(--primary) / 0.25)" }}
+                  >
+                    {/* Shimmer */}
+                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                    <Zap className="w-4 h-4" />
+                    Start Mission
+                    <ArrowRight className="w-4 h-4" />
+                  </motion.button>
+
+                  <button
+                    onClick={handleComplete}
+                    className="w-full py-2 text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Mark as complete
+                  </button>
                 </div>
-
-                {/* AI reasoning */}
-                <div className="flex items-start gap-1.5 mb-4 px-3 py-2 rounded-xl bg-secondary/40 border border-border/50">
-                  <Sparkles className="w-3 h-3 text-primary shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                    {mission.reasoning}
-                  </p>
-                </div>
-
-                {/* CTA */}
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleStart}
-                  className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all"
-                  style={{ boxShadow: "0 4px 20px hsl(var(--primary) / 0.3)" }}
-                >
-                  <Zap className="w-4 h-4" />
-                  Start Mission
-                  <ArrowRight className="w-4 h-4" />
-                </motion.button>
-
-                {/* Complete button */}
-                <button
-                  onClick={handleComplete}
-                  className="w-full mt-2 py-2 text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Mark as complete
-                </button>
               </div>
             </motion.div>
           )}
@@ -356,9 +358,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
             brainImprovementPct={mission.brain_improvement_pct}
             urgency={mission.urgency}
             reasoning={mission.reasoning}
-            onComplete={() => {
-              handleComplete();
-            }}
+            onComplete={() => { handleComplete(); }}
             onClose={() => setShowMissionFlow(false)}
           />
         )}
