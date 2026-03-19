@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Target, Clock, TrendingUp, Zap, ArrowRight, Sparkles, CheckCircle2, Brain } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { setCache, getCache, clearCache } from "@/lib/offlineCache";
+import { clearCache } from "@/lib/offlineCache";
 import { triggerHaptic } from "@/lib/feedback";
 import { useToast } from "@/hooks/use-toast";
 import MicroMissionFlow from "./MicroMissionFlow";
@@ -16,9 +16,9 @@ interface DailyMission {
   subject_name?: string;
   estimated_minutes: number;
   brain_improvement_pct: number;
-  urgency: "critical" | "high" | "medium";
+  urgency: "critical" | "high" | "medium" | "low";
   reasoning: string;
-  mission_type: "recall" | "review" | "practice" | "strengthen";
+  mission_type: "recall" | "review" | "practice" | "strengthen" | "rescue" | "consistency";
   generated_date: string;
 }
 
@@ -27,13 +27,13 @@ interface TodaysMissionProps {
   onStartMission: (subject?: string, topic?: string, minutes?: number) => void;
 }
 
-const BASE_CACHE_KEY = "acry-home-mission-v2";
-
 const missionTypeConfig: Record<string, { icon: typeof Target; label: string }> = {
   recall: { icon: Brain, label: "Recall" },
   review: { icon: Target, label: "Review" },
   practice: { icon: Zap, label: "Practice" },
   strengthen: { icon: TrendingUp, label: "Strengthen" },
+  rescue: { icon: Zap, label: "Rescue" },
+  consistency: { icon: Clock, label: "Consistency" },
 };
 
 export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissionProps) {
@@ -45,8 +45,6 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   };
 
-  // Per-user cache key so each user gets their own personalized mission
-  const cacheKey = user ? `${BASE_CACHE_KEY}-${user.id}` : BASE_CACHE_KEY;
   const completedKey = user ? `acry-mission-completed-date-${user.id}` : "acry-mission-completed-date";
 
   const [mission, setMission] = useState<DailyMission | null>(null);
@@ -59,25 +57,57 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
 
   const today = getToday();
 
-  // Load cached mission as placeholder, but always re-fetch from API
   useEffect(() => {
     if (!user) return;
     try {
-      const cached = getCache<DailyMission>(`${BASE_CACHE_KEY}-${user.id}`);
-      if (cached && cached.generated_date === today && cached.title && cached.title !== "AI Mission") {
-        setMission(cached);
-      }
+      clearCache(`acry-home-mission-v2-${user.id}`);
       clearCache(`acry-daily-mission-${user.id}`);
       clearCache(`acry-home-mission-${user.id}`);
     } catch {}
-  }, [user, today]);
+    setMission(null);
+    setError(false);
+    setFetchAttempted(false);
+  }, [user]);
 
-  // safeStr and safeNum imported from @/lib/safeRender
+  const parseMinutesFromText = (value: unknown, fallback = 10) => {
+    const text = safeStr(value, "");
+    const match = text.match(/(\d+)\s*[- ]?min/i);
+    return match ? Number(match[1]) : fallback;
+  };
+
+  const normalizeMissionType = (value: unknown): DailyMission["mission_type"] => {
+    const raw = safeStr(value, "review").toLowerCase();
+    if (raw.includes("rescue")) return "rescue";
+    if (raw.includes("consistency")) return "consistency";
+    if (raw.includes("recall") || raw.includes("remember")) return "recall";
+    if (raw.includes("practice") || raw.includes("solve") || raw.includes("problem")) return "practice";
+    if (raw.includes("strengthen") || raw.includes("deep")) return "strengthen";
+    return "review";
+  };
+
+  const normalizePriority = (value: unknown): DailyMission["urgency"] => {
+    const raw = safeStr(value, "medium").toLowerCase();
+    return ["critical", "high", "medium", "low"].includes(raw)
+      ? (raw as DailyMission["urgency"])
+      : "medium";
+  };
+
+  const normalizeApiMission = (apiMission: any, source?: string): DailyMission => ({
+    title: safeStr(apiMission?.title, "Your Daily Mission").slice(0, 80),
+    description: safeStr(apiMission?.description, ""),
+    topic_name: safeStr(apiMission?.topic_name) || undefined,
+    subject_name: safeStr(apiMission?.subject_name) || undefined,
+    estimated_minutes: safeNum(apiMission?.estimated_minutes, parseMinutesFromText(apiMission?.description, 10)),
+    brain_improvement_pct: safeNum(apiMission?.brain_improvement_pct, safeNum(apiMission?.reward_value, 5)),
+    urgency: normalizePriority(apiMission?.priority ?? apiMission?.urgency),
+    reasoning: safeStr(apiMission?.reasoning, safeStr(source, "Personalized by your AI brain agent.")),
+    mission_type: normalizeMissionType(apiMission?.type ?? apiMission?.mission_type),
+    generated_date: today,
+  });
 
   const parseMissionResponse = (data: any): DailyMission | null => {
     if (!data) return null;
 
-    // Handle case where mission is returned as a plain string
     if (typeof data.mission === "string" && typeof data.mission !== "object") {
       const text = data.mission;
       return {
@@ -92,8 +122,6 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       };
     }
 
-    // The AI may return the mission as a nested object in data.title, data.mission, or directly in data
-    // Normalize: find the actual mission object
     let src = data;
     if (typeof data.title === "object" && data.title !== null) {
       src = data.title;
@@ -101,12 +129,10 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       src = data.mission;
     }
 
-    // Extract topic/action for building a human-readable title
     const topic = safeStr(src.topic_name || src.topic || data.topic_name || data.topic, "");
     const actionType = safeStr(src.action_type || src.mission_type || data.action_type || data.mission_type || data.type || src.type, "Review");
-    
-    // Build a readable title — prefer an explicit string title, otherwise compose from topic+action
     const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
     let title = "";
     if (typeof data.title === "string" && data.title.length > 0 && !data.title.startsWith("{") && data.title !== "AI Mission") {
       title = data.title;
@@ -122,7 +148,6 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       title = "Your Daily Mission";
     }
 
-    // Build description — check description, goal, reason fields
     let description = "";
     const descCandidates = [data.description, src.description, src.goal, data.goal, src.reason, data.reason];
     for (const c of descCandidates) {
@@ -140,17 +165,11 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
       description,
       topic_name: topic || undefined,
       subject_name: safeStr(src.subject_name || src.subject || data.subject_name || data.subject) || undefined,
-      estimated_minutes: safeNum(src.estimated_minutes || src.duration_minutes || src.duration || data.estimated_minutes || data.duration, 5),
-      brain_improvement_pct: safeNum(src.brain_improvement_pct || data.brain_improvement_pct, 5),
-      urgency: (["critical", "high", "medium"].includes(src.urgency || data.urgency) ? (src.urgency || data.urgency) : "medium") as DailyMission["urgency"],
+      estimated_minutes: safeNum(src.estimated_minutes || src.duration_minutes || src.duration || data.estimated_minutes || data.duration, parseMinutesFromText(description, 5)),
+      brain_improvement_pct: safeNum(src.brain_improvement_pct || data.brain_improvement_pct || src.reward_value || data.reward_value, 5),
+      urgency: normalizePriority(src.priority || src.urgency || data.priority || data.urgency),
       reasoning: safeStr(src.reasoning || src.rationale || src.reason || src.goal || data.reasoning || data.rationale || data.reason || data.goal, "Personalized by your AI brain agent."),
-      mission_type: (() => {
-        const raw = safeStr(src.mission_type || src.type || src.action_type || data.mission_type || data.type || data.action_type, "review").toLowerCase();
-        if (raw.includes("recall") || raw.includes("remember")) return "recall";
-        if (raw.includes("practice") || raw.includes("solve") || raw.includes("problem")) return "practice";
-        if (raw.includes("strengthen") || raw.includes("deep")) return "strengthen";
-        return "review";
-      })() as DailyMission["mission_type"],
+      mission_type: normalizeMissionType(src.mission_type || src.type || src.action_type || data.mission_type || data.type || data.action_type),
       generated_date: today,
     };
   };
@@ -159,57 +178,76 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     if (!user || !session) return;
     setLoading(true);
     setError(false);
+
     try {
-      // Use home-api/todays-mission so web app matches the external API response
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const headers: HeadersInit = {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: publishableKey,
+        "Content-Type": "application/json",
+      };
+
+      const liveEndpoints = [
+        {
+          url: `${baseUrl}/functions/v1/home-api/dashboard`,
+          pick: (payload: any) => payload?.todays_mission,
+        },
+        {
+          url: `${baseUrl}/functions/v1/home-api/todays-mission`,
+          pick: (payload: any) => payload,
+        },
+      ];
+
+      for (const endpoint of liveEndpoints) {
+        try {
+          const response = await fetch(endpoint.url, {
+            method: "GET",
+            headers,
+            cache: "no-store",
+          });
+
+          if (!response.ok) continue;
+          const payload = await response.json();
+          const block = endpoint.pick(payload);
+          if (block?.mission?.title) {
+            setMission(normalizeApiMission(block.mission, block.source));
+            setCompleted(false);
+            return;
+          }
+        } catch {
+          // fall through to next endpoint / SDK fallback
+        }
+      }
+
       const { data, error: fnError } = await supabase.functions.invoke("home-api", {
         body: { route: "todays-mission" },
       });
-      
-      // home-api returns { mission: {...}, source: "..." }
-      // Try parsing the home-api format first
-      const apiMission = data?.mission;
-      if (apiMission && apiMission.title) {
-        const missionData: DailyMission = {
-          title: String(apiMission.title || "Your Daily Mission").slice(0, 80),
-          description: String(apiMission.description || ""),
-          topic_name: apiMission.topic_name || undefined,
-          subject_name: apiMission.subject_name || undefined,
-          estimated_minutes: safeNum(apiMission.estimated_minutes, 10),
-          brain_improvement_pct: safeNum(apiMission.brain_improvement_pct, 5),
-          urgency: (["critical", "high", "medium"].includes(apiMission.priority) ? apiMission.priority : "medium") as DailyMission["urgency"],
-          reasoning: String(apiMission.reasoning || data?.source || "Personalized by your AI brain agent."),
-          mission_type: (() => {
-            const raw = String(apiMission.type || "review").toLowerCase();
-            if (raw.includes("recall") || raw.includes("remember")) return "recall";
-            if (raw.includes("practice") || raw.includes("solve")) return "practice";
-            if (raw.includes("strengthen") || raw.includes("deep")) return "strengthen";
-            return "review";
-          })() as DailyMission["mission_type"],
-          generated_date: today,
-        };
-        setMission(missionData);
-        setCache(cacheKey, missionData);
+
+      if (fnError) throw fnError;
+
+      if (data?.mission?.title) {
+        setMission(normalizeApiMission(data.mission, data?.source));
         setCompleted(false);
         return;
       }
 
-      // Fallback: try parsing as legacy ai-brain-agent response
-      if (fnError) throw fnError;
       const missionData = parseMissionResponse(data);
       if (missionData) {
         setMission(missionData);
-        setCache(cacheKey, missionData);
         setCompleted(false);
+        return;
       }
+
+      setError(true);
     } catch (e: any) {
       console.error("Mission generation failed:", e);
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [user, session, today, cacheKey]);
+  }, [user, session, today]);
 
-  // Always fetch fresh mission from API on mount
   useEffect(() => {
     if (!hasTopics || loading || !session || fetchAttempted) return;
     setFetchAttempted(true);
