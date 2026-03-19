@@ -312,6 +312,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     critical: { border: "border-destructive/30", badge: "bg-destructive/15 text-destructive", glow: "hsl(var(--destructive))" },
     high: { border: "border-warning/30", badge: "bg-warning/15 text-warning", glow: "hsl(var(--warning))" },
     medium: { border: "border-primary/20", badge: "bg-primary/15 text-primary", glow: "hsl(var(--primary))" },
+    low: { border: "border-border", badge: "bg-secondary text-secondary-foreground", glow: "hsl(var(--muted))" },
   };
 
   const styles = urgencyStyles[mission?.urgency || "medium"];
