@@ -873,22 +873,46 @@ Deno.serve(async (req) => {
         const dayIndex = Math.floor(Date.now() / 86400000) % quotes.length;
 
         let todaysMission: any = { mission: null, source: null };
-        if (allRecs.length > 0) {
+
+        // Priority 1: Active brain mission (from AI-generated missions)
+        const activeBrainMissions = (missionsRes.data || []).filter(
+          (m: any) => m.status === "active" || m.status === "in_progress"
+        );
+        if (activeBrainMissions.length > 0) {
+          const bm = activeBrainMissions[0];
+          todaysMission = {
+            mission: {
+              id: bm.id,
+              title: bm.title,
+              description: bm.description || `Complete this ${bm.mission_type} mission`,
+              type: bm.mission_type || "review",
+              priority: bm.priority || "medium",
+              topic_id: bm.target_topic_id || "",
+            },
+            source: "brain_mission",
+          };
+        }
+        // Priority 2: AI recommendation
+        else if (allRecs.length > 0) {
           todaysMission = { mission: allRecs[0], source: "ai_recommendation" };
-        } else if (riskTopicsList.length > 0) {
+        }
+        // Priority 3: Critical/high risk topics
+        else if (riskTopicsList.length > 0) {
           const topic = riskTopicsList[0];
           todaysMission = {
             mission: {
               id: `risk-${topic.id}`,
               title: `Review: ${topic.name}`,
-              description: `Memory at ${Math.round(topic.memory_strength)}%`,
+              description: `Memory at ${Math.round(topic.memory_strength)}% — needs urgent review`,
               type: "review",
               priority: topic.risk_level,
               topic_id: topic.id,
             },
             source: "risk_topic",
           };
-        } else if (weakest.length > 0) {
+        }
+        // Priority 4: Only truly weak topics (< 60% memory)
+        else if (weakest.length > 0 && Number(weakest[0].memory_strength) < 60) {
           const topic = weakest[0];
           todaysMission = {
             mission: {
@@ -896,12 +920,43 @@ Deno.serve(async (req) => {
               title: `Strengthen: ${topic.name}`,
               description: `Memory strength is ${Math.round(topic.memory_strength)}%. A quick review will help!`,
               type: "review",
-              priority: "medium",
+              priority: Number(topic.memory_strength) < 30 ? "high" : "medium",
               topic_id: topic.id,
             },
             source: "weak_topic",
           };
-        } else {
+        }
+        // Priority 5: Topics due for review (spaced repetition)
+        else if (reviewQueue.length > 0) {
+          const rq = reviewQueue[0];
+          todaysMission = {
+            mission: {
+              id: `review-${rq.id}`,
+              title: `Review: ${rq.name}`,
+              description: `Scheduled for spaced repetition review`,
+              type: "review",
+              priority: "medium",
+              topic_id: rq.id,
+            },
+            source: "review_queue",
+          };
+        }
+        // Priority 6: All topics strong — encourage practice
+        else if (total > 0) {
+          todaysMission = {
+            mission: {
+              id: "all-strong",
+              title: "🎯 Practice Mode",
+              description: "All topics are strong! Take a practice quiz to stay sharp.",
+              type: "practice",
+              priority: "low",
+              topic_id: weakest.length > 0 ? weakest[0].id : "",
+            },
+            source: "maintenance",
+          };
+        }
+        // Priority 7: No topics at all
+        else {
           todaysMission = {
             mission: {
               id: "onboard-start",
