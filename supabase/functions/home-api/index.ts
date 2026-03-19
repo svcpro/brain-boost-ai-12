@@ -1777,6 +1777,583 @@ final result = await api.post('/home-api/mission-complete', body: {"mission_id":
         });
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // ─── UNIFIED TODAY'S MISSION API (Single Endpoint) ───
+      // All mission actions via: POST /home-api/todays-mission-api
+      // Body: { "action": "fetch|start|questions|progress|complete|brain-impact|history" }
+      // ═══════════════════════════════════════════════════════════════
+      case "todays-mission-api": {
+        const action = String(body.action || query.action || "fetch");
+
+        // ── Helper: resolve topic info ──
+        const resolveTopic = async (topicId: string) => {
+          if (!topicId) return { topic_name: "", subject_name: "", topic_id: "" };
+          const { data: t } = await adminClient.from("topics").select("id, name, subject_id, memory_strength").eq("id", topicId).maybeSingle();
+          if (!t) return { topic_name: "", subject_name: "", topic_id: topicId };
+          let sName = "";
+          if (t.subject_id) {
+            const { data: s } = await adminClient.from("subjects").select("name").eq("id", t.subject_id).maybeSingle();
+            sName = s?.name || "";
+          }
+          return { topic_name: t.name || "", subject_name: sName, topic_id: t.id, memory_strength: t.memory_strength };
+        };
+
+        // ── Helper: build mission object from various sources ──
+        const buildMissionPayload = async () => {
+          // Priority 1: Active brain missions
+          const { data: activeMissions } = await adminClient
+            .from("brain_missions")
+            .select("id, title, description, mission_type, priority, target_topic_id, status, reasoning, reward_value, reward_type, target_value, current_value, target_metric, expires_at, created_at")
+            .eq("user_id", userId)
+            .in("status", ["active", "in_progress"])
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          if (activeMissions && activeMissions.length > 0) {
+            const bm = activeMissions[0];
+            const info = await resolveTopic(bm.target_topic_id || "");
+            const minMatch = (bm.description || "").match(/(\d+)[\s-]*min/i);
+            const estMin = minMatch ? parseInt(minMatch[1]) : (bm.target_value || 15);
+            return {
+              mission: {
+                id: bm.id, title: bm.title,
+                description: bm.description || `Complete this ${bm.mission_type} mission`,
+                type: bm.mission_type || "review", priority: bm.priority || "medium",
+                status: bm.status,
+                topic_id: bm.target_topic_id || "", topic_name: info.topic_name, subject_name: info.subject_name,
+                estimated_minutes: estMin, brain_improvement_pct: bm.reward_value || 5,
+                reward_value: bm.reward_value || 0, reward_type: bm.reward_type || "xp",
+                target_value: bm.target_value, current_value: bm.current_value || 0,
+                reasoning: bm.reasoning || "Personalized by your AI brain agent.",
+                expires_at: bm.expires_at || "",
+              },
+              source: "brain_mission", is_real_mission: true,
+            };
+          }
+
+          // Priority 2: AI recommendation
+          const { data: recs } = await adminClient
+            .from("ai_recommendations")
+            .select("id, title, description, type, priority, topic_id")
+            .eq("user_id", userId).eq("completed", false)
+            .order("created_at", { ascending: false }).limit(1);
+          if (recs && recs.length > 0) {
+            const rec = recs[0];
+            const info = await resolveTopic(rec.topic_id || "");
+            return {
+              mission: {
+                id: rec.id, title: rec.title,
+                description: rec.description || "AI recommendation based on your learning patterns.",
+                type: rec.type || "review", priority: rec.priority || "medium", status: "active",
+                topic_id: rec.topic_id || "", topic_name: info.topic_name, subject_name: info.subject_name,
+                estimated_minutes: 15, brain_improvement_pct: 5,
+                reward_value: 10, reward_type: "xp", target_value: 1, current_value: 0,
+                reasoning: rec.description || "AI recommendation.",
+                expires_at: "",
+              },
+              source: "ai_recommendation", is_real_mission: false,
+            };
+          }
+
+          // Priority 3: Risk topics (memory < 40)
+          const { data: riskTopics } = await adminClient
+            .from("topics").select("id, name, memory_strength, subject_id")
+            .eq("user_id", userId).is("deleted_at", null)
+            .lt("memory_strength", 40).order("memory_strength", { ascending: true }).limit(1);
+          if (riskTopics && riskTopics.length > 0) {
+            const t = riskTopics[0];
+            const info = await resolveTopic(t.id);
+            const brainPct = Number(t.memory_strength) < 20 ? 15 : 10;
+            return {
+              mission: {
+                id: `risk-${t.id}`, title: `Review: ${t.name}`,
+                description: `Memory at ${Math.round(t.memory_strength ?? 0)}% — needs urgent review`,
+                type: "review", priority: Number(t.memory_strength) < 20 ? "critical" : "high",
+                status: "active", topic_id: t.id, topic_name: info.topic_name, subject_name: info.subject_name,
+                estimated_minutes: 15, brain_improvement_pct: brainPct,
+                reward_value: 15, reward_type: "xp", target_value: 1, current_value: 0,
+                reasoning: `${t.name} memory is critically low at ${Math.round(t.memory_strength ?? 0)}%. Review now.`,
+                expires_at: "",
+              },
+              source: "risk_topic", is_real_mission: false,
+            };
+          }
+
+          // Priority 4: Weak topics (< 60)
+          const { data: weakTopics } = await adminClient
+            .from("topics").select("id, name, memory_strength, subject_id")
+            .eq("user_id", userId).is("deleted_at", null)
+            .lt("memory_strength", 60).order("memory_strength", { ascending: true }).limit(1);
+          if (weakTopics && weakTopics.length > 0) {
+            const w = weakTopics[0];
+            const info = await resolveTopic(w.id);
+            return {
+              mission: {
+                id: `weak-${w.id}`, title: `Strengthen: ${w.name}`,
+                description: `Memory at ${Math.round(w.memory_strength ?? 0)}%. A quick review will help!`,
+                type: "review", priority: Number(w.memory_strength) < 30 ? "high" : "medium",
+                status: "active", topic_id: w.id, topic_name: info.topic_name, subject_name: info.subject_name,
+                estimated_minutes: 10, brain_improvement_pct: 8,
+                reward_value: 10, reward_type: "xp", target_value: 1, current_value: 0,
+                reasoning: `Strengthening ${w.name} will boost your brain health.`,
+                expires_at: "",
+              },
+              source: "weak_topic", is_real_mission: false,
+            };
+          }
+
+          // Priority 5: Topics due for review
+          const nowIso = new Date().toISOString();
+          const { data: dueTopics } = await adminClient
+            .from("topics").select("id, name, memory_strength, subject_id, next_predicted_drop_date")
+            .eq("user_id", userId).is("deleted_at", null)
+            .not("next_predicted_drop_date", "is", null)
+            .lte("next_predicted_drop_date", nowIso)
+            .order("next_predicted_drop_date", { ascending: true }).limit(1);
+          if (dueTopics && dueTopics.length > 0) {
+            const d = dueTopics[0];
+            const info = await resolveTopic(d.id);
+            return {
+              mission: {
+                id: `review-${d.id}`, title: `Review: ${d.name}`,
+                description: `Scheduled for spaced repetition review`,
+                type: "review", priority: "medium", status: "active",
+                topic_id: d.id, topic_name: info.topic_name, subject_name: info.subject_name,
+                estimated_minutes: 10, brain_improvement_pct: 5,
+                reward_value: 10, reward_type: "xp", target_value: 1, current_value: 0,
+                reasoning: `${d.name} is due for spaced repetition.`,
+                expires_at: "",
+              },
+              source: "review_queue", is_real_mission: false,
+            };
+          }
+
+          // Priority 6: Practice mode (all strong)
+          const { data: anyTopics } = await adminClient
+            .from("topics").select("id, name, memory_strength, subject_id")
+            .eq("user_id", userId).is("deleted_at", null).limit(5);
+          if (anyTopics && anyTopics.length > 0) {
+            const pick = anyTopics[Math.floor(Math.random() * anyTopics.length)];
+            const info = await resolveTopic(pick.id);
+            return {
+              mission: {
+                id: `practice-${pick.id}`, title: `Practice: ${info.subject_name || pick.name}`,
+                description: `Complete practice questions on ${pick.name}.`,
+                type: "practice", priority: "low", status: "active",
+                topic_id: pick.id, topic_name: info.topic_name, subject_name: info.subject_name,
+                estimated_minutes: 15, brain_improvement_pct: 3,
+                reward_value: 5, reward_type: "xp", target_value: 1, current_value: 0,
+                reasoning: `All topics are strong! Practice keeps your skills sharp.`,
+                expires_at: "",
+              },
+              source: "maintenance", is_real_mission: false,
+            };
+          }
+
+          // Priority 7: No topics
+          return {
+            mission: {
+              id: "onboard-start", title: "🚀 Add Your First Topic",
+              description: "Start by adding a subject and topic to begin your AI-powered study journey!",
+              type: "onboarding", priority: "high", status: "system",
+              topic_id: "", topic_name: "", subject_name: "",
+              estimated_minutes: 5, brain_improvement_pct: 0,
+              reward_value: 0, reward_type: "xp", target_value: 0, current_value: 0,
+              reasoning: "You haven't added any topics yet.", expires_at: "",
+            },
+            source: "system", is_real_mission: false,
+          };
+        };
+
+        // ════════════════════════════════════════
+        // ACTION: fetch — Get today's mission
+        // ════════════════════════════════════════
+        if (action === "fetch") {
+          const result = await buildMissionPayload();
+          return json(result);
+        }
+
+        // ════════════════════════════════════════
+        // ACTION: generate — Force AI mission generation
+        // ════════════════════════════════════════
+        if (action === "generate") {
+          const client = userClient(req.headers.get("authorization") || "");
+          try {
+            const { data: genData, error: genErr } = await client.functions.invoke("ai-brain-agent", {
+              body: { action: "daily_mission" },
+            });
+            if (genErr) throw genErr;
+
+            const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+            const { data: todayMissions } = await adminClient
+              .from("brain_missions")
+              .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, reasoning, expires_at, created_at")
+              .eq("user_id", userId).gte("created_at", todayStart.toISOString())
+              .in("status", ["active", "in_progress"])
+              .order("created_at", { ascending: false }).limit(5);
+
+            // Return the first mission with full details
+            const missions = todayMissions || [];
+            let topMission = null;
+            if (missions.length > 0) {
+              const m = missions[0];
+              const info = await resolveTopic(m.target_topic_id || "");
+              topMission = {
+                id: m.id, title: m.title, description: m.description || "",
+                type: m.mission_type || "review", priority: m.priority || "medium", status: m.status,
+                topic_id: m.target_topic_id || "", topic_name: info.topic_name, subject_name: info.subject_name,
+                estimated_minutes: m.target_value || 15, brain_improvement_pct: m.reward_value || 5,
+                reward_value: m.reward_value || 0, reward_type: m.reward_type || "xp",
+                target_value: m.target_value, current_value: m.current_value || 0,
+                reasoning: m.reasoning || "", expires_at: m.expires_at || "",
+              };
+            }
+
+            return json({
+              success: true, mission: topMission,
+              all_active_missions: missions, source: "ai_generated",
+              message: topMission ? `Mission ready: ${topMission.title}` : "Mission generated but none active",
+            });
+          } catch (e: any) {
+            return json({ success: false, error: e.message, mission: null }, 500);
+          }
+        }
+
+        // ════════════════════════════════════════
+        // ACTION: start — Mark mission as in_progress
+        // ════════════════════════════════════════
+        if (action === "start") {
+          const missionId = String(body.mission_id || query.mission_id || "");
+          if (!missionId) return json({ error: "mission_id is required" }, 400);
+
+          // For synthetic IDs, just acknowledge and return guidance
+          const isSynthetic = /^(risk|weak|review|practice|onboard)-/.test(missionId);
+          if (isSynthetic) {
+            const topicId = missionId.replace(/^(risk|weak|review|practice)-/, "");
+            const info = await resolveTopic(topicId);
+            return json({
+              success: true, already_started: false, is_synthetic: true,
+              mission_id: missionId, topic_id: topicId,
+              topic_name: info.topic_name, subject_name: info.subject_name,
+              action_hint: "Start a study session on this topic",
+              navigate_to: topicId ? `/study/${topicId}` : "/study",
+              message: `Mission started for ${info.topic_name || "topic"}`,
+            });
+          }
+
+          // Real mission
+          const { data: m } = await adminClient.from("brain_missions")
+            .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at")
+            .eq("id", missionId).eq("user_id", userId).maybeSingle();
+          if (!m) return json({ error: "Mission not found" }, 404);
+          if (m.status === "completed") return json({ error: "Mission already completed" }, 409);
+          if (m.status === "in_progress") {
+            const info = await resolveTopic(m.target_topic_id || "");
+            return json({ success: true, already_started: true, is_synthetic: false, mission: { ...m, topic_name: info.topic_name, subject_name: info.subject_name }, message: `Mission "${m.title}" already in progress` });
+          }
+          if (m.status !== "active") return json({ error: `Mission is ${m.status}` }, 400);
+
+          await adminClient.from("brain_missions").update({ status: "in_progress", updated_at: new Date().toISOString() }).eq("id", missionId).eq("user_id", userId);
+          const info = await resolveTopic(m.target_topic_id || "");
+
+          let action_hint = "Complete the mission objective";
+          let navigate_to = "/study";
+          if (["rescue", "recall_boost", "challenge"].includes(m.mission_type || "")) {
+            action_hint = `Review to improve your ${m.target_metric ?? "memory"}`;
+            navigate_to = m.target_topic_id ? `/study/${m.target_topic_id}` : "/study";
+          } else if (m.mission_type === "consistency") {
+            action_hint = "Start a study session"; navigate_to = "/study";
+          } else if (m.mission_type === "recovery") {
+            action_hint = "Take a break, then do one easy review"; navigate_to = "/dashboard";
+          } else if (m.mission_type === "exploration") {
+            action_hint = "Study this new topic"; navigate_to = m.target_topic_id ? `/study/${m.target_topic_id}` : "/topics";
+          }
+
+          return json({
+            success: true, already_started: false, is_synthetic: false,
+            mission: { ...m, status: "in_progress", topic_name: info.topic_name, subject_name: info.subject_name },
+            started_at: new Date().toISOString(), action_hint, navigate_to,
+            message: `🚀 Mission "${m.title}" started!`,
+          });
+        }
+
+        // ════════════════════════════════════════
+        // ACTION: questions — Fetch AI quiz questions
+        // ════════════════════════════════════════
+        if (action === "questions") {
+          const missionId = String(body.mission_id || query.mission_id || "");
+          const rawCount = Number(body.count ?? query.count ?? 5);
+          const count = Number.isFinite(rawCount) ? Math.min(Math.max(Math.trunc(rawCount), 1), 10) : 5;
+          const difficulty = String(body.difficulty || query.difficulty || "medium");
+          let topicName = String(body.topic_name || query.topic_name || "").trim();
+          let subjectName = String(body.subject_name || query.subject_name || "").trim();
+
+          // Resolve from mission_id
+          if (missionId && !topicName) {
+            const isSynthetic = /^(risk|weak|review|practice)-/.test(missionId);
+            if (isSynthetic) {
+              const topicId = missionId.replace(/^(risk|weak|review|practice)-/, "");
+              const info = await resolveTopic(topicId);
+              topicName = info.topic_name;
+              subjectName = info.subject_name;
+            } else {
+              const { data: mRow } = await adminClient.from("brain_missions")
+                .select("target_topic_id").eq("id", missionId).eq("user_id", userId).maybeSingle();
+              if (mRow?.target_topic_id) {
+                const info = await resolveTopic(mRow.target_topic_id);
+                topicName = info.topic_name;
+                subjectName = info.subject_name;
+              }
+            }
+          }
+
+          // Fallback: weakest topic
+          if (!topicName) {
+            const { data: fb } = await adminClient.from("topics")
+              .select("id, name, subject_id").eq("user_id", userId).is("deleted_at", null)
+              .order("memory_strength", { ascending: true }).limit(1);
+            if (fb && fb.length > 0) {
+              topicName = fb[0].name || "";
+              if (fb[0].subject_id) {
+                const { data: s } = await adminClient.from("subjects").select("name").eq("id", fb[0].subject_id).maybeSingle();
+                subjectName = s?.name || "";
+              }
+            }
+          }
+
+          const authHeader = req.headers.get("authorization") || "";
+          const aiClient = authHeader.startsWith("Bearer ")
+            ? userClient(authHeader)
+            : createClient(supabaseUrl, serviceKey, { global: { headers: { Authorization: `Bearer ${serviceKey}` } } });
+
+          const { data: qData, error: qErr } = await aiClient.functions.invoke("ai-brain-agent", {
+            body: { action: "mission_questions", topic_name: topicName || undefined, subject_name: subjectName || undefined, count, difficulty, user_id: userId },
+          });
+
+          const rawQ = qData?.questions || [];
+          const questions = rawQ.map((q: any) => ({
+            question: q.question || "", options: Array.isArray(q.options) ? q.options : [],
+            correct_index: typeof q.correct_index === "number" ? q.correct_index : 0,
+            explanation: q.explanation || "", difficulty: q.difficulty || difficulty,
+          }));
+
+          return json({
+            success: !qErr && questions.length > 0,
+            error: qErr?.message || (questions.length === 0 ? "No questions generated" : ""),
+            mission_id: missionId || "", topic_name: topicName, subject_name: subjectName,
+            difficulty, count: questions.length, questions,
+            quiz_title: topicName ? `Quick Fix: ${topicName}` : "Quick Fix Quiz",
+            quiz_description: `${questions.length} ${difficulty} questions${topicName ? ` on ${topicName}` : ""}`,
+          });
+        }
+
+        // ════════════════════════════════════════
+        // ACTION: progress — Update mission progress
+        // ════════════════════════════════════════
+        if (action === "progress") {
+          const missionId = String(body.mission_id || query.mission_id || "");
+          const progressValue = Number(body.progress_value ?? body.current_value ?? 0);
+          if (!missionId) return json({ error: "mission_id is required" }, 400);
+
+          // Synthetic missions: acknowledge but no DB update
+          if (/^(risk|weak|review|practice)-/.test(missionId)) {
+            return json({ success: true, mission_id: missionId, is_synthetic: true, current_value: progressValue, target_value: 1, target_reached: progressValue >= 1, progress_pct: Math.min(100, progressValue * 100), message: "Progress tracked" });
+          }
+
+          const { data: mp } = await adminClient.from("brain_missions")
+            .select("id, title, status, target_value, current_value, mission_type")
+            .eq("id", missionId).eq("user_id", userId).maybeSingle();
+          if (!mp) return json({ error: "Mission not found" }, 404);
+          if (mp.status === "completed") return json({ error: "Mission already completed" }, 409);
+
+          const newVal = progressValue || ((mp.current_value ?? 0) + 1);
+          const targetReached = mp.target_value ? newVal >= mp.target_value : false;
+          await adminClient.from("brain_missions").update({ current_value: newVal, updated_at: new Date().toISOString() }).eq("id", missionId).eq("user_id", userId);
+
+          return json({
+            success: true, mission_id: missionId, is_synthetic: false,
+            current_value: newVal, target_value: mp.target_value ?? 0,
+            target_reached: targetReached,
+            progress_pct: mp.target_value ? Math.min(100, Math.round((newVal / mp.target_value) * 100)) : 0,
+            message: targetReached ? "🎯 Target reached! Complete the mission." : `Progress: ${newVal}/${mp.target_value ?? "∞"}`,
+          });
+        }
+
+        // ════════════════════════════════════════
+        // ACTION: complete — Finalize mission
+        // ════════════════════════════════════════
+        if (action === "complete") {
+          const missionId = String(body.mission_id || query.mission_id || "");
+          if (!missionId) return json({ error: "mission_id is required" }, 400);
+
+          const score = Number(body.score ?? 0);
+          const accuracy = Number(body.accuracy ?? 0);
+          const time_taken_seconds = Number(body.time_taken_seconds ?? 0);
+          const questions_attempted = Number(body.questions_attempted ?? 0);
+          const questions_correct = Number(body.questions_correct ?? 0);
+
+          // Synthetic missions: log study session + return brain impact
+          if (/^(risk|weak|review|practice)-/.test(missionId)) {
+            const topicId = missionId.replace(/^(risk|weak|review|practice)-/, "");
+            const info = await resolveTopic(topicId);
+
+            // Log study session
+            if (time_taken_seconds > 0 || questions_attempted > 0) {
+              await adminClient.from("study_logs").insert({
+                user_id: userId, topic_id: topicId || null,
+                topic_name: info.topic_name || "Mission",
+                duration_minutes: Math.max(1, Math.round(time_taken_seconds / 60)),
+                study_mode: "mission", confidence_level: accuracy > 80 ? 5 : accuracy > 60 ? 4 : accuracy > 40 ? 3 : 2,
+              });
+            }
+
+            return json({
+              success: true, mission_id: missionId, is_synthetic: true,
+              completed_at: new Date().toISOString(),
+              reward: { value: accuracy > 70 ? 15 : 10, type: "xp" },
+              brain_impact: {
+                topic_name: info.topic_name, subject_name: info.subject_name,
+                score, accuracy, questions_attempted, questions_correct,
+                memory_boost_pct: accuracy > 80 ? 12 : accuracy > 60 ? 8 : 5,
+                estimated_rank_change: accuracy > 70 ? -50 : -20,
+              },
+              message: `🎉 Mission completed! +${accuracy > 70 ? 15 : 10} XP`,
+            });
+          }
+
+          // Real mission
+          const { data: m } = await adminClient.from("brain_missions")
+            .select("id, title, mission_type, reward_value, reward_type, status, target_value, current_value, target_topic_id")
+            .eq("id", missionId).eq("user_id", userId).maybeSingle();
+          if (!m) return json({ error: "Mission not found" }, 404);
+          if (m.status === "completed") return json({ error: "Mission already completed" }, 409);
+          if (m.status !== "active" && m.status !== "in_progress") return json({ error: `Mission is ${m.status}` }, 400);
+
+          const completedAt = new Date().toISOString();
+          await adminClient.from("brain_missions").update({
+            status: "completed", completed_at: completedAt,
+            current_value: m.target_value ?? m.current_value,
+          }).eq("id", missionId).eq("user_id", userId);
+
+          const info = await resolveTopic(m.target_topic_id || "");
+
+          // Log study session
+          if (time_taken_seconds > 0 || questions_attempted > 0) {
+            await adminClient.from("study_logs").insert({
+              user_id: userId, topic_id: m.target_topic_id || null,
+              topic_name: info.topic_name || "Mission",
+              duration_minutes: Math.max(1, Math.round(time_taken_seconds / 60)),
+              study_mode: "mission", confidence_level: accuracy > 80 ? 5 : accuracy > 60 ? 4 : accuracy > 40 ? 3 : 2,
+            });
+          }
+
+          const { count: remaining } = await adminClient.from("brain_missions")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId).in("status", ["active", "in_progress"]);
+
+          return json({
+            success: true, mission_id: m.id, is_synthetic: false,
+            completed_at: completedAt,
+            reward: { value: m.reward_value ?? 0, type: m.reward_type ?? "xp" },
+            remaining_missions: remaining ?? 0,
+            brain_impact: {
+              topic_name: info.topic_name, subject_name: info.subject_name,
+              score, accuracy, questions_attempted, questions_correct,
+              memory_boost_pct: accuracy > 80 ? 15 : accuracy > 60 ? 10 : 5,
+              estimated_rank_change: accuracy > 70 ? -75 : -30,
+            },
+            message: `🎉 Mission "${m.title}" completed! +${m.reward_value ?? 0} ${m.reward_type ?? "XP"}`,
+          });
+        }
+
+        // ════════════════════════════════════════
+        // ACTION: brain-impact — Post-mission brain report
+        // ════════════════════════════════════════
+        if (action === "brain-impact") {
+          const missionId = String(body.mission_id || query.mission_id || "");
+
+          // Fetch latest completed mission
+          let completedMission: any = null;
+          if (missionId && !/^(risk|weak|review|practice)-/.test(missionId)) {
+            const { data } = await adminClient.from("brain_missions")
+              .select("id, title, mission_type, reward_value, target_topic_id, completed_at, status")
+              .eq("id", missionId).eq("user_id", userId).maybeSingle();
+            completedMission = data;
+          }
+
+          // Get overall brain health
+          const { data: topics } = await adminClient.from("topics")
+            .select("memory_strength").eq("user_id", userId).is("deleted_at", null);
+          const allT = topics || [];
+          const avgHealth = allT.length > 0 ? Math.round(allT.reduce((s: number, t: any) => s + (t.memory_strength ?? 0), 0) / allT.length) : 0;
+
+          // Get today's stats
+          const today = new Date().toISOString().split("T")[0];
+          const { data: todayLogs } = await adminClient.from("study_logs")
+            .select("duration_minutes").eq("user_id", userId).gte("created_at", `${today}T00:00:00Z`);
+          const todayMinutes = (todayLogs || []).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+
+          // Get streak
+          const { data: streak } = await adminClient.from("study_streaks")
+            .select("current_streak, longest_streak, today_met").eq("user_id", userId).maybeSingle();
+
+          // Completed today count
+          const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+          const { count: completedToday } = await adminClient.from("brain_missions")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId).eq("status", "completed")
+            .gte("completed_at", todayStart.toISOString());
+
+          return json({
+            brain_health: avgHealth,
+            today_study_minutes: todayMinutes,
+            missions_completed_today: completedToday ?? 0,
+            streak: {
+              current: streak?.current_streak ?? 0,
+              longest: streak?.longest_streak ?? 0,
+              today_met: streak?.today_met ?? false,
+            },
+            completed_mission: completedMission ? {
+              id: completedMission.id, title: completedMission.title,
+              type: completedMission.mission_type, reward: completedMission.reward_value ?? 0,
+              completed_at: completedMission.completed_at,
+            } : null,
+            motivational_message: (completedToday ?? 0) >= 3
+              ? "🔥 You're on fire! 3+ missions completed today!"
+              : (completedToday ?? 0) >= 1
+                ? "💪 Great work! Keep the momentum going."
+                : "🚀 Complete a mission to boost your brain!",
+          });
+        }
+
+        // ════════════════════════════════════════
+        // ACTION: history — Today's mission history
+        // ════════════════════════════════════════
+        if (action === "history") {
+          const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+          const [activeRes, completedRes] = await Promise.all([
+            adminClient.from("brain_missions")
+              .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_value, reward_type, target_topic_id, reasoning, expires_at, created_at")
+              .eq("user_id", userId).in("status", ["active", "in_progress"])
+              .order("created_at", { ascending: false }).limit(10),
+            adminClient.from("brain_missions")
+              .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_value, reward_type, target_topic_id, reasoning, completed_at, created_at")
+              .eq("user_id", userId).eq("status", "completed")
+              .gte("completed_at", todayStart.toISOString())
+              .order("completed_at", { ascending: false }).limit(10),
+          ]);
+
+          return json({
+            active_missions: activeRes.data || [],
+            completed_today: completedRes.data || [],
+            active_count: (activeRes.data || []).length,
+            completed_today_count: (completedRes.data || []).length,
+          });
+        }
+
+        return json({ error: `Unknown action: ${action}`, available_actions: ["fetch", "generate", "start", "questions", "progress", "complete", "brain-impact", "history"] }, 400);
+      }
+
       default:
         return json({ error: `Unknown home route: ${route}`, available_routes: [
           "dashboard", "all",
@@ -1784,6 +2361,7 @@ final result = await api.post('/home-api/mission-complete', body: {"mission_id":
           "ai-recommendations", "burnout-status", "streak-status", "streak-details",
           "daily-goal", "todays-mission", "quick-actions", "review-queue",
           "brain-missions", "mission-generate", "mission-start", "mission-questions", "mission-progress", "mission-complete", "todays-mission-flow",
+          "todays-mission-api",
           "cognitive-embedding", "rl-policy", "auto-study-summary",
           "precision-intelligence", "decay-forecast", "risk-digest", "brain-feed",
           "recently-studied", "study-insights", "autopilot-status", "daily-quote",
