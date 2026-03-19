@@ -334,20 +334,17 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
 // ─── Action Handlers ─────────────────────────────────────
 
 async function handleSendSMS(authKey: string, templateId: string, mobile: string) {
-  const { data, ok } = await msg91SendOTP(authKey, templateId, mobile);
+  const otp = generateOTP4();
+  const adminClient = getAdminClient();
+
+  const { data, ok } = await msg91SendOTP(authKey, templateId, mobile, otp);
   if (!(data.type === "success" || ok)) {
     return json({ error: data.message || "Failed to send OTP", details: data }, 400);
   }
 
-  // Log SMS OTP in database for admin visibility
+  // Store SMS OTP in database for admin visibility and verification
   try {
-    const adminClient = getAdminClient();
-    await adminClient.from("whatsapp_otps").insert({
-      mobile,
-      otp: "MSG91", // MSG91 manages the actual OTP internally
-      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-      channel: "sms",
-    });
+    await storeWhatsAppOTP(adminClient, mobile, otp, "sms");
   } catch (e) {
     console.error("[MSG91] Failed to log SMS OTP:", e);
   }
