@@ -27,7 +27,7 @@ interface TodaysMissionProps {
   onStartMission: (subject?: string, topic?: string, minutes?: number) => void;
 }
 
-const BASE_CACHE_KEY = "acry-daily-mission";
+const BASE_CACHE_KEY = "acry-home-mission-v2";
 
 const missionTypeConfig: Record<string, { icon: typeof Target; label: string }> = {
   recall: { icon: Brain, label: "Recall" },
