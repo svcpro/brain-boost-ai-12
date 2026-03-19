@@ -143,10 +143,11 @@ async function parseBody(req: Request): Promise<Record<string, unknown>> {
  * Headers: authkey, Content-Type: application/json
  * Optional query: otp_expiry, otp_length, realTimeResponse
  */
-async function msg91SendOTP(authKey: string, templateId: string, mobile: string) {
+async function msg91SendOTP(authKey: string, templateId: string, mobile: string, customOtp: string) {
   const url = new URL("https://control.msg91.com/api/v5/otp");
   url.searchParams.set("template_id", templateId);
   url.searchParams.set("mobile", mobile);
+  url.searchParams.set("otp", customOtp);
   url.searchParams.set("otp_expiry", "5");
   url.searchParams.set("otp_length", "4");
   url.searchParams.set("realTimeResponse", "1");
