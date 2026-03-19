@@ -1212,8 +1212,8 @@ Deno.serve(async (req) => {
       // ─── Mission Questions ───
       case "mission-questions": {
         const missionId = (body.mission_id || query.mission_id) as string | undefined;
-        const rawCount = Number(body.count ?? query.count ?? 4);
-        const count = Number.isFinite(rawCount) ? Math.min(Math.max(Math.trunc(rawCount), 1), 5) : 4;
+        const rawCount = Number(body.count ?? query.count ?? 5);
+        const count = Number.isFinite(rawCount) ? Math.min(Math.max(Math.trunc(rawCount), 1), 5) : 5;
         const difficulty = String(body.difficulty || query.difficulty || "medium");
         let topicName = String(body.topic_name || query.topic_name || "").trim();
         let subjectName = String(body.subject_name || query.subject_name || "").trim();
@@ -1232,7 +1232,7 @@ Deno.serve(async (req) => {
         if (missionId) {
           const { data: missionRow } = await adminClient
             .from("brain_missions")
-            .select("id, title, status, mission_type, target_topic_id, target_metric")
+            .select("id, title, description, status, mission_type, target_topic_id, target_metric")
             .eq("id", missionId)
             .eq("user_id", userId)
             .maybeSingle();
@@ -1240,6 +1240,7 @@ Deno.serve(async (req) => {
           if (!missionRow) return json({ error: "Mission not found" }, 404);
           mission = missionRow;
 
+          // Resolve topic from mission's target_topic_id
           if (missionRow.target_topic_id && !topicName) {
             const { data: topicRow } = await adminClient
               .from("topics")
@@ -1256,19 +1257,20 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Fallback: pick the user's weakest topic if none resolved
         if (!topicName) {
-          const { data: fallbackTopic } = await adminClient
+          const { data: fallbackTopics } = await adminClient
             .from("topics")
             .select("id, name, subject_id, memory_strength")
             .eq("user_id", userId)
             .is("deleted_at", null)
             .order("memory_strength", { ascending: true })
-            .limit(1)
-            .maybeSingle();
+            .limit(3);
 
-          if (fallbackTopic) {
-            topicName = fallbackTopic.name || "";
-            await resolveSubjectName(fallbackTopic.subject_id);
+          if (fallbackTopics && fallbackTopics.length > 0) {
+            const picked = fallbackTopics[0];
+            topicName = picked.name || "";
+            await resolveSubjectName(picked.subject_id);
           }
         }
 
@@ -1290,25 +1292,49 @@ Deno.serve(async (req) => {
           },
         });
 
-        if (questionError) {
+        // Normalize questions to consistent schema (matches web app QuickFixQuiz format)
+        const rawQuestions = questionData?.questions || [];
+        const questions = rawQuestions.map((q: any) => ({
+          question: q.question || "",
+          options: Array.isArray(q.options) ? q.options : [],
+          correct_index: typeof q.correct_index === "number" ? q.correct_index : 0,
+          explanation: q.explanation || "",
+          difficulty: q.difficulty || difficulty,
+        }));
+
+        if (questionError || questions.length === 0) {
           return json({
             success: false,
-            error: questionError.message,
-            mission,
+            error: questionError?.message || "No questions generated",
+            mission: mission ? {
+              id: (mission as any).id,
+              title: (mission as any).title,
+              description: (mission as any).description || "",
+              status: (mission as any).status,
+              mission_type: (mission as any).mission_type,
+            } : null,
             topic_name: topicName,
             subject_name: subjectName,
+            difficulty,
+            count,
             questions: [],
-          }, 500);
+          }, questionError ? 500 : 200);
         }
 
         return json({
           success: true,
-          mission,
+          mission: mission ? {
+            id: (mission as any).id,
+            title: (mission as any).title,
+            description: (mission as any).description || "",
+            status: (mission as any).status,
+            mission_type: (mission as any).mission_type,
+          } : null,
           topic_name: topicName,
           subject_name: subjectName,
           difficulty,
-          count,
-          questions: questionData?.questions || [],
+          count: questions.length,
+          questions,
         });
       }
 
