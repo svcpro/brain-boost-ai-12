@@ -956,6 +956,19 @@ Deno.serve(async (req) => {
         );
         if (activeBrainMissions.length > 0) {
           const bm = activeBrainMissions[0];
+          // Resolve topic_name and subject_name from target_topic_id
+          let missionTopicName = "";
+          let missionSubjectName = "";
+          if (bm.target_topic_id) {
+            const matchedTopic = allTopics.find((t: any) => t.id === bm.target_topic_id);
+            if (matchedTopic) {
+              missionTopicName = matchedTopic.name || "";
+              missionSubjectName = subjectMap[matchedTopic.subject_id] || "";
+            }
+          }
+          // Extract estimated_minutes from description if possible (e.g. "25-min session")
+          const minMatch = (bm.description || "").match(/(\d+)[\s-]*min/i);
+          const estimatedMinutes = minMatch ? parseInt(minMatch[1]) : (bm.target_value || 15);
           todaysMission = {
             mission: {
               id: bm.id,
@@ -964,6 +977,11 @@ Deno.serve(async (req) => {
               type: bm.mission_type || "review",
               priority: bm.priority || "medium",
               topic_id: bm.target_topic_id || "",
+              topic_name: missionTopicName,
+              subject_name: missionSubjectName,
+              estimated_minutes: estimatedMinutes,
+              brain_improvement_pct: bm.reward_value || 5,
+              reasoning: bm.reasoning || "Personalized by your AI brain agent.",
             },
             source: "brain_mission",
           };
