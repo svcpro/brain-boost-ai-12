@@ -9417,6 +9417,7 @@ export type Database = {
       }
       whatsapp_otps: {
         Row: {
+          channel: string
           created_at: string
           expires_at: string
           id: string
@@ -9425,6 +9426,7 @@ export type Database = {
           verified: boolean
         }
         Insert: {
+          channel?: string
           created_at?: string
           expires_at?: string
           id?: string
@@ -9433,6 +9435,7 @@ export type Database = {
           verified?: boolean
         }
         Update: {
+          channel?: string
           created_at?: string
           expires_at?: string
           id?: string
