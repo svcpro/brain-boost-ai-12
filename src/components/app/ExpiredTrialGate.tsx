@@ -100,6 +100,7 @@ const ExpiredTrialGate = ({ onUpgraded }: ExpiredTrialGateProps) => {
         createPortal(
           <SubscriptionPlan
             currentPlan="none"
+            forcePaymentOnly={true}
             onClose={() => setShowPlanModal(false)}
             onPlanChanged={() => {
               setShowPlanModal(false);
