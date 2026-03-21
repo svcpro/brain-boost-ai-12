@@ -64,9 +64,11 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
     });
   };
 
+  const hasUsedTrial = !!subscription?.trial_start_date;
+
   const handleSubscribe = async () => {
     if (!user || !plan) return;
-    if (plan.trial_days > 0 && !subscription?.trial_start_date) {
+    if (plan.trial_days > 0 && !hasUsedTrial) {
       setLoading(true);
       try {
         const trialEnd = new Date();
@@ -347,7 +349,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                       <span className="relative z-10">
                         {loading
                           ? "Processing..."
-                          : !subscription?.trial_start_date && plan?.trial_days > 0
+                          : !hasUsedTrial && plan?.trial_days > 0
                             ? "Start 15-Day Free Trial"
                             : `Upgrade Now · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
                       </span>
