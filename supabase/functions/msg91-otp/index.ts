@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 /* ═══════════════════════════════════════════════════════════
-   MSG91 OTP Edge Function — aligned with official docs:
+   MSG91 OTP Edge Function — v2.1 (updated WhatsApp integration)
    https://docs.msg91.com/otp/sendotp
    https://docs.msg91.com/otp/verify-otp
    https://docs.msg91.com/otp/resend-otp
