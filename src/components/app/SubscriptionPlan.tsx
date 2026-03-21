@@ -349,7 +349,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                       <span className="relative z-10">
                         {loading
                           ? "Processing..."
-                          : !subscription?.trial_start_date && plan?.trial_days > 0
+                          : !hasUsedTrial && plan?.trial_days > 0
                             ? "Start 15-Day Free Trial"
                             : `Upgrade Now · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
                       </span>
