@@ -20,6 +20,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
   const [plan, setPlan] = useState<any>(null);
   const [plansLoading, setPlansLoading] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
+  const [hasUsedTrial, setHasUsedTrial] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -37,14 +38,24 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("user_subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setSubscription(data);
+      const [{ data: latestSubscription }, { data: trialHistory }] = await Promise.all([
+        supabase
+          .from("user_subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("user_subscriptions")
+          .select("id")
+          .eq("user_id", user.id)
+          .or("trial_start_date.not.is.null,is_trial.eq.true")
+          .limit(1),
+      ]);
+
+      setSubscription(latestSubscription);
+      setHasUsedTrial((trialHistory?.length || 0) > 0);
     })();
   }, [user]);
 
@@ -63,8 +74,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
       document.body.appendChild(script);
     });
   };
-
-  const hasUsedTrial = !!subscription?.trial_start_date;
 
   const handleSubscribe = async () => {
     if (!user || !plan) return;
