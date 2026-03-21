@@ -3,51 +3,70 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import ACRYLogo from "@/components/landing/ACRYLogo";
+import ExpiredTrialGate from "@/components/app/ExpiredTrialGate";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  const [profileState, setProfileState] = useState<"loading" | "onboarding" | "banned" | "ready">("loading");
+  const [profileState, setProfileState] = useState<"loading" | "onboarding" | "banned" | "expired" | "ready">("loading");
   const checkedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    console.log("[ProtectedRoute] user:", user?.id ?? "none", "loading:", loading, "profileState:", profileState);
-    if (loading) return; // Wait for auth to finish first
+    if (loading) return;
 
     if (!user) {
-      setProfileState("ready"); // Will redirect to /auth below
+      setProfileState("ready");
       checkedUserIdRef.current = null;
       return;
     }
 
-    // Skip re-check if we already checked this exact user
     if (checkedUserIdRef.current === user.id) return;
 
     let cancelled = false;
 
     const checkProfile = async () => {
       try {
-        const { data } = await supabase
-          .from("profiles")
-          .select("study_preferences, is_banned")
-          .eq("id", user.id)
-          .maybeSingle();
+        const [profileRes, subRes] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("study_preferences, is_banned")
+            .eq("id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("user_subscriptions")
+            .select("status, is_trial, trial_end_date, expires_at")
+            .eq("user_id", user.id)
+            .eq("status", "active")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
 
         if (cancelled) return;
 
+        const data = profileRes.data;
+        const sub = subRes.data;
         const prefs = data?.study_preferences as Record<string, unknown> | null;
-        
+
         if ((data as any)?.is_banned) {
           setProfileState("banned");
         } else if (!prefs?.onboarded) {
           setProfileState("onboarding");
         } else {
-          setProfileState("ready");
+          const now = new Date();
+          const isTrialExpired = sub?.is_trial && sub?.trial_end_date && new Date(sub.trial_end_date) < now;
+          const isSubExpired = !sub?.is_trial && sub?.expires_at && new Date(sub.expires_at) < now;
+          const noSub = !sub;
+
+          if (isTrialExpired || isSubExpired || noSub) {
+            setProfileState("expired");
+          } else {
+            setProfileState("ready");
+          }
         }
         checkedUserIdRef.current = user.id;
       } catch (e) {
         console.error("ProtectedRoute profile check error:", e);
         if (!cancelled) {
-          // On error, let them through rather than blocking forever
           setProfileState("ready");
           checkedUserIdRef.current = user.id;
         }
@@ -58,7 +77,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return () => { cancelled = true; };
   }, [user, loading]);
 
-  // Show loading while auth is initializing OR profile is being checked
   if (loading || (user && profileState === "loading")) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -84,6 +102,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (profileState === "onboarding") return <Navigate to="/onboarding" replace />;
+
+  if (profileState === "expired") {
+    return <ExpiredTrialGate onUpgraded={() => {
+      checkedUserIdRef.current = null;
+      setProfileState("loading");
+    }} />;
+  }
 
   return <>{children}</>;
 };
