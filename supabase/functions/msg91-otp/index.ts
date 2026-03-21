@@ -239,15 +239,15 @@ async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, 
 
 async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string) {
   const payload = {
-    integrated_number: "919211788450",
+    integrated_number: "918796032562",
     content_type: "template",
     payload: {
       messaging_product: "whatsapp",
       type: "template",
       template: {
-        name: "acry_login_otp",
+        name: "acry_otp_verify",
         language: { code: "en", policy: "deterministic" },
-        namespace: "34be867f_2430_42e1_bcd8_1831c618f724",
+        namespace: "5a93dcbd_6802_42d5_af95_17d4fd2d7441",
         to_and_components: [{
           to: [mobile],
           components: {
