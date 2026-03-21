@@ -64,9 +64,11 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
     });
   };
 
+  const hasUsedTrial = !!subscription?.trial_start_date;
+
   const handleSubscribe = async () => {
     if (!user || !plan) return;
-    if (plan.trial_days > 0 && !subscription?.trial_start_date) {
+    if (plan.trial_days > 0 && !hasUsedTrial) {
       setLoading(true);
       try {
         const trialEnd = new Date();
