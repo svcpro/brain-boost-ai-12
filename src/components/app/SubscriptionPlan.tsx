@@ -10,9 +10,10 @@ interface SubscriptionPlanProps {
   onClose: () => void;
   currentPlan?: string;
   onPlanChanged?: () => void;
+  forcePaymentOnly?: boolean;
 }
 
-const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: SubscriptionPlanProps) => {
+const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forcePaymentOnly = false }: SubscriptionPlanProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
@@ -20,6 +21,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
   const [plan, setPlan] = useState<any>(null);
   const [plansLoading, setPlansLoading] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
+  const [hasUsedTrial, setHasUsedTrial] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -37,14 +39,23 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("user_subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setSubscription(data);
+      const [{ data: latestSubscription }, { data: trialHistory }] = await Promise.all([
+        supabase
+          .from("user_subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("user_subscriptions")
+          .select("id")
+          .eq("user_id", user.id)
+          .or("trial_start_date.not.is.null,is_trial.eq.true")
+          .limit(1),
+      ]);
+      setSubscription(latestSubscription);
+      setHasUsedTrial((trialHistory?.length || 0) > 0);
     })();
   }, [user]);
 
@@ -52,6 +63,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
   const yearlyPrice = plan?.yearly_price || 1499;
   const price = billingCycle === "yearly" ? yearlyPrice : monthlyPrice;
   const savings = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100);
+  const canStartTrial = !forcePaymentOnly && !hasUsedTrial && plan?.trial_days > 0;
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -64,11 +76,9 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
     });
   };
 
-  const hasUsedTrial = !!subscription?.trial_start_date;
-
   const handleSubscribe = async () => {
     if (!user || !plan) return;
-    if (plan.trial_days > 0 && !hasUsedTrial) {
+    if (canStartTrial) {
       setLoading(true);
       try {
         const trialEnd = new Date();
@@ -80,12 +90,16 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
         } as any);
         if (error) throw error;
         toast({ title: "Trial Started! 🎉", description: `Your ${plan.trial_days}-day free trial is active.` });
-        onPlanChanged?.(); onClose();
+        onPlanChanged?.();
+        onClose();
       } catch (err: any) {
         toast({ title: "Error", description: err.message, variant: "destructive" });
-      } finally { setLoading(false); }
+      } finally {
+        setLoading(false);
+      }
       return;
     }
+
     setLoading(true);
     try {
       const loaded = await loadRazorpayScript();
@@ -96,32 +110,46 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
       if (error || data?.error) throw new Error(data?.error || error?.message);
       const { order, key_id } = data;
       const options = {
-        key: key_id, amount: order.amount, currency: order.currency,
+        key: key_id,
+        amount: order.amount,
+        currency: order.currency,
         name: "ACRY – AI Second Brain",
         description: `ACRY Premium ${billingCycle === "yearly" ? "Yearly" : "Monthly"} Subscription`,
         order_id: order.id,
         handler: async (response: any) => {
           const { data: verifyData, error: verifyError } = await supabase.functions.invoke("razorpay-order", {
-            body: { action: "verify_payment", plan_id: "premium", amount: price, billing_cycle: billingCycle,
-              order_id: response.razorpay_order_id, payment_id: response.razorpay_payment_id, signature: response.razorpay_signature },
+            body: {
+              action: "verify_payment",
+              plan_id: "premium",
+              amount: price,
+              billing_cycle: billingCycle,
+              order_id: response.razorpay_order_id,
+              payment_id: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            },
           });
           if (verifyError || verifyData?.error) {
-            toast({ title: "Verification failed", description: verifyData?.error || verifyError?.message, variant: "destructive" }); return;
+            toast({ title: "Verification failed", description: verifyData?.error || verifyError?.message, variant: "destructive" });
+            return;
           }
           toast({ title: "Welcome to ACRY Premium! 🎉", description: "All features are now unlocked." });
           import("@/lib/eventBus").then(({ emitEvent }) =>
             emitEvent("subscription_activated", { plan: "ACRY Premium", amount: price, billing_cycle: billingCycle }, { title: "Subscription Activated!", body: "Welcome to ACRY Premium!" })
           );
-          onPlanChanged?.(); onClose();
+          onPlanChanged?.();
+          onClose();
         },
-        prefill: { email: user.email }, theme: { color: "#14b8a6" },
+        prefill: { email: user.email },
+        theme: { color: "#14b8a6" },
         modal: { ondismiss: () => setLoading(false) },
       };
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (err: any) {
       toast({ title: "Payment Error", description: err.message || "Something went wrong", variant: "destructive" });
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = async () => {
@@ -131,10 +159,13 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
       const { error } = await supabase.from("user_subscriptions").update({ status: "cancelled" } as any).eq("id", subscription.id);
       if (error) throw error;
       toast({ title: "Subscription Cancelled", description: "Your subscription has been cancelled." });
-      onPlanChanged?.(); onClose();
+      onPlanChanged?.();
+      onClose();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isTrialActive = subscription?.is_trial && subscription?.status === "active" && subscription?.trial_end_date && new Date(subscription.trial_end_date) > new Date();
@@ -152,14 +183,12 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
-        {/* Backdrop */}
         <motion.div
           className="absolute inset-0 bg-black/80 backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         />
 
-        {/* Card – bottom sheet on mobile, centered on desktop */}
         <motion.div
           className="relative w-full sm:max-w-[380px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden"
           style={{
@@ -173,7 +202,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Top accent */}
           <motion.div
             className="absolute top-0 left-0 right-0 h-[2px]"
             style={{ background: "linear-gradient(90deg, #00E5FF, #7C4DFF, #FFD700)" }}
@@ -182,12 +210,10 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
             transition={{ duration: 0.6, delay: 0.1 }}
           />
 
-          {/* Drag indicator on mobile */}
           <div className="flex justify-center pt-3 sm:hidden">
             <div className="w-10 h-1 rounded-full bg-white/10" />
           </div>
 
-          {/* Close */}
           <motion.button
             onClick={onClose}
             className="absolute top-4 right-4 z-50 w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10"
@@ -198,7 +224,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
           </motion.button>
 
           <div className="relative z-10 px-6 pt-4 pb-6 sm:pt-6">
-            {/* Crown + Title */}
             <motion.div
               className="flex flex-col items-center mb-4"
               initial={{ opacity: 0, y: 15 }}
@@ -223,7 +248,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
               </p>
             </motion.div>
 
-            {/* Status banners */}
             {isTrialActive && (
               <motion.div className="flex items-center gap-2 p-2.5 rounded-xl mb-3" style={{ background: "#00FF9410", border: "1px solid #00FF9420" }}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
@@ -254,7 +278,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
               <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
             ) : (
               <>
-                {/* Billing toggle */}
                 <motion.div
                   className="flex items-center justify-center gap-1 p-1 rounded-full mx-auto w-fit mb-4"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
@@ -288,7 +311,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                   ))}
                 </motion.div>
 
-                {/* Price */}
                 <motion.div className="text-center mb-5" key={billingCycle}
                   initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: "spring", damping: 15 }}
@@ -315,7 +337,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                   )}
                 </motion.div>
 
-                {/* CTA */}
                 {!isPaid && (
                   <motion.div className="relative" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
                     <motion.button
@@ -338,7 +359,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                       }}
                       transition={{ duration: 3, repeat: Infinity }}
                     >
-                      {/* Shine sweep */}
                       <motion.div
                         className="absolute inset-0 pointer-events-none"
                         style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%)" }}
@@ -349,7 +369,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                       <span className="relative z-10">
                         {loading
                           ? "Processing..."
-                          : !hasUsedTrial && plan?.trial_days > 0
+                          : canStartTrial
                             ? "Start 15-Day Free Trial"
                             : `Upgrade Now · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
                       </span>
@@ -358,7 +378,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
                   </motion.div>
                 )}
 
-                {/* Security */}
                 <motion.p className="text-center text-[9px] text-muted-foreground/40 flex items-center justify-center gap-1.5 mt-3"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>
                   <Shield className="w-3 h-3" /> Secure payment · Cancel anytime · Instant access
@@ -366,7 +385,6 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged }: Subs
               </>
             )}
 
-            {/* Cancel link */}
             {(isPaid || isTrialActive) && (
               <motion.button
                 onClick={handleCancel}
