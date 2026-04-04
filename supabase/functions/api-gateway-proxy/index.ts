@@ -29,6 +29,7 @@ const EDGE_FUNCTION_PATHS = new Set([
   "onboarding",
   "home-api",
   "notification",
+  "action-tab-api",
 ]);
 
 const normalizeTargetBase = (rawBase?: unknown) => {
