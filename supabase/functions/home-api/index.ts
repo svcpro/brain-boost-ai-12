@@ -490,20 +490,45 @@ Deno.serve(async (req) => {
 
       // ─── Quick Actions ───
       case "quick-actions": {
-        const { data: topics } = await adminClient
-          .from("topics")
-          .select("id, name, memory_strength")
-          .eq("user_id", userId)
-          .is("deleted_at", null);
-        const all = topics || [];
+        const [topicsRes, streakLogsQA, focusRes] = await Promise.all([
+          adminClient.from("topics").select("id, name, memory_strength").eq("user_id", userId).is("deleted_at", null),
+          adminClient.from("study_sessions").select("created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(60),
+          adminClient.from("distraction_scores").select("focus_score").eq("user_id", userId).eq("score_date", new Date().toISOString().slice(0, 10)).maybeSingle(),
+        ]);
+        const all = topicsRes.data || [];
         const atRisk = all.filter((t: any) => (t.memory_strength ?? 0) < 40);
         const weakest = [...all].sort((a: any, b: any) => (a.memory_strength ?? 0) - (b.memory_strength ?? 0)).slice(0, 3);
         const defaultTopic = { id: "", name: "", memory_strength: 0, risk_level: "low" };
+        const totalTopics = all.length;
+        const avgHealth = totalTopics > 0 ? Math.round(all.reduce((s: number, t: any) => s + (t.memory_strength ?? 0), 0) / totalTopics) : 0;
+        const qaStreakDays = calculateStreak((streakLogsQA.data || []) as Array<{ created_at: string }>).current_streak;
+        const focusScoreVal = (focusRes.data as any)?.focus_score ?? null;
         return json({
-          smart_recall: { available: all.length > 0, topic: weakest[0] ? { ...weakest[0], risk_level: (weakest[0].memory_strength ?? 0) < 40 ? "high" : "low" } : defaultTopic, label: all.length === 0 ? "Add topics first" : "Smart Recall" },
-          risk_shield: { available: atRisk.length > 0, count: atRisk.length, top_topic: atRisk[0] ? { ...atRisk[0], risk_level: "high" } : defaultTopic },
-          rank_boost: { available: all.length > 0 },
-          focus_shield: { available: true },
+          smart_recall: {
+            available: totalTopics > 0,
+            topic: weakest[0] ? { ...weakest[0], risk_level: (weakest[0].memory_strength ?? 0) < 40 ? "high" : "low" } : defaultTopic,
+            label: totalTopics === 0 ? "Add topics first" : "Smart Recall",
+            reward: "+3% memory",
+          },
+          risk_shield: {
+            available: atRisk.length > 0,
+            count: atRisk.length,
+            top_topic: atRisk[0] ? { ...atRisk[0], risk_level: "high" } : defaultTopic,
+            reward: atRisk.length > 0 ? `${atRisk.length} at risk` : "All safe",
+          },
+          rank_boost: {
+            available: totalTopics > 0,
+            reward: "+1 rank",
+          },
+          focus_shield: {
+            available: true,
+            reward: focusScoreVal !== null ? `${focusScoreVal}% focus` : "Track focus",
+            focus_score: focusScoreVal,
+          },
+          overall_health: avgHealth,
+          streak_days: qaStreakDays,
+          at_risk_count: atRisk.length,
+          total_topics: totalTopics,
         });
       }
 
@@ -1281,10 +1306,14 @@ Deno.serve(async (req) => {
           },
           brain_missions: { missions: missionsRes.data || [] },
           quick_actions: {
-            smart_recall: { available: total > 0, topic: weakest[0] || defaultTopic, label: total === 0 ? "Add topics first" : "Smart Recall" },
-            risk_shield: { available: riskTopicsList.length > 0, count: riskTopicsList.length, top_topic: riskTopicsList[0] || defaultTopic },
-            rank_boost: { available: total > 0 },
-            focus_shield: { available: true },
+            smart_recall: { available: total > 0, topic: weakest[0] || defaultTopic, label: total === 0 ? "Add topics first" : "Smart Recall", reward: "+3% memory" },
+            risk_shield: { available: riskTopicsList.length > 0, count: riskTopicsList.length, top_topic: riskTopicsList[0] || defaultTopic, reward: riskTopicsList.length > 0 ? `${riskTopicsList.length} at risk` : "All safe" },
+            rank_boost: { available: total > 0, reward: "+1 rank" },
+            focus_shield: { available: true, reward: "Track focus", focus_score: null },
+            overall_health: avgHealth,
+            streak_days: streakInfo.current_streak,
+            at_risk_count: atRisk,
+            total_topics: total,
           },
           review_queue: { queue: reviewQueue, count: reviewQueue.length },
           risk_digest: { risk_topics: riskTopicsList, count: riskTopicsList.length },
