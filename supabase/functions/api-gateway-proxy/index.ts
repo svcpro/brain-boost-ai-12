@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// Native Deno.serve used below
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -29,6 +29,7 @@ const EDGE_FUNCTION_PATHS = new Set([
   "onboarding",
   "home-api",
   "notification",
+  "action-tab-api",
 ]);
 
 const normalizeTargetBase = (rawBase?: unknown) => {
@@ -185,7 +186,7 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
   };
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
