@@ -611,7 +611,7 @@ Deno.serve(async (req) => {
       .replace(/^\/+|\/+$/g, "");
 
     if (!route) {
-      route = req.headers.get("x-route") || String(body.route || body.action || query.route || "");
+      route = req.headers.get("x-route") || String(body.route || body.action || query.route || query.action || "");
     }
 
     const authHeader = req.headers.get("authorization") || "";
