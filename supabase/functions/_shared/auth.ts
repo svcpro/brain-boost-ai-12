@@ -17,7 +17,7 @@ export interface AuthResult {
   userId: string;
   email: string | undefined;
   role: string;
-  supabase: ReturnType<typeof createClient>;
+  supabase: any;
 }
 
 /**
