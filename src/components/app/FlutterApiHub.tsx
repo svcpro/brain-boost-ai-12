@@ -421,6 +421,60 @@ const ACRY_API_ROUTES = [
   { group: "Exam Simulator", path: "mock/review", method: "GET", desc: "Review mock exam answers with explanations", auth: true, request: {}, response: { questions: [{ id: "uuid", text: "string", user_answer: 2, correct_answer: 3, explanation: "string", topic: "Thermodynamics" }] } },
   { group: "Exam Simulator", path: "mock/history", method: "GET", desc: "Get mock exam attempt history", auth: true, request: {}, response: { exams: [{ session_id: "uuid", exam_type: "NEET", score: 520, date: "ISO_DATE", percentile: 85 }] } },
   { group: "Exam Simulator", path: "mock/analytics", method: "GET", desc: "Get mock exam performance analytics", auth: true, request: {}, response: { attempts: 8, avg_score: 510, best_score: 580, trend: "improving", weak_subjects: ["Physics"], strong_subjects: ["Biology"], time_management: { avg_per_question: 55, optimal: 60 } } },
+
+  // ── Action Tab API (Unified Single Endpoint — 13 routes) ──
+  { group: "Action Tab API", path: "action-tab-api/init", method: "POST", desc: "🔥 FULL ACTION TAB BOOTSTRAP — Single call returns recommended topic, study modes (with lock status), today's gains, active tasks, exam countdown. Call on tab open.", auth: true,
+    request: { action: "init" },
+    response: { recommended_topic: { id: "uuid", name: "Optics", subject: "Physics", stability: 28, estimated_time: "25 min deep session" }, study_modes: [{ id: "focus", title: "Focus Study Mode", description: "Deep Pomodoro sessions...", duration: "25-50 min", gain: "+8-12% stability", is_locked: false }], todays_gains: { stability_gain: 7.5, risk_reduction: 15, rank_change: 4.5, focus_score: 70, focus_streak: 3, study_minutes: 45, sessions_count: 3, weekly_data: [{ day: "Mon", value: 30 }] }, active_tasks: { tasks: [{ id: "uuid", title: "Review Optics", description: "Memory dropping", priority: "high", type: "urgent", topic_id: "uuid", estimated_minutes: 5, impact_level: "high" }], completed_today: 2, daily_goal: 5 }, exam_countdown: { phase: "acceleration", days_remaining: 12, exam_date: "2025-05-01", exam_type: "NEET", locked_modes: [], lock_message: "", recommended_mode: "focus", can_bypass: true, is_enabled: true, ai_reasoning: "...", confidence: 0.85 } }
+  },
+  { group: "Action Tab API", path: "action-tab-api/todays-gains", method: "POST", desc: "Refresh today's gains — stability gain, risk reduction, rank change, focus score, weekly chart, focus streak", auth: true,
+    request: { action: "todays-gains" },
+    response: { stability_gain: 7.5, risk_reduction: 15, rank_change: 4.5, focus_score: 70, focus_streak: 3, study_minutes: 45, sessions_count: 3, weekly_data: [{ day: "Mon", value: 30 }, { day: "Tue", value: 45 }] }
+  },
+  { group: "Action Tab API", path: "action-tab-api/session-history", method: "POST", desc: "Get focus session history with resolved subject/topic names. Filter by study mode.", auth: true,
+    request: { action: "session-history", mode: "focus", limit: 50 },
+    response: { sessions: [{ id: "uuid", duration_minutes: 25, confidence_level: "high", created_at: "ISO_DATE", subject: "Physics", topic: "Optics", notes: "", study_mode: "focus" }], subjects: { "uuid": "Physics" }, topics: { "uuid": "Optics" } }
+  },
+  { group: "Action Tab API", path: "action-tab-api/start-session", method: "POST", desc: "Start a new study session — creates study_log entry, returns session_id for tracking", auth: true,
+    request: { action: "start-session", mode: "focus", topic_id: "uuid", subject_id: "uuid" },
+    response: { session_id: "uuid", started_at: "ISO_DATE" }
+  },
+  { group: "Action Tab API", path: "action-tab-api/end-session", method: "POST", desc: "End a study session — updates duration, confidence, notes. Auto-boosts topic memory_strength.", auth: true,
+    request: { action: "end-session", session_id: "uuid", duration_minutes: 25, confidence_level: "high", notes: "Good session", topic_id: "uuid" },
+    response: { success: true }
+  },
+  { group: "Action Tab API", path: "action-tab-api/log-session", method: "POST", desc: "Quick log a completed session (no start/end flow). Auto-boosts topic memory.", auth: true,
+    request: { action: "log-session", mode: "focus", duration_minutes: 25, confidence_level: "high", topic_id: "uuid", subject_id: "uuid", notes: "" },
+    response: { success: true, session_id: "uuid" }
+  },
+  { group: "Action Tab API", path: "action-tab-api/task-complete", method: "POST", desc: "Mark an AI recommendation task as completed", auth: true,
+    request: { action: "task-complete", task_id: "uuid" },
+    response: { success: true }
+  },
+  { group: "Action Tab API", path: "action-tab-api/topic-explorer", method: "POST", desc: "Deep Topic Explorer — without subject_id returns all subjects with health aggregates. With subject_id returns topics with strategy tags.", auth: true,
+    request: { action: "topic-explorer", subject_id: "uuid-or-omit" },
+    response: { subjects: [{ id: "uuid", name: "Physics", topic_count: 25, avg_strength: 58, critical_count: 3, strong_count: 10 }] }
+  },
+  { group: "Action Tab API", path: "action-tab-api/topic-strategy", method: "POST", desc: "Get AI-generated 3-step study strategy for a specific topic based on its memory strength level (critical/moderate/strong)", auth: true,
+    request: { action: "topic-strategy", topic_id: "uuid" },
+    response: { topic: { id: "uuid", name: "Optics", memory_strength: 28, subject: "Physics", last_revision_date: "" }, strategy: { level: "critical", steps: [{ title: "Recall Burst", description: "Quick 5-min recall exercise", mode: "emergency", duration: 5 }, { title: "Deep Focus", description: "15-min focused review", mode: "focus", duration: 15 }, { title: "Pressure Test", description: "10-min timed MCQ sprint", mode: "mock", duration: 10 }] } }
+  },
+  { group: "Action Tab API", path: "action-tab-api/questions", method: "POST", desc: "Get AI-generated MCQs for any topic. Proxies to ai-brain-agent. Accepts topic_id OR topic_name.", auth: true,
+    request: { action: "questions", topic_id: "uuid", topic_name: "Optics", subject_name: "Physics", difficulty: "medium", count: 5 },
+    response: { questions: [{ question: "What is total internal reflection?", options: ["A", "B", "C", "D"], correct_index: 2, explanation: "Because...", difficulty: "medium" }] }
+  },
+  { group: "Action Tab API", path: "action-tab-api/daily-summary", method: "POST", desc: "Quick daily stats — total minutes, session count, topics studied, mode breakdown, mission stats", auth: true,
+    request: { action: "daily-summary" },
+    response: { total_minutes: 120, session_count: 5, topics_studied: 8, mode_breakdown: { focus: 60, revision: 30, mock: 30 }, missions_completed: 2, missions_active: 1 }
+  },
+  { group: "Action Tab API", path: "action-tab-api/topics-list", method: "POST", desc: "Get all user topics sorted by memory strength (weakest first). Optional subject_id filter.", auth: true,
+    request: { action: "topics-list", subject_id: "uuid-or-omit" },
+    response: { topics: [{ id: "uuid", name: "Optics", memory_strength: 28, subject_id: "uuid", last_revision_date: "" }] }
+  },
+  { group: "Action Tab API", path: "action-tab-api/subjects-list", method: "POST", desc: "Get all user subjects", auth: true,
+    request: { action: "subjects-list" },
+    response: { subjects: [{ id: "uuid", name: "Physics" }] }
+  },
 ];
 
 const METHOD_COLORS: Record<string, string> = {
