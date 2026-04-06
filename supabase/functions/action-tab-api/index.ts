@@ -853,6 +853,321 @@ async function handleRecommendedNext(userId: string, body: any) {
   };
 }
 
+// 15. START FOCUS SESSION — Full bootstrap: creates session + fetches questions + topic context
+async function handleStartFocusSession(userId: string, body: any, authHeader: string) {
+  const { topic_id, mode, duration_minutes } = body;
+  if (!mode) return { error: "mode is required" };
+
+  // ── Resolve topic (use provided or auto-pick weakest) ──
+  let targetTopic: any = null;
+  let resolvedTopicId = topic_id || null;
+
+  if (topic_id) {
+    const { data } = await admin.from("topics")
+      .select("id, name, memory_strength, subject_id, subjects(name)")
+      .eq("id", topic_id).eq("user_id", userId).maybeSingle();
+    targetTopic = data;
+  } else {
+    const recentRes = await admin.from("study_logs")
+      .select("topic_id").eq("user_id", userId)
+      .order("created_at", { ascending: false }).limit(3);
+    const recentIds = (recentRes.data || []).map((r: any) => r.topic_id).filter(Boolean);
+
+    const { data: candidates } = await admin.from("topics")
+      .select("id, name, memory_strength, subject_id, subjects(name)")
+      .eq("user_id", userId).is("deleted_at", null)
+      .order("memory_strength", { ascending: true }).limit(5);
+    targetTopic = (candidates || []).find((t: any) => !recentIds.includes(t.id)) || (candidates || [])[0] || null;
+  }
+
+  if (targetTopic) resolvedTopicId = targetTopic.id;
+
+  // ── Create study session log ──
+  const { data: session, error: sessionErr } = await admin.from("study_logs").insert({
+    user_id: userId,
+    study_mode: mode,
+    topic_id: resolvedTopicId,
+    subject_id: targetTopic?.subject_id || null,
+    duration_minutes: 0,
+    confidence_level: "medium",
+  }).select("id, created_at").single();
+
+  if (sessionErr) return { error: sessionErr.message };
+
+  // ── Fetch questions via ai-brain-agent ──
+  let questions: any[] = [];
+  const topicName = targetTopic?.name || "General";
+  const subjectName = (targetTopic as any)?.subjects?.name || "General";
+  const strength = targetTopic ? (targetTopic.memory_strength ?? 0) : 0.5;
+  const difficulty = strength < 0.3 ? "easy" : strength < 0.6 ? "medium" : "hard";
+  const questionCount = mode === "emergency" ? 5 : mode === "revision" ? 8 : 10;
+
+  try {
+    const agentUrl = `${supabaseUrl}/functions/v1/ai-brain-agent`;
+    const resp = await fetch(agentUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": authHeader,
+        "apikey": anonKey,
+      },
+      body: JSON.stringify({
+        action: "mission_questions",
+        topic_name: topicName,
+        subject_name: subjectName,
+        difficulty,
+        count: questionCount,
+      }),
+    });
+    const agentData = await resp.json();
+    questions = Array.isArray(agentData?.questions) ? agentData.questions : [];
+  } catch (e) {
+    console.error("Failed to fetch questions from ai-brain-agent:", e);
+  }
+
+  // ── Ensure questions have proper structure ──
+  questions = questions.map((q: any, idx: number) => ({
+    id: q.id || `q_${idx}_${Date.now()}`,
+    question_text: q.question || q.question_text || "",
+    options: Array.isArray(q.options) ? q.options : [],
+    correct_answer_index: typeof q.correct_answer_index === "number" ? q.correct_answer_index
+      : typeof q.correct_answer === "number" ? q.correct_answer
+      : Array.isArray(q.options) ? q.options.indexOf(q.correct_answer) : 0,
+    explanation: q.explanation || "",
+    difficulty: q.difficulty || difficulty,
+    marks: q.marks || 1,
+    topic_name: topicName,
+    subject_name: subjectName,
+  }));
+
+  // ── Session config ──
+  const sessionConfig = {
+    total_questions: questions.length,
+    time_limit_seconds: mode === "emergency" ? 300
+      : mode === "revision" ? 600
+      : mode === "mock" ? 1800
+      : (duration_minutes || 25) * 60,
+    mode,
+    scoring: { correct: 4, incorrect: -1, unanswered: 0 },
+    features: {
+      show_explanation_after_answer: mode !== "mock",
+      show_correct_answer: mode !== "mock",
+      allow_skip: true,
+      show_timer: true,
+      show_progress: true,
+      auto_submit_on_timeout: true,
+    },
+  };
+
+  // ── Topic context for UI ──
+  const topicContext = targetTopic ? {
+    id: targetTopic.id,
+    name: targetTopic.name,
+    subject: (targetTopic as any).subjects?.name || "General",
+    memory_strength: Math.round(strength * 100),
+    health: strength < 0.3 ? "critical" : strength < 0.6 ? "moderate" : "strong",
+    strategy: strength < 0.3 ? "recovery" : strength < 0.6 ? "reinforcement" : "maintenance",
+  } : {
+    id: "",
+    name: "General Practice",
+    subject: "General",
+    memory_strength: 50,
+    health: "moderate",
+    strategy: "reinforcement",
+  };
+
+  return {
+    session_id: session.id,
+    started_at: session.created_at,
+    topic: topicContext,
+    questions,
+    session_config: sessionConfig,
+    meta: {
+      question_count: questions.length,
+      difficulty,
+      estimated_duration_minutes: mode === "emergency" ? 5 : mode === "revision" ? 10 : 25,
+    },
+  };
+}
+
+// 16. SUBMIT ANSWER — Record individual answer during session
+async function handleSubmitAnswer(userId: string, body: any) {
+  const { session_id, question_id, selected_option_index, correct_option_index, time_taken_ms, is_correct } = body;
+  if (!session_id || question_id === undefined) return { error: "session_id and question_id are required" };
+
+  await admin.from("behavioral_micro_events").insert({
+    user_id: userId,
+    event_type: "quiz_answer",
+    session_id,
+    context: {
+      question_id,
+      selected_option_index,
+      correct_option_index,
+      is_correct: is_correct ?? (selected_option_index === correct_option_index),
+      time_taken_ms: time_taken_ms || 0,
+    },
+    severity: is_correct ? 0 : (time_taken_ms > 30000 ? 3 : 1),
+  });
+
+  return {
+    success: true,
+    is_correct: is_correct ?? (selected_option_index === correct_option_index),
+    recorded_at: new Date().toISOString(),
+  };
+}
+
+// 17. COMPLETE FOCUS SESSION — End session, calculate results, update memory, generate recommendations
+async function handleCompleteFocusSession(userId: string, body: any, authHeader: string) {
+  const {
+    session_id, answers, topic_id, duration_minutes, mode, total_questions,
+  } = body;
+  if (!session_id) return { error: "session_id is required" };
+
+  const answersList = Array.isArray(answers) ? answers : [];
+  const totalQ = total_questions || answersList.length || 0;
+
+  // ── Calculate scores ──
+  let correct = 0, incorrect = 0, skipped = 0, totalTimeTakenMs = 0;
+  const questionResults: any[] = [];
+
+  answersList.forEach((a: any) => {
+    const isCorrect = a.is_correct ?? (a.selected_option_index === a.correct_option_index);
+    if (a.selected_option_index === -1 || a.selected_option_index === null || a.selected_option_index === undefined) {
+      skipped++;
+    } else if (isCorrect) {
+      correct++;
+    } else {
+      incorrect++;
+    }
+    totalTimeTakenMs += (a.time_taken_ms || 0);
+    questionResults.push({
+      question_id: a.question_id,
+      selected_option_index: a.selected_option_index ?? -1,
+      correct_option_index: a.correct_option_index,
+      is_correct: isCorrect,
+      time_taken_ms: a.time_taken_ms || 0,
+    });
+  });
+
+  const totalMarks = (correct * 4) + (incorrect * -1);
+  const maxMarks = totalQ * 4;
+  const percentage = maxMarks > 0 ? Math.round((totalMarks / maxMarks) * 100) : 0;
+  const accuracy = totalQ > 0 ? Math.round((correct / totalQ) * 100) : 0;
+  const avgTimePerQuestion = answersList.length > 0 ? Math.round(totalTimeTakenMs / answersList.length) : 0;
+
+  // ── Performance grade ──
+  let grade = "needs_improvement", gradeLabel = "Needs Improvement", gradeColor = "#EF4444";
+  if (percentage >= 90) { grade = "excellent"; gradeLabel = "Excellent 🎯"; gradeColor = "#10B981"; }
+  else if (percentage >= 75) { grade = "great"; gradeLabel = "Great Job 🌟"; gradeColor = "#22C55E"; }
+  else if (percentage >= 60) { grade = "good"; gradeLabel = "Good Effort 📖"; gradeColor = "#3B82F6"; }
+  else if (percentage >= 40) { grade = "fair"; gradeLabel = "Keep Practicing 💪"; gradeColor = "#F59E0B"; }
+
+  // ── Speed analysis ──
+  const speedAnalysis = avgTimePerQuestion < 15000 ? "fast" : avgTimePerQuestion > 45000 ? "slow" : "balanced";
+
+  // ── Update study_logs ──
+  const finalDuration = duration_minutes || Math.ceil(totalTimeTakenMs / 60000) || 1;
+  const confidenceLevel = percentage >= 70 ? "high" : percentage >= 40 ? "medium" : "low";
+
+  await admin.from("study_logs").update({
+    duration_minutes: finalDuration,
+    confidence_level: confidenceLevel,
+    notes: `Score: ${correct}/${totalQ} (${percentage}%) | Mode: ${mode || "focus"}`,
+  }).eq("id", session_id).eq("user_id", userId);
+
+  // ── Update topic memory_strength ──
+  let memoryImpact: any = { before: 0, after: 0, change: 0, change_label: "", topic_name: "", subject: "" };
+  if (topic_id) {
+    const { data: topic } = await admin.from("topics")
+      .select("memory_strength, name, subject_id, subjects(name)")
+      .eq("id", topic_id).eq("user_id", userId).maybeSingle();
+
+    if (topic) {
+      const oldStrength = topic.memory_strength ?? 0;
+      const performanceMultiplier = accuracy >= 80 ? 1.5 : accuracy >= 60 ? 1.0 : accuracy >= 40 ? 0.5 : 0.2;
+      const durationMultiplier = Math.min(finalDuration / 10, 2);
+      const boost = 0.05 * performanceMultiplier * durationMultiplier;
+      const newStrength = Math.min(1, oldStrength + boost);
+
+      await admin.from("topics").update({
+        memory_strength: newStrength,
+        last_revision_date: new Date().toISOString(),
+      }).eq("id", topic_id);
+
+      memoryImpact = {
+        before: Math.round(oldStrength * 100),
+        after: Math.round(newStrength * 100),
+        change: Math.round((newStrength - oldStrength) * 100),
+        change_label: `+${Math.round((newStrength - oldStrength) * 100)}% stability`,
+        topic_name: topic.name,
+        subject: (topic as any).subjects?.name || "General",
+      };
+    }
+  }
+
+  // ── Streaks & XP ──
+  const today = todayStart();
+  const { count: todaySessionCount } = await admin.from("study_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId).gte("created_at", today);
+
+  const xpEarned = (correct * 10) + (finalDuration * 2) + (accuracy >= 80 ? 50 : accuracy >= 60 ? 25 : 0);
+
+  // ── Next recommendations ──
+  let nextRecommendations: any[] = [];
+  try {
+    const recResult = await handleRecommendedNext(userId, { topic_id, mode: mode || "focus", session_minutes: finalDuration });
+    nextRecommendations = recResult.recommended_next || [];
+  } catch (e) {
+    console.error("Failed to generate next recommendations:", e);
+  }
+
+  // ── Weak areas ──
+  const weakAreas: any[] = [];
+  if (incorrect > 0) {
+    weakAreas.push({ type: "incorrect_answers", count: incorrect, message: `${incorrect} question${incorrect > 1 ? "s" : ""} answered incorrectly — review explanations` });
+  }
+  if (avgTimePerQuestion > 45000 && answersList.length > 0) {
+    weakAreas.push({ type: "slow_speed", avg_time_seconds: Math.round(avgTimePerQuestion / 1000), message: "Average response time is above 45 seconds — practice for speed" });
+  }
+  if (skipped > 0) {
+    weakAreas.push({ type: "skipped_questions", count: skipped, message: `${skipped} question${skipped > 1 ? "s" : ""} skipped — attempt all for better assessment` });
+  }
+
+  return {
+    result: {
+      session_id,
+      total_questions: totalQ,
+      correct,
+      incorrect,
+      skipped,
+      total_marks: totalMarks,
+      max_marks: maxMarks,
+      percentage,
+      accuracy,
+      grade,
+      grade_label: gradeLabel,
+      grade_color: gradeColor,
+      duration_minutes: finalDuration,
+      avg_time_per_question_ms: avgTimePerQuestion,
+      speed_analysis: speedAnalysis,
+    },
+    memory_impact: memoryImpact,
+    rewards: {
+      xp_earned: xpEarned,
+      sessions_today: todaySessionCount || 0,
+      streak_maintained: true,
+    },
+    weak_areas: weakAreas,
+    question_results: questionResults,
+    recommended_next: nextRecommendations.slice(0, 3),
+    meta: {
+      completed_at: new Date().toISOString(),
+      mode: mode || "focus",
+    },
+  };
+}
+
 // ═══════════════════════════════════════════════════════════
 //  MAIN ROUTER
 // ═══════════════════════════════════════════════════════════
@@ -925,11 +1240,21 @@ Deno.serve(async (req) => {
       case "recommended-next":
         return json(await handleRecommendedNext(userId, body));
 
+      case "start-focus-session":
+        return json(await handleStartFocusSession(userId, body, authHeader));
+
+      case "submit-answer":
+        return json(await handleSubmitAnswer(userId, body));
+
+      case "complete-focus-session":
+        return json(await handleCompleteFocusSession(userId, body, authHeader));
+
       default:
         return json({ error: `Unknown route: ${route}`, available_routes: [
           "init", "todays-gains", "session-history", "start-session", "end-session",
           "log-session", "task-complete", "topic-explorer", "topic-strategy",
-          "questions", "daily-summary", "topics-list", "subjects-list", "recommended-next"
+          "questions", "daily-summary", "topics-list", "subjects-list", "recommended-next",
+          "start-focus-session", "submit-answer", "complete-focus-session"
         ] }, 404);
     }
   } catch (e) {
