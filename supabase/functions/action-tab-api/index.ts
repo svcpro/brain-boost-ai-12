@@ -587,6 +587,232 @@ async function handleSubjectsList(userId: string) {
   return { subjects: data || [] };
 }
 
+// 14. RECOMMENDED NEXT — AI-powered next actions after focus session
+async function handleRecommendedNext(userId: string, body: any) {
+  const currentTopicId = body.topic_id || null;
+  const currentMode = body.mode || "focus";
+  const sessionMinutes = body.session_minutes || 0;
+
+  const today = todayStart();
+
+  const [
+    weakTopicsRes, recentSessionsRes, missionsRes,
+    todaySessionsRes, profileRes, currentTopicRes
+  ] = await Promise.all([
+    // Weakest topics (top 10)
+    admin.from("topics")
+      .select("id, name, memory_strength, subject_id, subjects(name), last_revision_date, next_predicted_drop_date")
+      .eq("user_id", userId).is("deleted_at", null)
+      .order("memory_strength", { ascending: true }).limit(10),
+    // Recent sessions (last 5) to avoid recommending same topic
+    admin.from("study_logs")
+      .select("topic_id, study_mode, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }).limit(5),
+    // Active missions
+    admin.from("brain_missions")
+      .select("id, title, description, mission_type, priority, target_topic_id, target_value, current_value, status, expires_at")
+      .eq("user_id", userId).in("status", ["active", "in_progress"])
+      .order("priority", { ascending: true }).limit(5),
+    // Today's sessions for fatigue detection
+    admin.from("study_logs")
+      .select("duration_minutes, study_mode, created_at")
+      .eq("user_id", userId).gte("created_at", today),
+    // Profile for exam date
+    admin.from("profiles")
+      .select("exam_date, exam_type").eq("id", userId).maybeSingle(),
+    // Current topic details (if provided)
+    currentTopicId
+      ? admin.from("topics")
+          .select("id, name, memory_strength, subject_id, subjects(name)")
+          .eq("id", currentTopicId).eq("user_id", userId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const weakTopics = (weakTopicsRes.data || []) as any[];
+  const recentSessions = (recentSessionsRes.data || []) as any[];
+  const missions = (missionsRes.data || []) as any[];
+  const todaySessions = (todaySessionsRes.data || []) as any[];
+  const profile = profileRes.data as any;
+  const currentTopic = currentTopicRes.data as any;
+
+  // ── Fatigue detection ──
+  const todayMinutes = todaySessions.reduce((s: number, r: any) => s + (r.duration_minutes || 0), 0);
+  const todayCount = todaySessions.length;
+  const isFatigued = todayMinutes > 120 || todayCount > 8;
+
+  // ── Recently studied topic IDs (to deprioritize) ──
+  const recentTopicIds = new Set(recentSessions.map((s: any) => s.topic_id).filter(Boolean));
+
+  // ── Exam proximity ──
+  let daysToExam: number | null = null;
+  let examUrgency = "normal";
+  if (profile?.exam_date) {
+    daysToExam = Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000);
+    if (daysToExam <= 3) examUrgency = "critical";
+    else if (daysToExam <= 14) examUrgency = "high";
+    else if (daysToExam <= 30) examUrgency = "moderate";
+  }
+
+  // ── Build recommended_next items ──
+  const recommendations: any[] = [];
+
+  // 1. Priority: Continue current topic if weak
+  if (currentTopic && (currentTopic.memory_strength ?? 0) < 0.6) {
+    const strength = Math.round((currentTopic.memory_strength ?? 0) * 100);
+    recommendations.push({
+      type: "continue_topic",
+      priority: "high",
+      title: `Continue: ${currentTopic.name}`,
+      subtitle: `${strength}% stability — needs more reinforcement`,
+      topic_id: currentTopic.id,
+      topic_name: currentTopic.name,
+      subject: (currentTopic as any).subjects?.name || "General",
+      memory_strength: strength,
+      recommended_mode: strength < 30 ? "emergency" : "revision",
+      recommended_duration: strength < 30 ? 10 : 8,
+      reason: strength < 30
+        ? "Critical stability — emergency recall burst recommended"
+        : "Below threshold — quick revision will lock in gains from this session",
+      icon: "refresh-cw",
+      color: strength < 30 ? "#EF4444" : "#F59E0B",
+    });
+  }
+
+  // 2. Weakest unvisited topic
+  const nextWeakTopic = weakTopics.find((t: any) =>
+    t.id !== currentTopicId && !recentTopicIds.has(t.id) && (t.memory_strength ?? 0) < 0.5
+  );
+  if (nextWeakTopic) {
+    const strength = Math.round((nextWeakTopic.memory_strength ?? 0) * 100);
+    recommendations.push({
+      type: "weak_topic",
+      priority: strength < 20 ? "critical" : "high",
+      title: `Rescue: ${nextWeakTopic.name}`,
+      subtitle: `${strength}% stability — ${(nextWeakTopic as any).subjects?.name || "General"}`,
+      topic_id: nextWeakTopic.id,
+      topic_name: nextWeakTopic.name,
+      subject: (nextWeakTopic as any).subjects?.name || "General",
+      memory_strength: strength,
+      recommended_mode: strength < 20 ? "emergency" : "focus",
+      recommended_duration: strength < 20 ? 8 : 15,
+      reason: strength < 20
+        ? "Memory critical — immediate rescue needed before full decay"
+        : "Weakest unstudied topic — high impact opportunity",
+      icon: "alert-triangle",
+      color: strength < 20 ? "#EF4444" : "#F97316",
+    });
+  }
+
+  // 3. Topic about to drop (predicted drop date approaching)
+  const droppingTopic = weakTopics.find((t: any) => {
+    if (t.id === currentTopicId || recentTopicIds.has(t.id)) return false;
+    if (!t.next_predicted_drop_date) return false;
+    const dropDate = new Date(t.next_predicted_drop_date);
+    const hoursUntilDrop = (dropDate.getTime() - Date.now()) / 3600000;
+    return hoursUntilDrop > 0 && hoursUntilDrop < 48;
+  });
+  if (droppingTopic) {
+    const strength = Math.round((droppingTopic.memory_strength ?? 0) * 100);
+    const hoursLeft = Math.round((new Date(droppingTopic.next_predicted_drop_date).getTime() - Date.now()) / 3600000);
+    recommendations.push({
+      type: "dropping_soon",
+      priority: "high",
+      title: `Save: ${droppingTopic.name}`,
+      subtitle: `Dropping in ${hoursLeft}h — ${strength}% stability`,
+      topic_id: droppingTopic.id,
+      topic_name: droppingTopic.name,
+      subject: (droppingTopic as any).subjects?.name || "General",
+      memory_strength: strength,
+      recommended_mode: "revision",
+      recommended_duration: 10,
+      reason: `Memory predicted to drop within ${hoursLeft} hours — quick revision now prevents decay`,
+      icon: "clock",
+      color: "#F59E0B",
+    });
+  }
+
+  // 4. Active mission progress
+  const topMission = missions[0];
+  if (topMission) {
+    const progress = topMission.target_value
+      ? Math.round(((topMission.current_value || 0) / topMission.target_value) * 100)
+      : 0;
+    recommendations.push({
+      type: "mission",
+      priority: "medium",
+      title: `Mission: ${topMission.title}`,
+      subtitle: `${progress}% complete${topMission.expires_at ? ` — expires ${new Date(topMission.expires_at).toLocaleDateString()}` : ""}`,
+      mission_id: topMission.id,
+      topic_id: topMission.target_topic_id || "",
+      progress,
+      recommended_mode: topMission.mission_type === "recall" ? "revision" : topMission.mission_type === "practice" ? "mock" : "focus",
+      recommended_duration: 15,
+      reason: "Active brain mission — completing this earns rewards and builds streaks",
+      icon: "target",
+      color: "#8B5CF6",
+    });
+  }
+
+  // 5. Mode switch suggestion (if same mode too long)
+  const recentModes = recentSessions.map((s: any) => s.study_mode);
+  const sameModeSessions = recentModes.filter((m: string) => m === currentMode).length;
+  if (sameModeSessions >= 3) {
+    const suggestedMode = currentMode === "focus" ? "mock" : currentMode === "mock" ? "revision" : "focus";
+    recommendations.push({
+      type: "mode_switch",
+      priority: "low",
+      title: `Switch to ${suggestedMode === "mock" ? "Mock Practice" : suggestedMode === "revision" ? "Quick Revision" : "Focus Study"}`,
+      subtitle: "Variety improves retention by 23%",
+      recommended_mode: suggestedMode,
+      recommended_duration: suggestedMode === "revision" ? 10 : 20,
+      reason: `You've done ${sameModeSessions} ${currentMode} sessions in a row — switching modes activates different memory pathways`,
+      icon: "shuffle",
+      color: "#06B6D4",
+    });
+  }
+
+  // 6. Break suggestion if fatigued
+  if (isFatigued) {
+    recommendations.push({
+      type: "take_break",
+      priority: "medium",
+      title: "Take a Break",
+      subtitle: `${todayMinutes} min studied today — rest boosts retention`,
+      recommended_duration: 15,
+      reason: `You've studied ${todayMinutes} minutes across ${todayCount} sessions today. Research shows short breaks improve long-term memory consolidation.`,
+      icon: "coffee",
+      color: "#10B981",
+    });
+  }
+
+  // Sort by priority
+  const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  recommendations.sort((a, b) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9));
+
+  return {
+    recommended_next: recommendations.slice(0, 5),
+    context: {
+      current_topic: currentTopic ? {
+        id: currentTopic.id,
+        name: currentTopic.name,
+        memory_strength: Math.round((currentTopic.memory_strength ?? 0) * 100),
+      } : null,
+      session_minutes: sessionMinutes,
+      today_total_minutes: todayMinutes,
+      today_session_count: todayCount,
+      is_fatigued: isFatigued,
+      days_to_exam: daysToExam,
+      exam_urgency: examUrgency,
+      active_missions: missions.length,
+    },
+    meta: {
+      generated_at: new Date().toISOString(),
+      total_recommendations: recommendations.length,
+    },
+  };
+}
+
 // ═══════════════════════════════════════════════════════════
 //  MAIN ROUTER
 // ═══════════════════════════════════════════════════════════
@@ -656,11 +882,14 @@ Deno.serve(async (req) => {
       case "subjects-list":
         return json(await handleSubjectsList(userId));
 
+      case "recommended-next":
+        return json(await handleRecommendedNext(userId, body));
+
       default:
         return json({ error: `Unknown route: ${route}`, available_routes: [
           "init", "todays-gains", "session-history", "start-session", "end-session",
           "log-session", "task-complete", "topic-explorer", "topic-strategy",
-          "questions", "daily-summary", "topics-list", "subjects-list"
+          "questions", "daily-summary", "topics-list", "subjects-list", "recommended-next"
         ] }, 404);
     }
   } catch (e) {
