@@ -1143,12 +1143,37 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
     strategy: "reinforcement",
   };
 
+  // ── Session phases ──
+  const stabilityPct = Math.round(strength * 100);
+  const sessionPhases = [
+    { phase: 1, type: "recall", title: "Active Recall", duration_minutes: mode === "emergency" ? 2 : 8, description: `Recall key concepts from ${topicName}` },
+    { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_minutes: mode === "emergency" ? 2 : 9, description: "Strengthen weak connections through targeted questions" },
+    { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_minutes: mode === "emergency" ? 1 : 5, description: "AI-calibrated difficulty based on your performance" },
+    { phase: 4, type: "review", title: "Review & Consolidate", duration_minutes: mode === "emergency" ? 0 : 3, description: "Solidify learning with spaced review" },
+  ].filter(p => p.duration_minutes > 0);
+
+  const stabilityGainMin = stabilityPct < 30 ? 12 : stabilityPct < 60 ? 8 : 4;
+  const stabilityGainMax = stabilityPct < 30 ? 22 : stabilityPct < 60 ? 15 : 8;
+  const rankImpactMin = stabilityPct < 30 ? 300 : stabilityPct < 60 ? 150 : 50;
+  const rankImpactMax = stabilityPct < 30 ? 600 : stabilityPct < 60 ? 400 : 150;
+
   return {
     session_id: session.id,
     started_at: session.created_at,
     topic: topicContext,
     questions,
     session_config: sessionConfig,
+    session_phases: sessionPhases,
+    phases_count: sessionPhases.length,
+    current_stability: stabilityPct,
+    expected_outcomes: {
+      stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
+      rank_impact: `+${rankImpactMin}-${rankImpactMax} ranks`,
+      stability_gain_min: stabilityGainMin,
+      stability_gain_max: stabilityGainMax,
+      rank_impact_min: rankImpactMin,
+      rank_impact_max: rankImpactMax,
+    },
     meta: {
       question_count: questions.length,
       difficulty,
