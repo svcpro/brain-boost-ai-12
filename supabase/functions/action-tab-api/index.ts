@@ -852,6 +852,173 @@ async function handleRecommendedNext(userId: string, body: any) {
     },
   };
 }
+// 14b. SESSION BLUEPRINT — Lightweight preview before starting (no session created)
+async function handleSessionBlueprint(userId: string, body: any) {
+  const { topic_id, mode } = body;
+  const studyMode = mode || "focus";
+
+  // ── Resolve topic ──
+  let targetTopic: any = null;
+  if (topic_id) {
+    const { data } = await admin.from("topics")
+      .select("id, name, memory_strength, subject_id, revision_count, last_revision_date, next_predicted_drop_date, subjects(name)")
+      .eq("id", topic_id).eq("user_id", userId).maybeSingle();
+    targetTopic = data;
+  } else {
+    const recentRes = await admin.from("study_logs")
+      .select("topic_id").eq("user_id", userId)
+      .order("created_at", { ascending: false }).limit(3);
+    const recentIds = (recentRes.data || []).map((r: any) => r.topic_id).filter(Boolean);
+    const { data: candidates } = await admin.from("topics")
+      .select("id, name, memory_strength, subject_id, revision_count, last_revision_date, next_predicted_drop_date, subjects(name)")
+      .eq("user_id", userId).is("deleted_at", null)
+      .order("memory_strength", { ascending: true }).limit(5);
+    targetTopic = (candidates || []).find((t: any) => !recentIds.includes(t.id)) || (candidates || [])[0] || null;
+  }
+
+  const strength = targetTopic ? (targetTopic.memory_strength ?? 0) : 0.5;
+  const strengthPct = Math.round(strength * 100);
+  const difficulty = strength < 0.3 ? "easy" : strength < 0.6 ? "medium" : "hard";
+  const topicName = targetTopic?.name || "General Practice";
+  const subjectName = (targetTopic as any)?.subjects?.name || "General";
+
+  // ── Mode-specific config ──
+  const modeConfigs: Record<string, { duration: number; questionCount: number; phases: any[] }> = {
+    focus: {
+      duration: 30,
+      questionCount: 10,
+      phases: [
+        { type: "recall", title: "Active Recall", description: "Retrieve key concepts from memory without aids", duration: 8, icon: "brain" },
+        { type: "reinforcement", title: "Concept Reinforcement", description: "Strengthen weak neural pathways with targeted content", duration: 9, icon: "refresh-cw" },
+        { type: "mcq", title: "Adaptive Assessment", description: "AI-calibrated questions matching your current level", duration: 9, icon: "target" },
+        { type: "review", title: "Consolidation Review", description: "Lock in gains with spaced review of key takeaways", duration: 4, icon: "book-open" },
+      ],
+    },
+    revision: {
+      duration: 15,
+      questionCount: 8,
+      phases: [
+        { type: "recall", title: "Quick Recall Scan", description: "Rapid retrieval of previously learned concepts", duration: 4, icon: "brain" },
+        { type: "mcq", title: "Decay Check", description: "Test which memories have weakened since last review", duration: 7, icon: "target" },
+        { type: "review", title: "Stability Lock", description: "Re-anchor fading memories for long-term retention", duration: 4, icon: "book-open" },
+      ],
+    },
+    mock: {
+      duration: 30,
+      questionCount: 15,
+      phases: [
+        { type: "mcq", title: "Simulated Exam", description: "Timed exam-condition questions with negative marking", duration: 25, icon: "target" },
+        { type: "review", title: "Performance Analysis", description: "Detailed breakdown of accuracy, speed, and weak areas", duration: 5, icon: "bar-chart" },
+      ],
+    },
+    emergency: {
+      duration: 10,
+      questionCount: 5,
+      phases: [
+        { type: "recall", title: "Emergency Recall", description: "Rescue critical concepts before predicted memory drop", duration: 3, icon: "alert-triangle" },
+        { type: "reinforcement", title: "Rapid Reinforcement", description: "Intensive repetition to halt decay immediately", duration: 4, icon: "refresh-cw" },
+        { type: "mcq", title: "Rescue Assessment", description: "Verify recovered knowledge with quick checks", duration: 3, icon: "target" },
+      ],
+    },
+    "current-affairs": {
+      duration: 15,
+      questionCount: 10,
+      phases: [
+        { type: "mcq", title: "Current Affairs Quiz", description: "Recent events mapped to exam syllabus topics", duration: 10, icon: "globe" },
+        { type: "review", title: "Exam Relevance Review", description: "Connect current events to likely exam questions", duration: 5, icon: "book-open" },
+      ],
+    },
+    "intel-practice": {
+      duration: 20,
+      questionCount: 10,
+      phases: [
+        { type: "mcq", title: "High-Probability Questions", description: "AI-predicted most likely exam questions based on patterns", duration: 15, icon: "trending-up" },
+        { type: "review", title: "Intel Debrief", description: "Strategic insights on exam readiness and gaps", duration: 5, icon: "shield" },
+      ],
+    },
+  };
+
+  const config = modeConfigs[studyMode] || modeConfigs.focus;
+
+  // ── Expected outcomes ──
+  const stabilityGainMin = strength < 0.3 ? 8 : strength < 0.6 ? 5 : 3;
+  const stabilityGainMax = strength < 0.3 ? 15 : strength < 0.6 ? 12 : 8;
+  const rankImpactMin = strength < 0.3 ? 150 : strength < 0.6 ? 80 : 30;
+  const rankImpactMax = strength < 0.3 ? 400 : strength < 0.6 ? 200 : 100;
+
+  // ── Profile for exam context ──
+  const { data: profile } = await admin.from("profiles")
+    .select("exam_date, exam_type").eq("id", userId).maybeSingle();
+  const daysToExam = profile?.exam_date
+    ? Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000) : null;
+
+  return {
+    blueprint: {
+      mode: studyMode,
+      mode_label: studyMode === "focus" ? "Focus Study Mode"
+        : studyMode === "revision" ? "AI Revision Mode"
+        : studyMode === "mock" ? "Mock Practice Mode"
+        : studyMode === "emergency" ? "Emergency Rescue Mode"
+        : studyMode === "current-affairs" ? "Current Affairs Quiz"
+        : studyMode === "intel-practice" ? "Exam Intel Practice"
+        : "Study Session",
+      description: studyMode === "focus" ? "4-phase deep work blueprint"
+        : studyMode === "revision" ? "Decay stabilization protocol"
+        : studyMode === "mock" ? "Simulated exam environment"
+        : studyMode === "emergency" ? "Critical memory rescue"
+        : studyMode === "current-affairs" ? "Exam-mapped current events"
+        : studyMode === "intel-practice" ? "AI-predicted exam questions"
+        : "AI-powered study session",
+    },
+    ai_selected_topic: {
+      id: targetTopic?.id || "",
+      name: topicName,
+      subject: subjectName,
+      memory_strength: strengthPct,
+      revision_count: targetTopic?.revision_count || 0,
+      last_revision_date: targetTopic?.last_revision_date || "",
+      predicted_drop_date: targetTopic?.next_predicted_drop_date || "",
+    },
+    session_config: {
+      duration_minutes: config.duration,
+      difficulty,
+      difficulty_label: difficulty.charAt(0).toUpperCase() + difficulty.slice(1),
+      total_phases: config.phases.length,
+      total_questions: config.questionCount,
+      scoring: { correct: 4, incorrect: -1, unanswered: 0 },
+    },
+    expected_outcomes: {
+      stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
+      stability_gain_min: stabilityGainMin,
+      stability_gain_max: stabilityGainMax,
+      rank_impact: `+${rankImpactMin}-${rankImpactMax} ranks`,
+      rank_impact_min: rankImpactMin,
+      rank_impact_max: rankImpactMax,
+      current_stability: strengthPct,
+      projected_stability: Math.min(100, strengthPct + stabilityGainMax),
+    },
+    session_phases: config.phases,
+    exam_context: {
+      exam_type: profile?.exam_type || "",
+      days_to_exam: daysToExam,
+      urgency: daysToExam !== null ? (daysToExam <= 7 ? "critical" : daysToExam <= 30 ? "high" : daysToExam <= 90 ? "moderate" : "low") : "unknown",
+    },
+    cta: {
+      label: studyMode === "focus" ? "Enter Focus Mode"
+        : studyMode === "revision" ? "Start Revision"
+        : studyMode === "mock" ? "Begin Mock Test"
+        : studyMode === "emergency" ? "Launch Rescue"
+        : studyMode === "current-affairs" ? "Start Quiz"
+        : studyMode === "intel-practice" ? "Start Practice"
+        : "Start Session",
+      next_action: "start-focus-session",
+      payload: { mode: studyMode, topic_id: targetTopic?.id || "" },
+    },
+    meta: {
+      generated_at: new Date().toISOString(),
+    },
+  };
+}
 
 // 15. START FOCUS SESSION — Full bootstrap: creates session + fetches questions + topic context
 async function handleStartFocusSession(userId: string, body: any, authHeader: string) {
