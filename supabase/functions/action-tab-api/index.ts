@@ -1407,6 +1407,9 @@ Deno.serve(async (req) => {
       case "recommended-next":
         return json(await handleRecommendedNext(userId, body));
 
+      case "session-blueprint":
+        return json(await handleSessionBlueprint(userId, body));
+
       case "start-focus-session":
         return json(await handleStartFocusSession(userId, body, authHeader));
 
@@ -1421,7 +1424,7 @@ Deno.serve(async (req) => {
           "init", "todays-gains", "session-history", "start-session", "end-session",
           "log-session", "task-complete", "topic-explorer", "topic-strategy",
           "questions", "daily-summary", "topics-list", "subjects-list", "recommended-next",
-          "start-focus-session", "submit-answer", "complete-focus-session"
+          "session-blueprint", "start-focus-session", "submit-answer", "complete-focus-session"
         ] }, 404);
     }
   } catch (e) {
