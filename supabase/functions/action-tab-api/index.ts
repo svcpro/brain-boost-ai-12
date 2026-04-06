@@ -882,11 +882,14 @@ Deno.serve(async (req) => {
       case "subjects-list":
         return json(await handleSubjectsList(userId));
 
+      case "recommended-next":
+        return json(await handleRecommendedNext(userId, body));
+
       default:
         return json({ error: `Unknown route: ${route}`, available_routes: [
           "init", "todays-gains", "session-history", "start-session", "end-session",
           "log-session", "task-complete", "topic-explorer", "topic-strategy",
-          "questions", "daily-summary", "topics-list", "subjects-list"
+          "questions", "daily-summary", "topics-list", "subjects-list", "recommended-next"
         ] }, 404);
     }
   } catch (e) {
