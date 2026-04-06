@@ -72,13 +72,13 @@ async function handleInit(userId: string) {
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
 
   const [
-    recTopicRes, sessionsRes, allTopicsRes, weekSessionsRes,
-    tasksRes, completedCountRes, profileRes, predRes
+    recTopicsRes, sessionsRes, allTopicsRes, weekSessionsRes,
+    tasksRes, completedCountRes, profileRes, predRes, subjectsRes
   ] = await Promise.all([
-    // Recommended topic (weakest)
+    // Recommended topics (weakest 5 for variety)
     admin.from("topics").select("id, name, memory_strength, subject_id, subjects(name)")
       .eq("user_id", userId).is("deleted_at", null)
-      .order("memory_strength", { ascending: true }).limit(1).maybeSingle(),
+      .order("memory_strength", { ascending: true }).limit(5),
     // Today's study sessions
     admin.from("study_logs").select("duration_minutes, confidence_level, created_at")
       .eq("user_id", userId).gte("created_at", today),
@@ -98,18 +98,58 @@ async function handleInit(userId: string) {
     admin.from("profiles").select("exam_date, exam_type").eq("id", userId).maybeSingle(),
     // Exam countdown prediction
     admin.from("exam_countdown_predictions").select("*").eq("user_id", userId).maybeSingle(),
+    // Subjects count (fallback if no topics)
+    admin.from("subjects").select("id, name").eq("user_id", userId).is("deleted_at", null).limit(5),
   ]);
 
   // ── Recommended Topic ──
-  const recTopic = recTopicRes.data;
-  const recommendedTopic = recTopic ? {
-    id: recTopic.id,
-    name: recTopic.name,
-    subject: (recTopic as any).subjects?.name || "General",
-    stability: Math.round((recTopic.memory_strength ?? 0) * 100),
-    estimated_time: (recTopic.memory_strength ?? 0) < 0.3 ? "25 min deep session"
-      : (recTopic.memory_strength ?? 0) < 0.6 ? "15 min review" : "10 min refresh",
-  } : null;
+  const recTopics = (recTopicsRes.data || []) as any[];
+  const recTopic = recTopics[0] || null;
+  let recommendedTopic: any;
+
+  if (recTopic) {
+    const strength = recTopic.memory_strength ?? 0;
+    recommendedTopic = {
+      id: recTopic.id,
+      name: recTopic.name,
+      subject: (recTopic as any).subjects?.name || "General",
+      stability: Math.round(strength * 100),
+      estimated_time: strength < 0.3 ? "25 min deep session"
+        : strength < 0.6 ? "15 min review" : "10 min refresh",
+      health: strength < 0.3 ? "critical" : strength < 0.6 ? "moderate" : "strong",
+      strategy: strength < 0.3 ? "recovery" : strength < 0.6 ? "reinforcement" : "maintenance",
+      reason: strength < 0.3
+        ? "This topic is critically weak and needs immediate attention"
+        : strength < 0.6
+        ? "Below target stability — a quick review will strengthen retention"
+        : "Maintenance review to keep memory fresh",
+      alternatives: recTopics.slice(1).map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        subject: (t as any).subjects?.name || "General",
+        stability: Math.round((t.memory_strength ?? 0) * 100),
+      })),
+    };
+  } else {
+    // No topics exist — provide helpful fallback
+    const userSubjects = (subjectsRes.data || []) as any[];
+    recommendedTopic = {
+      id: "",
+      name: userSubjects.length > 0 ? "Add topics to get started" : "Set up your syllabus",
+      subject: userSubjects.length > 0 ? userSubjects[0].name : "Getting Started",
+      stability: 0,
+      estimated_time: "5 min setup",
+      health: "setup_required",
+      strategy: "onboarding",
+      reason: userSubjects.length > 0
+        ? "You have subjects but no topics yet. Add topics to unlock AI-powered study recommendations."
+        : "Set up your exam syllabus to get personalized study recommendations from the AI engine.",
+      alternatives: [],
+      is_empty: true,
+      has_subjects: userSubjects.length > 0,
+      subjects_count: userSubjects.length,
+    };
+  }
 
   // ── Today's Gains ──
   const sessions = (sessionsRes.data || []) as any[];
