@@ -1353,6 +1353,8 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const query = Object.fromEntries(url.searchParams.entries());
+    // Merge query params into body so handlers work with either JSON body or query params
+    body = { ...query, ...body };
     let route = url.pathname.replace(/^\/+|\/+$/g, "")
       .replace(/^functions\/v1\/action-tab-api\/?/i, "")
       .replace(/^action-tab-api\/?/i, "")
