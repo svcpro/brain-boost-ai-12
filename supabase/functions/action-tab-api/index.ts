@@ -1305,6 +1305,32 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
 
   const xpEarned = (correct * 10) + (finalDuration * 2) + (accuracy >= 80 ? 50 : accuracy >= 60 ? 25 : 0);
 
+  // ── Focus Quality Score ──
+  const timeEfficiency = Math.min(finalDuration / (duration_minutes || 25), 1);
+  const accuracyFactor = accuracy / 100;
+  const completionFactor = totalQ > 0 ? ((correct + incorrect) / totalQ) : 0;
+  const focusQuality = Math.round((timeEfficiency * 30 + accuracyFactor * 40 + completionFactor * 30));
+
+  // ── Stability metrics ──
+  const currentStability = memoryImpact.after || memoryImpact.before || 50;
+  const stabilityBefore = memoryImpact.before || 50;
+  const stabilityChange = memoryImpact.change || 0;
+  const stabilityGainMin = Math.max(1, stabilityChange > 0 ? stabilityChange : Math.round(accuracy * 0.08));
+  const stabilityGainMax = Math.max(stabilityGainMin + 3, Math.round(accuracy * 0.15));
+
+  // ── Rank Impact ──
+  const rankBase = accuracy >= 80 ? 150 : accuracy >= 60 ? 100 : accuracy >= 40 ? 50 : 20;
+  const rankBoost = Math.round(finalDuration * 2);
+  const rankImpactMin = rankBase;
+  const rankImpactMax = rankBase + rankBoost + (stabilityChange * 10);
+
+  // ── Session Phases ──
+  const sessionPhases: any[] = [];
+  if (finalDuration >= 1) sessionPhases.push({ phase: "Recall Warm-up", duration_minutes: Math.max(1, Math.round(finalDuration * 0.15)), status: "completed", description: "Quick memory activation" });
+  if (finalDuration >= 3) sessionPhases.push({ phase: "Reinforcement", duration_minutes: Math.max(2, Math.round(finalDuration * 0.35)), status: "completed", description: "Strengthening weak connections" });
+  if (totalQ > 0) sessionPhases.push({ phase: "Assessment", duration_minutes: Math.max(2, Math.round(finalDuration * 0.35)), status: "completed", description: `${totalQ} questions attempted` });
+  sessionPhases.push({ phase: "Review", duration_minutes: Math.max(1, Math.round(finalDuration * 0.15)), status: "completed", description: "Performance analysis & next steps" });
+
   // ── Next recommendations ──
   let nextRecommendations: any[] = [];
   try {
@@ -1344,6 +1370,21 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
       avg_time_per_question_ms: avgTimePerQuestion,
       speed_analysis: speedAnalysis,
     },
+    stability: {
+      current: currentStability,
+      before: stabilityBefore,
+      after: memoryImpact.after || currentStability,
+      health: currentStability >= 70 ? "strong" : currentStability >= 40 ? "moderate" : "weak",
+    },
+    stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
+    rank_impact: `+${rankImpactMin}-${rankImpactMax} ranks`,
+    focus_quality: {
+      score: focusQuality,
+      label: focusQuality >= 80 ? "Excellent" : focusQuality >= 60 ? "Good" : focusQuality >= 40 ? "Fair" : "Needs Improvement",
+    },
+    time_focused: `${finalDuration}m`,
+    session_phases: sessionPhases,
+    phases_count: sessionPhases.length,
     memory_impact: memoryImpact,
     rewards: {
       xp_earned: xpEarned,
