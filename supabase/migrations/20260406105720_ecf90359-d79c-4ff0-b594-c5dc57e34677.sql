@@ -1,0 +1,2 @@
+ALTER TABLE public.study_logs DROP CONSTRAINT study_logs_study_mode_check;
+ALTER TABLE public.study_logs ADD CONSTRAINT study_logs_study_mode_check CHECK (study_mode = ANY (ARRAY['lazy'::text, 'focus'::text, 'emergency'::text, 'fix'::text, 'revision'::text, 'mock'::text, 'current-affairs'::text, 'intel-practice'::text, 'auto'::text]));
