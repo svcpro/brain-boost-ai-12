@@ -1401,6 +1401,302 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
   };
 }
 
+// 18. SESSION STATUS — Get current phase, timer state, and motivational text for active session
+async function handleSessionStatus(userId: string, body: any) {
+  const { session_id, elapsed_seconds, current_phase_index } = body;
+  if (!session_id) return { error: "session_id is required" };
+
+  // Fetch session
+  const { data: session } = await admin.from("study_logs")
+    .select("id, study_mode, topic_id, duration_minutes, created_at, subject_id")
+    .eq("id", session_id).eq("user_id", userId).maybeSingle();
+
+  if (!session) return { error: "Session not found" };
+
+  // Fetch topic
+  let topicName = "General Practice";
+  let subjectName = "General";
+  let strength = 0.5;
+  if (session.topic_id) {
+    const { data: topic } = await admin.from("topics")
+      .select("name, memory_strength, subjects(name)")
+      .eq("id", session.topic_id).maybeSingle();
+    if (topic) {
+      topicName = topic.name || topicName;
+      subjectName = (topic as any).subjects?.name || subjectName;
+      strength = topic.memory_strength ?? 0.5;
+    }
+  }
+
+  const mode = session.study_mode || "focus";
+  const stabilityPct = Math.round(strength * 100);
+
+  // Build phases
+  const phases = [
+    { phase: 1, type: "recall", title: "Active Recall", duration_seconds: mode === "emergency" ? 120 : 480, description: `Recall key concepts from ${topicName}`, icon: "brain" },
+    { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_seconds: mode === "emergency" ? 120 : 540, description: `Review and strengthen the concepts of ${topicName}. Fill gaps from the recall phase.`, icon: "refresh-cw" },
+    { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_seconds: mode === "emergency" ? 60 : 300, description: `AI-calibrated questions on ${topicName}. Answer carefully.`, icon: "target" },
+    { phase: 4, type: "review", title: "Review & Consolidate", duration_seconds: mode === "emergency" ? 0 : 180, description: `Solidify your learning and lock in memory gains.`, icon: "check-circle" },
+  ].filter(p => p.duration_seconds > 0);
+
+  const totalSessionSeconds = phases.reduce((s, p) => s + p.duration_seconds, 0);
+  const elapsedSec = elapsed_seconds || 0;
+  const phaseIdx = typeof current_phase_index === "number" ? current_phase_index : 0;
+  const activePhase = phases[Math.min(phaseIdx, phases.length - 1)];
+
+  // Calculate elapsed within current phase
+  let elapsedBefore = 0;
+  for (let i = 0; i < phaseIdx && i < phases.length; i++) elapsedBefore += phases[i].duration_seconds;
+  const phaseElapsed = Math.max(0, elapsedSec - elapsedBefore);
+  const phaseRemaining = Math.max(0, activePhase.duration_seconds - phaseElapsed);
+
+  // Difficulty badge
+  const difficultyLabel = stabilityPct < 30 ? "HARD" : stabilityPct < 60 ? "MEDIUM" : "EASY";
+
+  // Motivational messages per phase type
+  const motivationalMessages: Record<string, string[]> = {
+    recall: ["Activate your memory traces 🧠", "Dig deep — recall builds strength", "Every recall attempt strengthens connections"],
+    reinforcement: ["Deep focus — stay in the zone", "Strengthen those neural pathways 💪", "Building lasting memory connections"],
+    assessment: ["Show what you know 🎯", "Stay sharp — accuracy matters", "Trust your preparation"],
+    review: ["Lock in your gains 🔒", "Consolidating memory for long-term retention", "Almost there — strong finish!"],
+  };
+  const msgs = motivationalMessages[activePhase.type] || motivationalMessages.reinforcement;
+  const motivational_message = msgs[Math.floor(Math.random() * msgs.length)];
+
+  // Phase progress (which phases are complete, active, pending)
+  const phasesWithStatus = phases.map((p, i) => ({
+    ...p,
+    status: i < phaseIdx ? "completed" : i === phaseIdx ? "active" : "pending",
+    progress_percent: i < phaseIdx ? 100 : i === phaseIdx ? Math.round((phaseElapsed / p.duration_seconds) * 100) : 0,
+  }));
+
+  // Timer display
+  const timerMinutes = Math.floor(phaseRemaining / 60);
+  const timerSeconds = phaseRemaining % 60;
+  const timerDisplay = `${String(timerMinutes).padStart(2, "0")}:${String(timerSeconds).padStart(2, "0")}`;
+
+  return {
+    session_id,
+    mode,
+    is_active: true,
+    topic: {
+      id: session.topic_id || "",
+      name: topicName,
+      subject: subjectName,
+      memory_strength: stabilityPct,
+    },
+    current_phase: {
+      index: phaseIdx,
+      phase_number: activePhase.phase,
+      type: activePhase.type,
+      title: activePhase.title,
+      description: activePhase.description,
+      icon: activePhase.icon,
+      label: `Phase ${phaseIdx + 1}/${phases.length} · ${topicName}`,
+      duration_seconds: activePhase.duration_seconds,
+      elapsed_seconds: phaseElapsed,
+      remaining_seconds: phaseRemaining,
+    },
+    timer: {
+      display: timerDisplay,
+      total_session_seconds: totalSessionSeconds,
+      total_elapsed_seconds: elapsedSec,
+      total_remaining_seconds: Math.max(0, totalSessionSeconds - elapsedSec),
+      status: "focusing",
+      status_label: "focusing...",
+    },
+    difficulty: difficultyLabel,
+    motivational_message,
+    phases: phasesWithStatus,
+    phases_count: phases.length,
+    controls: {
+      can_pause: true,
+      can_skip_phase: phaseIdx < phases.length - 1,
+      can_end_session: true,
+      show_ambient_sounds: true,
+      ambient_options: [
+        { id: "vibration", icon: "vibrate", label: "Vibration" },
+        { id: "music", icon: "music", label: "Lo-fi Music" },
+        { id: "whitenoise", icon: "radio", label: "White Noise" },
+      ],
+    },
+    meta: {
+      started_at: session.created_at,
+      generated_at: new Date().toISOString(),
+    },
+  };
+}
+
+// 19. PAUSE/RESUME SESSION — Toggle pause state
+async function handlePauseResumeSession(userId: string, body: any) {
+  const { session_id, action: pauseAction, elapsed_seconds, current_phase_index, pause_reason } = body;
+  if (!session_id) return { error: "session_id is required" };
+  if (!pauseAction || !["pause", "resume"].includes(pauseAction)) return { error: "action must be 'pause' or 'resume'" };
+
+  const { data: session } = await admin.from("study_logs")
+    .select("id, study_mode, topic_id, created_at")
+    .eq("id", session_id).eq("user_id", userId).maybeSingle();
+
+  if (!session) return { error: "Session not found" };
+
+  // Log pause/resume event
+  await admin.from("behavioral_micro_events").insert({
+    user_id: userId,
+    event_type: pauseAction === "pause" ? "session_paused" : "session_resumed",
+    session_id,
+    context: {
+      elapsed_seconds: elapsed_seconds || 0,
+      current_phase_index: current_phase_index ?? 0,
+      pause_reason: pause_reason || "",
+      timestamp: new Date().toISOString(),
+    },
+    severity: pauseAction === "pause" ? 1 : 0,
+  });
+
+  const isPaused = pauseAction === "pause";
+
+  return {
+    success: true,
+    session_id,
+    is_paused: isPaused,
+    status: isPaused ? "paused" : "active",
+    status_label: isPaused ? "Session paused" : "focusing...",
+    message: isPaused
+      ? "Session paused. Take a breath — your progress is saved."
+      : "Welcome back! Resuming your focus session.",
+    timer: {
+      status: isPaused ? "paused" : "focusing",
+      elapsed_seconds: elapsed_seconds || 0,
+      current_phase_index: current_phase_index ?? 0,
+    },
+    recorded_at: new Date().toISOString(),
+  };
+}
+
+// 20. NEXT PHASE — Advance to next phase in session
+async function handleNextPhase(userId: string, body: any) {
+  const { session_id, current_phase_index, elapsed_seconds, phase_performance } = body;
+  if (!session_id) return { error: "session_id is required" };
+  if (current_phase_index === undefined) return { error: "current_phase_index is required" };
+
+  const { data: session } = await admin.from("study_logs")
+    .select("id, study_mode, topic_id, created_at")
+    .eq("id", session_id).eq("user_id", userId).maybeSingle();
+
+  if (!session) return { error: "Session not found" };
+
+  // Fetch topic
+  let topicName = "General Practice";
+  let strength = 0.5;
+  if (session.topic_id) {
+    const { data: topic } = await admin.from("topics")
+      .select("name, memory_strength").eq("id", session.topic_id).maybeSingle();
+    if (topic) {
+      topicName = topic.name || topicName;
+      strength = topic.memory_strength ?? 0.5;
+    }
+  }
+
+  const mode = session.study_mode || "focus";
+
+  const phases = [
+    { phase: 1, type: "recall", title: "Active Recall", duration_seconds: mode === "emergency" ? 120 : 480, description: `Recall key concepts from ${topicName}`, icon: "brain" },
+    { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_seconds: mode === "emergency" ? 120 : 540, description: `Review and strengthen the concepts of ${topicName}. Fill gaps from the recall phase.`, icon: "refresh-cw" },
+    { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_seconds: mode === "emergency" ? 60 : 300, description: `AI-calibrated questions on ${topicName}. Answer carefully.`, icon: "target" },
+    { phase: 4, type: "review", title: "Review & Consolidate", duration_seconds: mode === "emergency" ? 0 : 180, description: `Solidify your learning and lock in memory gains.`, icon: "check-circle" },
+  ].filter(p => p.duration_seconds > 0);
+
+  const nextPhaseIdx = current_phase_index + 1;
+  const isSessionComplete = nextPhaseIdx >= phases.length;
+
+  // Log phase transition
+  await admin.from("behavioral_micro_events").insert({
+    user_id: userId,
+    event_type: "phase_transition",
+    session_id,
+    context: {
+      from_phase: current_phase_index,
+      to_phase: isSessionComplete ? "complete" : nextPhaseIdx,
+      elapsed_seconds: elapsed_seconds || 0,
+      phase_performance: phase_performance || {},
+    },
+    severity: 0,
+  });
+
+  if (isSessionComplete) {
+    return {
+      success: true,
+      session_id,
+      is_session_complete: true,
+      message: "All phases complete! Generating your results...",
+      action: "complete-focus-session",
+      next_step: {
+        action: "complete-focus-session",
+        description: "Call complete-focus-session to finalize and get results",
+      },
+      meta: { completed_at: new Date().toISOString() },
+    };
+  }
+
+  const nextPhase = phases[nextPhaseIdx];
+  const stabilityPct = Math.round(strength * 100);
+  const difficultyLabel = stabilityPct < 30 ? "HARD" : stabilityPct < 60 ? "MEDIUM" : "EASY";
+
+  // Phase transition messages
+  const transitionMessages: Record<string, string> = {
+    recall: "Time to activate your memory! 🧠",
+    reinforcement: "Great recall! Now let's strengthen those connections 💪",
+    assessment: "Reinforcement complete! Time to test your knowledge 🎯",
+    review: "Almost done! Let's lock in everything you've learned 🔒",
+  };
+
+  // Recalculate elapsed for new phase
+  let elapsedBefore = 0;
+  for (let i = 0; i < nextPhaseIdx; i++) elapsedBefore += phases[i].duration_seconds;
+
+  const phasesWithStatus = phases.map((p, i) => ({
+    ...p,
+    status: i < nextPhaseIdx ? "completed" : i === nextPhaseIdx ? "active" : "pending",
+    progress_percent: i < nextPhaseIdx ? 100 : 0,
+  }));
+
+  const timerMinutes = Math.floor(nextPhase.duration_seconds / 60);
+  const timerSeconds = nextPhase.duration_seconds % 60;
+  const timerDisplay = `${String(timerMinutes).padStart(2, "0")}:${String(timerSeconds).padStart(2, "0")}`;
+
+  return {
+    success: true,
+    session_id,
+    is_session_complete: false,
+    transition_message: transitionMessages[nextPhase.type] || "Moving to next phase...",
+    current_phase: {
+      index: nextPhaseIdx,
+      phase_number: nextPhase.phase,
+      type: nextPhase.type,
+      title: nextPhase.title,
+      description: nextPhase.description,
+      icon: nextPhase.icon,
+      label: `Phase ${nextPhaseIdx + 1}/${phases.length} · ${topicName}`,
+      duration_seconds: nextPhase.duration_seconds,
+      elapsed_seconds: 0,
+      remaining_seconds: nextPhase.duration_seconds,
+    },
+    timer: {
+      display: timerDisplay,
+      total_elapsed_seconds: elapsedBefore,
+      status: "focusing",
+      status_label: "focusing...",
+    },
+    difficulty: difficultyLabel,
+    phases: phasesWithStatus,
+    phases_count: phases.length,
+    meta: {
+      transitioned_at: new Date().toISOString(),
+      previous_phase: current_phase_index,
+    },
+  };
+}
+
 // ═══════════════════════════════════════════════════════════
 //  MAIN ROUTER
 // ═══════════════════════════════════════════════════════════
