@@ -510,49 +510,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
          ═══════════════════════════════════════════════════ */}
 
       {/* ═══════════════════════════════════════════════════
-          SECTION 4: Deep Topic Explorer (collapsible)
+          SECTION 4: Deep Topic Explorer (hidden - API only)
          ═══════════════════════════════════════════════════ */}
-      {isEnabled("action_ai_topic_manager") && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5, ease: "easeOut" }}
-        >
-          <Collapsible open={topicExplorerOpen} onOpenChange={setTopicExplorerOpen}>
-            <CollapsibleTrigger asChild>
-              <button className="w-full flex items-center justify-between rounded-2xl border border-border bg-card p-4 hover:bg-secondary/30 transition-all duration-300 group">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
-                    <BookOpen className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                      Deep Topic Explorer
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground">Subject → Topic health, strategy & AI actions</p>
-                  </div>
-                </div>
-                <motion.div
-                  animate={{ rotate: topicExplorerOpen ? 180 : 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                </motion.div>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="mt-2"
-              >
-                <DeepTopicExplorer />
-              </motion.div>
-            </CollapsibleContent>
-          </Collapsible>
-        </motion.section>
-      )}
 
       {/* ═══════════════════════════════════════════════════
           SECTION 5: Today's Gains — Reward Reinforcement Engine
