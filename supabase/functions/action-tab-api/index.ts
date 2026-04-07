@@ -1013,12 +1013,16 @@ async function handleSessionBlueprint(userId: string, body: any) {
       ],
     },
     emergency: {
-      duration: 10,
-      questionCount: 5,
+      duration: 8,
+      questionCount: 6,
       phases: [
-        { type: "recall", title: "Emergency Recall", description: "Rescue critical concepts before predicted memory drop", duration: 3, icon: "alert-triangle" },
-        { type: "reinforcement", title: "Rapid Reinforcement", description: "Intensive repetition to halt decay immediately", duration: 4, icon: "refresh-cw" },
-        { type: "mcq", title: "Rescue Assessment", description: "Verify recovered knowledge with quick checks", duration: 3, icon: "target" },
+        { type: "detection", title: "Crisis Detection", description: "AI scans your memory health to identify critical-risk topics", duration: 0.5, icon: "alert-triangle", emoji: "🔴" },
+        { type: "emotional-reset", title: "Emotional Reset", description: "Guided breathing exercise to calm anxiety before rescue", duration: 1, icon: "wind", emoji: "🧘" },
+        { type: "recall", title: "Phase 1 · Critical Recall", description: "Rapid 45-second recall bursts for each crisis topic", duration: 2, icon: "brain", emoji: "⚡" },
+        { type: "mcq", title: "Phase 2 · High-Impact MCQ", description: "Targeted questions to test and reinforce critical memories", duration: 2.5, icon: "target", emoji: "🎯" },
+        { type: "confidence-lock", title: "Phase 3 · Confidence Lock", description: "Lock recovered knowledge into long-term memory", duration: 0.5, icon: "shield", emoji: "🛡️" },
+        { type: "stability-recovery", title: "Stability Recovery", description: "Animated stability gain visualization and scoring", duration: 1, icon: "heart-pulse", emoji: "💚" },
+        { type: "recovery-plan", title: "Mission Complete", description: "AI-generated recovery plan with next steps", duration: 0.5, icon: "trophy", emoji: "🏆" },
       ],
     },
     "current-affairs": {
@@ -1127,6 +1131,95 @@ async function handleSessionBlueprint(userId: string, body: any) {
         passing_marks: Math.round(config.questionCount * 4 * 0.4),
       },
     } : {}),
+    ...(studyMode === "emergency" ? await (async () => {
+      // Fetch top 3 weakest crisis topics for emergency mode
+      const { data: crisisTopics } = await admin.from("topics")
+        .select("id, name, memory_strength, subject_id, subjects(name), last_revision_date, next_predicted_drop_date")
+        .eq("user_id", userId).is("deleted_at", null)
+        .order("memory_strength", { ascending: true }).limit(3);
+
+      const crisisTargets = (crisisTopics || []).map((t: any) => {
+        const ms = toStrengthPercent(t.memory_strength, 0);
+        return {
+          id: t.id,
+          name: t.name,
+          subject: (t as any).subjects?.name || "General",
+          memory_strength: ms,
+          stability_label: `${ms}% stable`,
+          risk_level: ms < 25 ? "critical" : ms < 45 ? "high" : "medium",
+          risk_label: ms < 25 ? "🔴 Critical" : ms < 45 ? "🟠 High Risk" : "🟡 Moderate",
+          last_revision_date: t.last_revision_date || "",
+          predicted_drop_date: t.next_predicted_drop_date || "",
+          days_to_forget: getDaysToForget(t.next_predicted_drop_date),
+        };
+      });
+      const avgStrength = crisisTargets.length > 0
+        ? Math.round(crisisTargets.reduce((s: number, t: any) => s + t.memory_strength, 0) / crisisTargets.length)
+        : strengthPct;
+      const intensity = avgStrength < 20 ? "severe" : avgStrength < 40 ? "moderate" : "mild";
+
+      return {
+        emergency_config: {
+          crisis_intensity: intensity,
+          crisis_intensity_label: intensity === "severe" ? "🔴 Severe Crisis" : intensity === "moderate" ? "🟠 Moderate Crisis" : "🟡 Mild Crisis",
+          crisis_description: intensity === "severe"
+            ? "Critical memory collapse detected — immediate stabilization required"
+            : intensity === "moderate"
+            ? "Significant memory decay — rescue protocol initiated"
+            : "Early warning signs — preventive stabilization recommended",
+          crisis_topics: crisisTargets,
+          crisis_topics_count: crisisTargets.length,
+          avg_stability: avgStrength,
+          avg_stability_label: `${avgStrength}% average stability`,
+          total_stages: 7,
+          stages: ["detection", "emotional-reset", "phase1-recall", "phase2-mcq", "phase3-confidence", "stability-recovery", "recovery-plan"],
+          stage_labels: {
+            detection: "🔴 Crisis Detection",
+            "emotional-reset": "🧘 Emotional Reset",
+            "phase1-recall": "⚡ Critical Recall",
+            "phase2-mcq": "🎯 High-Impact MCQ",
+            "phase3-confidence": "🛡️ Confidence Lock",
+            "stability-recovery": "💚 Stability Recovery",
+            "recovery-plan": "🏆 Mission Complete",
+          },
+          recall_config: {
+            duration_seconds_per_topic: 45,
+            total_recall_topics: crisisTargets.length,
+            total_recall_time_seconds: crisisTargets.length * 45,
+            instructions: "Recall everything you know about each topic in 45 seconds. Write/think as fast as possible.",
+          },
+          mcq_config: {
+            questions_per_topic: 2,
+            total_questions: crisisTargets.length * 2,
+            difficulty: intensity === "severe" ? "easy" : "medium",
+            show_explanation_after_answer: true,
+            scoring: { correct: 4, incorrect: 0, unanswered: 0, negative_marking: false },
+          },
+          breathing_config: {
+            steps: ["Breathe in...", "Hold...", "Breathe out...", "Relax..."],
+            cycle_duration_ms: 2000,
+            total_cycles: 2,
+            total_duration_seconds: 16,
+            skip_allowed: true,
+          },
+          confidence_lock: {
+            description: "Lock recovered knowledge into long-term memory",
+            requires_mcq_completion: true,
+          },
+          estimated_stability_gain: intensity === "severe" ? "+15-25%" : intensity === "moderate" ? "+10-18%" : "+5-12%",
+          estimated_duration_minutes: intensity === "severe" ? 8 : intensity === "moderate" ? 6 : 5,
+          features: {
+            voice_guidance: true,
+            confetti_on_complete: true,
+            animated_stability_bar: true,
+            recovery_plan_generation: true,
+            scan_line_animation: true,
+            pulse_danger_glow: true,
+          },
+        },
+        crisis_topics: crisisTargets,
+      };
+    })() : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       stability_gain_min: stabilityGainMin,
@@ -1219,7 +1312,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const subjectName = (targetTopic as any)?.subjects?.name || "General";
   const strengthPct = targetTopic ? toStrengthPercent(targetTopic.memory_strength, 50) : 50;
   const difficulty = getDifficultyFromStrength(strengthPct);
-  const questionCount = mode === "mock" ? 15 : mode === "emergency" ? 5 : mode === "revision" ? 8 : 10;
+  const questionCount = mode === "mock" ? 15 : mode === "emergency" ? 6 : mode === "revision" ? 8 : 10;
 
   try {
     const agentUrl = `${supabaseUrl}/functions/v1/ai-brain-agent`;
@@ -1313,19 +1406,29 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
         { phase: 2, type: "assessment", title: "Decay Check", duration_minutes: 4, description: "Test which memories have weakened since last review" },
         { phase: 3, type: "review", title: "Stability Lock", duration_minutes: 3, description: "Re-anchor fading memories for long-term retention" },
       ]
+    : mode === "emergency"
+    ? [
+        { phase: 1, type: "detection", title: "🔴 Crisis Detection", duration_minutes: 0.5, description: "AI scans memory health to identify critical-risk topics", icon: "alert-triangle", emoji: "🔴" },
+        { phase: 2, type: "emotional-reset", title: "🧘 Emotional Reset", duration_minutes: 1, description: "Guided breathing to calm anxiety before rescue", icon: "wind", emoji: "🧘" },
+        { phase: 3, type: "recall", title: "⚡ Critical Recall", duration_minutes: 2, description: "45-second rapid recall bursts per crisis topic", icon: "brain", emoji: "⚡" },
+        { phase: 4, type: "mcq", title: "🎯 High-Impact MCQ", duration_minutes: 2.5, description: "Targeted rescue questions to reinforce critical memories", icon: "target", emoji: "🎯" },
+        { phase: 5, type: "confidence-lock", title: "🛡️ Confidence Lock", duration_minutes: 0.5, description: "Lock recovered knowledge into long-term memory", icon: "shield", emoji: "🛡️" },
+        { phase: 6, type: "stability-recovery", title: "💚 Stability Recovery", duration_minutes: 1, description: "Animated stability gain and scoring visualization", icon: "heart-pulse", emoji: "💚" },
+        { phase: 7, type: "recovery-plan", title: "🏆 Mission Complete", duration_minutes: 0.5, description: "AI-generated recovery plan with next steps", icon: "trophy", emoji: "🏆" },
+      ]
     : [
-        { phase: 1, type: "recall", title: "Active Recall", duration_minutes: mode === "emergency" ? 2 : 8, description: `Recall key concepts from ${topicName}` },
-        { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_minutes: mode === "emergency" ? 2 : 9, description: "Strengthen weak connections through targeted questions" },
-        { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_minutes: mode === "emergency" ? 1 : 5, description: "AI-calibrated difficulty based on your performance" },
-        { phase: 4, type: "review", title: "Review & Consolidate", duration_minutes: mode === "emergency" ? 0 : 3, description: "Solidify learning with spaced review" },
-      ].filter(p => p.duration_minutes > 0);
+        { phase: 1, type: "recall", title: "Active Recall", duration_minutes: 8, description: `Recall key concepts from ${topicName}` },
+        { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_minutes: 9, description: "Strengthen weak connections through targeted questions" },
+        { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_minutes: 5, description: "AI-calibrated difficulty based on your performance" },
+        { phase: 4, type: "review", title: "Review & Consolidate", duration_minutes: 3, description: "Solidify learning with spaced review" },
+      ];
 
   const stabilityGainMin = stabilityPct < 30 ? 12 : stabilityPct < 60 ? 8 : 4;
   const stabilityGainMax = stabilityPct < 30 ? 22 : stabilityPct < 60 ? 15 : 8;
   const rankImpactMin = stabilityPct < 30 ? 300 : stabilityPct < 60 ? 150 : 50;
   const rankImpactMax = stabilityPct < 30 ? 600 : stabilityPct < 60 ? 400 : 150;
 
-  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 5 : mode === "revision" ? 10 : 25;
+  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 8 : mode === "revision" ? 10 : 25;
   const targetPercentile = strengthPct >= 70 ? "Top 15%" : strengthPct >= 50 ? "Top 30%" : strengthPct >= 30 ? "Top 45%" : "Top 60%";
   const revisionMetrics = buildRevisionMetrics({
     topicCount: 1,
@@ -1335,6 +1438,134 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
     strengthPercent: stabilityPct,
     predictedDropDate: targetTopic?.next_predicted_drop_date || null,
   });
+
+  // ── Emergency: fetch crisis topics and build full rescue context ──
+  let emergencyData: any = {};
+  if (mode === "emergency") {
+    const { data: crisisTopics } = await admin.from("topics")
+      .select("id, name, memory_strength, subject_id, subjects(name), last_revision_date, next_predicted_drop_date")
+      .eq("user_id", userId).is("deleted_at", null)
+      .order("memory_strength", { ascending: true }).limit(3);
+
+    const crisisTargets = (crisisTopics || []).map((t: any) => {
+      const ms = toStrengthPercent(t.memory_strength, 0);
+      return {
+        id: t.id,
+        name: t.name,
+        subject: (t as any).subjects?.name || "General",
+        memory_strength: ms,
+        stability_label: `${ms}% stable`,
+        risk_level: ms < 25 ? "critical" : ms < 45 ? "high" : "medium",
+        risk_label: ms < 25 ? "🔴 Critical" : ms < 45 ? "🟠 High Risk" : "🟡 Moderate",
+        last_revision_date: t.last_revision_date || "",
+        predicted_drop_date: t.next_predicted_drop_date || "",
+        days_to_forget: getDaysToForget(t.next_predicted_drop_date),
+      };
+    });
+
+    const avgStrength = crisisTargets.length > 0
+      ? Math.round(crisisTargets.reduce((s: number, t: any) => s + t.memory_strength, 0) / crisisTargets.length)
+      : strengthPct;
+    const intensity = avgStrength < 20 ? "severe" : avgStrength < 40 ? "moderate" : "mild";
+
+    // Fetch rescue streak (emergency sessions this week)
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const { count: rescueCount } = await admin.from("study_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("study_mode", "emergency")
+      .gte("created_at", weekAgo);
+
+    // Group questions by crisis topic
+    const questionsPerTopic: Record<string, any[]> = {};
+    const mcqPerTopic = 2;
+    crisisTargets.forEach((ct: any, idx: number) => {
+      const startIdx = idx * mcqPerTopic;
+      const topicQuestions = questions.slice(startIdx, startIdx + mcqPerTopic);
+      questionsPerTopic[ct.id] = topicQuestions.map((q: any, qIdx: number) => ({
+        ...q,
+        crisis_topic_id: ct.id,
+        crisis_topic_name: ct.name,
+        crisis_topic_subject: ct.subject,
+      }));
+    });
+
+    emergencyData = {
+      emergency_config: {
+        crisis_intensity: intensity,
+        crisis_intensity_label: intensity === "severe" ? "🔴 Severe Crisis" : intensity === "moderate" ? "🟠 Moderate Crisis" : "🟡 Mild Crisis",
+        crisis_description: intensity === "severe"
+          ? "Critical memory collapse detected — immediate stabilization required"
+          : intensity === "moderate"
+          ? "Significant memory decay — rescue protocol initiated"
+          : "Early warning signs — preventive stabilization recommended",
+        avg_stability: avgStrength,
+        avg_stability_label: `${avgStrength}% average stability`,
+        rescue_streak: rescueCount || 0,
+        rescue_streak_label: `${rescueCount || 0} rescues this week`,
+      },
+      crisis_topics: crisisTargets,
+      crisis_topics_count: crisisTargets.length,
+      questions_by_topic: questionsPerTopic,
+      recall_config: {
+        duration_seconds_per_topic: 45,
+        total_recall_topics: crisisTargets.length,
+        total_recall_time_seconds: crisisTargets.length * 45,
+        recall_order: crisisTargets.map((ct: any) => ({
+          topic_id: ct.id,
+          topic_name: ct.name,
+          subject: ct.subject,
+          memory_strength: ct.memory_strength,
+          risk_level: ct.risk_level,
+          prompt: `Recall everything you know about "${ct.name}" in ${ct.subject}. You have 45 seconds.`,
+        })),
+      },
+      breathing_config: {
+        steps: ["Breathe in...", "Hold...", "Breathe out...", "Relax..."],
+        cycle_duration_ms: 2000,
+        total_cycles: 2,
+        total_duration_seconds: 16,
+        skip_allowed: true,
+        voice_text: "Let's calm your mind before we begin the rescue.",
+      },
+      confidence_lock: {
+        description: "Lock recovered knowledge into long-term memory",
+        requires_mcq_completion: true,
+        stability_gain_formula: "accuracy * 15 + 5",
+        voice_text_on_lock: "Confidence locked. Viewing recovery.",
+      },
+      recovery_plan_config: {
+        auto_generate: true,
+        plan_rules: [
+          { condition: "memory_strength < 30", action_template: "Deep review: {topic_name} ({subject})" },
+          { condition: "memory_strength < 50", action_template: "Quick recall: {topic_name}" },
+          { condition: "memory_strength >= 50", action_template: "Maintenance check: {topic_name}" },
+        ],
+        always_include: [
+          "Run 1 Focus Session on weakest topic",
+          "Complete daily Brain Mission",
+        ],
+      },
+      scoring: {
+        correct: 4,
+        incorrect: 0,
+        unanswered: 0,
+        negative_marking: false,
+      },
+      session_config_override: {
+        ...sessionConfig,
+        time_limit_seconds: crisisTargets.length * 45 + 16 + (crisisTargets.length * mcqPerTopic * 30) + 60,
+        scoring: { correct: 4, incorrect: 0, unanswered: 0 },
+        features: {
+          ...sessionConfig.features,
+          show_explanation_after_answer: true,
+          show_correct_answer: true,
+          voice_guidance: true,
+          confetti_on_complete: true,
+          animated_stability_bar: true,
+        },
+      },
+    };
+  }
 
   return {
     session_id: session.id,
@@ -1353,6 +1584,10 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
     session_config: sessionConfig,
     session_phases: sessionPhases,
     phases_count: sessionPhases.length,
+    total_questions: questions.length,
+    time_limit_minutes: estimatedDurationMinutes,
+    time_limit_label: `${estimatedDurationMinutes} min`,
+    questions_label: `${questions.length} Questions`,
     current_stability: stabilityPct,
     ...(mode === "mock" ? {
       mock_config: {
@@ -1367,6 +1602,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
         passing_marks: Math.round(questions.length * 4 * 0.4),
       },
     } : {}),
+    ...emergencyData,
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       rank_impact: `+${rankImpactMin}-${rankImpactMax} ranks`,
@@ -1677,6 +1913,80 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
         },
       },
     } : {}),
+    ...(mode === "emergency" ? await (async () => {
+      // Fetch crisis topics for emergency result
+      const { data: crisisTopics } = await admin.from("topics")
+        .select("id, name, memory_strength, subject_id, subjects(name)")
+        .eq("user_id", userId).is("deleted_at", null)
+        .order("memory_strength", { ascending: true }).limit(3);
+
+      const crisisTargets = (crisisTopics || []).map((t: any) => {
+        const ms = toStrengthPercent(t.memory_strength, 0);
+        return {
+          id: t.id,
+          name: t.name,
+          subject: (t as any).subjects?.name || "General",
+          memory_strength: ms,
+          risk_level: ms < 25 ? "critical" : ms < 45 ? "high" : "medium",
+        };
+      });
+
+      const avgBefore = stabilityBefore;
+      const gain = Math.round((accuracyNum / 100) * 15 + 5);
+      const avgAfter = Math.min(100, avgBefore + gain);
+      const intensity = avgBefore < 20 ? "severe" : avgBefore < 40 ? "moderate" : "mild";
+
+      // Generate recovery plan
+      const recoveryPlan: string[] = [];
+      crisisTargets.forEach((ct: any) => {
+        if (ct.memory_strength < 30) recoveryPlan.push(`Deep review: ${ct.name} (${ct.subject})`);
+        else if (ct.memory_strength < 50) recoveryPlan.push(`Quick recall: ${ct.name}`);
+        else recoveryPlan.push(`Maintenance check: ${ct.name}`);
+      });
+      recoveryPlan.push("Run 1 Focus Session on weakest topic");
+      recoveryPlan.push("Complete daily Brain Mission");
+
+      // Rescue streak
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { count: rescueCount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "emergency")
+        .gte("created_at", weekAgo);
+
+      return {
+        emergency_result: {
+          crisis_intensity: intensity,
+          crisis_intensity_label: intensity === "severe" ? "🔴 Severe Crisis" : intensity === "moderate" ? "🟠 Moderate Crisis" : "🟡 Mild Crisis",
+          crisis_topics_stabilized: crisisTargets,
+          crisis_topics_count: crisisTargets.length,
+          stability_before: avgBefore,
+          stability_after: avgAfter,
+          stability_gain: avgAfter - avgBefore,
+          stability_gain_label: `+${avgAfter - avgBefore}%`,
+          stability_gain_percent: avgAfter - avgBefore,
+          mcq_accuracy: accuracyNum,
+          mcq_accuracy_label: `${accuracyNum}%`,
+          mcq_correct: correct,
+          mcq_incorrect: incorrect,
+          mcq_total: totalQ,
+          confidence_locked: true,
+          confidence_level: accuracyNum >= 80 ? "high" : accuracyNum >= 50 ? "moderate" : "rebuilding",
+          confidence_label: accuracyNum >= 80 ? "🛡️ Confidence High" : accuracyNum >= 50 ? "🛡️ Confidence Moderate" : "🛡️ Confidence Rebuilding",
+          recovery_plan: recoveryPlan,
+          recovery_plan_count: recoveryPlan.length,
+          rescue_streak: (rescueCount || 0),
+          rescue_streak_label: `${rescueCount || 0} rescues this week`,
+          mission_status: "complete",
+          mission_label: "🏆 Emergency Rescue Complete",
+          voice_summary: `Emergency rescue complete. ${crisisTargets.length} topics stabilized. Accuracy ${accuracyNum}%. Stability improved by ${avgAfter - avgBefore} percent.`,
+          confetti_config: {
+            particle_count: 140,
+            spread: 100,
+            colors: ["#22c55e", "#f59e0b", "#3b82f6"],
+          },
+        },
+      };
+    })() : {}),
     stability: {
       current: currentStability,
       before: stabilityBefore,
@@ -1712,10 +2022,47 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     question_results: questionResults,
     recommended_next: nextRecommendations.slice(0, 3),
     keep_momentum: {
-      title: "Keep the Momentum",
-      subtitle: "AI-suggested next actions",
-      icon: "zap",
-      actions: [
+      title: mode === "emergency" ? "Recovery Complete" : "Keep the Momentum",
+      subtitle: mode === "emergency" ? "Next steps to maintain stability" : "AI-suggested next actions",
+      icon: mode === "emergency" ? "heart-pulse" : "zap",
+      actions: mode === "emergency" ? [
+        {
+          id: "deep_review",
+          title: "Deep Review Weakest Topic",
+          subtitle: "15-min focused session on most critical area",
+          duration: "15 min",
+          icon: "book-open",
+          action: "start-focus-session",
+          params: { mode: "focus", duration_minutes: 15 },
+        },
+        {
+          id: "quick_recall",
+          title: "Quick Recall Verification",
+          subtitle: "Verify rescued topics are holding",
+          duration: "5 min",
+          icon: "brain",
+          action: "start-focus-session",
+          params: { mode: "revision", topic_id: resolvedTopicId || null, duration_minutes: 5 },
+        },
+        {
+          id: "brain_mission",
+          title: "Complete Brain Mission",
+          subtitle: "Daily mission to maintain momentum",
+          duration: "5-10 min",
+          icon: "trophy",
+          action: "navigate",
+          params: { screen: "home", section: "missions" },
+        },
+        {
+          id: "check_brain",
+          title: "View Brain Health",
+          subtitle: "See updated stability after rescue",
+          duration: "2 min",
+          icon: "activity",
+          action: "navigate",
+          params: { screen: "brain_tab" },
+        },
+      ] : [
         {
           id: "quick_recall",
           title: "Quick Recall Test",
