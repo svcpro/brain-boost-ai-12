@@ -59,7 +59,7 @@ export default function DecayForecastV2Card() {
     }
   }, [hasLoaded, user, fetchDashboard]);
 
-  const data = decayData;
+  
 
   if (loading && !data) {
     return (
@@ -197,7 +197,7 @@ export default function DecayForecastV2Card() {
         open={!!fixSession}
         onClose={() => {
           setFixSession(null);
-          computeDecayV2();
+          fetchDashboard();
           window.dispatchEvent(new Event("insights-refresh"));
         }}
         topicName={fixSession?.topic || ""}
