@@ -1298,7 +1298,12 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
 
   // ── Session phases ──
   const stabilityPct = strengthPct;
-  const sessionPhases = mode === "revision"
+  const sessionPhases = mode === "mock"
+    ? [
+        { phase: 1, type: "exam", title: "Simulated Exam", duration_minutes: 25, description: `Timed exam-condition MCQs with negative marking on ${topicName}` },
+        { phase: 2, type: "analysis", title: "Performance Analysis", duration_minutes: 5, description: "Detailed breakdown of accuracy, speed, and weak areas" },
+      ]
+    : mode === "revision"
     ? [
         { phase: 1, type: "recall", title: "Quick Recall Scan", duration_minutes: 3, description: `Rapid retrieval of ${topicName}` },
         { phase: 2, type: "assessment", title: "Decay Check", duration_minutes: 4, description: "Test which memories have weakened since last review" },
@@ -1316,7 +1321,8 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const rankImpactMin = stabilityPct < 30 ? 300 : stabilityPct < 60 ? 150 : 50;
   const rankImpactMax = stabilityPct < 30 ? 600 : stabilityPct < 60 ? 400 : 150;
 
-  const estimatedDurationMinutes = mode === "emergency" ? 5 : mode === "revision" ? 10 : 25;
+  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 5 : mode === "revision" ? 10 : 25;
+  const targetPercentile = strengthPct >= 70 ? "Top 15%" : strengthPct >= 50 ? "Top 30%" : strengthPct >= 30 ? "Top 45%" : "Top 60%";
   const revisionMetrics = buildRevisionMetrics({
     topicCount: 1,
     durationMinutes: estimatedDurationMinutes,
