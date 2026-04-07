@@ -1029,8 +1029,10 @@ async function handleSessionBlueprint(userId: string, body: any) {
       duration: 15,
       questionCount: 10,
       phases: [
-        { type: "mcq", title: "Current Affairs Quiz", description: "Recent events mapped to exam syllabus topics", duration: 10, icon: "globe" },
-        { type: "review", title: "Exam Relevance Review", description: "Connect current events to likely exam questions", duration: 5, icon: "book-open" },
+        { type: "warm-up", title: "📰 Daily Digest", description: "Quick scan of today's top events mapped to your exam syllabus", duration: 2, icon: "newspaper", emoji: "📰" },
+        { type: "mcq", title: "🎯 CA Quiz", description: "MCQs generated from recent current affairs events", duration: 8, icon: "globe", emoji: "🎯" },
+        { type: "event-deep-dive", title: "🔍 Event Deep-Dive", description: "Exam-angle breakdown of most important events", duration: 3, icon: "search", emoji: "🔍" },
+        { type: "review", title: "📊 Exam Relevance Review", description: "Connect current events to likely exam questions & syllabus topics", duration: 2, icon: "book-open", emoji: "📊" },
       ],
     },
     "intel-practice": {
@@ -1220,6 +1222,83 @@ async function handleSessionBlueprint(userId: string, body: any) {
         crisis_topics: crisisTargets,
       };
     })() : {}),
+    ...(studyMode === "current-affairs" ? await (async () => {
+      // Fetch recent CA events
+      const { data: recentEvents } = await admin.from("ca_events")
+        .select("id, title, summary, category, importance_score, event_date, source_name, question_count, syllabus_link_count, processing_status")
+        .order("event_date", { ascending: false })
+        .limit(10);
+
+      const events = (recentEvents || []).map((e: any) => ({
+        id: e.id,
+        title: e.title,
+        summary: e.summary || "",
+        category: e.category || "General",
+        importance_score: e.importance_score || 0,
+        event_date: e.event_date || "",
+        source: e.source_name || "",
+        questions_available: e.question_count || 0,
+        syllabus_links: e.syllabus_link_count || 0,
+        is_processed: e.processing_status === "completed",
+      }));
+
+      // Fetch approved CA questions count
+      const { count: totalCAQuestions } = await admin.from("ca_generated_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "approved");
+
+      // Get user's CA quiz history today
+      const { count: todayCACount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "current-affairs")
+        .gte("created_at", todayStart());
+
+      // Exam-type specific categories
+      const examType = profile?.exam_type || "UPSC CSE";
+      const categoryBreakdown: Record<string, number> = {};
+      events.forEach((e: any) => { categoryBreakdown[e.category] = (categoryBreakdown[e.category] || 0) + 1; });
+
+      return {
+        ca_config: {
+          quiz_type: "daily",
+          quiz_type_label: "Daily CA Quiz",
+          total_events_today: events.length,
+          total_questions_available: totalCAQuestions || 0,
+          quizzes_taken_today: todayCACount || 0,
+          exam_type: examType,
+          exam_relevance_note: `Questions mapped to ${examType} syllabus`,
+          category_breakdown: categoryBreakdown,
+          difficulty_mix: { easy: 3, medium: 4, hard: 3 },
+          question_types: ["factual", "conceptual", "application", "analytical"],
+          scoring: { correct: 4, incorrect: -1, unanswered: 0, negative_marking: true },
+          features: {
+            show_event_context: true,
+            show_syllabus_link: true,
+            show_explanation_after_answer: true,
+            show_source_reference: true,
+            bookmarkable: true,
+            share_score: true,
+          },
+          daily_digest: {
+            top_events: events.slice(0, 5).map((e: any) => ({
+              id: e.id,
+              title: e.title,
+              category: e.category,
+              importance: e.importance_score >= 8 ? "🔴 Critical" : e.importance_score >= 5 ? "🟠 Important" : "🟢 Standard",
+              importance_score: e.importance_score,
+              event_date: e.event_date,
+              source: e.source,
+            })),
+            total_events: events.length,
+            categories_covered: Object.keys(categoryBreakdown).length,
+          },
+          estimated_duration_minutes: 15,
+          estimated_questions: config.questionCount,
+        },
+        ca_events: events,
+        ca_events_count: events.length,
+      };
+    })() : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       stability_gain_min: stabilityGainMin,
@@ -1312,7 +1391,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const subjectName = (targetTopic as any)?.subjects?.name || "General";
   const strengthPct = targetTopic ? toStrengthPercent(targetTopic.memory_strength, 50) : 50;
   const difficulty = getDifficultyFromStrength(strengthPct);
-  const questionCount = mode === "mock" ? 15 : mode === "emergency" ? 6 : mode === "revision" ? 8 : 10;
+  const questionCount = mode === "mock" ? 15 : mode === "emergency" ? 6 : mode === "revision" ? 8 : mode === "current-affairs" ? 10 : 10;
 
   try {
     const agentUrl = `${supabaseUrl}/functions/v1/ai-brain-agent`;
@@ -1416,6 +1495,13 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
         { phase: 6, type: "stability-recovery", title: "💚 Stability Recovery", duration_minutes: 1, description: "Animated stability gain and scoring visualization", icon: "heart-pulse", emoji: "💚" },
         { phase: 7, type: "recovery-plan", title: "🏆 Mission Complete", duration_minutes: 0.5, description: "AI-generated recovery plan with next steps", icon: "trophy", emoji: "🏆" },
       ]
+    : mode === "current-affairs"
+    ? [
+        { phase: 1, type: "warm-up", title: "📰 Daily Digest", duration_minutes: 2, description: "Quick scan of today's top events mapped to your exam syllabus", icon: "newspaper", emoji: "📰" },
+        { phase: 2, type: "mcq", title: "🎯 CA Quiz", duration_minutes: 8, description: "MCQs generated from recent current affairs events", icon: "globe", emoji: "🎯" },
+        { phase: 3, type: "event-deep-dive", title: "🔍 Event Deep-Dive", duration_minutes: 3, description: "Exam-angle breakdown of most important events", icon: "search", emoji: "🔍" },
+        { phase: 4, type: "review", title: "📊 Exam Relevance Review", duration_minutes: 2, description: "Connect current events to likely exam questions & syllabus topics", icon: "book-open", emoji: "📊" },
+      ]
     : [
         { phase: 1, type: "recall", title: "Active Recall", duration_minutes: 8, description: `Recall key concepts from ${topicName}` },
         { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_minutes: 9, description: "Strengthen weak connections through targeted questions" },
@@ -1428,7 +1514,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const rankImpactMin = stabilityPct < 30 ? 300 : stabilityPct < 60 ? 150 : 50;
   const rankImpactMax = stabilityPct < 30 ? 600 : stabilityPct < 60 ? 400 : 150;
 
-  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 8 : mode === "revision" ? 10 : 25;
+  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 8 : mode === "revision" ? 10 : mode === "current-affairs" ? 15 : 25;
   const targetPercentile = strengthPct >= 70 ? "Top 15%" : strengthPct >= 50 ? "Top 30%" : strengthPct >= 30 ? "Top 45%" : "Top 60%";
   const revisionMetrics = buildRevisionMetrics({
     topicCount: 1,
@@ -1603,6 +1689,178 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
       },
     } : {}),
     ...emergencyData,
+    ...(mode === "current-affairs" ? await (async () => {
+      // Fetch real CA events with questions
+      const { data: caEvents } = await admin.from("ca_events")
+        .select("id, title, summary, category, importance_score, event_date, source_name, source_url")
+        .order("event_date", { ascending: false })
+        .limit(10);
+
+      // Fetch approved CA questions from these events
+      const eventIds = (caEvents || []).map((e: any) => e.id);
+      let caQuestions: any[] = [];
+      if (eventIds.length > 0) {
+        const { data: rawQ } = await admin.from("ca_generated_questions")
+          .select("id, question_text, question_type, options, correct_answer, explanation, difficulty, cognitive_level, marks, exam_type, event_id")
+          .in("event_id", eventIds)
+          .eq("status", "approved")
+          .limit(10);
+        caQuestions = (rawQ || []).map((q: any, idx: number) => {
+          const opts = Array.isArray(q.options) ? q.options : [];
+          const correctIdx = typeof q.correct_answer === "number" ? q.correct_answer
+            : typeof q.correct_answer === "string" ? opts.indexOf(q.correct_answer) : 0;
+          const linkedEvent = (caEvents || []).find((e: any) => e.id === q.event_id);
+          return {
+            id: q.id || `ca_q_${idx}_${Date.now()}`,
+            question_text: q.question_text,
+            question_type: q.question_type || "mcq",
+            options: opts,
+            correct_answer_index: correctIdx >= 0 ? correctIdx : 0,
+            explanation: q.explanation || "",
+            difficulty: q.difficulty || "medium",
+            cognitive_level: q.cognitive_level || "factual",
+            marks: q.marks || 1,
+            exam_type: q.exam_type || "",
+            event_context: linkedEvent ? {
+              event_id: linkedEvent.id,
+              event_title: linkedEvent.title,
+              event_summary: linkedEvent.summary || "",
+              event_category: linkedEvent.category || "General",
+              event_date: linkedEvent.event_date || "",
+              source: linkedEvent.source_name || "",
+              source_url: linkedEvent.source_url || "",
+              importance_score: linkedEvent.importance_score || 0,
+            } : null,
+          };
+        });
+      }
+
+      // If we have CA questions, replace the generic ones
+      if (caQuestions.length > 0) {
+        questions.length = 0;
+        caQuestions.forEach((q: any) => questions.push(q));
+      }
+
+      // Fetch syllabus links for these events
+      let syllabusLinks: any[] = [];
+      if (eventIds.length > 0) {
+        const { data: links } = await admin.from("ca_syllabus_links")
+          .select("event_id, exam_type, subject, micro_topic, relevance_score, tpi_impact")
+          .in("event_id", eventIds)
+          .order("relevance_score", { ascending: false })
+          .limit(20);
+        syllabusLinks = links || [];
+      }
+
+      // Group events by category
+      const categoryBreakdown: Record<string, any[]> = {};
+      (caEvents || []).forEach((e: any) => {
+        const cat = e.category || "General";
+        if (!categoryBreakdown[cat]) categoryBreakdown[cat] = [];
+        categoryBreakdown[cat].push({
+          id: e.id,
+          title: e.title,
+          importance_score: e.importance_score || 0,
+          event_date: e.event_date || "",
+        });
+      });
+
+      // Get user's exam type
+      const { data: userProfile } = await admin.from("profiles")
+        .select("exam_type").eq("id", userId).maybeSingle();
+      const examType = userProfile?.exam_type || "UPSC CSE";
+
+      // CA quiz streak
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { count: caStreakCount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "current-affairs")
+        .gte("created_at", weekAgo);
+
+      const { count: todayCACount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "current-affairs")
+        .gte("created_at", todayStart());
+
+      return {
+        ca_config: {
+          quiz_type: "daily",
+          quiz_type_label: "📰 Daily CA Quiz",
+          exam_type: examType,
+          exam_relevance_note: `Questions mapped to ${examType} syllabus`,
+          total_events: (caEvents || []).length,
+          total_ca_questions: caQuestions.length,
+          quizzes_today: todayCACount || 0,
+          ca_streak_this_week: caStreakCount || 0,
+          ca_streak_label: `${caStreakCount || 0} CA quizzes this week`,
+          scoring: { correct: 4, incorrect: -1, unanswered: 0, negative_marking: true },
+          difficulty_distribution: {
+            easy: caQuestions.filter((q: any) => q.difficulty === "easy").length,
+            medium: caQuestions.filter((q: any) => q.difficulty === "medium").length,
+            hard: caQuestions.filter((q: any) => q.difficulty === "hard").length,
+          },
+          cognitive_level_distribution: {
+            factual: caQuestions.filter((q: any) => q.cognitive_level === "factual").length,
+            conceptual: caQuestions.filter((q: any) => q.cognitive_level === "conceptual").length,
+            application: caQuestions.filter((q: any) => q.cognitive_level === "application").length,
+            analytical: caQuestions.filter((q: any) => q.cognitive_level === "analytical").length,
+          },
+          features: {
+            show_event_context: true,
+            show_syllabus_link: true,
+            show_explanation_after_answer: true,
+            show_source_reference: true,
+            bookmarkable: true,
+            share_score: true,
+            daily_digest_intro: true,
+          },
+        },
+        ca_events: (caEvents || []).map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          summary: e.summary || "",
+          category: e.category || "General",
+          importance_score: e.importance_score || 0,
+          importance_label: (e.importance_score || 0) >= 8 ? "🔴 Critical" : (e.importance_score || 0) >= 5 ? "🟠 Important" : "🟢 Standard",
+          event_date: e.event_date || "",
+          source: e.source_name || "",
+          source_url: e.source_url || "",
+        })),
+        ca_events_count: (caEvents || []).length,
+        ca_category_breakdown: categoryBreakdown,
+        ca_syllabus_links: syllabusLinks.map((l: any) => ({
+          event_id: l.event_id,
+          exam_type: l.exam_type,
+          subject: l.subject,
+          micro_topic: l.micro_topic,
+          relevance_score: l.relevance_score,
+          tpi_impact: l.tpi_impact,
+        })),
+        ca_daily_digest: {
+          headline: `${(caEvents || []).length} events today across ${Object.keys(categoryBreakdown).length} categories`,
+          top_3: (caEvents || []).slice(0, 3).map((e: any) => ({
+            title: e.title,
+            category: e.category || "General",
+            importance: (e.importance_score || 0) >= 8 ? "critical" : (e.importance_score || 0) >= 5 ? "important" : "standard",
+          })),
+          categories_covered: Object.keys(categoryBreakdown),
+          exam_mapped: true,
+        },
+        session_config_override: {
+          ...sessionConfig,
+          total_questions: caQuestions.length || questions.length,
+          time_limit_seconds: 15 * 60,
+          scoring: { correct: 4, incorrect: -1, unanswered: 0 },
+          features: {
+            ...sessionConfig.features,
+            show_explanation_after_answer: true,
+            show_correct_answer: true,
+            show_event_context: true,
+            bookmarkable: true,
+          },
+        },
+      };
+    })() : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       rank_impact: `+${rankImpactMin}-${rankImpactMax} ranks`,
@@ -1987,6 +2245,147 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
         },
       };
     })() : {}),
+    ...(mode === "current-affairs" ? await (async () => {
+      // CA-specific completion analytics
+      const { data: caEvents } = await admin.from("ca_events")
+        .select("id, title, category, importance_score, event_date")
+        .order("event_date", { ascending: false })
+        .limit(10);
+
+      const eventIds = (caEvents || []).map((e: any) => e.id);
+      let syllabusLinks: any[] = [];
+      if (eventIds.length > 0) {
+        const { data: links } = await admin.from("ca_syllabus_links")
+          .select("event_id, exam_type, subject, micro_topic, relevance_score")
+          .in("event_id", eventIds)
+          .order("relevance_score", { ascending: false })
+          .limit(15);
+        syllabusLinks = links || [];
+      }
+
+      // Category-wise performance from answers
+      const categoryPerformance: Record<string, { correct: number; total: number }> = {};
+      answersList.forEach((a: any) => {
+        const cat = a.category || a.event_category || "General";
+        if (!categoryPerformance[cat]) categoryPerformance[cat] = { correct: 0, total: 0 };
+        categoryPerformance[cat].total++;
+        if (a.is_correct ?? (a.selected_option_index === a.correct_option_index)) categoryPerformance[cat].correct++;
+      });
+
+      // CA streak
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { count: caStreakCount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "current-affairs")
+        .gte("created_at", weekAgo);
+
+      // Consecutive day streak
+      const { data: recentCALogs } = await admin.from("study_logs")
+        .select("created_at")
+        .eq("user_id", userId).eq("study_mode", "current-affairs")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      let dayStreak = 0;
+      if (recentCALogs && recentCALogs.length > 0) {
+        const today = new Date(); today.setHours(0,0,0,0);
+        let checkDate = today;
+        const logDates = new Set(recentCALogs.map((l: any) => {
+          const d = new Date(l.created_at); d.setHours(0,0,0,0); return d.toDateString();
+        }));
+        while (logDates.has(checkDate.toDateString())) {
+          dayStreak++;
+          checkDate = new Date(checkDate.getTime() - 86400000);
+        }
+      }
+
+      // Difficulty-wise breakdown
+      const difficultyBreakdown: Record<string, { correct: number; total: number }> = {};
+      answersList.forEach((a: any) => {
+        const diff = a.difficulty || "medium";
+        if (!difficultyBreakdown[diff]) difficultyBreakdown[diff] = { correct: 0, total: 0 };
+        difficultyBreakdown[diff].total++;
+        if (a.is_correct ?? (a.selected_option_index === a.correct_option_index)) difficultyBreakdown[diff].correct++;
+      });
+
+      const caReadiness = accuracyNum >= 80 ? "exam_ready" : accuracyNum >= 60 ? "on_track" : accuracyNum >= 40 ? "needs_practice" : "weak";
+
+      return {
+        ca_result: {
+          quiz_type: "daily",
+          quiz_type_label: "📰 Daily CA Quiz Complete",
+          total_events_covered: (caEvents || []).length,
+          events_covered: (caEvents || []).slice(0, 5).map((e: any) => ({
+            id: e.id,
+            title: e.title,
+            category: e.category || "General",
+            importance_score: e.importance_score || 0,
+            importance_label: (e.importance_score || 0) >= 8 ? "🔴 Critical" : (e.importance_score || 0) >= 5 ? "🟠 Important" : "🟢 Standard",
+            event_date: e.event_date || "",
+          })),
+          accuracy: accuracyNum,
+          accuracy_label: `${accuracyNum}%`,
+          correct,
+          incorrect,
+          skipped,
+          total_questions: totalQ,
+          total_marks: totalMarks,
+          max_marks: maxMarks,
+          percentage,
+          ca_readiness: caReadiness,
+          ca_readiness_label: caReadiness === "exam_ready" ? "🎯 Exam Ready"
+            : caReadiness === "on_track" ? "📈 On Track"
+            : caReadiness === "needs_practice" ? "📖 Needs More Practice"
+            : "⚠️ Weak — Review Events",
+          category_performance: Object.entries(categoryPerformance).map(([cat, data]) => ({
+            category: cat,
+            correct: data.correct,
+            total: data.total,
+            accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+            accuracy_label: data.total > 0 ? `${Math.round((data.correct / data.total) * 100)}%` : "N/A",
+          })),
+          difficulty_performance: Object.entries(difficultyBreakdown).map(([diff, data]) => ({
+            difficulty: diff,
+            correct: data.correct,
+            total: data.total,
+            accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+          })),
+          syllabus_connections: syllabusLinks.slice(0, 10).map((l: any) => ({
+            subject: l.subject,
+            micro_topic: l.micro_topic,
+            relevance_score: l.relevance_score,
+            exam_type: l.exam_type,
+          })),
+          syllabus_topics_covered: [...new Set(syllabusLinks.map((l: any) => l.subject))].length,
+          ca_streak: {
+            this_week: caStreakCount || 0,
+            this_week_label: `${caStreakCount || 0} quizzes this week`,
+            day_streak: dayStreak,
+            day_streak_label: dayStreak > 0 ? `${dayStreak}-day CA streak 🔥` : "Start your streak!",
+          },
+          speed_analysis: {
+            avg_time_per_question_ms: avgTimePerQuestion,
+            avg_time_label: avgTimePerQuestion > 0 ? `${Math.round(avgTimePerQuestion / 1000)}s per question` : "N/A",
+            speed_verdict: avgTimePerQuestion < 20000 ? "fast" : avgTimePerQuestion < 45000 ? "balanced" : "slow",
+          },
+          weak_categories: Object.entries(categoryPerformance)
+            .filter(([_, data]) => data.total > 0 && (data.correct / data.total) < 0.5)
+            .map(([cat]) => cat),
+          improvement_tips: [
+            ...(accuracyNum < 60 ? ["Read daily newspapers or CA summaries for 15 min"] : []),
+            ...(Object.entries(categoryPerformance).some(([_, d]) => d.total > 0 && d.correct / d.total < 0.5) ? ["Focus on weak categories identified above"] : []),
+            ...(avgTimePerQuestion > 45000 ? ["Practice speed — aim for under 30 seconds per MCQ"] : []),
+            "Bookmark missed questions for revision",
+            "Connect events to syllabus topics for deeper understanding",
+          ],
+          share_card: {
+            title: `CA Quiz Score: ${percentage}%`,
+            subtitle: `${correct}/${totalQ} correct · ${(caEvents || []).length} events covered`,
+            streak: dayStreak > 0 ? `${dayStreak}-day streak 🔥` : null,
+          },
+        },
+      };
+    })() : {}),
     stability: {
       current: currentStability,
       before: stabilityBefore,
@@ -2022,9 +2421,15 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     question_results: questionResults,
     recommended_next: nextRecommendations.slice(0, 3),
     keep_momentum: {
-      title: mode === "emergency" ? "Recovery Complete" : "Keep the Momentum",
-      subtitle: mode === "emergency" ? "Next steps to maintain stability" : "AI-suggested next actions",
-      icon: mode === "emergency" ? "heart-pulse" : "zap",
+      title: mode === "emergency" ? "Recovery Complete"
+        : mode === "current-affairs" ? "CA Quiz Complete"
+        : "Keep the Momentum",
+      subtitle: mode === "emergency" ? "Next steps to maintain stability"
+        : mode === "current-affairs" ? "Stay exam-ready with daily practice"
+        : "AI-suggested next actions",
+      icon: mode === "emergency" ? "heart-pulse"
+        : mode === "current-affairs" ? "newspaper"
+        : "zap",
       actions: mode === "emergency" ? [
         {
           id: "deep_review",
@@ -2061,6 +2466,43 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
           icon: "activity",
           action: "navigate",
           params: { screen: "brain_tab" },
+        },
+      ] : mode === "current-affairs" ? [
+        {
+          id: "review_missed",
+          title: "Review Missed Events",
+          subtitle: "Deep-dive into events you got wrong",
+          duration: "5 min",
+          icon: "search",
+          action: "navigate",
+          params: { screen: "ca_review", session_id: session_id },
+        },
+        {
+          id: "exam_intel",
+          title: "Exam Intel Practice",
+          subtitle: "Practice high-probability exam questions",
+          duration: "10-20 min",
+          icon: "trending-up",
+          action: "start-focus-session",
+          params: { mode: "intel-practice" },
+        },
+        {
+          id: "focus_session",
+          title: "Start Focus Session",
+          subtitle: "Deep study on a weak topic",
+          duration: "25 min",
+          icon: "brain",
+          action: "start-focus-session",
+          params: { mode: "focus", duration_minutes: 25 },
+        },
+        {
+          id: "share_score",
+          title: "Share Your Score",
+          subtitle: `${percentage}% — Challenge your friends`,
+          duration: "1 min",
+          icon: "share-2",
+          action: "share",
+          params: { score: percentage, correct, total: totalQ },
         },
       ] : [
         {
