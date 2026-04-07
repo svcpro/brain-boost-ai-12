@@ -1624,14 +1624,21 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     risk_reduction: Math.max(0, riskBefore - riskAfter),
   };
 
+  // ── Mock-specific scoring breakdown ──
+  const isMock = mode === "mock";
+  const negativeMarks = isMock ? incorrect * 1 : 0;
+  const netMarks = isMock ? (correct * 4) - negativeMarks : totalMarks;
+  const mockPercentile = isMock ? (percentage >= 90 ? "Top 5%" : percentage >= 75 ? "Top 15%" : percentage >= 60 ? "Top 30%" : percentage >= 40 ? "Top 45%" : "Top 60%") : null;
+
   return {
     result: {
       session_id,
+      mode: mode || "focus",
       total_questions: totalQ,
       correct,
       incorrect,
       skipped,
-      total_marks: totalMarks,
+      total_marks: isMock ? netMarks : totalMarks,
       max_marks: maxMarks,
       percentage,
       accuracy: accuracyDisplay,
@@ -1645,6 +1652,27 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
       topic_name: memoryImpact.topic_name,
       subject: memoryImpact.subject,
     },
+    ...(isMock ? {
+      mock_result: {
+        net_marks: netMarks,
+        positive_marks: correct * 4,
+        negative_marks: negativeMarks,
+        unanswered_count: skipped,
+        attempted: correct + incorrect,
+        total: totalQ,
+        percentile: mockPercentile,
+        percentile_label: `You're in ${mockPercentile}`,
+        pass: netMarks >= Math.round(totalQ * 4 * 0.4),
+        pass_label: netMarks >= Math.round(totalQ * 4 * 0.4) ? "Passed ✅" : "Below cutoff ❌",
+        cutoff_marks: Math.round(totalQ * 4 * 0.4),
+        time_per_question_seconds: answersList.length > 0 ? Math.round(avgTimePerQuestion / 1000) : 0,
+        accuracy_breakdown: {
+          correct_percentage: totalQ > 0 ? Math.round((correct / totalQ) * 100) : 0,
+          incorrect_percentage: totalQ > 0 ? Math.round((incorrect / totalQ) * 100) : 0,
+          skipped_percentage: totalQ > 0 ? Math.round((skipped / totalQ) * 100) : 0,
+        },
+      },
+    } : {}),
     stability: {
       current: currentStability,
       before: stabilityBefore,
