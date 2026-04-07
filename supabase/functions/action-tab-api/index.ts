@@ -1215,7 +1215,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const subjectName = (targetTopic as any)?.subjects?.name || "General";
   const strengthPct = targetTopic ? toStrengthPercent(targetTopic.memory_strength, 50) : 50;
   const difficulty = getDifficultyFromStrength(strengthPct);
-  const questionCount = mode === "emergency" ? 5 : mode === "revision" ? 8 : 10;
+  const questionCount = mode === "mock" ? 15 : mode === "emergency" ? 5 : mode === "revision" ? 8 : 10;
 
   try {
     const agentUrl = `${supabaseUrl}/functions/v1/ai-brain-agent`;
