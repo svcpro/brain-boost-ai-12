@@ -1637,6 +1637,13 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
         { phase: 3, type: "event-deep-dive", title: "🔍 Event Deep-Dive", duration_minutes: 3, description: "Exam-angle breakdown of most important events", icon: "search", emoji: "🔍" },
         { phase: 4, type: "review", title: "📊 Exam Relevance Review", duration_minutes: 2, description: "Connect current events to likely exam questions & syllabus topics", icon: "book-open", emoji: "📊" },
       ]
+    : mode === "intel-practice"
+    ? [
+        { phase: 1, type: "intel-briefing", title: "🎯 Intel Briefing", duration_minutes: 2, description: "AI prediction summary — trending topics and probability analysis", icon: "bar-chart", emoji: "🎯" },
+        { phase: 2, type: "high-probability-mcq", title: "🔥 High-Probability MCQs", duration_minutes: 10, description: "Questions from topics with highest exam appearance probability", icon: "trending-up", emoji: "🔥" },
+        { phase: 3, type: "pattern-challenge", title: "🧩 Pattern Challenge", duration_minutes: 5, description: "Cross-topic questions testing conceptual links between hot topics", icon: "git-branch", emoji: "🧩" },
+        { phase: 4, type: "intel-debrief", title: "📊 Intel Debrief", duration_minutes: 3, description: "Strategic readiness report with prediction mastery score", icon: "shield", emoji: "📊" },
+      ]
     : [
         { phase: 1, type: "recall", title: "Active Recall", duration_minutes: 8, description: `Recall key concepts from ${topicName}` },
         { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_minutes: 9, description: "Strengthen weak connections through targeted questions" },
@@ -1649,7 +1656,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const rankImpactMin = stabilityPct < 30 ? 300 : stabilityPct < 60 ? 150 : 50;
   const rankImpactMax = stabilityPct < 30 ? 600 : stabilityPct < 60 ? 400 : 150;
 
-  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 8 : mode === "revision" ? 10 : mode === "current-affairs" ? 15 : 25;
+  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 8 : mode === "revision" ? 10 : mode === "current-affairs" ? 15 : mode === "intel-practice" ? 20 : 25;
   const targetPercentile = strengthPct >= 70 ? "Top 15%" : strengthPct >= 50 ? "Top 30%" : strengthPct >= 30 ? "Top 45%" : "Top 60%";
   const revisionMetrics = buildRevisionMetrics({
     topicCount: 1,
