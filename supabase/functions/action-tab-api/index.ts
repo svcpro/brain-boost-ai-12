@@ -944,41 +944,36 @@ async function handleSessionBlueprint(userId: string, body: any) {
 
   // ── Auto-create fallback topic if none exist ──
   if (!targetTopic) {
-    // Check if user has a profile with subject preferences
-    const { data: userProfile } = await admin.from("profiles")
-      .select("exam_type").eq("id", userId).maybeSingle();
-
     const fallbackName = "General Practice";
-    const fallbackSubject = "General";
 
-    // Look for or create a default "General" subject
+    // Look for or create a default "General" subject for this user
     let subjectId: string | null = null;
     const { data: existingSubject } = await admin.from("subjects")
-      .select("id").eq("name", fallbackSubject).maybeSingle();
+      .select("id").eq("name", "General").eq("user_id", userId).maybeSingle();
     
     if (existingSubject) {
       subjectId = existingSubject.id;
     } else {
       const { data: newSubject } = await admin.from("subjects")
-        .insert({ name: fallbackSubject, exam_type: userProfile?.exam_type || "General" })
+        .insert({ name: "General", user_id: userId })
         .select("id").single();
       subjectId = newSubject?.id || null;
     }
 
-    // Create the fallback topic for this user
-    const { data: newTopic } = await admin.from("topics")
-      .insert({
-        user_id: userId,
-        name: fallbackName,
-        subject_id: subjectId,
-        memory_strength: 0.5,
-        revision_count: 0,
-      })
-      .select("id, name, memory_strength, subject_id, revision_count, last_revision_date, next_predicted_drop_date, subjects(name)")
-      .single();
+    if (subjectId) {
+      const { data: newTopic } = await admin.from("topics")
+        .insert({
+          user_id: userId,
+          name: fallbackName,
+          subject_id: subjectId,
+          memory_strength: 0.5,
+        })
+        .select("id, name, memory_strength, subject_id, last_revision_date, next_predicted_drop_date, subjects(name)")
+        .single();
 
-    if (newTopic) {
-      targetTopic = newTopic;
+      if (newTopic) {
+        targetTopic = newTopic;
+      }
     }
   }
 
