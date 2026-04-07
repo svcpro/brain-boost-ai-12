@@ -16,7 +16,7 @@ type Phase = "activating" | "analyzing" | "protecting" | "done";
 export default function RiskShieldOverlay({ atRisk, onClose }: RiskShieldOverlayProps) {
   const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>("activating");
-  const [protectedTopics, setProtectedTopics] = useState<{ name: string; boost: number }[]>([]);
+  const [protectedTopics, setProtectedTopics] = useState<{ topic_name: string; boost: number }[]>([]);
   const [totalBoost, setTotalBoost] = useState(0);
 
   useEffect(() => {
@@ -29,80 +29,42 @@ export default function RiskShieldOverlay({ atRisk, onClose }: RiskShieldOverlay
       await delay(800);
       if (cancelled) return;
 
-      // Phase 2: Analyzing
+      // Phase 2: Analyzing — call init API
       setPhase("analyzing");
+      try {
+        await supabase.functions.invoke("risk-shield", {
+          body: { action: "init" },
+        });
+      } catch {}
       await delay(600);
       if (cancelled) return;
 
-      // Phase 3: Protecting — boost minor-risk topics and reschedule
+      // Phase 3: Protecting — call activate API
       setPhase("protecting");
 
-      const minorRisk = atRisk
-        .filter(t => Number(t.memory_strength) >= 30 && Number(t.memory_strength) < 70)
-        .slice(0, 5);
-
-      const protected_: { name: string; boost: number }[] = [];
-      let total = 0;
-
-      for (const topic of minorRisk) {
-        const boost = Math.max(1, Math.round((70 - Number(topic.memory_strength)) * 0.15));
-        const newStrength = Math.min(100, Number(topic.memory_strength) + boost);
-
-        try {
-          // Bump memory strength slightly
-          await (supabase as any)
-            .from("topics")
-            .update({
-              memory_strength: newStrength,
-              next_predicted_drop_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-            })
-            .eq("user_id", user.id)
-            .eq("name", topic.name)
-            .is("deleted_at", null);
-        } catch {}
-
-        protected_.push({ name: topic.name, boost });
-        total += boost;
-      }
-
-      // If no minor-risk topics, still count it as a shield day
-      if (protected_.length === 0 && atRisk.length > 0) {
-        // Protect the top at-risk topic with a tiny boost
-        const t = atRisk[0];
-        const boost = 1;
-        try {
-          await (supabase as any)
-            .from("topics")
-            .update({
-              memory_strength: Math.min(100, Number(t.memory_strength) + boost),
-              next_predicted_drop_date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-            })
-            .eq("user_id", user.id)
-            .eq("name", t.name)
-            .is("deleted_at", null);
-        } catch {}
-        protected_.push({ name: t.name, boost });
-        total = 1;
-      }
-
-      // Log as study activity
       try {
-        await (supabase as any).from("study_logs").insert({
-          user_id: user.id,
-          duration_minutes: 1,
-          study_mode: "risk_shield",
-          confidence_level: "100",
+        const { data: result, error } = await supabase.functions.invoke("risk-shield", {
+          body: { action: "activate" },
         });
-        // Extend streak
-        await (supabase as any).from("study_streaks").upsert({
-          user_id: user.id,
-          last_study_date: new Date().toISOString().slice(0, 10),
-        }, { onConflict: "user_id" });
-      } catch {}
+
+        if (cancelled) return;
+
+        if (!error && result?.success) {
+          const d = result.data;
+          setProtectedTopics(d.protected_topics || []);
+          setTotalBoost(d.total_boost || 0);
+        } else {
+          // Fallback: show at least a summary
+          setProtectedTopics([]);
+          setTotalBoost(0);
+        }
+      } catch (e) {
+        console.error("Risk Shield activate error:", e);
+        setProtectedTopics([]);
+        setTotalBoost(0);
+      }
 
       if (cancelled) return;
-      setProtectedTopics(protected_);
-      setTotalBoost(total);
 
       triggerHaptic([30, 60, 30, 80]);
       // Confetti
@@ -220,13 +182,13 @@ export default function RiskShieldOverlay({ atRisk, onClose }: RiskShieldOverlay
               <div className="w-full space-y-1.5 mb-4">
                 {protectedTopics.map((t, i) => (
                   <motion.div
-                    key={t.name}
+                    key={t.topic_name}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.1 }}
                     className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/50 border border-border/50"
                   >
-                    <span className="text-[11px] text-foreground truncate flex-1 text-left">{t.name}</span>
+                    <span className="text-[11px] text-foreground truncate flex-1 text-left">{t.topic_name}</span>
                     <span className="text-[10px] font-bold text-primary ml-2">+{t.boost}%</span>
                   </motion.div>
                 ))}
