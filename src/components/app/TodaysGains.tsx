@@ -346,48 +346,7 @@ const TodaysGains = () => {
         ))}
       </div>
 
-      {/* ─── 7-Day Momentum Graph (collapsible) ─── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.85 }}
-      >
-        <button
-          onClick={() => setShowMomentum(!showMomentum)}
-          className="w-full flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 hover:bg-secondary/20 transition-all group"
-        >
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
-              7-Day Momentum
-            </span>
-          </div>
-          <motion.div animate={{ rotate: showMomentum ? 180 : 0 }} transition={{ duration: 0.2 }}>
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </motion.div>
-        </button>
-        <AnimatePresence>
-          {showMomentum && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="overflow-hidden"
-            >
-              <div className="rounded-2xl border border-border bg-card p-4 mt-2">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] text-muted-foreground">Study minutes per day</span>
-                  <span className="text-[10px] font-medium text-primary">
-                    {data.weeklyData.reduce((s, d) => s + d.value, 0)}m total
-                  </span>
-                </div>
-                <MiniMomentumGraph data={data.weeklyData} />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+      {/* ─── 7-Day Momentum Graph (hidden) ─── */}
 
       {/* ─── Lock Progress Button ─── */}
       <motion.div
