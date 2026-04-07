@@ -1335,12 +1335,34 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   return {
     session_id: session.id,
     started_at: session.created_at,
-    topic: topicContext,
+    topic: {
+      ...topicContext,
+      stability_label: `${strengthPct}% stable`,
+    },
+    topics_selected: [{
+      name: topicName,
+      subject: subjectName,
+      stability: strengthPct,
+      stability_label: `${strengthPct}% stable`,
+    }],
     questions,
     session_config: sessionConfig,
     session_phases: sessionPhases,
     phases_count: sessionPhases.length,
     current_stability: stabilityPct,
+    ...(mode === "mock" ? {
+      mock_config: {
+        target_percentile: targetPercentile,
+        target_label: `Target: ${targetPercentile}`,
+        target_description: "Based on your current brain data",
+        negative_marking: true,
+        strict_timer: true,
+        no_hints: true,
+        show_explanation_after_submit: true,
+        total_marks: questions.length * 4,
+        passing_marks: Math.round(questions.length * 4 * 0.4),
+      },
+    } : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       rank_impact: `+${rankImpactMin}-${rankImpactMax} ranks`,
