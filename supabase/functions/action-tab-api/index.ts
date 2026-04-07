@@ -1131,6 +1131,95 @@ async function handleSessionBlueprint(userId: string, body: any) {
         passing_marks: Math.round(config.questionCount * 4 * 0.4),
       },
     } : {}),
+    ...(studyMode === "emergency" ? await (async () => {
+      // Fetch top 3 weakest crisis topics for emergency mode
+      const { data: crisisTopics } = await admin.from("topics")
+        .select("id, name, memory_strength, subject_id, subjects(name), last_revision_date, next_predicted_drop_date")
+        .eq("user_id", userId).is("deleted_at", null)
+        .order("memory_strength", { ascending: true }).limit(3);
+
+      const crisisTargets = (crisisTopics || []).map((t: any) => {
+        const ms = toStrengthPercent(t.memory_strength, 0);
+        return {
+          id: t.id,
+          name: t.name,
+          subject: (t as any).subjects?.name || "General",
+          memory_strength: ms,
+          stability_label: `${ms}% stable`,
+          risk_level: ms < 25 ? "critical" : ms < 45 ? "high" : "medium",
+          risk_label: ms < 25 ? "🔴 Critical" : ms < 45 ? "🟠 High Risk" : "🟡 Moderate",
+          last_revision_date: t.last_revision_date || "",
+          predicted_drop_date: t.next_predicted_drop_date || "",
+          days_to_forget: getDaysToForget(t.next_predicted_drop_date),
+        };
+      });
+      const avgStrength = crisisTargets.length > 0
+        ? Math.round(crisisTargets.reduce((s: number, t: any) => s + t.memory_strength, 0) / crisisTargets.length)
+        : strengthPct;
+      const intensity = avgStrength < 20 ? "severe" : avgStrength < 40 ? "moderate" : "mild";
+
+      return {
+        emergency_config: {
+          crisis_intensity: intensity,
+          crisis_intensity_label: intensity === "severe" ? "🔴 Severe Crisis" : intensity === "moderate" ? "🟠 Moderate Crisis" : "🟡 Mild Crisis",
+          crisis_description: intensity === "severe"
+            ? "Critical memory collapse detected — immediate stabilization required"
+            : intensity === "moderate"
+            ? "Significant memory decay — rescue protocol initiated"
+            : "Early warning signs — preventive stabilization recommended",
+          crisis_topics: crisisTargets,
+          crisis_topics_count: crisisTargets.length,
+          avg_stability: avgStrength,
+          avg_stability_label: `${avgStrength}% average stability`,
+          total_stages: 7,
+          stages: ["detection", "emotional-reset", "phase1-recall", "phase2-mcq", "phase3-confidence", "stability-recovery", "recovery-plan"],
+          stage_labels: {
+            detection: "🔴 Crisis Detection",
+            "emotional-reset": "🧘 Emotional Reset",
+            "phase1-recall": "⚡ Critical Recall",
+            "phase2-mcq": "🎯 High-Impact MCQ",
+            "phase3-confidence": "🛡️ Confidence Lock",
+            "stability-recovery": "💚 Stability Recovery",
+            "recovery-plan": "🏆 Mission Complete",
+          },
+          recall_config: {
+            duration_seconds_per_topic: 45,
+            total_recall_topics: crisisTargets.length,
+            total_recall_time_seconds: crisisTargets.length * 45,
+            instructions: "Recall everything you know about each topic in 45 seconds. Write/think as fast as possible.",
+          },
+          mcq_config: {
+            questions_per_topic: 2,
+            total_questions: crisisTargets.length * 2,
+            difficulty: intensity === "severe" ? "easy" : "medium",
+            show_explanation_after_answer: true,
+            scoring: { correct: 4, incorrect: 0, unanswered: 0, negative_marking: false },
+          },
+          breathing_config: {
+            steps: ["Breathe in...", "Hold...", "Breathe out...", "Relax..."],
+            cycle_duration_ms: 2000,
+            total_cycles: 2,
+            total_duration_seconds: 16,
+            skip_allowed: true,
+          },
+          confidence_lock: {
+            description: "Lock recovered knowledge into long-term memory",
+            requires_mcq_completion: true,
+          },
+          estimated_stability_gain: intensity === "severe" ? "+15-25%" : intensity === "moderate" ? "+10-18%" : "+5-12%",
+          estimated_duration_minutes: intensity === "severe" ? 8 : intensity === "moderate" ? 6 : 5,
+          features: {
+            voice_guidance: true,
+            confetti_on_complete: true,
+            animated_stability_bar: true,
+            recovery_plan_generation: true,
+            scan_line_animation: true,
+            pulse_danger_glow: true,
+          },
+        },
+        crisis_topics: crisisTargets,
+      };
+    })() : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       stability_gain_min: stabilityGainMin,
