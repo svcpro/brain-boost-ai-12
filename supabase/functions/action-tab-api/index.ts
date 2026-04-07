@@ -1062,19 +1062,22 @@ async function handleSessionBlueprint(userId: string, body: any) {
     predictedDropDate: targetTopic?.next_predicted_drop_date || null,
   });
 
+  // ── Mock-specific: target percentile based on strength ──
+  const targetPercentile = strengthPct >= 70 ? "Top 15%" : strengthPct >= 50 ? "Top 30%" : strengthPct >= 30 ? "Top 45%" : "Top 60%";
+
   return {
     blueprint: {
       mode: studyMode,
       mode_label: studyMode === "focus" ? "Focus Study Mode"
         : studyMode === "revision" ? "AI Revision Mode"
-        : studyMode === "mock" ? "Mock Practice Mode"
+        : studyMode === "mock" ? "Mock Exam Blueprint"
         : studyMode === "emergency" ? "Emergency Rescue Mode"
         : studyMode === "current-affairs" ? "Current Affairs Quiz"
         : studyMode === "intel-practice" ? "Exam Intel Practice"
         : "Study Session",
       description: studyMode === "focus" ? "4-phase deep work blueprint"
         : studyMode === "revision" ? "Decay stabilization protocol"
-        : studyMode === "mock" ? "Simulated exam environment"
+        : studyMode === "mock" ? "AI-generated competitive challenge"
         : studyMode === "emergency" ? "Critical memory rescue"
         : studyMode === "current-affairs" ? "Exam-mapped current events"
         : studyMode === "intel-practice" ? "AI-predicted exam questions"
@@ -1085,23 +1088,45 @@ async function handleSessionBlueprint(userId: string, body: any) {
       name: topicName,
       subject: subjectName,
       memory_strength: strengthPct,
-      revision_count: targetTopic?.revision_count || 0,
+      stability_label: `${strengthPct}% stable`,
+      revision_count: 0,
       last_revision_date: targetTopic?.last_revision_date || "",
       predicted_drop_date: targetTopic?.next_predicted_drop_date || "",
       risk_percentage: revisionMetrics.risk_percentage,
       risk_label: revisionMetrics.risk_label,
       days_to_forget: revisionMetrics.days_to_forget,
     },
+    topics_selected: [{
+      name: topicName,
+      subject: subjectName,
+      stability: strengthPct,
+      stability_label: `${strengthPct}% stable`,
+    }],
     session_config: {
       duration_minutes: config.duration,
       difficulty,
       difficulty_label: difficulty.charAt(0).toUpperCase() + difficulty.slice(1),
       total_phases: config.phases.length,
       total_questions: config.questionCount,
-      scoring: { correct: 4, incorrect: -1, unanswered: 0 },
+      scoring: studyMode === "mock"
+        ? { correct: 4, incorrect: -1, unanswered: 0, negative_marking: true }
+        : { correct: 4, incorrect: -1, unanswered: 0 },
       cycles_count: revisionMetrics.cycles_count,
       duration_cycles: revisionMetrics.duration_cycles,
     },
+    ...(studyMode === "mock" ? {
+      mock_config: {
+        target_percentile: targetPercentile,
+        target_label: `Target: ${targetPercentile}`,
+        target_description: "Based on your current brain data",
+        negative_marking: true,
+        strict_timer: true,
+        no_hints: true,
+        show_explanation_after_submit: true,
+        total_marks: config.questionCount * 4,
+        passing_marks: Math.round(config.questionCount * 4 * 0.4),
+      },
+    } : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       stability_gain_min: stabilityGainMin,
@@ -1129,7 +1154,7 @@ async function handleSessionBlueprint(userId: string, body: any) {
     cta: {
       label: studyMode === "focus" ? "Enter Focus Mode"
         : studyMode === "revision" ? "Start Revision"
-        : studyMode === "mock" ? "Begin Mock Test"
+        : studyMode === "mock" ? "Begin Mock Exam"
         : studyMode === "emergency" ? "Launch Rescue"
         : studyMode === "current-affairs" ? "Start Quiz"
         : studyMode === "intel-practice" ? "Start Practice"
@@ -1190,7 +1215,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const subjectName = (targetTopic as any)?.subjects?.name || "General";
   const strengthPct = targetTopic ? toStrengthPercent(targetTopic.memory_strength, 50) : 50;
   const difficulty = getDifficultyFromStrength(strengthPct);
-  const questionCount = mode === "emergency" ? 5 : mode === "revision" ? 8 : 10;
+  const questionCount = mode === "mock" ? 15 : mode === "emergency" ? 5 : mode === "revision" ? 8 : 10;
 
   try {
     const agentUrl = `${supabaseUrl}/functions/v1/ai-brain-agent`;
@@ -1273,7 +1298,12 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
 
   // ── Session phases ──
   const stabilityPct = strengthPct;
-  const sessionPhases = mode === "revision"
+  const sessionPhases = mode === "mock"
+    ? [
+        { phase: 1, type: "exam", title: "Simulated Exam", duration_minutes: 25, description: `Timed exam-condition MCQs with negative marking on ${topicName}` },
+        { phase: 2, type: "analysis", title: "Performance Analysis", duration_minutes: 5, description: "Detailed breakdown of accuracy, speed, and weak areas" },
+      ]
+    : mode === "revision"
     ? [
         { phase: 1, type: "recall", title: "Quick Recall Scan", duration_minutes: 3, description: `Rapid retrieval of ${topicName}` },
         { phase: 2, type: "assessment", title: "Decay Check", duration_minutes: 4, description: "Test which memories have weakened since last review" },
@@ -1291,7 +1321,8 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const rankImpactMin = stabilityPct < 30 ? 300 : stabilityPct < 60 ? 150 : 50;
   const rankImpactMax = stabilityPct < 30 ? 600 : stabilityPct < 60 ? 400 : 150;
 
-  const estimatedDurationMinutes = mode === "emergency" ? 5 : mode === "revision" ? 10 : 25;
+  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 5 : mode === "revision" ? 10 : 25;
+  const targetPercentile = strengthPct >= 70 ? "Top 15%" : strengthPct >= 50 ? "Top 30%" : strengthPct >= 30 ? "Top 45%" : "Top 60%";
   const revisionMetrics = buildRevisionMetrics({
     topicCount: 1,
     durationMinutes: estimatedDurationMinutes,
@@ -1304,12 +1335,34 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   return {
     session_id: session.id,
     started_at: session.created_at,
-    topic: topicContext,
+    topic: {
+      ...topicContext,
+      stability_label: `${strengthPct}% stable`,
+    },
+    topics_selected: [{
+      name: topicName,
+      subject: subjectName,
+      stability: strengthPct,
+      stability_label: `${strengthPct}% stable`,
+    }],
     questions,
     session_config: sessionConfig,
     session_phases: sessionPhases,
     phases_count: sessionPhases.length,
     current_stability: stabilityPct,
+    ...(mode === "mock" ? {
+      mock_config: {
+        target_percentile: targetPercentile,
+        target_label: `Target: ${targetPercentile}`,
+        target_description: "Based on your current brain data",
+        negative_marking: true,
+        strict_timer: true,
+        no_hints: true,
+        show_explanation_after_submit: true,
+        total_marks: questions.length * 4,
+        passing_marks: Math.round(questions.length * 4 * 0.4),
+      },
+    } : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       rank_impact: `+${rankImpactMin}-${rankImpactMax} ranks`,
@@ -1571,14 +1624,21 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     risk_reduction: Math.max(0, riskBefore - riskAfter),
   };
 
+  // ── Mock-specific scoring breakdown ──
+  const isMock = mode === "mock";
+  const negativeMarks = isMock ? incorrect * 1 : 0;
+  const netMarks = isMock ? (correct * 4) - negativeMarks : totalMarks;
+  const mockPercentile = isMock ? (percentage >= 90 ? "Top 5%" : percentage >= 75 ? "Top 15%" : percentage >= 60 ? "Top 30%" : percentage >= 40 ? "Top 45%" : "Top 60%") : null;
+
   return {
     result: {
       session_id,
+      mode: mode || "focus",
       total_questions: totalQ,
       correct,
       incorrect,
       skipped,
-      total_marks: totalMarks,
+      total_marks: isMock ? netMarks : totalMarks,
       max_marks: maxMarks,
       percentage,
       accuracy: accuracyDisplay,
@@ -1592,6 +1652,27 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
       topic_name: memoryImpact.topic_name,
       subject: memoryImpact.subject,
     },
+    ...(isMock ? {
+      mock_result: {
+        net_marks: netMarks,
+        positive_marks: correct * 4,
+        negative_marks: negativeMarks,
+        unanswered_count: skipped,
+        attempted: correct + incorrect,
+        total: totalQ,
+        percentile: mockPercentile,
+        percentile_label: `You're in ${mockPercentile}`,
+        pass: netMarks >= Math.round(totalQ * 4 * 0.4),
+        pass_label: netMarks >= Math.round(totalQ * 4 * 0.4) ? "Passed ✅" : "Below cutoff ❌",
+        cutoff_marks: Math.round(totalQ * 4 * 0.4),
+        time_per_question_seconds: answersList.length > 0 ? Math.round(avgTimePerQuestion / 1000) : 0,
+        accuracy_breakdown: {
+          correct_percentage: totalQ > 0 ? Math.round((correct / totalQ) * 100) : 0,
+          incorrect_percentage: totalQ > 0 ? Math.round((incorrect / totalQ) * 100) : 0,
+          skipped_percentage: totalQ > 0 ? Math.round((skipped / totalQ) * 100) : 0,
+        },
+      },
+    } : {}),
     stability: {
       current: currentStability,
       before: stabilityBefore,
