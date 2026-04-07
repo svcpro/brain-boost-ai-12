@@ -579,11 +579,12 @@ async function handleQuestions(userId: string, body: any, authHeader: string) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": authHeader,
+      "Authorization": `Bearer ${serviceKey}`,
       "apikey": anonKey,
     },
     body: JSON.stringify({
       action: "mission_questions",
+      user_id: userId,
       topic_name: resolvedTopicName,
       subject_name: resolvedSubjectName,
       difficulty: difficulty || "medium",
@@ -1197,11 +1198,12 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": authHeader,
+        "Authorization": `Bearer ${serviceKey}`,
         "apikey": anonKey,
       },
       body: JSON.stringify({
         action: "mission_questions",
+        user_id: userId,
         topic_name: topicName,
         subject_name: subjectName,
         difficulty,
