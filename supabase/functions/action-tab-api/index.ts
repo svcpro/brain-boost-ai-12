@@ -2003,6 +2003,159 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
         },
       };
     })() : {}),
+    ...(mode === "intel-practice" ? await (async () => {
+      // Get user exam type
+      const { data: userProfile } = await admin.from("profiles")
+        .select("exam_type").eq("id", userId).maybeSingle();
+      const examType = userProfile?.exam_type || "UPSC CSE";
+
+      // Fetch intel practice questions from exam_intel_practice_questions
+      const { data: intelRawQ } = await admin.from("exam_intel_practice_questions")
+        .select("id, question_text, options, correct_answer, explanation, subject, topic, difficulty_level, cognitive_type, probability_score, exam_type, source")
+        .eq("exam_type", examType).eq("is_active", true)
+        .order("probability_score", { ascending: false })
+        .limit(10);
+
+      const intelQuestions = (intelRawQ || []).map((q: any, idx: number) => {
+        const opts = Array.isArray(q.options) ? q.options : [];
+        const correctIdx = typeof q.correct_answer === "number" ? q.correct_answer
+          : typeof q.correct_answer === "string" ? opts.indexOf(q.correct_answer) : 0;
+        return {
+          id: q.id || `intel_q_${idx}_${Date.now()}`,
+          question_text: q.question_text,
+          options: opts,
+          correct_answer_index: correctIdx >= 0 ? correctIdx : 0,
+          explanation: q.explanation || "",
+          difficulty: q.difficulty_level || "medium",
+          cognitive_type: q.cognitive_type || "application",
+          marks: 4,
+          topic_name: q.topic || topicName,
+          subject_name: q.subject || subjectName,
+          probability_score: q.probability_score || 0,
+          probability_label: `${Math.round((q.probability_score || 0) * 100)}% likely`,
+          source: q.source || "AI prediction",
+          exam_type: q.exam_type || examType,
+        };
+      });
+
+      // If we have intel questions, replace generic ones
+      if (intelQuestions.length > 0) {
+        questions.length = 0;
+        intelQuestions.forEach((q: any) => questions.push(q));
+      }
+
+      // Fetch top TPI topics for briefing
+      const { data: tpiTopics } = await admin.from("topic_probability_index")
+        .select("topic, subject, tpi_score, confidence, trend_momentum_score, last_appeared_year, appearance_years")
+        .eq("exam_type", examType)
+        .order("tpi_score", { ascending: false })
+        .limit(10);
+
+      // Fetch intel topic scores
+      const { data: intelScores } = await admin.from("exam_intel_topic_scores")
+        .select("topic, subject, probability_score, composite_score, trend_direction, consecutive_appearances, ai_confidence, ca_boost_score, predicted_marks_weight")
+        .eq("exam_type", examType)
+        .order("composite_score", { ascending: false })
+        .limit(10);
+
+      // Fetch student brief
+      const { data: studentBrief } = await admin.from("exam_intel_student_briefs")
+        .select("overall_readiness_score, predicted_hot_topics, risk_topics, opportunity_topics, weakness_overlap, recommended_actions, ai_strategy_summary")
+        .eq("user_id", userId).eq("exam_type", examType)
+        .order("computed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Intel practice streak
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { count: intelStreakCount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "intel-practice")
+        .gte("created_at", weekAgo);
+
+      // Subject distribution of questions
+      const subjectDist: Record<string, number> = {};
+      intelQuestions.forEach((q: any) => { subjectDist[q.subject_name] = (subjectDist[q.subject_name] || 0) + 1; });
+
+      // Difficulty distribution
+      const diffDist = {
+        easy: intelQuestions.filter((q: any) => q.difficulty === "easy").length,
+        medium: intelQuestions.filter((q: any) => q.difficulty === "medium").length,
+        hard: intelQuestions.filter((q: any) => q.difficulty === "hard").length,
+      };
+
+      return {
+        intel_config: {
+          exam_type: examType,
+          practice_type: "prediction_based",
+          practice_type_label: "🎯 AI-Predicted Exam Questions",
+          total_intel_questions: intelQuestions.length,
+          sessions_this_week: intelStreakCount || 0,
+          sessions_this_week_label: `${intelStreakCount || 0} intel sessions this week`,
+          scoring: { correct: 4, incorrect: -1, unanswered: 0, negative_marking: true },
+          difficulty_distribution: diffDist,
+          subject_distribution: subjectDist,
+          features: {
+            show_probability_score: true,
+            show_trend_indicator: true,
+            show_appearance_history: true,
+            show_explanation_after_answer: true,
+            show_intel_debrief: true,
+            bookmarkable: true,
+          },
+        },
+        intel_briefing: {
+          headline: `${(tpiTopics || []).length} high-probability topics for ${examType}`,
+          readiness_score: studentBrief?.overall_readiness_score || 0,
+          readiness_label: (studentBrief?.overall_readiness_score || 0) >= 80 ? "🎯 Exam Ready"
+            : (studentBrief?.overall_readiness_score || 0) >= 60 ? "📈 On Track"
+            : (studentBrief?.overall_readiness_score || 0) >= 40 ? "📖 Building Up"
+            : "⚠️ Needs Focus",
+          ai_strategy: studentBrief?.ai_strategy_summary || "Focus on high-probability topics",
+          hot_topics: studentBrief?.predicted_hot_topics || [],
+          risk_topics: studentBrief?.risk_topics || [],
+          opportunity_topics: studentBrief?.opportunity_topics || [],
+        },
+        high_probability_topics: (tpiTopics || []).map((t: any) => ({
+          topic: t.topic,
+          subject: t.subject,
+          tpi_score: t.tpi_score || 0,
+          tpi_label: `${Math.round((t.tpi_score || 0) * 100)}%`,
+          confidence: t.confidence || 0,
+          trend_momentum: t.trend_momentum_score || 0,
+          last_appeared_year: t.last_appeared_year || null,
+          appearance_years: t.appearance_years || [],
+        })),
+        intel_topic_scores: (intelScores || []).map((t: any) => ({
+          topic: t.topic,
+          subject: t.subject,
+          probability_score: t.probability_score || 0,
+          composite_score: t.composite_score || 0,
+          trend_direction: t.trend_direction || "stable",
+          trend_icon: t.trend_direction === "rising" || t.trend_direction === "up" ? "📈"
+            : t.trend_direction === "declining" || t.trend_direction === "down" ? "📉" : "➡️",
+          consecutive_appearances: t.consecutive_appearances || 0,
+          ai_confidence: t.ai_confidence || 0,
+          ca_boost: t.ca_boost_score || 0,
+          predicted_marks_weight: t.predicted_marks_weight || 0,
+        })),
+        questions_by_subject: subjectDist,
+        session_config_override: {
+          ...sessionConfig,
+          total_questions: intelQuestions.length || questions.length,
+          time_limit_seconds: 20 * 60,
+          scoring: { correct: 4, incorrect: -1, unanswered: 0 },
+          features: {
+            ...sessionConfig.features,
+            show_explanation_after_answer: true,
+            show_correct_answer: true,
+            show_probability_score: true,
+            show_trend_indicator: true,
+            bookmarkable: true,
+          },
+        },
+      };
+    })() : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       rank_impact: `+${rankImpactMin}-${rankImpactMax} ranks`,
