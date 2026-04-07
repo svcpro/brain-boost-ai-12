@@ -1012,7 +1012,7 @@ async function handleSessionBlueprint(userId: string, body: any) {
         : studyMode === "intel-practice" ? "Start Practice"
         : "Start Session",
       next_action: "start-focus-session",
-      payload: { mode: studyMode, topic_id: targetTopic?.id || "" },
+      payload: { mode: studyMode, topic_id: targetTopic?.id || null },
     },
     meta: {
       generated_at: new Date().toISOString(),
@@ -1135,7 +1135,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
     health: strength < 0.3 ? "critical" : strength < 0.6 ? "moderate" : "strong",
     strategy: strength < 0.3 ? "recovery" : strength < 0.6 ? "reinforcement" : "maintenance",
   } : {
-    id: "",
+    id: session.id,
     name: "General Practice",
     subject: "General",
     memory_strength: 50,
