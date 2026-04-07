@@ -1405,7 +1405,7 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
       total_marks: totalMarks,
       max_marks: maxMarks,
       percentage,
-      accuracy,
+      accuracy: accuracyDisplay,
       grade,
       grade_label: gradeLabel,
       grade_color: gradeColor,
