@@ -927,7 +927,7 @@ async function handleSessionBlueprint(userId: string, body: any) {
   let targetTopic: any = null;
   if (topic_id) {
     const { data } = await admin.from("topics")
-      .select("id, name, memory_strength, subject_id, revision_count, last_revision_date, next_predicted_drop_date, subjects(name)")
+      .select("id, name, memory_strength, subject_id, last_revision_date, next_predicted_drop_date, subjects(name)")
       .eq("id", topic_id).eq("user_id", userId).maybeSingle();
     targetTopic = data;
   } else {
@@ -936,10 +936,45 @@ async function handleSessionBlueprint(userId: string, body: any) {
       .order("created_at", { ascending: false }).limit(3);
     const recentIds = (recentRes.data || []).map((r: any) => r.topic_id).filter(Boolean);
     const { data: candidates } = await admin.from("topics")
-      .select("id, name, memory_strength, subject_id, revision_count, last_revision_date, next_predicted_drop_date, subjects(name)")
+      .select("id, name, memory_strength, subject_id, last_revision_date, next_predicted_drop_date, subjects(name)")
       .eq("user_id", userId).is("deleted_at", null)
       .order("memory_strength", { ascending: true }).limit(5);
     targetTopic = (candidates || []).find((t: any) => !recentIds.includes(t.id)) || (candidates || [])[0] || null;
+  }
+
+  // ── Auto-create fallback topic if none exist ──
+  if (!targetTopic) {
+    const fallbackName = "General Practice";
+
+    // Look for or create a default "General" subject for this user
+    let subjectId: string | null = null;
+    const { data: existingSubject } = await admin.from("subjects")
+      .select("id").eq("name", "General").eq("user_id", userId).maybeSingle();
+    
+    if (existingSubject) {
+      subjectId = existingSubject.id;
+    } else {
+      const { data: newSubject } = await admin.from("subjects")
+        .insert({ name: "General", user_id: userId })
+        .select("id").single();
+      subjectId = newSubject?.id || null;
+    }
+
+    if (subjectId) {
+      const { data: newTopic } = await admin.from("topics")
+        .insert({
+          user_id: userId,
+          name: fallbackName,
+          subject_id: subjectId,
+          memory_strength: 0.5,
+        })
+        .select("id, name, memory_strength, subject_id, last_revision_date, next_predicted_drop_date, subjects(name)")
+        .single();
+
+      if (newTopic) {
+        targetTopic = newTopic;
+      }
+    }
   }
 
   const strengthPct = targetTopic ? toStrengthPercent(targetTopic.memory_strength, 50) : 50;
