@@ -2414,9 +2414,15 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     question_results: questionResults,
     recommended_next: nextRecommendations.slice(0, 3),
     keep_momentum: {
-      title: mode === "emergency" ? "Recovery Complete" : "Keep the Momentum",
-      subtitle: mode === "emergency" ? "Next steps to maintain stability" : "AI-suggested next actions",
-      icon: mode === "emergency" ? "heart-pulse" : "zap",
+      title: mode === "emergency" ? "Recovery Complete"
+        : mode === "current-affairs" ? "CA Quiz Complete"
+        : "Keep the Momentum",
+      subtitle: mode === "emergency" ? "Next steps to maintain stability"
+        : mode === "current-affairs" ? "Stay exam-ready with daily practice"
+        : "AI-suggested next actions",
+      icon: mode === "emergency" ? "heart-pulse"
+        : mode === "current-affairs" ? "newspaper"
+        : "zap",
       actions: mode === "emergency" ? [
         {
           id: "deep_review",
@@ -2453,6 +2459,43 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
           icon: "activity",
           action: "navigate",
           params: { screen: "brain_tab" },
+        },
+      ] : mode === "current-affairs" ? [
+        {
+          id: "review_missed",
+          title: "Review Missed Events",
+          subtitle: "Deep-dive into events you got wrong",
+          duration: "5 min",
+          icon: "search",
+          action: "navigate",
+          params: { screen: "ca_review", session_id: session_id },
+        },
+        {
+          id: "exam_intel",
+          title: "Exam Intel Practice",
+          subtitle: "Practice high-probability exam questions",
+          duration: "10-20 min",
+          icon: "trending-up",
+          action: "start-focus-session",
+          params: { mode: "intel-practice" },
+        },
+        {
+          id: "focus_session",
+          title: "Start Focus Session",
+          subtitle: "Deep study on a weak topic",
+          duration: "25 min",
+          icon: "brain",
+          action: "start-focus-session",
+          params: { mode: "focus", duration_minutes: 25 },
+        },
+        {
+          id: "share_score",
+          title: "Share Your Score",
+          subtitle: `${percentage}% — Challenge your friends`,
+          duration: "1 min",
+          icon: "share-2",
+          action: "share",
+          params: { score: percentage, correct, total: totalQ },
         },
       ] : [
         {
