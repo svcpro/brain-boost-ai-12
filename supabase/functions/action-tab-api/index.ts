@@ -3911,13 +3911,30 @@ Deno.serve(async (req) => {
       case "next-phase":
         return json(await handleNextPhase(userId, body));
 
+      case "task-engine-init":
+        return json(await handleTaskEngineInit(userId));
+
+      case "task-engine-start":
+        return json(await handleTaskEngineStart(userId, body, authHeader));
+
+      case "task-engine-submit":
+        return json(await handleTaskEngineSubmit(userId, body));
+
+      case "task-engine-complete":
+        return json(await handleTaskEngineComplete(userId, body));
+
+      case "task-engine-history":
+        return json(await handleTaskEngineHistory(userId, body));
+
       default:
         return json({ error: `Unknown route: ${route}`, available_routes: [
           "init", "todays-gains", "session-history", "start-session", "end-session",
           "log-session", "task-complete", "topic-explorer", "topic-strategy",
           "questions", "daily-summary", "topics-list", "subjects-list", "recommended-next",
           "session-blueprint", "start-focus-session", "submit-answer", "complete-focus-session",
-          "session-status", "pause-resume-session", "next-phase"
+          "session-status", "pause-resume-session", "next-phase",
+          "task-engine-init", "task-engine-start", "task-engine-submit",
+          "task-engine-complete", "task-engine-history"
         ] }, 404);
     }
   } catch (e) {
