@@ -62,6 +62,72 @@ const todayStart = () => {
   return d.toISOString();
 };
 
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const toStrengthPercent = (value: unknown, fallback = 50) => {
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  if (num >= 0 && num <= 1) return Math.round(num * 100);
+  return Math.round(clampNumber(num, 0, 100));
+};
+
+const toStrengthUnit = (value: unknown, fallback = 0.5) => {
+  const fallbackPercent = clampNumber(Math.round(fallback * 100), 0, 100);
+  return toStrengthPercent(value, fallbackPercent) / 100;
+};
+
+const getDifficultyFromStrength = (strengthPercent: number) =>
+  strengthPercent < 30 ? "easy" : strengthPercent < 60 ? "medium" : "hard";
+
+const getHealthFromStrength = (strengthPercent: number) =>
+  strengthPercent < 30 ? "critical" : strengthPercent < 60 ? "moderate" : "strong";
+
+const getRiskPercentage = (strengthPercent: number) =>
+  clampNumber(100 - strengthPercent, 0, 100);
+
+const getDaysToForget = (predictedDropDate?: string | null) => {
+  if (!predictedDropDate) return null;
+  const diffMs = new Date(predictedDropDate).getTime() - Date.now();
+  if (!Number.isFinite(diffMs)) return null;
+  return Math.max(0, Math.ceil(diffMs / 86400000));
+};
+
+const sumPhaseMinutes = (phases: Array<{ duration?: number; duration_minutes?: number }>) =>
+  phases.reduce((sum, phase) => sum + Number(phase.duration ?? phase.duration_minutes ?? 0), 0);
+
+const buildRevisionMetrics = ({
+  topicCount,
+  durationMinutes,
+  cyclesCount,
+  estGain,
+  strengthPercent,
+  predictedDropDate,
+}: {
+  topicCount: number;
+  durationMinutes: number;
+  cyclesCount: number;
+  estGain: number;
+  strengthPercent: number;
+  predictedDropDate?: string | null;
+}) => {
+  const riskPercentage = getRiskPercentage(strengthPercent);
+  return {
+    topic_no: topicCount,
+    topic_count: topicCount,
+    duration_minutes: durationMinutes,
+    duration_label: `${durationMinutes} min`,
+    duration_cycles: cyclesCount,
+    cycles_count: cyclesCount,
+    est_gain: estGain,
+    est_gain_label: `+${estGain}%`,
+    risk_percentage: riskPercentage,
+    risk_label: `${riskPercentage}% risk`,
+    days_to_forget: getDaysToForget(predictedDropDate),
+    predicted_drop_date: predictedDropDate || "",
+  };
+};
+
 // ═══════════════════════════════════════════════════════════
 //  ROUTE HANDLERS
 // ═══════════════════════════════════════════════════════════
@@ -876,9 +942,8 @@ async function handleSessionBlueprint(userId: string, body: any) {
     targetTopic = (candidates || []).find((t: any) => !recentIds.includes(t.id)) || (candidates || [])[0] || null;
   }
 
-  const strength = targetTopic ? (targetTopic.memory_strength ?? 0) : 0.5;
-  const strengthPct = Math.round(strength * 100);
-  const difficulty = strength < 0.3 ? "easy" : strength < 0.6 ? "medium" : "hard";
+  const strengthPct = targetTopic ? toStrengthPercent(targetTopic.memory_strength, 50) : 50;
+  const difficulty = getDifficultyFromStrength(strengthPct);
   const topicName = targetTopic?.name || "General Practice";
   const subjectName = (targetTopic as any)?.subjects?.name || "General";
 
@@ -895,12 +960,12 @@ async function handleSessionBlueprint(userId: string, body: any) {
       ],
     },
     revision: {
-      duration: 15,
+      duration: 10,
       questionCount: 8,
       phases: [
-        { type: "recall", title: "Quick Recall Scan", description: "Rapid retrieval of previously learned concepts", duration: 4, icon: "brain" },
-        { type: "mcq", title: "Decay Check", description: "Test which memories have weakened since last review", duration: 7, icon: "target" },
-        { type: "review", title: "Stability Lock", description: "Re-anchor fading memories for long-term retention", duration: 4, icon: "book-open" },
+        { type: "recall", title: "Quick Recall Scan", description: "Rapid retrieval of previously learned concepts", duration: 3, icon: "brain" },
+        { type: "mcq", title: "Decay Check", description: "Test which memories have weakened since last review", duration: 4, icon: "target" },
+        { type: "review", title: "Stability Lock", description: "Re-anchor fading memories for long-term retention", duration: 3, icon: "book-open" },
       ],
     },
     mock: {
@@ -941,16 +1006,25 @@ async function handleSessionBlueprint(userId: string, body: any) {
   const config = modeConfigs[studyMode] || modeConfigs.focus;
 
   // ── Expected outcomes ──
-  const stabilityGainMin = strength < 0.3 ? 8 : strength < 0.6 ? 5 : 3;
-  const stabilityGainMax = strength < 0.3 ? 15 : strength < 0.6 ? 12 : 8;
-  const rankImpactMin = strength < 0.3 ? 150 : strength < 0.6 ? 80 : 30;
-  const rankImpactMax = strength < 0.3 ? 400 : strength < 0.6 ? 200 : 100;
+  const stabilityGainMin = strengthPct < 30 ? 8 : strengthPct < 60 ? 5 : 3;
+  const stabilityGainMax = strengthPct < 30 ? 15 : strengthPct < 60 ? 12 : 8;
+  const rankImpactMin = strengthPct < 30 ? 150 : strengthPct < 60 ? 80 : 30;
+  const rankImpactMax = strengthPct < 30 ? 400 : strengthPct < 60 ? 200 : 100;
 
   // ── Profile for exam context ──
   const { data: profile } = await admin.from("profiles")
     .select("exam_date, exam_type").eq("id", userId).maybeSingle();
   const daysToExam = profile?.exam_date
     ? Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000) : null;
+
+  const revisionMetrics = buildRevisionMetrics({
+    topicCount: 1,
+    durationMinutes: config.duration,
+    cyclesCount: config.phases.length,
+    estGain: stabilityGainMin,
+    strengthPercent: strengthPct,
+    predictedDropDate: targetTopic?.next_predicted_drop_date || null,
+  });
 
   return {
     blueprint: {
@@ -978,6 +1052,9 @@ async function handleSessionBlueprint(userId: string, body: any) {
       revision_count: targetTopic?.revision_count || 0,
       last_revision_date: targetTopic?.last_revision_date || "",
       predicted_drop_date: targetTopic?.next_predicted_drop_date || "",
+      risk_percentage: revisionMetrics.risk_percentage,
+      risk_label: revisionMetrics.risk_label,
+      days_to_forget: revisionMetrics.days_to_forget,
     },
     session_config: {
       duration_minutes: config.duration,
@@ -986,6 +1063,8 @@ async function handleSessionBlueprint(userId: string, body: any) {
       total_phases: config.phases.length,
       total_questions: config.questionCount,
       scoring: { correct: 4, incorrect: -1, unanswered: 0 },
+      cycles_count: revisionMetrics.cycles_count,
+      duration_cycles: revisionMetrics.duration_cycles,
     },
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
@@ -996,8 +1075,16 @@ async function handleSessionBlueprint(userId: string, body: any) {
       rank_impact_max: rankImpactMax,
       current_stability: strengthPct,
       projected_stability: Math.min(100, strengthPct + stabilityGainMax),
+      est_gain: revisionMetrics.est_gain,
+      est_gain_label: revisionMetrics.est_gain_label,
     },
     session_phases: config.phases,
+    topic_no: revisionMetrics.topic_no,
+    duration_minutes: revisionMetrics.duration_minutes,
+    duration_cycles: revisionMetrics.duration_cycles,
+    est_gain: revisionMetrics.est_gain,
+    risk_percentage: revisionMetrics.risk_percentage,
+    revision_metrics: revisionMetrics,
     exam_context: {
       exam_type: profile?.exam_type || "",
       days_to_exam: daysToExam,
@@ -1031,7 +1118,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
 
   if (topic_id) {
     const { data } = await admin.from("topics")
-      .select("id, name, memory_strength, subject_id, subjects(name)")
+      .select("id, name, memory_strength, next_predicted_drop_date, subject_id, subjects(name)")
       .eq("id", topic_id).eq("user_id", userId).maybeSingle();
     targetTopic = data;
   } else {
@@ -1041,7 +1128,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
     const recentIds = (recentRes.data || []).map((r: any) => r.topic_id).filter(Boolean);
 
     const { data: candidates } = await admin.from("topics")
-      .select("id, name, memory_strength, subject_id, subjects(name)")
+      .select("id, name, memory_strength, next_predicted_drop_date, subject_id, subjects(name)")
       .eq("user_id", userId).is("deleted_at", null)
       .order("memory_strength", { ascending: true }).limit(5);
     targetTopic = (candidates || []).find((t: any) => !recentIds.includes(t.id)) || (candidates || [])[0] || null;
@@ -1065,8 +1152,8 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   let questions: any[] = [];
   const topicName = targetTopic?.name || "General";
   const subjectName = (targetTopic as any)?.subjects?.name || "General";
-  const strength = targetTopic ? (targetTopic.memory_strength ?? 0) : 0.5;
-  const difficulty = strength < 0.3 ? "easy" : strength < 0.6 ? "medium" : "hard";
+  const strengthPct = targetTopic ? toStrengthPercent(targetTopic.memory_strength, 50) : 50;
+  const difficulty = getDifficultyFromStrength(strengthPct);
   const questionCount = mode === "emergency" ? 5 : mode === "revision" ? 8 : 10;
 
   try {
@@ -1131,9 +1218,12 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
     id: targetTopic.id,
     name: targetTopic.name,
     subject: (targetTopic as any).subjects?.name || "General",
-    memory_strength: Math.round(strength * 100),
-    health: strength < 0.3 ? "critical" : strength < 0.6 ? "moderate" : "strong",
-    strategy: strength < 0.3 ? "recovery" : strength < 0.6 ? "reinforcement" : "maintenance",
+    memory_strength: strengthPct,
+    health: getHealthFromStrength(strengthPct),
+    strategy: strengthPct < 30 ? "recovery" : strengthPct < 60 ? "reinforcement" : "maintenance",
+    risk_percentage: getRiskPercentage(strengthPct),
+    predicted_drop_date: targetTopic.next_predicted_drop_date || "",
+    days_to_forget: getDaysToForget(targetTopic.next_predicted_drop_date || null),
   } : {
     id: session.id,
     name: "General Practice",
@@ -1144,18 +1234,34 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   };
 
   // ── Session phases ──
-  const stabilityPct = Math.round(strength * 100);
-  const sessionPhases = [
-    { phase: 1, type: "recall", title: "Active Recall", duration_minutes: mode === "emergency" ? 2 : 8, description: `Recall key concepts from ${topicName}` },
-    { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_minutes: mode === "emergency" ? 2 : 9, description: "Strengthen weak connections through targeted questions" },
-    { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_minutes: mode === "emergency" ? 1 : 5, description: "AI-calibrated difficulty based on your performance" },
-    { phase: 4, type: "review", title: "Review & Consolidate", duration_minutes: mode === "emergency" ? 0 : 3, description: "Solidify learning with spaced review" },
-  ].filter(p => p.duration_minutes > 0);
+  const stabilityPct = strengthPct;
+  const sessionPhases = mode === "revision"
+    ? [
+        { phase: 1, type: "recall", title: "Quick Recall Scan", duration_minutes: 3, description: `Rapid retrieval of ${topicName}` },
+        { phase: 2, type: "assessment", title: "Decay Check", duration_minutes: 4, description: "Test which memories have weakened since last review" },
+        { phase: 3, type: "review", title: "Stability Lock", duration_minutes: 3, description: "Re-anchor fading memories for long-term retention" },
+      ]
+    : [
+        { phase: 1, type: "recall", title: "Active Recall", duration_minutes: mode === "emergency" ? 2 : 8, description: `Recall key concepts from ${topicName}` },
+        { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_minutes: mode === "emergency" ? 2 : 9, description: "Strengthen weak connections through targeted questions" },
+        { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_minutes: mode === "emergency" ? 1 : 5, description: "AI-calibrated difficulty based on your performance" },
+        { phase: 4, type: "review", title: "Review & Consolidate", duration_minutes: mode === "emergency" ? 0 : 3, description: "Solidify learning with spaced review" },
+      ].filter(p => p.duration_minutes > 0);
 
   const stabilityGainMin = stabilityPct < 30 ? 12 : stabilityPct < 60 ? 8 : 4;
   const stabilityGainMax = stabilityPct < 30 ? 22 : stabilityPct < 60 ? 15 : 8;
   const rankImpactMin = stabilityPct < 30 ? 300 : stabilityPct < 60 ? 150 : 50;
   const rankImpactMax = stabilityPct < 30 ? 600 : stabilityPct < 60 ? 400 : 150;
+
+  const estimatedDurationMinutes = mode === "emergency" ? 5 : mode === "revision" ? 10 : 25;
+  const revisionMetrics = buildRevisionMetrics({
+    topicCount: 1,
+    durationMinutes: estimatedDurationMinutes,
+    cyclesCount: sessionPhases.length,
+    estGain: stabilityGainMin,
+    strengthPercent: stabilityPct,
+    predictedDropDate: targetTopic?.next_predicted_drop_date || null,
+  });
 
   return {
     session_id: session.id,
@@ -1173,11 +1279,19 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
       stability_gain_max: stabilityGainMax,
       rank_impact_min: rankImpactMin,
       rank_impact_max: rankImpactMax,
+      est_gain: revisionMetrics.est_gain,
+      est_gain_label: revisionMetrics.est_gain_label,
     },
+    topic_no: revisionMetrics.topic_no,
+    duration_minutes: revisionMetrics.duration_minutes,
+    duration_cycles: revisionMetrics.duration_cycles,
+    est_gain: revisionMetrics.est_gain,
+    risk_percentage: revisionMetrics.risk_percentage,
+    revision_metrics: revisionMetrics,
     meta: {
       question_count: questions.length,
       difficulty,
-      estimated_duration_minutes: mode === "emergency" ? 5 : mode === "revision" ? 10 : 25,
+      estimated_duration_minutes: estimatedDurationMinutes,
     },
   };
 }
@@ -1285,21 +1399,24 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
 
   // ── Update topic memory_strength ──
   let memoryImpact: any = { before: 0, after: 0, change: 0, change_label: "No topic data", topic_name: "General Practice", subject: "General" };
+  let resolvedPredictedDropDate: string | null = null;
 
   // Try resolving topic even without topic_id — pick user's weakest topic as context
   let resolvedTopicId = topic_id;
   if (!resolvedTopicId) {
     const { data: weakestTopic } = await admin.from("topics")
-      .select("id, name, memory_strength, subject_id, subjects(name)")
+      .select("id, name, memory_strength, next_predicted_drop_date, subject_id, subjects(name)")
       .eq("user_id", userId)
       .order("memory_strength", { ascending: true })
       .limit(1)
       .maybeSingle();
     if (weakestTopic) {
       resolvedTopicId = weakestTopic.id;
+      const weakestStrength = toStrengthPercent(weakestTopic.memory_strength, 0);
+      resolvedPredictedDropDate = weakestTopic.next_predicted_drop_date || null;
       memoryImpact = {
-        before: Math.round((weakestTopic.memory_strength ?? 0) * 100),
-        after: Math.round((weakestTopic.memory_strength ?? 0) * 100),
+        before: weakestStrength,
+        after: weakestStrength,
         change: 0,
         change_label: "Focus session — no direct quiz impact",
         topic_name: weakestTopic.name || "General Practice",
@@ -1310,27 +1427,30 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
 
   if (resolvedTopicId) {
     const { data: topic } = await admin.from("topics")
-      .select("memory_strength, name, subject_id, subjects(name)")
+      .select("memory_strength, next_predicted_drop_date, name, subject_id, subjects(name)")
       .eq("id", resolvedTopicId).eq("user_id", userId).maybeSingle();
 
     if (topic) {
-      const oldStrength = topic.memory_strength ?? 0;
+      resolvedPredictedDropDate = topic.next_predicted_drop_date || resolvedPredictedDropDate;
+      const oldStrengthPct = toStrengthPercent(topic.memory_strength, 0);
+      const oldStrengthUnit = toStrengthUnit(topic.memory_strength, 0);
       const performanceMultiplier = accuracyNum >= 80 ? 1.5 : accuracyNum >= 60 ? 1.0 : accuracyNum >= 40 ? 0.5 : 0.2;
       const durationMultiplier = Math.min(finalDuration / 10, 2);
       const focusBonus = totalQ === 0 ? 0.02 : 0; // small boost for pure focus sessions
       const boost = (0.05 * performanceMultiplier * durationMultiplier) + focusBonus;
-      const newStrength = Math.min(1, oldStrength + boost);
+      const newStrengthPct = Math.round(Math.min(1, oldStrengthUnit + boost) * 100);
+      const strengthChange = newStrengthPct - oldStrengthPct;
 
       await admin.from("topics").update({
-        memory_strength: newStrength,
+        memory_strength: newStrengthPct,
         last_revision_date: new Date().toISOString(),
       }).eq("id", resolvedTopicId);
 
       memoryImpact = {
-        before: Math.round(oldStrength * 100),
-        after: Math.round(newStrength * 100),
-        change: Math.round((newStrength - oldStrength) * 100),
-        change_label: `+${Math.round((newStrength - oldStrength) * 100)}% stability`,
+        before: oldStrengthPct,
+        after: newStrengthPct,
+        change: strengthChange,
+        change_label: `${strengthChange >= 0 ? "+" : ""}${strengthChange}% stability`,
         topic_name: topic.name || "General Practice",
         subject: (topic as any).subjects?.name || "General",
       };
@@ -1377,7 +1497,7 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
   // ── Next recommendations ──
   let nextRecommendations: any[] = [];
   try {
-    const recResult = await handleRecommendedNext(userId, { topic_id, mode: mode || "focus", session_minutes: finalDuration });
+    const recResult = await handleRecommendedNext(userId, { topic_id: resolvedTopicId || null, mode: mode || "focus", session_minutes: finalDuration });
     nextRecommendations = recResult.recommended_next || [];
   } catch (e) {
     console.error("Failed to generate next recommendations:", e);
@@ -1394,6 +1514,24 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
   if (skipped > 0) {
     weakAreas.push({ type: "skipped_questions", count: skipped, message: `${skipped} question${skipped > 1 ? "s" : ""} skipped — attempt all for better assessment` });
   }
+
+  const topicsStabilized = memoryImpact.topic_name ? 1 : 0;
+  const riskBefore = getRiskPercentage(stabilityBefore);
+  const riskAfter = getRiskPercentage(memoryImpact.after || currentStability);
+  const revisionMetrics = {
+    ...buildRevisionMetrics({
+      topicCount: topicsStabilized,
+      durationMinutes: finalDuration,
+      cyclesCount: sessionPhases.length,
+      estGain: Math.max(memoryImpact.change, stabilityGainMin),
+      strengthPercent: memoryImpact.after || currentStability,
+      predictedDropDate: resolvedPredictedDropDate,
+    }),
+    topics_stabilized: topicsStabilized,
+    risk_percentage_before: riskBefore,
+    risk_percentage_after: riskAfter,
+    risk_reduction: Math.max(0, riskBefore - riskAfter),
+  };
 
   return {
     result: {
@@ -1412,6 +1550,9 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
       duration_minutes: finalDuration,
       avg_time_per_question_ms: avgTimePerQuestion,
       speed_analysis: speedAnalysis,
+      topic_id: resolvedTopicId || "",
+      topic_name: memoryImpact.topic_name,
+      subject: memoryImpact.subject,
     },
     stability: {
       current: currentStability,
@@ -1428,7 +1569,17 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     time_focused: `${finalDuration}m`,
     session_phases: sessionPhases,
     phases_count: sessionPhases.length,
-    memory_impact: memoryImpact,
+    topic_no: revisionMetrics.topic_no,
+    duration_minutes: revisionMetrics.duration_minutes,
+    duration_cycles: revisionMetrics.duration_cycles,
+    est_gain: revisionMetrics.est_gain,
+    risk_percentage: revisionMetrics.risk_percentage_after,
+    revision_metrics: revisionMetrics,
+    memory_impact: {
+      ...memoryImpact,
+      risk_percentage_before: revisionMetrics.risk_percentage_before,
+      risk_percentage_after: revisionMetrics.risk_percentage_after,
+    },
     rewards: {
       xp_earned: xpEarned,
       sessions_today: todaySessionCount || 0,
@@ -1507,7 +1658,7 @@ async function handleSessionStatus(userId: string, body: any) {
   // Fetch topic
   let topicName = "General Practice";
   let subjectName = "General";
-  let strength = 0.5;
+  let strengthPct = 50;
   if (session.topic_id) {
     const { data: topic } = await admin.from("topics")
       .select("name, memory_strength, subjects(name)")
@@ -1515,20 +1666,26 @@ async function handleSessionStatus(userId: string, body: any) {
     if (topic) {
       topicName = topic.name || topicName;
       subjectName = (topic as any).subjects?.name || subjectName;
-      strength = topic.memory_strength ?? 0.5;
+      strengthPct = toStrengthPercent(topic.memory_strength, 50);
     }
   }
 
   const mode = session.study_mode || "focus";
-  const stabilityPct = Math.round(strength * 100);
+  const stabilityPct = strengthPct;
 
   // Build phases
-  const phases = [
-    { phase: 1, type: "recall", title: "Active Recall", duration_seconds: mode === "emergency" ? 120 : 480, description: `Recall key concepts from ${topicName}`, icon: "brain" },
-    { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_seconds: mode === "emergency" ? 120 : 540, description: `Review and strengthen the concepts of ${topicName}. Fill gaps from the recall phase.`, icon: "refresh-cw" },
-    { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_seconds: mode === "emergency" ? 60 : 300, description: `AI-calibrated questions on ${topicName}. Answer carefully.`, icon: "target" },
-    { phase: 4, type: "review", title: "Review & Consolidate", duration_seconds: mode === "emergency" ? 0 : 180, description: `Solidify your learning and lock in memory gains.`, icon: "check-circle" },
-  ].filter(p => p.duration_seconds > 0);
+  const phases = mode === "revision"
+    ? [
+        { phase: 1, type: "recall", title: "Quick Recall Scan", duration_seconds: 180, description: `Rapid retrieval of ${topicName}`, icon: "brain" },
+        { phase: 2, type: "assessment", title: "Decay Check", duration_seconds: 240, description: `Test which memories have weakened in ${topicName}.`, icon: "target" },
+        { phase: 3, type: "review", title: "Stability Lock", duration_seconds: 180, description: `Re-anchor fading memories and extend retention.`, icon: "check-circle" },
+      ]
+    : [
+        { phase: 1, type: "recall", title: "Active Recall", duration_seconds: mode === "emergency" ? 120 : 480, description: `Recall key concepts from ${topicName}`, icon: "brain" },
+        { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_seconds: mode === "emergency" ? 120 : 540, description: `Review and strengthen the concepts of ${topicName}. Fill gaps from the recall phase.`, icon: "refresh-cw" },
+        { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_seconds: mode === "emergency" ? 60 : 300, description: `AI-calibrated questions on ${topicName}. Answer carefully.`, icon: "target" },
+        { phase: 4, type: "review", title: "Review & Consolidate", duration_seconds: mode === "emergency" ? 0 : 180, description: `Solidify your learning and lock in memory gains.`, icon: "check-circle" },
+      ].filter(p => p.duration_seconds > 0);
 
   const totalSessionSeconds = phases.reduce((s, p) => s + p.duration_seconds, 0);
   const elapsedSec = elapsed_seconds || 0;
@@ -1575,6 +1732,7 @@ async function handleSessionStatus(userId: string, body: any) {
       name: topicName,
       subject: subjectName,
       memory_strength: stabilityPct,
+      risk_percentage: getRiskPercentage(stabilityPct),
     },
     current_phase: {
       index: phaseIdx,
@@ -1678,24 +1836,30 @@ async function handleNextPhase(userId: string, body: any) {
 
   // Fetch topic
   let topicName = "General Practice";
-  let strength = 0.5;
+  let strengthPct = 50;
   if (session.topic_id) {
     const { data: topic } = await admin.from("topics")
       .select("name, memory_strength").eq("id", session.topic_id).maybeSingle();
     if (topic) {
       topicName = topic.name || topicName;
-      strength = topic.memory_strength ?? 0.5;
+      strengthPct = toStrengthPercent(topic.memory_strength, 50);
     }
   }
 
   const mode = session.study_mode || "focus";
 
-  const phases = [
-    { phase: 1, type: "recall", title: "Active Recall", duration_seconds: mode === "emergency" ? 120 : 480, description: `Recall key concepts from ${topicName}`, icon: "brain" },
-    { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_seconds: mode === "emergency" ? 120 : 540, description: `Review and strengthen the concepts of ${topicName}. Fill gaps from the recall phase.`, icon: "refresh-cw" },
-    { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_seconds: mode === "emergency" ? 60 : 300, description: `AI-calibrated questions on ${topicName}. Answer carefully.`, icon: "target" },
-    { phase: 4, type: "review", title: "Review & Consolidate", duration_seconds: mode === "emergency" ? 0 : 180, description: `Solidify your learning and lock in memory gains.`, icon: "check-circle" },
-  ].filter(p => p.duration_seconds > 0);
+  const phases = mode === "revision"
+    ? [
+        { phase: 1, type: "recall", title: "Quick Recall Scan", duration_seconds: 180, description: `Rapid retrieval of ${topicName}`, icon: "brain" },
+        { phase: 2, type: "assessment", title: "Decay Check", duration_seconds: 240, description: `Test which memories have weakened in ${topicName}.`, icon: "target" },
+        { phase: 3, type: "review", title: "Stability Lock", duration_seconds: 180, description: `Re-anchor fading memories and extend retention.`, icon: "check-circle" },
+      ]
+    : [
+        { phase: 1, type: "recall", title: "Active Recall", duration_seconds: mode === "emergency" ? 120 : 480, description: `Recall key concepts from ${topicName}`, icon: "brain" },
+        { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_seconds: mode === "emergency" ? 120 : 540, description: `Review and strengthen the concepts of ${topicName}. Fill gaps from the recall phase.`, icon: "refresh-cw" },
+        { phase: 3, type: "assessment", title: "Adaptive Assessment", duration_seconds: mode === "emergency" ? 60 : 300, description: `AI-calibrated questions on ${topicName}. Answer carefully.`, icon: "target" },
+        { phase: 4, type: "review", title: "Review & Consolidate", duration_seconds: mode === "emergency" ? 0 : 180, description: `Solidify your learning and lock in memory gains.`, icon: "check-circle" },
+      ].filter(p => p.duration_seconds > 0);
 
   const nextPhaseIdx = current_phase_index + 1;
   const isSessionComplete = nextPhaseIdx >= phases.length;
@@ -1730,7 +1894,7 @@ async function handleNextPhase(userId: string, body: any) {
   }
 
   const nextPhase = phases[nextPhaseIdx];
-  const stabilityPct = Math.round(strength * 100);
+  const stabilityPct = strengthPct;
   const difficultyLabel = stabilityPct < 30 ? "HARD" : stabilityPct < 60 ? "MEDIUM" : "EASY";
 
   // Phase transition messages
