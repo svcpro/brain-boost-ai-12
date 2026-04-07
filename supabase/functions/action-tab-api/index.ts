@@ -1222,6 +1222,83 @@ async function handleSessionBlueprint(userId: string, body: any) {
         crisis_topics: crisisTargets,
       };
     })() : {}),
+    ...(studyMode === "current-affairs" ? await (async () => {
+      // Fetch recent CA events
+      const { data: recentEvents } = await admin.from("ca_events")
+        .select("id, title, summary, category, importance_score, event_date, source_name, question_count, syllabus_link_count, processing_status")
+        .order("event_date", { ascending: false })
+        .limit(10);
+
+      const events = (recentEvents || []).map((e: any) => ({
+        id: e.id,
+        title: e.title,
+        summary: e.summary || "",
+        category: e.category || "General",
+        importance_score: e.importance_score || 0,
+        event_date: e.event_date || "",
+        source: e.source_name || "",
+        questions_available: e.question_count || 0,
+        syllabus_links: e.syllabus_link_count || 0,
+        is_processed: e.processing_status === "completed",
+      }));
+
+      // Fetch approved CA questions count
+      const { count: totalCAQuestions } = await admin.from("ca_generated_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "approved");
+
+      // Get user's CA quiz history today
+      const { count: todayCACount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "current-affairs")
+        .gte("created_at", todayStart());
+
+      // Exam-type specific categories
+      const examType = profile?.exam_type || "UPSC CSE";
+      const categoryBreakdown: Record<string, number> = {};
+      events.forEach((e: any) => { categoryBreakdown[e.category] = (categoryBreakdown[e.category] || 0) + 1; });
+
+      return {
+        ca_config: {
+          quiz_type: "daily",
+          quiz_type_label: "Daily CA Quiz",
+          total_events_today: events.length,
+          total_questions_available: totalCAQuestions || 0,
+          quizzes_taken_today: todayCACount || 0,
+          exam_type: examType,
+          exam_relevance_note: `Questions mapped to ${examType} syllabus`,
+          category_breakdown: categoryBreakdown,
+          difficulty_mix: { easy: 3, medium: 4, hard: 3 },
+          question_types: ["factual", "conceptual", "application", "analytical"],
+          scoring: { correct: 4, incorrect: -1, unanswered: 0, negative_marking: true },
+          features: {
+            show_event_context: true,
+            show_syllabus_link: true,
+            show_explanation_after_answer: true,
+            show_source_reference: true,
+            bookmarkable: true,
+            share_score: true,
+          },
+          daily_digest: {
+            top_events: events.slice(0, 5).map((e: any) => ({
+              id: e.id,
+              title: e.title,
+              category: e.category,
+              importance: e.importance_score >= 8 ? "🔴 Critical" : e.importance_score >= 5 ? "🟠 Important" : "🟢 Standard",
+              importance_score: e.importance_score,
+              event_date: e.event_date,
+              source: e.source,
+            })),
+            total_events: events.length,
+            categories_covered: Object.keys(categoryBreakdown).length,
+          },
+          estimated_duration_minutes: 15,
+          estimated_questions: config.questionCount,
+        },
+        ca_events: events,
+        ca_events_count: events.length,
+      };
+    })() : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       stability_gain_min: stabilityGainMin,
