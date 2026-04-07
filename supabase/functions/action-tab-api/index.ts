@@ -865,8 +865,15 @@ async function handleTaskEngineSubmit(userId: string, body: any) {
 
 // ── TASK ENGINE COMPLETE — Finish micro-session & mark task done ──
 async function handleTaskEngineComplete(userId: string, body: any) {
-  const { task_id, session_id, answers, time_taken_seconds } = body;
+  const { task_id, session_id, answers, time_taken_seconds, task_type } = body;
   if (!task_id) return { error: "task_id is required" };
+
+  // Fetch task before marking complete (need type info)
+  const { data: taskRow } = await admin.from("ai_recommendations")
+    .select("id, title, type, priority, topic_id, description")
+    .eq("id", task_id).eq("user_id", userId).maybeSingle();
+
+  const taskType = task_type || taskRow?.type || "practice";
 
   // Mark task completed
   const { error } = await admin.from("ai_recommendations")
@@ -882,34 +889,71 @@ async function handleTaskEngineComplete(userId: string, body: any) {
     ? Math.round(answerList.reduce((s: number, a: any) => s + (a.time_taken_ms || 0), 0) / totalQuestions)
     : 0;
 
-  // Get updated daily progress
-  const today = todayStart();
-  const { count: completedToday } = await admin.from("ai_recommendations")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId).eq("completed", true).gte("created_at", today);
-
-  const dailyGoal = 5;
-  const completedCount = completedToday || 0;
-  const executionStreak = await computeExecutionStreak(userId);
-
-  // Fetch next tasks
-  const { data: nextTasks } = await admin.from("ai_recommendations")
-    .select("id, title, description, priority, type, topic_id")
-    .eq("user_id", userId).eq("completed", false)
-    .order("created_at", { ascending: false }).limit(3);
-
-  const nextTasksList = (nextTasks || []).map((t: any) => {
-    const imp = deriveTaskImpact(t.priority);
-    return {
-      id: t.id,
-      title: t.title,
-      description: t.description || "",
-      priority: t.priority,
-      estimated_minutes: deriveTaskDuration(t.priority),
-      impact_level: imp,
-      impact_label: TASK_IMPACT_CONFIG[imp].label,
-    };
+  // Per-topic performance breakdown (from question answers)
+  const topicPerformance: Record<string, { correct: number; total: number }> = {};
+  answerList.forEach((a: any) => {
+    const topic = a.related_topic || "General";
+    if (!topicPerformance[topic]) topicPerformance[topic] = { correct: 0, total: 0 };
+    topicPerformance[topic].total++;
+    if (a.is_correct) topicPerformance[topic].correct++;
   });
+  const topicBreakdown = Object.entries(topicPerformance).map(([name, v]) => ({
+    topic: name,
+    correct: v.correct,
+    total: v.total,
+    accuracy: Math.round((v.correct / v.total) * 100),
+  }));
+
+  // Difficulty breakdown
+  const difficultyPerf: Record<string, { correct: number; total: number }> = {};
+  answerList.forEach((a: any) => {
+    const diff = a.difficulty || "medium";
+    if (!difficultyPerf[diff]) difficultyPerf[diff] = { correct: 0, total: 0 };
+    difficultyPerf[diff].total++;
+    if (a.is_correct) difficultyPerf[diff].correct++;
+  });
+  const difficultyBreakdown = Object.entries(difficultyPerf).map(([level, v]) => ({
+    difficulty: level,
+    correct: v.correct,
+    total: v.total,
+    accuracy: Math.round((v.correct / v.total) * 100),
+  }));
+
+  // Type-specific outcome
+  const typeOutcome: Record<string, any> = {
+    practice: {
+      label: "Decay Shield Status",
+      decay_halted: accuracy >= 70,
+      estimated_stability_gain: accuracy >= 70 ? "24-48 hours" : "4-8 hours",
+      message: accuracy >= 70 ? "✅ Decay halted! Topics stabilized for 24-48 hours." : "⚠️ Partial protection. Review again within 8 hours.",
+      topics_stabilized: topicBreakdown.filter((t: any) => t.accuracy >= 70).length,
+      topics_at_risk: topicBreakdown.filter((t: any) => t.accuracy < 70).length,
+    },
+    fix: {
+      label: "Recovery Status",
+      recovery_level: accuracy >= 80 ? "full" : accuracy >= 60 ? "partial" : "minimal",
+      estimated_new_strength: accuracy >= 80 ? "30%+" : accuracy >= 60 ? "15-30%" : "5-15%",
+      message: accuracy >= 80 ? "🔧 Full recovery! Fundamentals re-encoded successfully." : accuracy >= 60 ? "🔧 Partial recovery. Schedule follow-up in 12 hours." : "⚠️ Minimal recovery. Re-attempt with slower pace recommended.",
+      formulas_mastered: correctCount,
+      concepts_to_retry: totalQuestions - correctCount,
+    },
+    strategy: {
+      label: "Mapping Clarity",
+      clarity_improvement: accuracy >= 70 ? "high" : accuracy >= 50 ? "moderate" : "low",
+      estimated_clarity_gain: `+${Math.round(accuracy * 0.25)}%`,
+      message: accuracy >= 70 ? "🗺️ Dual-coding complete! Visual-verbal pathways established." : "🗺️ Partial mapping. Practice sketching the concepts again.",
+      dual_coding_score: Math.round(accuracy * 0.9),
+      visual_verbal_link: accuracy >= 60 ? "strong" : "developing",
+    },
+    review: {
+      label: "Stability Lock",
+      locked: accuracy >= 80,
+      retention_restored: accuracy >= 80 ? "above_threshold" : "below_threshold",
+      message: accuracy >= 80 ? "🔒 Stability locked! Retention pushed above safe threshold." : "⚠️ Retention still below threshold. Quick follow-up review recommended.",
+      estimated_retention: `${Math.min(accuracy + 10, 100)}%`,
+      next_review_in: accuracy >= 80 ? "3 days" : "12 hours",
+    },
+  };
 
   // Performance rating
   let performanceRating = "good";
@@ -918,10 +962,41 @@ async function handleTaskEngineComplete(userId: string, body: any) {
   else if (accuracy >= 50) performanceRating = "average";
   else performanceRating = "needs_improvement";
 
+  // Get updated daily progress
+  const today = todayStart();
+  const [completedTodayRes, nextTasksRes] = await Promise.all([
+    admin.from("ai_recommendations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("completed", true).gte("created_at", today),
+    admin.from("ai_recommendations")
+      .select("id, title, description, priority, type, topic_id")
+      .eq("user_id", userId).eq("completed", false)
+      .order("created_at", { ascending: false }).limit(3),
+  ]);
+
+  const dailyGoal = 5;
+  const completedCount = completedTodayRes.count || 0;
+  const executionStreak = await computeExecutionStreak(userId);
+
+  const nextTasksList = (nextTasksRes.data || []).map((t: any) => {
+    const imp = deriveTaskImpact(t.priority);
+    return {
+      id: t.id,
+      title: t.title,
+      description: t.description || "",
+      priority: t.priority,
+      type: t.type,
+      estimated_minutes: deriveTaskDuration(t.priority),
+      impact_level: imp,
+      impact_label: TASK_IMPACT_CONFIG[imp].label,
+    };
+  });
+
   return {
     success: true,
     session_id: session_id || "",
     task_id,
+    task_type: taskType,
     result: {
       accuracy,
       correct_count: correctCount,
@@ -929,8 +1004,11 @@ async function handleTaskEngineComplete(userId: string, body: any) {
       avg_time_ms: avgTimeMs,
       time_taken_seconds: time_taken_seconds || 0,
       performance_rating: performanceRating,
-      xp_earned: correctCount * 10 + (accuracy >= 80 ? 15 : 0),
+      xp_earned: correctCount * 10 + (accuracy >= 80 ? 15 : 0) + (taskType === "fix" && accuracy >= 80 ? 10 : 0),
+      topic_breakdown: topicBreakdown,
+      difficulty_breakdown: difficultyBreakdown,
     },
+    type_outcome: typeOutcome[taskType] || typeOutcome.practice,
     daily_progress: {
       completed_today: completedCount,
       daily_goal: dailyGoal,
