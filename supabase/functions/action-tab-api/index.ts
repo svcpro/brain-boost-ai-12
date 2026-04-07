@@ -1039,8 +1039,10 @@ async function handleSessionBlueprint(userId: string, body: any) {
       duration: 20,
       questionCount: 10,
       phases: [
-        { type: "mcq", title: "High-Probability Questions", description: "AI-predicted most likely exam questions based on patterns", duration: 15, icon: "trending-up" },
-        { type: "review", title: "Intel Debrief", description: "Strategic insights on exam readiness and gaps", duration: 5, icon: "shield" },
+        { type: "intel-briefing", title: "🎯 Intel Briefing", description: "AI prediction summary — top trending topics and probability shifts", duration: 2, icon: "bar-chart", emoji: "🎯" },
+        { type: "high-probability-mcq", title: "🔥 High-Probability MCQs", description: "Questions from topics with highest exam appearance probability", duration: 10, icon: "trending-up", emoji: "🔥" },
+        { type: "pattern-challenge", title: "🧩 Pattern Challenge", description: "Cross-topic questions testing conceptual links between hot topics", duration: 5, icon: "git-branch", emoji: "🧩" },
+        { type: "intel-debrief", title: "📊 Intel Debrief", description: "Strategic readiness report with prediction mastery score", duration: 3, icon: "shield", emoji: "📊" },
       ],
     },
   };
