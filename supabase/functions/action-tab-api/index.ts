@@ -1029,8 +1029,10 @@ async function handleSessionBlueprint(userId: string, body: any) {
       duration: 15,
       questionCount: 10,
       phases: [
-        { type: "mcq", title: "Current Affairs Quiz", description: "Recent events mapped to exam syllabus topics", duration: 10, icon: "globe" },
-        { type: "review", title: "Exam Relevance Review", description: "Connect current events to likely exam questions", duration: 5, icon: "book-open" },
+        { type: "warm-up", title: "📰 Daily Digest", description: "Quick scan of today's top events mapped to your exam syllabus", duration: 2, icon: "newspaper", emoji: "📰" },
+        { type: "mcq", title: "🎯 CA Quiz", description: "MCQs generated from recent current affairs events", duration: 8, icon: "globe", emoji: "🎯" },
+        { type: "event-deep-dive", title: "🔍 Event Deep-Dive", description: "Exam-angle breakdown of most important events", duration: 3, icon: "search", emoji: "🔍" },
+        { type: "review", title: "📊 Exam Relevance Review", description: "Connect current events to likely exam questions & syllabus topics", duration: 2, icon: "book-open", emoji: "📊" },
       ],
     },
     "intel-practice": {
