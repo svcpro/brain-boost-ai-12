@@ -559,16 +559,7 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
          ═══════════════════════════════════════════════════ */}
       <TodaysGains />
 
-      {/* Focus History */}
-      {isEnabled("action_focus_history") && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55 }}
-        >
-          <FocusSessionHistory />
-        </motion.div>
-      )}
+      {/* Focus History (hidden - API only) */}
 
       {/* ═══ Modals ═══ */}
       <LazyModeSession open={lazyModeOpen} onClose={() => setLazyModeOpen(false)} onSessionComplete={() => window.dispatchEvent(new Event("insights-refresh"))} />
