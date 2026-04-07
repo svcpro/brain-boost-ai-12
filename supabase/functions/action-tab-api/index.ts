@@ -2681,6 +2681,202 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
         },
       };
     })() : {}),
+    ...(mode === "intel-practice" ? await (async () => {
+      // Intel-practice specific completion analytics
+      const { data: userProfile } = await admin.from("profiles")
+        .select("exam_type").eq("id", userId).maybeSingle();
+      const examType = userProfile?.exam_type || "UPSC CSE";
+
+      // Fetch TPI topics to map performance against predictions
+      const { data: tpiTopics } = await admin.from("topic_probability_index")
+        .select("topic, subject, tpi_score, confidence, trend_momentum_score")
+        .eq("exam_type", examType)
+        .order("tpi_score", { ascending: false })
+        .limit(10);
+
+      // Fetch student brief for readiness comparison
+      const { data: studentBrief } = await admin.from("exam_intel_student_briefs")
+        .select("overall_readiness_score, predicted_hot_topics, risk_topics, recommended_actions")
+        .eq("user_id", userId).eq("exam_type", examType)
+        .order("computed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Intel streak
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { count: intelStreakCount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "intel-practice")
+        .gte("created_at", weekAgo);
+
+      // Consecutive day streak
+      const { data: recentIntelLogs } = await admin.from("study_logs")
+        .select("created_at")
+        .eq("user_id", userId).eq("study_mode", "intel-practice")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      let dayStreak = 0;
+      if (recentIntelLogs && recentIntelLogs.length > 0) {
+        const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+        let checkDate = todayDate;
+        const logDates = new Set(recentIntelLogs.map((l: any) => {
+          const d = new Date(l.created_at); d.setHours(0,0,0,0); return d.toDateString();
+        }));
+        while (logDates.has(checkDate.toDateString())) {
+          dayStreak++;
+          checkDate = new Date(checkDate.getTime() - 86400000);
+        }
+      }
+
+      // Subject-wise performance from answers
+      const subjectPerformance: Record<string, { correct: number; total: number; topics: Set<string> }> = {};
+      answersList.forEach((a: any) => {
+        const subj = a.subject_name || a.subject || "General";
+        const topic = a.topic_name || a.topic || "";
+        if (!subjectPerformance[subj]) subjectPerformance[subj] = { correct: 0, total: 0, topics: new Set() };
+        subjectPerformance[subj].total++;
+        if (topic) subjectPerformance[subj].topics.add(topic);
+        if (a.is_correct ?? (a.selected_option_index === a.correct_option_index)) subjectPerformance[subj].correct++;
+      });
+
+      // Probability-tier performance
+      const probabilityTiers = { high: { correct: 0, total: 0 }, medium: { correct: 0, total: 0 }, low: { correct: 0, total: 0 } };
+      answersList.forEach((a: any) => {
+        const prob = a.probability_score || 0;
+        const tier = prob >= 0.7 ? "high" : prob >= 0.4 ? "medium" : "low";
+        probabilityTiers[tier].total++;
+        if (a.is_correct ?? (a.selected_option_index === a.correct_option_index)) probabilityTiers[tier].correct++;
+      });
+
+      // Prediction mastery score = weighted accuracy on high-probability questions
+      const highProbAcc = probabilityTiers.high.total > 0 ? (probabilityTiers.high.correct / probabilityTiers.high.total) * 100 : 0;
+      const medProbAcc = probabilityTiers.medium.total > 0 ? (probabilityTiers.medium.correct / probabilityTiers.medium.total) * 100 : 0;
+      const predictionMastery = Math.round((highProbAcc * 0.6) + (medProbAcc * 0.3) + (accuracyNum * 0.1));
+
+      // Readiness delta
+      const previousReadiness = studentBrief?.overall_readiness_score || 0;
+      const newReadiness = Math.min(100, Math.round(previousReadiness + (predictionMastery * 0.1)));
+      const readinessLevel = newReadiness >= 80 ? "exam_ready" : newReadiness >= 60 ? "on_track" : newReadiness >= 40 ? "building" : "needs_focus";
+
+      // Cognitive type breakdown
+      const cognitiveBreakdown: Record<string, { correct: number; total: number }> = {};
+      answersList.forEach((a: any) => {
+        const cType = a.cognitive_type || "application";
+        if (!cognitiveBreakdown[cType]) cognitiveBreakdown[cType] = { correct: 0, total: 0 };
+        cognitiveBreakdown[cType].total++;
+        if (a.is_correct ?? (a.selected_option_index === a.correct_option_index)) cognitiveBreakdown[cType].correct++;
+      });
+
+      // Weak prediction areas (subjects where accuracy < 50%)
+      const weakSubjects = Object.entries(subjectPerformance)
+        .filter(([_, data]) => data.total > 0 && (data.correct / data.total) < 0.5)
+        .map(([subj, data]) => ({
+          subject: subj,
+          accuracy: Math.round((data.correct / data.total) * 100),
+          topics_tested: data.topics.size,
+        }));
+
+      return {
+        intel_result: {
+          practice_type: "prediction_based",
+          practice_type_label: "🎯 Exam Intel Practice Complete",
+          exam_type: examType,
+          prediction_mastery: predictionMastery,
+          prediction_mastery_label: predictionMastery >= 80 ? "🎯 Prediction Master"
+            : predictionMastery >= 60 ? "📈 Strong Predictor"
+            : predictionMastery >= 40 ? "📖 Learning Patterns"
+            : "⚠️ Needs Practice",
+          accuracy: accuracyNum,
+          accuracy_label: `${accuracyNum}%`,
+          correct,
+          incorrect,
+          skipped,
+          total_questions: totalQ,
+          total_marks: totalMarks,
+          max_marks: maxMarks,
+          percentage,
+          readiness: {
+            previous: previousReadiness,
+            current: newReadiness,
+            delta: newReadiness - previousReadiness,
+            delta_label: `${newReadiness - previousReadiness >= 0 ? "+" : ""}${newReadiness - previousReadiness}%`,
+            level: readinessLevel,
+            level_label: readinessLevel === "exam_ready" ? "🎯 Exam Ready"
+              : readinessLevel === "on_track" ? "📈 On Track"
+              : readinessLevel === "building" ? "📖 Building"
+              : "⚠️ Needs Focus",
+          },
+          probability_tier_performance: {
+            high: {
+              correct: probabilityTiers.high.correct,
+              total: probabilityTiers.high.total,
+              accuracy: probabilityTiers.high.total > 0 ? Math.round((probabilityTiers.high.correct / probabilityTiers.high.total) * 100) : 0,
+              label: "High probability (70%+)",
+            },
+            medium: {
+              correct: probabilityTiers.medium.correct,
+              total: probabilityTiers.medium.total,
+              accuracy: probabilityTiers.medium.total > 0 ? Math.round((probabilityTiers.medium.correct / probabilityTiers.medium.total) * 100) : 0,
+              label: "Medium probability (40-70%)",
+            },
+            low: {
+              correct: probabilityTiers.low.correct,
+              total: probabilityTiers.low.total,
+              accuracy: probabilityTiers.low.total > 0 ? Math.round((probabilityTiers.low.correct / probabilityTiers.low.total) * 100) : 0,
+              label: "Low probability (<40%)",
+            },
+          },
+          subject_performance: Object.entries(subjectPerformance).map(([subj, data]) => ({
+            subject: subj,
+            correct: data.correct,
+            total: data.total,
+            accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+            accuracy_label: data.total > 0 ? `${Math.round((data.correct / data.total) * 100)}%` : "N/A",
+            topics_tested: data.topics.size,
+          })),
+          cognitive_performance: Object.entries(cognitiveBreakdown).map(([cType, data]) => ({
+            type: cType,
+            correct: data.correct,
+            total: data.total,
+            accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+          })),
+          weak_subjects: weakSubjects,
+          weak_subjects_count: weakSubjects.length,
+          intel_streak: {
+            this_week: intelStreakCount || 0,
+            this_week_label: `${intelStreakCount || 0} intel sessions this week`,
+            day_streak: dayStreak,
+            day_streak_label: dayStreak > 0 ? `${dayStreak}-day intel streak 🔥` : "Start your streak!",
+          },
+          speed_analysis: {
+            avg_time_per_question_ms: avgTimePerQuestion,
+            avg_time_label: avgTimePerQuestion > 0 ? `${Math.round(avgTimePerQuestion / 1000)}s per question` : "N/A",
+            speed_verdict: avgTimePerQuestion < 20000 ? "fast" : avgTimePerQuestion < 45000 ? "balanced" : "slow",
+          },
+          top_predictions: (tpiTopics || []).slice(0, 5).map((t: any) => ({
+            topic: t.topic,
+            subject: t.subject,
+            tpi_score: t.tpi_score || 0,
+            tpi_label: `${Math.round((t.tpi_score || 0) * 100)}%`,
+            trend_momentum: t.trend_momentum_score || 0,
+          })),
+          improvement_tips: [
+            ...(predictionMastery < 60 ? ["Focus on high-probability topics — they carry the most exam weight"] : []),
+            ...(weakSubjects.length > 0 ? [`Strengthen weak subjects: ${weakSubjects.map(w => w.subject).join(", ")}`] : []),
+            ...(avgTimePerQuestion > 45000 ? ["Improve speed — aim for under 30 seconds per MCQ"] : []),
+            ...(probabilityTiers.high.total > 0 && highProbAcc < 60 ? ["Priority: Master high-probability questions first"] : []),
+            "Review explanations for incorrect answers to understand patterns",
+            "Practice daily to build prediction mastery",
+          ],
+          share_card: {
+            title: `Exam Intel Score: ${percentage}%`,
+            subtitle: `Prediction Mastery: ${predictionMastery}% · ${correct}/${totalQ} correct`,
+            streak: dayStreak > 0 ? `${dayStreak}-day streak 🔥` : null,
+          },
+        },
+      };
+    })() : {}),
     stability: {
       current: currentStability,
       before: stabilityBefore,
