@@ -120,87 +120,24 @@ const TodaysGains = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      const { data: apiData, error } = await supabase.functions.invoke("todays-gains");
 
-      // Parallel fetches
-      const [sessionsRes, topicsRes, weekRes] = await Promise.all([
-        supabase
-          .from("study_logs")
-          .select("duration_minutes, confidence_level, created_at")
-          .eq("user_id", user.id)
-          .gte("created_at", todayStart.toISOString()),
-        supabase
-          .from("topics")
-          .select("memory_strength")
-          .eq("user_id", user.id),
-        supabase
-          .from("study_logs")
-          .select("duration_minutes, created_at")
-          .eq("user_id", user.id)
-          .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString()),
-      ]);
-
-      const sessions = (sessionsRes.data || []) as any[];
-      const topics = (topicsRes.data || []) as any[];
-      const weekSessions = (weekRes.data || []) as any[];
-
-      const totalMin = sessions.reduce((s: number, r: any) => s + (r.duration_minutes || 0), 0);
-      const count = sessions.length;
-
-      // Stability gain: sessions × 2.5 capped at 15
-      const stabilityGain = Math.min(count * 2.5, 15);
-
-      // Risk reduction: count topics that improved (simplified)
-      const weakTopics = topics.filter((t: any) => (t.memory_strength ?? 0) < 0.4).length;
-      const totalTopics = topics.length || 1;
-      const riskReduction = Math.min(count * 3, Math.round((1 - weakTopics / totalTopics) * 100));
-
-      // Rank change estimate
-      const rankChange = Math.min(count * 1.5, 10);
-
-      // Focus quality from confidence levels
-      const confMap: Record<string, number> = { high: 100, medium: 70, low: 40 };
-      const focusScores = sessions
-        .filter((s: any) => s.confidence_level)
-        .map((s: any) => confMap[s.confidence_level] || 50);
-      const focusScore = focusScores.length > 0
-        ? Math.round(focusScores.reduce((a: number, b: number) => a + b, 0) / focusScores.length)
-        : 0;
-
-      // Build 7-day data
-      const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      const weeklyData: { day: string; value: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400000);
-        const dayStart = new Date(d); dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(d); dayEnd.setHours(23, 59, 59, 999);
-        const mins = weekSessions
-          .filter((s: any) => {
-            const t = new Date(s.created_at).getTime();
-            return t >= dayStart.getTime() && t <= dayEnd.getTime();
-          })
-          .reduce((sum: number, s: any) => sum + (s.duration_minutes || 0), 0);
-        weeklyData.push({ day: dayLabels[d.getDay()], value: mins });
+      if (error || !apiData?.success) {
+        console.error("[TodaysGains] API error:", error || apiData);
+        setLoading(false);
+        return;
       }
 
-      // Focus streak: consecutive days with sessions
-      let streak = 0;
-      for (let i = 0; i < weeklyData.length; i++) {
-        const idx = weeklyData.length - 1 - i;
-        if (weeklyData[idx].value > 0) streak++;
-        else break;
-      }
-
+      const d = apiData.data;
       setData({
-        stabilityGain,
-        riskReduction,
-        rankChange,
-        focusScore,
-        focusStreak: streak,
-        studyMinutes: totalMin,
-        sessionsCount: count,
-        weeklyData,
+        stabilityGain: d.stability_gain,
+        riskReduction: d.risk_reduction,
+        rankChange: d.rank_change,
+        focusScore: d.focus_score,
+        focusStreak: d.focus_streak,
+        studyMinutes: d.study_minutes,
+        sessionsCount: d.sessions_count,
+        weeklyData: d.weekly_data,
       });
     } catch {
       /* ignore */
