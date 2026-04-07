@@ -154,50 +154,42 @@ export default function QuickFixQuiz({ open, onClose, topicName, subjectName, re
     if (timerRef.current) clearInterval(timerRef.current);
     setPhase("result");
 
-    // Determine confidence from score
     const finalScore = answers.filter((a, i) => a === questions[i]?.correct_index).length;
     setScore(finalScore);
-    const pct = questions.length > 0 ? finalScore / questions.length : 0;
-    const confidence: "low" | "medium" | "high" = pct >= 0.8 ? "high" : pct >= 0.5 ? "medium" : "low";
 
-    // Log study & update memory
+    // Call complete API - handles study logging, memory update, ML tracking
     try {
-      await logStudy({
-        subjectName,
-        topicName,
-        durationMinutes: 3,
-        confidenceLevel: confidence,
-        studyMode: "fix",
+      const answerPayload = answers.map((sel, i) => ({
+        question_number: i + 1,
+        selected_index: sel ?? -1,
+        correct_index: questions[i]?.correct_index ?? 0,
+      }));
+
+      const { data: result, error: completeErr } = await supabase.functions.invoke("quick-fix", {
+        body: {
+          action: "complete",
+          topic_name: topicName,
+          subject_name: subjectName,
+          answers: answerPayload,
+          total_questions: questions.length,
+          time_taken_seconds: QUIZ_DURATION - timeLeft,
+          retention_pct: retentionPct,
+        },
       });
 
-      // Directly update memory_strength based on quiz performance
-      if (user) {
-        const strengthBoost = Math.round(pct * 30); // up to +30
-        const { data: topicRow } = await supabase
-          .from("topics")
-          .select("id, memory_strength")
-          .eq("user_id", user.id)
-          .eq("name", topicName)
-          .maybeSingle();
-
-        if (topicRow) {
-          const currentStrength = Number(topicRow.memory_strength) || 0;
-          const newStrength = Math.min(100, currentStrength + strengthBoost);
-          await supabase.from("topics").update({
-            memory_strength: newStrength,
-            last_revision_date: new Date().toISOString(),
-          }).eq("id", topicRow.id);
-        }
+      if (!completeErr && result?.success) {
+        toast({ title: "Brain Updated!", description: "Your study session has been logged." });
       }
     } catch (e) {
-      console.error("QuickFixQuiz log error:", e);
+      console.error("QuickFixQuiz complete error:", e);
     }
 
     // Confetti on good score
+    const pct = questions.length > 0 ? finalScore / questions.length : 0;
     if (pct >= 0.6) {
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
     }
-  }, [answers, questions, logStudy, subjectName, topicName, user]);
+  }, [answers, questions, topicName, subjectName, timeLeft, retentionPct, toast]);
 
   const handleSelect = (optIndex: number) => {
     if (selected !== null) return;
