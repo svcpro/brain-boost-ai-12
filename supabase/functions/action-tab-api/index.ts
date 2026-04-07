@@ -1913,6 +1913,80 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
         },
       },
     } : {}),
+    ...(mode === "emergency" ? await (async () => {
+      // Fetch crisis topics for emergency result
+      const { data: crisisTopics } = await admin.from("topics")
+        .select("id, name, memory_strength, subject_id, subjects(name)")
+        .eq("user_id", userId).is("deleted_at", null)
+        .order("memory_strength", { ascending: true }).limit(3);
+
+      const crisisTargets = (crisisTopics || []).map((t: any) => {
+        const ms = toStrengthPercent(t.memory_strength, 0);
+        return {
+          id: t.id,
+          name: t.name,
+          subject: (t as any).subjects?.name || "General",
+          memory_strength: ms,
+          risk_level: ms < 25 ? "critical" : ms < 45 ? "high" : "medium",
+        };
+      });
+
+      const avgBefore = stabilityBefore;
+      const gain = Math.round((accuracyNum / 100) * 15 + 5);
+      const avgAfter = Math.min(100, avgBefore + gain);
+      const intensity = avgBefore < 20 ? "severe" : avgBefore < 40 ? "moderate" : "mild";
+
+      // Generate recovery plan
+      const recoveryPlan: string[] = [];
+      crisisTargets.forEach((ct: any) => {
+        if (ct.memory_strength < 30) recoveryPlan.push(`Deep review: ${ct.name} (${ct.subject})`);
+        else if (ct.memory_strength < 50) recoveryPlan.push(`Quick recall: ${ct.name}`);
+        else recoveryPlan.push(`Maintenance check: ${ct.name}`);
+      });
+      recoveryPlan.push("Run 1 Focus Session on weakest topic");
+      recoveryPlan.push("Complete daily Brain Mission");
+
+      // Rescue streak
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { count: rescueCount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "emergency")
+        .gte("created_at", weekAgo);
+
+      return {
+        emergency_result: {
+          crisis_intensity: intensity,
+          crisis_intensity_label: intensity === "severe" ? "🔴 Severe Crisis" : intensity === "moderate" ? "🟠 Moderate Crisis" : "🟡 Mild Crisis",
+          crisis_topics_stabilized: crisisTargets,
+          crisis_topics_count: crisisTargets.length,
+          stability_before: avgBefore,
+          stability_after: avgAfter,
+          stability_gain: avgAfter - avgBefore,
+          stability_gain_label: `+${avgAfter - avgBefore}%`,
+          stability_gain_percent: avgAfter - avgBefore,
+          mcq_accuracy: accuracyNum,
+          mcq_accuracy_label: `${accuracyNum}%`,
+          mcq_correct: correct,
+          mcq_incorrect: incorrect,
+          mcq_total: totalQ,
+          confidence_locked: true,
+          confidence_level: accuracyNum >= 80 ? "high" : accuracyNum >= 50 ? "moderate" : "rebuilding",
+          confidence_label: accuracyNum >= 80 ? "🛡️ Confidence High" : accuracyNum >= 50 ? "🛡️ Confidence Moderate" : "🛡️ Confidence Rebuilding",
+          recovery_plan: recoveryPlan,
+          recovery_plan_count: recoveryPlan.length,
+          rescue_streak: (rescueCount || 0),
+          rescue_streak_label: `${rescueCount || 0} rescues this week`,
+          mission_status: "complete",
+          mission_label: "🏆 Emergency Rescue Complete",
+          voice_summary: `Emergency rescue complete. ${crisisTargets.length} topics stabilized. Accuracy ${accuracyNum}%. Stability improved by ${avgAfter - avgBefore} percent.`,
+          confetti_config: {
+            particle_count: 140,
+            spread: 100,
+            colors: ["#22c55e", "#f59e0b", "#3b82f6"],
+          },
+        },
+      };
+    })() : {}),
     stability: {
       current: currentStability,
       before: stabilityBefore,
@@ -1948,10 +2022,47 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     question_results: questionResults,
     recommended_next: nextRecommendations.slice(0, 3),
     keep_momentum: {
-      title: "Keep the Momentum",
-      subtitle: "AI-suggested next actions",
-      icon: "zap",
-      actions: [
+      title: mode === "emergency" ? "Recovery Complete" : "Keep the Momentum",
+      subtitle: mode === "emergency" ? "Next steps to maintain stability" : "AI-suggested next actions",
+      icon: mode === "emergency" ? "heart-pulse" : "zap",
+      actions: mode === "emergency" ? [
+        {
+          id: "deep_review",
+          title: "Deep Review Weakest Topic",
+          subtitle: "15-min focused session on most critical area",
+          duration: "15 min",
+          icon: "book-open",
+          action: "start-focus-session",
+          params: { mode: "focus", duration_minutes: 15 },
+        },
+        {
+          id: "quick_recall",
+          title: "Quick Recall Verification",
+          subtitle: "Verify rescued topics are holding",
+          duration: "5 min",
+          icon: "brain",
+          action: "start-focus-session",
+          params: { mode: "revision", topic_id: resolvedTopicId || null, duration_minutes: 5 },
+        },
+        {
+          id: "brain_mission",
+          title: "Complete Brain Mission",
+          subtitle: "Daily mission to maintain momentum",
+          duration: "5-10 min",
+          icon: "trophy",
+          action: "navigate",
+          params: { screen: "home", section: "missions" },
+        },
+        {
+          id: "check_brain",
+          title: "View Brain Health",
+          subtitle: "See updated stability after rescue",
+          duration: "2 min",
+          icon: "activity",
+          action: "navigate",
+          params: { screen: "brain_tab" },
+        },
+      ] : [
         {
           id: "quick_recall",
           title: "Quick Recall Test",
