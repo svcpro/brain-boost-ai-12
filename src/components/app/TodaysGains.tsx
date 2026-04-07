@@ -348,54 +348,7 @@ const TodaysGains = () => {
 
       {/* ─── 7-Day Momentum Graph (hidden) ─── */}
 
-      {/* ─── Lock Progress Button ─── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.95 }}
-      >
-        <motion.button
-          whileHover={{ scale: locked ? 1 : 1.02 }}
-          whileTap={{ scale: locked ? 1 : 0.97 }}
-          onClick={handleLock}
-          disabled={locked || locking || data.sessionsCount === 0}
-          className={`w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2.5 transition-all
-            ${
-              locked
-                ? "bg-success/15 text-success border border-success/20 cursor-default"
-                : data.sessionsCount === 0
-                ? "bg-secondary/50 text-muted-foreground cursor-not-allowed"
-                : "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98]"
-            }`}
-          style={
-            !locked && data.sessionsCount > 0
-              ? { boxShadow: "0 4px 20px hsl(var(--primary) / 0.3)" }
-              : undefined
-          }
-        >
-          {locking ? (
-            <>
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              >
-                <Sparkles className="w-4 h-4" />
-              </motion.div>
-              AI scheduling tomorrow…
-            </>
-          ) : locked ? (
-            <>
-              <CheckCircle2 className="w-4 h-4" />
-              Progress Locked — Tomorrow Ready
-            </>
-          ) : (
-            <>
-              <Lock className="w-4 h-4" />
-              {data.sessionsCount === 0 ? "Complete a session first" : "Lock Today's Progress"}
-            </>
-          )}
-        </motion.button>
-      </motion.div>
+      {/* ─── Lock Progress Button (hidden) ─── */}
     </motion.section>
   );
 };
