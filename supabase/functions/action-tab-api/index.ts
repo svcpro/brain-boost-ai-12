@@ -1449,7 +1449,7 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
           duration: "5 min",
           icon: "brain",
           action: "start-focus-session",
-          params: { mode: "revision", topic_id: topic_id || "", duration_minutes: 5 },
+          params: { mode: "revision", topic_id: resolvedTopicId || null, duration_minutes: 5 },
         },
         {
           id: "review_weak",
