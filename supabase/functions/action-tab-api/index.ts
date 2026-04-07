@@ -927,7 +927,7 @@ async function handleSessionBlueprint(userId: string, body: any) {
   let targetTopic: any = null;
   if (topic_id) {
     const { data } = await admin.from("topics")
-      .select("id, name, memory_strength, subject_id, revision_count, last_revision_date, next_predicted_drop_date, subjects(name)")
+      .select("id, name, memory_strength, subject_id, last_revision_date, next_predicted_drop_date, subjects(name)")
       .eq("id", topic_id).eq("user_id", userId).maybeSingle();
     targetTopic = data;
   } else {
@@ -936,7 +936,7 @@ async function handleSessionBlueprint(userId: string, body: any) {
       .order("created_at", { ascending: false }).limit(3);
     const recentIds = (recentRes.data || []).map((r: any) => r.topic_id).filter(Boolean);
     const { data: candidates } = await admin.from("topics")
-      .select("id, name, memory_strength, subject_id, revision_count, last_revision_date, next_predicted_drop_date, subjects(name)")
+      .select("id, name, memory_strength, subject_id, last_revision_date, next_predicted_drop_date, subjects(name)")
       .eq("user_id", userId).is("deleted_at", null)
       .order("memory_strength", { ascending: true }).limit(5);
     targetTopic = (candidates || []).find((t: any) => !recentIds.includes(t.id)) || (candidates || [])[0] || null;
