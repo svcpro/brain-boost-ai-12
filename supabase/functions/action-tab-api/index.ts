@@ -1210,10 +1210,22 @@ async function handleSubmitAnswer(userId: string, body: any) {
 
 // 17. COMPLETE FOCUS SESSION — End session, calculate results, update memory, generate recommendations
 async function handleCompleteFocusSession(userId: string, body: any, authHeader: string) {
-  const {
+  let {
     session_id, answers, topic_id, duration_minutes, mode, total_questions,
   } = body;
   if (!session_id) return { error: "session_id is required" };
+
+  // ── Resolve topic_id from study_logs if missing ──
+  if (!topic_id) {
+    const { data: sessionLog } = await admin.from("study_logs")
+      .select("topic_id")
+      .eq("id", session_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (sessionLog?.topic_id) {
+      topic_id = sessionLog.topic_id;
+    }
+  }
 
   const answersList = Array.isArray(answers) ? answers : [];
   const totalQ = total_questions || answersList.length || 0;
@@ -1244,18 +1256,22 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
   const totalMarks = (correct * 4) + (incorrect * -1);
   const maxMarks = totalQ * 4;
   const percentage = maxMarks > 0 ? Math.round((totalMarks / maxMarks) * 100) : 0;
-  const accuracy = totalQ > 0 ? Math.round((correct / totalQ) * 100) : 0;
+  const accuracy = totalQ > 0 ? Math.round((correct / totalQ) * 100) : null;
+  const accuracyDisplay = accuracy !== null ? accuracy : "N/A";
+  const accuracyNum = accuracy ?? 0;
   const avgTimePerQuestion = answersList.length > 0 ? Math.round(totalTimeTakenMs / answersList.length) : 0;
 
   // ── Performance grade ──
   let grade = "needs_improvement", gradeLabel = "Needs Improvement", gradeColor = "#EF4444";
-  if (percentage >= 90) { grade = "excellent"; gradeLabel = "Excellent 🎯"; gradeColor = "#10B981"; }
+  if (totalQ === 0) {
+    grade = "focus_only"; gradeLabel = "Focus Session Complete ✅"; gradeColor = "#3B82F6";
+  } else if (percentage >= 90) { grade = "excellent"; gradeLabel = "Excellent 🎯"; gradeColor = "#10B981"; }
   else if (percentage >= 75) { grade = "great"; gradeLabel = "Great Job 🌟"; gradeColor = "#22C55E"; }
   else if (percentage >= 60) { grade = "good"; gradeLabel = "Good Effort 📖"; gradeColor = "#3B82F6"; }
   else if (percentage >= 40) { grade = "fair"; gradeLabel = "Keep Practicing 💪"; gradeColor = "#F59E0B"; }
 
   // ── Speed analysis ──
-  const speedAnalysis = avgTimePerQuestion < 15000 ? "fast" : avgTimePerQuestion > 45000 ? "slow" : "balanced";
+  const speedAnalysis = avgTimePerQuestion === 0 ? "N/A" : avgTimePerQuestion < 15000 ? "fast" : avgTimePerQuestion > 45000 ? "slow" : "balanced";
 
   // ── Update study_logs ──
   const finalDuration = duration_minutes || Math.ceil(totalTimeTakenMs / 60000) || 1;
@@ -1268,30 +1284,54 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
   }).eq("id", session_id).eq("user_id", userId);
 
   // ── Update topic memory_strength ──
-  let memoryImpact: any = { before: 0, after: 0, change: 0, change_label: "", topic_name: "", subject: "" };
-  if (topic_id) {
+  let memoryImpact: any = { before: 0, after: 0, change: 0, change_label: "No topic data", topic_name: "General Practice", subject: "General" };
+
+  // Try resolving topic even without topic_id — pick user's weakest topic as context
+  let resolvedTopicId = topic_id;
+  if (!resolvedTopicId) {
+    const { data: weakestTopic } = await admin.from("topics")
+      .select("id, name, memory_strength, subject_id, subjects(name)")
+      .eq("user_id", userId)
+      .order("memory_strength", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (weakestTopic) {
+      resolvedTopicId = weakestTopic.id;
+      memoryImpact = {
+        before: Math.round((weakestTopic.memory_strength ?? 0) * 100),
+        after: Math.round((weakestTopic.memory_strength ?? 0) * 100),
+        change: 0,
+        change_label: "Focus session — no direct quiz impact",
+        topic_name: weakestTopic.name || "General Practice",
+        subject: (weakestTopic as any).subjects?.name || "General",
+      };
+    }
+  }
+
+  if (resolvedTopicId) {
     const { data: topic } = await admin.from("topics")
       .select("memory_strength, name, subject_id, subjects(name)")
-      .eq("id", topic_id).eq("user_id", userId).maybeSingle();
+      .eq("id", resolvedTopicId).eq("user_id", userId).maybeSingle();
 
     if (topic) {
       const oldStrength = topic.memory_strength ?? 0;
-      const performanceMultiplier = accuracy >= 80 ? 1.5 : accuracy >= 60 ? 1.0 : accuracy >= 40 ? 0.5 : 0.2;
+      const performanceMultiplier = accuracyNum >= 80 ? 1.5 : accuracyNum >= 60 ? 1.0 : accuracyNum >= 40 ? 0.5 : 0.2;
       const durationMultiplier = Math.min(finalDuration / 10, 2);
-      const boost = 0.05 * performanceMultiplier * durationMultiplier;
+      const focusBonus = totalQ === 0 ? 0.02 : 0; // small boost for pure focus sessions
+      const boost = (0.05 * performanceMultiplier * durationMultiplier) + focusBonus;
       const newStrength = Math.min(1, oldStrength + boost);
 
       await admin.from("topics").update({
         memory_strength: newStrength,
         last_revision_date: new Date().toISOString(),
-      }).eq("id", topic_id);
+      }).eq("id", resolvedTopicId);
 
       memoryImpact = {
         before: Math.round(oldStrength * 100),
         after: Math.round(newStrength * 100),
         change: Math.round((newStrength - oldStrength) * 100),
         change_label: `+${Math.round((newStrength - oldStrength) * 100)}% stability`,
-        topic_name: topic.name,
+        topic_name: topic.name || "General Practice",
         subject: (topic as any).subjects?.name || "General",
       };
     }
