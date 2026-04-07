@@ -1495,6 +1495,13 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
         { phase: 6, type: "stability-recovery", title: "💚 Stability Recovery", duration_minutes: 1, description: "Animated stability gain and scoring visualization", icon: "heart-pulse", emoji: "💚" },
         { phase: 7, type: "recovery-plan", title: "🏆 Mission Complete", duration_minutes: 0.5, description: "AI-generated recovery plan with next steps", icon: "trophy", emoji: "🏆" },
       ]
+    : mode === "current-affairs"
+    ? [
+        { phase: 1, type: "warm-up", title: "📰 Daily Digest", duration_minutes: 2, description: "Quick scan of today's top events mapped to your exam syllabus", icon: "newspaper", emoji: "📰" },
+        { phase: 2, type: "mcq", title: "🎯 CA Quiz", duration_minutes: 8, description: "MCQs generated from recent current affairs events", icon: "globe", emoji: "🎯" },
+        { phase: 3, type: "event-deep-dive", title: "🔍 Event Deep-Dive", duration_minutes: 3, description: "Exam-angle breakdown of most important events", icon: "search", emoji: "🔍" },
+        { phase: 4, type: "review", title: "📊 Exam Relevance Review", duration_minutes: 2, description: "Connect current events to likely exam questions & syllabus topics", icon: "book-open", emoji: "📊" },
+      ]
     : [
         { phase: 1, type: "recall", title: "Active Recall", duration_minutes: 8, description: `Recall key concepts from ${topicName}` },
         { phase: 2, type: "reinforcement", title: "Concept Reinforcement", duration_minutes: 9, description: "Strengthen weak connections through targeted questions" },
@@ -1507,7 +1514,7 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
   const rankImpactMin = stabilityPct < 30 ? 300 : stabilityPct < 60 ? 150 : 50;
   const rankImpactMax = stabilityPct < 30 ? 600 : stabilityPct < 60 ? 400 : 150;
 
-  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 8 : mode === "revision" ? 10 : 25;
+  const estimatedDurationMinutes = mode === "mock" ? 30 : mode === "emergency" ? 8 : mode === "revision" ? 10 : mode === "current-affairs" ? 15 : 25;
   const targetPercentile = strengthPct >= 70 ? "Top 15%" : strengthPct >= 50 ? "Top 30%" : strengthPct >= 30 ? "Top 45%" : "Top 60%";
   const revisionMetrics = buildRevisionMetrics({
     topicCount: 1,
