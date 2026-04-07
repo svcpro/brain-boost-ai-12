@@ -580,35 +580,110 @@ async function handleTaskEngineInit(userId: string) {
   };
 }
 
-// ── TASK ENGINE START — Begin a micro-session for a task ──
+// ── TYPE-SPECIFIC PHASE CONFIGS ──
+const TASK_TYPE_PHASES: Record<string, any[]> = {
+  practice: [
+    { phase: 1, name: "Concept Recall", type: "recall", description: "Quick recall of core concepts before practice", icon: "brain" },
+    { phase: 2, name: "Mixed Problem Solving", type: "quiz", description: "Solve cross-topic problems to halt decay", icon: "target" },
+    { phase: 3, name: "Integration Check", type: "assessment", description: "Verify connections between decaying topics", icon: "link" },
+    { phase: 4, name: "Decay Shield Activation", type: "result", description: "Lock in gains and reset decay timers", icon: "shield" },
+  ],
+  fix: [
+    { phase: 1, name: "Diagnostic Scan", type: "diagnostic", description: "Identify exact knowledge gaps at zero-strength", icon: "search" },
+    { phase: 2, name: "Re-learn Core", type: "learn", description: "Re-encode fundamental formulas and concepts from scratch", icon: "book" },
+    { phase: 3, name: "Application Drill", type: "quiz", description: "Apply re-learned concepts to exam-style problems", icon: "target" },
+    { phase: 4, name: "Recovery Verification", type: "verification", description: "Confirm memory has been restored above critical threshold", icon: "check" },
+  ],
+  strategy: [
+    { phase: 1, name: "Visual Mapping", type: "visual", description: "Sketch mental models and conceptual diagrams", icon: "map" },
+    { phase: 2, name: "Dual-Coding Exercise", type: "exercise", description: "Connect visual and verbal representations", icon: "layers" },
+    { phase: 3, name: "Concept Application", type: "quiz", description: "Apply mapped concepts to structured questions", icon: "target" },
+    { phase: 4, name: "Strength Calibration", type: "result", description: "Measure improvement in concept clarity", icon: "trending-up" },
+  ],
+  review: [
+    { phase: 1, name: "Retention Check", type: "recall", description: "Test current memory state before review", icon: "brain" },
+    { phase: 2, name: "Active Recall Sprint", type: "quiz", description: "Rapid-fire questions on weakening concepts", icon: "zap" },
+    { phase: 3, name: "Deep Reinforcement", type: "reinforcement", description: "Strengthen connections through explanation prompts", icon: "link" },
+    { phase: 4, name: "Stability Lock", type: "result", description: "Confirm retention restored above safe threshold", icon: "lock" },
+  ],
+};
+
+// ── Fetch related topics for cross-topic tasks ──
+async function fetchRelatedTopics(userId: string, description: string) {
+  // Extract topic hints from description, then find matching user topics
+  const { data: allTopics } = await admin.from("topics")
+    .select("id, name, memory_strength, subject_id, subjects(name), last_revision_date, next_predicted_drop_date")
+    .eq("user_id", userId).is("deleted_at", null)
+    .order("memory_strength", { ascending: true }).limit(20);
+
+  if (!allTopics || allTopics.length === 0) return [];
+
+  const descLower = description.toLowerCase();
+  // Find topics mentioned in description
+  const matched = allTopics.filter((t: any) => {
+    const name = (t.name || "").toLowerCase();
+    return descLower.includes(name) || name.split(/\s+/).some((word: string) => word.length > 3 && descLower.includes(word));
+  });
+
+  // If no name matches, return weakest topics
+  const result = matched.length > 0 ? matched : allTopics.slice(0, 5);
+
+  return result.map((t: any) => ({
+    id: t.id,
+    name: t.name,
+    subject: (t as any).subjects?.name || "General",
+    memory_strength: Math.round((t.memory_strength ?? 0) * 100),
+    health: getHealthFromStrength(Math.round((t.memory_strength ?? 0) * 100)),
+    risk_percentage: getRiskPercentage(Math.round((t.memory_strength ?? 0) * 100)),
+    days_to_forget: getDaysToForget(t.next_predicted_drop_date),
+    last_revised: t.last_revision_date || "",
+  }));
+}
+
+// ── TASK ENGINE START — Begin a type-specific micro-session ──
 async function handleTaskEngineStart(userId: string, body: any, authHeader: string) {
   const { task_id } = body;
   if (!task_id) return { error: "task_id is required" };
 
   // Fetch the task
   const { data: task } = await admin.from("ai_recommendations")
-    .select("id, title, description, priority, type, topic_id")
+    .select("id, title, description, priority, type, topic_id, created_at")
     .eq("id", task_id).eq("user_id", userId).eq("completed", false)
     .maybeSingle();
 
   if (!task) return { error: "Task not found or already completed" };
 
+  const taskType = task.type || "practice";
   const impact = deriveTaskImpact(task.priority);
   const estimatedMinutes = deriveTaskDuration(task.priority);
 
-  // Fetch topic details if available
-  let topicName = "";
-  let topicStrength = 0;
+  // Fetch related topics based on task description
+  const relatedTopics = await fetchRelatedTopics(userId, task.description || task.title);
+
+  // Fetch single topic details if topic_id exists
+  let primaryTopic: any = null;
   if (task.topic_id) {
     const { data: topicData } = await admin.from("topics")
-      .select("name, memory_strength").eq("id", task.topic_id).maybeSingle();
+      .select("id, name, memory_strength, subject_id, subjects(name), last_revision_date, next_predicted_drop_date")
+      .eq("id", task.topic_id).maybeSingle();
     if (topicData) {
-      topicName = topicData.name || "";
-      topicStrength = Math.round((topicData.memory_strength ?? 0) * 100);
+      primaryTopic = {
+        id: topicData.id,
+        name: topicData.name,
+        subject: (topicData as any).subjects?.name || "General",
+        memory_strength: Math.round((topicData.memory_strength ?? 0) * 100),
+        health: getHealthFromStrength(Math.round((topicData.memory_strength ?? 0) * 100)),
+        risk_percentage: getRiskPercentage(Math.round((topicData.memory_strength ?? 0) * 100)),
+        days_to_forget: getDaysToForget(topicData.next_predicted_drop_date),
+        last_revised: topicData.last_revision_date || "",
+      };
     }
   }
 
-  // Generate AI questions via ai-brain-agent
+  // Determine question count based on task type and priority
+  const questionCount = taskType === "fix" ? 5 : taskType === "practice" ? 4 : taskType === "strategy" ? 3 : 4;
+
+  // Generate AI questions via ai-brain-agent with type-specific prompting
   let questions: any[] = [];
   try {
     const agentUrl = `${supabaseUrl}/functions/v1/ai-brain-agent`;
@@ -625,34 +700,118 @@ async function handleTaskEngineStart(userId: string, body: any, authHeader: stri
         taskTitle: task.title,
         taskDescription: task.description,
         topicId: task.topic_id,
-        questionCount: 3,
+        questionCount,
+        taskType,
+        relatedTopicNames: relatedTopics.map((t: any) => t.name).join(", "),
       }),
     });
     const agentData = await agentResp.json();
     if (agentData?.questions && Array.isArray(agentData.questions)) {
       questions = agentData.questions.map((q: any, i: number) => ({
-        id: `task_q_${i}_${Date.now()}`,
+        id: `${taskType}_q_${i}_${Date.now()}`,
         question: q.question || "Practice question",
         options: Array.isArray(q.options) && q.options.length >= 2
-          ? q.options
-          : ["Option A", "Option B", "Option C", "Option D"],
+          ? q.options : ["Option A", "Option B", "Option C", "Option D"],
         correct_index: typeof q.correctIndex === "number" ? q.correctIndex : 0,
         explanation: q.explanation || "Great job working through this!",
+        difficulty: q.difficulty || (task.priority === "critical" ? "hard" : task.priority === "high" ? "medium" : "easy"),
+        cognitive_level: q.cognitive_level || "application",
+        related_topic: q.related_topic || (relatedTopics[i]?.name ?? ""),
       }));
     }
   } catch { /* fallback below */ }
 
-  // Fallback questions if AI fails
+  // Type-specific fallback questions
   if (questions.length === 0) {
-    questions = [
-      { id: `task_q_0_${Date.now()}`, question: "Which study method is most effective for long-term retention?", options: ["Cramming", "Spaced repetition", "Highlighting", "Re-reading"], correct_index: 1, explanation: "Spaced repetition strengthens neural pathways over time." },
-      { id: `task_q_1_${Date.now()}`, question: "What is the optimal study session length for focused learning?", options: ["10 minutes", "25-30 minutes", "2 hours", "4 hours"], correct_index: 1, explanation: "25-30 minute sessions align with natural attention cycles." },
-      { id: `task_q_2_${Date.now()}`, question: "Active recall is more effective than passive review because it:", options: ["Is faster", "Requires less effort", "Strengthens retrieval pathways", "Feels easier"], correct_index: 2, explanation: "Active recall forces your brain to retrieve information, strengthening memory." },
-    ];
+    const fallbacks: Record<string, any[]> = {
+      practice: [
+        { id: `practice_q_0_${Date.now()}`, question: "When multiple concepts decay simultaneously, the most effective strategy is:", options: ["Study each independently", "Interleaved practice across topics", "Focus only on the weakest", "Skip and review later"], correct_index: 1, explanation: "Interleaved practice strengthens cross-topic connections and fights decay more effectively.", difficulty: "medium", cognitive_level: "application", related_topic: "" },
+        { id: `practice_q_1_${Date.now()}`, question: "The forgetting curve shows that without review, memory retention drops to what percentage within 24 hours?", options: ["90%", "75%", "50%", "30%"], correct_index: 2, explanation: "Ebbinghaus's forgetting curve shows ~50% retention loss within 24 hours without reinforcement.", difficulty: "easy", cognitive_level: "recall", related_topic: "" },
+        { id: `practice_q_2_${Date.now()}`, question: "Integration of decaying topics is best achieved through:", options: ["Passive reading", "Mixed problem sets covering all topics", "Memorizing formulas", "Watching video lectures"], correct_index: 1, explanation: "Mixed problem sets force your brain to switch between concepts, strengthening integration.", difficulty: "medium", cognitive_level: "analysis", related_topic: "" },
+        { id: `practice_q_3_${Date.now()}`, question: "When solving cross-topic problems, you should first:", options: ["Guess the answer", "Identify which concepts apply", "Skip difficult parts", "Look up the formula"], correct_index: 1, explanation: "Identifying applicable concepts activates retrieval pathways across multiple knowledge domains.", difficulty: "medium", cognitive_level: "application", related_topic: "" },
+      ],
+      fix: [
+        { id: `fix_q_0_${Date.now()}`, question: "When memory strength is near zero, the first step to recovery is:", options: ["Advanced problem solving", "Re-reading the entire chapter", "Active re-encoding of core principles", "Skipping to practice tests"], correct_index: 2, explanation: "Active re-encoding rebuilds neural pathways from scratch, essential when strength is near zero.", difficulty: "easy", cognitive_level: "recall", related_topic: "" },
+        { id: `fix_q_1_${Date.now()}`, question: "The most effective way to re-learn forgotten formulas is:", options: ["Copy them 10 times", "Derive them from first principles", "Just memorize", "Read once"], correct_index: 1, explanation: "Deriving formulas builds deep understanding, making them resistant to future decay.", difficulty: "medium", cognitive_level: "application", related_topic: "" },
+        { id: `fix_q_2_${Date.now()}`, question: "After re-learning a concept, how soon should the first review occur?", options: ["Next week", "Within 24 hours", "After a month", "Only before exams"], correct_index: 1, explanation: "The first review within 24 hours captures the memory before the forgetting curve drops it.", difficulty: "easy", cognitive_level: "recall", related_topic: "" },
+        { id: `fix_q_3_${Date.now()}`, question: "A diagnostic scan before re-learning helps because it:", options: ["Wastes time", "Identifies exact gaps to target", "Makes you feel bad", "Is unnecessary"], correct_index: 1, explanation: "Diagnostic scans pinpoint exactly what needs re-learning, making the process efficient.", difficulty: "easy", cognitive_level: "analysis", related_topic: "" },
+        { id: `fix_q_4_${Date.now()}`, question: "To verify recovery after re-learning, you should:", options: ["Feel confident", "Solve problems without notes", "Re-read notes", "Skip verification"], correct_index: 1, explanation: "Solving problems without notes is the gold standard for verifying genuine understanding.", difficulty: "medium", cognitive_level: "application", related_topic: "" },
+      ],
+      strategy: [
+        { id: `strategy_q_0_${Date.now()}`, question: "Dual-coding theory suggests learning improves when you combine:", options: ["Reading and highlighting", "Visual and verbal representations", "Speed reading and notes", "Listening only"], correct_index: 1, explanation: "Dual-coding creates two memory traces (visual + verbal), doubling retrieval pathways.", difficulty: "easy", cognitive_level: "recall", related_topic: "" },
+        { id: `strategy_q_1_${Date.now()}`, question: "Concept mapping is most effective for:", options: ["Memorizing dates", "Understanding relationships between ideas", "Speed reading", "Test-taking"], correct_index: 1, explanation: "Concept maps visualize how ideas connect, building deep structural understanding.", difficulty: "medium", cognitive_level: "analysis", related_topic: "" },
+        { id: `strategy_q_2_${Date.now()}`, question: "When sketching atomic models, the key benefit is:", options: ["It looks nice", "Forces spatial reasoning about structure", "Saves time", "Replaces reading"], correct_index: 1, explanation: "Sketching forces spatial reasoning, which activates different memory systems than verbal learning.", difficulty: "medium", cognitive_level: "application", related_topic: "" },
+      ],
+      review: [
+        { id: `review_q_0_${Date.now()}`, question: "Active recall is superior to re-reading because it:", options: ["Is faster", "Strengthens retrieval pathways", "Requires less effort", "Is more enjoyable"], correct_index: 1, explanation: "Active recall forces the brain to reconstruct information, strengthening memory traces.", difficulty: "easy", cognitive_level: "recall", related_topic: "" },
+        { id: `review_q_1_${Date.now()}`, question: "The optimal review interval follows which pattern?", options: ["Same interval always", "Expanding intervals", "Decreasing intervals", "Random intervals"], correct_index: 1, explanation: "Expanding intervals (1d, 3d, 7d, 14d...) align with how memory consolidation works.", difficulty: "medium", cognitive_level: "application", related_topic: "" },
+        { id: `review_q_2_${Date.now()}`, question: "When a topic is at the 50% retention threshold, you should:", options: ["Ignore it", "Full re-learn", "Quick targeted review", "Wait until exam"], correct_index: 2, explanation: "At 50%, a quick targeted review is enough to push retention back above the safety threshold.", difficulty: "easy", cognitive_level: "application", related_topic: "" },
+        { id: `review_q_3_${Date.now()}`, question: "Spaced repetition is most effective when reviews are:", options: ["All on one day", "Spread across increasing intervals", "Random", "Only before sleep"], correct_index: 1, explanation: "Increasing intervals match the brain's consolidation cycle, maximizing long-term retention.", difficulty: "medium", cognitive_level: "analysis", related_topic: "" },
+      ],
+    };
+    questions = fallbacks[taskType] || fallbacks.practice;
   }
 
-  // Create session record
-  const sessionId = `task_session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  // Build type-specific phases with durations
+  const phases = (TASK_TYPE_PHASES[taskType] || TASK_TYPE_PHASES.practice).map((p: any, i: number) => {
+    const phaseDurations: Record<string, number[]> = {
+      practice: [0.5, estimatedMinutes - 1.5, 0.5, 0.5],
+      fix: [1, 1.5, estimatedMinutes - 3, 0.5],
+      strategy: [1, 1.5, estimatedMinutes - 3, 0.5],
+      review: [0.5, estimatedMinutes - 1.5, 0.5, 0.5],
+    };
+    const durations = phaseDurations[taskType] || phaseDurations.practice;
+    return { ...p, duration_minutes: durations[i] ?? 1 };
+  });
+
+  // Compute decay urgency for practice/fix types
+  let decayUrgency: any = null;
+  if (taskType === "practice" || taskType === "fix") {
+    const decayingTopics = relatedTopics.filter((t: any) => t.memory_strength < 40);
+    decayUrgency = {
+      critical_count: decayingTopics.filter((t: any) => t.memory_strength < 20).length,
+      at_risk_count: decayingTopics.length,
+      avg_strength: relatedTopics.length > 0
+        ? Math.round(relatedTopics.reduce((s: number, t: any) => s + t.memory_strength, 0) / relatedTopics.length)
+        : 0,
+      hours_until_critical: relatedTopics.length > 0
+        ? Math.min(...relatedTopics.map((t: any) => (t.days_to_forget ?? 30) * 24).filter((h: number) => h > 0))
+        : 999,
+      message: decayingTopics.length > 0
+        ? `${decayingTopics.length} topic${decayingTopics.length > 1 ? "s" : ""} actively decaying — act now!`
+        : "Topics are stable but need reinforcement.",
+    };
+  }
+
+  // Build type-specific objectives
+  const objectivesByType: Record<string, any> = {
+    practice: {
+      goal: "Halt rapid decay across multiple topics through integrated problem solving",
+      success_criteria: "Score 70%+ on cross-topic problems to activate decay shields",
+      expected_outcome: "Memory strength stabilized for 24-48 hours",
+      strategy: "Interleaved practice — switch between topics to strengthen connections",
+    },
+    fix: {
+      goal: "Rebuild memory from near-zero to functional level",
+      success_criteria: "Correctly apply core formulas without reference material",
+      expected_outcome: "Memory strength restored from <5% to 30%+ baseline",
+      strategy: "Diagnostic → Re-encode → Apply → Verify recovery loop",
+    },
+    strategy: {
+      goal: "Strengthen weak topics through visual-verbal dual-coding",
+      success_criteria: "Map key concepts and apply them in structured questions",
+      expected_outcome: "Concept clarity improved by 15-25%",
+      strategy: "Visual mapping + verbal explanation to create dual memory traces",
+    },
+    review: {
+      goal: "Reinforce topics approaching the decay threshold",
+      success_criteria: "Score 80%+ on recall questions to lock stability",
+      expected_outcome: "Retention pushed above 60% safe threshold",
+      strategy: "Active recall sprint with explanation-based reinforcement",
+    },
+  };
+
+  const sessionId = `${taskType}_session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
   return {
     session_id: sessionId,
@@ -661,22 +820,28 @@ async function handleTaskEngineStart(userId: string, body: any, authHeader: stri
       title: task.title,
       description: task.description || "",
       priority: task.priority,
-      type: task.type,
+      type: taskType,
       topic_id: task.topic_id || "",
-      topic_name: topicName,
-      topic_strength: topicStrength,
+      created_at: task.created_at,
       estimated_minutes: estimatedMinutes,
       impact_level: impact,
       impact_label: TASK_IMPACT_CONFIG[impact].label,
+      impact_color: TASK_IMPACT_CONFIG[impact].color,
     },
+    objective: objectivesByType[taskType] || objectivesByType.practice,
+    primary_topic: primaryTopic,
+    related_topics: relatedTopics,
+    decay_urgency: decayUrgency,
     questions,
     total_questions: questions.length,
-    session_phases: [
-      { phase: 1, name: "Intro", description: "Review task objective", duration_minutes: 0.5 },
-      { phase: 2, name: "Quiz", description: "Answer AI-generated questions", duration_minutes: estimatedMinutes - 1 },
-      { phase: 3, name: "Feedback", description: "Review accuracy and explanations", duration_minutes: 0.5 },
-      { phase: 4, name: "Reward", description: "Earn execution points", duration_minutes: 0 },
-    ],
+    session_phases: phases,
+    total_duration_minutes: estimatedMinutes,
+    type_config: {
+      type: taskType,
+      label: taskType === "practice" ? "High-Decay Integration" : taskType === "fix" ? "Re-learn Fundamentals" : taskType === "strategy" ? "Strategic Mapping" : "Active Review",
+      color: taskType === "fix" ? "#ef4444" : taskType === "practice" ? "#f59e0b" : taskType === "strategy" ? "#8b5cf6" : "#3b82f6",
+      icon: taskType === "practice" ? "zap" : taskType === "fix" ? "wrench" : taskType === "strategy" ? "map" : "refresh-cw",
+    },
   };
 }
 
@@ -700,8 +865,15 @@ async function handleTaskEngineSubmit(userId: string, body: any) {
 
 // ── TASK ENGINE COMPLETE — Finish micro-session & mark task done ──
 async function handleTaskEngineComplete(userId: string, body: any) {
-  const { task_id, session_id, answers, time_taken_seconds } = body;
+  const { task_id, session_id, answers, time_taken_seconds, task_type } = body;
   if (!task_id) return { error: "task_id is required" };
+
+  // Fetch task before marking complete (need type info)
+  const { data: taskRow } = await admin.from("ai_recommendations")
+    .select("id, title, type, priority, topic_id, description")
+    .eq("id", task_id).eq("user_id", userId).maybeSingle();
+
+  const taskType = task_type || taskRow?.type || "practice";
 
   // Mark task completed
   const { error } = await admin.from("ai_recommendations")
@@ -717,34 +889,71 @@ async function handleTaskEngineComplete(userId: string, body: any) {
     ? Math.round(answerList.reduce((s: number, a: any) => s + (a.time_taken_ms || 0), 0) / totalQuestions)
     : 0;
 
-  // Get updated daily progress
-  const today = todayStart();
-  const { count: completedToday } = await admin.from("ai_recommendations")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId).eq("completed", true).gte("created_at", today);
-
-  const dailyGoal = 5;
-  const completedCount = completedToday || 0;
-  const executionStreak = await computeExecutionStreak(userId);
-
-  // Fetch next tasks
-  const { data: nextTasks } = await admin.from("ai_recommendations")
-    .select("id, title, description, priority, type, topic_id")
-    .eq("user_id", userId).eq("completed", false)
-    .order("created_at", { ascending: false }).limit(3);
-
-  const nextTasksList = (nextTasks || []).map((t: any) => {
-    const imp = deriveTaskImpact(t.priority);
-    return {
-      id: t.id,
-      title: t.title,
-      description: t.description || "",
-      priority: t.priority,
-      estimated_minutes: deriveTaskDuration(t.priority),
-      impact_level: imp,
-      impact_label: TASK_IMPACT_CONFIG[imp].label,
-    };
+  // Per-topic performance breakdown (from question answers)
+  const topicPerformance: Record<string, { correct: number; total: number }> = {};
+  answerList.forEach((a: any) => {
+    const topic = a.related_topic || "General";
+    if (!topicPerformance[topic]) topicPerformance[topic] = { correct: 0, total: 0 };
+    topicPerformance[topic].total++;
+    if (a.is_correct) topicPerformance[topic].correct++;
   });
+  const topicBreakdown = Object.entries(topicPerformance).map(([name, v]) => ({
+    topic: name,
+    correct: v.correct,
+    total: v.total,
+    accuracy: Math.round((v.correct / v.total) * 100),
+  }));
+
+  // Difficulty breakdown
+  const difficultyPerf: Record<string, { correct: number; total: number }> = {};
+  answerList.forEach((a: any) => {
+    const diff = a.difficulty || "medium";
+    if (!difficultyPerf[diff]) difficultyPerf[diff] = { correct: 0, total: 0 };
+    difficultyPerf[diff].total++;
+    if (a.is_correct) difficultyPerf[diff].correct++;
+  });
+  const difficultyBreakdown = Object.entries(difficultyPerf).map(([level, v]) => ({
+    difficulty: level,
+    correct: v.correct,
+    total: v.total,
+    accuracy: Math.round((v.correct / v.total) * 100),
+  }));
+
+  // Type-specific outcome
+  const typeOutcome: Record<string, any> = {
+    practice: {
+      label: "Decay Shield Status",
+      decay_halted: accuracy >= 70,
+      estimated_stability_gain: accuracy >= 70 ? "24-48 hours" : "4-8 hours",
+      message: accuracy >= 70 ? "✅ Decay halted! Topics stabilized for 24-48 hours." : "⚠️ Partial protection. Review again within 8 hours.",
+      topics_stabilized: topicBreakdown.filter((t: any) => t.accuracy >= 70).length,
+      topics_at_risk: topicBreakdown.filter((t: any) => t.accuracy < 70).length,
+    },
+    fix: {
+      label: "Recovery Status",
+      recovery_level: accuracy >= 80 ? "full" : accuracy >= 60 ? "partial" : "minimal",
+      estimated_new_strength: accuracy >= 80 ? "30%+" : accuracy >= 60 ? "15-30%" : "5-15%",
+      message: accuracy >= 80 ? "🔧 Full recovery! Fundamentals re-encoded successfully." : accuracy >= 60 ? "🔧 Partial recovery. Schedule follow-up in 12 hours." : "⚠️ Minimal recovery. Re-attempt with slower pace recommended.",
+      formulas_mastered: correctCount,
+      concepts_to_retry: totalQuestions - correctCount,
+    },
+    strategy: {
+      label: "Mapping Clarity",
+      clarity_improvement: accuracy >= 70 ? "high" : accuracy >= 50 ? "moderate" : "low",
+      estimated_clarity_gain: `+${Math.round(accuracy * 0.25)}%`,
+      message: accuracy >= 70 ? "🗺️ Dual-coding complete! Visual-verbal pathways established." : "🗺️ Partial mapping. Practice sketching the concepts again.",
+      dual_coding_score: Math.round(accuracy * 0.9),
+      visual_verbal_link: accuracy >= 60 ? "strong" : "developing",
+    },
+    review: {
+      label: "Stability Lock",
+      locked: accuracy >= 80,
+      retention_restored: accuracy >= 80 ? "above_threshold" : "below_threshold",
+      message: accuracy >= 80 ? "🔒 Stability locked! Retention pushed above safe threshold." : "⚠️ Retention still below threshold. Quick follow-up review recommended.",
+      estimated_retention: `${Math.min(accuracy + 10, 100)}%`,
+      next_review_in: accuracy >= 80 ? "3 days" : "12 hours",
+    },
+  };
 
   // Performance rating
   let performanceRating = "good";
@@ -753,10 +962,41 @@ async function handleTaskEngineComplete(userId: string, body: any) {
   else if (accuracy >= 50) performanceRating = "average";
   else performanceRating = "needs_improvement";
 
+  // Get updated daily progress
+  const today = todayStart();
+  const [completedTodayRes, nextTasksRes] = await Promise.all([
+    admin.from("ai_recommendations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("completed", true).gte("created_at", today),
+    admin.from("ai_recommendations")
+      .select("id, title, description, priority, type, topic_id")
+      .eq("user_id", userId).eq("completed", false)
+      .order("created_at", { ascending: false }).limit(3),
+  ]);
+
+  const dailyGoal = 5;
+  const completedCount = completedTodayRes.count || 0;
+  const executionStreak = await computeExecutionStreak(userId);
+
+  const nextTasksList = (nextTasksRes.data || []).map((t: any) => {
+    const imp = deriveTaskImpact(t.priority);
+    return {
+      id: t.id,
+      title: t.title,
+      description: t.description || "",
+      priority: t.priority,
+      type: t.type,
+      estimated_minutes: deriveTaskDuration(t.priority),
+      impact_level: imp,
+      impact_label: TASK_IMPACT_CONFIG[imp].label,
+    };
+  });
+
   return {
     success: true,
     session_id: session_id || "",
     task_id,
+    task_type: taskType,
     result: {
       accuracy,
       correct_count: correctCount,
@@ -764,8 +1004,11 @@ async function handleTaskEngineComplete(userId: string, body: any) {
       avg_time_ms: avgTimeMs,
       time_taken_seconds: time_taken_seconds || 0,
       performance_rating: performanceRating,
-      xp_earned: correctCount * 10 + (accuracy >= 80 ? 15 : 0),
+      xp_earned: correctCount * 10 + (accuracy >= 80 ? 15 : 0) + (taskType === "fix" && accuracy >= 80 ? 10 : 0),
+      topic_breakdown: topicBreakdown,
+      difficulty_breakdown: difficultyBreakdown,
     },
+    type_outcome: typeOutcome[taskType] || typeOutcome.practice,
     daily_progress: {
       completed_today: completedCount,
       daily_goal: dailyGoal,
