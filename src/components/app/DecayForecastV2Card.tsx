@@ -1,23 +1,65 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Activity, AlertTriangle, Clock, ChevronDown, ChevronUp, Zap } from "lucide-react";
-import { usePrecisionIntelligence } from "@/hooks/usePrecisionIntelligence";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import QuickFixQuiz from "./QuickFixQuiz";
 
+interface TopicDecay {
+  topic_id: string;
+  topic_name: string;
+  subject_name: string | null;
+  predicted_retention: number;
+  predicted_retention_pct: number;
+  hours_until_optimal_review: number;
+  risk_level: string;
+  review_urgency: string;
+  memory_strength: number;
+}
+
+interface DashboardData {
+  overall_retention: number;
+  overall_retention_pct: number;
+  total_topics: number;
+  urgent_count: number;
+  topic_decays: TopicDecay[];
+  risk_alert: { type: string; message: string } | null;
+  model_version: string;
+}
+
 export default function DecayForecastV2Card() {
-  const { decayData, loading, computeDecayV2 } = usePrecisionIntelligence();
+  const { user } = useAuth();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [fixSession, setFixSession] = useState<{ subject: string; topic: string; retention: number } | null>(null);
 
-  useEffect(() => {
-    if (!hasLoaded) {
-      setHasLoaded(true);
-      computeDecayV2();
+  const fetchDashboard = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data: apiData, error } = await supabase.functions.invoke("forgetting-curve", {
+        body: { action: "dashboard" },
+      });
+      if (!error && apiData?.success) {
+        setData(apiData.data);
+      }
+    } catch (e) {
+      console.error("Forgetting curve fetch error:", e);
+    } finally {
+      setLoading(false);
     }
-  }, [hasLoaded]);
+  }, [user]);
 
-  const data = decayData;
+  useEffect(() => {
+    if (!hasLoaded && user) {
+      setHasLoaded(true);
+      fetchDashboard();
+    }
+  }, [hasLoaded, user, fetchDashboard]);
+
+  
 
   if (loading && !data) {
     return (
@@ -155,7 +197,7 @@ export default function DecayForecastV2Card() {
         open={!!fixSession}
         onClose={() => {
           setFixSession(null);
-          computeDecayV2();
+          fetchDashboard();
           window.dispatchEvent(new Event("insights-refresh"));
         }}
         topicName={fixSession?.topic || ""}
