@@ -431,7 +431,7 @@ async function handleLogSession(userId: string, body: any) {
   return { success: true, session_id: data.id };
 }
 
-// 6. TASK COMPLETE — Mark AI recommendation as done
+// 6. TASK COMPLETE — Mark AI recommendation as done (legacy)
 async function handleTaskComplete(userId: string, body: any) {
   const { task_id } = body;
   if (!task_id) return { error: "task_id is required" };
@@ -441,6 +441,426 @@ async function handleTaskComplete(userId: string, body: any) {
 
   if (error) return { error: error.message };
   return { success: true };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AI TASK ENGINE — Full End-to-End Flow
+// ═══════════════════════════════════════════════════════════
+
+const TASK_IMPACT_CONFIG: Record<string, { label: string; color: string }> = {
+  high: { label: "High Impact", color: "#ef4444" },
+  medium: { label: "Med Impact", color: "#f59e0b" },
+  low: { label: "Low Impact", color: "#6366f1" },
+};
+
+const deriveTaskImpact = (priority: string): "high" | "medium" | "low" => {
+  if (priority === "critical" || priority === "high") return "high";
+  if (priority === "medium") return "medium";
+  return "low";
+};
+
+const deriveTaskDuration = (priority: string): number => {
+  if (priority === "critical" || priority === "high") return 5;
+  if (priority === "medium") return 4;
+  return 3;
+};
+
+// Compute execution streak (consecutive days with completions)
+async function computeExecutionStreak(userId: string): Promise<number> {
+  const { data } = await admin.from("ai_recommendations")
+    .select("created_at")
+    .eq("user_id", userId).eq("completed", true)
+    .order("created_at", { ascending: false }).limit(100);
+
+  if (!data || data.length === 0) return 0;
+
+  let streak = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(today);
+
+  for (let d = 0; d < 60; d++) {
+    const dayStr = checkDate.toISOString().split("T")[0];
+    const hasCompletion = data.some((r: any) => r.created_at?.startsWith(dayStr));
+    if (hasCompletion) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+// ── TASK ENGINE INIT — Full dashboard bootstrap ──
+async function handleTaskEngineInit(userId: string) {
+  const today = todayStart();
+
+  const [tasksRes, completedTodayRes, allCompletedRes, profileRes] = await Promise.all([
+    // Active tasks (top 5)
+    admin.from("ai_recommendations")
+      .select("id, title, description, priority, type, topic_id, created_at")
+      .eq("user_id", userId).eq("completed", false)
+      .order("created_at", { ascending: false }).limit(5),
+    // Completed today count
+    admin.from("ai_recommendations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("completed", true).gte("created_at", today),
+    // Total completed (for stats)
+    admin.from("ai_recommendations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("completed", true),
+    // Profile for context
+    admin.from("profiles").select("exam_date, exam_type, display_name").eq("id", userId).maybeSingle(),
+  ]);
+
+  const tasks = (tasksRes.data || []).map((t: any) => {
+    const impact = deriveTaskImpact(t.priority);
+    return {
+      id: t.id,
+      title: t.title,
+      description: t.description || "",
+      priority: t.priority,
+      type: t.type,
+      topic_id: t.topic_id || "",
+      created_at: t.created_at,
+      estimated_minutes: deriveTaskDuration(t.priority),
+      impact_level: impact,
+      impact_label: TASK_IMPACT_CONFIG[impact].label,
+      impact_color: TASK_IMPACT_CONFIG[impact].color,
+    };
+  });
+
+  const completedToday = completedTodayRes.count || 0;
+  const dailyGoal = 5;
+  const totalCompleted = allCompletedRes.count || 0;
+  const executionStreak = await computeExecutionStreak(userId);
+  const progressPercent = Math.min((completedToday / dailyGoal) * 100, 100);
+
+  // Fetch topic names for tasks that have topic_id
+  const topicIds = tasks.map((t: any) => t.topic_id).filter(Boolean);
+  let topicMap: Record<string, string> = {};
+  if (topicIds.length > 0) {
+    const { data: topicData } = await admin.from("topics").select("id, name").in("id", topicIds);
+    topicMap = Object.fromEntries((topicData || []).map((t: any) => [t.id, t.name]));
+  }
+
+  const enrichedTasks = tasks.map((t: any) => ({
+    ...t,
+    topic_name: topicMap[t.topic_id] || "",
+  }));
+
+  const profile = profileRes.data as any;
+
+  return {
+    tasks: enrichedTasks,
+    daily_progress: {
+      completed_today: completedToday,
+      daily_goal: dailyGoal,
+      progress_percent: Math.round(progressPercent),
+      is_goal_achieved: completedToday >= dailyGoal,
+      message: completedToday >= dailyGoal
+        ? "🏆 Daily goal achieved! You're unstoppable."
+        : `${dailyGoal - completedToday} more to hit today's goal`,
+    },
+    execution_streak: {
+      days: executionStreak,
+      label: executionStreak > 0 ? `${executionStreak}d streak` : "Start your streak!",
+      is_active: executionStreak > 0,
+    },
+    stats: {
+      total_completed: totalCompleted,
+      active_count: enrichedTasks.length,
+    },
+    user_context: {
+      display_name: profile?.display_name || "",
+      exam_type: profile?.exam_type || "",
+      exam_date: profile?.exam_date || "",
+    },
+  };
+}
+
+// ── TASK ENGINE START — Begin a micro-session for a task ──
+async function handleTaskEngineStart(userId: string, body: any, authHeader: string) {
+  const { task_id } = body;
+  if (!task_id) return { error: "task_id is required" };
+
+  // Fetch the task
+  const { data: task } = await admin.from("ai_recommendations")
+    .select("id, title, description, priority, type, topic_id")
+    .eq("id", task_id).eq("user_id", userId).eq("completed", false)
+    .maybeSingle();
+
+  if (!task) return { error: "Task not found or already completed" };
+
+  const impact = deriveTaskImpact(task.priority);
+  const estimatedMinutes = deriveTaskDuration(task.priority);
+
+  // Fetch topic details if available
+  let topicName = "";
+  let topicStrength = 0;
+  if (task.topic_id) {
+    const { data: topicData } = await admin.from("topics")
+      .select("name, memory_strength").eq("id", task.topic_id).maybeSingle();
+    if (topicData) {
+      topicName = topicData.name || "";
+      topicStrength = Math.round((topicData.memory_strength ?? 0) * 100);
+    }
+  }
+
+  // Generate AI questions via ai-brain-agent
+  let questions: any[] = [];
+  try {
+    const agentUrl = `${supabaseUrl}/functions/v1/ai-brain-agent`;
+    const agentResp = await fetch(agentUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader || `Bearer ${anonKey}`,
+        apikey: anonKey,
+      },
+      body: JSON.stringify({
+        type: "task_micro_session",
+        userId,
+        taskTitle: task.title,
+        taskDescription: task.description,
+        topicId: task.topic_id,
+        questionCount: 3,
+      }),
+    });
+    const agentData = await agentResp.json();
+    if (agentData?.questions && Array.isArray(agentData.questions)) {
+      questions = agentData.questions.map((q: any, i: number) => ({
+        id: `task_q_${i}_${Date.now()}`,
+        question: q.question || "Practice question",
+        options: Array.isArray(q.options) && q.options.length >= 2
+          ? q.options
+          : ["Option A", "Option B", "Option C", "Option D"],
+        correct_index: typeof q.correctIndex === "number" ? q.correctIndex : 0,
+        explanation: q.explanation || "Great job working through this!",
+      }));
+    }
+  } catch { /* fallback below */ }
+
+  // Fallback questions if AI fails
+  if (questions.length === 0) {
+    questions = [
+      { id: `task_q_0_${Date.now()}`, question: "Which study method is most effective for long-term retention?", options: ["Cramming", "Spaced repetition", "Highlighting", "Re-reading"], correct_index: 1, explanation: "Spaced repetition strengthens neural pathways over time." },
+      { id: `task_q_1_${Date.now()}`, question: "What is the optimal study session length for focused learning?", options: ["10 minutes", "25-30 minutes", "2 hours", "4 hours"], correct_index: 1, explanation: "25-30 minute sessions align with natural attention cycles." },
+      { id: `task_q_2_${Date.now()}`, question: "Active recall is more effective than passive review because it:", options: ["Is faster", "Requires less effort", "Strengthens retrieval pathways", "Feels easier"], correct_index: 2, explanation: "Active recall forces your brain to retrieve information, strengthening memory." },
+    ];
+  }
+
+  // Create session record
+  const sessionId = `task_session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+  return {
+    session_id: sessionId,
+    task: {
+      id: task.id,
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority,
+      type: task.type,
+      topic_id: task.topic_id || "",
+      topic_name: topicName,
+      topic_strength: topicStrength,
+      estimated_minutes: estimatedMinutes,
+      impact_level: impact,
+      impact_label: TASK_IMPACT_CONFIG[impact].label,
+    },
+    questions,
+    total_questions: questions.length,
+    session_phases: [
+      { phase: 1, name: "Intro", description: "Review task objective", duration_minutes: 0.5 },
+      { phase: 2, name: "Quiz", description: "Answer AI-generated questions", duration_minutes: estimatedMinutes - 1 },
+      { phase: 3, name: "Feedback", description: "Review accuracy and explanations", duration_minutes: 0.5 },
+      { phase: 4, name: "Reward", description: "Earn execution points", duration_minutes: 0 },
+    ],
+  };
+}
+
+// ── TASK ENGINE SUBMIT — Submit individual answer ──
+async function handleTaskEngineSubmit(userId: string, body: any) {
+  const { session_id, question_id, selected_index, correct_index, time_taken_ms } = body;
+  if (!session_id || !question_id) return { error: "session_id and question_id are required" };
+
+  const isCorrect = selected_index === correct_index;
+
+  return {
+    success: true,
+    session_id,
+    question_id,
+    is_correct: isCorrect,
+    selected_index: selected_index ?? -1,
+    correct_index: correct_index ?? 0,
+    time_taken_ms: time_taken_ms || 0,
+  };
+}
+
+// ── TASK ENGINE COMPLETE — Finish micro-session & mark task done ──
+async function handleTaskEngineComplete(userId: string, body: any) {
+  const { task_id, session_id, answers, time_taken_seconds } = body;
+  if (!task_id) return { error: "task_id is required" };
+
+  // Mark task completed
+  const { error } = await admin.from("ai_recommendations")
+    .update({ completed: true }).eq("id", task_id).eq("user_id", userId);
+  if (error) return { error: error.message };
+
+  // Calculate results
+  const answerList = Array.isArray(answers) ? answers : [];
+  const totalQuestions = answerList.length;
+  const correctCount = answerList.filter((a: any) => a.is_correct === true).length;
+  const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+  const avgTimeMs = totalQuestions > 0
+    ? Math.round(answerList.reduce((s: number, a: any) => s + (a.time_taken_ms || 0), 0) / totalQuestions)
+    : 0;
+
+  // Get updated daily progress
+  const today = todayStart();
+  const { count: completedToday } = await admin.from("ai_recommendations")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId).eq("completed", true).gte("created_at", today);
+
+  const dailyGoal = 5;
+  const completedCount = completedToday || 0;
+  const executionStreak = await computeExecutionStreak(userId);
+
+  // Fetch next tasks
+  const { data: nextTasks } = await admin.from("ai_recommendations")
+    .select("id, title, description, priority, type, topic_id")
+    .eq("user_id", userId).eq("completed", false)
+    .order("created_at", { ascending: false }).limit(3);
+
+  const nextTasksList = (nextTasks || []).map((t: any) => {
+    const imp = deriveTaskImpact(t.priority);
+    return {
+      id: t.id,
+      title: t.title,
+      description: t.description || "",
+      priority: t.priority,
+      estimated_minutes: deriveTaskDuration(t.priority),
+      impact_level: imp,
+      impact_label: TASK_IMPACT_CONFIG[imp].label,
+    };
+  });
+
+  // Performance rating
+  let performanceRating = "good";
+  if (accuracy >= 90) performanceRating = "excellent";
+  else if (accuracy >= 70) performanceRating = "good";
+  else if (accuracy >= 50) performanceRating = "average";
+  else performanceRating = "needs_improvement";
+
+  return {
+    success: true,
+    session_id: session_id || "",
+    task_id,
+    result: {
+      accuracy,
+      correct_count: correctCount,
+      total_questions: totalQuestions,
+      avg_time_ms: avgTimeMs,
+      time_taken_seconds: time_taken_seconds || 0,
+      performance_rating: performanceRating,
+      xp_earned: correctCount * 10 + (accuracy >= 80 ? 15 : 0),
+    },
+    daily_progress: {
+      completed_today: completedCount,
+      daily_goal: dailyGoal,
+      progress_percent: Math.min(Math.round((completedCount / dailyGoal) * 100), 100),
+      is_goal_achieved: completedCount >= dailyGoal,
+      message: completedCount >= dailyGoal
+        ? "🏆 Daily goal achieved! You're unstoppable."
+        : `${dailyGoal - completedCount} more to hit today's goal`,
+    },
+    execution_streak: {
+      days: executionStreak,
+      label: executionStreak > 0 ? `${executionStreak}d streak` : "Start your streak!",
+      is_active: executionStreak > 0,
+    },
+    keep_momentum: {
+      next_tasks: nextTasksList,
+      suggestion: nextTasksList.length > 0
+        ? "Keep the momentum going! Start your next task."
+        : "All caught up! Study more to unlock new AI tasks.",
+      has_more_tasks: nextTasksList.length > 0,
+    },
+  };
+}
+
+// ── TASK ENGINE HISTORY — Past completed tasks + analytics ──
+async function handleTaskEngineHistory(userId: string, body: any) {
+  const limit = body.limit ?? 20;
+  const offset = body.offset ?? 0;
+  const today = todayStart();
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+
+  const [completedRes, todayCountRes, weekCountRes, totalCountRes] = await Promise.all([
+    admin.from("ai_recommendations")
+      .select("id, title, description, priority, type, topic_id, created_at")
+      .eq("user_id", userId).eq("completed", true)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1),
+    admin.from("ai_recommendations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("completed", true).gte("created_at", today),
+    admin.from("ai_recommendations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("completed", true).gte("created_at", weekAgo),
+    admin.from("ai_recommendations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("completed", true),
+  ]);
+
+  const completed = (completedRes.data || []).map((t: any) => {
+    const impact = deriveTaskImpact(t.priority);
+    return {
+      id: t.id,
+      title: t.title,
+      description: t.description || "",
+      priority: t.priority,
+      type: t.type,
+      topic_id: t.topic_id || "",
+      completed_at: t.created_at,
+      impact_level: impact,
+      impact_label: TASK_IMPACT_CONFIG[impact].label,
+    };
+  });
+
+  // Weekly completion chart
+  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const weeklyCompletions: { day: string; count: number }[] = [];
+  const { data: weekData } = await admin.from("ai_recommendations")
+    .select("created_at")
+    .eq("user_id", userId).eq("completed", true).gte("created_at", weekAgo);
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const dayStr = d.toISOString().split("T")[0];
+    const dayCount = (weekData || []).filter((r: any) => r.created_at?.startsWith(dayStr)).length;
+    weeklyCompletions.push({ day: dayLabels[d.getDay()], count: dayCount });
+  }
+
+  const executionStreak = await computeExecutionStreak(userId);
+
+  return {
+    completed_tasks: completed,
+    analytics: {
+      today: todayCountRes.count || 0,
+      this_week: weekCountRes.count || 0,
+      total: totalCountRes.count || 0,
+      execution_streak: executionStreak,
+      weekly_chart: weeklyCompletions,
+      avg_daily: Math.round(((weekCountRes.count || 0) / 7) * 10) / 10,
+    },
+    pagination: {
+      offset,
+      limit,
+      has_more: completed.length === limit,
+    },
+  };
 }
 
 // 7. TOPIC EXPLORER — Subjects & topics with health data
@@ -3491,13 +3911,30 @@ Deno.serve(async (req) => {
       case "next-phase":
         return json(await handleNextPhase(userId, body));
 
+      case "task-engine-init":
+        return json(await handleTaskEngineInit(userId));
+
+      case "task-engine-start":
+        return json(await handleTaskEngineStart(userId, body, authHeader));
+
+      case "task-engine-submit":
+        return json(await handleTaskEngineSubmit(userId, body));
+
+      case "task-engine-complete":
+        return json(await handleTaskEngineComplete(userId, body));
+
+      case "task-engine-history":
+        return json(await handleTaskEngineHistory(userId, body));
+
       default:
         return json({ error: `Unknown route: ${route}`, available_routes: [
           "init", "todays-gains", "session-history", "start-session", "end-session",
           "log-session", "task-complete", "topic-explorer", "topic-strategy",
           "questions", "daily-summary", "topics-list", "subjects-list", "recommended-next",
           "session-blueprint", "start-focus-session", "submit-answer", "complete-focus-session",
-          "session-status", "pause-resume-session", "next-phase"
+          "session-status", "pause-resume-session", "next-phase",
+          "task-engine-init", "task-engine-start", "task-engine-submit",
+          "task-engine-complete", "task-engine-history"
         ] }, 404);
     }
   } catch (e) {
