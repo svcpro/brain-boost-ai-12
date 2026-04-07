@@ -89,21 +89,30 @@ export default function QuickFixQuiz({ open, onClose, topicName, subjectName, re
 
     const fetchQuestions = async () => {
       try {
-        const difficulty = retentionPct < 30 ? "easy" : retentionPct < 60 ? "medium" : "hard";
-        const { data, error: fnErr } = await supabase.functions.invoke("ai-brain-agent", {
+        // Step 1: Init - analyze topic
+        const { data: initData, error: initErr } = await supabase.functions.invoke("quick-fix", {
+          body: { action: "init", topic_name: topicName, subject_name: subjectName, retention_pct: retentionPct },
+        });
+        if (cancelled) return;
+        if (initErr) throw initErr;
+
+        // Step 2: Questions - generate AI MCQs
+        const config = initData?.data?.session_config || {};
+        const { data: qData, error: qErr } = await supabase.functions.invoke("quick-fix", {
           body: {
-            action: "mission_questions",
+            action: "questions",
             topic_name: topicName,
             subject_name: subjectName,
-            count: 5,
-            difficulty,
+            retention_pct: retentionPct,
+            count: config.question_count || 5,
+            difficulty: config.difficulty,
           },
         });
 
         if (cancelled) return;
-        if (fnErr) throw fnErr;
+        if (qErr) throw qErr;
 
-        const qs: MCQ[] = (data?.questions || []).map((q: any) => ({
+        const qs: MCQ[] = (qData?.data?.questions || []).map((q: any) => ({
           question: q.question,
           options: q.options || [],
           correct_index: typeof q.correct_index === "number" ? q.correct_index : 0,
@@ -114,7 +123,6 @@ export default function QuickFixQuiz({ open, onClose, topicName, subjectName, re
 
         setQuestions(qs);
         setAnswers(new Array(qs.length).fill(null));
-        // Small delay for UX
         setTimeout(() => { if (!cancelled) setPhase("quiz"); }, 600);
       } catch (e: any) {
         console.error("QuickFixQuiz fetch error:", e);
