@@ -506,9 +506,8 @@ const ActionTab = ({ onNavigateToBrain }: ActionTabProps) => {
 
 
       {/* ═══════════════════════════════════════════════════
-          SECTION 3: AI Task Engine
+          SECTION 3: AI Task Engine (hidden - API only)
          ═══════════════════════════════════════════════════ */}
-      <ActiveTaskEngine />
 
       {/* ═══════════════════════════════════════════════════
           SECTION 4: Deep Topic Explorer (collapsible)
