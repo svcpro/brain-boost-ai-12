@@ -1013,12 +1013,16 @@ async function handleSessionBlueprint(userId: string, body: any) {
       ],
     },
     emergency: {
-      duration: 10,
-      questionCount: 5,
+      duration: 8,
+      questionCount: 6,
       phases: [
-        { type: "recall", title: "Emergency Recall", description: "Rescue critical concepts before predicted memory drop", duration: 3, icon: "alert-triangle" },
-        { type: "reinforcement", title: "Rapid Reinforcement", description: "Intensive repetition to halt decay immediately", duration: 4, icon: "refresh-cw" },
-        { type: "mcq", title: "Rescue Assessment", description: "Verify recovered knowledge with quick checks", duration: 3, icon: "target" },
+        { type: "detection", title: "Crisis Detection", description: "AI scans your memory health to identify critical-risk topics", duration: 0.5, icon: "alert-triangle", emoji: "🔴" },
+        { type: "emotional-reset", title: "Emotional Reset", description: "Guided breathing exercise to calm anxiety before rescue", duration: 1, icon: "wind", emoji: "🧘" },
+        { type: "recall", title: "Phase 1 · Critical Recall", description: "Rapid 45-second recall bursts for each crisis topic", duration: 2, icon: "brain", emoji: "⚡" },
+        { type: "mcq", title: "Phase 2 · High-Impact MCQ", description: "Targeted questions to test and reinforce critical memories", duration: 2.5, icon: "target", emoji: "🎯" },
+        { type: "confidence-lock", title: "Phase 3 · Confidence Lock", description: "Lock recovered knowledge into long-term memory", duration: 0.5, icon: "shield", emoji: "🛡️" },
+        { type: "stability-recovery", title: "Stability Recovery", description: "Animated stability gain visualization and scoring", duration: 1, icon: "heart-pulse", emoji: "💚" },
+        { type: "recovery-plan", title: "Mission Complete", description: "AI-generated recovery plan with next steps", duration: 0.5, icon: "trophy", emoji: "🏆" },
       ],
     },
     "current-affairs": {
