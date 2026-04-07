@@ -1343,23 +1343,26 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId).gte("created_at", today);
 
-  const xpEarned = (correct * 10) + (finalDuration * 2) + (accuracy >= 80 ? 50 : accuracy >= 60 ? 25 : 0);
+  const xpEarned = (correct * 10) + (finalDuration * 2) + (accuracyNum >= 80 ? 50 : accuracyNum >= 60 ? 25 : 0);
 
   // ── Focus Quality Score ──
   const timeEfficiency = Math.min(finalDuration / (duration_minutes || 25), 1);
-  const accuracyFactor = accuracy / 100;
-  const completionFactor = totalQ > 0 ? ((correct + incorrect) / totalQ) : 0;
-  const focusQuality = Math.round((timeEfficiency * 30 + accuracyFactor * 40 + completionFactor * 30));
+  const accuracyFactor = accuracyNum / 100;
+  const completionFactor = totalQ > 0 ? ((correct + incorrect) / totalQ) : (timeEfficiency > 0 ? 0.5 : 0);
+  const focusQualityRaw = totalQ > 0 
+    ? Math.round((timeEfficiency * 30 + accuracyFactor * 40 + completionFactor * 30))
+    : Math.round(timeEfficiency * 100); // pure focus = time-based quality
+  const focusQuality = Math.max(1, focusQualityRaw);
 
   // ── Stability metrics ──
   const currentStability = memoryImpact.after || memoryImpact.before || 50;
   const stabilityBefore = memoryImpact.before || 50;
   const stabilityChange = memoryImpact.change || 0;
-  const stabilityGainMin = Math.max(1, stabilityChange > 0 ? stabilityChange : Math.round(accuracy * 0.08));
-  const stabilityGainMax = Math.max(stabilityGainMin + 3, Math.round(accuracy * 0.15));
+  const stabilityGainMin = Math.max(1, stabilityChange > 0 ? stabilityChange : Math.round(Math.max(accuracyNum, finalDuration * 2) * 0.08));
+  const stabilityGainMax = Math.max(stabilityGainMin + 3, Math.round(Math.max(accuracyNum, finalDuration * 3) * 0.15));
 
   // ── Rank Impact ──
-  const rankBase = accuracy >= 80 ? 150 : accuracy >= 60 ? 100 : accuracy >= 40 ? 50 : 20;
+  const rankBase = totalQ === 0 ? (finalDuration >= 15 ? 80 : finalDuration >= 5 ? 40 : 20) : (accuracyNum >= 80 ? 150 : accuracyNum >= 60 ? 100 : accuracyNum >= 40 ? 50 : 20);
   const rankBoost = Math.round(finalDuration * 2);
   const rankImpactMin = rankBase;
   const rankImpactMax = rankBase + rankBoost + (stabilityChange * 10);
