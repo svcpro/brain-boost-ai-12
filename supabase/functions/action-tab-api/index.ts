@@ -2914,14 +2914,54 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
     keep_momentum: {
       title: mode === "emergency" ? "Recovery Complete"
         : mode === "current-affairs" ? "CA Quiz Complete"
+        : mode === "intel-practice" ? "Intel Practice Complete"
         : "Keep the Momentum",
       subtitle: mode === "emergency" ? "Next steps to maintain stability"
         : mode === "current-affairs" ? "Stay exam-ready with daily practice"
+        : mode === "intel-practice" ? "Sharpen your prediction mastery"
         : "AI-suggested next actions",
       icon: mode === "emergency" ? "heart-pulse"
         : mode === "current-affairs" ? "newspaper"
+        : mode === "intel-practice" ? "trending-up"
         : "zap",
-      actions: mode === "emergency" ? [
+      actions: mode === "intel-practice" ? [
+        {
+          id: "focus_weak_subject",
+          title: "Focus on Weak Subject",
+          subtitle: "Deep study on your lowest-scoring prediction area",
+          duration: "15 min",
+          icon: "book-open",
+          action: "start-focus-session",
+          params: { mode: "focus", duration_minutes: 15 },
+        },
+        {
+          id: "mock_exam",
+          title: "Mock Exam Challenge",
+          subtitle: "Test yourself under exam conditions",
+          duration: "30 min",
+          icon: "trophy",
+          action: "start-focus-session",
+          params: { mode: "mock" },
+        },
+        {
+          id: "ca_quiz",
+          title: "Current Affairs Quiz",
+          subtitle: "Stay updated with latest events",
+          duration: "15 min",
+          icon: "newspaper",
+          action: "start-focus-session",
+          params: { mode: "current-affairs" },
+        },
+        {
+          id: "share_score",
+          title: "Share Your Score",
+          subtitle: `${percentage}% — Challenge your friends`,
+          duration: "1 min",
+          icon: "share-2",
+          action: "share",
+          params: { score: percentage, correct, total: totalQ },
+        },
+      ] : mode === "emergency" ? [
         {
           id: "deep_review",
           title: "Deep Review Weakest Topic",
