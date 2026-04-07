@@ -37,7 +37,6 @@ const QUIZ_DURATION = 180; // 3 minutes
 
 export default function QuickFixQuiz({ open, onClose, topicName, subjectName, retentionPct }: QuickFixQuizProps) {
   const { user } = useAuth();
-  const { logStudy } = useStudyLogger();
   const { toast } = useToast();
 
   const [phase, setPhase] = useState<Phase>("analyzing");
