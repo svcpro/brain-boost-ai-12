@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useStudyLogger } from "@/hooks/useStudyLogger";
 import { useToast } from "@/hooks/use-toast";
 import confetti from "canvas-confetti";
 
@@ -38,7 +37,6 @@ const QUIZ_DURATION = 180; // 3 minutes
 
 export default function QuickFixQuiz({ open, onClose, topicName, subjectName, retentionPct }: QuickFixQuizProps) {
   const { user } = useAuth();
-  const { logStudy } = useStudyLogger();
   const { toast } = useToast();
 
   const [phase, setPhase] = useState<Phase>("analyzing");
@@ -89,21 +87,30 @@ export default function QuickFixQuiz({ open, onClose, topicName, subjectName, re
 
     const fetchQuestions = async () => {
       try {
-        const difficulty = retentionPct < 30 ? "easy" : retentionPct < 60 ? "medium" : "hard";
-        const { data, error: fnErr } = await supabase.functions.invoke("ai-brain-agent", {
+        // Step 1: Init - analyze topic
+        const { data: initData, error: initErr } = await supabase.functions.invoke("quick-fix", {
+          body: { action: "init", topic_name: topicName, subject_name: subjectName, retention_pct: retentionPct },
+        });
+        if (cancelled) return;
+        if (initErr) throw initErr;
+
+        // Step 2: Questions - generate AI MCQs
+        const config = initData?.data?.session_config || {};
+        const { data: qData, error: qErr } = await supabase.functions.invoke("quick-fix", {
           body: {
-            action: "mission_questions",
+            action: "questions",
             topic_name: topicName,
             subject_name: subjectName,
-            count: 5,
-            difficulty,
+            retention_pct: retentionPct,
+            count: config.question_count || 5,
+            difficulty: config.difficulty,
           },
         });
 
         if (cancelled) return;
-        if (fnErr) throw fnErr;
+        if (qErr) throw qErr;
 
-        const qs: MCQ[] = (data?.questions || []).map((q: any) => ({
+        const qs: MCQ[] = (qData?.data?.questions || []).map((q: any) => ({
           question: q.question,
           options: q.options || [],
           correct_index: typeof q.correct_index === "number" ? q.correct_index : 0,
@@ -114,7 +121,6 @@ export default function QuickFixQuiz({ open, onClose, topicName, subjectName, re
 
         setQuestions(qs);
         setAnswers(new Array(qs.length).fill(null));
-        // Small delay for UX
         setTimeout(() => { if (!cancelled) setPhase("quiz"); }, 600);
       } catch (e: any) {
         console.error("QuickFixQuiz fetch error:", e);
@@ -146,50 +152,42 @@ export default function QuickFixQuiz({ open, onClose, topicName, subjectName, re
     if (timerRef.current) clearInterval(timerRef.current);
     setPhase("result");
 
-    // Determine confidence from score
     const finalScore = answers.filter((a, i) => a === questions[i]?.correct_index).length;
     setScore(finalScore);
-    const pct = questions.length > 0 ? finalScore / questions.length : 0;
-    const confidence: "low" | "medium" | "high" = pct >= 0.8 ? "high" : pct >= 0.5 ? "medium" : "low";
 
-    // Log study & update memory
+    // Call complete API - handles study logging, memory update, ML tracking
     try {
-      await logStudy({
-        subjectName,
-        topicName,
-        durationMinutes: 3,
-        confidenceLevel: confidence,
-        studyMode: "fix",
+      const answerPayload = answers.map((sel, i) => ({
+        question_number: i + 1,
+        selected_index: sel ?? -1,
+        correct_index: questions[i]?.correct_index ?? 0,
+      }));
+
+      const { data: result, error: completeErr } = await supabase.functions.invoke("quick-fix", {
+        body: {
+          action: "complete",
+          topic_name: topicName,
+          subject_name: subjectName,
+          answers: answerPayload,
+          total_questions: questions.length,
+          time_taken_seconds: QUIZ_DURATION - timeLeft,
+          retention_pct: retentionPct,
+        },
       });
 
-      // Directly update memory_strength based on quiz performance
-      if (user) {
-        const strengthBoost = Math.round(pct * 30); // up to +30
-        const { data: topicRow } = await supabase
-          .from("topics")
-          .select("id, memory_strength")
-          .eq("user_id", user.id)
-          .eq("name", topicName)
-          .maybeSingle();
-
-        if (topicRow) {
-          const currentStrength = Number(topicRow.memory_strength) || 0;
-          const newStrength = Math.min(100, currentStrength + strengthBoost);
-          await supabase.from("topics").update({
-            memory_strength: newStrength,
-            last_revision_date: new Date().toISOString(),
-          }).eq("id", topicRow.id);
-        }
+      if (!completeErr && result?.success) {
+        toast({ title: "Brain Updated!", description: "Your study session has been logged." });
       }
     } catch (e) {
-      console.error("QuickFixQuiz log error:", e);
+      console.error("QuickFixQuiz complete error:", e);
     }
 
     // Confetti on good score
+    const pct = questions.length > 0 ? finalScore / questions.length : 0;
     if (pct >= 0.6) {
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
     }
-  }, [answers, questions, logStudy, subjectName, topicName, user]);
+  }, [answers, questions, topicName, subjectName, timeLeft, retentionPct, toast]);
 
   const handleSelect = (optIndex: number) => {
     if (selected !== null) return;
