@@ -1435,6 +1435,7 @@ async function handleSessionBlueprint(userId: string, body: any) {
         })),
       };
     })() : {}),
+    expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       stability_gain_min: stabilityGainMin,
       stability_gain_max: stabilityGainMax,
