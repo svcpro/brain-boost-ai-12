@@ -2238,6 +2238,147 @@ async function handleCompleteFocusSession(userId: string, body: any, authHeader:
         },
       };
     })() : {}),
+    ...(mode === "current-affairs" ? await (async () => {
+      // CA-specific completion analytics
+      const { data: caEvents } = await admin.from("ca_events")
+        .select("id, title, category, importance_score, event_date")
+        .order("event_date", { ascending: false })
+        .limit(10);
+
+      const eventIds = (caEvents || []).map((e: any) => e.id);
+      let syllabusLinks: any[] = [];
+      if (eventIds.length > 0) {
+        const { data: links } = await admin.from("ca_syllabus_links")
+          .select("event_id, exam_type, subject, micro_topic, relevance_score")
+          .in("event_id", eventIds)
+          .order("relevance_score", { ascending: false })
+          .limit(15);
+        syllabusLinks = links || [];
+      }
+
+      // Category-wise performance from answers
+      const categoryPerformance: Record<string, { correct: number; total: number }> = {};
+      answersList.forEach((a: any) => {
+        const cat = a.category || a.event_category || "General";
+        if (!categoryPerformance[cat]) categoryPerformance[cat] = { correct: 0, total: 0 };
+        categoryPerformance[cat].total++;
+        if (a.is_correct ?? (a.selected_option_index === a.correct_option_index)) categoryPerformance[cat].correct++;
+      });
+
+      // CA streak
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { count: caStreakCount } = await admin.from("study_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("study_mode", "current-affairs")
+        .gte("created_at", weekAgo);
+
+      // Consecutive day streak
+      const { data: recentCALogs } = await admin.from("study_logs")
+        .select("created_at")
+        .eq("user_id", userId).eq("study_mode", "current-affairs")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      let dayStreak = 0;
+      if (recentCALogs && recentCALogs.length > 0) {
+        const today = new Date(); today.setHours(0,0,0,0);
+        let checkDate = today;
+        const logDates = new Set(recentCALogs.map((l: any) => {
+          const d = new Date(l.created_at); d.setHours(0,0,0,0); return d.toDateString();
+        }));
+        while (logDates.has(checkDate.toDateString())) {
+          dayStreak++;
+          checkDate = new Date(checkDate.getTime() - 86400000);
+        }
+      }
+
+      // Difficulty-wise breakdown
+      const difficultyBreakdown: Record<string, { correct: number; total: number }> = {};
+      answersList.forEach((a: any) => {
+        const diff = a.difficulty || "medium";
+        if (!difficultyBreakdown[diff]) difficultyBreakdown[diff] = { correct: 0, total: 0 };
+        difficultyBreakdown[diff].total++;
+        if (a.is_correct ?? (a.selected_option_index === a.correct_option_index)) difficultyBreakdown[diff].correct++;
+      });
+
+      const caReadiness = accuracyNum >= 80 ? "exam_ready" : accuracyNum >= 60 ? "on_track" : accuracyNum >= 40 ? "needs_practice" : "weak";
+
+      return {
+        ca_result: {
+          quiz_type: "daily",
+          quiz_type_label: "📰 Daily CA Quiz Complete",
+          total_events_covered: (caEvents || []).length,
+          events_covered: (caEvents || []).slice(0, 5).map((e: any) => ({
+            id: e.id,
+            title: e.title,
+            category: e.category || "General",
+            importance_score: e.importance_score || 0,
+            importance_label: (e.importance_score || 0) >= 8 ? "🔴 Critical" : (e.importance_score || 0) >= 5 ? "🟠 Important" : "🟢 Standard",
+            event_date: e.event_date || "",
+          })),
+          accuracy: accuracyNum,
+          accuracy_label: `${accuracyNum}%`,
+          correct,
+          incorrect,
+          skipped,
+          total_questions: totalQ,
+          total_marks: totalMarks,
+          max_marks: maxMarks,
+          percentage,
+          ca_readiness: caReadiness,
+          ca_readiness_label: caReadiness === "exam_ready" ? "🎯 Exam Ready"
+            : caReadiness === "on_track" ? "📈 On Track"
+            : caReadiness === "needs_practice" ? "📖 Needs More Practice"
+            : "⚠️ Weak — Review Events",
+          category_performance: Object.entries(categoryPerformance).map(([cat, data]) => ({
+            category: cat,
+            correct: data.correct,
+            total: data.total,
+            accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+            accuracy_label: data.total > 0 ? `${Math.round((data.correct / data.total) * 100)}%` : "N/A",
+          })),
+          difficulty_performance: Object.entries(difficultyBreakdown).map(([diff, data]) => ({
+            difficulty: diff,
+            correct: data.correct,
+            total: data.total,
+            accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+          })),
+          syllabus_connections: syllabusLinks.slice(0, 10).map((l: any) => ({
+            subject: l.subject,
+            micro_topic: l.micro_topic,
+            relevance_score: l.relevance_score,
+            exam_type: l.exam_type,
+          })),
+          syllabus_topics_covered: [...new Set(syllabusLinks.map((l: any) => l.subject))].length,
+          ca_streak: {
+            this_week: caStreakCount || 0,
+            this_week_label: `${caStreakCount || 0} quizzes this week`,
+            day_streak: dayStreak,
+            day_streak_label: dayStreak > 0 ? `${dayStreak}-day CA streak 🔥` : "Start your streak!",
+          },
+          speed_analysis: {
+            avg_time_per_question_ms: avgTimePerQuestion,
+            avg_time_label: avgTimePerQuestion > 0 ? `${Math.round(avgTimePerQuestion / 1000)}s per question` : "N/A",
+            speed_verdict: avgTimePerQuestion < 20000 ? "fast" : avgTimePerQuestion < 45000 ? "balanced" : "slow",
+          },
+          weak_categories: Object.entries(categoryPerformance)
+            .filter(([_, data]) => data.total > 0 && (data.correct / data.total) < 0.5)
+            .map(([cat]) => cat),
+          improvement_tips: [
+            ...(accuracyNum < 60 ? ["Read daily newspapers or CA summaries for 15 min"] : []),
+            ...(Object.entries(categoryPerformance).some(([_, d]) => d.total > 0 && d.correct / d.total < 0.5) ? ["Focus on weak categories identified above"] : []),
+            ...(avgTimePerQuestion > 45000 ? ["Practice speed — aim for under 30 seconds per MCQ"] : []),
+            "Bookmark missed questions for revision",
+            "Connect events to syllabus topics for deeper understanding",
+          ],
+          share_card: {
+            title: `CA Quiz Score: ${percentage}%`,
+            subtitle: `${correct}/${totalQ} correct · ${(caEvents || []).length} events covered`,
+            streak: dayStreak > 0 ? `${dayStreak}-day streak 🔥` : null,
+          },
+        },
+      };
+    })() : {}),
     stability: {
       current: currentStability,
       before: stabilityBefore,
