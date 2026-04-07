@@ -579,11 +579,12 @@ async function handleQuestions(userId: string, body: any, authHeader: string) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": authHeader,
+      "Authorization": `Bearer ${serviceKey}`,
       "apikey": anonKey,
     },
     body: JSON.stringify({
       action: "mission_questions",
+      user_id: userId,
       topic_name: resolvedTopicName,
       subject_name: resolvedSubjectName,
       difficulty: difficulty || "medium",
@@ -1197,11 +1198,12 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": authHeader,
+        "Authorization": `Bearer ${serviceKey}`,
         "apikey": anonKey,
       },
       body: JSON.stringify({
         action: "mission_questions",
+        user_id: userId,
         topic_name: topicName,
         subject_name: subjectName,
         difficulty,
@@ -1220,8 +1222,9 @@ async function handleStartFocusSession(userId: string, body: any, authHeader: st
     question_text: q.question || q.question_text || "",
     options: Array.isArray(q.options) ? q.options : [],
     correct_answer_index: typeof q.correct_answer_index === "number" ? q.correct_answer_index
+      : typeof q.correct_index === "number" ? q.correct_index
       : typeof q.correct_answer === "number" ? q.correct_answer
-      : Array.isArray(q.options) ? q.options.indexOf(q.correct_answer) : 0,
+      : Array.isArray(q.options) && typeof q.correct_answer === "string" ? q.options.indexOf(q.correct_answer) : 0,
     explanation: q.explanation || "",
     difficulty: q.difficulty || difficulty,
     marks: q.marks || 1,
