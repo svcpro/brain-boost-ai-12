@@ -1783,12 +1783,22 @@ Deno.serve(async (req) => {
       case "complete-focus-session":
         return json(await handleCompleteFocusSession(userId, body, authHeader));
 
+      case "session-status":
+        return json(await handleSessionStatus(userId, body));
+
+      case "pause-resume-session":
+        return json(await handlePauseResumeSession(userId, body));
+
+      case "next-phase":
+        return json(await handleNextPhase(userId, body));
+
       default:
         return json({ error: `Unknown route: ${route}`, available_routes: [
           "init", "todays-gains", "session-history", "start-session", "end-session",
           "log-session", "task-complete", "topic-explorer", "topic-strategy",
           "questions", "daily-summary", "topics-list", "subjects-list", "recommended-next",
-          "session-blueprint", "start-focus-session", "submit-answer", "complete-focus-session"
+          "session-blueprint", "start-focus-session", "submit-answer", "complete-focus-session",
+          "session-status", "pause-resume-session", "next-phase"
         ] }, 404);
     }
   } catch (e) {
