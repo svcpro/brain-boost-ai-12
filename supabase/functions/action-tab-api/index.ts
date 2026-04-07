@@ -1062,19 +1062,22 @@ async function handleSessionBlueprint(userId: string, body: any) {
     predictedDropDate: targetTopic?.next_predicted_drop_date || null,
   });
 
+  // ── Mock-specific: target percentile based on strength ──
+  const targetPercentile = strengthPct >= 70 ? "Top 15%" : strengthPct >= 50 ? "Top 30%" : strengthPct >= 30 ? "Top 45%" : "Top 60%";
+
   return {
     blueprint: {
       mode: studyMode,
       mode_label: studyMode === "focus" ? "Focus Study Mode"
         : studyMode === "revision" ? "AI Revision Mode"
-        : studyMode === "mock" ? "Mock Practice Mode"
+        : studyMode === "mock" ? "Mock Exam Blueprint"
         : studyMode === "emergency" ? "Emergency Rescue Mode"
         : studyMode === "current-affairs" ? "Current Affairs Quiz"
         : studyMode === "intel-practice" ? "Exam Intel Practice"
         : "Study Session",
       description: studyMode === "focus" ? "4-phase deep work blueprint"
         : studyMode === "revision" ? "Decay stabilization protocol"
-        : studyMode === "mock" ? "Simulated exam environment"
+        : studyMode === "mock" ? "AI-generated competitive challenge"
         : studyMode === "emergency" ? "Critical memory rescue"
         : studyMode === "current-affairs" ? "Exam-mapped current events"
         : studyMode === "intel-practice" ? "AI-predicted exam questions"
@@ -1085,23 +1088,45 @@ async function handleSessionBlueprint(userId: string, body: any) {
       name: topicName,
       subject: subjectName,
       memory_strength: strengthPct,
-      revision_count: targetTopic?.revision_count || 0,
+      stability_label: `${strengthPct}% stable`,
+      revision_count: 0,
       last_revision_date: targetTopic?.last_revision_date || "",
       predicted_drop_date: targetTopic?.next_predicted_drop_date || "",
       risk_percentage: revisionMetrics.risk_percentage,
       risk_label: revisionMetrics.risk_label,
       days_to_forget: revisionMetrics.days_to_forget,
     },
+    topics_selected: [{
+      name: topicName,
+      subject: subjectName,
+      stability: strengthPct,
+      stability_label: `${strengthPct}% stable`,
+    }],
     session_config: {
       duration_minutes: config.duration,
       difficulty,
       difficulty_label: difficulty.charAt(0).toUpperCase() + difficulty.slice(1),
       total_phases: config.phases.length,
       total_questions: config.questionCount,
-      scoring: { correct: 4, incorrect: -1, unanswered: 0 },
+      scoring: studyMode === "mock"
+        ? { correct: 4, incorrect: -1, unanswered: 0, negative_marking: true }
+        : { correct: 4, incorrect: -1, unanswered: 0 },
       cycles_count: revisionMetrics.cycles_count,
       duration_cycles: revisionMetrics.duration_cycles,
     },
+    ...(studyMode === "mock" ? {
+      mock_config: {
+        target_percentile: targetPercentile,
+        target_label: `Target: ${targetPercentile}`,
+        target_description: "Based on your current brain data",
+        negative_marking: true,
+        strict_timer: true,
+        no_hints: true,
+        show_explanation_after_submit: true,
+        total_marks: config.questionCount * 4,
+        passing_marks: Math.round(config.questionCount * 4 * 0.4),
+      },
+    } : {}),
     expected_outcomes: {
       stability_gain: `+${stabilityGainMin}-${stabilityGainMax}%`,
       stability_gain_min: stabilityGainMin,
@@ -1129,7 +1154,7 @@ async function handleSessionBlueprint(userId: string, body: any) {
     cta: {
       label: studyMode === "focus" ? "Enter Focus Mode"
         : studyMode === "revision" ? "Start Revision"
-        : studyMode === "mock" ? "Begin Mock Test"
+        : studyMode === "mock" ? "Begin Mock Exam"
         : studyMode === "emergency" ? "Launch Rescue"
         : studyMode === "current-affairs" ? "Start Quiz"
         : studyMode === "intel-practice" ? "Start Practice"
