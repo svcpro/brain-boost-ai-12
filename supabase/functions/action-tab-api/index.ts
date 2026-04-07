@@ -942,6 +942,46 @@ async function handleSessionBlueprint(userId: string, body: any) {
     targetTopic = (candidates || []).find((t: any) => !recentIds.includes(t.id)) || (candidates || [])[0] || null;
   }
 
+  // ── Auto-create fallback topic if none exist ──
+  if (!targetTopic) {
+    // Check if user has a profile with subject preferences
+    const { data: userProfile } = await admin.from("profiles")
+      .select("exam_type").eq("id", userId).maybeSingle();
+
+    const fallbackName = "General Practice";
+    const fallbackSubject = "General";
+
+    // Look for or create a default "General" subject
+    let subjectId: string | null = null;
+    const { data: existingSubject } = await admin.from("subjects")
+      .select("id").eq("name", fallbackSubject).maybeSingle();
+    
+    if (existingSubject) {
+      subjectId = existingSubject.id;
+    } else {
+      const { data: newSubject } = await admin.from("subjects")
+        .insert({ name: fallbackSubject, exam_type: userProfile?.exam_type || "General" })
+        .select("id").single();
+      subjectId = newSubject?.id || null;
+    }
+
+    // Create the fallback topic for this user
+    const { data: newTopic } = await admin.from("topics")
+      .insert({
+        user_id: userId,
+        name: fallbackName,
+        subject_id: subjectId,
+        memory_strength: 0.5,
+        revision_count: 0,
+      })
+      .select("id, name, memory_strength, subject_id, revision_count, last_revision_date, next_predicted_drop_date, subjects(name)")
+      .single();
+
+    if (newTopic) {
+      targetTopic = newTopic;
+    }
+  }
+
   const strengthPct = targetTopic ? toStrengthPercent(targetTopic.memory_strength, 50) : 50;
   const difficulty = getDifficultyFromStrength(strengthPct);
   const topicName = targetTopic?.name || "General Practice";
