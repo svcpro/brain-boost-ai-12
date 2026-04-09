@@ -207,26 +207,18 @@ export default function BrainStabilityOverview({
     setTimeout(() => setBoosting(false), 1000);
   }, [weakestTarget, boosting, onBoostSession]);
 
-  /* ── AI explanation ── */
+  /* ── AI explanation via brain-intelligence API ── */
+  const [breakdownData, setBreakdownData] = useState<any>(null);
   const fetchExplanation = useCallback(async () => {
     if (loadingExplanation || !user) return;
     setLoadingExplanation(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
-        body: {
-          action: "explain_stability",
-          context: {
-            overall_health: overallHealth,
-            total_topics: totalTopics,
-            at_risk: totalAtRisk,
-            concept_strength: m.conceptStrength,
-            recall_power: m.recallPower,
-            risk_exposure: m.riskExposure,
-          },
-        },
+      const { data, error } = await supabase.functions.invoke("brain-intelligence", {
+        body: { action: "ai-breakdown" },
       });
-      if (!error && data?.explanation) {
-        setAiExplanation(data.explanation);
+      if (!error && data) {
+        setAiExplanation(data.explanation || "");
+        setBreakdownData(data);
       } else {
         setAiExplanation(
           overallHealth > 70
@@ -241,7 +233,7 @@ export default function BrainStabilityOverview({
     } finally {
       setLoadingExplanation(false);
     }
-  }, [user, overallHealth, totalTopics, totalAtRisk, m, loadingExplanation]);
+  }, [user, overallHealth, loadingExplanation]);
 
   /* ── Quick summary metrics (always visible) ── */
   const quickMetrics = [
