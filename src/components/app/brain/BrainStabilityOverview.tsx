@@ -437,9 +437,41 @@ export default function BrainStabilityOverview({
                       <span className="text-[10px] text-muted-foreground">Analyzing your brain state...</span>
                     </div>
                   ) : (
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      {aiExplanation || "Tap to receive personalized insights about your stability."}
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {aiExplanation || "Tap to receive personalized insights about your stability."}
+                      </p>
+                      {breakdownData?.top_recommendation && (
+                        <div className="rounded-lg p-2 border border-primary/10" style={{ background: "hsl(var(--primary) / 0.03)" }}>
+                          <p className="text-[10px] font-semibold text-primary mb-0.5">🎯 Top Recommendation</p>
+                          <p className="text-[10px] text-muted-foreground">{breakdownData.top_recommendation}</p>
+                        </div>
+                      )}
+                      {breakdownData?.focus_topics?.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {breakdownData.focus_topics.map((t: string, i: number) => (
+                            <span key={i} className="text-[9px] px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {breakdownData?.optimal_strategy && (
+                        <p className="text-[10px] text-primary/80 italic mt-1">
+                          💡 {breakdownData.optimal_strategy}
+                        </p>
+                      )}
+                      {breakdownData?.recommendations?.length > 0 && (
+                        <div className="space-y-1 mt-1.5">
+                          {breakdownData.recommendations.map((r: string, i: number) => (
+                            <p key={i} className="text-[10px] text-muted-foreground flex items-start gap-1.5">
+                              <span className="text-primary mt-0.5">•</span>
+                              {r}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </motion.div>
 
