@@ -1,3 +1,4 @@
+// v2.4 — metrics array for todays_gains cards
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
