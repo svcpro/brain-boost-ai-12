@@ -306,7 +306,16 @@ async function handleInit(userId: string) {
   return {
     recommended_topic: recommendedTopic,
     study_modes: studyModes,
-    todays_gains: { stability_gain: stabilityGain, risk_reduction: riskReduction, rank_change: rankChange, focus_score: focusScore, focus_streak: focusStreak, study_minutes: totalMin, sessions_count: count, weekly_data: weeklyData },
+    todays_gains: {
+      stability_gain: stabilityGain, risk_reduction: riskReduction, rank_change: rankChange, focus_score: focusScore,
+      focus_streak: focusStreak, study_minutes: totalMin, sessions_count: count, weekly_data: weeklyData,
+      metrics: [
+        { key: "stability", icon: "brain", label: "Brain Stability", value: `+${stabilityGain.toFixed(1)}%`, sub: "Neural growth", arc_value: stabilityGain, arc_max: 15, arc_color: "primary" },
+        { key: "risk", icon: "shield", label: "Risk Reduced", value: `${riskReduction}%`, sub: "Topics shielded", arc_value: riskReduction, arc_max: 100, arc_color: "success" },
+        { key: "rank", icon: "trending_up", label: "Rank Boost", value: `+${rankChange.toFixed(1)}`, sub: "Percentile shift", arc_value: rankChange, arc_max: 10, arc_color: "warning" },
+        { key: "focus", icon: "zap", label: "Focus Quality", value: `${focusScore}%`, sub: `${focusStreak}d streak`, arc_value: focusScore, arc_max: 100, arc_color: "primary" },
+      ],
+    },
     active_tasks: { tasks: activeTasks, completed_today: completedToday, daily_goal: 5 },
     exam_countdown: examCountdown,
   };
