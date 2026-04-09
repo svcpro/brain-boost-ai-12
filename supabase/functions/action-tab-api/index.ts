@@ -1,3 +1,4 @@
+// v2.4 — metrics array for todays_gains cards
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -306,7 +307,16 @@ async function handleInit(userId: string) {
   return {
     recommended_topic: recommendedTopic,
     study_modes: studyModes,
-    todays_gains: { stability_gain: stabilityGain, risk_reduction: riskReduction, rank_change: rankChange, focus_score: focusScore, focus_streak: focusStreak, study_minutes: totalMin, sessions_count: count, weekly_data: weeklyData },
+    todays_gains: {
+      stability_gain: stabilityGain, risk_reduction: riskReduction, rank_change: rankChange, focus_score: focusScore,
+      focus_streak: focusStreak, study_minutes: totalMin, sessions_count: count, weekly_data: weeklyData,
+      metrics: [
+        { key: "stability", icon: "brain", label: "Brain Stability", value: `+${stabilityGain.toFixed(1)}%`, sub: "Neural growth", arc_value: stabilityGain, arc_max: 15, arc_color: "primary" },
+        { key: "risk", icon: "shield", label: "Risk Reduced", value: `${riskReduction}%`, sub: "Topics shielded", arc_value: riskReduction, arc_max: 100, arc_color: "success" },
+        { key: "rank", icon: "trending_up", label: "Rank Boost", value: `+${rankChange.toFixed(1)}`, sub: "Percentile shift", arc_value: rankChange, arc_max: 10, arc_color: "warning" },
+        { key: "focus", icon: "zap", label: "Focus Quality", value: `${focusScore}%`, sub: `${focusStreak}d streak`, arc_value: focusScore, arc_max: 100, arc_color: "primary" },
+      ],
+    },
     active_tasks: { tasks: activeTasks, completed_today: completedToday, daily_goal: 5 },
     exam_countdown: examCountdown,
   };
@@ -1351,15 +1361,24 @@ async function handleTodaysGains(userId: string) {
 
   const weekTotalMin = weekSessions.reduce((s: number, r: any) => s + (r.duration_minutes || 0), 0);
 
+  const sg = parseFloat(stabilityGain.toFixed(1));
+  const rc = parseFloat(rankChange.toFixed(1));
+
   return {
-    stability_gain: parseFloat(stabilityGain.toFixed(1)),
+    stability_gain: sg,
     risk_reduction: riskReduction,
-    rank_change: parseFloat(rankChange.toFixed(1)),
+    rank_change: rc,
     focus_score: focusScore,
     focus_streak: focusStreak,
     study_minutes: totalMin,
     sessions_count: count,
     weekly_data: weeklyData,
+    metrics: [
+      { key: "stability", icon: "brain", label: "Brain Stability", value: `+${sg}%`, sub: "Neural growth", arc_value: sg, arc_max: 15, arc_color: "primary" },
+      { key: "risk", icon: "shield", label: "Risk Reduced", value: `${riskReduction}%`, sub: "Topics shielded", arc_value: riskReduction, arc_max: 100, arc_color: "success" },
+      { key: "rank", icon: "trending_up", label: "Rank Boost", value: `+${rc}`, sub: "Percentile shift", arc_value: rc, arc_max: 10, arc_color: "warning" },
+      { key: "focus", icon: "zap", label: "Focus Quality", value: `${focusScore}%`, sub: `${focusStreak}d streak`, arc_value: focusScore, arc_max: 100, arc_color: "primary" },
+    ],
     avg_session_duration: avgSessionDuration,
     best_session_minutes: bestSessionMinutes,
     topics_studied_count: uniqueTopicIds.length,
