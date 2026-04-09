@@ -159,19 +159,13 @@ const BrainTab = () => {
 
       {/* ═══ Deep Insights — hidden per user request ═══ */}
 
-      {/* ═══ SECTION 3: Decay Forecast Timeline ═══ */}
-      <DecayForecastTimeline
-        subjectHealth={subjectHealth}
-        onPreventDecay={(s, t) => { trackTopicView(s, t); setReviewSession({ subject: s, topic: t }); }}
-      />
+      {/* ═══ Predictive Intelligence / Predictive Shield — hidden per user request ═══ */}
 
       {/* ═══ v7.0: Rank Prediction 2.0 — hidden per user request ═══ */}
 
-      {/* ═══ SECTION 4: AI Intelligence Insights ═══ */}
-      <AIIntelligenceInsights onAction={(s, t) => setReviewSession({ subject: s, topic: t })} />
+      {/* ═══ AI Mentor / Performance Trend / Decay Prevention / Smart Timing / AI Strategy — hidden per user request ═══ */}
 
-      {/* ═══ SECTION 5: Growth Identity System ═══ */}
-      <GrowthIdentitySystem />
+      {/* ═══ Growth Identity — hidden per user request ═══ */}
 
       {/* Empty state */}
       {!hasData && (
