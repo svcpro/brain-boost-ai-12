@@ -102,6 +102,10 @@ serve(async (req) => {
         return await handleDashboard(user.id, userClient);
       case "ai-breakdown":
         return await handleAIBreakdown(user.id, userClient, body);
+      case "neural-control":
+        return await handleNeuralControl(user.id, userClient);
+      case "node-detail":
+        return await handleNodeDetail(user.id, userClient, adminClient, body);
       default:
         return json({ error: `Unknown action: ${action}` }, 400);
     }
