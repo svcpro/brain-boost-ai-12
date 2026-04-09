@@ -68,31 +68,26 @@ const BrainTab = () => {
   const loadSubjectHealth = useCallback(async () => {
     if (!user) return;
     try {
-      const { data: subjects } = await supabase.from("subjects").select("id, name").eq("user_id", user.id);
-      if (!subjects || subjects.length === 0) { setSubjectHealth([]); return; }
-
-      const health: SubjectHealthData[] = [];
-      for (const sub of subjects) {
-        const { data: topics } = await supabase
-          .from("topics")
-          .select("id, name, memory_strength, next_predicted_drop_date, last_revision_date")
-          .eq("user_id", user.id)
-          .eq("subject_id", sub.id)
-          .order("memory_strength", { ascending: true });
-
-        const topicCount = topics?.length || 0;
-        const avgStrength = topicCount > 0
-          ? Math.round(topics!.reduce((s, t) => s + Number(t.memory_strength), 0) / topicCount)
-          : 0;
-
-        health.push({
-          id: sub.id, name: sub.name, strength: avgStrength, topicCount,
-          topics: (topics || []).map(t => ({ ...t, memory_strength: Number(t.memory_strength) })),
-        });
+      const { data, error } = await supabase.functions.invoke("brain-intelligence", {
+        body: { action: "dashboard" },
+      });
+      if (!error && data?.subject_health) {
+        const health: SubjectHealthData[] = data.subject_health.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          strength: s.strength,
+          topicCount: s.topic_count,
+          topics: (s.topics || []).map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            memory_strength: t.memory_strength,
+            next_predicted_drop_date: t.next_predicted_drop_date || null,
+            last_revision_date: t.last_revision_date || null,
+          })),
+        }));
+        setSubjectHealth(health);
+        setCache("brain-subject-health", health);
       }
-      health.sort((a, b) => a.strength - b.strength);
-      setSubjectHealth(health);
-      setCache("brain-subject-health", health);
     } catch (e) {
       console.error("BrainTab loadSubjectHealth error:", e);
     }
