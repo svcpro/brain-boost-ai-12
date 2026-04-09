@@ -501,3 +501,334 @@ function generateFallbackRecommendations(health: number, atRisk: number, metrics
   if (recs.length === 0) recs.push("Maintain your current study rhythm. Review at-risk topics periodically.");
   return recs;
 }
+
+/* ═══════════════════════════════════════════
+   ACTION: neural-control
+   Full Neural Control map data with enhanced per-subject/topic metrics
+   ═══════════════════════════════════════════ */
+async function handleNeuralControl(userId: string, client: any) {
+  const [subjectsRes, topicsRes, logsRes] = await Promise.all([
+    client.from("subjects").select("id, name").eq("user_id", userId),
+    client.from("topics").select("id, name, memory_strength, next_predicted_drop_date, last_revision_date, subject_id, created_at").eq("user_id", userId),
+    client.from("study_logs").select("topic_id, topic_name, score, duration_seconds, confidence_level, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(500),
+  ]);
+
+  const subjects = subjectsRes.data || [];
+  const topics = topicsRes.data || [];
+  const logs = logsRes.data || [];
+  const now = new Date();
+
+  // Build rich subject nodes
+  const subjectNodes = subjects.map((sub: any) => {
+    const subTopics = topics.filter((t: any) => t.subject_id === sub.id);
+    const topicCount = subTopics.length;
+    const avgStrength = topicCount > 0 ? Math.round(subTopics.reduce((s: number, t: any) => s + Number(t.memory_strength || 0), 0) / topicCount) : 0;
+
+    const subLogs = logs.filter((l: any) => subTopics.some((t: any) => t.id === l.topic_id || t.name === l.topic_name));
+    const totalSessions = subLogs.length;
+    const totalMinutes = Math.round(subLogs.reduce((s: number, l: any) => s + (Number(l.duration_seconds) || 0), 0) / 60);
+
+    // At-risk topics
+    const atRiskTopics = subTopics.filter((t: any) => {
+      if (!t.next_predicted_drop_date) return Number(t.memory_strength || 0) < 30;
+      return new Date(t.next_predicted_drop_date) <= now;
+    });
+
+    // Last activity
+    const lastLog = subLogs[0];
+    const lastActivityAt = lastLog?.created_at || "";
+    const daysSinceActivity = lastLog ? Math.round((now.getTime() - new Date(lastLog.created_at).getTime()) / 86400000) : -1;
+
+    // Stability trend (compare recent 5 vs older 5 sessions)
+    const recent5 = subLogs.slice(0, 5);
+    const older5 = subLogs.slice(5, 10);
+    const recentAvgScore = recent5.length > 0 ? recent5.reduce((s: number, l: any) => s + (Number(l.score) || 0), 0) / recent5.length : 0;
+    const olderAvgScore = older5.length > 0 ? older5.reduce((s: number, l: any) => s + (Number(l.score) || 0), 0) / older5.length : 0;
+    const trend = recent5.length < 2 ? "neutral" : recentAvgScore > olderAvgScore + 5 ? "improving" : recentAvgScore < olderAvgScore - 5 ? "declining" : "stable";
+
+    // Status
+    const status = avgStrength > 70 ? "strong" : avgStrength > 40 ? "at_risk" : "critical";
+
+    // Build topic nodes
+    const topicNodes = subTopics.map((t: any) => {
+      const tLogs = logs.filter((l: any) => l.topic_id === t.id || l.topic_name === t.name);
+      const tSessions = tLogs.length;
+      const lastReviewLog = tLogs[0];
+      const lastReviewAt = lastReviewLog?.created_at || t.last_revision_date || "";
+      const hoursSinceReview = lastReviewAt ? Math.round((now.getTime() - new Date(lastReviewAt).getTime()) / 3600000) : -1;
+
+      const isOverdue = t.next_predicted_drop_date ? new Date(t.next_predicted_drop_date) <= now : false;
+      const strength = Number(t.memory_strength || 0);
+
+      // Decay velocity (how fast it's dropping)
+      const decayVelocity = hoursSinceReview > 0 ? Math.round(Math.max(0, (100 - strength) / Math.max(hoursSinceReview, 1)) * 100) / 100 : 0;
+
+      // Mastery index (based on high-confidence sessions)
+      const highConfSessions = tLogs.filter((l: any) => l.confidence_level === "high").length;
+      const masteryIndex = tSessions > 0 ? Math.round((highConfSessions / tSessions) * 100) : 0;
+
+      // Status
+      const topicStatus = strength > 70 ? "strong" : strength > 40 ? "at_risk" : "critical";
+
+      return {
+        id: t.id,
+        name: t.name,
+        memory_strength: strength,
+        mastery_index: masteryIndex,
+        sessions_count: tSessions,
+        hours_since_review: hoursSinceReview,
+        decay_velocity: decayVelocity,
+        is_overdue: isOverdue,
+        next_predicted_drop_date: t.next_predicted_drop_date || "",
+        last_revision_date: lastReviewAt,
+        status: topicStatus,
+        created_at: t.created_at || "",
+      };
+    });
+
+    topicNodes.sort((a: any, b: any) => a.memory_strength - b.memory_strength);
+
+    return {
+      id: sub.id,
+      name: sub.name,
+      strength: avgStrength,
+      topic_count: topicCount,
+      at_risk_count: atRiskTopics.length,
+      total_sessions: totalSessions,
+      total_minutes: totalMinutes,
+      last_activity_at: lastActivityAt,
+      days_since_activity: daysSinceActivity,
+      trend,
+      status,
+      topics: topicNodes,
+    };
+  });
+
+  subjectNodes.sort((a: any, b: any) => a.strength - b.strength);
+
+  // Global metrics
+  const totalTopics = topics.length;
+  const totalAtRisk = subjectNodes.reduce((s: number, n: any) => s + n.at_risk_count, 0);
+  const overallHealth = totalTopics > 0 ? Math.round(topics.reduce((s: number, t: any) => s + Number(t.memory_strength || 0), 0) / totalTopics) : 0;
+  const strongCount = topics.filter((t: any) => Number(t.memory_strength || 0) > 70).length;
+  const criticalCount = topics.filter((t: any) => Number(t.memory_strength || 0) < 30).length;
+  const atRiskCount = totalTopics - strongCount - criticalCount;
+
+  // Network connectivity score (how well-studied the brain is overall)
+  const totalSessions = logs.length;
+  const connectivityScore = Math.min(100, Math.round((totalSessions / Math.max(totalTopics * 3, 1)) * 100));
+
+  return json(sanitize({
+    brain_core: {
+      overall_health: overallHealth,
+      total_topics: totalTopics,
+      total_subjects: subjects.length,
+      total_at_risk: totalAtRisk,
+      connectivity_score: connectivityScore,
+      health_distribution: {
+        strong: strongCount,
+        at_risk: atRiskCount,
+        critical: criticalCount,
+      },
+    },
+    subject_nodes: subjectNodes,
+    legend: [
+      { key: "strong", label: "Strong", color: "hsl(142 71% 45%)", threshold: "> 70%" },
+      { key: "at_risk", label: "At Risk", color: "hsl(38 92% 50%)", threshold: "40-70%" },
+      { key: "critical", label: "Critical", color: "hsl(0 72% 51%)", threshold: "< 40%" },
+    ],
+    summary: {
+      strongest_subject: subjectNodes.length > 0 ? subjectNodes[subjectNodes.length - 1].name : "",
+      weakest_subject: subjectNodes.length > 0 ? subjectNodes[0].name : "",
+      most_active_subject: subjectNodes.length > 0 ? [...subjectNodes].sort((a, b) => b.total_sessions - a.total_sessions)[0].name : "",
+      recommendation: overallHealth < 30 ? "Start daily micro-sessions on critical topics" : overallHealth < 60 ? "Focus on at-risk subjects to prevent further decay" : "Maintain review cadence on weaker areas",
+    },
+  }));
+}
+
+/* ═══════════════════════════════════════════
+   ACTION: node-detail
+   Deep detail for a specific topic or subject node on tap
+   ═══════════════════════════════════════════ */
+async function handleNodeDetail(userId: string, client: any, adminClient: any, body: any) {
+  const { topic_id, subject_id } = body;
+
+  // ── TOPIC DETAIL ──
+  if (topic_id) {
+    const [topicRes, logsRes] = await Promise.all([
+      client.from("topics").select("id, name, memory_strength, next_predicted_drop_date, last_revision_date, subject_id, created_at").eq("id", topic_id).eq("user_id", userId).maybeSingle(),
+      client.from("study_logs").select("id, topic_name, score, duration_seconds, confidence_level, created_at, duration_minutes").eq("user_id", userId).order("created_at", { ascending: false }).limit(500),
+    ]);
+
+    const topic = topicRes.data;
+    if (!topic) return json({ error: "Topic not found" }, 404);
+
+    const tLogs = (logsRes.data || []).filter((l: any) => l.topic_id === topic.id || l.topic_name === topic.name);
+    const now = new Date();
+    const strength = Number(topic.memory_strength || 0);
+
+    // Sessions breakdown
+    const totalSessions = tLogs.length;
+    const highConf = tLogs.filter((l: any) => l.confidence_level === "high").length;
+    const medConf = tLogs.filter((l: any) => l.confidence_level === "medium").length;
+    const lowConf = tLogs.filter((l: any) => l.confidence_level === "low").length;
+    const totalMinutes = Math.round(tLogs.reduce((s: number, l: any) => s + (Number(l.duration_seconds) || Number(l.duration_minutes || 0) * 60 || 0), 0) / 60);
+
+    // Mastery & stability metrics
+    const masteryIndex = totalSessions > 0 ? Math.round((highConf / totalSessions) * 100) : 0;
+    const stabilityScore = Math.round(strength * 0.6 + masteryIndex * 0.4);
+
+    // Decay analysis
+    const lastReviewDate = tLogs[0]?.created_at || topic.last_revision_date;
+    const hoursSinceReview = lastReviewDate ? Math.round((now.getTime() - new Date(lastReviewDate).getTime()) / 3600000) : -1;
+    const isOverdue = topic.next_predicted_drop_date ? new Date(topic.next_predicted_drop_date) <= now : false;
+
+    // Predicted retention (Ebbinghaus model)
+    const baseStability = 24;
+    const masteryBoost = 1 + (masteryIndex / 100) * 3;
+    const reviewBoost = 1 + Math.log2(totalSessions + 1) * 0.5;
+    const stability = baseStability * masteryBoost * reviewBoost;
+    const predictedRetention = hoursSinceReview > 0 ? Math.round(Math.exp(-hoursSinceReview / stability) * 100) : strength;
+
+    // Decay risk level
+    const decayRisk = predictedRetention > 70 ? "low" : predictedRetention > 50 ? "medium" : predictedRetention > 30 ? "high" : "critical";
+
+    // Recent session history (last 5)
+    const recentHistory = tLogs.slice(0, 5).map((l: any) => ({
+      date: l.created_at,
+      score: Number(l.score) || 0,
+      confidence: l.confidence_level || "unknown",
+      duration_minutes: Math.round((Number(l.duration_seconds) || Number(l.duration_minutes || 0) * 60 || 0) / 60),
+    }));
+
+    // Performance trend
+    const recent3 = tLogs.slice(0, 3);
+    const older3 = tLogs.slice(3, 6);
+    const recentAvg = recent3.length > 0 ? recent3.reduce((s: number, l: any) => s + (Number(l.score) || 0), 0) / recent3.length : 0;
+    const olderAvg = older3.length > 0 ? older3.reduce((s: number, l: any) => s + (Number(l.score) || 0), 0) / older3.length : 0;
+    const performanceTrend = recent3.length < 2 ? "neutral" : recentAvg > olderAvg + 5 ? "improving" : recentAvg < olderAvg - 5 ? "declining" : "stable";
+
+    // Optimal review time
+    const hoursUntil70pct = stability * Math.log(100 / 70);
+    const nextOptimalReview = lastReviewDate ? new Date(new Date(lastReviewDate).getTime() + hoursUntil70pct * 3600000).toISOString() : "";
+
+    // Recommended actions
+    const actions: any[] = [];
+    if (predictedRetention < 50) {
+      actions.push({ type: "stabilize", label: "Stabilize Now", description: "Quick recall session to boost retention", priority: "high", estimated_boost: Math.min(20, Math.round((100 - strength) * 0.25)) });
+    }
+    if (lowConf > highConf) {
+      actions.push({ type: "deep_focus", label: "Deep Focus", description: "Extended study to build strong foundations", priority: "medium", estimated_boost: Math.min(15, Math.round((100 - strength) * 0.2)) });
+    }
+    if (hoursSinceReview > 48) {
+      actions.push({ type: "quick_review", label: "Quick Review", description: "Short refresher to prevent further decay", priority: isOverdue ? "high" : "medium", estimated_boost: Math.min(10, Math.round((100 - strength) * 0.15)) });
+    }
+    if (actions.length === 0) {
+      actions.push({ type: "maintain", label: "Practice", description: "Keep momentum with regular practice", priority: "low", estimated_boost: 5 });
+    }
+
+    // Get subject name
+    const subjectRes = await client.from("subjects").select("name").eq("id", topic.subject_id).maybeSingle();
+
+    return json(sanitize({
+      topic_id: topic.id,
+      topic_name: topic.name,
+      subject_name: subjectRes.data?.name || "Unknown",
+      memory_strength: strength,
+      stability_score: stabilityScore,
+      mastery_index: masteryIndex,
+      predicted_retention: predictedRetention,
+      decay_risk: decayRisk,
+      performance_trend: performanceTrend,
+      hours_since_review: hoursSinceReview,
+      is_overdue: isOverdue,
+      next_optimal_review: nextOptimalReview,
+      session_stats: {
+        total: totalSessions,
+        high_confidence: highConf,
+        medium_confidence: medConf,
+        low_confidence: lowConf,
+        total_minutes: totalMinutes,
+      },
+      metrics: [
+        { key: "stability", label: "Stability", value: `${stabilityScore}%`, icon: "shield", color: stabilityScore > 70 ? "success" : stabilityScore > 40 ? "warning" : "destructive" },
+        { key: "mastery", label: "Mastery", value: `${masteryIndex}%`, icon: "brain", color: masteryIndex > 70 ? "success" : masteryIndex > 40 ? "warning" : "destructive" },
+        { key: "retention", label: "Retention", value: `${predictedRetention}%`, icon: "trending-down", color: predictedRetention > 70 ? "success" : predictedRetention > 50 ? "warning" : "destructive" },
+        { key: "decay_risk", label: "Decay Risk", value: decayRisk, icon: "alert-triangle", color: decayRisk === "low" ? "success" : decayRisk === "medium" ? "warning" : "destructive" },
+      ],
+      recent_history: recentHistory,
+      recommended_actions: actions,
+      created_at: topic.created_at || "",
+    }));
+  }
+
+  // ── SUBJECT DETAIL ──
+  if (subject_id) {
+    const [subjectRes, topicsRes, logsRes] = await Promise.all([
+      client.from("subjects").select("id, name, created_at").eq("id", subject_id).eq("user_id", userId).maybeSingle(),
+      client.from("topics").select("id, name, memory_strength, next_predicted_drop_date, last_revision_date, created_at").eq("subject_id", subject_id).eq("user_id", userId),
+      client.from("study_logs").select("topic_id, topic_name, score, duration_seconds, confidence_level, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(500),
+    ]);
+
+    const subject = subjectRes.data;
+    if (!subject) return json({ error: "Subject not found" }, 404);
+
+    const subTopics = topicsRes.data || [];
+    const now = new Date();
+    const avgStrength = subTopics.length > 0 ? Math.round(subTopics.reduce((s: number, t: any) => s + Number(t.memory_strength || 0), 0) / subTopics.length) : 0;
+
+    const subLogs = (logsRes.data || []).filter((l: any) => subTopics.some((t: any) => t.id === l.topic_id || t.name === l.topic_name));
+    const totalSessions = subLogs.length;
+    const totalMinutes = Math.round(subLogs.reduce((s: number, l: any) => s + (Number(l.duration_seconds) || 0), 0) / 60);
+
+    const strongTopics = subTopics.filter((t: any) => Number(t.memory_strength || 0) > 70);
+    const criticalTopics = subTopics.filter((t: any) => Number(t.memory_strength || 0) < 30);
+    const atRiskTopics = subTopics.filter((t: any) => {
+      const s = Number(t.memory_strength || 0);
+      return s >= 30 && s <= 70;
+    });
+
+    // Weekly activity (last 7 days)
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+    const weekLogs = subLogs.filter((l: any) => new Date(l.created_at) >= sevenDaysAgo);
+    const activeDays = new Set(weekLogs.map((l: any) => new Date(l.created_at).toDateString())).size;
+
+    // Topic ranking
+    const topicRanking = subTopics.map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      memory_strength: Number(t.memory_strength || 0),
+      status: Number(t.memory_strength || 0) > 70 ? "strong" : Number(t.memory_strength || 0) > 40 ? "at_risk" : "critical",
+      next_predicted_drop_date: t.next_predicted_drop_date || "",
+      last_revision_date: t.last_revision_date || "",
+    })).sort((a: any, b: any) => a.memory_strength - b.memory_strength);
+
+    return json(sanitize({
+      subject_id: subject.id,
+      subject_name: subject.name,
+      avg_strength: avgStrength,
+      status: avgStrength > 70 ? "strong" : avgStrength > 40 ? "at_risk" : "critical",
+      topic_count: subTopics.length,
+      health_distribution: {
+        strong: strongTopics.length,
+        at_risk: atRiskTopics.length,
+        critical: criticalTopics.length,
+      },
+      activity: {
+        total_sessions: totalSessions,
+        total_minutes: totalMinutes,
+        active_days_this_week: activeDays,
+        last_activity: subLogs[0]?.created_at || "",
+      },
+      topic_ranking: topicRanking,
+      recommended_focus: criticalTopics.length > 0
+        ? { topic_id: criticalTopics[0].id, topic_name: criticalTopics[0].name, reason: "Lowest memory strength in this subject", estimated_boost: Math.min(15, Math.round((100 - Number(criticalTopics[0].memory_strength || 0)) * 0.2)) }
+        : atRiskTopics.length > 0
+        ? { topic_id: atRiskTopics[0].id, topic_name: atRiskTopics[0].name, reason: "At risk of further decay", estimated_boost: 10 }
+        : null,
+      created_at: subject.created_at || "",
+    }));
+  }
+
+  return json({ error: "Provide topic_id or subject_id" }, 400);
+}
