@@ -163,9 +163,9 @@ Deno.serve(async (req) => {
       ? Math.round(allTopics.reduce((s, t) => s + (t.memory_strength || 0), 0) / allTopics.length)
       : 0;
 
-    const overallHealth = features
-      ? Math.round(((features.knowledge_stability || 0) * 100 + (features.recall_success_rate || 0) * 100 + (features.study_consistency_score || 0) * 100) / 3)
-      : avgMemoryStrength;
+    const overallHealth = Math.min(100, features
+      ? Math.round(((Math.min(1, features.knowledge_stability || 0)) * 100 + (Math.min(1, features.recall_success_rate || 0)) * 100 + (Math.min(1, features.study_consistency_score || 0)) * 100) / 3)
+      : avgMemoryStrength);
 
     const metrics: ActivityMetrics = {
       total_study_minutes: totalStudyMinutes,
