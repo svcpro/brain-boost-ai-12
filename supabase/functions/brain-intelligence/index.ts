@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-api-key, api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 function json(data: unknown, status = 200) {
@@ -73,39 +73,84 @@ function deriveMetrics(
   };
 }
 
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
+const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+async function resolveUser(req: Request): Promise<string | null> {
+  const auth = req.headers.get("authorization") ?? "";
+
+  if (auth.startsWith("Bearer ")) {
+    const token = auth.replace("Bearer ", "").trim();
+    const { data } = await adminClient.auth.getUser(token);
+    if (data?.user?.id) return data.user.id;
+  }
+
+  const apiKeyCandidates = [
+    req.headers.get("x-api-key"),
+    req.headers.get("api-key"),
+    req.headers.get("apikey"),
+  ]
+    .filter(Boolean)
+    .map((value) => value!.trim())
+    .filter(Boolean);
+
+  if (auth && !auth.startsWith("Bearer ")) {
+    apiKeyCandidates.push(auth.trim());
+  }
+
+  for (const candidate of apiKeyCandidates) {
+    const acryMatch = candidate.match(/acry_[A-Za-z0-9]+/)?.[0];
+    if (acryMatch) {
+      const storedPrefix = `${acryMatch.substring(0, 10)}...`;
+      const { data: keyRow } = await adminClient
+        .from("api_keys")
+        .select("created_by")
+        .eq("key_prefix", storedPrefix)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (keyRow?.created_by) return keyRow.created_by;
+    }
+
+    const { data: hashRow } = await adminClient
+      .from("api_keys")
+      .select("created_by")
+      .eq("key_hash", candidate)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (hashRow?.created_by) return hashRow.created_by;
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Missing authorization" }, 401);
+    const userId = await resolveUser(req);
+    if (!userId) return json({ error: "Unauthorized" }, 401);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    let body: Record<string, unknown> = {};
+    if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") {
+      body = await req.json().catch(() => ({}));
+    }
 
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const {
-      data: { user },
-    } = await userClient.auth.getUser();
-    if (!user) return json({ error: "Unauthorized" }, 401);
-
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const body = await req.json().catch(() => ({}));
-    const action = body.action || "dashboard";
+    const url = new URL(req.url);
+    const query = Object.fromEntries(url.searchParams.entries());
+    const payload = { ...query, ...body } as Record<string, unknown>;
+    const action = String(payload.action || "dashboard");
 
     switch (action) {
       case "dashboard":
-        return await handleDashboard(user.id, userClient);
+        return await handleDashboard(userId, adminClient);
       case "ai-breakdown":
-        return await handleAIBreakdown(user.id, userClient, body);
+        return await handleAIBreakdown(userId, adminClient, payload);
       case "neural-control":
-        return await handleNeuralControl(user.id, userClient);
+        return await handleNeuralControl(userId, adminClient);
       case "node-detail":
-        return await handleNodeDetail(user.id, userClient, adminClient, body);
+        return await handleNodeDetail(userId, adminClient, adminClient, payload);
       default:
         return json({ error: `Unknown action: ${action}` }, 400);
     }
