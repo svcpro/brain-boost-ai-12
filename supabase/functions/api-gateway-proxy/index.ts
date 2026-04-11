@@ -33,6 +33,7 @@ const EDGE_FUNCTION_PATHS = new Set([
   "brain-intelligence",
   "safe-pass-prediction",
   "sureshot-prediction",
+  "sureshot-questions",
 ]);
 
 const normalizeTargetBase = (rawBase?: unknown) => {
