@@ -247,10 +247,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {/* ═══ SECTION 2: Learning Identity Summary ═══ */}
       <LearningIdentitySummary />
 
-      {/* ═══ SECTION 3: AI Personal Strategy Panel ═══ */}
-      <PlanGateWrapper featureKey="ai_strategy">
-        <AIPersonalStrategy />
-      </PlanGateWrapper>
+      {/* Strategic Command (AIPersonalStrategy) — hidden per user request */}
 
       {/* AI Cognitive Profile hidden per user request */}
 
@@ -262,14 +259,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
       {/* AI Recalibration hidden per user request */}
 
-      {/* ═══ SECTION 5: AI Personalization Control Center ═══ */}
-      <AIPersonalizationControlCenter
-        onOpenSubscription={() => setShowSubscription(true)}
-        autoOpenVoiceSettings={autoOpenVoiceSettings}
-        onVoiceSettingsOpened={onVoiceSettingsOpened}
-        autoOpenNotifHistory={autoOpenNotifHistory}
-        onNotifHistoryOpened={onNotifHistoryOpened}
-      />
+      {/* AI Personalization Control Center (AI Behavior Control, Risk & Stability Shield, Exam and Goal Config, Data Privacy, AI Personality Mode, System Recalibration, Automation Transparency) — hidden per user request */}
 
       {/* Subscription Plan Modal */}
       <AnimatePresence>
@@ -280,8 +270,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         }} />}
       </AnimatePresence>
 
-      {/* ═══ Password Management ═══ */}
-      <PasswordManagement />
+      {/* Password Management — hidden per user request */}
 
       {/* Sign Out */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
