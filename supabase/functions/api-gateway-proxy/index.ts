@@ -34,6 +34,7 @@ const EDGE_FUNCTION_PATHS = new Set([
   "safe-pass-prediction",
   "sureshot-prediction",
   "sureshot-questions",
+  "you-tab-api",
 ]);
 
 const normalizeTargetBase = (rawBase?: unknown) => {
