@@ -55,31 +55,10 @@ async function resolveUserId(req: Request): Promise<string | null> {
   return null;
 }
 
-/* ───── AI gateway call ───── */
-
-async function callAI(messages: any[], model: string, temperature: number, maxTokens: number, timeoutMs: number) {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY") || Deno.env.get("GOOGLE_GEMINI_API_KEY");
-  if (!apiKey) return { ok: false, error: "No AI key configured" };
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch("https://ai.lovable.dev/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    if (!res.ok) return { ok: false, error: `AI ${res.status}` };
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content || "";
-    return { ok: true, text };
-  } catch (e: any) {
-    clearTimeout(timer);
-    return { ok: false, error: e.message || "AI timeout" };
-  }
+async function callAIWrapper(messages: any[], model: string, temperature: number, maxTokens: number, timeoutMs: number) {
+  const result = await sharedCallAI({ messages, model, temperature, maxTokens, timeoutMs });
+  if (!result.ok) return { ok: false, error: result.error || "AI failed" };
+  return { ok: true, text: getAIText(result) };
 }
 
 /* ═══════════════════════════════════════════
