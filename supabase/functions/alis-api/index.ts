@@ -165,7 +165,7 @@ Generate 6 unique practice MCQs. Prioritize weak topics. Mix easy/medium/hard.
 Return ONLY JSON array: [{"question":"...","subject":"...","topic":"...","difficulty":"easy|medium|hard"}]
 Concise questions (1 line max). No markdown.`;
 
-  const aiResult = await callAI(
+  const aiResult = await callAIWrapper(
     [{ role: "user", content: prompt }],
     "google/gemini-2.5-flash-lite",
     0.9, 600, 6000,
@@ -271,7 +271,7 @@ async function handleSolve(userId: string, body: any) {
       })
       .select("id")
       .single(),
-    callAI(messages, "google/gemini-2.5-pro", 0.0, 4096, 45000),
+    callAIWrapper(messages, "google/gemini-2.5-pro", 0.0, 4096, 45000),
   ]);
 
   const queryId = insertResult.data?.id;
