@@ -156,10 +156,7 @@ const ConfidencePracticeTab = () => {
   useEffect(() => {
     fetchUserExam().then(exam => {
       if (exam) {
-        const rawExam = exam.trim();
-        // Prefer exact canonical match, otherwise keep onboarding value as-is
-        const exact = examTypes.find(e => e.toLowerCase() === rawExam.toLowerCase());
-        const chosenExam = exact || rawExam;
+        const chosenExam = resolveExamType(exam);
         setSelExam(chosenExam);
         setUserExamType(chosenExam);
       }
