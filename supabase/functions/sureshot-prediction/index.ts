@@ -260,7 +260,7 @@ async function buildSureShotPrediction(userId: string) {
   const stats = {
     topics_analyzed: { value: `${Math.max(analyzedTopics, totalTopics).toLocaleString()}+`, label: "Topics Analyzed", icon: "TrendingUp" },
     pattern_matches: { value: patternMatchCount.toLocaleString(), label: "Pattern Matches", icon: "Zap" },
-    accuracy_score: { value: `${accuracyScore.toFixed(1)}%`, label: "Accuracy Score", icon: "Brain" },
+    accuracy_score: { value: `${displayAccuracyScore.toFixed(1)}%`, label: "Accuracy Score", icon: "Brain" },
   };
 
   // --- Prediction Confidence ---
@@ -293,8 +293,8 @@ async function buildSureShotPrediction(userId: string) {
     success: true,
     sureshot_prediction: {
       // Core prediction
-      ai_match_probability: clampedMatch,
-      accuracy_score: Number(accuracyScore.toFixed(1)),
+      ai_match_probability: displayMatchProbability,
+      accuracy_score: displayAccuracyScore,
       prediction_confidence: predictionConfidence,
       exam_type: examType,
       model_version: "SureShot v3.0 Ultra-ML",
