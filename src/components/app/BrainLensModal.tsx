@@ -170,7 +170,7 @@ export default function BrainLensModal({ onClose }: { onClose: () => void }) {
             <HeroLogo />
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-black tracking-[0.2em] uppercase font-display gradient-text">ACRY</h1>
+                <h1 className="text-base font-black tracking-[0.2em] uppercase font-display gradient-text">ALIS</h1>
                 <motion.span className="text-[7px] font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-widest border"
                   style={{ background: "hsl(var(--accent) / 0.12)", color: "hsl(var(--accent))", borderColor: "hsl(var(--accent) / 0.25)" }}
                   animate={{ scale: [1, 1.05, 1] }}
@@ -251,7 +251,7 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
         </motion.div>
         <h2 className="text-lg font-black font-display text-foreground">What would you like to solve?</h2>
         <p className="text-xs text-muted-foreground/70 max-w-[280px] mx-auto leading-relaxed">
-          Choose how you want to ask — analyzes instantly
+          Choose how you want to ask — ALIS analyzes instantly
         </p>
       </motion.div>
 
@@ -331,7 +331,7 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
         <motion.div animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 3, repeat: Infinity }}>
           <CircleDot className="w-2.5 h-2.5 text-primary/50" />
         </motion.div>
-        <span className="text-[8px] tracking-[0.3em] uppercase text-muted-foreground/40 font-medium">ACRY Ω • Cognitive Engine</span>
+        <span className="text-[8px] tracking-[0.3em] uppercase text-muted-foreground/40 font-medium">ACRY ALIS Ω • Cognitive Engine</span>
       </motion.div>
 
       {/* ═══ Input Panel Overlay ═══ */}
@@ -397,7 +397,7 @@ function InputPanel({ mode, content, setContent, imageBase64, setImageBase64, lo
           </motion.div>
           <div className="flex-1">
             <h3 className="text-sm font-bold text-foreground">{cfg.title}</h3>
-            <p className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Ω Analysis</p>
+            <p className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">ALIS Ω Analysis</p>
           </div>
           <motion.button onClick={onClose} whileTap={{ scale: 0.85 }}
             className="w-9 h-9 rounded-xl flex items-center justify-center bg-secondary/60 border border-border/40"
@@ -489,7 +489,7 @@ function InputPanel({ mode, content, setContent, imageBase64, setImageBase64, lo
                 <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 3, repeat: Infinity }}>
                   <Zap className="w-5 h-5" />
                 </motion.div>
-                <span className="tracking-[0.15em] uppercase text-[13px]">Analyze</span>
+                <span className="tracking-[0.15em] uppercase text-[13px]">Analyze with ALIS</span>
                 <Send className="w-4 h-4 opacity-60" />
               </div>
             )}
@@ -874,7 +874,7 @@ function ResultView({ result, expandedCards, toggleCard, onReset }: { result: AL
         <div className="w-1 h-1 rounded-full bg-border" />
         <FooterChip icon="🎯" text={`${Math.round(result.confidence * 100)}%`} />
         <div className="w-1 h-1 rounded-full bg-border" />
-        <FooterChip icon="Ω" text="v3.1" />
+        <FooterChip icon="Ω" text="ALIS v3.1" />
       </motion.div>
 
       {/* Ask Another */}
