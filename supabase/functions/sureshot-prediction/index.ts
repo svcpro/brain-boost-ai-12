@@ -245,6 +245,28 @@ async function buildSureShotPrediction(userId: string) {
   const dataPoints = analyzedTopics + totalPYQs + confidenceSessions.length + totalSessions;
   const predictionConfidence = dataPoints > 100 ? "high" : dataPoints > 30 ? "medium" : "low";
 
+  // --- Subjects for the exam ---
+  const examSubjectsMap: Record<string, string[]> = {
+    "SSC CGL": ["General Knowledge", "Mathematics", "Reasoning", "English"],
+    "IBPS PO": ["General Knowledge", "Mathematics", "Reasoning", "English"],
+    "SBI PO": ["General Knowledge", "Mathematics", "Reasoning", "English"],
+    "RRB NTPC": ["General Knowledge", "Mathematics", "Reasoning", "General Science"],
+    "NDA": ["Mathematics", "General Knowledge", "English", "Science", "History", "Geography"],
+    "CDS": ["Mathematics", "General Knowledge", "English"],
+    "UPSC": ["General Knowledge", "History", "Geography", "Polity", "Economy", "Science", "English", "Mathematics", "Reasoning"],
+    "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
+    "JEE Main": ["Physics", "Chemistry", "Mathematics"],
+    "NEET UG": ["Physics", "Chemistry", "Biology"],
+    "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+    "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  };
+  const subjects = examSubjectsMap[examType] || [...new Set(allTopics.map((t: any) => t.subject).filter(Boolean))].slice(0, 6);
+  if (subjects.length === 0) subjects.push("General");
+
+  // --- Available question count ---
+  const examQuestions = allQuestions.filter((q: any) => !examType || examType === "General" || q.exam_type === examType);
+  const totalQuestionCount = examQuestions.length;
+
   return {
     success: true,
     sureshot_prediction: {
@@ -255,6 +277,11 @@ async function buildSureShotPrediction(userId: string) {
       exam_type: examType,
       model_version: "SureShot v3.0 Ultra-ML",
       powered_by: "Ultra AI Powered",
+
+      // NEW: Missing fields
+      subjects,
+      question_count: totalQuestionCount,
+      practice_modes: ["calm", "exam", "rapid"],
 
       // Stats for hero card
       stats,
