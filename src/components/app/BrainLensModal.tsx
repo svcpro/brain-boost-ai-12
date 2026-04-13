@@ -251,7 +251,7 @@ function InputView({ mode, setMode, content, setContent, imageBase64, setImageBa
         </motion.div>
         <h2 className="text-lg font-black font-display text-foreground">What would you like to solve?</h2>
         <p className="text-xs text-muted-foreground/70 max-w-[280px] mx-auto leading-relaxed">
-          Choose how you want to ask — ALIS analyzes instantly
+          Choose how you want to ask — analyzes instantly
         </p>
       </motion.div>
 
@@ -489,7 +489,7 @@ function InputPanel({ mode, content, setContent, imageBase64, setImageBase64, lo
                 <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 3, repeat: Infinity }}>
                   <Zap className="w-5 h-5" />
                 </motion.div>
-                <span className="tracking-[0.15em] uppercase text-[13px]">Analyze with ALIS</span>
+                <span className="tracking-[0.15em] uppercase text-[13px]">Analyze</span>
                 <Send className="w-4 h-4 opacity-60" />
               </div>
             )}
@@ -874,7 +874,7 @@ function ResultView({ result, expandedCards, toggleCard, onReset }: { result: AL
         <div className="w-1 h-1 rounded-full bg-border" />
         <FooterChip icon="🎯" text={`${Math.round(result.confidence * 100)}%`} />
         <div className="w-1 h-1 rounded-full bg-border" />
-        <FooterChip icon="Ω" text="ALIS v3.1" />
+        <FooterChip icon="Ω" text="v3.1" />
       </motion.div>
 
       {/* Ask Another */}

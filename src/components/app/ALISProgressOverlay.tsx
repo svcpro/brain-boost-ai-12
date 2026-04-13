@@ -153,7 +153,7 @@ export default function ALISProgressOverlay() {
             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity }}>
               <Sparkles className="w-2.5 h-2.5 text-muted-foreground/50" />
             </motion.div>
-            <span className="text-[9px] text-muted-foreground/60 font-medium">ALIS Ω</span>
+            <span className="text-[9px] text-muted-foreground/60 font-medium">ACRY Ω</span>
           </div>
         </div>
       </div>
