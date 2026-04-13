@@ -577,6 +577,9 @@ Deno.serve(async (req) => {
     }
 
     const result = await buildSureShotPrediction(userId);
+    const examType = result.sureshot_prediction?.exam_type || "General";
+    const examIntel = await buildExamIntelligence(userId, examType);
+    (result as any).exam_intelligence = examIntel;
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
