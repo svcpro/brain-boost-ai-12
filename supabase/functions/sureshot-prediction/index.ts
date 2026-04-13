@@ -289,8 +289,28 @@ async function buildSureShotPrediction(userId: string) {
   const examQuestions = allQuestions.filter((q: any) => !examType || examType === "General" || q.exam_type === examType);
   const availableQuestionCount = examQuestions.length;
   const defaultQuestionCount = 20;
-  const practiceModes = ["calm", "exam", "rapid"];
+  const practiceModes = [
+    { key: "calm", title: "Calm Mode", subtext: "Relaxed pace, no timer pressure" },
+    { key: "exam", title: "Exam Mode", subtext: "Simulates real exam conditions with timer" },
+    { key: "rapid", title: "Rapid Fire", subtext: "Quick rounds, fast-paced challenge" },
+  ];
   const defaultPracticeMode = practiceModes[0];
+
+  // Build question list from exam questions
+  const questionList = examQuestions.slice(0, 20).map((q: any, idx: number) => {
+    const topic = topicMap.get(q.topic_id);
+    return {
+      id: q.id,
+      serial: idx + 1,
+      topic_id: q.topic_id,
+      topic_name: topic?.name || "General",
+      subject: topic?.subject || "General",
+      difficulty: q.difficulty || "medium",
+      difficulty_label: (q.difficulty || "medium").charAt(0).toUpperCase() + (q.difficulty || "medium").slice(1),
+      exam_type: q.exam_type || examType,
+    };
+  });
+
   const aiPredictedDescription = "Ultra-Advanced Trend-Based ML Research Engine v3.0 — 8-factor hybrid model analyzing multi-year patterns, cross-exam correlation, syllabus coverage gaps & examiner behavior.";
   const aiPredictedFeatureChips = [
     { label: "Trend Research", glow: true },
@@ -307,11 +327,18 @@ async function buildSureShotPrediction(userId: string) {
     subject_count: subjects.length,
     subjects_label: `${subjects.length} subject${subjects.length === 1 ? "" : "s"}`,
     question_count: defaultQuestionCount,
+    question_count_title: "Questions Per Session",
+    question_count_subtext: `${defaultQuestionCount} high-probability questions selected by AI`,
     question_count_label: `${defaultQuestionCount} per session`,
     available_question_count: availableQuestionCount,
+    available_question_count_label: `${availableQuestionCount} total available`,
     practice_mode: defaultPracticeMode,
-    practice_mode_label: "Calm",
+    practice_mode_title: "Practice Mode",
+    practice_mode_subtext: "Choose your study intensity",
     practice_modes: practiceModes,
+    question_list_title: "Predicted Question Queue",
+    question_list_subtext: `Top ${questionList.length} AI-predicted high-probability questions`,
+    question_list: questionList,
     feature_chips: aiPredictedFeatureChips,
     cta_label: "Open AI Predicted Questions",
     research_engine: "Ultra-Advanced Trend-Based ML Research Engine v3.0",
