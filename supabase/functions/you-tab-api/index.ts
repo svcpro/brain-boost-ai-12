@@ -557,16 +557,17 @@ async function buildExamIntelligence(userId: string) {
   let totalTopics = 0;
 
   if (subjects.length) {
-    const subjectTopicPromises = subjects.map((sub) =>
-      adminClient
-        .from("topics")
-        .select("memory_strength")
-        .eq("subject_id", sub.id)
-        .is("deleted_at", null)
-        .then(({ data }) => ({ sub, topics: data || [] }))
+    const subjectTopicResults = await Promise.all(
+      subjects.map((sub) =>
+        adminClient
+          .from("topics")
+          .select("memory_strength")
+          .eq("subject_id", sub.id)
+          .is("deleted_at", null)
+          .then(({ data }) => ({ sub, topics: data || [] }))
+      )
     );
 
-    const subjectTopicResults = await Promise.all(subjectTopicPromises);
     for (const { sub, topics } of subjectTopicResults) {
       if (topics.length) {
         totalTopics += topics.length;
@@ -578,7 +579,10 @@ async function buildExamIntelligence(userId: string) {
 
   subjectStrengths.sort((a, b) => b.strength - a.strength);
   const strong = subjectStrengths.filter((s) => s.strength >= 60).slice(0, 5);
-  const weak = [...subjectStrengths].filter((s) => s.strength < 60).sort((a, b) => a.strength - b.strength).slice(0, 5);
+  const weak = [...subjectStrengths]
+    .filter((s) => s.strength < 60)
+    .sort((a, b) => a.strength - b.strength)
+    .slice(0, 5);
   const readiness = subjectStrengths.length > 0
     ? Math.round(subjectStrengths.reduce((s, x) => s + x.strength, 0) / subjectStrengths.length)
     : 0;
