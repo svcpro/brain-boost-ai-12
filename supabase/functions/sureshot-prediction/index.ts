@@ -255,8 +255,8 @@ async function buildSureShotPrediction(userId: string) {
 
   // --- Stats Summary ---
   const stats = {
-    topics_analyzed: { value: `${analyzedTopics > 0 ? analyzedTopics.toLocaleString() : "2,450"}+`, label: "Topics Analyzed", icon: "TrendingUp" },
-    pattern_matches: { value: patternMatchCount > 0 ? patternMatchCount.toLocaleString() : "1,890", label: "Pattern Matches", icon: "Zap" },
+    topics_analyzed: { value: `${Math.max(analyzedTopics, totalTopics).toLocaleString()}+`, label: "Topics Analyzed", icon: "TrendingUp" },
+    pattern_matches: { value: patternMatchCount.toLocaleString(), label: "Pattern Matches", icon: "Zap" },
     accuracy_score: { value: `${accuracyScore.toFixed(1)}%`, label: "Accuracy Score", icon: "Brain" },
   };
 
