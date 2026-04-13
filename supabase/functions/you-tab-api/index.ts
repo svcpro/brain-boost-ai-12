@@ -489,39 +489,86 @@ async function buildSubscription(userId: string) {
 
 // ─── Exam Intelligence ───
 async function buildExamIntelligence(userId: string) {
-  // Profile for exam type/date
   const { data: p } = await adminClient
     .from("profiles")
     .select("exam_type, exam_date")
     .eq("id", userId)
     .maybeSingle();
 
-  const examType = p?.exam_type || "";
+  const rawExamType = p?.exam_type || "";
   const examDate = p?.exam_date || "";
+  const examVariants = rawExamType === "NEET UG"
+    ? ["NEET UG", "NEET"]
+    : rawExamType === "NEET"
+      ? ["NEET", "NEET UG"]
+      : rawExamType
+        ? [rawExamType]
+        : [];
+
   let daysRemaining: number | null = null;
   if (examDate) {
     const d = Math.ceil((new Date(examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     daysRemaining = d > 0 ? d : null;
   }
 
-  // Subject strengths
-  const { data: subjects } = await adminClient
-    .from("subjects")
-    .select("id, name")
-    .eq("user_id", userId)
-    .is("deleted_at", null);
+  const [subjectsRes, topicScoresRes, studentBriefRes, alertsRes, practiceQuestionsRes] = await Promise.all([
+    adminClient
+      .from("subjects")
+      .select("id, name")
+      .eq("user_id", userId)
+      .is("deleted_at", null),
+    examVariants.length > 0
+      ? adminClient
+          .from("exam_intel_topic_scores")
+          .select("*")
+          .in("exam_type", examVariants)
+          .order("composite_score", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [], error: null }),
+    examVariants.length > 0
+      ? adminClient
+          .from("exam_intel_student_briefs")
+          .select("*")
+          .eq("user_id", userId)
+          .in("exam_type", examVariants)
+          .order("computed_at", { ascending: false })
+          .limit(1)
+      : Promise.resolve({ data: [], error: null }),
+    examVariants.length > 0
+      ? adminClient
+          .from("exam_intel_alerts")
+          .select("*")
+          .in("exam_type", examVariants)
+          .order("created_at", { ascending: false })
+          .limit(10)
+      : Promise.resolve({ data: [], error: null }),
+    examVariants.length > 0
+      ? adminClient
+          .from("exam_intel_practice_questions")
+          .select("*")
+          .in("exam_type", examVariants)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
+  const subjects = subjectsRes.data || [];
   const subjectStrengths: { name: string; strength: number; topic_count: number }[] = [];
   let totalTopics = 0;
 
-  if (subjects?.length) {
-    for (const sub of subjects) {
-      const { data: topics } = await adminClient
+  if (subjects.length) {
+    const subjectTopicPromises = subjects.map((sub) =>
+      adminClient
         .from("topics")
         .select("memory_strength")
         .eq("subject_id", sub.id)
-        .is("deleted_at", null);
-      if (topics?.length) {
+        .is("deleted_at", null)
+        .then(({ data }) => ({ sub, topics: data || [] }))
+    );
+
+    const subjectTopicResults = await Promise.all(subjectTopicPromises);
+    for (const { sub, topics } of subjectTopicResults) {
+      if (topics.length) {
         totalTopics += topics.length;
         const avg = Math.round(topics.reduce((s, t) => s + (t.memory_strength || 0), 0) / topics.length);
         subjectStrengths.push({ name: sub.name, strength: avg, topic_count: topics.length });
@@ -531,7 +578,7 @@ async function buildExamIntelligence(userId: string) {
 
   subjectStrengths.sort((a, b) => b.strength - a.strength);
   const strong = subjectStrengths.filter((s) => s.strength >= 60).slice(0, 5);
-  const weak = subjectStrengths.filter((s) => s.strength < 60).slice(-5).reverse();
+  const weak = [...subjectStrengths].filter((s) => s.strength < 60).sort((a, b) => a.strength - b.strength).slice(0, 5);
   const readiness = subjectStrengths.length > 0
     ? Math.round(subjectStrengths.reduce((s, x) => s + x.strength, 0) / subjectStrengths.length)
     : 0;
@@ -540,8 +587,114 @@ async function buildExamIntelligence(userId: string) {
     ? daysRemaining <= 30 ? "critical" : daysRemaining <= 60 ? "high" : daysRemaining <= 90 ? "medium" : "low"
     : "unknown";
 
+  const topicScores = topicScoresRes.data || [];
+  const studentBrief = studentBriefRes.data?.[0] || null;
+  const alerts = alertsRes.data || [];
+  const practiceQuestions = practiceQuestionsRes.data || [];
+
+  const topicList = topicScores.map((t: any, idx: number) => ({
+    serial: idx + 1,
+    id: t.id,
+    topic: t.topic || "",
+    subject: t.subject || "",
+    probability_score: t.probability_score || 0,
+    probability_label: `${Math.round((t.probability_score || 0) * 100)}%`,
+    trend_direction: t.trend_direction || "stable",
+    trend_icon: t.trend_direction === "rising" ? "📈" : t.trend_direction === "declining" ? "📉" : "➡️",
+    ai_confidence: t.ai_confidence || 0,
+    ai_confidence_label: `${Math.round((t.ai_confidence || 0) * 100)}%`,
+    historical_frequency: t.historical_frequency || 0,
+    last_appeared_year: t.last_appeared_year || "",
+    consecutive_appearances: t.consecutive_appearances || 0,
+    predicted_marks_weight: t.predicted_marks_weight || 0,
+    ca_boost_score: t.ca_boost_score || 0,
+    composite_score: t.composite_score || 0,
+    composite_label: `${Math.round((t.composite_score || 0) * 100)}%`,
+    computed_at: t.computed_at || "",
+  }));
+
+  const trendSummary = {
+    rising: topicScores.filter((t: any) => t.trend_direction === "rising").length,
+    stable: topicScores.filter((t: any) => t.trend_direction === "stable").length,
+    declining: topicScores.filter((t: any) => t.trend_direction === "declining").length,
+  };
+
+  const subjectMap: Record<string, { topic: string; probability_score: number; composite_score: number; trend_direction: string }[]> = {};
+  for (const item of topicScores) {
+    const subject = item.subject || "General";
+    if (!subjectMap[subject]) subjectMap[subject] = [];
+    subjectMap[subject].push({
+      topic: item.topic || "",
+      probability_score: item.probability_score || 0,
+      composite_score: item.composite_score || 0,
+      trend_direction: item.trend_direction || "stable",
+    });
+  }
+
+  const subjectBreakdown = Object.entries(subjectMap).map(([subject, items]) => ({
+    subject,
+    topic_count: items.length,
+    avg_probability_score: Number((items.reduce((sum, item) => sum + item.probability_score, 0) / items.length).toFixed(2)),
+    avg_composite_score: Number((items.reduce((sum, item) => sum + item.composite_score, 0) / items.length).toFixed(2)),
+    topics: items,
+  }));
+
+  const brief = studentBrief
+    ? {
+        overall_readiness_score: studentBrief.overall_readiness_score || 0,
+        overall_readiness_label: `${Math.round(studentBrief.overall_readiness_score || 0)}%`,
+        predicted_hot_topics: studentBrief.predicted_hot_topics || [],
+        weakness_overlap: studentBrief.weakness_overlap || [],
+        risk_topics: studentBrief.risk_topics || [],
+        opportunity_topics: studentBrief.opportunity_topics || [],
+        recommended_actions: studentBrief.recommended_actions || [],
+        ai_strategy_summary: studentBrief.ai_strategy_summary || "",
+        computed_at: studentBrief.computed_at || "",
+      }
+    : {
+        overall_readiness_score: 0,
+        overall_readiness_label: "0%",
+        predicted_hot_topics: [],
+        weakness_overlap: [],
+        risk_topics: [],
+        opportunity_topics: [],
+        recommended_actions: [],
+        ai_strategy_summary: "",
+        computed_at: "",
+      };
+
+  const alertList = alerts.map((a: any, idx: number) => ({
+    serial: idx + 1,
+    id: a.id,
+    alert_type: a.alert_type || "",
+    topic: a.topic || "",
+    subject: a.subject || "",
+    exam_type: a.exam_type || rawExamType,
+    old_score: a.old_score || 0,
+    new_score: a.new_score || 0,
+    severity: a.severity || "info",
+    message: a.message || "",
+    is_read: !!a.is_read,
+    is_pushed: !!a.is_pushed,
+    created_at: a.created_at || "",
+  }));
+
+  const practiceList = practiceQuestions.map((q: any, idx: number) => ({
+    serial: idx + 1,
+    id: q.id,
+    exam_type: q.exam_type || rawExamType,
+    subject: q.subject || "",
+    topic: q.topic || "",
+    question_text: q.question_text || q.question || q.prompt || "",
+    difficulty: q.difficulty || "medium",
+    explanation: q.explanation || "",
+    created_at: q.created_at || "",
+  }));
+
+  const lastUpdated = topicScores[0]?.computed_at || studentBrief?.computed_at || alerts[0]?.created_at || "";
+
   return {
-    exam_type: examType,
+    exam_type: rawExamType,
     exam_date: examDate,
     days_remaining: daysRemaining,
     urgency,
@@ -552,6 +705,32 @@ async function buildExamIntelligence(userId: string) {
     strong_subjects: strong,
     weak_subjects: weak,
     all_subjects: subjectStrengths,
+    title: "Exam Intelligence",
+    subtitle: "AI-Powered Topic Probability Engine",
+    update_title: "Exam Intelligence Updates",
+    update_subtext: topicList.length > 0 ? `${topicList.length} AI-ranked topics available` : "No exam intelligence updates available yet",
+    total_topics_tracked: topicList.length,
+    topic_list_title: "Topic Probability Index (TPI)",
+    topic_list_subtext: topicList.length > 0 ? `${topicList.length} topics tracked with AI confidence scores` : "No AI-ranked topics found yet",
+    topic_list: topicList,
+    trend_summary: {
+      ...trendSummary,
+      rising_label: `${trendSummary.rising} Rising`,
+      stable_label: `${trendSummary.stable} Stable`,
+      declining_label: `${trendSummary.declining} Declining`,
+    },
+    subject_breakdown_title: "Subject-wise Analysis",
+    subject_breakdown: subjectBreakdown,
+    student_brief_title: "Your Personalized Brief",
+    student_brief: brief,
+    alerts_title: "Intelligence Alerts",
+    alerts_count: alertList.length,
+    alerts: alertList,
+    practice_questions_title: "Intel Practice Questions",
+    practice_questions_count: practiceList.length,
+    practice_questions: practiceList,
+    last_updated: lastUpdated,
+    last_updated_label: lastUpdated ? formatDate(lastUpdated) : "",
   };
 }
 
