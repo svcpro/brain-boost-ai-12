@@ -61,6 +61,131 @@ function resolveExamType(raw: string): string {
   return examAliasMap[trimmed] || examAliasMap[trimmed.toUpperCase()] || trimmed;
 }
 
+async function buildExamIntelligence(userId: string, examType: string) {
+  // Fetch exam intel data for the user's exam type (try both exact and alias)
+  const examVariants = [examType];
+  if (examType === "NEET UG") examVariants.push("NEET");
+  if (examType === "NEET") examVariants.push("NEET UG");
+
+  const [topicScoresRes, studentBriefRes, alertsRes, practiceQRes] = await Promise.all([
+    adminClient.from("exam_intel_topic_scores").select("*").in("exam_type", examVariants).order("composite_score", { ascending: false }).limit(20),
+    adminClient.from("exam_intel_student_briefs").select("*").eq("user_id", userId).in("exam_type", examVariants).order("computed_at", { ascending: false }).limit(1),
+    adminClient.from("exam_intel_alerts").select("*").in("exam_type", examVariants).eq("is_read", false).order("created_at", { ascending: false }).limit(10),
+    adminClient.from("exam_intel_practice_questions").select("*").in("exam_type", examVariants).order("created_at", { ascending: false }).limit(20),
+  ]);
+
+  const topicScores = topicScoresRes.data || [];
+  const studentBrief = studentBriefRes.data?.[0] || null;
+  const alerts = alertsRes.data || [];
+  const practiceQuestions = practiceQRes.data || [];
+
+  // Build structured topic list
+  const topicList = topicScores.map((t: any, idx: number) => ({
+    serial: idx + 1,
+    id: t.id,
+    topic: t.topic,
+    subject: t.subject,
+    probability_score: t.probability_score,
+    probability_label: `${Math.round((t.probability_score || 0) * 100)}%`,
+    trend_direction: t.trend_direction || "stable",
+    trend_icon: t.trend_direction === "rising" ? "📈" : t.trend_direction === "declining" ? "📉" : "➡️",
+    ai_confidence: t.ai_confidence,
+    ai_confidence_label: `${Math.round((t.ai_confidence || 0) * 100)}%`,
+    composite_score: t.composite_score,
+    composite_label: `${Math.round((t.composite_score || 0) * 100)}%`,
+    predicted_marks_weight: t.predicted_marks_weight,
+    ca_boost_score: t.ca_boost_score || 0,
+    last_appeared_year: t.last_appeared_year,
+    consecutive_appearances: t.consecutive_appearances || 0,
+  }));
+
+  // Rising / declining / stable counts
+  const risingCount = topicScores.filter((t: any) => t.trend_direction === "rising").length;
+  const decliningCount = topicScores.filter((t: any) => t.trend_direction === "declining").length;
+  const stableCount = topicScores.filter((t: any) => t.trend_direction === "stable").length;
+
+  // Subject-wise grouping
+  const subjectMap: Record<string, any[]> = {};
+  for (const t of topicScores) {
+    const subj = t.subject || "General";
+    if (!subjectMap[subj]) subjectMap[subj] = [];
+    subjectMap[subj].push({ topic: t.topic, probability_score: t.probability_score, trend_direction: t.trend_direction, composite_score: t.composite_score });
+  }
+  const subjectBreakdown = Object.entries(subjectMap).map(([subject, topics]) => ({
+    subject,
+    topic_count: topics.length,
+    avg_probability: Number((topics.reduce((s, t) => s + (t.probability_score || 0), 0) / topics.length).toFixed(2)),
+    topics,
+  }));
+
+  // Student brief
+  const briefData = studentBrief ? {
+    overall_readiness_score: studentBrief.overall_readiness_score,
+    readiness_label: `${Math.round(studentBrief.overall_readiness_score || 0)}%`,
+    predicted_hot_topics: studentBrief.predicted_hot_topics || [],
+    weakness_overlap: studentBrief.weakness_overlap || [],
+    risk_topics: studentBrief.risk_topics || [],
+    opportunity_topics: studentBrief.opportunity_topics || [],
+    recommended_actions: studentBrief.recommended_actions || [],
+    ai_strategy_summary: studentBrief.ai_strategy_summary || "",
+    computed_at: studentBrief.computed_at,
+  } : null;
+
+  // Alerts
+  const alertList = alerts.map((a: any) => ({
+    id: a.id,
+    alert_type: a.alert_type,
+    topic: a.topic,
+    subject: a.subject,
+    severity: a.severity,
+    message: a.message,
+    old_score: a.old_score,
+    new_score: a.new_score,
+    created_at: a.created_at,
+  }));
+
+  // Practice questions
+  const practiceList = practiceQuestions.map((q: any, idx: number) => ({
+    serial: idx + 1,
+    id: q.id,
+    question_text: q.question_text,
+    topic: q.topic,
+    subject: q.subject,
+    difficulty: q.difficulty,
+    exam_type: q.exam_type,
+    created_at: q.created_at,
+  }));
+
+  return {
+    title: "Exam Intelligence",
+    subtitle: "AI-Powered Topic Probability Engine",
+    exam_type: examType,
+    total_topics_tracked: topicScores.length,
+    trend_summary: {
+      rising: risingCount,
+      declining: decliningCount,
+      stable: stableCount,
+      rising_label: `${risingCount} Rising`,
+      declining_label: `${decliningCount} Declining`,
+      stable_label: `${stableCount} Stable`,
+    },
+    topic_list_title: "Topic Probability Index (TPI)",
+    topic_list_subtext: `${topicScores.length} topics tracked with AI confidence scores`,
+    topic_list: topicList,
+    subject_breakdown_title: "Subject-wise Analysis",
+    subject_breakdown: subjectBreakdown,
+    student_brief_title: "Your Personalized Brief",
+    student_brief: briefData,
+    alerts_title: "Intelligence Alerts",
+    alerts_count: alertList.length,
+    alerts: alertList,
+    practice_questions_title: "Intel Practice Questions",
+    practice_questions_count: practiceList.length,
+    practice_questions: practiceList,
+    last_updated: topicScores[0]?.computed_at || new Date().toISOString(),
+  };
+}
+
 async function buildSureShotPrediction(userId: string) {
   // Parallel data fetching - read exam_type from profiles (onboarding_data doesn't exist)
   const [
@@ -452,6 +577,9 @@ Deno.serve(async (req) => {
     }
 
     const result = await buildSureShotPrediction(userId);
+    const examType = result.sureshot_prediction?.exam_type || "General";
+    const examIntel = await buildExamIntelligence(userId, examType);
+    (result as any).exam_intelligence = examIntel;
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
