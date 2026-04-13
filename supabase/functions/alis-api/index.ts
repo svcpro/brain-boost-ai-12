@@ -601,7 +601,7 @@ async function handleHistory(userId: string, body: any) {
 async function handleStats(userId: string) {
   const today = new Date().toISOString().split("T")[0];
 
-  const [totalRes, todayRes, completedRes, topicsRes, gapsRes] = await Promise.all([
+  const [totalRes, todayRes, completedRes] = await Promise.all([
     adminClient.from("brainlens_queries").select("id", { count: "exact", head: true }).eq("user_id", userId),
     adminClient.from("brainlens_queries").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", `${today}T00:00:00Z`),
     adminClient.from("brainlens_queries").select("detected_topic, detected_difficulty, confidence_score, processing_time_ms, input_type").eq("user_id", userId).eq("status", "completed").order("created_at", { ascending: false }).limit(100),
