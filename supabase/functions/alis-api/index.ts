@@ -88,6 +88,29 @@ async function parseRequestBody(req: Request): Promise<Record<string, unknown>> 
   }
 }
 
+function parseQueryParams(req: Request): Record<string, unknown> {
+  const url = new URL(req.url);
+  const query = Object.fromEntries(url.searchParams.entries());
+
+  if (query.file && !query.image_base64) {
+    query.image_base64 = query.file;
+  }
+
+  return query;
+}
+
+async function parseRequestInput(req: Request): Promise<Record<string, unknown>> {
+  const [query, body] = await Promise.all([
+    Promise.resolve(parseQueryParams(req)),
+    parseRequestBody(req),
+  ]);
+
+  return {
+    ...query,
+    ...body,
+  };
+}
+
 function resolveAction(body: Record<string, unknown>): string {
   const rawAction = typeof body.action === "string" ? body.action.trim().toLowerCase() : "";
 
@@ -145,7 +168,7 @@ Deno.serve(async (req) => {
     const userId = await resolveUserId(req);
     if (!userId) return err("Unauthorized", 401);
 
-    const body = await parseRequestBody(req);
+    const body = await parseRequestInput(req);
     const action = resolveAction(body);
 
     switch (action) {
