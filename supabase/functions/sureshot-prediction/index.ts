@@ -40,11 +40,31 @@ async function resolveUserId(req: Request): Promise<string | null> {
   return null;
 }
 
+// Exam alias mapping for fuzzy match
+const examAliasMap: Record<string, string> = {
+  "NEET": "NEET UG", "neet": "NEET UG",
+  "JEE": "JEE Main", "jee": "JEE Main",
+  "SSC": "SSC CGL", "ssc": "SSC CGL",
+  "IBPS": "IBPS PO", "ibps": "IBPS PO",
+  "SBI": "SBI PO", "sbi": "SBI PO",
+  "RRB": "RRB NTPC", "rrb": "RRB NTPC",
+  "GATE CSE": "GATE", "GATE ECE": "GATE",
+};
+
+function resolveExamType(raw: string): string {
+  if (!raw || raw === "General") return "General";
+  const trimmed = raw.trim();
+  // Direct match with known exams
+  const knownExams = ["SSC CGL", "IBPS PO", "SBI PO", "RRB NTPC", "NDA", "CDS", "UPSC", "JEE Advanced", "JEE Main", "NEET UG", "CAT", "GATE"];
+  const exact = knownExams.find(e => e.toLowerCase() === trimmed.toLowerCase());
+  if (exact) return exact;
+  return examAliasMap[trimmed] || examAliasMap[trimmed.toUpperCase()] || trimmed;
+}
+
 async function buildSureShotPrediction(userId: string) {
-  // Parallel data fetching
+  // Parallel data fetching - read exam_type from profiles (onboarding_data doesn't exist)
   const [
     profileRes,
-    onboardingRes,
     memoryRes,
     studyLogsRes,
     topicsRes,
@@ -54,7 +74,6 @@ async function buildSureShotPrediction(userId: string) {
     sessionsRes,
   ] = await Promise.all([
     adminClient.from("profiles").select("*").eq("id", userId).maybeSingle(),
-    adminClient.from("onboarding_data").select("*").eq("user_id", userId).maybeSingle(),
     adminClient.from("memory_scores").select("*").eq("user_id", userId),
     adminClient.from("study_logs").select("*").eq("user_id", userId).gte("created_at", new Date(Date.now() - 30 * 86400000).toISOString()),
     adminClient.from("topics").select("id, name, subject, exam_type"),
@@ -65,7 +84,6 @@ async function buildSureShotPrediction(userId: string) {
   ]);
 
   const profile = profileRes.data || {};
-  const onboarding = onboardingRes.data || {};
   const memoryScores = memoryRes.data || [];
   const studyLogs = studyLogsRes.data || [];
   const allTopics = topicsRes.data || [];
@@ -74,7 +92,8 @@ async function buildSureShotPrediction(userId: string) {
   const confidenceSessions = confidenceRes.data || [];
   const studySessions = sessionsRes.data || [];
 
-  const examType = onboarding.exam_type || "General";
+  const rawExamType = profile.exam_type || "General";
+  const examType = resolveExamType(rawExamType);
 
   // --- Memory & Topic Analysis ---
   const topicMap = new Map(allTopics.map((t: any) => [t.id, t]));
@@ -236,8 +255,8 @@ async function buildSureShotPrediction(userId: string) {
 
   // --- Stats Summary ---
   const stats = {
-    topics_analyzed: { value: `${analyzedTopics > 0 ? analyzedTopics.toLocaleString() : "2,450"}+`, label: "Topics Analyzed", icon: "TrendingUp" },
-    pattern_matches: { value: patternMatchCount > 0 ? patternMatchCount.toLocaleString() : "1,890", label: "Pattern Matches", icon: "Zap" },
+    topics_analyzed: { value: `${Math.max(analyzedTopics, totalTopics).toLocaleString()}+`, label: "Topics Analyzed", icon: "TrendingUp" },
+    pattern_matches: { value: patternMatchCount.toLocaleString(), label: "Pattern Matches", icon: "Zap" },
     accuracy_score: { value: `${accuracyScore.toFixed(1)}%`, label: "Accuracy Score", icon: "Brain" },
   };
 
