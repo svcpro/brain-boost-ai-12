@@ -64,6 +64,30 @@ const examSubjectsMap: Record<string, string[]> = {
   "ACCA": ["Financial Accounting", "Management Accounting", "Corporate Law", "Taxation"],
 };
 
+// Alias map for common exam name variants → canonical name in examSubjectsMap
+const examAliasMap: Record<string, string> = {
+  "NEET": "NEET UG",
+  "JEE": "JEE Main",
+  "SSC": "SSC CGL",
+  "IBPS": "IBPS PO",
+  "SBI": "SBI PO",
+  "RRB": "RRB NTPC",
+};
+
+const resolveExamType = (raw: string): string => {
+  const trimmed = raw.trim();
+  // Exact match first
+  const exact = examTypes.find(e => e.toLowerCase() === trimmed.toLowerCase());
+  if (exact) return exact;
+  // Alias match
+  const alias = examAliasMap[trimmed] || examAliasMap[trimmed.toUpperCase()];
+  if (alias) return alias;
+  // Partial match (e.g. "NEET" matches "NEET UG")
+  const partial = examTypes.find(e => e.toLowerCase().startsWith(trimmed.toLowerCase()) || trimmed.toLowerCase().startsWith(e.toLowerCase()));
+  if (partial) return partial;
+  return trimmed;
+};
+
 const allSubjects = ["General Knowledge", "Mathematics", "Reasoning", "English", "Science", "History", "Geography", "Polity", "Economy", "Physics", "Chemistry", "Biology"];
 const years = [2024, 2023, 2022, 2021, 2020];
 const difficulties = ["easy", "medium", "hard"];
@@ -132,10 +156,7 @@ const ConfidencePracticeTab = () => {
   useEffect(() => {
     fetchUserExam().then(exam => {
       if (exam) {
-        const rawExam = exam.trim();
-        // Prefer exact canonical match, otherwise keep onboarding value as-is
-        const exact = examTypes.find(e => e.toLowerCase() === rawExam.toLowerCase());
-        const chosenExam = exact || rawExam;
+        const chosenExam = resolveExamType(exam);
         setSelExam(chosenExam);
         setUserExamType(chosenExam);
       }
