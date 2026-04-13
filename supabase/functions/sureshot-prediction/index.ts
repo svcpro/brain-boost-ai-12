@@ -289,6 +289,12 @@ async function buildSureShotPrediction(userId: string) {
   const examQuestions = allQuestions.filter((q: any) => !examType || examType === "General" || q.exam_type === examType);
   const availableQuestionCount = examQuestions.length;
   const defaultQuestionCount = 20;
+  const questionCountOptions = [
+    { value: 10, label: "10 Questions", subtext: "Quick practice session" },
+    { value: 20, label: "20 Questions", subtext: "Standard session — recommended", is_default: true },
+    { value: 30, label: "30 Questions", subtext: "Extended deep practice" },
+    { value: 50, label: "50 Questions", subtext: "Full-length exam simulation" },
+  ];
   const practiceModes = [
     { key: "calm", title: "Calm Mode", subtext: "Relaxed pace, no timer pressure" },
     { key: "exam", title: "Exam Mode", subtext: "Simulates real exam conditions with timer" },
@@ -297,7 +303,7 @@ async function buildSureShotPrediction(userId: string) {
   const defaultPracticeMode = practiceModes[0];
 
   // Build question list from exam questions
-  const questionList = examQuestions.slice(0, 20).map((q: any, idx: number) => {
+  const questionList = examQuestions.slice(0, defaultQuestionCount).map((q: any, idx: number) => {
     const topic = topicMap.get(q.topic_id);
     return {
       id: q.id,
