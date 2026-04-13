@@ -287,23 +287,69 @@ async function buildSureShotPrediction(userId: string) {
 
   // --- Available question count ---
   const examQuestions = allQuestions.filter((q: any) => !examType || examType === "General" || q.exam_type === examType);
-  const totalQuestionCount = examQuestions.length;
+  const availableQuestionCount = examQuestions.length;
+  const defaultQuestionCount = 20;
+  const practiceModes = ["calm", "exam", "rapid"];
+  const defaultPracticeMode = practiceModes[0];
+  const aiPredictedDescription = "Ultra-Advanced Trend-Based ML Research Engine v3.0 — 8-factor hybrid model analyzing multi-year patterns, cross-exam correlation, syllabus coverage gaps & examiner behavior.";
+  const aiPredictedFeatureChips = [
+    { label: "Trend Research", glow: true },
+    { label: "8-Factor ML", glow: true },
+    { label: "Cross-Exam Intel", glow: true },
+    { label: "Pattern Drift", glow: false },
+  ];
+  const aiPredictedQuestionsCard = {
+    title: "AI Predicted Questions",
+    badge: "ML v3.0",
+    description: aiPredictedDescription,
+    exam_type: examType,
+    subjects,
+    subject_count: subjects.length,
+    subjects_label: `${subjects.length} subject${subjects.length === 1 ? "" : "s"}`,
+    question_count: defaultQuestionCount,
+    question_count_label: `${defaultQuestionCount} per session`,
+    available_question_count: availableQuestionCount,
+    practice_mode: defaultPracticeMode,
+    practice_mode_label: "Calm",
+    practice_modes: practiceModes,
+    feature_chips: aiPredictedFeatureChips,
+    cta_label: "Open AI Predicted Questions",
+    research_engine: "Ultra-Advanced Trend-Based ML Research Engine v3.0",
+  };
 
   return {
     success: true,
     sureshot_prediction: {
       // Core prediction
       ai_match_probability: displayMatchProbability,
+      match_percentage: displayMatchProbability,
+      match_percentage_label: `${displayMatchProbability}%`,
       accuracy_score: displayAccuracyScore,
+      accuracy_score_label: `${displayAccuracyScore.toFixed(1)}%`,
       prediction_confidence: predictionConfidence,
       exam_type: examType,
       model_version: "SureShot v3.0 Ultra-ML",
       powered_by: "Ultra AI Powered",
+      title: "SureShot Prediction",
 
-      // NEW: Missing fields
+      // Display data for Postman / mobile clients
       subjects,
-      question_count: totalQuestionCount,
-      practice_modes: ["calm", "exam", "rapid"],
+      subject_count: subjects.length,
+      question_count: defaultQuestionCount,
+      question_count_label: `${defaultQuestionCount} per session`,
+      available_question_count: availableQuestionCount,
+      practice_mode: defaultPracticeMode,
+      practice_mode_label: "Calm",
+      practice_modes: practiceModes,
+      ai_predicted_questions_card: aiPredictedQuestionsCard,
+      feature_chips: aiPredictedFeatureChips,
+      ui_metadata: {
+        title: "SureShot Prediction",
+        subtitle: "Ultra AI Powered",
+        card_title: "AI Predicted Questions",
+        card_badge: "ML v3.0",
+        card_description: aiPredictedDescription,
+      },
 
       // Stats for hero card
       stats,
