@@ -35,6 +35,79 @@ function sanitize(obj: unknown): unknown {
   return obj;
 }
 
+async function formDataToBody(formData: FormData): Promise<Record<string, unknown>> {
+  const entries = await Promise.all(
+    Array.from(formData.entries()).map(async ([key, value]) => {
+      if (value instanceof File) {
+        const bytes = new Uint8Array(await value.arrayBuffer());
+        const base64 = btoa(String.fromCharCode(...bytes));
+        return [key, base64] as const;
+      }
+      return [key, value] as const;
+    }),
+  );
+
+  const body = Object.fromEntries(entries);
+  const uploadedFile = body.file || body.image || body.pdf || body.document;
+
+  if (uploadedFile && !body.image_base64) {
+    body.image_base64 = uploadedFile;
+  }
+
+  return body;
+}
+
+async function parseRequestBody(req: Request): Promise<Record<string, unknown>> {
+  if (!["POST", "PUT", "PATCH"].includes(req.method)) return {};
+
+  const contentType = (req.headers.get("content-type") || "").toLowerCase();
+
+  if (contentType.includes("multipart/form-data")) {
+    return await formDataToBody(await req.formData());
+  }
+
+  const raw = await req.text();
+  if (!raw.trim()) return {};
+
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    return Object.fromEntries(new URLSearchParams(raw).entries());
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    if (contentType.includes("text/plain")) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return { content: raw };
+      }
+    }
+
+    return Object.fromEntries(new URLSearchParams(raw).entries());
+  }
+}
+
+function resolveAction(body: Record<string, unknown>): string {
+  const rawAction = typeof body.action === "string" ? body.action.trim().toLowerCase() : "";
+
+  if (["solve", "query", "analyze", "analyse"].includes(rawAction)) return "solve";
+  if (["init", "suggest", "history", "stats"].includes(rawAction)) return rawAction;
+
+  const hasSolvePayload = Boolean(
+    body.input_type ||
+    body.content ||
+    body.image_base64 ||
+    body.url ||
+    body.file ||
+    body.image ||
+    body.pdf ||
+    body.document,
+  );
+
+  return hasSolvePayload ? "solve" : "init";
+}
+
 /* ───── auth ───── */
 
 async function resolveUserId(req: Request): Promise<string | null> {
@@ -72,8 +145,8 @@ Deno.serve(async (req) => {
     const userId = await resolveUserId(req);
     if (!userId) return err("Unauthorized", 401);
 
-    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const action = body.action || "init";
+    const body = await parseRequestBody(req);
+    const action = resolveAction(body);
 
     switch (action) {
       case "init":       return await handleInit(userId);
@@ -209,9 +282,22 @@ Concise questions (1 line max). No markdown.`;
    ═══════════════════════════════════════════ */
 
 async function handleSolve(userId: string, body: any) {
-  const { input_type, content, image_base64, url } = body;
+  const inferredInputType =
+    body.input_type ||
+    (body.image_base64 || body.file || body.image || body.pdf || body.document ? "upload" : body.url ? "url" : body.content ? "text" : "");
+
+  const normalizedInputType = String(inferredInputType || "").trim().toLowerCase();
+  const normalizedImageBase64 = body.image_base64 || body.file || body.image || body.pdf || body.document || "";
+  const normalizedUrl = body.url || body.link || "";
+  const normalizedContent = typeof body.content === "string" ? body.content : "";
+
+  const input_type = normalizedInputType;
+  const content = normalizedContent;
+  const image_base64 = normalizedImageBase64;
+  const url = normalizedUrl;
 
   if (!input_type) return err("Missing input_type (scan|text|upload|url)");
+  if (!["scan", "text", "upload", "url"].includes(input_type)) return err("Invalid input_type. Use scan, text, upload, or url");
   if (!content && !image_base64 && !url) return err("Missing content, image_base64, or url");
 
   const today = new Date().toISOString().split("T")[0];
@@ -515,7 +601,7 @@ async function handleHistory(userId: string, body: any) {
 async function handleStats(userId: string) {
   const today = new Date().toISOString().split("T")[0];
 
-  const [totalRes, todayRes, completedRes, topicsRes, gapsRes] = await Promise.all([
+  const [totalRes, todayRes, completedRes] = await Promise.all([
     adminClient.from("brainlens_queries").select("id", { count: "exact", head: true }).eq("user_id", userId),
     adminClient.from("brainlens_queries").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", `${today}T00:00:00Z`),
     adminClient.from("brainlens_queries").select("detected_topic, detected_difficulty, confidence_score, processing_time_ms, input_type").eq("user_id", userId).eq("status", "completed").order("created_at", { ascending: false }).limit(100),
