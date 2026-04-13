@@ -293,8 +293,8 @@ const AppDashboard = () => {
           )}
 
 
-          {/* BrainLens Floating Button */}
-          <BrainLensButton />
+          {/* BrainLens Floating Button - Hidden */}
+          {/* <BrainLensButton /> */}
 
           {/* Bottom Nav — contained inside device frame */}
           <nav className="absolute bottom-0 left-0 right-0 glass-strong border-t border-border z-40">
