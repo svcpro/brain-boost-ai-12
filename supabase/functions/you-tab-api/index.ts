@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
         return await handleExamTypesList();
       default:
         return err(`Unknown action: ${action}`);
+    }
   } catch (e: any) {
     return err(e.message || "Internal error", 500);
   }
