@@ -155,6 +155,14 @@ Deno.serve(async (req) => {
         return await handleChangeExam(userId, body);
       case "exam_types_list":
         return await handleExamTypesList();
+      case "manage_subscription":
+        return await handleManageSubscription(userId);
+      case "subscription_plans":
+        return await handleSubscriptionPlans(userId);
+      case "payment_history":
+        return await handlePaymentHistory(userId);
+      case "cancel_subscription":
+        return await handleCancelSubscription(userId, body);
       default:
         return err(`Unknown action: ${action}`);
     }
