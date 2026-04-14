@@ -151,6 +151,10 @@ Deno.serve(async (req) => {
         return await handleMonthlySnapshot(userId);
       case "achievements":
         return await handleAchievements(userId);
+      case "change_exam":
+        return await handleChangeExam(userId, body);
+      case "exam_types_list":
+        return await handleExamTypesList();
       default:
         return err(`Unknown action: ${action}`);
     }
@@ -896,4 +900,122 @@ async function buildAchievements(userId: string) {
     earned,
     locked,
   };
+}
+
+/* ══════════════════════════════════════════════════
+   ACTION: change_exam — Update exam type & date
+   ══════════════════════════════════════════════════ */
+
+const SUPPORTED_EXAM_TYPES = [
+  { key: "NEET UG", label: "NEET UG", category: "Medical" },
+  { key: "NEET PG", label: "NEET PG", category: "Medical" },
+  { key: "AIIMS", label: "AIIMS", category: "Medical" },
+  { key: "JEE Main", label: "JEE Main", category: "Engineering" },
+  { key: "JEE Advanced", label: "JEE Advanced", category: "Engineering" },
+  { key: "BITSAT", label: "BITSAT", category: "Engineering" },
+  { key: "VITEEE", label: "VITEEE", category: "Engineering" },
+  { key: "UPSC CSE", label: "UPSC CSE", category: "Civil Services" },
+  { key: "UPSC IFS", label: "UPSC IFS", category: "Civil Services" },
+  { key: "UPSC CDS", label: "UPSC CDS", category: "Civil Services" },
+  { key: "UPSC NDA", label: "UPSC NDA", category: "Defence" },
+  { key: "SSC CGL", label: "SSC CGL", category: "Government Jobs" },
+  { key: "SSC CHSL", label: "SSC CHSL", category: "Government Jobs" },
+  { key: "SSC MTS", label: "SSC MTS", category: "Government Jobs" },
+  { key: "IBPS PO", label: "IBPS PO", category: "Government Jobs" },
+  { key: "IBPS Clerk", label: "IBPS Clerk", category: "Government Jobs" },
+  { key: "RBI Grade B", label: "RBI Grade B", category: "Government Jobs" },
+  { key: "CAT", label: "CAT", category: "MBA" },
+  { key: "XAT", label: "XAT", category: "MBA" },
+  { key: "MAT", label: "MAT", category: "MBA" },
+  { key: "CLAT", label: "CLAT", category: "Law" },
+  { key: "AILET", label: "AILET", category: "Law" },
+  { key: "GATE", label: "GATE", category: "Engineering" },
+  { key: "UGC NET", label: "UGC NET", category: "Academic" },
+  { key: "CUET", label: "CUET", category: "Academic" },
+  { key: "CBSE Board", label: "CBSE Board", category: "Board" },
+  { key: "ICSE Board", label: "ICSE Board", category: "Board" },
+  { key: "State Board", label: "State Board", category: "Board" },
+  { key: "GRE", label: "GRE", category: "International" },
+  { key: "GMAT", label: "GMAT", category: "International" },
+  { key: "TOEFL", label: "TOEFL", category: "International" },
+  { key: "IELTS", label: "IELTS", category: "International" },
+  { key: "SAT", label: "SAT", category: "International" },
+  { key: "ACT", label: "ACT", category: "International" },
+  { key: "AFCAT", label: "AFCAT", category: "Defence" },
+  { key: "CAPF", label: "CAPF", category: "Defence" },
+  { key: "Railway RRB", label: "Railway RRB", category: "Government Jobs" },
+  { key: "CTET", label: "CTET", category: "Academic" },
+  { key: "CA Foundation", label: "CA Foundation", category: "Professional" },
+  { key: "CA Inter", label: "CA Inter", category: "Professional" },
+];
+
+async function handleChangeExam(userId: string, body: any) {
+  const newExamType = body.exam_type || body.examType || "";
+  const newExamDate = body.exam_date || body.examDate || "";
+
+  if (!newExamType && !newExamDate) {
+    return err("Please provide exam_type or exam_date to update");
+  }
+
+  // Build update object
+  const updateObj: Record<string, unknown> = {};
+  if (newExamType) {
+    // Validate exam type
+    const valid = SUPPORTED_EXAM_TYPES.find((e) => e.key.toLowerCase() === newExamType.toLowerCase());
+    if (!valid) {
+      return err(`Invalid exam_type: "${newExamType}". Use action "exam_types_list" to see supported exams.`);
+    }
+    updateObj.exam_type = valid.key; // Canonical name
+  }
+  if (newExamDate) {
+    // Validate date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newExamDate)) {
+      return err("exam_date must be in YYYY-MM-DD format");
+    }
+    updateObj.exam_date = newExamDate;
+  }
+
+  // Update profile
+  const { error: updateError } = await adminClient
+    .from("profiles")
+    .update(updateObj)
+    .eq("id", userId);
+
+  if (updateError) {
+    return err(`Failed to update profile: ${updateError.message}`, 500);
+  }
+
+  // Return refreshed exam intelligence + profile
+  const [profile, exam] = await Promise.all([
+    buildProfile(userId),
+    buildExamIntelligence(userId),
+  ]);
+
+  return ok({
+    success: true,
+    message: "Exam settings updated successfully",
+    updated_fields: Object.keys(updateObj),
+    profile,
+    exam_intelligence: exam,
+  });
+}
+
+async function handleExamTypesList() {
+  // Group by category
+  const categories: Record<string, { key: string; label: string }[]> = {};
+  for (const exam of SUPPORTED_EXAM_TYPES) {
+    if (!categories[exam.category]) categories[exam.category] = [];
+    categories[exam.category].push({ key: exam.key, label: exam.label });
+  }
+
+  return ok({
+    success: true,
+    total_exam_types: SUPPORTED_EXAM_TYPES.length,
+    exam_types: SUPPORTED_EXAM_TYPES,
+    categories: Object.entries(categories).map(([category, exams]) => ({
+      category,
+      count: exams.length,
+      exams,
+    })),
+  });
 }
