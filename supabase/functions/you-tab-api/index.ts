@@ -1027,3 +1027,168 @@ async function handleExamTypesList() {
     })),
   });
 }
+
+/* ══════════════════════════════════════════════════
+   MANAGE SUBSCRIPTION ACTIONS
+   ══════════════════════════════════════════════════ */
+
+async function handleManageSubscription(userId: string) {
+  const [subscription, plans, history] = await Promise.all([
+    buildSubscription(userId),
+    buildAvailablePlans(userId),
+    buildPaymentHistory(userId),
+  ]);
+
+  return ok({
+    success: true,
+    manage_subscription: {
+      current_subscription: subscription,
+      available_plans: plans,
+      payment_history: history,
+      actions: {
+        upgrade: { enabled: !subscription.is_premium, label: "Upgrade to Premium", cta: "upgrade" },
+        cancel: { enabled: subscription.is_active && !subscription.is_trial, label: "Cancel Subscription", cta: "cancel" },
+        change_billing: { enabled: subscription.is_active && !subscription.is_trial, label: "Change Billing Cycle", cta: "change_billing" },
+        reactivate: { enabled: !subscription.is_active, label: "Reactivate Subscription", cta: "reactivate" },
+      },
+      support: {
+        email: "support@acry.ai",
+        message: "Need help? Contact us for billing support.",
+      },
+    },
+  });
+}
+
+async function buildAvailablePlans(_userId: string) {
+  const { data: plans } = await adminClient
+    .from("subscription_plans")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order");
+
+  if (!plans || plans.length === 0) {
+    return [
+      {
+        plan_key: "premium",
+        name: "ACRY Premium",
+        description: "Full access to all AI-powered features",
+        monthly_price: 149,
+        yearly_price: 1499,
+        currency: "INR",
+        features: [
+          "AI Second Brain",
+          "Focus Study Mode",
+          "Neural Memory Map",
+          "AI Strategy Engine",
+          "Voice Notifications",
+          "Unlimited Usage",
+          "Priority Support",
+        ],
+        is_recommended: true,
+        savings_yearly_pct: 16,
+      },
+    ];
+  }
+
+  return plans.map((p: any) => ({
+    id: p.id,
+    plan_key: p.plan_key,
+    name: p.name || p.plan_key,
+    description: p.description || "",
+    monthly_price: p.monthly_price || 149,
+    yearly_price: p.yearly_price || 1499,
+    currency: p.currency || "INR",
+    trial_days: p.trial_days || 15,
+    features: p.features || [],
+    is_recommended: p.plan_key === "premium",
+    savings_yearly_pct: p.monthly_price
+      ? Math.round(100 - ((p.yearly_price || 0) / (p.monthly_price * 12)) * 100)
+      : 0,
+  }));
+}
+
+async function buildPaymentHistory(userId: string) {
+  const { data } = await adminClient
+    .from("user_subscriptions")
+    .select("id, plan_id, billing_cycle, amount, currency, status, is_trial, created_at, expires_at, razorpay_payment_id, razorpay_order_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (!data || data.length === 0) return [];
+
+  return data.map((s: any) => ({
+    id: s.id,
+    plan: s.plan_id,
+    billing_cycle: s.billing_cycle || "",
+    amount: s.amount || 0,
+    currency: s.currency || "INR",
+    status: s.status,
+    is_trial: s.is_trial || false,
+    date: s.created_at,
+    expires_at: s.expires_at || "",
+    payment_id: s.razorpay_payment_id || "",
+    order_id: s.razorpay_order_id || "",
+    label: s.is_trial
+      ? "Free Trial Activated"
+      : `₹${s.amount || 0} · ${(s.billing_cycle || "monthly").charAt(0).toUpperCase() + (s.billing_cycle || "monthly").slice(1)}`,
+    status_badge: s.status === "active" ? "Active" : s.status === "superseded" ? "Replaced" : s.status,
+  }));
+}
+
+async function handleSubscriptionPlans(userId: string) {
+  const plans = await buildAvailablePlans(userId);
+  return ok({ success: true, plans });
+}
+
+async function handlePaymentHistory(userId: string) {
+  const history = await buildPaymentHistory(userId);
+  return ok({ success: true, payment_history: history, total: history.length });
+}
+
+async function handleCancelSubscription(userId: string, body: any) {
+  const reason = body.reason || "";
+
+  // Get active subscription
+  const { data: sub } = await adminClient
+    .from("user_subscriptions")
+    .select("id, is_trial, status")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!sub) {
+    return err("No active subscription found");
+  }
+
+  if (sub.is_trial) {
+    return err("Cannot cancel a trial. It will expire automatically.");
+  }
+
+  // Mark subscription as cancelled
+  const { error } = await adminClient
+    .from("user_subscriptions")
+    .update({ status: "cancelled" })
+    .eq("id", sub.id);
+
+  if (error) {
+    return err("Failed to cancel subscription");
+  }
+
+  // Log the cancellation
+  await adminClient.from("admin_audit_logs").insert({
+    admin_id: userId,
+    action: "subscription_cancelled",
+    target_type: "subscription",
+    target_id: sub.id,
+    details: { reason, cancelled_by: "user" },
+  }).then(() => {}).catch(() => {});
+
+  return ok({
+    success: true,
+    message: "Subscription cancelled successfully. You will retain access until the current billing period ends.",
+    subscription: await buildSubscription(userId),
+  });
+}
