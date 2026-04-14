@@ -151,9 +151,12 @@ Deno.serve(async (req) => {
         return await handleMonthlySnapshot(userId);
       case "achievements":
         return await handleAchievements(userId);
+      case "change_exam":
+        return await handleChangeExam(userId, body);
+      case "exam_types_list":
+        return await handleExamTypesList();
       default:
         return err(`Unknown action: ${action}`);
-    }
   } catch (e: any) {
     return err(e.message || "Internal error", 500);
   }
