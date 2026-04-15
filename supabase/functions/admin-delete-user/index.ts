@@ -94,6 +94,23 @@ Deno.serve(async (req) => {
       details: { deleted_by: caller.id },
     });
 
+    // Clean up tables with non-CASCADE FK to auth.users
+    await Promise.all([
+      serviceClient.from("autopilot_sessions").delete().eq("user_id", target_user_id),
+      serviceClient.from("distraction_events").delete().eq("user_id", target_user_id),
+      serviceClient.from("distraction_scores").delete().eq("user_id", target_user_id),
+      serviceClient.from("focus_shield_warnings").delete().eq("user_id", target_user_id),
+      serviceClient.from("user_autopilot_preferences").delete().eq("user_id", target_user_id),
+    ]);
+
+    // Null out updated_by references in config tables
+    await Promise.all([
+      serviceClient.from("autopilot_config").update({ updated_by: null }).eq("updated_by", target_user_id),
+      serviceClient.from("exam_countdown_config").update({ updated_by: null }).eq("updated_by", target_user_id),
+      serviceClient.from("focus_shield_config").update({ updated_by: null }).eq("updated_by", target_user_id),
+      serviceClient.from("sureshot_admin_config").update({ updated_by: null }).eq("updated_by", target_user_id),
+    ]);
+
     // Delete user from auth (cascades to profiles and other FK-referenced tables)
     const { error: deleteError } = await serviceClient.auth.admin.deleteUser(target_user_id);
 
