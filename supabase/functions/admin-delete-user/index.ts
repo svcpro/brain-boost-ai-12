@@ -94,11 +94,50 @@ Deno.serve(async (req) => {
       details: { deleted_by: caller.id },
     });
 
+    // Clean up tables with non-CASCADE FK to auth.users
+    await Promise.all([
+      serviceClient.from("autopilot_sessions").delete().eq("user_id", target_user_id),
+      serviceClient.from("distraction_events").delete().eq("user_id", target_user_id),
+      serviceClient.from("distraction_scores").delete().eq("user_id", target_user_id),
+      serviceClient.from("focus_shield_warnings").delete().eq("user_id", target_user_id),
+      serviceClient.from("user_autopilot_preferences").delete().eq("user_id", target_user_id),
+    ]);
+
+    // Null out updated_by references in config tables
+    await Promise.all([
+      serviceClient.from("autopilot_config").update({ updated_by: null }).eq("updated_by", target_user_id),
+      serviceClient.from("exam_countdown_config").update({ updated_by: null }).eq("updated_by", target_user_id),
+      serviceClient.from("focus_shield_config").update({ updated_by: null }).eq("updated_by", target_user_id),
+      serviceClient.from("sureshot_admin_config").update({ updated_by: null }).eq("updated_by", target_user_id),
+    ]);
+
+    // Clean up topic-related tables (topics cascade from auth.users but these tables reference topics without CASCADE)
+    const { data: userTopics } = await serviceClient
+      .from("topics")
+      .select("id")
+      .eq("user_id", target_user_id);
+
+    if (userTopics?.length) {
+      const topicIds = userTopics.map((t: any) => t.id);
+      await Promise.all([
+        serviceClient.from("topic_decay_models").delete().in("topic_id", topicIds),
+        serviceClient.from("behavioral_micro_events").delete().in("topic_id", topicIds),
+        serviceClient.from("weakness_predictions").delete().in("topic_id", topicIds),
+        serviceClient.from("exam_intel_topic_scores").delete().in("topic_id", topicIds),
+      ]);
+      // Null out nullable topic references
+      for (const tid of topicIds) {
+        await serviceClient.from("brain_missions").update({ target_topic_id: null }).eq("target_topic_id", tid);
+        await serviceClient.from("autopilot_sessions").update({ emergency_topic_id: null }).eq("emergency_topic_id", tid);
+      }
+    }
+
     // Delete user from auth (cascades to profiles and other FK-referenced tables)
     const { error: deleteError } = await serviceClient.auth.admin.deleteUser(target_user_id);
 
     if (deleteError) {
-      return new Response(JSON.stringify({ error: deleteError.message }), {
+      console.error("Delete user error:", JSON.stringify(deleteError));
+      return new Response(JSON.stringify({ error: deleteError.message, details: deleteError }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
