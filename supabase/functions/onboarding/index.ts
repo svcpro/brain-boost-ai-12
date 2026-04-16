@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       if (authSources.length === 0 && apiKeySources.length === 0) {
         console.log("[onboarding/status] Missing auth inputs", {
           hasAuthHeader: !!headerAuthorization,
-          hasApikeyHeader: headerApiKeyCandidates.length > 0,
+          hasApikeyHeader: !!headerApiKey,
           hasQueryAuthorization: !!queryAuthorization,
           hasQueryApikey: !!queryApiKey,
           hasBodyAuthorization: !!bodyAuthorization,
@@ -226,11 +226,7 @@ Deno.serve(async (req) => {
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       if ((topicCount || 0) > 0) currentStep = 5;
-      // study_preferences defaults to {} — only count as step 6 if it has meaningful keys (e.g. study_mode or onboarded)
-      const studyPrefs = profile?.study_preferences as Record<string, unknown> | null;
-      const hasRealPrefs = studyPrefs && typeof studyPrefs === "object" && Object.keys(studyPrefs).length > 0 &&
-        (studyPrefs.study_mode || studyPrefs.onboarded);
-      if (hasRealPrefs) currentStep = 6;
+      if (profile?.study_preferences) currentStep = 6;
       if (onboarded) currentStep = 6;
 
       return json({

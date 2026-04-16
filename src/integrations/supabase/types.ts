@@ -6234,30 +6234,6 @@ export type Database = {
         }
         Relationships: []
       }
-      otp_auth_sessions: {
-        Row: {
-          created_at: string
-          expires_at: string
-          id: string
-          token_hash: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          expires_at: string
-          id?: string
-          token_hash: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          id?: string
-          token_hash?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       pattern_evolution_logs: {
         Row: {
           affected_topics: string[] | null
