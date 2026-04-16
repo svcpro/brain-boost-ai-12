@@ -280,16 +280,48 @@ async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string
 
 async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
   const phoneE164 = `+${normalizedMobile}`;
+  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
 
-  const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-  const existingUser = existingUsers?.users?.find(
-    (u) => u.phone === phoneE164 || u.phone === normalizedMobile
-  );
+  // Query auth.users directly by phone — avoids pagination issues with listUsers()
+  const { data: matchedRows } = await adminClient
+    .from("profiles")
+    .select("id")
+    .or(`phone.eq.${phoneE164},phone.eq.${normalizedMobile}`)
+    .limit(1)
+    .maybeSingle();
+
+  // Also try to find by the placeholder email or phone via admin API
+  let existingUser = null;
+
+  // First: try fetching all pages isn't feasible. Use getUserByEmail as a fast lookup.
+  try {
+    const { data: byEmail } = await adminClient.auth.admin.listUsers({ filter: `email=${placeholderEmail}` } as any);
+    if (byEmail?.users?.length) {
+      existingUser = byEmail.users[0];
+    }
+  } catch { /* filter not supported in all versions, fallback below */ }
+
+  // If not found by email, do a targeted search by iterating pages
+  if (!existingUser) {
+    let page = 1;
+    const perPage = 1000;
+    while (true) {
+      const { data: pageData } = await adminClient.auth.admin.listUsers({ page, perPage });
+      if (!pageData?.users?.length) break;
+      const found = pageData.users.find(
+        (u) => u.phone === phoneE164 || u.phone === normalizedMobile || u.email === placeholderEmail
+      );
+      if (found) { existingUser = found; break; }
+      if (pageData.users.length < perPage) break;
+      page++;
+    }
+  }
 
   if (existingUser) {
+    console.log(`[MSG91] Found existing user ${existingUser.id} for phone ${phoneE164}`);
     const { data: sessionData, error } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
-      email: existingUser.email || `${normalizedMobile}@phone.acry.ai`,
+      email: existingUser.email || placeholderEmail,
     });
     if (error) throw error;
 
@@ -302,7 +334,6 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
     };
   }
 
-  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
   const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
     phone: phoneE164,
     email: placeholderEmail,
@@ -323,6 +354,7 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   });
   if (sessionError) throw sessionError;
 
+  console.log(`[MSG91] Created new user ${newUser.user.id} for phone ${phoneE164}`);
   return {
     isNewUser: true,
     userId: newUser.user.id,
