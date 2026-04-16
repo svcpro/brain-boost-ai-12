@@ -469,13 +469,22 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
   return json({ success: false, verified: false, error: "OTP verification failed" }, 400);
 }
 
-async function handleResendSMS(authKey: string, mobile: string) {
+async function handleResendSMS(authKey: string, templateId: string, mobile: string) {
+  // First try MSG91 resend
   const { data } = await msg91ResendOTP(authKey, mobile, "text");
-  return json({
-    success: data.type === "success",
-    message: data.message || (data.type === "success" ? "OTP resent via SMS" : "Failed to resend"),
-    channel: "sms",
-  });
+  
+  if (data.type === "success") {
+    return json({ success: true, message: "OTP resent via SMS", channel: "sms" });
+  }
+  
+  // If MSG91 says "already verified" or similar error, send a fresh OTP
+  const msg = (data.message || "").toLowerCase();
+  if (msg.includes("already verified") || msg.includes("no pending otp") || msg.includes("expired")) {
+    console.log("[MSG91] Resend failed, sending fresh OTP:", data.message);
+    return await handleSendSMS(authKey, templateId, mobile);
+  }
+
+  return json({ success: false, message: data.message || "Failed to resend", channel: "sms" });
 }
 
 async function handleResendWhatsApp(authKey: string, mobile: string) {
