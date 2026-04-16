@@ -398,14 +398,24 @@ Deno.serve(async (req) => {
       if (!userId) return json({ error: "Unauthorized" }, 401);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+      // Fetch existing profile to merge study_preferences
+      const { data: existingProfile } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
+      const existingPrefs = typeof existingProfile?.study_preferences === "object" && existingProfile.study_preferences ? existingProfile.study_preferences : {};
+
       const updates: Record<string, unknown> = {};
       if (requestBody.display_name) updates.display_name = requestBody.display_name;
       if (requestBody.exam_type) updates.exam_type = requestBody.exam_type;
       if (requestBody.exam_date) updates.exam_date = requestBody.exam_date;
-      if (requestBody.study_mode) updates.study_preferences = { study_mode: requestBody.study_mode };
-      if (Object.keys(updates).length > 0) {
-        await adminClient.from("profiles").update(updates).eq("id", userId);
-      }
+
+      // Merge study_preferences: keep existing, add study_mode if provided, set onboarded=true
+      const mergedPrefs: Record<string, unknown> = { ...existingPrefs as Record<string, unknown> };
+      if (requestBody.study_mode) mergedPrefs.study_mode = requestBody.study_mode;
+      mergedPrefs.onboarded = true;
+      updates.study_preferences = mergedPrefs;
+      updates.onboarding_completed = true;
+
+      await adminClient.from("profiles").update(updates).eq("id", userId);
 
       let subjectsCreated = 0, topicsCreated = 0;
       if (requestBody.subjects && Array.isArray(requestBody.subjects)) {
@@ -424,9 +434,6 @@ Deno.serve(async (req) => {
           }
         }
       }
-
-      // Mark onboarding as completed
-      await adminClient.from("profiles").update({ onboarding_completed: true }).eq("id", userId);
 
       return json({ success: true, redirect_to: "/app", profile_updated: true, subjects_created: subjectsCreated, topics_created: topicsCreated });
     }
