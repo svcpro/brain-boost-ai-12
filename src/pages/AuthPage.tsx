@@ -229,17 +229,28 @@ const AuthPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      if (data?.verified && data?.token_hash) {
+      if (!data?.verified) {
+        throw new Error(data?.message || "Verification failed");
+      }
+
+      if (data?.access_token && data?.refresh_token) {
+        const { error: sessionErr } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+        if (sessionErr) throw sessionErr;
+      } else if (data?.token_hash) {
         const { error: verifyErr } = await supabase.auth.verifyOtp({
           token_hash: data.token_hash,
-          type: "magiclink",
+          type: data?.verification_type || "magiclink",
         });
         if (verifyErr) throw verifyErr;
-        setVerifySuccess(true);
-        setTimeout(() => navigate("/app"), 800);
       } else {
-        throw new Error("Verification failed");
+        throw new Error("Missing session payload from verification response");
       }
+
+      setVerifySuccess(true);
+      setTimeout(() => navigate("/app"), 800);
     } catch (error: any) {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
       setOtpCode(["", "", "", ""]);
