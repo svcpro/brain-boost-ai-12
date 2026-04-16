@@ -447,7 +447,9 @@ Deno.serve(async (req) => {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await adminClient.from("profiles").update({ onboarding_completed: true }).eq("id", userId);
+      const { data: existing } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
+      const merged = { ...(typeof existing?.study_preferences === "object" && existing.study_preferences ? existing.study_preferences : {}), onboarded: true };
+      await adminClient.from("profiles").update({ onboarding_completed: true, study_preferences: merged }).eq("id", userId);
       return json({ success: true, redirect_to: "/app" });
     }
 
