@@ -365,7 +365,10 @@ Deno.serve(async (req) => {
       const studyMode = String(requestBody.study_mode || "focus").trim();
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await adminClient.from("profiles").update({ study_preferences: { study_mode: studyMode } }).eq("id", userId);
+      // Merge into existing study_preferences instead of overwriting
+      const { data: existing } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
+      const merged = { ...(typeof existing?.study_preferences === "object" && existing.study_preferences ? existing.study_preferences : {}), study_mode: studyMode };
+      await adminClient.from("profiles").update({ study_preferences: merged }).eq("id", userId);
       return json({ success: true });
     }
 
@@ -382,7 +385,11 @@ Deno.serve(async (req) => {
       if (data.display_name) updates.display_name = data.display_name;
       if (data.exam_type) updates.exam_type = data.exam_type;
       if (data.exam_date) updates.exam_date = data.exam_date;
-      if (data.study_mode) updates.study_preferences = { study_mode: data.study_mode };
+      if (data.study_mode) {
+        const { data: existing } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
+        const merged = { ...(typeof existing?.study_preferences === "object" && existing.study_preferences ? existing.study_preferences : {}), study_mode: data.study_mode };
+        updates.study_preferences = merged;
+      }
       if (Object.keys(updates).length > 0) {
         await adminClient.from("profiles").update(updates).eq("id", userId);
       }
@@ -395,14 +402,24 @@ Deno.serve(async (req) => {
       if (!userId) return json({ error: "Unauthorized" }, 401);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+      // Fetch existing profile to merge study_preferences
+      const { data: existingProfile } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
+      const existingPrefs = typeof existingProfile?.study_preferences === "object" && existingProfile.study_preferences ? existingProfile.study_preferences : {};
+
       const updates: Record<string, unknown> = {};
       if (requestBody.display_name) updates.display_name = requestBody.display_name;
       if (requestBody.exam_type) updates.exam_type = requestBody.exam_type;
       if (requestBody.exam_date) updates.exam_date = requestBody.exam_date;
-      if (requestBody.study_mode) updates.study_preferences = { study_mode: requestBody.study_mode };
-      if (Object.keys(updates).length > 0) {
-        await adminClient.from("profiles").update(updates).eq("id", userId);
-      }
+
+      // Merge study_preferences: keep existing, add study_mode if provided, set onboarded=true
+      const mergedPrefs: Record<string, unknown> = { ...existingPrefs as Record<string, unknown> };
+      if (requestBody.study_mode) mergedPrefs.study_mode = requestBody.study_mode;
+      mergedPrefs.onboarded = true;
+      updates.study_preferences = mergedPrefs;
+      updates.onboarding_completed = true;
+
+      await adminClient.from("profiles").update(updates).eq("id", userId);
 
       let subjectsCreated = 0, topicsCreated = 0;
       if (requestBody.subjects && Array.isArray(requestBody.subjects)) {
@@ -421,9 +438,6 @@ Deno.serve(async (req) => {
           }
         }
       }
-
-      // Mark onboarding as completed
-      await adminClient.from("profiles").update({ onboarding_completed: true }).eq("id", userId);
 
       return json({ success: true, redirect_to: "/app", profile_updated: true, subjects_created: subjectsCreated, topics_created: topicsCreated });
     }
