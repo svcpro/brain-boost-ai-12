@@ -278,56 +278,116 @@ async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string
 
 // ─── User Session Helpers ────────────────────────────────
 
-async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
+async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
   const phoneE164 = `+${normalizedMobile}`;
+  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
 
-  const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-  const existingUser = existingUsers?.users?.find(
-    (u) => u.phone === phoneE164 || u.phone === normalizedMobile
-  );
+  // Look up user by phone using admin API with proper filtering (not listUsers)
+  let existingUser: any = null;
+  let isNewUser = false;
 
-  if (existingUser) {
-    const { data: sessionData, error } = await adminClient.auth.admin.generateLink({
-      type: "magiclink",
-      email: existingUser.email || `${normalizedMobile}@phone.acry.ai`,
+  // Try to find by phone in profiles table first (fast indexed lookup)
+  const { data: profileRow } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("phone", phoneE164)
+    .maybeSingle();
+
+  if (profileRow?.id) {
+    const { data: userData } = await adminClient.auth.admin.getUserById(profileRow.id);
+    if (userData?.user) existingUser = userData.user;
+  }
+
+  // Fallback: try by email pattern
+  if (!existingUser) {
+    const { data: profileByEmail } = await adminClient
+      .from("profiles")
+      .select("id")
+      .eq("email", placeholderEmail)
+      .maybeSingle();
+    if (profileByEmail?.id) {
+      const { data: userData } = await adminClient.auth.admin.getUserById(profileByEmail.id);
+      if (userData?.user) existingUser = userData.user;
+    }
+  }
+
+  // Fallback: list users with per_page=1 filter (last resort)
+  if (!existingUser) {
+    const { data: listData } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 50 });
+    existingUser = listData?.users?.find(
+      (u: any) => u.phone === phoneE164 || u.phone === normalizedMobile || u.email === placeholderEmail
+    ) || null;
+  }
+
+  if (!existingUser) {
+    // Create new user
+    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+      phone: phoneE164,
+      email: placeholderEmail,
+      email_confirm: true,
+      phone_confirm: true,
+      user_metadata: {
+        phone: phoneE164,
+        signup_method: "mobile_otp",
+        display_name: `User${normalizedMobile.slice(-4)}`,
+      },
     });
-    if (error) throw error;
+    if (createError) throw createError;
+    existingUser = newUser.user;
+    isNewUser = true;
+  }
 
+  // Generate magic link and immediately exchange it for a real session
+  const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+    type: "magiclink",
+    email: existingUser.email || placeholderEmail,
+  });
+  if (linkError) throw linkError;
+
+  const tokenHash = linkData.properties?.hashed_token;
+  const verificationType = linkData.properties?.verification_type || "magiclink";
+
+  // Exchange token_hash for a real session via GoTrue /verify endpoint
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  const verifyResp = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": anonKey,
+    },
+    body: JSON.stringify({
+      type: verificationType,
+      token_hash: tokenHash,
+    }),
+  });
+
+  const verifyData = await verifyResp.json();
+
+  if (!verifyResp.ok || !verifyData.access_token) {
+    console.error("[MSG91] Token exchange failed:", JSON.stringify(verifyData));
+    // Fallback: return token_hash for client-side exchange
     return {
-      isNewUser: false,
+      isNewUser,
       userId: existingUser.id,
       email: existingUser.email,
-      token_hash: sessionData.properties?.hashed_token,
-      verification_type: "magiclink",
+      token_hash: tokenHash,
+      verification_type: verificationType,
     };
   }
 
-  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
-  const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-    phone: phoneE164,
-    email: placeholderEmail,
-    email_confirm: true,
-    phone_confirm: true,
-    user_metadata: {
-      phone: phoneE164,
-      signup_method: "mobile_otp",
-      display_name: `User${normalizedMobile.slice(-4)}`,
-    },
-  });
-
-  if (createError) throw createError;
-
-  const { data: sessionData, error: sessionError } = await adminClient.auth.admin.generateLink({
-    type: "magiclink",
-    email: placeholderEmail,
-  });
-  if (sessionError) throw sessionError;
+  console.log("[MSG91] Session created successfully for user:", existingUser.id);
 
   return {
-    isNewUser: true,
-    userId: newUser.user.id,
-    token_hash: sessionData.properties?.hashed_token,
-    verification_type: "magiclink",
+    isNewUser,
+    userId: existingUser.id,
+    email: existingUser.email,
+    access_token: verifyData.access_token,
+    refresh_token: verifyData.refresh_token,
+    expires_in: verifyData.expires_in,
+    expires_at: verifyData.expires_at,
+    token_type: "bearer",
   };
 }
 
