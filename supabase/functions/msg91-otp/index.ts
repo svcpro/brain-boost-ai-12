@@ -436,7 +436,7 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
 
   const adminClient = getAdminClient();
 
-  // Check WhatsApp OTP in DB first
+  // Check WhatsApp OTP in DB first (unverified)
   const { data: waOtp } = await adminClient
     .from("whatsapp_otps")
     .select("*")
@@ -455,10 +455,26 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
     otpVerified = true;
     console.log("[MSG91] WhatsApp OTP verified from DB");
   } else {
-    // Fallback to MSG91 SMS verify (per docs: GET with authkey header)
-    const { data } = await msg91VerifyOTP(authKey, mobile, otp);
-    otpVerified = data.type === "success" || 
-      (data.message && data.message.toLowerCase().includes("already verified"));
+    // Check if OTP was already verified recently (retry scenario)
+    const { data: alreadyVerified } = await adminClient
+      .from("whatsapp_otps")
+      .select("id")
+      .eq("mobile", mobile)
+      .eq("otp", otp)
+      .eq("verified", true)
+      .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .limit(1)
+      .single();
+
+    if (alreadyVerified) {
+      otpVerified = true;
+      console.log("[MSG91] WhatsApp OTP already verified (retry)");
+    } else {
+      // Fallback to MSG91 SMS verify
+      const { data } = await msg91VerifyOTP(authKey, mobile, otp);
+      otpVerified = data.type === "success" || 
+        (data.message && data.message.toLowerCase().includes("already verified"));
+    }
   }
 
   if (otpVerified) {
