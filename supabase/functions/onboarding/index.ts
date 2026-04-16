@@ -210,23 +210,25 @@ Deno.serve(async (req) => {
 
       const onboarded = profile?.onboarding_completed === true;
       // Determine current step based on what data exists
+      // Auto-generated names like "User1234" should NOT count as a real name
+      const hasRealName = profile?.display_name && !/^User\d{4}$/i.test(profile.display_name);
       let currentStep = 0;
-      if (profile?.display_name) currentStep = 1;
-      if (profile?.exam_type) currentStep = 2;
-      if (profile?.exam_date) currentStep = 3;
+      if (hasRealName) currentStep = 1;
+      if (currentStep >= 1 && profile?.exam_type) currentStep = 2;
+      if (currentStep >= 2 && profile?.exam_date) currentStep = 3;
       // Check if subjects exist
       const { count: subjectCount } = await adminClient
         .from("subjects")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
-      if ((subjectCount || 0) > 0) currentStep = 4;
+      if (currentStep >= 3 && (subjectCount || 0) > 0) currentStep = 4;
       // Check if topics exist
       const { count: topicCount } = await adminClient
         .from("topics")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
-      if ((topicCount || 0) > 0) currentStep = 5;
-      if (profile?.study_preferences) currentStep = 6;
+      if (currentStep >= 4 && (topicCount || 0) > 0) currentStep = 5;
+      if (currentStep >= 5 && profile?.study_preferences) currentStep = 6;
       if (onboarded) currentStep = 6;
 
       return json({
