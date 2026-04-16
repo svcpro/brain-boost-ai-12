@@ -76,8 +76,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- ONBOARDING STATUS ---
-    if (action === "status") {
+    // --- Helper: resolve end-user strictly from Bearer JWT ---
+    const resolveAuthenticatedUserId = async (): Promise<{
+      userId: string | null;
+      reason: "missing_bearer" | "invalid_bearer" | null;
+      debug: {
+        hasAuthHeader: boolean;
+        hasApiKeyHeader: boolean;
+        hasQueryAuthorization: boolean;
+        hasQueryApikey: boolean;
+        hasBodyAuthorization: boolean;
+        hasBodyApikey: boolean;
+        bearerSources: number;
+      };
+    }> => {
       const queryAuthorization = String(url.searchParams.get("Authorization") || url.searchParams.get("authorization") || "").trim();
       const queryApiKey = String(url.searchParams.get("apikey") || url.searchParams.get("apiKey") || url.searchParams.get("x-api-key") || "").trim();
       const bodyAuthorization = String(requestBody.Authorization || requestBody.authorization || "").trim();
@@ -91,116 +103,55 @@ Deno.serve(async (req) => {
       ].map((value) => String(value || "").trim()).filter(Boolean);
 
       const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
-      const apiKeySources = [...headerApiKeyCandidates, queryApiKey, bodyApiKey].filter(Boolean);
+      const bearerAuthSources = authSources.filter((value) => value.startsWith("Bearer "));
+      const debug = {
+        hasAuthHeader: !!headerAuthorization,
+        hasApiKeyHeader: headerApiKeyCandidates.length > 0,
+        hasQueryAuthorization: !!queryAuthorization,
+        hasQueryApikey: !!queryApiKey,
+        hasBodyAuthorization: !!bodyAuthorization,
+        hasBodyApikey: !!bodyApiKey,
+        bearerSources: bearerAuthSources.length,
+      };
 
-      if (authSources.length === 0 && apiKeySources.length === 0) {
-        console.log("[onboarding/status] Missing auth inputs", {
-          hasAuthHeader: !!headerAuthorization,
-          hasApikeyHeader: !!headerApiKey,
-          hasQueryAuthorization: !!queryAuthorization,
-          hasQueryApikey: !!queryApiKey,
-          hasBodyAuthorization: !!bodyAuthorization,
-          hasBodyApikey: !!bodyApiKey,
-        });
-        return json({ error: "Unauthorized" }, 401);
+      if (bearerAuthSources.length === 0) {
+        return { userId: null, reason: "missing_bearer", debug };
       }
 
-      const bearerTokens = authSources
-        .map((value) => value.startsWith("Bearer ") ? value.replace("Bearer ", "").trim() : value)
-        .filter(Boolean);
-      const primaryAuthHeader = authSources[0] || "";
-      const primaryToken = bearerTokens[0] || "";
-
-      // Service role client for lookups
       const adminClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      let userId: string | null = null;
+      for (const authSource of bearerAuthSources) {
+        const token = authSource.replace("Bearer ", "").trim();
+        if (token.split(".").length !== 3) continue;
 
-      // Try 1: JWT-based auth via getClaims
-      for (let i = 0; i < authSources.length && !userId; i++) {
-        const authSource = authSources[i];
-        const sourceToken = bearerTokens[i] || "";
-        if (!(authSource.startsWith("Bearer ") && sourceToken.split(".").length === 3)) continue;
-
-        const jwtClient = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_ANON_KEY")!,
-          { global: { headers: { Authorization: authSource } } }
-        );
-        const { data: claims, error: claimsErr } = await jwtClient.auth.getClaims(sourceToken);
-        if (!claimsErr && claims?.claims?.sub) {
-          userId = claims.claims.sub as string;
+        const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+        if (!userError && userData?.user?.id) {
+          return { userId: userData.user.id, reason: null, debug };
         }
       }
 
-      // Try 2: API key-based auth fallback (support raw API keys from any source)
+      return { userId: null, reason: "invalid_bearer", debug };
+    };
+
+    // --- ONBOARDING STATUS ---
+    if (action === "status") {
+      const { userId, reason, debug } = await resolveAuthenticatedUserId();
       if (!userId) {
-        const apiKeyCandidates = [...apiKeySources, ...bearerTokens]
-          .map((value) => value.trim())
-          .filter(Boolean);
-
-        for (const candidate of apiKeyCandidates) {
-          const normalizedCandidate = candidate.startsWith("Bearer ")
-            ? candidate.replace("Bearer ", "").trim()
-            : candidate;
-          const extractedApiKey = normalizedCandidate.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
-          if (!extractedApiKey) continue;
-
-          const storedPrefix = `${extractedApiKey.substring(0, 10)}...`;
-          const { data: keyRow } = await adminClient
-            .from("api_keys")
-            .select("created_by")
-            .eq("key_prefix", storedPrefix)
-            .eq("is_active", true)
-            .maybeSingle();
-
-          if (keyRow?.created_by) {
-            userId = keyRow.created_by;
-            break;
-          }
-        }
-
-        // Legacy direct hash match fallback
-        if (!userId) {
-          for (const candidate of bearerTokens) {
-            const { data: keyRow } = await adminClient
-              .from("api_keys")
-              .select("created_by")
-              .eq("key_hash", candidate)
-              .eq("is_active", true)
-              .maybeSingle();
-            if (keyRow?.created_by) {
-              userId = keyRow.created_by;
-              break;
-            }
-          }
-        }
+        console.log("[onboarding/status] Bearer auth required", debug);
+        return json({
+          error: reason === "missing_bearer"
+            ? "Authorization Bearer token required"
+            : "Invalid or expired bearer token",
+        }, 401);
       }
 
-      // Try 3: getUser with service role as last resort
-      if (!userId) {
-        for (const candidate of bearerTokens) {
-          const { data: userData } = await adminClient.auth.getUser(candidate);
-          if (userData?.user?.id) {
-            userId = userData.user.id;
-            break;
-          }
-        }
-      }
-
-      if (!userId) {
-        console.log("[onboarding/status] Auth resolution failed", {
-          authSourcePrefixes: authSources.map((value) => value.slice(0, 18)),
-          apiKeySourcePrefixes: apiKeySources.map((value) => value.slice(0, 18)),
-          primaryAuthLooksLikeJwt: primaryToken.split(".").length === 3,
-          primaryApiKeyExtracted: !!apiKeySources.map((value) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "").find(Boolean),
-          primaryAuthHeaderPrefix: primaryAuthHeader.slice(0, 18),
-        });
-        return json({ error: "Unauthorized" }, 401);
-      }
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
 
       const { data: profile } = await adminClient
         .from("profiles")
@@ -208,35 +159,35 @@ Deno.serve(async (req) => {
         .eq("id", userId)
         .maybeSingle();
 
-      const onboarded = profile?.onboarding_completed === true;
       // Determine current step based on what data exists
       // Auto-generated names like "User1234", pure numbers, or very short names should NOT count
       const nameVal = (profile?.display_name || "").trim();
-      const hasRealName = nameVal.length >= 2 && 
-        !/^User\d{3,6}$/i.test(nameVal) && 
+      const hasRealName = nameVal.length >= 2 &&
+        !/^User\d{3,6}$/i.test(nameVal) &&
         !/^\d+$/.test(nameVal) &&
         !nameVal.endsWith("@phone.acry.ai");
-      
+
       let currentStep = 0;
       if (hasRealName) currentStep = 1;
       if (currentStep >= 1 && profile?.exam_type) currentStep = 2;
       if (currentStep >= 2 && profile?.exam_date) currentStep = 3;
-      // Check if subjects exist
+
       const { count: subjectCount } = await adminClient
         .from("subjects")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       if (currentStep >= 3 && (subjectCount || 0) > 0) currentStep = 4;
-      // Check if topics exist
+
       const { count: topicCount } = await adminClient
         .from("topics")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       if (currentStep >= 4 && (topicCount || 0) > 0) currentStep = 5;
+
       const studyMode = (profile?.study_preferences as any)?.study_mode;
       if (currentStep >= 5 && studyMode) currentStep = 6;
-      // Only trust onboarded flag if all steps are actually complete
-      if (onboarded && currentStep >= 5) currentStep = 6;
+
+      const onboarded = profile?.onboarding_completed === true && currentStep >= 6;
 
       return json({
         success: true,
@@ -245,54 +196,16 @@ Deno.serve(async (req) => {
         display_name: profile?.display_name,
         exam_type: profile?.exam_type,
         exam_date: profile?.exam_date,
-        study_mode: (profile?.study_preferences as any)?.study_mode,
+        study_mode: studyMode,
         subjects_count: subjectCount || 0,
         topics_count: topicCount || 0,
       });
     }
 
-    // --- Helper: resolve userId from request (reuse status auth logic) ---
+    // --- Helper: resolve userId from request ---
     const resolveUserId = async (): Promise<string | null> => {
-      const queryAuthorization = String(url.searchParams.get("Authorization") || url.searchParams.get("authorization") || "").trim();
-      const queryApiKey = String(url.searchParams.get("apikey") || url.searchParams.get("apiKey") || url.searchParams.get("x-api-key") || "").trim();
-      const bodyAuthorization = String(requestBody.Authorization || requestBody.authorization || "").trim();
-      const bodyApiKey = String(requestBody.apikey || requestBody.apiKey || requestBody["x-api-key"] || requestBody["api-key"] || "").trim();
-      const headerAuthorization = String(req.headers.get("Authorization") || "").trim();
-      const headerApiKeyCandidates = [
-        req.headers.get("x-api-key"), req.headers.get("api-key"), req.headers.get("x-api-token"), req.headers.get("apikey"),
-      ].map(v => String(v || "").trim()).filter(Boolean);
-
-      const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
-      const apiKeySources = [...headerApiKeyCandidates, queryApiKey, bodyApiKey].filter(Boolean);
-      if (authSources.length === 0 && apiKeySources.length === 0) return null;
-
-      const bearerTokens = authSources
-        .map(v => v.startsWith("Bearer ") ? v.replace("Bearer ", "").trim() : v)
-        .filter(Boolean);
-
-      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      let uid: string | null = null;
-
-      // JWT auth
-      for (const token of bearerTokens) {
-        if (token.split(".").length !== 3) continue;
-        const { data: userData } = await adminClient.auth.getUser(token);
-        if (userData?.user?.id) { uid = userData.user.id; break; }
-      }
-
-      // API key auth
-      if (!uid) {
-        const candidates = [...apiKeySources, ...bearerTokens].map(v => v.startsWith("Bearer ") ? v.replace("Bearer ", "").trim() : v.trim()).filter(Boolean);
-        for (const c of candidates) {
-          const extracted = c.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
-          if (!extracted) continue;
-          const prefix = `${extracted.substring(0, 10)}...`;
-          const { data: keyRow } = await adminClient.from("api_keys").select("created_by").eq("key_prefix", prefix).eq("is_active", true).maybeSingle();
-          if (keyRow?.created_by) { uid = keyRow.created_by; break; }
-        }
-      }
-
-      return uid;
+      const { userId } = await resolveAuthenticatedUserId();
+      return userId;
     };
 
     // --- STEP 1: Save display name ---
