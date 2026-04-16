@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-access-token, access-token, x-api-key, api-key, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const EXAM_TYPES = [
@@ -77,24 +77,45 @@ Deno.serve(async (req) => {
     }
 
     // --- Helper: resolve end-user strictly from Bearer JWT ---
+    const normalizeJwtToken = (value: unknown): string => {
+      if (typeof value !== "string") return "";
+      const trimmed = value.trim();
+      if (!trimmed) return "";
+
+      const token = trimmed.startsWith("Bearer ")
+        ? trimmed.slice(7).trim()
+        : trimmed;
+
+      return token.split(".").length === 3 ? token : "";
+    };
+
     const resolveAuthenticatedUserId = async (): Promise<{
       userId: string | null;
       reason: "missing_bearer" | "invalid_bearer" | null;
       debug: {
         hasAuthHeader: boolean;
+        hasHeaderAccessToken: boolean;
         hasApiKeyHeader: boolean;
         hasQueryAuthorization: boolean;
+        hasQueryAccessToken: boolean;
         hasQueryApikey: boolean;
         hasBodyAuthorization: boolean;
+        hasBodyAccessToken: boolean;
         hasBodyApikey: boolean;
-        bearerSources: number;
+        jwtSources: number;
       };
     }> => {
       const queryAuthorization = String(url.searchParams.get("Authorization") || url.searchParams.get("authorization") || "").trim();
+      const queryAccessToken = String(url.searchParams.get("access_token") || url.searchParams.get("accessToken") || url.searchParams.get("token") || "").trim();
       const queryApiKey = String(url.searchParams.get("apikey") || url.searchParams.get("apiKey") || url.searchParams.get("x-api-key") || "").trim();
       const bodyAuthorization = String(requestBody.Authorization || requestBody.authorization || "").trim();
+      const bodyAccessToken = String(requestBody.access_token || requestBody.accessToken || requestBody.token || "").trim();
       const bodyApiKey = String(requestBody.apikey || requestBody.apiKey || requestBody["x-api-key"] || requestBody["api-key"] || "").trim();
       const headerAuthorization = String(req.headers.get("Authorization") || "").trim();
+      const headerAccessTokenCandidates = [
+        req.headers.get("x-access-token"),
+        req.headers.get("access-token"),
+      ].map((value) => String(value || "").trim()).filter(Boolean);
       const headerApiKeyCandidates = [
         req.headers.get("x-api-key"),
         req.headers.get("api-key"),
@@ -102,19 +123,30 @@ Deno.serve(async (req) => {
         req.headers.get("apikey"),
       ].map((value) => String(value || "").trim()).filter(Boolean);
 
-      const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
-      const bearerAuthSources = authSources.filter((value) => value.startsWith("Bearer "));
+      const jwtSources = [
+        headerAuthorization,
+        queryAuthorization,
+        bodyAuthorization,
+        queryAccessToken,
+        bodyAccessToken,
+        ...headerAccessTokenCandidates,
+      ].filter(Boolean);
       const debug = {
         hasAuthHeader: !!headerAuthorization,
+        hasHeaderAccessToken: headerAccessTokenCandidates.length > 0,
         hasApiKeyHeader: headerApiKeyCandidates.length > 0,
         hasQueryAuthorization: !!queryAuthorization,
+        hasQueryAccessToken: !!queryAccessToken,
         hasQueryApikey: !!queryApiKey,
         hasBodyAuthorization: !!bodyAuthorization,
+        hasBodyAccessToken: !!bodyAccessToken,
         hasBodyApikey: !!bodyApiKey,
-        bearerSources: bearerAuthSources.length,
+        jwtSources: jwtSources.length,
       };
 
-      if (bearerAuthSources.length === 0) {
+      const tokenCandidates = Array.from(new Set(jwtSources.map(normalizeJwtToken).filter(Boolean)));
+
+      if (tokenCandidates.length === 0) {
         return { userId: null, reason: "missing_bearer", debug };
       }
 
@@ -123,10 +155,7 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      for (const authSource of bearerAuthSources) {
-        const token = authSource.replace("Bearer ", "").trim();
-        if (token.split(".").length !== 3) continue;
-
+      for (const token of tokenCandidates) {
         const { data: userData, error: userError } = await adminClient.auth.getUser(token);
         if (!userError && userData?.user?.id) {
           return { userId: userData.user.id, reason: null, debug };

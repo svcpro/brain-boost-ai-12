@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-api-key, api-key, x-api-token, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-access-token, access-token, x-api-key, api-key, x-api-token, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const DEFAULT_TARGET_BASE = "https://api.acry.ai/v1";
@@ -73,6 +73,16 @@ const pickString = (record: Record<string, unknown> | null, keys: string[]) => {
 };
 
 const extractApiKey = (value: string) => value.match(/acry_[A-Za-z0-9]+/)?.[0] || "";
+const normalizeJwtToken = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const token = trimmed.startsWith("Bearer ")
+    ? trimmed.slice(7).trim()
+    : trimmed;
+
+  return token.split(".").length === 3 ? token : "";
+};
 
 const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPayload: Record<string, unknown> | null) => {
   const payloadBody = parsedPayload?.body && typeof parsedPayload.body === "object" && !Array.isArray(parsedPayload.body)
@@ -86,8 +96,17 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
     req.headers.get("x-api-token"),
     req.headers.get("apikey"),
   ].map((value) => String(value || "").trim()).filter(Boolean);
+  const headerAccessTokenCandidates = [
+    req.headers.get("x-access-token"),
+    req.headers.get("access-token"),
+  ].map((value) => String(value || "").trim()).filter(Boolean);
 
   const queryAuthorization = String(requestUrl.searchParams.get("Authorization") || requestUrl.searchParams.get("authorization") || "").trim();
+  const queryAccessTokenCandidates = [
+    requestUrl.searchParams.get("access_token"),
+    requestUrl.searchParams.get("accessToken"),
+    requestUrl.searchParams.get("token"),
+  ].map((value) => String(value || "").trim()).filter(Boolean);
   const queryApiKeyCandidates = [
     requestUrl.searchParams.get("x-api-key"),
     requestUrl.searchParams.get("api-key"),
@@ -99,33 +118,46 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
   const bodyAuthorization = [parsedPayload, payloadBody]
     .map((record) => pickString(record, ["Authorization", "authorization"]))
     .find(Boolean) || "";
+  const bodyAccessTokenCandidates = [parsedPayload, payloadBody]
+    .map((record) => pickString(record, ["access_token", "accessToken", "token"]))
+    .filter(Boolean);
   const bodyApiKeyCandidates = [parsedPayload, payloadBody]
     .map((record) => pickString(record, ["x-api-key", "api-key", "x-api-token", "apikey", "apiKey"]))
     .filter(Boolean);
 
   const authSources = [headerAuthorization, queryAuthorization, bodyAuthorization].filter(Boolean);
+  const jwtSources = [
+    ...authSources,
+    ...headerAccessTokenCandidates,
+    ...queryAccessTokenCandidates,
+    ...bodyAccessTokenCandidates,
+  ].filter(Boolean);
   const apiKeySources = [...headerApiKeyCandidates, ...queryApiKeyCandidates, ...bodyApiKeyCandidates].filter(Boolean);
 
   let userId: string | null = null;
   let forwardedAuthorization = "";
   let forwardedApiKey = apiKeySources.map(extractApiKey).find(Boolean) || "";
 
-  const bearerToken = headerAuthorization.startsWith("Bearer ")
-    ? headerAuthorization.replace("Bearer ", "").trim()
-    : "";
+  const jwtTokens = Array.from(new Set(jwtSources.map(normalizeJwtToken).filter(Boolean)));
 
-  if (bearerToken) {
+  if (jwtTokens.length > 0) {
     const MAX_RETRIES = 3;
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const { data: userData, error: userError } = await adminClient.auth.getUser(bearerToken);
-      if (!userError && userData?.user?.id) {
-        userId = userData.user.id;
-        forwardedAuthorization = headerAuthorization;
-        break;
+    for (const token of jwtTokens) {
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+        if (!userError && userData?.user?.id) {
+          userId = userData.user.id;
+          forwardedAuthorization = `Bearer ${token}`;
+          break;
+        }
+
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+        }
       }
 
-      if (attempt < MAX_RETRIES - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+      if (userId) {
+        break;
       }
     }
   }
@@ -183,11 +215,15 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
     forwardedApiKey,
     debug: {
       hasAuthHeader: !!headerAuthorization,
+      hasHeaderAccessToken: headerAccessTokenCandidates.length > 0,
       hasApiKeyHeader: headerApiKeyCandidates.length > 0,
       hasQueryAuthorization: !!queryAuthorization,
+      hasQueryAccessToken: queryAccessTokenCandidates.length > 0,
       hasQueryApiKey: queryApiKeyCandidates.length > 0,
       hasBodyAuthorization: !!bodyAuthorization,
+      hasBodyAccessToken: bodyAccessTokenCandidates.length > 0,
       hasBodyApiKey: bodyApiKeyCandidates.length > 0,
+      jwtSources: jwtSources.length,
     },
   };
 };
