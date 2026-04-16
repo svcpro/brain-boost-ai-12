@@ -64,30 +64,6 @@ const examSubjectsMap: Record<string, string[]> = {
   "ACCA": ["Financial Accounting", "Management Accounting", "Corporate Law", "Taxation"],
 };
 
-// Alias map for common exam name variants → canonical name in examSubjectsMap
-const examAliasMap: Record<string, string> = {
-  "NEET": "NEET UG",
-  "JEE": "JEE Main",
-  "SSC": "SSC CGL",
-  "IBPS": "IBPS PO",
-  "SBI": "SBI PO",
-  "RRB": "RRB NTPC",
-};
-
-const resolveExamType = (raw: string): string => {
-  const trimmed = raw.trim();
-  // Exact match first
-  const exact = examTypes.find(e => e.toLowerCase() === trimmed.toLowerCase());
-  if (exact) return exact;
-  // Alias match
-  const alias = examAliasMap[trimmed] || examAliasMap[trimmed.toUpperCase()];
-  if (alias) return alias;
-  // Partial match (e.g. "NEET" matches "NEET UG")
-  const partial = examTypes.find(e => e.toLowerCase().startsWith(trimmed.toLowerCase()) || trimmed.toLowerCase().startsWith(e.toLowerCase()));
-  if (partial) return partial;
-  return trimmed;
-};
-
 const allSubjects = ["General Knowledge", "Mathematics", "Reasoning", "English", "Science", "History", "Geography", "Polity", "Economy", "Physics", "Chemistry", "Biology"];
 const years = [2024, 2023, 2022, 2021, 2020];
 const difficulties = ["easy", "medium", "hard"];
@@ -156,7 +132,10 @@ const ConfidencePracticeTab = () => {
   useEffect(() => {
     fetchUserExam().then(exam => {
       if (exam) {
-        const chosenExam = resolveExamType(exam);
+        const rawExam = exam.trim();
+        // Prefer exact canonical match, otherwise keep onboarding value as-is
+        const exact = examTypes.find(e => e.toLowerCase() === rawExam.toLowerCase());
+        const chosenExam = exact || rawExam;
         setSelExam(chosenExam);
         setUserExamType(chosenExam);
       }
@@ -422,37 +401,6 @@ const ConfidencePracticeTab = () => {
                 <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                   Ultra-Advanced Trend-Based ML Research Engine v3.0 — 8-factor hybrid model analyzing multi-year patterns, cross-exam correlation, syllabus coverage gaps & examiner behavior.
                 </p>
-                {/* Dynamic exam info */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                    <BookOpen className="w-3 h-3 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">Exam Type</p>
-                      <p className="text-[11px] font-bold text-foreground truncate">{userExamType || "General"}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                    <BarChart3 className="w-3 h-3 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">Subjects</p>
-                      <p className="text-[11px] font-bold text-foreground truncate">{(examSubjectsMap[userExamType] || ["General"]).length} subjects</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                    <Target className="w-3 h-3 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">Questions</p>
-                      <p className="text-[11px] font-bold text-foreground">{selCount} per session</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                    <Activity className="w-3 h-3 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">Practice Mode</p>
-                      <p className="text-[11px] font-bold text-foreground capitalize">{mode}</p>
-                    </div>
-                  </div>
-                </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {[
                     { label: "Trend Research", glow: true },

@@ -30,12 +30,6 @@ const EDGE_FUNCTION_PATHS = new Set([
   "home-api",
   "notification",
   "action-tab-api",
-  "brain-intelligence",
-  "safe-pass-prediction",
-  "sureshot-prediction",
-  "sureshot-questions",
-  "you-tab-api",
-  "alis-api",
 ]);
 
 const normalizeTargetBase = (rawBase?: unknown) => {
