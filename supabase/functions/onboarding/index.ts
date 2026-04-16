@@ -365,7 +365,10 @@ Deno.serve(async (req) => {
       const studyMode = String(requestBody.study_mode || "focus").trim();
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await adminClient.from("profiles").update({ study_preferences: { study_mode: studyMode } }).eq("id", userId);
+      // Merge into existing study_preferences instead of overwriting
+      const { data: existing } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
+      const merged = { ...(typeof existing?.study_preferences === "object" && existing.study_preferences ? existing.study_preferences : {}), study_mode: studyMode };
+      await adminClient.from("profiles").update({ study_preferences: merged }).eq("id", userId);
       return json({ success: true });
     }
 
