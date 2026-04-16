@@ -105,9 +105,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       setUser(prev => {
         const newUser = newSession?.user ?? null;
-        // Skip if same user id (avoids re-triggering all [user] effects)
-        if (prev?.id === newUser?.id) return prev;
-        return newUser;
+        if (!newUser && !prev) return prev;
+        // ALWAYS update if user ID changed (different user logged in)
+        if (prev?.id !== newUser?.id) return newUser;
+        // Same user — skip to avoid re-triggering effects
+        return prev;
       });
     };
 
