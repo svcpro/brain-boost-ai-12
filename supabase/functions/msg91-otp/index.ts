@@ -278,47 +278,106 @@ async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string
 
 // ─── User Session Helpers ────────────────────────────────
 
+async function ensureOtpProfile(
+  adminClient: ReturnType<typeof getAdminClient>,
+  user: any,
+  phoneE164: string,
+  fallbackDisplayName: string
+) {
+  const { data: existingProfile } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (existingProfile) {
+    const updatePayload: Record<string, string> = { phone: phoneE164 };
+    if (user.email) updatePayload.email = user.email;
+
+    const { error } = await adminClient
+      .from("profiles")
+      .update(updatePayload)
+      .eq("id", user.id);
+
+    if (error) {
+      console.error(`[MSG91] Failed to sync profile for ${user.id}:`, error.message);
+    }
+    return;
+  }
+
+  const { error } = await adminClient.from("profiles").insert({
+    id: user.id,
+    phone: phoneE164,
+    email: user.email ?? null,
+    display_name:
+      user.user_metadata?.display_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      fallbackDisplayName,
+  });
+
+  if (error) {
+    console.error(`[MSG91] Failed to create profile for ${user.id}:`, error.message);
+  }
+}
+
 async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
   const phoneE164 = `+${normalizedMobile}`;
   const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
+  const fallbackDisplayName = `User${normalizedMobile.slice(-4)}`;
 
-  // Query auth.users directly by phone — avoids pagination issues with listUsers()
-  const { data: matchedRows } = await adminClient
+  let existingUser: any = null;
+
+  // First: exact lookup via profile phone -> auth user id
+  const { data: matchedProfile } = await adminClient
     .from("profiles")
     .select("id")
     .or(`phone.eq.${phoneE164},phone.eq.${normalizedMobile}`)
     .limit(1)
     .maybeSingle();
 
-  // Also try to find by the placeholder email or phone via admin API
-  let existingUser = null;
+  if (matchedProfile?.id) {
+    const { data: authUserData, error: authUserError } = await adminClient.auth.admin.getUserById(matchedProfile.id);
+    const authUser = authUserData?.user;
 
-  // First: try fetching all pages isn't feasible. Use getUserByEmail as a fast lookup.
-  try {
-    const { data: byEmail } = await adminClient.auth.admin.listUsers({ filter: `email=${placeholderEmail}` } as any);
-    if (byEmail?.users?.length) {
-      existingUser = byEmail.users[0];
+    if (!authUserError && authUser && (
+      authUser.phone === phoneE164 ||
+      authUser.phone === normalizedMobile ||
+      authUser.email === placeholderEmail
+    )) {
+      existingUser = authUser;
+    } else {
+      console.warn(`[MSG91] Profile ${matchedProfile.id} did not resolve to a matching auth user for ${phoneE164}`);
     }
-  } catch { /* filter not supported in all versions, fallback below */ }
+  }
 
-  // If not found by email, do a targeted search by iterating pages
+  // Fallback: paginate auth users and match exact phone/email values
   if (!existingUser) {
     let page = 1;
     const perPage = 1000;
+
     while (true) {
       const { data: pageData } = await adminClient.auth.admin.listUsers({ page, perPage });
       if (!pageData?.users?.length) break;
+
       const found = pageData.users.find(
         (u) => u.phone === phoneE164 || u.phone === normalizedMobile || u.email === placeholderEmail
       );
-      if (found) { existingUser = found; break; }
+
+      if (found) {
+        existingUser = found;
+        break;
+      }
+
       if (pageData.users.length < perPage) break;
       page++;
     }
   }
 
   if (existingUser) {
+    await ensureOtpProfile(adminClient, existingUser, phoneE164, fallbackDisplayName);
     console.log(`[MSG91] Found existing user ${existingUser.id} for phone ${phoneE164}`);
+
     const { data: sessionData, error } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
       email: existingUser.email || placeholderEmail,
@@ -342,11 +401,13 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
     user_metadata: {
       phone: phoneE164,
       signup_method: "mobile_otp",
-      display_name: `User${normalizedMobile.slice(-4)}`,
+      display_name: fallbackDisplayName,
     },
   });
 
   if (createError) throw createError;
+
+  await ensureOtpProfile(adminClient, newUser.user, phoneE164, fallbackDisplayName);
 
   const { data: sessionData, error: sessionError } = await adminClient.auth.admin.generateLink({
     type: "magiclink",
