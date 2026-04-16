@@ -287,10 +287,11 @@ async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getA
   let isNewUser = false;
 
   // Try to find by phone in profiles table first (fast indexed lookup)
+  // Check both +91XXXXXXXXXX and 91XXXXXXXXXX formats
   const { data: profileRow } = await adminClient
     .from("profiles")
     .select("id")
-    .eq("phone", phoneE164)
+    .or(`phone.eq.${phoneE164},phone.eq.${normalizedMobile}`)
     .maybeSingle();
 
   if (profileRow?.id) {
@@ -311,13 +312,15 @@ async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getA
     }
   }
 
-  // Fallback: list users with per_page=1 filter (last resort)
+  // Fallback: use admin getUserByEmail (no listUsers scan)
   if (!existingUser) {
-    const { data: listData } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 50 });
-    existingUser = listData?.users?.find(
-      (u: any) => u.phone === phoneE164 || u.phone === normalizedMobile || u.email === placeholderEmail
-    ) || null;
+    try {
+      const { data: userData } = await adminClient.auth.admin.getUserById(placeholderEmail);
+      if (userData?.user) existingUser = userData.user;
+    } catch { /* not found */ }
   }
+
+  console.log("[MSG91] User lookup result:", existingUser?.id || "NOT FOUND", "isNew:", !existingUser);
 
   if (!existingUser) {
     // Create new user

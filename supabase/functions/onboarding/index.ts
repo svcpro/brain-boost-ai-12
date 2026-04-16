@@ -210,8 +210,13 @@ Deno.serve(async (req) => {
 
       const onboarded = profile?.onboarding_completed === true;
       // Determine current step based on what data exists
-      // Auto-generated names like "User1234" should NOT count as a real name
-      const hasRealName = profile?.display_name && !/^User\d{4}$/i.test(profile.display_name);
+      // Auto-generated names like "User1234", pure numbers, or very short names should NOT count
+      const nameVal = (profile?.display_name || "").trim();
+      const hasRealName = nameVal.length >= 2 && 
+        !/^User\d{3,6}$/i.test(nameVal) && 
+        !/^\d+$/.test(nameVal) &&
+        !nameVal.endsWith("@phone.acry.ai");
+      
       let currentStep = 0;
       if (hasRealName) currentStep = 1;
       if (currentStep >= 1 && profile?.exam_type) currentStep = 2;
@@ -228,8 +233,10 @@ Deno.serve(async (req) => {
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       if (currentStep >= 4 && (topicCount || 0) > 0) currentStep = 5;
-      if (currentStep >= 5 && profile?.study_preferences) currentStep = 6;
-      if (onboarded) currentStep = 6;
+      const studyMode = (profile?.study_preferences as any)?.study_mode;
+      if (currentStep >= 5 && studyMode) currentStep = 6;
+      // Only trust onboarded flag if all steps are actually complete
+      if (onboarded && currentStep >= 5) currentStep = 6;
 
       return json({
         success: true,
