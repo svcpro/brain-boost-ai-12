@@ -531,7 +531,7 @@ Deno.serve(async (req) => {
       case "verify":
         return await handleVerify(authKey, normalizedMobile, otp);
       case "resend":
-        return await handleResendSMS(authKey, normalizedMobile);
+        return await handleResendSMS(authKey, templateId, normalizedMobile);
       case "resend_whatsapp":
         return await handleResendWhatsApp(authKey, normalizedMobile);
       default:
