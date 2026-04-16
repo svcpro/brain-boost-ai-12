@@ -278,133 +278,31 @@ async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string
 
 // ─── User Session Helpers ────────────────────────────────
 
-async function ensureOtpProfile(
-  adminClient: ReturnType<typeof getAdminClient>,
-  user: any,
-  phoneE164: string,
-  fallbackDisplayName: string
-) {
-  const { data: existingProfile } = await adminClient
-    .from("profiles")
-    .select("id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (existingProfile) {
-    const updatePayload: Record<string, string> = { phone: phoneE164 };
-    if (user.email) updatePayload.email = user.email;
-
-    const { error } = await adminClient
-      .from("profiles")
-      .update(updatePayload)
-      .eq("id", user.id);
-
-    if (error) {
-      console.error(`[MSG91] Failed to sync profile for ${user.id}:`, error.message);
-    }
-    return;
-  }
-
-  const { error } = await adminClient.from("profiles").insert({
-    id: user.id,
-    phone: phoneE164,
-    email: user.email ?? null,
-    display_name:
-      user.user_metadata?.display_name ||
-      user.user_metadata?.full_name ||
-      user.user_metadata?.name ||
-      fallbackDisplayName,
-  });
-
-  if (error) {
-    console.error(`[MSG91] Failed to create profile for ${user.id}:`, error.message);
-  }
-}
-
 async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
   const phoneE164 = `+${normalizedMobile}`;
-  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
-  const fallbackDisplayName = `User${normalizedMobile.slice(-4)}`;
 
-  let existingUser: any = null;
-
-  // First: exact lookup via profile phone -> auth user id
-  const { data: matchedProfile } = await adminClient
-    .from("profiles")
-    .select("id")
-    .or(`phone.eq.${phoneE164},phone.eq.${normalizedMobile}`)
-    .limit(1)
-    .maybeSingle();
-
-  if (matchedProfile?.id) {
-    const { data: authUserData, error: authUserError } = await adminClient.auth.admin.getUserById(matchedProfile.id);
-    const authUser = authUserData?.user;
-
-    if (!authUserError && authUser && (
-      authUser.phone === phoneE164 ||
-      authUser.phone === normalizedMobile ||
-      authUser.email === placeholderEmail
-    )) {
-      existingUser = authUser;
-    } else {
-      console.warn(`[MSG91] Profile ${matchedProfile.id} did not resolve to a matching auth user for ${phoneE164}`);
-    }
-  }
-
-  // Fallback: paginate auth users and match exact phone/email values
-  if (!existingUser) {
-    let page = 1;
-    const perPage = 1000;
-
-    while (true) {
-      const { data: pageData } = await adminClient.auth.admin.listUsers({ page, perPage });
-      if (!pageData?.users?.length) break;
-
-      const found = pageData.users.find(
-        (u) => u.phone === phoneE164 || u.phone === normalizedMobile || u.email === placeholderEmail
-      );
-
-      if (found) {
-        existingUser = found;
-        break;
-      }
-
-      if (pageData.users.length < perPage) break;
-      page++;
-    }
-  }
+  const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+  const existingUser = existingUsers?.users?.find(
+    (u) => u.phone === phoneE164 || u.phone === normalizedMobile
+  );
 
   if (existingUser) {
-    await ensureOtpProfile(adminClient, existingUser, phoneE164, fallbackDisplayName);
-    console.log(`[MSG91] Found existing user ${existingUser.id} for phone ${phoneE164}`);
-
     const { data: sessionData, error } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
-      email: existingUser.email || placeholderEmail,
+      email: existingUser.email || `${normalizedMobile}@phone.acry.ai`,
     });
     if (error) throw error;
-
-    const hashedToken = sessionData.properties?.hashed_token;
-    // Store token_hash → userId mapping so downstream APIs resolve the correct user
-    if (hashedToken) {
-      await adminClient.from("otp_auth_sessions").upsert({
-        token_hash: hashedToken,
-        user_id: existingUser.id,
-        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
-      }, { onConflict: "token_hash" }).then(({ error: e }) => {
-        if (e) console.error("[MSG91] Failed to store OTP session:", e.message);
-      });
-    }
 
     return {
       isNewUser: false,
       userId: existingUser.id,
       email: existingUser.email,
-      token_hash: hashedToken,
+      token_hash: sessionData.properties?.hashed_token,
       verification_type: "magiclink",
     };
   }
 
+  const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
   const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
     phone: phoneE164,
     email: placeholderEmail,
@@ -413,13 +311,11 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
     user_metadata: {
       phone: phoneE164,
       signup_method: "mobile_otp",
-      display_name: fallbackDisplayName,
+      display_name: `User${normalizedMobile.slice(-4)}`,
     },
   });
 
   if (createError) throw createError;
-
-  await ensureOtpProfile(adminClient, newUser.user, phoneE164, fallbackDisplayName);
 
   const { data: sessionData, error: sessionError } = await adminClient.auth.admin.generateLink({
     type: "magiclink",
@@ -427,23 +323,10 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   });
   if (sessionError) throw sessionError;
 
-  const hashedToken = sessionData.properties?.hashed_token;
-  // Store token_hash → userId mapping so downstream APIs resolve the correct user
-  if (hashedToken) {
-    await adminClient.from("otp_auth_sessions").upsert({
-      token_hash: hashedToken,
-      user_id: newUser.user.id,
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
-    }, { onConflict: "token_hash" }).then(({ error: e }) => {
-      if (e) console.error("[MSG91] Failed to store OTP session:", e.message);
-    });
-  }
-
-  console.log(`[MSG91] Created new user ${newUser.user.id} for phone ${phoneE164}`);
   return {
     isNewUser: true,
     userId: newUser.user.id,
-    token_hash: hashedToken,
+    token_hash: sessionData.properties?.hashed_token,
     verification_type: "magiclink",
   };
 }
@@ -488,11 +371,10 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
     return json({ error: "Invalid OTP" }, 400);
   }
 
-  console.log(`[MSG91] Verify attempt: mobile=${mobile}, otp=${otp}`);
   const adminClient = getAdminClient();
 
-  // Check OTP in DB first (covers both SMS and WhatsApp)
-  const { data: waOtp, error: dbError } = await adminClient
+  // Check WhatsApp OTP in DB first
+  const { data: waOtp } = await adminClient
     .from("whatsapp_otps")
     .select("*")
     .eq("mobile", mobile)
@@ -501,21 +383,16 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
     .gte("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle();
-
-  if (dbError) {
-    console.error("[MSG91] DB OTP lookup error:", dbError.message);
-  }
+    .single();
 
   let otpVerified = false;
 
   if (waOtp) {
     await adminClient.from("whatsapp_otps").update({ verified: true }).eq("id", waOtp.id);
     otpVerified = true;
-    console.log("[MSG91] OTP verified from DB");
+    console.log("[MSG91] WhatsApp OTP verified from DB");
   } else {
-    console.log("[MSG91] OTP not found in DB, trying MSG91 API...");
-    // Fallback to MSG91 SMS verify
+    // Fallback to MSG91 SMS verify (per docs: GET with authkey header)
     const { data } = await msg91VerifyOTP(authKey, mobile, otp);
     otpVerified = data.type === "success" || 
       (data.message && data.message.toLowerCase().includes("already verified"));

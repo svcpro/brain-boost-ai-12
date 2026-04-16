@@ -230,19 +230,11 @@ const AuthPage = () => {
       if (data?.error) throw new Error(data.error);
 
       if (data?.verified && data?.token_hash) {
-        await supabase.auth.signOut();
-
-        const { data: verifyData, error: verifyErr } = await supabase.auth.verifyOtp({
+        const { error: verifyErr } = await supabase.auth.verifyOtp({
           token_hash: data.token_hash,
           type: "magiclink",
         });
         if (verifyErr) throw verifyErr;
-
-        if (data?.userId && verifyData?.user?.id && verifyData.user.id !== data.userId) {
-          await supabase.auth.signOut();
-          throw new Error("Authenticated user mismatch. Please request a new OTP and try again.");
-        }
-
         setVerifySuccess(true);
         setTimeout(() => navigate("/app"), 800);
       } else {

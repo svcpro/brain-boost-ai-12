@@ -46,24 +46,24 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
   let email: string | undefined;
   let role = "authenticated";
 
-  // Fast path: validate JWT locally via getClaims
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-  if (!claimsError && claimsData?.claims) {
-    userId = claimsData.claims.sub as string;
-    email = claimsData.claims.email as string | undefined;
-    role = (claimsData.claims.role as string) || "authenticated";
-  } else {
-    // Fallback: use service role getUser for edge cases
-    console.warn("[Auth] getClaims failed, falling back to getUser:", claimsError?.message);
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+  // Use service role client for reliable token validation (bypasses cold-start issues)
+  const adminClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const MAX_RETRIES = 3;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const { data: userData, error: userError } = await adminClient.auth.getUser(token);
     if (!userError && userData?.user) {
       userId = userData.user.id;
       email = userData.user.email;
       role = userData.user.role || "authenticated";
+      break;
+    }
+    console.warn(`[Auth] getUser attempt ${attempt + 1}/${MAX_RETRIES} failed:`, userError?.message);
+    if (attempt < MAX_RETRIES - 1) {
+      await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
     }
   }
 
