@@ -119,41 +119,6 @@ Deno.serve(async (req) => {
 
       let userId: string | null = null;
 
-      // Try 0: OTP auth session lookup (token_hash from msg91-otp verify)
-      // This MUST come first — before API key fallback which would resolve the shared key owner
-      for (const candidate of bearerTokens) {
-        if (candidate.split(".").length === 3) continue; // skip JWTs
-        const { data: otpSession } = await adminClient
-          .from("otp_auth_sessions")
-          .select("user_id")
-          .eq("token_hash", candidate)
-          .gte("expires_at", new Date().toISOString())
-          .maybeSingle();
-        if (otpSession?.user_id) {
-          userId = otpSession.user_id;
-          console.log(`[onboarding/status] Resolved user ${userId} via OTP session`);
-          break;
-        }
-      }
-      // Also check raw Authorization header (non-Bearer) against OTP sessions
-      if (!userId) {
-        for (const candidate of authSources) {
-          const raw = candidate.startsWith("Bearer ") ? candidate.replace("Bearer ", "").trim() : candidate;
-          if (!raw || raw.split(".").length === 3) continue;
-          const { data: otpSession } = await adminClient
-            .from("otp_auth_sessions")
-            .select("user_id")
-            .eq("token_hash", raw)
-            .gte("expires_at", new Date().toISOString())
-            .maybeSingle();
-          if (otpSession?.user_id) {
-            userId = otpSession.user_id;
-            console.log(`[onboarding/status] Resolved user ${userId} via OTP session (authSource)`);
-            break;
-          }
-        }
-      }
-
       // Try 1: JWT-based auth via getClaims
       for (let i = 0; i < authSources.length && !userId; i++) {
         const authSource = authSources[i];
@@ -303,25 +268,11 @@ Deno.serve(async (req) => {
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       let uid: string | null = null;
 
-      // OTP session lookup first (token_hash from msg91-otp verify)
-      for (const token of bearerTokens) {
-        if (token.split(".").length === 3) continue;
-        const { data: otpSession } = await adminClient
-          .from("otp_auth_sessions")
-          .select("user_id")
-          .eq("token_hash", token)
-          .gte("expires_at", new Date().toISOString())
-          .maybeSingle();
-        if (otpSession?.user_id) { uid = otpSession.user_id; break; }
-      }
-
       // JWT auth
-      if (!uid) {
-        for (const token of bearerTokens) {
-          if (token.split(".").length !== 3) continue;
-          const { data: userData } = await adminClient.auth.getUser(token);
-          if (userData?.user?.id) { uid = userData.user.id; break; }
-        }
+      for (const token of bearerTokens) {
+        if (token.split(".").length !== 3) continue;
+        const { data: userData } = await adminClient.auth.getUser(token);
+        if (userData?.user?.id) { uid = userData.user.id; break; }
       }
 
       // API key auth

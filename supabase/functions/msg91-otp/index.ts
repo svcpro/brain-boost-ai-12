@@ -384,23 +384,11 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
     });
     if (error) throw error;
 
-    const hashedToken = sessionData.properties?.hashed_token;
-    // Store token_hash → userId mapping so downstream APIs resolve the correct user
-    if (hashedToken) {
-      await adminClient.from("otp_auth_sessions").upsert({
-        token_hash: hashedToken,
-        user_id: existingUser.id,
-        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
-      }, { onConflict: "token_hash" }).then(({ error: e }) => {
-        if (e) console.error("[MSG91] Failed to store OTP session:", e.message);
-      });
-    }
-
     return {
       isNewUser: false,
       userId: existingUser.id,
       email: existingUser.email,
-      token_hash: hashedToken,
+      token_hash: sessionData.properties?.hashed_token,
       verification_type: "magiclink",
     };
   }
@@ -427,23 +415,11 @@ async function findOrCreateUserAndGenerateLink(adminClient: ReturnType<typeof ge
   });
   if (sessionError) throw sessionError;
 
-  const hashedToken = sessionData.properties?.hashed_token;
-  // Store token_hash → userId mapping so downstream APIs resolve the correct user
-  if (hashedToken) {
-    await adminClient.from("otp_auth_sessions").upsert({
-      token_hash: hashedToken,
-      user_id: newUser.user.id,
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
-    }, { onConflict: "token_hash" }).then(({ error: e }) => {
-      if (e) console.error("[MSG91] Failed to store OTP session:", e.message);
-    });
-  }
-
   console.log(`[MSG91] Created new user ${newUser.user.id} for phone ${phoneE164}`);
   return {
     isNewUser: true,
     userId: newUser.user.id,
-    token_hash: hashedToken,
+    token_hash: sessionData.properties?.hashed_token,
     verification_type: "magiclink",
   };
 }

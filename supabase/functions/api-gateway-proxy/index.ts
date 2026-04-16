@@ -114,28 +114,7 @@ const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPaylo
     ? headerAuthorization.replace("Bearer ", "").trim()
     : "";
 
-  // Try 0: OTP auth session lookup (token_hash from msg91-otp verify)
-  // Must come before API key fallback to avoid resolving the shared key owner
-  {
-    const allTokenCandidates = [bearerToken, headerAuthorization.trim()].filter(Boolean);
-    for (const candidate of allTokenCandidates) {
-      const raw = candidate.startsWith("Bearer ") ? candidate.replace("Bearer ", "").trim() : candidate;
-      if (!raw || raw.split(".").length === 3) continue;
-      const { data: otpSession } = await adminClient
-        .from("otp_auth_sessions")
-        .select("user_id")
-        .eq("token_hash", raw)
-        .gte("expires_at", new Date().toISOString())
-        .maybeSingle();
-      if (otpSession?.user_id) {
-        userId = otpSession.user_id;
-        console.log(`[api-gateway-proxy] Resolved user ${userId} via OTP session`);
-        break;
-      }
-    }
-  }
-
-  if (!userId && bearerToken) {
+  if (bearerToken) {
     const MAX_RETRIES = 3;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const { data: userData, error: userError } = await adminClient.auth.getUser(bearerToken);
