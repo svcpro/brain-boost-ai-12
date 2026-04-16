@@ -84,6 +84,40 @@ const normalizeJwtToken = (value: string) => {
   return token.split(".").length === 3 ? token : "";
 };
 
+const PUBLIC_MSG91_ACTIONS = new Set([
+  "send",
+  "send_whatsapp",
+  "verify",
+  "resend",
+  "resend_whatsapp",
+]);
+
+const pickPublicAction = (requestUrl: URL, parsedPayload: Record<string, unknown> | null) => {
+  const payloadBody = parsedPayload?.body && typeof parsedPayload.body === "object" && !Array.isArray(parsedPayload.body)
+    ? parsedPayload.body as Record<string, unknown>
+    : null;
+
+  return [
+    requestUrl.searchParams.get("action"),
+    pickString(parsedPayload, ["action"]),
+    pickString(payloadBody, ["action"]),
+  ].map((value) => String(value || "").trim()).find(Boolean) || "";
+};
+
+const isPublicRequest = (pathFromUrl: string, requestUrl: URL, parsedPayload: Record<string, unknown> | null) => {
+  const payloadPath = pickString(parsedPayload, ["path"]);
+  const normalizedPath = String(payloadPath || pathFromUrl || "").replace(/^\/+|\/+$/g, "");
+  const [firstSegment, secondSegment] = normalizedPath.split("/");
+
+  if (firstSegment !== "msg91-otp") return false;
+
+  const action = pickPublicAction(requestUrl, parsedPayload);
+  const actionFromPath = secondSegment?.replace(/-/g, "_") || "";
+  const resolvedAction = action || actionFromPath;
+
+  return PUBLIC_MSG91_ACTIONS.has(resolvedAction);
+};
+
 const resolveRequestIdentity = async (req: Request, requestUrl: URL, parsedPayload: Record<string, unknown> | null) => {
   const payloadBody = parsedPayload?.body && typeof parsedPayload.body === "object" && !Array.isArray(parsedPayload.body)
     ? parsedPayload.body as Record<string, unknown>
@@ -253,8 +287,10 @@ Deno.serve(async (req) => {
       }
     }
 
+    const isPublicGatewayRequest = isPublicRequest(pathFromUrl, requestUrl, parsedPayload);
+
     const { userId, forwardedAuthorization, forwardedApiKey, debug } = await resolveRequestIdentity(req, requestUrl, parsedPayload);
-    if (!userId) {
+    if (!userId && !isPublicGatewayRequest) {
       console.log("[api-gateway-proxy] auth resolution failed", debug);
       return json({ ok: false, status_code: 401, error: "Unauthorized" });
     }
