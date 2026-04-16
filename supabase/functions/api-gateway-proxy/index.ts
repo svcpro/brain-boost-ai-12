@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-access-token, access-token, x-api-key, api-key, x-api-token, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const DEFAULT_TARGET_BASE = "https://api.acry.ai/v1";
+const DEFAULT_TARGET_BASE = "https://v1.acry.ai/v1";
 const FALLBACK_TARGET_BASE = "https://api.acry.app/v1";
 
 const adminClient = createClient(
@@ -48,7 +48,7 @@ const normalizeTargetBase = (rawBase?: unknown) => {
     const protocol = parsed.protocol.toLowerCase();
 
     if (protocol !== "https:") return DEFAULT_TARGET_BASE;
-    if (host === "api.acry.ai" || host === "api.acry.app") return candidate;
+    if (host === "v1.acry.ai" || host === "api.acry.ai" || host === "api.acry.app") return candidate;
   } catch {
     // ignore invalid base URL and use default
   }
