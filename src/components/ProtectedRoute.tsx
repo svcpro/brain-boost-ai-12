@@ -10,6 +10,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [profileState, setProfileState] = useState<"loading" | "onboarding" | "banned" | "expired" | "ready">("loading");
   const checkedUserIdRef = useRef<string | null>(null);
 
+  // Reset profile state when user changes (e.g., different user logs in)
+  useEffect(() => {
+    if (checkedUserIdRef.current && user && checkedUserIdRef.current !== user.id) {
+      console.log("[ProtectedRoute] User changed, resetting profile state");
+      checkedUserIdRef.current = null;
+      setProfileState("loading");
+    }
+  }, [user]);
+
   useEffect(() => {
     if (loading) return;
 
