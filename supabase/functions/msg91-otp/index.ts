@@ -436,7 +436,7 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
 
   const adminClient = getAdminClient();
 
-  // Check WhatsApp OTP in DB first
+  // Check WhatsApp OTP in DB first (unverified)
   const { data: waOtp } = await adminClient
     .from("whatsapp_otps")
     .select("*")
@@ -455,10 +455,26 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
     otpVerified = true;
     console.log("[MSG91] WhatsApp OTP verified from DB");
   } else {
-    // Fallback to MSG91 SMS verify (per docs: GET with authkey header)
-    const { data } = await msg91VerifyOTP(authKey, mobile, otp);
-    otpVerified = data.type === "success" || 
-      (data.message && data.message.toLowerCase().includes("already verified"));
+    // Check if OTP was already verified recently (retry scenario)
+    const { data: alreadyVerified } = await adminClient
+      .from("whatsapp_otps")
+      .select("id")
+      .eq("mobile", mobile)
+      .eq("otp", otp)
+      .eq("verified", true)
+      .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .limit(1)
+      .single();
+
+    if (alreadyVerified) {
+      otpVerified = true;
+      console.log("[MSG91] WhatsApp OTP already verified (retry)");
+    } else {
+      // Fallback to MSG91 SMS verify
+      const { data } = await msg91VerifyOTP(authKey, mobile, otp);
+      otpVerified = data.type === "success" || 
+        (data.message && data.message.toLowerCase().includes("already verified"));
+    }
   }
 
   if (otpVerified) {
@@ -469,13 +485,22 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
   return json({ success: false, verified: false, error: "OTP verification failed" }, 400);
 }
 
-async function handleResendSMS(authKey: string, mobile: string) {
+async function handleResendSMS(authKey: string, templateId: string, mobile: string) {
+  // First try MSG91 resend
   const { data } = await msg91ResendOTP(authKey, mobile, "text");
-  return json({
-    success: data.type === "success",
-    message: data.message || (data.type === "success" ? "OTP resent via SMS" : "Failed to resend"),
-    channel: "sms",
-  });
+  
+  if (data.type === "success") {
+    return json({ success: true, message: "OTP resent via SMS", channel: "sms" });
+  }
+  
+  // If MSG91 says "already verified" or similar error, send a fresh OTP
+  const msg = (data.message || "").toLowerCase();
+  if (msg.includes("already verified") || msg.includes("no pending otp") || msg.includes("expired")) {
+    console.log("[MSG91] Resend failed, sending fresh OTP:", data.message);
+    return await handleSendSMS(authKey, templateId, mobile);
+  }
+
+  return json({ success: false, message: data.message || "Failed to resend", channel: "sms" });
 }
 
 async function handleResendWhatsApp(authKey: string, mobile: string) {
@@ -522,7 +547,7 @@ Deno.serve(async (req) => {
       case "verify":
         return await handleVerify(authKey, normalizedMobile, otp);
       case "resend":
-        return await handleResendSMS(authKey, normalizedMobile);
+        return await handleResendSMS(authKey, templateId, normalizedMobile);
       case "resend_whatsapp":
         return await handleResendWhatsApp(authKey, normalizedMobile);
       default:
