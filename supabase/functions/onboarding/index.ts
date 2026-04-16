@@ -303,11 +303,25 @@ Deno.serve(async (req) => {
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       let uid: string | null = null;
 
-      // JWT auth
+      // OTP session lookup first (token_hash from msg91-otp verify)
       for (const token of bearerTokens) {
-        if (token.split(".").length !== 3) continue;
-        const { data: userData } = await adminClient.auth.getUser(token);
-        if (userData?.user?.id) { uid = userData.user.id; break; }
+        if (token.split(".").length === 3) continue;
+        const { data: otpSession } = await adminClient
+          .from("otp_auth_sessions")
+          .select("user_id")
+          .eq("token_hash", token)
+          .gte("expires_at", new Date().toISOString())
+          .maybeSingle();
+        if (otpSession?.user_id) { uid = otpSession.user_id; break; }
+      }
+
+      // JWT auth
+      if (!uid) {
+        for (const token of bearerTokens) {
+          if (token.split(".").length !== 3) continue;
+          const { data: userData } = await adminClient.auth.getUser(token);
+          if (userData?.user?.id) { uid = userData.user.id; break; }
+        }
       }
 
       // API key auth
