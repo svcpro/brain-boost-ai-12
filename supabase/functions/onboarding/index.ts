@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       if (authSources.length === 0 && apiKeySources.length === 0) {
         console.log("[onboarding/status] Missing auth inputs", {
           hasAuthHeader: !!headerAuthorization,
-          hasApikeyHeader: !!headerApiKey,
+          hasApikeyHeader: headerApiKeyCandidates.length > 0,
           hasQueryAuthorization: !!queryAuthorization,
           hasQueryApikey: !!queryApiKey,
           hasBodyAuthorization: !!bodyAuthorization,
