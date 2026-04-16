@@ -459,7 +459,7 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
   }
 
   if (otpVerified) {
-    const userResult = await findOrCreateUserAndGenerateLink(adminClient, mobile);
+    const userResult = await findOrCreateUserAndGetSession(adminClient, mobile);
     return json({ success: true, verified: true, ...userResult });
   }
 
