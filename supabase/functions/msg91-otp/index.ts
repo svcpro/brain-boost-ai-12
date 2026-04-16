@@ -403,10 +403,11 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
     return json({ error: "Invalid OTP" }, 400);
   }
 
+  console.log(`[MSG91] Verify attempt: mobile=${mobile}, otp=${otp}`);
   const adminClient = getAdminClient();
 
-  // Check WhatsApp OTP in DB first
-  const { data: waOtp } = await adminClient
+  // Check OTP in DB first (covers both SMS and WhatsApp)
+  const { data: waOtp, error: dbError } = await adminClient
     .from("whatsapp_otps")
     .select("*")
     .eq("mobile", mobile)
@@ -415,16 +416,21 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
     .gte("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
+
+  if (dbError) {
+    console.error("[MSG91] DB OTP lookup error:", dbError.message);
+  }
 
   let otpVerified = false;
 
   if (waOtp) {
     await adminClient.from("whatsapp_otps").update({ verified: true }).eq("id", waOtp.id);
     otpVerified = true;
-    console.log("[MSG91] WhatsApp OTP verified from DB");
+    console.log("[MSG91] OTP verified from DB");
   } else {
-    // Fallback to MSG91 SMS verify (per docs: GET with authkey header)
+    console.log("[MSG91] OTP not found in DB, trying MSG91 API...");
+    // Fallback to MSG91 SMS verify
     const { data } = await msg91VerifyOTP(authKey, mobile, otp);
     otpVerified = data.type === "success" || 
       (data.message && data.message.toLowerCase().includes("already verified"));
