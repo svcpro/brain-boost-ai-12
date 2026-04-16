@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       if (authSources.length === 0 && apiKeySources.length === 0) {
         console.log("[onboarding/status] Missing auth inputs", {
           hasAuthHeader: !!headerAuthorization,
-          hasApikeyHeader: !!headerApiKey,
+          hasApikeyHeader: headerApiKeyCandidates.length > 0,
           hasQueryAuthorization: !!queryAuthorization,
           hasQueryApikey: !!queryApiKey,
           hasBodyAuthorization: !!bodyAuthorization,
@@ -118,6 +118,41 @@ Deno.serve(async (req) => {
       );
 
       let userId: string | null = null;
+
+      // Try 0: OTP auth session lookup (token_hash from msg91-otp verify)
+      // This MUST come first — before API key fallback which would resolve the shared key owner
+      for (const candidate of bearerTokens) {
+        if (candidate.split(".").length === 3) continue; // skip JWTs
+        const { data: otpSession } = await adminClient
+          .from("otp_auth_sessions")
+          .select("user_id")
+          .eq("token_hash", candidate)
+          .gte("expires_at", new Date().toISOString())
+          .maybeSingle();
+        if (otpSession?.user_id) {
+          userId = otpSession.user_id;
+          console.log(`[onboarding/status] Resolved user ${userId} via OTP session`);
+          break;
+        }
+      }
+      // Also check raw Authorization header (non-Bearer) against OTP sessions
+      if (!userId) {
+        for (const candidate of authSources) {
+          const raw = candidate.startsWith("Bearer ") ? candidate.replace("Bearer ", "").trim() : candidate;
+          if (!raw || raw.split(".").length === 3) continue;
+          const { data: otpSession } = await adminClient
+            .from("otp_auth_sessions")
+            .select("user_id")
+            .eq("token_hash", raw)
+            .gte("expires_at", new Date().toISOString())
+            .maybeSingle();
+          if (otpSession?.user_id) {
+            userId = otpSession.user_id;
+            console.log(`[onboarding/status] Resolved user ${userId} via OTP session (authSource)`);
+            break;
+          }
+        }
+      }
 
       // Try 1: JWT-based auth via getClaims
       for (let i = 0; i < authSources.length && !userId; i++) {
@@ -226,7 +261,11 @@ Deno.serve(async (req) => {
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       if ((topicCount || 0) > 0) currentStep = 5;
-      if (profile?.study_preferences) currentStep = 6;
+      // study_preferences defaults to {} — only count as step 6 if it has meaningful keys (e.g. study_mode or onboarded)
+      const studyPrefs = profile?.study_preferences as Record<string, unknown> | null;
+      const hasRealPrefs = studyPrefs && typeof studyPrefs === "object" && Object.keys(studyPrefs).length > 0 &&
+        (studyPrefs.study_mode || studyPrefs.onboarded);
+      if (hasRealPrefs) currentStep = 6;
       if (onboarded) currentStep = 6;
 
       return json({
@@ -264,11 +303,25 @@ Deno.serve(async (req) => {
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       let uid: string | null = null;
 
-      // JWT auth
+      // OTP session lookup first (token_hash from msg91-otp verify)
       for (const token of bearerTokens) {
-        if (token.split(".").length !== 3) continue;
-        const { data: userData } = await adminClient.auth.getUser(token);
-        if (userData?.user?.id) { uid = userData.user.id; break; }
+        if (token.split(".").length === 3) continue;
+        const { data: otpSession } = await adminClient
+          .from("otp_auth_sessions")
+          .select("user_id")
+          .eq("token_hash", token)
+          .gte("expires_at", new Date().toISOString())
+          .maybeSingle();
+        if (otpSession?.user_id) { uid = otpSession.user_id; break; }
+      }
+
+      // JWT auth
+      if (!uid) {
+        for (const token of bearerTokens) {
+          if (token.split(".").length !== 3) continue;
+          const { data: userData } = await adminClient.auth.getUser(token);
+          if (userData?.user?.id) { uid = userData.user.id; break; }
+        }
       }
 
       // API key auth
