@@ -435,4 +435,229 @@ const SettingsTab = () => {
   );
 };
 
+// ─── Meta Templates (Approval Tracking) ───────────────────────────────
+const MetaTemplatesTab = () => {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [templates, setTemplates] = useState<MetaTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected" | "submitted">("all");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<Partial<MetaTemplate>>({
+    template_name: "", display_name: "", category: "UTILITY", language: "en",
+    header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "",
+    approval_status: "pending",
+  });
+
+  useEffect(() => { load(); }, []);
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("whatsapp_meta_templates" as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) toast({ title: "Load failed", description: error.message, variant: "destructive" });
+    setTemplates(((data as any) || []) as MetaTemplate[]);
+    setLoading(false);
+  };
+
+  const save = async () => {
+    if (!form.template_name || !form.body_text) {
+      return toast({ title: "Name & body required", variant: "destructive" });
+    }
+    const payload = {
+      ...form,
+      template_name: form.template_name?.toLowerCase().replace(/[^a-z0-9_]/g, "_"),
+      created_by: user?.id,
+      variables: form.variables || [],
+    };
+    const { error } = await supabase.from("whatsapp_meta_templates" as any).insert(payload as any);
+    if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: "Template added ✓", description: "Submit to Meta via MSG91 dashboard for approval" });
+      setShowForm(false);
+      setForm({ template_name: "", display_name: "", category: "UTILITY", language: "en", header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "", approval_status: "pending" });
+      load();
+    }
+  };
+
+  const updateStatus = async (id: string, status: string, extra: Record<string, any> = {}) => {
+    const patch: any = { approval_status: status, ...extra };
+    if (status === "approved") patch.approved_at = new Date().toISOString();
+    const { error } = await supabase.from("whatsapp_meta_templates" as any).update(patch).eq("id", id);
+    if (error) toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    else { toast({ title: `Marked as ${status}` }); load(); }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Delete this template?")) return;
+    const { error } = await supabase.from("whatsapp_meta_templates" as any).delete().eq("id", id);
+    if (error) toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    else { toast({ title: "Deleted" }); load(); }
+  };
+
+  const filtered = templates.filter(t => filter === "all" || t.approval_status === filter);
+
+  const statusBadge = (s: string) => {
+    const map: Record<string, string> = {
+      approved: "bg-success/20 text-success",
+      pending: "bg-warning/20 text-warning",
+      submitted: "bg-primary/20 text-primary",
+      rejected: "bg-destructive/20 text-destructive",
+      paused: "bg-muted/40 text-muted-foreground",
+    };
+    return map[s] || "bg-muted/40 text-muted-foreground";
+  };
+
+  const categoryColor = (c: string) => {
+    if (c === "AUTHENTICATION") return "bg-blue-500/15 text-blue-400";
+    if (c === "MARKETING") return "bg-purple-500/15 text-purple-400";
+    return "bg-emerald-500/15 text-emerald-400";
+  };
+
+  const counts = {
+    all: templates.length,
+    approved: templates.filter(t => t.approval_status === "approved").length,
+    pending: templates.filter(t => t.approval_status === "pending").length,
+    submitted: templates.filter(t => t.approval_status === "submitted").length,
+    rejected: templates.filter(t => t.approval_status === "rejected").length,
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+        <ShieldCheck className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+        <div className="text-[11px] text-muted-foreground leading-relaxed">
+          <strong className="text-foreground">Meta WhatsApp Business templates</strong> require approval from Meta before they can be sent outside the 24-hour customer service window. Add templates here, submit them via MSG91 / Meta Business Manager, then mark them <strong>Approved</strong> with the returned template ID.
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex gap-1.5 flex-wrap">
+          {(["all", "approved", "pending", "submitted", "rejected"] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold ${filter === f ? "bg-success/20 text-success" : "bg-muted/40 text-muted-foreground"}`}>
+              {f.charAt(0).toUpperCase() + f.slice(1)} ({counts[f]})
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={load} className="p-2 rounded-lg bg-muted/40 hover:bg-muted/60"><RefreshCw className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-semibold">
+            <Plus className="w-3.5 h-3.5" /> New Template
+          </button>
+        </div>
+      </div>
+
+      {showForm && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+          className="p-4 rounded-xl border border-border/50 bg-muted/10 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <input placeholder="template_name (e.g. payment_success)" value={form.template_name || ""} onChange={e => setForm({ ...form, template_name: e.target.value })}
+              className="px-3 py-2 rounded-lg bg-background border border-border text-sm font-mono" />
+            <input placeholder="Display name" value={form.display_name || ""} onChange={e => setForm({ ...form, display_name: e.target.value })}
+              className="px-3 py-2 rounded-lg bg-background border border-border text-sm" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
+              className="px-3 py-2 rounded-lg bg-background border border-border text-sm">
+              <option value="UTILITY">UTILITY</option>
+              <option value="MARKETING">MARKETING</option>
+              <option value="AUTHENTICATION">AUTHENTICATION</option>
+            </select>
+            <select value={form.language} onChange={e => setForm({ ...form, language: e.target.value })}
+              className="px-3 py-2 rounded-lg bg-background border border-border text-sm">
+              <option value="en">English (en)</option>
+              <option value="hi">Hindi (hi)</option>
+              <option value="en_US">English US</option>
+            </select>
+            <select value={form.header_type} onChange={e => setForm({ ...form, header_type: e.target.value })}
+              className="px-3 py-2 rounded-lg bg-background border border-border text-sm">
+              <option value="NONE">No header</option>
+              <option value="TEXT">Text header</option>
+              <option value="IMAGE">Image header</option>
+              <option value="VIDEO">Video header</option>
+              <option value="DOCUMENT">Document header</option>
+            </select>
+          </div>
+          <textarea placeholder="Body text (use {{1}} {{2}} for variables)" value={form.body_text || ""} onChange={e => setForm({ ...form, body_text: e.target.value })}
+            rows={4} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
+          <input placeholder="Footer (optional)" value={form.footer_text || ""} onChange={e => setForm({ ...form, footer_text: e.target.value })}
+            className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
+          <input placeholder="Use case (e.g. streak_break, exam_countdown)" value={form.use_case || ""} onChange={e => setForm({ ...form, use_case: e.target.value })}
+            className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
+          <div className="flex gap-2">
+            <button onClick={save} className="flex-1 py-2 rounded-lg bg-success text-white text-sm font-semibold">Save Template</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg bg-muted/40 text-foreground text-sm">Cancel</button>
+          </div>
+        </motion.div>
+      )}
+
+      <div className="space-y-2 max-h-[500px] overflow-y-auto">
+        {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto my-8" /> :
+          filtered.map(t => (
+            <div key={t.id} className="p-3 rounded-lg bg-muted/20 border border-border/30 space-y-2">
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold font-mono">{t.template_name}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${categoryColor(t.category)}`}>{t.category}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${statusBadge(t.approval_status)}`}>{t.approval_status.toUpperCase()}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-muted/40 text-muted-foreground">{t.language}</span>
+                    {t.quality_score && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${t.quality_score === "GREEN" ? "bg-success/20 text-success" : t.quality_score === "YELLOW" ? "bg-warning/20 text-warning" : "bg-destructive/20 text-destructive"}`}>
+                        Quality: {t.quality_score}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{t.display_name}{t.use_case ? ` · use case: ${t.use_case}` : ""}</p>
+                </div>
+                <button onClick={() => remove(t.id)} className="p-1.5 rounded-md bg-destructive/10 hover:bg-destructive/20 text-destructive">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="text-xs bg-background/60 p-2.5 rounded-md border border-border/30 whitespace-pre-wrap font-mono">
+                {t.header_type !== "NONE" && <p className="text-[10px] text-muted-foreground mb-1">[{t.header_type} HEADER]</p>}
+                {t.body_text}
+                {t.footer_text && <p className="text-[10px] text-muted-foreground mt-1.5">— {t.footer_text}</p>}
+              </div>
+
+              {t.variables && Array.isArray(t.variables) && t.variables.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  <strong>Variables:</strong> {t.variables.map((v: any) => `{{${v.key || v}}}`).join(", ")}
+                </p>
+              )}
+
+              {t.meta_template_id && <p className="text-[10px] text-muted-foreground font-mono">Meta ID: {t.meta_template_id}</p>}
+              {t.rejection_reason && <p className="text-[11px] text-destructive">⚠ {t.rejection_reason}</p>}
+
+              <div className="flex gap-1.5 flex-wrap pt-1">
+                {t.approval_status !== "submitted" && (
+                  <button onClick={() => updateStatus(t.id, "submitted")}
+                    className="px-2.5 py-1 rounded-md bg-primary/15 text-primary text-[11px] font-semibold">Mark Submitted</button>
+                )}
+                {t.approval_status !== "approved" && (
+                  <button onClick={() => {
+                    const id = prompt("Meta template ID returned after approval:");
+                    if (id) updateStatus(t.id, "approved", { meta_template_id: id });
+                  }} className="px-2.5 py-1 rounded-md bg-success/15 text-success text-[11px] font-semibold">Mark Approved</button>
+                )}
+                {t.approval_status !== "rejected" && (
+                  <button onClick={() => {
+                    const reason = prompt("Rejection reason:");
+                    if (reason) updateStatus(t.id, "rejected", { rejection_reason: reason });
+                  }} className="px-2.5 py-1 rounded-md bg-destructive/15 text-destructive text-[11px] font-semibold">Mark Rejected</button>
+                )}
+              </div>
+            </div>
+          ))}
+        {!loading && filtered.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-8">No templates in this category</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default WhatsAppCommandCenter;
