@@ -10069,6 +10069,7 @@ export type Database = {
     Functions: {
       accept_freeze_gift: { Args: { gift_id: string }; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      generate_acry_api_key: { Args: never; Returns: string }
       has_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean
