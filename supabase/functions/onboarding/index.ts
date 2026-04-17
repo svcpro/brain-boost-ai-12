@@ -516,19 +516,40 @@ Deno.serve(async (req) => {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
       const subjectId = String(requestBody.subject_id || url.searchParams.get("subject_id") || "").trim();
-      const subjectName = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
+      const subjectNameInput = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      let resolvedSubjectId = subjectId;
-      if (!resolvedSubjectId && subjectName) {
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("exam_type")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const examType = normalizeExamType(profile?.exam_type);
+      const subjectNameFromSuggestion = parseSuggestedSubjectName(subjectId);
+      const requestedSubjectName = subjectNameInput || subjectNameFromSuggestion;
+      let resolvedSubjectId = subjectNameFromSuggestion ? "" : subjectId;
+      let resolvedSubjectName = requestedSubjectName;
+
+      if (!resolvedSubjectId && requestedSubjectName) {
         const { data: sub } = await adminClient
           .from("subjects")
-          .select("id")
+          .select("id, name")
           .eq("user_id", userId)
-          .eq("name", subjectName)
+          .eq("name", requestedSubjectName)
           .is("deleted_at", null)
           .maybeSingle();
         resolvedSubjectId = sub?.id || "";
+        resolvedSubjectName = sub?.name || requestedSubjectName;
+      } else if (resolvedSubjectId) {
+        const { data: sub } = await adminClient
+          .from("subjects")
+          .select("id, name")
+          .eq("user_id", userId)
+          .eq("id", resolvedSubjectId)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (sub) resolvedSubjectName = sub.name;
       }
 
       let q = adminClient
@@ -539,14 +560,28 @@ Deno.serve(async (req) => {
       if (resolvedSubjectId) q = q.eq("subject_id", resolvedSubjectId);
 
       const { data: topics } = await q.order("created_at", { ascending: true });
-      const { data: profile } = await adminClient
-        .from("profiles").select("exam_type").eq("id", userId).maybeSingle();
+      const savedTopics = topics || [];
+      const fallbackTopics = savedTopics.length === 0 && resolvedSubjectName
+        ? getSuggestedTopicsForSubject(resolvedSubjectName).map((topicName) => ({
+            id: `${SUGGESTED_TOPIC_ID_PREFIX}${encodeURIComponent(resolvedSubjectName)}::${encodeURIComponent(topicName)}`,
+            name: topicName,
+            subject_id: resolvedSubjectId || makeSuggestedSubjectId(resolvedSubjectName),
+            marks_impact_weight: null,
+            memory_strength: null,
+            created_at: null,
+            is_suggested: true,
+          }))
+        : [];
+      const finalTopics = savedTopics.length > 0 ? savedTopics : fallbackTopics;
+
       return json({
         success: true,
-        exam_type: profile?.exam_type || null,
-        topics: topics || [],
-        total: (topics || []).length,
-        subject_id: resolvedSubjectId || null,
+        exam_type: examType || profile?.exam_type || null,
+        topics: finalTopics,
+        total: finalTopics.length,
+        subject_id: resolvedSubjectId || (resolvedSubjectName ? makeSuggestedSubjectId(resolvedSubjectName) : null),
+        subject_name: resolvedSubjectName || null,
+        source: savedTopics.length > 0 ? "saved" : (fallbackTopics.length > 0 ? "suggested" : "saved"),
       });
     }
 
@@ -555,17 +590,18 @@ Deno.serve(async (req) => {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
       const name = String(requestBody.name || requestBody.topic || "").trim();
-      const subjectId = String(requestBody.subject_id || "").trim();
-      const subjectName = String(requestBody.subject || "").trim();
+      const subjectIdInput = String(requestBody.subject_id || "").trim();
+      const subjectNameFromSuggestion = parseSuggestedSubjectName(subjectIdInput);
+      const subjectName = String(requestBody.subject || subjectNameFromSuggestion || "").trim();
       const marksWeight = Number(requestBody.marks_impact_weight ?? 5);
       if (name.length < 1) return json({ error: "topic name is required" }, 400);
       if (name.length > 200) return json({ error: "topic name too long (max 200 chars)" }, 400);
-      if (!subjectId && !subjectName) return json({ error: "subject_id or subject name required" }, 400);
+      if (!subjectIdInput && !subjectName) return json({ error: "subject_id or subject name required" }, 400);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
       // Resolve / auto-create subject
-      let resolvedSubjectId = subjectId;
+      let resolvedSubjectId = subjectNameFromSuggestion ? "" : subjectIdInput;
       if (!resolvedSubjectId) {
         const { data: existingSub } = await adminClient
           .from("subjects")
