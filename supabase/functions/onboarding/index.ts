@@ -288,6 +288,429 @@ Deno.serve(async (req) => {
       return json({ success: true, days_until_exam: daysUntil, next_step: 4 });
     }
 
+    // --- LIST SUBJECTS (for current user) ---
+    if (action === "list-subjects" || action === "list_subjects") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: subjects } = await adminClient
+        .from("subjects")
+        .select("id, name, created_at")
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
+      return json({ success: true, subjects: subjects || [], total: (subjects || []).length });
+    }
+
+    // --- ADD SINGLE SUBJECT ---
+    if (action === "add-subject" || action === "add_subject") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const name = String(requestBody.name || requestBody.subject || "").trim();
+      if (name.length < 1) return json({ error: "subject name is required" }, 400);
+      if (name.length > 100) return json({ error: "subject name too long (max 100 chars)" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+      // Check for duplicate
+      const { data: existing } = await adminClient
+        .from("subjects")
+        .select("id, name")
+        .eq("user_id", userId)
+        .eq("name", name)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (existing) {
+        return json({ success: true, subject: existing, duplicate: true });
+      }
+
+      const { data: created, error } = await adminClient
+        .from("subjects")
+        .insert({ user_id: userId, name })
+        .select("id, name, created_at")
+        .single();
+
+      if (error) return json({ error: error.message }, 500);
+      return json({ success: true, subject: created, duplicate: false });
+    }
+
+    // --- DELETE SUBJECT ---
+    if (action === "delete-subject" || action === "delete_subject") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const subjectId = String(requestBody.subject_id || requestBody.id || "").trim();
+      const subjectName = String(requestBody.name || "").trim();
+      if (!subjectId && !subjectName) return json({ error: "subject_id or name required" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const query = adminClient.from("subjects").update({ deleted_at: new Date().toISOString() }).eq("user_id", userId);
+      const { error } = subjectId ? await query.eq("id", subjectId) : await query.eq("name", subjectName);
+      if (error) return json({ error: error.message }, 500);
+      return json({ success: true });
+    }
+
+    // --- LIST TOPICS (optionally filtered by subject) ---
+    if (action === "list-topics" || action === "list_topics") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const subjectId = String(requestBody.subject_id || url.searchParams.get("subject_id") || "").trim();
+      const subjectName = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      let resolvedSubjectId = subjectId;
+      if (!resolvedSubjectId && subjectName) {
+        const { data: sub } = await adminClient
+          .from("subjects")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("name", subjectName)
+          .is("deleted_at", null)
+          .maybeSingle();
+        resolvedSubjectId = sub?.id || "";
+      }
+
+      let q = adminClient
+        .from("topics")
+        .select("id, name, subject_id, marks_impact_weight, memory_strength, created_at")
+        .eq("user_id", userId)
+        .is("deleted_at", null);
+      if (resolvedSubjectId) q = q.eq("subject_id", resolvedSubjectId);
+
+      const { data: topics } = await q.order("created_at", { ascending: true });
+      return json({ success: true, topics: topics || [], total: (topics || []).length, subject_id: resolvedSubjectId || null });
+    }
+
+    // --- ADD SINGLE TOPIC ---
+    if (action === "add-topic" || action === "add_topic") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const name = String(requestBody.name || requestBody.topic || "").trim();
+      const subjectId = String(requestBody.subject_id || "").trim();
+      const subjectName = String(requestBody.subject || "").trim();
+      const marksWeight = Number(requestBody.marks_impact_weight ?? 5);
+      if (name.length < 1) return json({ error: "topic name is required" }, 400);
+      if (name.length > 200) return json({ error: "topic name too long (max 200 chars)" }, 400);
+      if (!subjectId && !subjectName) return json({ error: "subject_id or subject name required" }, 400);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+      // Resolve / auto-create subject
+      let resolvedSubjectId = subjectId;
+      if (!resolvedSubjectId) {
+        const { data: existingSub } = await adminClient
+          .from("subjects")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("name", subjectName)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (existingSub) {
+          resolvedSubjectId = existingSub.id;
+        } else {
+          const { data: newSub, error: subErr } = await adminClient
+            .from("subjects")
+            .insert({ user_id: userId, name: subjectName })
+            .select("id")
+            .single();
+          if (subErr) return json({ error: subErr.message }, 500);
+          resolvedSubjectId = newSub.id;
+        }
+      }
+
+      // Check duplicate topic
+      const { data: existingTopic } = await adminClient
+        .from("topics")
+        .select("id, name, subject_id, marks_impact_weight")
+        .eq("user_id", userId)
+        .eq("subject_id", resolvedSubjectId)
+        .eq("name", name)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (existingTopic) {
+        return json({ success: true, topic: existingTopic, duplicate: true });
+      }
+
+      const { data: created, error } = await adminClient
+        .from("topics")
+        .insert({ user_id: userId, subject_id: resolvedSubjectId, name, marks_impact_weight: marksWeight })
+        .select("id, name, subject_id, marks_impact_weight, created_at")
+        .single();
+
+      if (error) return json({ error: error.message }, 500);
+      return json({ success: true, topic: created, duplicate: false });
+    }
+
+    // --- DELETE TOPIC ---
+    if (action === "delete-topic" || action === "delete_topic") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const topicId = String(requestBody.topic_id || requestBody.id || "").trim();
+      if (!topicId) return json({ error: "topic_id required" }, 400);
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { error } = await adminClient.from("topics").update({ deleted_at: new Date().toISOString() }).eq("id", topicId).eq("user_id", userId);
+      if (error) return json({ error: error.message }, 500);
+      return json({ success: true });
+    }
+
+    // --- AI GENERATE SUBJECTS & TOPICS (full curriculum) ---
+    if (action === "ai-generate-curriculum" || action === "ai_generate_curriculum" ||
+        action === "ai-generate-subjects-topics" || action === "ai_generate_subjects_topics") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) return json({ error: "AI gateway not configured" }, 500);
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+      // Resolve exam type
+      let examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      if (!examType) {
+        const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
+        examType = String(profile?.exam_type || "general").trim();
+      }
+      const persist = requestBody.persist !== false; // default: save to DB
+
+      // Call AI gateway with structured tool-calling
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely."
+            },
+            {
+              role: "user",
+              content: `Generate the complete subject and topic structure for: ${examType}. Include ALL important topics per subject with accurate marks impact weights based on exam patterns.`
+            }
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "generate_curriculum",
+              description: "Generate complete exam curriculum with subjects and topics",
+              parameters: {
+                type: "object",
+                properties: {
+                  subjects: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        topics: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              name: { type: "string" },
+                              marks_impact_weight: { type: "number" },
+                              priority: { type: "string", enum: ["critical", "high", "medium", "low"] }
+                            },
+                            required: ["name", "marks_impact_weight", "priority"]
+                          }
+                        }
+                      },
+                      required: ["name", "topics"]
+                    }
+                  },
+                  exam_summary: { type: "string" }
+                },
+                required: ["subjects", "exam_summary"]
+              }
+            }
+          }],
+          tool_choice: { type: "function", function: { name: "generate_curriculum" } },
+        }),
+      });
+
+      if (!aiResp.ok) {
+        if (aiResp.status === 429) return json({ error: "Rate limited, please try again later" }, 429);
+        if (aiResp.status === 402) return json({ error: "AI credits exhausted" }, 402);
+        return json({ error: "AI gateway error" }, 500);
+      }
+
+      const aiData = await aiResp.json();
+      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      let curriculum: any = { subjects: [], exam_summary: `${examType} curriculum` };
+      if (toolCall?.function?.arguments) {
+        try { curriculum = JSON.parse(toolCall.function.arguments); } catch { /* ignore */ }
+      }
+
+      let subjectsCreated = 0, topicsCreated = 0;
+      const persistedSubjects: any[] = [];
+
+      if (persist) {
+        for (const sub of curriculum.subjects || []) {
+          const subName = String(sub.name || "").trim();
+          if (!subName) continue;
+
+          let subjectId: string;
+          const { data: existingSub } = await adminClient
+            .from("subjects").select("id").eq("user_id", userId).eq("name", subName).is("deleted_at", null).maybeSingle();
+          if (existingSub) {
+            subjectId = existingSub.id;
+          } else {
+            const { data: newSub, error: subErr } = await adminClient
+              .from("subjects").insert({ user_id: userId, name: subName }).select("id").single();
+            if (subErr) continue;
+            subjectId = newSub.id;
+            subjectsCreated++;
+          }
+
+          const persistedTopics: any[] = [];
+          for (const t of sub.topics || []) {
+            const tName = String(t.name || "").trim();
+            if (!tName) continue;
+            const { data: existingT } = await adminClient
+              .from("topics").select("id").eq("user_id", userId).eq("subject_id", subjectId).eq("name", tName).is("deleted_at", null).maybeSingle();
+            if (existingT) {
+              persistedTopics.push({ id: existingT.id, name: tName, marks_impact_weight: t.marks_impact_weight ?? 5 });
+              continue;
+            }
+            const { data: newT, error: tErr } = await adminClient
+              .from("topics")
+              .insert({ user_id: userId, subject_id: subjectId, name: tName, marks_impact_weight: Number(t.marks_impact_weight ?? 5) })
+              .select("id, name, marks_impact_weight").single();
+            if (tErr) continue;
+            persistedTopics.push(newT);
+            topicsCreated++;
+          }
+          persistedSubjects.push({ id: subjectId, name: subName, topics: persistedTopics });
+        }
+      }
+
+      return json({
+        success: true,
+        exam_type: examType,
+        exam_summary: curriculum.exam_summary,
+        subjects: persist ? persistedSubjects : (curriculum.subjects || []),
+        subjects_created: subjectsCreated,
+        topics_created: topicsCreated,
+        persisted: persist,
+      });
+    }
+
+    // --- AI GENERATE TOPICS for a single subject ---
+    if (action === "ai-generate-topics" || action === "ai_generate_topics") {
+      const userId = await resolveUserId();
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) return json({ error: "AI gateway not configured" }, 500);
+
+      const subjectName = String(requestBody.subject || requestBody.subject_name || "").trim();
+      const subjectIdInput = String(requestBody.subject_id || "").trim();
+      if (!subjectName && !subjectIdInput) return json({ error: "subject or subject_id is required" }, 400);
+      const persist = requestBody.persist !== false;
+
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+      // Resolve subject
+      let resolvedSubjectId = subjectIdInput;
+      let resolvedSubjectName = subjectName;
+      if (!resolvedSubjectId && subjectName) {
+        const { data: sub } = await adminClient
+          .from("subjects").select("id, name").eq("user_id", userId).eq("name", subjectName).is("deleted_at", null).maybeSingle();
+        if (sub) { resolvedSubjectId = sub.id; resolvedSubjectName = sub.name; }
+      } else if (resolvedSubjectId) {
+        const { data: sub } = await adminClient
+          .from("subjects").select("id, name").eq("id", resolvedSubjectId).eq("user_id", userId).maybeSingle();
+        if (sub) resolvedSubjectName = sub.name;
+      }
+
+      const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
+      const examType = String(profile?.exam_type || "general").trim();
+
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            { role: "system", content: "You generate exam-relevant topics for a single subject. Each topic gets a marks_impact_weight (0-10) reflecting exam weightage." },
+            { role: "user", content: `Generate the complete topic list for subject "${resolvedSubjectName}" in exam "${examType}". Return all important topics.` },
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "generate_topics",
+              parameters: {
+                type: "object",
+                properties: {
+                  topics: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        marks_impact_weight: { type: "number" },
+                      },
+                      required: ["name", "marks_impact_weight"],
+                    },
+                  },
+                },
+                required: ["topics"],
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "generate_topics" } },
+        }),
+      });
+
+      if (!aiResp.ok) {
+        if (aiResp.status === 429) return json({ error: "Rate limited, please try again later" }, 429);
+        if (aiResp.status === 402) return json({ error: "AI credits exhausted" }, 402);
+        return json({ error: "AI gateway error" }, 500);
+      }
+
+      const aiData = await aiResp.json();
+      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      let topicsRaw: any[] = [];
+      if (toolCall?.function?.arguments) {
+        try { topicsRaw = JSON.parse(toolCall.function.arguments)?.topics || []; } catch { /* ignore */ }
+      }
+
+      // Auto-create subject if needed (when persisting)
+      let topicsCreated = 0;
+      const persistedTopics: any[] = [];
+      if (persist) {
+        if (!resolvedSubjectId && resolvedSubjectName) {
+          const { data: newSub } = await adminClient.from("subjects")
+            .insert({ user_id: userId, name: resolvedSubjectName }).select("id").single();
+          resolvedSubjectId = newSub?.id || "";
+        }
+        if (resolvedSubjectId) {
+          for (const t of topicsRaw) {
+            const tName = String(t.name || "").trim();
+            if (!tName) continue;
+            const { data: existing } = await adminClient
+              .from("topics").select("id, name, marks_impact_weight").eq("user_id", userId).eq("subject_id", resolvedSubjectId).eq("name", tName).is("deleted_at", null).maybeSingle();
+            if (existing) { persistedTopics.push(existing); continue; }
+            const { data: newT } = await adminClient.from("topics")
+              .insert({ user_id: userId, subject_id: resolvedSubjectId, name: tName, marks_impact_weight: Number(t.marks_impact_weight ?? 5) })
+              .select("id, name, marks_impact_weight").single();
+            if (newT) { persistedTopics.push(newT); topicsCreated++; }
+          }
+        }
+      }
+
+      return json({
+        success: true,
+        subject: resolvedSubjectName,
+        subject_id: resolvedSubjectId || null,
+        topics: persist ? persistedTopics : topicsRaw,
+        topics_created: topicsCreated,
+        persisted: persist,
+      });
+    }
+
     // --- STEP 4: Save subjects ---
     if (action === "step4-subjects" || action === "step4_subjects") {
       const userId = await resolveUserId();
@@ -453,7 +876,7 @@ Deno.serve(async (req) => {
       return json({ success: true, redirect_to: "/app" });
     }
 
-    return json({ error: "Invalid action. Supported: exam-types, status, suggested-subjects, suggested-topics, step1-name, step2-exam, step3-date, step4-subjects, step5-topics, step6-mode, save-step, complete, skip" }, 400);
+    return json({ error: "Invalid action. Supported: exam-types, status, suggested-subjects, suggested-topics, list-subjects, add-subject, delete-subject, list-topics, add-topic, delete-topic, ai-generate-curriculum, ai-generate-topics, step1-name, step2-exam, step3-date, step4-subjects, step5-topics, step6-mode, save-step, complete, skip" }, 400);
   } catch (e) {
     console.error("onboarding error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
