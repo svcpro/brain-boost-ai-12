@@ -157,6 +157,9 @@ const OnboardingPage = () => {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
   const [aiProgressLabel, setAiProgressLabel] = useState("");
+  const [aiSuggestedSubjects, setAiSuggestedSubjects] = useState<string[]>([]);
+  const [aiSuggestedTopicsBySubject, setAiSuggestedTopicsBySubject] = useState<Record<string, string[]>>({});
+  const [aiAutoTriggered, setAiAutoTriggered] = useState(false);
 
   const { user } = useAuth();
   const navigate = useNavigate();
