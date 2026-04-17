@@ -351,10 +351,10 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                 animate={{ x: ["-100%", "200%"] }} transition={{ duration: 4, repeat: Infinity, repeatDelay: 6 }}
                 style={{ background: "linear-gradient(90deg, transparent, hsla(0,0%,100%,0.03), transparent)", width: "50%" }} />
 
-              <div className="relative p-5">
-                <div className="flex items-center gap-5">
+              <div className="relative p-4">
+                <div className="flex items-center gap-3 min-w-0">
                   {/* Ring */}
-                  <div className="relative w-[120px] h-[120px] shrink-0">
+                  <div className="relative w-[104px] h-[104px] shrink-0">
                     {/* Pulse ripples */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <PulseRipple color={`${grade.ringColor}`} />
