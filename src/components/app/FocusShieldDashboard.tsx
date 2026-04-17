@@ -455,17 +455,17 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
             </motion.div>
 
             {/* ═══ TAB NAVIGATION ═══ */}
-            <div className="flex gap-0.5 rounded-2xl bg-secondary/30 p-1 border border-border/30">
+            <div className="flex gap-0.5 rounded-2xl bg-secondary/30 p-1 border border-border/30 overflow-hidden">
               {TABS.map(tab => (
                 <motion.button key={tab.key} onClick={() => setActiveTab(tab.key)} whileTap={{ scale: 0.95 }}
-                  className={`flex-1 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all relative flex items-center justify-center gap-1 ${activeTab === tab.key ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                  className={`flex-1 min-w-0 py-2 px-1 rounded-xl text-[8.5px] font-bold uppercase tracking-tight transition-all relative flex items-center justify-center gap-1 ${activeTab === tab.key ? "text-primary-foreground" : "text-muted-foreground"}`}>
                   {activeTab === tab.key && (
                     <motion.div layoutId="focus-tab-bg" className="absolute inset-0 rounded-xl bg-primary"
                       style={{ boxShadow: `0 0 15px hsl(var(--primary) / 0.3)` }}
                       transition={{ type: "spring", stiffness: 400, damping: 30 }} />
                   )}
-                  <tab.icon className="w-3 h-3 relative z-10" />
-                  <span className="relative z-10 hidden min-[360px]:inline">{tab.label}</span>
+                  <tab.icon className="w-3 h-3 relative z-10 shrink-0" />
+                  <span className="relative z-10 hidden min-[420px]:inline truncate">{tab.label}</span>
                 </motion.button>
               ))}
             </div>
