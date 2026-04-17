@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, lazy, Suspense } from "
 import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ACRYLogo from "@/components/landing/ACRYLogo";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeatureFlags, FeatureFlagContext } from "@/hooks/useFeatureFlags";
 import { usePlanGating, PlanGatingContext } from "@/hooks/usePlanGating";
@@ -97,6 +97,20 @@ const AppDashboard = () => {
     }
     setActiveTab(tabId);
   };
+
+  // Honor `?tab=action|brain|progress|you|home` from SMS / email deep-links
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const requested = searchParams.get("tab");
+    if (requested && tabDefs.some((t) => t.id === requested) && requested !== activeTab) {
+      switchTab(requested);
+      // Clean the param so back-nav doesn't re-trigger
+      const next = new URLSearchParams(searchParams);
+      next.delete("tab");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Listen for tab switch events from notification clicks
   useEffect(() => {

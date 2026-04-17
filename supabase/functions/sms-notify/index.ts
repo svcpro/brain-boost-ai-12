@@ -117,7 +117,12 @@ async function dispatchSms(
       .from("sms_templates").select("*").eq("name", params.template_name).maybeSingle();
     if (!tpl) return { ok: false, status: "template_missing", reason: `Template ${params.template_name} not found` };
     if (!tpl.is_active) return { ok: false, status: "template_disabled", reason: "Template inactive" };
-    body = renderTemplate(tpl.body_template, params.variables || {});
+    // Auto-inject {{link}} from template's target_url if caller didn't provide one
+    const mergedVars: Record<string, unknown> = { ...(params.variables || {}) };
+    if (tpl.target_url && (mergedVars.link == null || mergedVars.link === "")) {
+      mergedVars.link = tpl.target_url;
+    }
+    body = renderTemplate(tpl.body_template, mergedVars);
     category = tpl.category || category;
     dltId = tpl.dlt_template_id || dltId;
     senderId = tpl.sender_id || senderId;
