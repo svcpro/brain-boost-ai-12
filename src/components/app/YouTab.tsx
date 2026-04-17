@@ -31,6 +31,7 @@ import AIRecalibration from "./you/AIRecalibration";
 import AIPersonalizationControlCenter from "./you/AIPersonalizationControlCenter";
 import CognitiveProfileCard from "./CognitiveProfileCard";
 import PasswordManagement from "./you/PasswordManagement";
+import ApiKeyCard from "./you/ApiKeyCard";
 
 interface YouTabProps {
   autoOpenVoiceSettings?: boolean;
@@ -256,6 +257,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
       {/* ═══ Monthly Performance Snapshot ═══ */}
       <MonthlyPerformanceSnapshot />
+
+      {/* ═══ API Key (auto-generated per user) ═══ */}
+      <ApiKeyCard />
 
       {/* AI Recalibration hidden per user request */}
 
