@@ -603,6 +603,70 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   const [examHistory, setExamHistory] = useState<any[]>([]);
   const [studyTrend, setStudyTrend] = useState<{ date: string; minutes: number }[]>([]);
 
+  // Access-token minting
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [tokenExpiresAt, setTokenExpiresAt] = useState<number | null>(null);
+  const [showToken, setShowToken] = useState(false);
+  const [tokenNow, setTokenNow] = useState<number>(Date.now());
+
+  useEffect(() => {
+    if (!tokenExpiresAt) return;
+    const id = setInterval(() => setTokenNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [tokenExpiresAt]);
+
+  const tokenSecondsLeft = tokenExpiresAt
+    ? Math.max(0, Math.floor((tokenExpiresAt - tokenNow) / 1000))
+    : 0;
+  const tokenExpiresLabel = tokenExpiresAt
+    ? tokenSecondsLeft > 60
+      ? `in ${Math.floor(tokenSecondsLeft / 60)}m ${tokenSecondsLeft % 60}s`
+      : `in ${tokenSecondsLeft}s`
+    : "—";
+  const maskedToken = accessToken
+    ? `${accessToken.slice(0, 14)}••••••••••••••${accessToken.slice(-10)}`
+    : "";
+
+  const generateUserToken = async () => {
+    setTokenLoading(true);
+    setAccessToken(null);
+    setTokenExpiresAt(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-get-user-token", {
+        body: { user_id: user.id },
+      });
+      if (error || !data?.access_token) {
+        toast({
+          title: "Failed to mint token",
+          description: error?.message || data?.error || "Unknown error",
+          variant: "destructive",
+        });
+        return;
+      }
+      setAccessToken(data.access_token);
+      setTokenExpiresAt(Date.now() + (data.expires_in || 3600) * 1000);
+      setShowToken(false);
+      await logAudit("user_access_token_minted", { target: user.id });
+      toast({ title: "Access token generated ✓", description: "Token is valid for ~1 hour." });
+    } catch (e: any) {
+      toast({ title: "Request failed", description: e.message, variant: "destructive" });
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  const copyAccessToken = async () => {
+    if (!accessToken) return;
+    try {
+      await navigator.clipboard.writeText(accessToken);
+      toast({ title: "Token copied ✓", description: "Access token copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard access denied.", variant: "destructive" });
+    }
+  };
+
+
   const logAudit = async (action: string, details: Record<string, any>) => {
     if (!adminUser) return;
     await supabase.from("admin_audit_logs").insert({
