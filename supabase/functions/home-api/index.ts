@@ -40,10 +40,17 @@ const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBL
 const adminClient = createClient(supabaseUrl, serviceKey);
 
 async function resolveUser(req: Request): Promise<string | null> {
-  // 1. Try Bearer JWT token
   const auth = req.headers.get("authorization") ?? "";
-  if (auth.startsWith("Bearer ")) {
-    const token = auth.replace("Bearer ", "").trim();
+  const normalizedAuth = auth.trim();
+  const jwtToken = normalizedAuth.startsWith("Bearer ")
+    ? normalizedAuth.replace("Bearer ", "").trim()
+    : normalizedAuth.split(".").length === 3
+      ? normalizedAuth
+      : "";
+
+  // 1. Try JWT token from Authorization header (with or without Bearer prefix)
+  if (jwtToken) {
+    const token = jwtToken;
     const { data } = await adminClient.auth.getUser(token);
     if (data?.user?.id) return data.user.id;
   }
