@@ -89,6 +89,44 @@ const SUGGESTED_TOPICS: Record<string, string[]> = {
   "Logical Reasoning": ["Arrangements", "Puzzles", "Syllogisms", "Blood Relations"],
 };
 
+// Validates that user input looks like a real word/subject (rejects gibberish like "KKKKK", "HJKKJH")
+// Returns { valid: boolean, reason?: string }
+const validateAcademicTerm = (raw: string): { valid: boolean; reason?: string } => {
+  const text = raw.trim();
+  if (text.length < 2) return { valid: false, reason: "Too short — use at least 2 characters." };
+  if (text.length > 60) return { valid: false, reason: "Too long — keep it under 60 characters." };
+
+  // Must contain at least one letter
+  if (!/[A-Za-z]/.test(text)) return { valid: false, reason: "Use letters, not just symbols or numbers." };
+
+  // Reject if no vowels (real words almost always have vowels: a, e, i, o, u, y)
+  const letters = text.replace(/[^A-Za-z]/g, "");
+  if (letters.length < 2) return { valid: false, reason: "Add a real subject/topic name." };
+  if (!/[aeiouyAEIOUY]/.test(letters)) {
+    return { valid: false, reason: "That doesn't look like a real word. Try again." };
+  }
+
+  // Reject single repeated letter (e.g. "KKKKK", "aaaa")
+  const uniqueLetters = new Set(letters.toLowerCase());
+  if (uniqueLetters.size === 1) return { valid: false, reason: "That doesn't look like a real word." };
+
+  // Reject if 4+ same letters in a row (e.g. "AAAA")
+  if (/([A-Za-z])\1{3,}/.test(text)) return { valid: false, reason: "Too many repeated letters." };
+
+  // Reject if 5+ consonants in a row anywhere (gibberish like "HJKKJH", "BCDFG")
+  if (/[BCDFGHJKLMNPQRSTVWXZbcdfghjklmnpqrstvwxz]{5,}/.test(text)) {
+    return { valid: false, reason: "That doesn't look like a real word. Try again." };
+  }
+
+  // Require a healthy vowel ratio (at least 15% of letters should be vowels)
+  const vowelCount = (letters.match(/[aeiouyAEIOUY]/g) || []).length;
+  if (vowelCount / letters.length < 0.15) {
+    return { valid: false, reason: "That doesn't look like a real word. Try again." };
+  }
+
+  return { valid: true };
+};
+
 const STUDY_MODES = [
   { id: "lazy", label: "Chill Mode", desc: "Light daily revision", emoji: "😴" },
   { id: "focus", label: "Focus Mode", desc: "Balanced study plan", emoji: "🎯" },
