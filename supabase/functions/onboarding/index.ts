@@ -357,18 +357,29 @@ Deno.serve(async (req) => {
         .is("deleted_at", null)
         .maybeSingle();
 
-      if (existing) {
-        return json({ success: true, subject: existing, duplicate: true });
+      let subjectRow = existing;
+      let duplicate = !!existing;
+
+      if (!existing) {
+        const { data: created, error } = await adminClient
+          .from("subjects")
+          .insert({ user_id: userId, name })
+          .select("id, name, created_at")
+          .single();
+        if (error) return json({ error: error.message }, 500);
+        subjectRow = created;
       }
 
-      const { data: created, error } = await adminClient
-        .from("subjects")
-        .insert({ user_id: userId, name })
-        .select("id, name, created_at")
-        .single();
-
-      if (error) return json({ error: error.message }, 500);
-      return json({ success: true, subject: created, duplicate: false });
+      // Always return the full updated subjects list so API testers
+      // never see an empty "Subject List".
+      const allSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      return json({
+        success: true,
+        subject: subjectRow,
+        duplicate,
+        subjects: allSubjects,
+        total: allSubjects.length,
+      });
     }
 
     // --- DELETE SUBJECT ---
