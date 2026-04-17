@@ -36,29 +36,32 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `You are the world's most thorough academic curriculum architect for Indian competitive exams (UPSC, NEET, JEE, SSC, CAT, GATE, Banking, State PSCs, CLAT, etc.) and academic boards (CBSE, ICSE, State Boards) and university courses.
+              content: `You are an expert academic curriculum architect. Your job is to output the REAL, OFFICIAL syllabus for the given exam — actual subject names like "History", "Physics", "Polity", "Quantitative Aptitude", "General Studies", etc.
 
-CRITICAL RULES:
-1. Generate the COMPLETE, EXHAUSTIVE official syllabus — do NOT skip ANY subject or topic.
-2. Cover EVERY subject in the official syllabus (e.g., for UPSC GS: History, Geography, Polity, Economy, Environment, Science & Tech, Ethics, Essay, CSAT, Optional placeholder, Current Affairs, etc.).
-3. For EACH subject, include EVERY major topic AND sub-topic from the official syllabus — aim for 15-40 topics per subject (not just 5-10).
-4. Use the OFFICIAL topic names as published by the exam conducting body (UPSC/NTA/SSC/etc.).
-5. Assign accurate marks_impact_weight (0-10) based on real historical question frequency and weightage in past 10 years of papers.
-6. Order topics logically (foundational → advanced) within each subject.
-7. NEVER return a partial or summarized syllabus. Completeness is mandatory.`
+ABSOLUTE RULES:
+1. Output ONLY real academic subject names that a student would study (e.g., Physics, Chemistry, Mathematics, Biology, History, Geography, Polity, Economy, English, Reasoning, General Awareness, Computer Science, Accountancy, etc.).
+2. NEVER output meta/schema words like "exam_name", "syllabus", "description", "exam_conducting_body", "topic_name", "subject_name", "category" — these are FORBIDDEN as subject or topic names.
+3. NEVER output placeholder words like "Subject 1", "Topic A", "Section 1", "Paper 1" without a real subject name attached.
+4. For each subject, generate 15-40 REAL topic/chapter names from the actual syllabus (e.g., "Newton's Laws of Motion", "Mughal Empire", "Indian Constitution - Fundamental Rights", "Photosynthesis", "Time and Work").
+5. If the exam name is vague or unfamiliar, infer the most likely real-world exam and generate its standard syllabus. NEVER generate generic placeholders.
+6. Assign accurate marks_impact_weight (0-10) based on real exam weightage.
+
+EXAMPLE for "NEET UG":
+- Subject: "Physics" → Topics: "Mechanics", "Thermodynamics", "Electromagnetism", "Optics", "Modern Physics", ...
+- Subject: "Chemistry" → Topics: "Atomic Structure", "Chemical Bonding", "Organic Chemistry - Hydrocarbons", "Coordination Compounds", ...
+- Subject: "Biology" → Topics: "Cell Biology", "Genetics", "Human Physiology", "Plant Physiology", "Ecology", ...
+
+EXAMPLE for "UPSC CSE Prelims":
+- Subject: "Indian Polity" → Topics: "Constitution Framing", "Fundamental Rights", "Parliament", "Judiciary", "Federalism", ...
+- Subject: "Modern History" → Topics: "Revolt of 1857", "Indian National Congress", "Gandhian Movements", "Partition of India", ...`
             },
             {
               role: "user",
-              content: `Generate the COMPLETE official syllabus for: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}.
+              content: `Generate the COMPLETE official syllabus for the exam: "${examLabel}"${custom_exam ? ` (custom: ${custom_exam})` : ""}.
 
-Requirements:
-- Include ALL subjects from the official syllabus (no omissions).
-- For each subject, list ALL topics and sub-topics (15-40 per subject is normal for major exams).
-- Use official topic naming conventions.
-- Assign accurate marks_impact_weight (0-10) based on past-paper frequency.
-- Total topics across all subjects should reflect the true syllabus size (typically 200-500+ for major exams).
+Output REAL subject names (Physics, History, etc.) and REAL topic names (Newton's Laws, Mughal Empire, etc.) — NOT schema field names or placeholders.
 
-Return the EXHAUSTIVE structure now.`
+Include ALL subjects and 15-40 real topics per subject. Total typically 200-500+ topics for major exams.`
             }
           ],
           tools: [{
