@@ -43,13 +43,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
         if (cancelled) return;
 
-        const data = profileRes.data;
+        const data = profileRes.data as any;
         const sub = subRes.data;
         const prefs = data?.study_preferences as Record<string, unknown> | null;
 
-        if ((data as any)?.is_banned) {
+        // Legacy users: if they have an exam_type + display_name set,
+        // treat them as onboarded even when the explicit flag is missing.
+        const hasLegacyOnboardingData = !!(data?.exam_type && data?.display_name);
+        const isOnboarded = !!prefs?.onboarded || hasLegacyOnboardingData;
+
+        if (data?.is_banned) {
           setProfileState("banned");
-        } else if (!prefs?.onboarded) {
+        } else if (!isOnboarded) {
           setProfileState("onboarding");
         } else {
           const now = new Date();
