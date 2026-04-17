@@ -6,10 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-api-key, api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const securityHeaders = {
+  "Cache-Control": "private, no-store, no-cache, max-age=0, must-revalidate",
+  "Pragma": "no-cache",
+  "Surrogate-Control": "no-store",
+  "CDN-Cache-Control": "no-store",
+  "Vary": "Authorization, x-api-key, api-key, apikey, x-access-token, access-token",
+};
+
 const rawJson = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" },
   });
 
 const json = (data: unknown, status = 200) => rawJson(sanitizeNulls(data), status);
@@ -40,7 +48,7 @@ async function resolveUser(req: Request): Promise<string | null> {
     if (data?.user?.id) return data.user.id;
   }
 
-  // 2. Try x-api-key / api-key headers (acry_ prefixed keys)
+  // 2. Try x-api-key / api-key headers
   const apiKeyCandidates = [
     req.headers.get("x-api-key"),
     req.headers.get("api-key"),
@@ -53,26 +61,19 @@ async function resolveUser(req: Request): Promise<string | null> {
   }
 
   for (const candidate of apiKeyCandidates) {
-    const acryMatch = candidate.match(/acry_[A-Za-z0-9]+/)?.[0];
-    if (acryMatch) {
-      const storedPrefix = `${acryMatch.substring(0, 10)}...`;
-      const { data: keyRow } = await adminClient
-        .from("api_keys")
-        .select("created_by")
-        .eq("key_prefix", storedPrefix)
-        .eq("is_active", true)
-        .maybeSingle();
-      if (keyRow?.created_by) return keyRow.created_by;
-    }
+    const normalizedCandidate = candidate.trim();
+    if (!normalizedCandidate) continue;
 
-    // Fallback: match by key_hash
-    const { data: hashRow } = await adminClient
+    const resolvedApiKey = normalizedCandidate.match(/acry_[A-Za-z0-9]+/)?.[0] || normalizedCandidate;
+
+    const { data: keyRow } = await adminClient
       .from("api_keys")
       .select("created_by")
-      .eq("key_hash", candidate)
+      .eq("key_hash", resolvedApiKey)
       .eq("is_active", true)
       .maybeSingle();
-    if (hashRow?.created_by) return hashRow.created_by;
+
+    if (keyRow?.created_by) return keyRow.created_by;
   }
 
   return null;
