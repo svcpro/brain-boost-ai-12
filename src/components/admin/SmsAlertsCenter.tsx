@@ -21,7 +21,7 @@ import {
 import {
   Smartphone, Send, Activity, FileText, Megaphone, Clock, BarChart3, Settings,
   CheckCircle2, XCircle, AlertTriangle, RefreshCw, Loader2, Zap, Shield,
-  Users, Plus, Pencil, Eye, Sparkles, TrendingUp, Radio, Gauge, Link as LinkIcon, ExternalLink,
+  Users, Plus, Pencil, Eye, Sparkles, TrendingUp, Radio, Gauge, Link as LinkIcon, ExternalLink, Copy, Check,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -168,6 +168,18 @@ function Templates() {
   const [list, setList] = useState<any[]>([]);
   const [edit, setEdit] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyUrl = useCallback(async (id: string, url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      toast({ title: "URL copied", description: url });
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+    } catch {
+      toast({ title: "Copy failed", variant: "destructive" });
+    }
+  }, [toast]);
 
   const load = useCallback(async () => {
     setLoading(true);
