@@ -159,23 +159,35 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       if (data) setBurnoutData(data);
     }).catch(() => {});
     loadExamDate();
-    // Streak auto-updates via realtime in useStudyStreak
-    if (user) {
-      supabase.from("plan_quality_logs").select("overall_completion_rate").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).then(({ data }) => {
-        if (data?.[0]?.overall_completion_rate != null) setLatestCompletionRate(data[0].overall_completion_rate * 100);
-      });
-    }
-    if (user) {
-      supabase.from("profiles").select("avatar_url, display_name").eq("id", user.id).maybeSingle().then(({ data }) => {
-        if (data?.avatar_url) setAvatarUrl(data.avatar_url);
-        if (data?.display_name) setDisplayName(data.display_name);
-      });
-    }
     const interval = setInterval(() => {
       predict().then(() => setRadarLastUpdated(new Date()));
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // User-dependent fetches — re-run when user becomes available or changes
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from("plan_quality_logs")
+      .select("overall_completion_rate")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data?.[0]?.overall_completion_rate != null) {
+          setLatestCompletionRate(data[0].overall_completion_rate * 100);
+        }
+      });
+
+    supabase.from("profiles")
+      .select("avatar_url, display_name")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setAvatarUrl(data?.avatar_url ?? null);
+        setDisplayName(data?.display_name ?? null);
+      });
+  }, [user?.id]);
 
   useEffect(() => {
     const key = "acry-first-visit-confetti";
