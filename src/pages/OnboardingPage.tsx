@@ -957,19 +957,37 @@ const OnboardingPage = () => {
 
                 {activeSubject && (
                   <div className="space-y-2.5">
-                    {SUGGESTED_TOPICS[activeSubject] && (
-                      <div>
-                        <p className="text-[10px] mb-1.5" style={{ color: "#ffffff30" }}>Suggested:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {SUGGESTED_TOPICS[activeSubject].filter(t => !(topicsBySubject[activeSubject] || []).includes(t)).map(t => (
-                            <button key={t} onClick={() => addSuggestedTopic(activeSubject, t)}
-                              className="px-2 py-0.5 rounded-full text-[9px] transition-all"
-                              style={{ border: "1px dashed #00E5FF30", color: "#00E5FF80", background: "#00E5FF04" }}
-                            >+ {t}</button>
-                          ))}
+                    {(() => {
+                      const aiTopics = aiSuggestedTopicsBySubject[activeSubject] || [];
+                      const staticTopics = SUGGESTED_TOPICS[activeSubject] || [];
+                      const pool = aiTopics.length > 0 ? aiTopics : staticTopics;
+                      const remaining = pool.filter(t => !(topicsBySubject[activeSubject] || []).includes(t));
+                      if (remaining.length === 0) return null;
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-[10px]" style={{ color: "#ffffff30" }}>
+                              {aiTopics.length > 0 ? "AI Suggested:" : "Suggested:"} <span style={{ color: "#00E5FF80" }}>({remaining.length})</span>
+                            </p>
+                            {remaining.length > 1 && (
+                              <button
+                                onClick={() => setTopicsBySubject(prev => ({ ...prev, [activeSubject]: [...(prev[activeSubject] || []), ...remaining] }))}
+                                className="text-[9px] font-semibold transition-all"
+                                style={{ color: "#00E5FF" }}
+                              >+ Add all</button>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1 max-h-56 overflow-y-auto scrollbar-hide">
+                            {remaining.map(t => (
+                              <button key={t} onClick={() => addSuggestedTopic(activeSubject, t)}
+                                className="px-2 py-0.5 rounded-full text-[9px] transition-all"
+                                style={{ border: "1px dashed #00E5FF30", color: "#00E5FF80", background: "#00E5FF04" }}
+                              >+ {t}</button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     <div className="flex flex-wrap gap-1">
                       {(topicsBySubject[activeSubject] || []).map(t => (
                         <motion.span key={t} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
