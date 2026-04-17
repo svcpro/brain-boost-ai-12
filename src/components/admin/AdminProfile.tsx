@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   User, Mail, Lock, Camera, Save, Loader2, Eye, EyeOff,
-  CheckCircle2, AlertTriangle, Shield, Clock, Calendar
+  CheckCircle2, AlertTriangle, Shield, Clock, Calendar, Key, Copy, RefreshCw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,7 +19,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const AdminProfile = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { roles } = useAdminRole();
   const { toast } = useToast();
 
@@ -36,7 +36,48 @@ const AdminProfile = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Access token
+  const [showToken, setShowToken] = useState(false);
+  const [refreshingToken, setRefreshingToken] = useState(false);
+
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const accessToken = session?.access_token || "";
+  const tokenExpiresAt = session?.expires_at ? new Date(session.expires_at * 1000) : null;
+  const tokenExpiresIn = tokenExpiresAt ? Math.max(0, Math.floor((tokenExpiresAt.getTime() - Date.now()) / 1000)) : 0;
+  const tokenExpiresLabel = tokenExpiresAt
+    ? tokenExpiresIn > 60
+      ? `in ${Math.floor(tokenExpiresIn / 60)}m ${tokenExpiresIn % 60}s`
+      : `in ${tokenExpiresIn}s`
+    : "—";
+  const maskedToken = accessToken
+    ? `${accessToken.slice(0, 14)}••••••••••••••${accessToken.slice(-10)}`
+    : "";
+
+  const copyAccessToken = async () => {
+    if (!accessToken) {
+      toast({ title: "No active session", variant: "destructive" });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(accessToken);
+      toast({ title: "Token copied ✓", description: "Access token copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard access denied.", variant: "destructive" });
+    }
+  };
+
+  const refreshAccessToken = async () => {
+    setRefreshingToken(true);
+    const { error } = await supabase.auth.refreshSession();
+    if (error) {
+      toast({ title: "Refresh failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Token refreshed ✓" });
+    }
+    setRefreshingToken(false);
+  };
+
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -271,6 +312,61 @@ const AdminProfile = () => {
         <div className="bg-secondary/50 rounded-lg p-3">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">User ID</p>
           <p className="text-xs font-mono text-muted-foreground break-all">{user?.id}</p>
+        </div>
+      </motion.div>
+
+      {/* Access Token */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="glass rounded-2xl neural-border p-5 space-y-3"
+      >
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Key className="w-4 h-4 text-primary" />
+            User Access Token
+          </h3>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground">Expires {tokenExpiresLabel}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${tokenExpiresIn > 60 ? "bg-success" : tokenExpiresIn > 0 ? "bg-warning" : "bg-destructive"} animate-pulse`} />
+          </div>
+        </div>
+
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          JWT for authenticated API requests. Use as <code className="px-1 py-0.5 rounded bg-secondary text-foreground font-mono text-[10px]">Authorization: Bearer &lt;token&gt;</code>. Never share publicly.
+        </p>
+
+        <div className="bg-secondary/60 rounded-lg p-3 border border-border break-all">
+          <p className="text-[11px] font-mono text-foreground select-all">
+            {accessToken ? (showToken ? accessToken : maskedToken) : "No active session"}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={copyAccessToken}
+            disabled={!accessToken}
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Copy className="w-3.5 h-3.5" /> Copy Token
+          </button>
+          <button
+            onClick={() => setShowToken(s => !s)}
+            disabled={!accessToken}
+            className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50"
+          >
+            {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {showToken ? "Hide" : "Reveal"}
+          </button>
+          <button
+            onClick={refreshAccessToken}
+            disabled={refreshingToken}
+            className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50"
+          >
+            {refreshingToken ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Refresh
+          </button>
         </div>
       </motion.div>
 
