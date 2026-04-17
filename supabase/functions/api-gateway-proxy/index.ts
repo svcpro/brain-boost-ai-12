@@ -6,6 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-access-token, access-token, x-api-key, api-key, x-api-token, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const securityHeaders = {
+  "Cache-Control": "private, no-store, no-cache, max-age=0, must-revalidate",
+  "Pragma": "no-cache",
+  "Surrogate-Control": "no-store",
+  "CDN-Cache-Control": "no-store",
+  "Vary": "Authorization, x-api-key, api-key, apikey, x-access-token, access-token",
+};
+
 const DEFAULT_TARGET_BASE = "https://v1.acry.ai/v1";
 const FALLBACK_TARGET_BASE = "https://api.acry.app/v1";
 
@@ -56,9 +64,10 @@ const normalizeTargetBase = (rawBase?: unknown) => {
   return DEFAULT_TARGET_BASE;
 };
 
-const json = (payload: unknown) =>
+const json = (payload: unknown, status = 200) =>
   new Response(JSON.stringify(payload), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status,
+    headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" },
   });
 
 const pickString = (record: Record<string, unknown> | null, keys: string[]) => {
