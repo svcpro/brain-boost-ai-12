@@ -93,35 +93,42 @@ const SUGGESTED_TOPICS: Record<string, string[]> = {
 // Returns { valid: boolean, reason?: string }
 const validateAcademicTerm = (raw: string): { valid: boolean; reason?: string } => {
   const text = raw.trim();
-  if (text.length < 2) return { valid: false, reason: "Too short — use at least 2 characters." };
+  if (text.length < 3) return { valid: false, reason: "Too short — use at least 3 characters." };
   if (text.length > 60) return { valid: false, reason: "Too long — keep it under 60 characters." };
 
   // Must contain at least one letter
   if (!/[A-Za-z]/.test(text)) return { valid: false, reason: "Use letters, not just symbols or numbers." };
 
-  // Reject if no vowels (real words almost always have vowels: a, e, i, o, u, y)
+  // Strip to letters only for linguistic checks
   const letters = text.replace(/[^A-Za-z]/g, "");
-  if (letters.length < 2) return { valid: false, reason: "Add a real subject/topic name." };
+  if (letters.length < 3) return { valid: false, reason: "Add a real subject/topic name." };
+
+  // Must contain at least one vowel
   if (!/[aeiouyAEIOUY]/.test(letters)) {
     return { valid: false, reason: "That doesn't look like a real word. Try again." };
   }
 
-  // Reject single repeated letter (e.g. "KKKKK", "aaaa")
+  // Reject single-letter spam (e.g. "KKKKK", "aaaa")
   const uniqueLetters = new Set(letters.toLowerCase());
-  if (uniqueLetters.size === 1) return { valid: false, reason: "That doesn't look like a real word." };
+  if (uniqueLetters.size < 3) return { valid: false, reason: "That doesn't look like a real word." };
 
-  // Reject if 4+ same letters in a row (e.g. "AAAA")
-  if (/([A-Za-z])\1{3,}/.test(text)) return { valid: false, reason: "Too many repeated letters." };
+  // Reject 3+ same letters in a row (e.g. "AAAA", "kkk")
+  if (/([A-Za-z])\1{2,}/.test(text)) return { valid: false, reason: "Too many repeated letters." };
 
-  // Reject if 5+ consonants in a row anywhere (gibberish like "HJKKJH", "BCDFG")
-  if (/[BCDFGHJKLMNPQRSTVWXZbcdfghjklmnpqrstvwxz]{5,}/.test(text)) {
+  // Reject 4+ consonants in a row (gibberish like "HJKKJH", "BCDFG", "JKLM")
+  if (/[BCDFGHJKLMNPQRSTVWXZbcdfghjklmnpqrstvwxz]{4,}/.test(text)) {
     return { valid: false, reason: "That doesn't look like a real word. Try again." };
   }
 
-  // Require a healthy vowel ratio (at least 15% of letters should be vowels)
-  const vowelCount = (letters.match(/[aeiouyAEIOUY]/g) || []).length;
-  if (vowelCount / letters.length < 0.15) {
-    return { valid: false, reason: "That doesn't look like a real word. Try again." };
+  // Per-word vowel ratio check (≥20% vowels per word)
+  const words = text.split(/\s+/).filter(w => /[A-Za-z]/.test(w));
+  for (const w of words) {
+    const wLetters = w.replace(/[^A-Za-z]/g, "");
+    if (wLetters.length < 2) continue;
+    const wVowels = (wLetters.match(/[aeiouyAEIOUY]/g) || []).length;
+    if (wVowels === 0 || wVowels / wLetters.length < 0.2) {
+      return { valid: false, reason: `"${w}" doesn't look like a real word.` };
+    }
   }
 
   return { valid: true };
