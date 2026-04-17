@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { GraduationCap, BookOpen, Calendar as CalendarIcon, Plus, X, ChevronRight, Sparkles, Hash, Wand2, Loader2 } from "lucide-react";
