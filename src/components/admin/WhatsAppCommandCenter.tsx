@@ -748,31 +748,53 @@ const MetaTemplatesTab = () => {
               {t.meta_template_id && <p className="text-[10px] text-muted-foreground font-mono">Meta ID: {t.meta_template_id}</p>}
               {t.rejection_reason && <p className="text-[11px] text-destructive">⚠ {t.rejection_reason}</p>}
 
-              {/* Buttons preview (WhatsApp-style) */}
+              {/* Buttons preview (WhatsApp-style) with copy URL */}
               {Array.isArray(t.buttons) && t.buttons.length > 0 && (
                 <div className="space-y-1 pt-1">
                   <p className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
                     <ExternalLink className="w-3 h-3" /> CTA Buttons
                   </p>
                   <div className="flex flex-col gap-1">
-                    {(t.buttons as MetaButton[]).map((b, idx) => (
-                      <a key={idx}
-                        href={b.type === "URL" ? b.url : b.type === "PHONE_NUMBER" ? `tel:${b.phone_number}` : undefined}
-                        target={b.type === "URL" ? "_blank" : undefined}
-                        rel="noopener noreferrer"
-                        onClick={(e) => { if (b.type === "QUICK_REPLY") e.preventDefault(); }}
-                        className="flex items-center justify-center gap-1.5 w-full py-2 rounded-md bg-success/10 hover:bg-success/20 text-success text-[12px] font-semibold border border-success/30 transition-colors">
-                        {b.type === "URL" && <ExternalLink className="w-3.5 h-3.5" />}
-                        {b.type === "PHONE_NUMBER" && <Phone className="w-3.5 h-3.5" />}
-                        {b.type === "QUICK_REPLY" && <Reply className="w-3.5 h-3.5" />}
-                        {b.text}
-                        {b.type === "URL" && b.url && (
-                          <span className="text-[9px] text-muted-foreground font-normal font-mono ml-1 truncate max-w-[140px]">
-                            {b.url.replace(/^https?:\/\//, "")}
-                          </span>
-                        )}
-                      </a>
-                    ))}
+                    {(t.buttons as MetaButton[]).map((b, idx) => {
+                      const copyKey = `${t.id}:${idx}`;
+                      const copied = copiedKey === copyKey;
+                      const target = b.type === "URL" ? b.url : b.type === "PHONE_NUMBER" ? b.phone_number : "";
+                      return (
+                        <div key={idx} className="flex items-stretch gap-1">
+                          <a
+                            href={b.type === "URL" ? b.url : b.type === "PHONE_NUMBER" ? `tel:${b.phone_number}` : undefined}
+                            target={b.type === "URL" ? "_blank" : undefined}
+                            rel="noopener noreferrer"
+                            onClick={(e) => { if (b.type === "QUICK_REPLY") e.preventDefault(); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md bg-success/10 hover:bg-success/20 text-success text-[12px] font-semibold border border-success/30 transition-colors"
+                          >
+                            {b.type === "URL" && <ExternalLink className="w-3.5 h-3.5" />}
+                            {b.type === "PHONE_NUMBER" && <Phone className="w-3.5 h-3.5" />}
+                            {b.type === "QUICK_REPLY" && <Reply className="w-3.5 h-3.5" />}
+                            {b.text}
+                            {b.type === "URL" && b.url && (
+                              <span className="text-[9px] text-muted-foreground font-normal font-mono ml-1 truncate max-w-[140px]">
+                                {b.url.replace(/^https?:\/\//, "")}
+                              </span>
+                            )}
+                          </a>
+                          {target && (b.type === "URL" || b.type === "PHONE_NUMBER") && (
+                            <button
+                              onClick={() => copyUrl(target, copyKey)}
+                              title={`Copy ${b.type === "URL" ? "URL" : "number"}`}
+                              className={`px-2.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 transition-colors ${
+                                copied
+                                  ? "bg-success/20 text-success border-success/40"
+                                  : "bg-muted/30 hover:bg-muted/50 text-foreground border-border/40"
+                              }`}
+                            >
+                              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                              <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
