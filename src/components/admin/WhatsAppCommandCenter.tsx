@@ -462,6 +462,17 @@ const MetaTemplatesTab = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected" | "submitted">("all");
   const [showForm, setShowForm] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const copyUrl = async (url: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedKey(key);
+      toast({ title: "URL copied ✓", description: url });
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard unavailable", variant: "destructive" });
+    }
+  };
   const [form, setForm] = useState<Partial<MetaTemplate>>({
     template_name: "", display_name: "", category: "UTILITY", language: "en",
     header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "",
