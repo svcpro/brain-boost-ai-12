@@ -183,7 +183,13 @@ const OnboardingPage = () => {
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
-    if (trimmed && !subjects.includes(trimmed)) {
+    if (!trimmed) return;
+    const check = validateAcademicTerm(trimmed);
+    if (!check.valid) {
+      toast({ title: "Invalid subject name", description: check.reason, variant: "destructive" });
+      return;
+    }
+    if (!subjects.includes(trimmed)) {
       setSubjects([...subjects, trimmed]);
       setTopicsBySubject(prev => ({ ...prev, [trimmed]: [] }));
       setNewSubject("");
@@ -198,7 +204,13 @@ const OnboardingPage = () => {
 
   const addTopic = (subject: string) => {
     const trimmed = newTopic.trim();
-    if (trimmed && !(topicsBySubject[subject] || []).includes(trimmed)) {
+    if (!trimmed) return;
+    const check = validateAcademicTerm(trimmed);
+    if (!check.valid) {
+      toast({ title: "Invalid topic name", description: check.reason, variant: "destructive" });
+      return;
+    }
+    if (!(topicsBySubject[subject] || []).includes(trimmed)) {
       setTopicsBySubject(prev => ({ ...prev, [subject]: [...(prev[subject] || []), trimmed] }));
       setNewTopic("");
     }
