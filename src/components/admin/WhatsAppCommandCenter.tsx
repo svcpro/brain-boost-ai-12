@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   MessageSquare, Send, Clock, BarChart3, Zap, Settings2,
   CheckCircle2, XCircle, Loader2, Search, RefreshCw, AlertTriangle,
-  CalendarClock, Users, FileText, ShieldCheck, Plus, Trash2
+  CalendarClock, Users, FileText, ShieldCheck, Plus, Trash2, ExternalLink, Phone, Reply
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,13 +17,32 @@ interface Message { id: string; user_id: string | null; to_number: string; templ
 interface Trigger { id: string; trigger_key: string; display_name: string; category: string; is_enabled: boolean; template_name: string; cooldown_minutes: number; total_sent: number; total_delivered: number; }
 interface ScheduledSend { id: string; template_name: string; category: string; audience_type: string; scheduled_at: string; status: string; total_recipients: number; delivered_count: number; }
 interface Config { id: string; is_enabled: boolean; monthly_limit_per_user: number; allowed_categories: string[]; fallback_channels: string[]; auto_fallback_on_quota_exceeded: boolean; integrated_number: string; }
+interface MetaButton {
+  type: "URL" | "PHONE_NUMBER" | "QUICK_REPLY";
+  text: string;
+  url?: string;
+  phone_number?: string;
+  example?: string[];
+}
 interface MetaTemplate {
   id: string; template_name: string; display_name: string; category: string; language: string;
   header_type: string; body_text: string; footer_text: string | null; variables: any;
   approval_status: string; meta_template_id: string | null; msg91_template_id: string | null;
   use_case: string | null; quality_score: string | null; rejection_reason: string | null;
   is_active: boolean; approved_at: string | null;
+  buttons?: MetaButton[] | any;
 }
+
+const APP_PAGES: { label: string; path: string }[] = [
+  { label: "Home", path: "/home" },
+  { label: "Action", path: "/action" },
+  { label: "Brain", path: "/brain" },
+  { label: "SureShot", path: "/sureshot" },
+  { label: "You", path: "/you" },
+  { label: "BrainLens", path: "/brainlens" },
+  { label: "Community", path: "/community" },
+];
+const APP_BASE_URL = "https://acry.ai";
 
 const WhatsAppCommandCenter = () => {
   const { toast } = useToast();
@@ -446,8 +465,8 @@ const MetaTemplatesTab = () => {
   const [form, setForm] = useState<Partial<MetaTemplate>>({
     template_name: "", display_name: "", category: "UTILITY", language: "en",
     header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "",
-    approval_status: "pending",
-  });
+    approval_status: "pending", buttons: [],
+  } as any);
 
   useEffect(() => { load(); }, []);
   const load = async () => {
@@ -465,20 +484,44 @@ const MetaTemplatesTab = () => {
     if (!form.template_name || !form.body_text) {
       return toast({ title: "Name & body required", variant: "destructive" });
     }
+    // Validate buttons (max 3 for URL/PHONE mix, max 10 for QUICK_REPLY per Meta policy)
+    const btns: MetaButton[] = (form.buttons as any) || [];
+    for (const b of btns) {
+      if (b.type === "URL" && !b.url) return toast({ title: "URL button missing URL", variant: "destructive" });
+      if (b.type === "PHONE_NUMBER" && !b.phone_number) return toast({ title: "Phone button missing number", variant: "destructive" });
+      if (!b.text) return toast({ title: "Button text required", variant: "destructive" });
+    }
     const payload = {
       ...form,
       template_name: form.template_name?.toLowerCase().replace(/[^a-z0-9_]/g, "_"),
       created_by: user?.id,
       variables: form.variables || [],
+      buttons: btns,
     };
     const { error } = await supabase.from("whatsapp_meta_templates" as any).insert(payload as any);
     if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
     else {
       toast({ title: "Template added ✓", description: "Submit to Meta via MSG91 dashboard for approval" });
       setShowForm(false);
-      setForm({ template_name: "", display_name: "", category: "UTILITY", language: "en", header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "", approval_status: "pending" });
+      setForm({ template_name: "", display_name: "", category: "UTILITY", language: "en", header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "", approval_status: "pending", buttons: [] } as any);
       load();
     }
+  };
+
+  const addButton = () => {
+    const current: MetaButton[] = ((form.buttons as any) || []) as MetaButton[];
+    if (current.length >= 3) return toast({ title: "Max 3 buttons per template (Meta policy)", variant: "destructive" });
+    setForm({ ...form, buttons: [...current, { type: "URL", text: "Open ACRY", url: APP_BASE_URL + "/home" }] } as any);
+  };
+  const updateButton = (idx: number, patch: Partial<MetaButton>) => {
+    const current: MetaButton[] = [...(((form.buttons as any) || []) as MetaButton[])];
+    current[idx] = { ...current[idx], ...patch };
+    setForm({ ...form, buttons: current } as any);
+  };
+  const removeButton = (idx: number) => {
+    const current: MetaButton[] = [...(((form.buttons as any) || []) as MetaButton[])];
+    current.splice(idx, 1);
+    setForm({ ...form, buttons: current } as any);
   };
 
   const updateStatus = async (id: string, status: string, extra: Record<string, any> = {}) => {
@@ -494,6 +537,12 @@ const MetaTemplatesTab = () => {
     const { error } = await supabase.from("whatsapp_meta_templates" as any).delete().eq("id", id);
     if (error) toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     else { toast({ title: "Deleted" }); load(); }
+  };
+
+  const saveTemplateButtons = async (id: string, buttons: MetaButton[]) => {
+    const { error } = await supabase.from("whatsapp_meta_templates" as any).update({ buttons } as any).eq("id", id);
+    if (error) toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    else { toast({ title: "Buttons updated ✓" }); load(); }
   };
 
   const filtered = templates.filter(t => filter === "all" || t.approval_status === filter);
@@ -586,6 +635,62 @@ const MetaTemplatesTab = () => {
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
           <input placeholder="Use case (e.g. streak_break, exam_countdown)" value={form.use_case || ""} onChange={e => setForm({ ...form, use_case: e.target.value })}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
+
+          {/* Buttons editor */}
+          <div className="space-y-2 p-2.5 rounded-lg bg-background/40 border border-border/50">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                <ExternalLink className="w-3 h-3" /> Call-to-Action Buttons
+                <span className="text-[10px] text-muted-foreground font-normal">(max 3 · Meta policy)</span>
+              </p>
+              <button onClick={addButton} className="text-[11px] px-2 py-1 rounded-md bg-primary/15 text-primary font-semibold flex items-center gap-1">
+                <Plus className="w-3 h-3" /> Add Button
+              </button>
+            </div>
+            {(((form.buttons as any) || []) as MetaButton[]).length === 0 && (
+              <p className="text-[10px] text-muted-foreground italic">No buttons. Tip: a URL button lets users tap and jump straight to the matching app page.</p>
+            )}
+            {(((form.buttons as any) || []) as MetaButton[]).map((b, idx) => (
+              <div key={idx} className="p-2 rounded-md bg-muted/30 border border-border/40 space-y-1.5">
+                <div className="grid grid-cols-[110px_1fr_auto] gap-1.5 items-center">
+                  <select value={b.type} onChange={e => updateButton(idx, { type: e.target.value as any, url: undefined, phone_number: undefined })}
+                    className="px-2 py-1.5 rounded bg-background border border-border text-[11px]">
+                    <option value="URL">URL</option>
+                    <option value="PHONE_NUMBER">Phone</option>
+                    <option value="QUICK_REPLY">Quick Reply</option>
+                  </select>
+                  <input placeholder="Button text (max 25 chars)" maxLength={25} value={b.text}
+                    onChange={e => updateButton(idx, { text: e.target.value })}
+                    className="px-2 py-1.5 rounded bg-background border border-border text-[11px]" />
+                  <button onClick={() => removeButton(idx)} className="p-1.5 rounded bg-destructive/10 text-destructive">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+                {b.type === "URL" && (
+                  <div className="space-y-1.5">
+                    <input placeholder="https://acry.ai/home" value={b.url || ""}
+                      onChange={e => updateButton(idx, { url: e.target.value })}
+                      className="w-full px-2 py-1.5 rounded bg-background border border-border text-[11px] font-mono" />
+                    <div className="flex gap-1 flex-wrap items-center">
+                      <span className="text-[10px] text-muted-foreground">Quick set:</span>
+                      {APP_PAGES.map(p => (
+                        <button key={p.path} onClick={() => updateButton(idx, { url: APP_BASE_URL + p.path })}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20">
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {b.type === "PHONE_NUMBER" && (
+                  <input placeholder="+919999999999" value={b.phone_number || ""}
+                    onChange={e => updateButton(idx, { phone_number: e.target.value })}
+                    className="w-full px-2 py-1.5 rounded bg-background border border-border text-[11px] font-mono" />
+                )}
+              </div>
+            ))}
+          </div>
+
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 py-2 rounded-lg bg-success text-white text-sm font-semibold">Save Template</button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg bg-muted/40 text-foreground text-sm">Cancel</button>
@@ -632,6 +737,35 @@ const MetaTemplatesTab = () => {
               {t.meta_template_id && <p className="text-[10px] text-muted-foreground font-mono">Meta ID: {t.meta_template_id}</p>}
               {t.rejection_reason && <p className="text-[11px] text-destructive">⚠ {t.rejection_reason}</p>}
 
+              {/* Buttons preview (WhatsApp-style) */}
+              {Array.isArray(t.buttons) && t.buttons.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                    <ExternalLink className="w-3 h-3" /> CTA Buttons
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {(t.buttons as MetaButton[]).map((b, idx) => (
+                      <a key={idx}
+                        href={b.type === "URL" ? b.url : b.type === "PHONE_NUMBER" ? `tel:${b.phone_number}` : undefined}
+                        target={b.type === "URL" ? "_blank" : undefined}
+                        rel="noopener noreferrer"
+                        onClick={(e) => { if (b.type === "QUICK_REPLY") e.preventDefault(); }}
+                        className="flex items-center justify-center gap-1.5 w-full py-2 rounded-md bg-success/10 hover:bg-success/20 text-success text-[12px] font-semibold border border-success/30 transition-colors">
+                        {b.type === "URL" && <ExternalLink className="w-3.5 h-3.5" />}
+                        {b.type === "PHONE_NUMBER" && <Phone className="w-3.5 h-3.5" />}
+                        {b.type === "QUICK_REPLY" && <Reply className="w-3.5 h-3.5" />}
+                        {b.text}
+                        {b.type === "URL" && b.url && (
+                          <span className="text-[9px] text-muted-foreground font-normal font-mono ml-1 truncate max-w-[140px]">
+                            {b.url.replace(/^https?:\/\//, "")}
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-1.5 flex-wrap pt-1">
                 {t.approval_status !== "submitted" && (
                   <button onClick={() => updateStatus(t.id, "submitted")}
@@ -648,6 +782,27 @@ const MetaTemplatesTab = () => {
                     const reason = prompt("Rejection reason:");
                     if (reason) updateStatus(t.id, "rejected", { rejection_reason: reason });
                   }} className="px-2.5 py-1 rounded-md bg-destructive/15 text-destructive text-[11px] font-semibold">Mark Rejected</button>
+                )}
+                <button onClick={() => {
+                  const current = (Array.isArray(t.buttons) ? t.buttons : []) as MetaButton[];
+                  const text = prompt("Button label (e.g. 'Open Brain'):", current[0]?.text || "Open ACRY");
+                  if (!text) return;
+                  const url = prompt("Destination URL (https://acry.ai/<page>):", current[0]?.url || `${APP_BASE_URL}/home`);
+                  if (!url) return;
+                  const next: MetaButton[] = [...current];
+                  const urlBtn: MetaButton = { type: "URL", text, url };
+                  const idx = next.findIndex(b => b.type === "URL");
+                  if (idx >= 0) next[idx] = urlBtn;
+                  else if (next.length < 3) next.unshift(urlBtn);
+                  else next[0] = urlBtn;
+                  saveTemplateButtons(t.id, next);
+                }} className="px-2.5 py-1 rounded-md bg-primary/15 text-primary text-[11px] font-semibold flex items-center gap-1">
+                  <ExternalLink className="w-3 h-3" /> Set URL Button
+                </button>
+                {Array.isArray(t.buttons) && t.buttons.length > 0 && (
+                  <button onClick={() => {
+                    if (confirm("Remove all buttons from this template?")) saveTemplateButtons(t.id, []);
+                  }} className="px-2.5 py-1 rounded-md bg-muted/40 text-muted-foreground text-[11px] font-semibold">Clear Buttons</button>
                 )}
               </div>
             </div>

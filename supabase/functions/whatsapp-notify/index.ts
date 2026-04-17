@@ -64,9 +64,28 @@ async function sendViaMSG91(opts: {
   language?: string;
   mobile: string;
   variables: Record<string, string>;
+  buttons?: Array<{ type: string; text?: string; url?: string; phone_number?: string }>;
 }): Promise<{ ok: boolean; raw: any; messageId?: string; error?: string }> {
-  const { authKey, config, templateName, namespace, language, mobile, variables } = opts;
+  const { authKey, config, templateName, namespace, language, mobile, variables, buttons } = opts;
   const components = Object.values(variables).map((v) => ({ type: "text", value: String(v) }));
+
+  // Build component map: body_1 + button_1, button_2... for URL buttons that carry a dynamic URL suffix
+  const componentMap: Record<string, any> = {};
+  if (components.length > 0) {
+    componentMap.body_1 = { type: "text", value: components.map((c) => c.value).join(" ") };
+  }
+  if (Array.isArray(buttons)) {
+    buttons.forEach((b, idx) => {
+      // Only URL buttons can carry runtime params; text/phone are baked into the approved template
+      if (b.type === "URL" && b.url) {
+        // MSG91 expects button index starting at 1; provide URL suffix variable if template uses {{1}} in URL
+        componentMap[`button_${idx + 1}`] = {
+          subtype: "url",
+          parameters: [{ type: "text", text: variables[`btn_${idx + 1}`] || "" }],
+        };
+      }
+    });
+  }
 
   const payload = {
     integrated_number: config.integrated_number,
@@ -80,7 +99,7 @@ async function sendViaMSG91(opts: {
         namespace: namespace || config.default_namespace,
         to_and_components: [{
           to: [mobile],
-          components: components.length > 0 ? { body_1: { type: "text", value: components.map((c) => c.value).join(" ") } } : {},
+          components: componentMap,
         }],
       },
     },
@@ -201,6 +220,15 @@ async function processOneRecipient(
     .eq("is_active", true)
     .maybeSingle();
 
+  // Load Meta-approved template metadata (buttons, language, namespace) for richer payload
+  const { data: metaTpl } = await supabase
+    .from("whatsapp_meta_templates")
+    .select("buttons, language")
+    .eq("template_name", templateName)
+    .maybeSingle();
+  const metaButtons = (metaTpl?.buttons as any) || [];
+  const metaLanguage = (metaTpl?.language as any) || undefined;
+
   const bodyText = tpl?.body_template ? applyTemplate(tpl.body_template, variables) : `${templateName}`;
   const titleText = tpl?.name || templateName;
 
@@ -225,13 +253,15 @@ async function processOneRecipient(
     return { ok: false, blocked: "quota_exceeded", fallbackSent: config.auto_fallback_on_quota_exceeded };
   }
 
-  // Send via MSG91
+  // Send via MSG91 (with buttons + language from Meta-approved template if available)
   const result = await sendViaMSG91({
     authKey,
     config,
     templateName,
     mobile,
     variables,
+    buttons: metaButtons,
+    language: metaLanguage,
   });
 
   // Log
