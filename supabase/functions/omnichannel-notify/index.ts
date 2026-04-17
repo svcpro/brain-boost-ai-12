@@ -283,6 +283,8 @@ async function dispatchToChannel(
           return await sendEmail(supabaseUrl, serviceKey, userId, title, body, data);
         case "voice":
           return await sendVoice(supabaseUrl, serviceKey, userId, title, body, data);
+        case "whatsapp":
+          return await sendWhatsApp(supabaseUrl, serviceKey, userId, title, body, data);
         case "in_app":
           // Store in-app notification directly
           await supabase.from("notifications").insert({
@@ -348,6 +350,21 @@ async function sendVoice(
   });
   const result = await res.json();
   return { success: result.success || (result.queued || 0) > 0, retryCount: 0, error: result.error };
+}
+
+async function sendWhatsApp(
+  url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
+) {
+  const templateName = data.whatsapp_template || data.template_name || "acry_daily_mission";
+  const category = data.category || (data.priority === "critical" ? "critical" : "engagement");
+  const variables = data.whatsapp_variables || data.variables || { name: title };
+  const res = await fetch(`${url}/functions/v1/whatsapp-notify?action=send`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, template_name: templateName, category, variables, source: "omnichannel" }),
+  });
+  const result = await res.json();
+  return { success: !!result.ok, retryCount: 0, error: result.error || result.blocked };
 }
 
 // ─── Call Intelligent Engine ───
