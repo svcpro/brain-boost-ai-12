@@ -179,11 +179,18 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         }
       });
 
+    // Reset stale values immediately when user changes to prevent showing previous user's name
+    setAvatarUrl(null);
+    setDisplayName(null);
+
+    const currentUserId = user.id;
     supabase.from("profiles")
       .select("avatar_url, display_name")
-      .eq("id", user.id)
+      .eq("id", currentUserId)
       .maybeSingle()
       .then(({ data }) => {
+        // Guard against race: only apply if user hasn't changed mid-flight
+        if (currentUserId !== user.id) return;
         setAvatarUrl(data?.avatar_url ?? null);
         setDisplayName(data?.display_name ?? null);
       });
@@ -361,7 +368,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     _riskTopic: atRisk[0],
   } : null);
 
-  const userName = String(displayName || user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Student");
+  // Prefer DB display_name; ignore auto-generated "User####" placeholder from auth metadata
+  const metaName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.display_name;
+  const isPlaceholderMetaName = typeof metaName === "string" && /^User\d{3,4}$/.test(metaName);
+  const userName = String(displayName || (isPlaceholderMetaName ? "" : metaName) || "Student");
   const greeting = (() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })();
 
   const healthColor = overallHealth > 70 ? "hsl(var(--success))" : overallHealth > 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
