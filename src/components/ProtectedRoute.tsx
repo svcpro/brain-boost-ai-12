@@ -77,6 +77,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return () => { cancelled = true; };
   }, [user, loading]);
 
+  // Re-check profile when onboarding completes (event dispatched from
+  // OnboardingPage). Without this, the cached "onboarding" profileState would
+  // bounce the user back to /onboarding even after they finished it.
+  useEffect(() => {
+    const handler = () => {
+      checkedUserIdRef.current = null;
+      setProfileState("loading");
+    };
+    window.addEventListener("profile-updated", handler);
+    return () => window.removeEventListener("profile-updated", handler);
+  }, []);
+
   if (loading || (user && profileState === "loading")) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">

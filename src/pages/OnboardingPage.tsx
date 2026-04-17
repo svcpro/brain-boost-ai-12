@@ -162,11 +162,14 @@ const OnboardingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useState(() => {
-    const meta = user?.user_metadata;
+  // Pre-fill display name from auth metadata once user becomes available.
+  useEffect(() => {
+    if (!user) return;
+    const meta = user.user_metadata as Record<string, any> | undefined;
     const name = meta?.full_name || meta?.name || meta?.display_name || "";
-    if (name) setDisplayName(name);
-  });
+    if (name && !displayName) setDisplayName(name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const totalSteps = 6;
 
@@ -342,12 +345,16 @@ const OnboardingPage = () => {
         }
       }
 
-      const { error: profileErr } = await supabase.from("profiles").update({
+      // Use upsert to defend against rare cases where the auth trigger hasn't yet
+      // created the profile row — without this, an UPDATE silently affects 0 rows
+      // and onboarded never persists, causing an infinite redirect loop on /app.
+      const { error: profileErr } = await supabase.from("profiles").upsert({
+        id: user.id,
         display_name: displayName.trim(),
         exam_type: finalExam,
         exam_date: examDate,
         study_preferences: { mode: studyMode, onboarded: true },
-      }).eq("id", user.id);
+      }, { onConflict: "id" });
       if (profileErr) throw profileErr;
 
       for (const name of subjects) {

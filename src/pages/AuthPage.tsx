@@ -165,8 +165,13 @@ const AuthPage = () => {
   const { toast } = useToast();
   const { institution, isInstitutionDomain } = useInstitution();
 
-  // If user is already authenticated (e.g. landed here via browser Back from /onboarding),
-  // skip the OTP screen entirely so they aren't asked to re-verify.
+  // If user is already authenticated when they LAND on /auth (e.g. via browser
+  // Back from /onboarding, or refresh after logging in), skip the OTP screen so
+  // they aren't asked to re-verify. We deliberately only check the existing
+  // session ONCE on mount — we do NOT subscribe to onAuthStateChange here,
+  // because that would race with handleVerifyMobileOtp's own navigate("/app")
+  // call (firing SIGNED_IN immediately after setSession), causing a double
+  // navigation that occasionally produces a blank /app screen.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -176,10 +181,7 @@ const AuthPage = () => {
         navigate("/app", { replace: true });
       }
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigate("/app", { replace: true });
-    });
-    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
