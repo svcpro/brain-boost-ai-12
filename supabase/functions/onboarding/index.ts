@@ -516,93 +516,107 @@ Deno.serve(async (req) => {
         action === "ai-generate-subjects-topics" || action === "ai_generate_subjects_topics") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) return json({ error: "AI gateway not configured" }, 500);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-      // Resolve exam type
+      // Resolve exam type — fall back to user's profile, then a sensible default.
       let examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
       if (!examType) {
         const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
-        examType = String(profile?.exam_type || "general").trim();
+        examType = String(profile?.exam_type || "").trim();
       }
-      const persist = requestBody.persist !== false; // default: save to DB
+      if (!examType) examType = "general competitive exam";
+      const persist = requestBody.persist !== false;
 
-      // Call AI gateway with structured tool-calling
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            {
-              role: "system",
-              content: "You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely."
-            },
-            {
-              role: "user",
-              content: `Generate the complete subject and topic structure for: ${examType}. Include ALL important topics per subject with accurate marks impact weights based on exam patterns.`
-            }
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "generate_curriculum",
-              description: "Generate complete exam curriculum with subjects and topics",
-              parameters: {
-                type: "object",
-                properties: {
-                  subjects: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        topics: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              name: { type: "string" },
-                              marks_impact_weight: { type: "number" },
-                              priority: { type: "string", enum: ["critical", "high", "medium", "low"] }
-                            },
-                            required: ["name", "marks_impact_weight", "priority"]
-                          }
-                        }
+      // Use shared AI client (Gemini direct → Lovable gateway fallback) so the
+      // endpoint keeps working even when one provider is rate-limited / out of credits.
+      const aiResult = await callAI({
+        model: "google/gemini-2.5-flash-lite",
+        temperature: 0.4,
+        maxTokens: 4096,
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely. Respond with valid JSON only.",
+          },
+          {
+            role: "user",
+            content: `Generate the complete subject and topic structure for: ${examType}. Include ALL important subjects (5-10) and 6-15 topics per subject with accurate marks_impact_weight (0-10) and priority (critical/high/medium/low). Return JSON of shape: { "exam_summary": string, "subjects": [{ "name": string, "topics": [{ "name": string, "marks_impact_weight": number, "priority": "critical"|"high"|"medium"|"low" }] }] }`,
+          },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "generate_curriculum",
+            description: "Generate complete exam curriculum with subjects and topics",
+            parameters: {
+              type: "object",
+              properties: {
+                subjects: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      topics: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            marks_impact_weight: { type: "number" },
+                            priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                          },
+                          required: ["name", "marks_impact_weight", "priority"],
+                        },
                       },
-                      required: ["name", "topics"]
-                    }
+                    },
+                    required: ["name", "topics"],
                   },
-                  exam_summary: { type: "string" }
                 },
-                required: ["subjects", "exam_summary"]
-              }
-            }
-          }],
-          tool_choice: { type: "function", function: { name: "generate_curriculum" } },
-        }),
+                exam_summary: { type: "string" },
+              },
+              required: ["subjects", "exam_summary"],
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "generate_curriculum" } },
       });
 
-      if (!aiResp.ok) {
-        if (aiResp.status === 429) return json({ error: "Rate limited, please try again later" }, 429);
-        if (aiResp.status === 402) return json({ error: "AI credits exhausted" }, 402);
-        return json({ error: "AI gateway error" }, 500);
+      if (!aiResult.ok) {
+        // Even on AI failure, return whatever the user already has so the
+        // tester does not display a blank "subjects: []".
+        const existingSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+        const status = aiResult.status === 429 ? 429 : aiResult.status === 402 ? 402 : 500;
+        return json({
+          success: false,
+          error: aiResult.error || (status === 429 ? "Rate limited, please try again later" : status === 402 ? "AI credits exhausted" : "AI gateway error"),
+          exam_type: examType,
+          subjects: existingSubjects,
+          subjects_created: 0,
+          topics_created: 0,
+        }, status);
       }
 
-      const aiData = await aiResp.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      let curriculum: any = { subjects: [], exam_summary: `${examType} curriculum` };
-      if (toolCall?.function?.arguments) {
-        try { curriculum = JSON.parse(toolCall.function.arguments); } catch { /* ignore */ }
+      // Try tool args first, fall back to parsing the message content as JSON
+      // (the Gemini direct path returns JSON in `content` rather than `tool_calls`).
+      let curriculum: any = getAIToolArgs(aiResult);
+      if (!curriculum) {
+        const text = aiResult.data?.choices?.[0]?.message?.content || "";
+        try {
+          const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+          const start = cleaned.search(/[{[]/);
+          const end = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+          if (start !== -1 && end > start) {
+            curriculum = JSON.parse(cleaned.slice(start, end + 1));
+          }
+        } catch { /* ignore */ }
+      }
+      if (!curriculum || !Array.isArray(curriculum.subjects)) {
+        curriculum = { subjects: [], exam_summary: `${examType} curriculum` };
       }
 
       let subjectsCreated = 0, topicsCreated = 0;
-      const persistedSubjects: any[] = [];
 
       if (persist) {
         for (const sub of curriculum.subjects || []) {
@@ -622,36 +636,36 @@ Deno.serve(async (req) => {
             subjectsCreated++;
           }
 
-          const persistedTopics: any[] = [];
           for (const t of sub.topics || []) {
             const tName = String(t.name || "").trim();
             if (!tName) continue;
             const { data: existingT } = await adminClient
               .from("topics").select("id").eq("user_id", userId).eq("subject_id", subjectId).eq("name", tName).is("deleted_at", null).maybeSingle();
-            if (existingT) {
-              persistedTopics.push({ id: existingT.id, name: tName, marks_impact_weight: t.marks_impact_weight ?? 5 });
-              continue;
-            }
-            const { data: newT, error: tErr } = await adminClient
+            if (existingT) continue;
+            const { error: tErr } = await adminClient
               .from("topics")
-              .insert({ user_id: userId, subject_id: subjectId, name: tName, marks_impact_weight: Number(t.marks_impact_weight ?? 5) })
-              .select("id, name, marks_impact_weight").single();
-            if (tErr) continue;
-            persistedTopics.push(newT);
-            topicsCreated++;
+              .insert({ user_id: userId, subject_id: subjectId, name: tName, marks_impact_weight: Number(t.marks_impact_weight ?? 5) });
+            if (!tErr) topicsCreated++;
           }
-          persistedSubjects.push({ id: subjectId, name: subName, topics: persistedTopics });
         }
       }
+
+      // Always return the full updated subject/topic tree from the DB so the
+      // API tester never sees an empty list when generation succeeds.
+      const allSubjects = persist
+        ? await fetchUserSubjectsWithTopics(adminClient, userId)
+        : (curriculum.subjects || []);
 
       return json({
         success: true,
         exam_type: examType,
         exam_summary: curriculum.exam_summary,
-        subjects: persist ? persistedSubjects : (curriculum.subjects || []),
+        subjects: allSubjects,
+        total: Array.isArray(allSubjects) ? allSubjects.length : 0,
         subjects_created: subjectsCreated,
         topics_created: topicsCreated,
         persisted: persist,
+        ai_source: aiResult.source,
       });
     }
 
