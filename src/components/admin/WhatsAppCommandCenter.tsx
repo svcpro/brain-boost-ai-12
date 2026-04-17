@@ -525,8 +525,8 @@ const MetaTemplatesTab = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
-        <ShieldCheck className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+      <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+        <ShieldCheck className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
         <div className="text-[11px] text-muted-foreground leading-relaxed">
           <strong className="text-foreground">Meta WhatsApp Business templates</strong> require approval from Meta before they can be sent outside the 24-hour customer service window. Add templates here, submit them via MSG91 / Meta Business Manager, then mark them <strong>Approved</strong> with the returned template ID.
         </div>
