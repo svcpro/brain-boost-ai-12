@@ -151,26 +151,6 @@ const AuthPage = () => {
   const [searchParams] = useSearchParams();
   const showSplashParam = searchParams.get("splash") === "1";
   const [showSplash, setShowSplash] = useState(showSplashParam);
-
-  // If user is already authenticated (e.g. landed here via browser Back from /onboarding),
-  // skip the OTP screen entirely and bounce them forward.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (data.session) {
-        // Replace history entry so Back won't return here again.
-        navigate("/app", { replace: true });
-      }
-    })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigate("/app", { replace: true });
-    });
-    return () => { cancelled = true; sub.subscription.unsubscribe(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const [isLogin, setIsLogin] = useState(true);
   const [authMethod, setAuthMethod] = useState<AuthMethod>("mobile");
   const [mobile, setMobile] = useState("");
@@ -184,6 +164,25 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { institution, isInstitutionDomain } = useInstitution();
+
+  // If user is already authenticated (e.g. landed here via browser Back from /onboarding),
+  // skip the OTP screen entirely so they aren't asked to re-verify.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session) {
+        navigate("/app", { replace: true });
+      }
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) navigate("/app", { replace: true });
+    });
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const accentColor = authMethod === "whatsapp" ? "#25D366" : "#00E5FF";
   const fullMobile = `${countryCode}${mobile.replace(/\D/g, "")}`;
