@@ -380,10 +380,13 @@ Deno.serve(async (req) => {
       }
 
       // Always return the full updated subjects list so API testers
-      // never see an empty "Subject List".
+      // never see an empty "Subject List", and echo the user's selected exam.
       const allSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      const { data: profile } = await adminClient
+        .from("profiles").select("exam_type").eq("id", userId).maybeSingle();
       return json({
         success: true,
+        exam_type: profile?.exam_type || null,
         subject: subjectRow,
         duplicate,
         subjects: allSubjects,
