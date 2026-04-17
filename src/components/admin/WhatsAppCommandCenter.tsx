@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   MessageSquare, Send, Clock, BarChart3, Zap, Settings2,
   CheckCircle2, XCircle, Loader2, Search, RefreshCw, AlertTriangle,
-  CalendarClock, Users, FileText, ShieldCheck, Plus, Trash2
+  CalendarClock, Users, FileText, ShieldCheck, Plus, Trash2, ExternalLink, Phone, Reply
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
