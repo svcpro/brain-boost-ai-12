@@ -8,100 +8,123 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  MessageSquare, Send, Clock, BarChart3, Zap, RefreshCw, Loader2, CheckCircle2,
-  XCircle, AlertTriangle, TrendingUp, Plus, Search, FileText, LayoutDashboard,
-  TestTube, Settings, Users, Phone, Shield, Sparkles, Power, Smartphone, Hash, Trash2,
+  MessageSquare, Send, Clock, BarChart3, Zap, Eye, Pencil,
+  RefreshCw, Loader2, CheckCircle2, XCircle, AlertTriangle,
+  TrendingUp, ArrowUpRight, Play, Trash2, Plus, Search,
+  FileText, Filter, LayoutDashboard, TestTube, Settings,
+  Gauge, Activity, Target, Users, Phone, Shield, Key,
+  Sparkles, Copy, Power, ChevronRight, Smartphone, Hash
 } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { format, subDays, isAfter } from "date-fns";
 
-// ─── Dashboard Tab ───
+// ─── Types ───
+type SmsLog = {
+  id: string;
+  mobile: string;
+  otp: string;
+  channel: "sms" | "whatsapp";
+  status: "sent" | "delivered" | "failed" | "verified" | "expired";
+  created_at: string;
+  verified: boolean;
+  expires_at: string;
+};
+
+type DailyStats = {
+  date: string;
+  total: number;
+  sms: number;
+  whatsapp: number;
+  verified: number;
+  failed: number;
+};
+
+// ─── SMS Dashboard Tab ───
 const SmsDashboard = () => {
   const [stats, setStats] = useState({
-    totalSent: 0, delivered: 0, failed: 0, blockedQuota: 0,
-    deliveryRate: 0, todaySent: 0, monthSent: 0, fallbackSent: 0,
+    totalSent: 0, smsSent: 0, whatsappSent: 0,
+    verified: 0, failed: 0, deliveryRate: 0,
+    todaySent: 0, todayVerified: 0,
   });
-  const [recent, setRecent] = useState<any[]>([]);
-  const [series, setSeries] = useState<{ date: string; count: number }[]>([]);
+  const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetch_ = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      const since = subDays(new Date(), 7).toISOString();
-      const { data: msgs } = await supabase
-        .from("sms_messages")
-        .select("id,status,fallback_sent,created_at,to_number,category,priority,template_name,error_message")
-        .gte("created_at", since)
-        .order("created_at", { ascending: false })
-        .limit(500);
-
       const today = new Date().toISOString().split("T")[0];
-      const monthStart = new Date(); monthStart.setDate(1);
-      const all = msgs || [];
-      const total = all.length;
-      const delivered = all.filter(m => m.status === "sent" || m.status === "delivered").length;
-      const failed = all.filter(m => m.status === "failed").length;
-      const blocked = all.filter(m => m.status === "blocked_quota").length;
-      const todayCount = all.filter(m => m.created_at.startsWith(today)).length;
-      const monthCount = all.filter(m => new Date(m.created_at) >= monthStart).length;
-      const fb = all.filter(m => m.fallback_sent).length;
+
+      // Fetch WhatsApp OTPs from whatsapp_otps table
+      const { data: waOtps, count: waTotal } = await supabase
+        .from("whatsapp_otps")
+        .select("*", { count: "exact" });
+
+      const waVerified = waOtps?.filter(o => o.verified) || [];
+      const waToday = waOtps?.filter(o => o.created_at?.startsWith(today)) || [];
+      const waTodayVerified = waToday.filter(o => o.verified);
+
+      // We estimate SMS stats from the total minus WhatsApp
+      const totalWa = waTotal || 0;
+      const totalVerifiedWa = waVerified.length;
 
       setStats({
-        totalSent: total, delivered, failed, blockedQuota: blocked,
-        deliveryRate: total > 0 ? Math.round((delivered / total) * 100) : 0,
-        todaySent: todayCount, monthSent: monthCount, fallbackSent: fb,
+        totalSent: totalWa,
+        smsSent: 0, // SMS doesn't have a log table yet
+        whatsappSent: totalWa,
+        verified: totalVerifiedWa,
+        failed: 0,
+        deliveryRate: totalWa > 0 ? Math.round((totalVerifiedWa / totalWa) * 100) : 0,
+        todaySent: waToday.length,
+        todayVerified: waTodayVerified.length,
       });
-      setRecent(all.slice(0, 10));
 
-      // 7-day series
-      const buckets: Record<string, number> = {};
-      for (let i = 6; i >= 0; i--) {
-        const d = format(subDays(new Date(), i), "MMM dd");
-        buckets[d] = 0;
-      }
-      all.forEach(m => {
-        const d = format(new Date(m.created_at), "MMM dd");
-        if (d in buckets) buckets[d]++;
-      });
-      setSeries(Object.entries(buckets).map(([date, count]) => ({ date, count })));
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      setRecentLogs(
+        (waOtps || []).slice(0, 10).map(o => ({
+          id: o.id,
+          mobile: o.mobile,
+          channel: "whatsapp" as const,
+          status: o.verified ? "verified" : isAfter(new Date(), new Date(o.expires_at)) ? "expired" : "sent",
+          created_at: o.created_at,
+          verified: o.verified,
+        }))
+      );
+    } catch (err) {
+      console.error("SMS Dashboard fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { fetch_(); }, [fetch_]);
+  useEffect(() => { fetchStats(); }, [fetchStats]);
 
-  const cards = [
-    { label: "7-Day Sent", value: stats.totalSent, icon: Send, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Delivered", value: stats.delivered, icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-    { label: "Failed", value: stats.failed, icon: XCircle, color: "text-red-400", bg: "bg-red-500/10" },
-    { label: "Blocked (Quota)", value: stats.blockedQuota, icon: AlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10" },
-    { label: "Delivery Rate", value: `${stats.deliveryRate}%`, icon: TrendingUp, color: "text-cyan-400", bg: "bg-cyan-500/10" },
-    { label: "Today", value: stats.todaySent, icon: Clock, color: "text-blue-400", bg: "bg-blue-500/10" },
-    { label: "This Month", value: stats.monthSent, icon: BarChart3, color: "text-violet-400", bg: "bg-violet-500/10" },
-    { label: "Fallback Sent", value: stats.fallbackSent, icon: Shield, color: "text-fuchsia-400", bg: "bg-fuchsia-500/10" },
+  const statCards = [
+    { label: "Total OTPs Sent", value: stats.totalSent, icon: Send, color: "text-primary", bg: "bg-primary/10" },
+    { label: "WhatsApp OTPs", value: stats.whatsappSent, icon: MessageSquare, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+    { label: "Verified", value: stats.verified, icon: CheckCircle2, color: "text-blue-400", bg: "bg-blue-500/10" },
+    { label: "Delivery Rate", value: `${stats.deliveryRate}%`, icon: TrendingUp, color: "text-amber-400", bg: "bg-amber-500/10" },
+    { label: "Today Sent", value: stats.todaySent, icon: Clock, color: "text-cyan-400", bg: "bg-cyan-500/10" },
+    { label: "Today Verified", value: stats.todayVerified, icon: Shield, color: "text-violet-400", bg: "bg-violet-500/10" },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-foreground">SMS Notification Dashboard</h3>
-          <p className="text-sm text-muted-foreground">Real-time delivery, quota & fallback performance</p>
+          <h3 className="text-lg font-bold text-foreground">SMS & OTP Dashboard</h3>
+          <p className="text-sm text-muted-foreground">Real-time overview of OTP delivery and verification</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetch_} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Refresh
+        <Button variant="outline" size="sm" onClick={fetchStats} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          Refresh
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {cards.map((s, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {statCards.map((s, i) => (
           <Card key={i} className="border-border/50 bg-card/50 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className={`h-9 w-9 rounded-lg ${s.bg} flex items-center justify-center mb-3`}>
@@ -114,749 +137,767 @@ const SmsDashboard = () => {
         ))}
       </div>
 
+      {/* Recent Activity */}
       <Card className="border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Last 7 Days</CardTitle></CardHeader>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Recent OTP Activity</CardTitle>
+        </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-2 h-32">
-            {series.map((d, i) => {
-              const max = Math.max(...series.map(s => s.count), 1);
-              const h = (d.count / max) * 100;
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-primary/20 rounded-t flex items-end justify-center" style={{ height: `${h}%`, minHeight: "4px" }}>
-                    <span className="text-[10px] text-foreground font-bold pb-1">{d.count || ""}</span>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">{d.date}</span>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Recent Activity</CardTitle></CardHeader>
-        <CardContent>
-          {loading ? <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
-            : recent.length === 0 ? <p className="text-center py-8 text-muted-foreground text-sm">No SMS sent yet</p>
-            : <div className="space-y-2">
-                {recent.map(log => (
-                  <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-blue-500/15 flex items-center justify-center">
+          {loading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : recentLogs.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground text-sm">No OTP activity yet</p>
+          ) : (
+            <div className="space-y-2">
+              {recentLogs.map(log => (
+                <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                      log.channel === "whatsapp" ? "bg-emerald-500/15" : "bg-blue-500/15"
+                    }`}>
+                      {log.channel === "whatsapp" ? (
+                        <MessageSquare className="h-4 w-4 text-emerald-400" />
+                      ) : (
                         <Smartphone className="h-4 w-4 text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-mono text-foreground">+{log.to_number}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {log.template_name || "custom"} • {format(new Date(log.created_at), "MMM dd, HH:mm")}
-                        </p>
-                      </div>
+                      )}
                     </div>
-                    <Badge variant="outline" className={
-                      log.status === "sent" || log.status === "delivered" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
-                      log.status === "blocked_quota" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
-                      "bg-red-500/15 text-red-400 border-red-500/30"
-                    }>{log.status}</Badge>
+                    <div>
+                      <p className="text-sm font-mono text-foreground">+{log.mobile}</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(log.created_at), "MMM dd, HH:mm:ss")}</p>
+                    </div>
                   </div>
-                ))}
-              </div>}
+                  <Badge variant="outline" className={
+                    log.status === "verified" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
+                    log.status === "expired" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
+                    "bg-primary/15 text-primary border-primary/30"
+                  }>
+                    {log.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 };
 
-// ─── Send Test SMS Tab ───
-const SmsTest = () => {
+// ─── MSG91 Config Tab ───
+const Msg91Config = () => {
   const { toast } = useToast();
-  const [phone, setPhone] = useState("");
-  const [message, setMessage] = useState("ACRY test SMS — all systems operational.");
+  const [config, setConfig] = useState({
+    authKey: "",
+    templateId: "",
+    whatsappNumber: "919211788450",
+    otpLength: "4",
+    otpExpiry: "5",
+    templateName: "acry_login_otp",
+  });
+  const [saving, setSaving] = useState(false);
+  const [showAuthKey, setShowAuthKey] = useState(false);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-bold text-foreground">MSG91 Configuration</h3>
+        <p className="text-sm text-muted-foreground">Manage your MSG91 API keys and template settings</p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Auth Key Card */}
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Key className="h-4 w-4 text-amber-400" />
+              <CardTitle className="text-sm">Auth Key</CardTitle>
+            </div>
+            <CardDescription className="text-xs">MSG91 authentication key (stored as secret)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Input
+                type={showAuthKey ? "text" : "password"}
+                value="••••••••••••••••••••"
+                readOnly
+                className="font-mono text-sm bg-muted/30"
+              />
+              <Button variant="outline" size="icon" onClick={() => setShowAuthKey(!showAuthKey)}>
+                <Eye className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+              <Shield className="h-3 w-3 text-emerald-400" />
+              Stored securely as MSG91_AUTH_KEY
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Template ID Card */}
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Hash className="h-4 w-4 text-blue-400" />
+              <CardTitle className="text-sm">Template ID</CardTitle>
+            </div>
+            <CardDescription className="text-xs">SMS OTP template ID from MSG91 dashboard</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Input
+                type="password"
+                value="••••••••••••••••••••"
+                readOnly
+                className="font-mono text-sm bg-muted/30"
+              />
+              <Button variant="outline" size="icon">
+                <Eye className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+              <Shield className="h-3 w-3 text-emerald-400" />
+              Stored securely as MSG91_TEMPLATE_ID
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* WhatsApp Settings */}
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-emerald-400" />
+              <CardTitle className="text-sm">WhatsApp Config</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Integrated Number</label>
+              <Input value={config.whatsappNumber} readOnly className="font-mono text-sm bg-muted/30 mt-1" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Template Name</label>
+              <Input value={config.templateName} readOnly className="font-mono text-sm bg-muted/30 mt-1" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* OTP Settings */}
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-violet-400" />
+              <CardTitle className="text-sm">OTP Settings</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground">OTP Length</label>
+                <Input value={config.otpLength} readOnly className="font-mono text-sm bg-muted/30 mt-1" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Expiry (min)</label>
+                <Input value={config.otpExpiry} readOnly className="font-mono text-sm bg-muted/30 mt-1" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded bg-muted/20 border border-border/30">
+              <span className="text-xs text-muted-foreground">Channel Isolation</span>
+              <Badge variant="outline" className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-xs">Active</Badge>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded bg-muted/20 border border-border/30">
+              <span className="text-xs text-muted-foreground">Real-time Response</span>
+              <Badge variant="outline" className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-xs">Enabled</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Edge Function Info */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-amber-400" />
+            <CardTitle className="text-sm">Edge Function: msg91-otp</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {["send", "send_whatsapp", "verify", "resend", "resend_whatsapp"].map(action => (
+              <div key={action} className="p-3 rounded-lg bg-muted/20 border border-border/30 text-center">
+                <p className="text-xs font-mono text-primary">{action}</p>
+                <Badge variant="outline" className="mt-2 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Active</Badge>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// ─── SMS Logs Tab ───
+const SmsLogs = () => {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "verified" | "pending" | "expired">("all");
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from("whatsapp_otps")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      setLogs((data || []).map(o => ({
+        ...o,
+        channel: "whatsapp",
+        status: o.verified ? "verified" : isAfter(new Date(), new Date(o.expires_at)) ? "expired" : "pending",
+      })));
+    } catch (err) {
+      console.error("Fetch SMS logs error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  const filtered = logs.filter(l => {
+    if (search && !l.mobile.includes(search)) return false;
+    if (filter !== "all" && l.status !== filter) return false;
+    return true;
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-foreground">OTP Logs & History</h3>
+          <p className="text-sm text-muted-foreground">Complete log of all OTP requests</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
+
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by mobile number..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex gap-1">
+          {(["all", "verified", "pending", "expired"] as const).map(f => (
+            <Button
+              key={f}
+              variant={filter === f ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter(f)}
+              className="capitalize text-xs"
+            >
+              {f}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <Card className="border-border/50">
+        <CardContent className="p-0">
+          <ScrollArea className="h-[500px]">
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : filtered.length === 0 ? (
+              <p className="text-center py-12 text-muted-foreground text-sm">No logs found</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Mobile</TableHead>
+                    <TableHead>Channel</TableHead>
+                    <TableHead>OTP</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Sent At</TableHead>
+                    <TableHead>Expires At</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map(log => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-mono text-sm">+{log.mobile}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={
+                          log.channel === "whatsapp"
+                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                            : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                        }>
+                          {log.channel === "whatsapp" ? "WhatsApp" : "SMS"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">{log.otp ? `••${log.otp.slice(-2)}` : "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={
+                          log.status === "verified" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
+                          log.status === "expired" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
+                          "bg-primary/15 text-primary border-primary/30"
+                        }>
+                          {log.status === "verified" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                          {log.status === "expired" && <Clock className="h-3 w-3 mr-1" />}
+                          {log.status === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                          {log.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(log.created_at), "MMM dd, HH:mm:ss")}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(log.expires_at), "MMM dd, HH:mm:ss")}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// ─── Template Management Tab ───
+const SmsTemplates = () => {
+  const templates = [
+    {
+      id: "sms-otp",
+      name: "SMS OTP Template",
+      channel: "SMS",
+      provider: "MSG91",
+      templateId: "MSG91_TEMPLATE_ID",
+      variables: ["##OTP##"],
+      status: "active",
+      description: "4-digit OTP sent via MSG91 SMS API with 5-minute expiry",
+    },
+    {
+      id: "wa-otp",
+      name: "acry_login_otp",
+      channel: "WhatsApp",
+      provider: "MSG91 WhatsApp",
+      templateId: "acry_login_otp",
+      namespace: "34be867f_2430_42e1_bcd8_1831c618f724",
+      variables: ["body_1 (OTP)", "button_1 (OTP)"],
+      status: "active",
+      description: "WhatsApp template message with OTP in body and copy-button",
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-bold text-foreground">SMS & WhatsApp Templates</h3>
+        <p className="text-sm text-muted-foreground">Manage OTP message templates across channels</p>
+      </div>
+
+      <div className="grid gap-4">
+        {templates.map(t => (
+          <Card key={t.id} className="border-border/50 bg-card/50">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${
+                    t.channel === "WhatsApp" ? "bg-emerald-500/15" : "bg-blue-500/15"
+                  }`}>
+                    {t.channel === "WhatsApp" ? (
+                      <MessageSquare className="h-6 w-6 text-emerald-400" />
+                    ) : (
+                      <Smartphone className="h-6 w-6 text-blue-400" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-foreground">{t.name}</h4>
+                      <Badge variant="outline" className={
+                        t.channel === "WhatsApp"
+                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                          : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                      }>{t.channel}</Badge>
+                      <Badge variant="outline" className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30">{t.status}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{t.description}</p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <span className="text-xs text-muted-foreground">Provider:</span>
+                      <Badge variant="secondary" className="text-xs">{t.provider}</Badge>
+                      <span className="text-xs text-muted-foreground ml-2">Template:</span>
+                      <Badge variant="secondary" className="text-xs font-mono">{t.templateId}</Badge>
+                    </div>
+                    {(t as any).namespace && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs text-muted-foreground">Namespace:</span>
+                        <code className="text-xs font-mono text-muted-foreground bg-muted/30 px-2 py-0.5 rounded">{(t as any).namespace}</code>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      <span className="text-xs text-muted-foreground mr-1">Variables:</span>
+                      {t.variables.map(v => (
+                        <Badge key={v} variant="outline" className="text-xs font-mono bg-muted/30">{v}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── Test SMS Tab ───
+const SmsTestSender = () => {
+  const { toast } = useToast();
+  const [mobile, setMobile] = useState("");
+  const [channel, setChannel] = useState<"sms" | "whatsapp">("sms");
   const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [result, setResult] = useState<any>(null);
 
-  const send = async () => {
-    if (!phone.trim()) {
-      toast({ title: "Phone required", variant: "destructive" }); return;
+  const sendTestOtp = async () => {
+    if (!mobile || mobile.length < 10) {
+      toast({ title: "Invalid number", description: "Enter a valid mobile number with country code", variant: "destructive" });
+      return;
     }
-    setSending(true); setResult(null);
+    setSending(true);
+    setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("sms-notify", {
-        body: { action: "test", phone: phone.trim(), message },
+      const action = channel === "whatsapp" ? "send_whatsapp" : "send";
+      const { data, error } = await supabase.functions.invoke("msg91-otp", {
+        body: { action, mobile: mobile.replace(/\s+/g, "") },
+      });
+      if (error) throw error;
+      setResult(data);
+      setOtpSent(true);
+      toast({ title: "OTP Sent!", description: `Test OTP sent via ${channel.toUpperCase()}` });
+    } catch (err: any) {
+      toast({ title: "Failed", description: err.message || "Failed to send OTP", variant: "destructive" });
+      setResult({ error: err.message });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const verifyTestOtp = async () => {
+    if (!otp || otp.length !== 4) {
+      toast({ title: "Invalid OTP", description: "Enter the 4-digit OTP", variant: "destructive" });
+      return;
+    }
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("msg91-otp", {
+        body: { action: "verify", mobile: mobile.replace(/\s+/g, ""), otp },
       });
       if (error) throw error;
       setResult(data);
       toast({
-        title: data?.ok ? "SMS sent ✓" : "Send failed",
-        description: data?.ok ? `Request ID: ${data.requestId}` : (data?.error || "Unknown"),
-        variant: data?.ok ? "default" : "destructive",
+        title: data?.verified ? "Verified!" : "Failed",
+        description: data?.verified ? "OTP verified successfully" : "OTP verification failed",
+        variant: data?.verified ? "default" : "destructive",
       });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally { setSending(false); }
-  };
-
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><TestTube className="h-5 w-5 text-primary" /> Send Test SMS</CardTitle>
-        <CardDescription>Verify MSG91 connectivity and DLT template approval</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label>Phone (with country code, e.g. 919876543210)</Label>
-          <Input placeholder="919876543210" value={phone} onChange={e => setPhone(e.target.value)} />
-        </div>
-        <div>
-          <Label>Message ({message.length}/300 chars)</Label>
-          <Textarea value={message} onChange={e => setMessage(e.target.value.slice(0, 300))} rows={3} />
-          <p className="text-xs text-muted-foreground mt-1">
-            Must match an approved DLT template if your sender ID requires it.
-          </p>
-        </div>
-        <Button onClick={send} disabled={sending || !phone} className="w-full">
-          {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-          Send Test SMS
-        </Button>
-        {result && (
-          <pre className="text-xs bg-muted/30 p-3 rounded border border-border/30 overflow-auto max-h-48">
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-// ─── Broadcast Tab ───
-const SmsBroadcast = () => {
-  const { toast } = useToast();
-  const [mode, setMode] = useState<"template" | "custom">("template");
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [templateName, setTemplateName] = useState("");
-  const [message, setMessage] = useState("");
-  const [category, setCategory] = useState("engagement");
-  const [priority, setPriority] = useState("medium");
-  const [audience, setAudience] = useState<"all" | "phone_list">("all");
-  const [phoneList, setPhoneList] = useState("");
-  const [scheduleAt, setScheduleAt] = useState("");
-  const [sending, setSending] = useState(false);
-  const [varsJson, setVarsJson] = useState("{}");
-
-  useEffect(() => {
-    supabase.from("sms_templates").select("*").eq("is_active", true).order("name")
-      .then(({ data }) => setTemplates(data || []));
-  }, []);
-
-  const broadcast = async () => {
-    setSending(true);
-    try {
-      let user_ids: string[] = [];
-      if (audience === "all") {
-        const { data } = await supabase.from("profiles").select("id").not("phone", "is", null).limit(2000);
-        user_ids = (data || []).map(p => p.id);
-      } else {
-        // resolve phone numbers → user_ids
-        const phones = phoneList.split(/[\s,;\n]+/).filter(Boolean);
-        const { data } = await supabase.from("profiles").select("id,phone").in("phone", phones);
-        user_ids = (data || []).map(p => p.id);
-      }
-
-      if (user_ids.length === 0) {
-        toast({ title: "No recipients found", variant: "destructive" });
-        setSending(false); return;
-      }
-
-      let variables: Record<string, any> = {};
-      try { variables = JSON.parse(varsJson || "{}"); }
-      catch { toast({ title: "Invalid variables JSON", variant: "destructive" }); setSending(false); return; }
-
-      if (scheduleAt) {
-        const { error } = await supabase.from("sms_scheduled_sends").insert({
-          template_name: mode === "template" ? templateName : "custom",
-          category, variables,
-          audience_type: audience === "all" ? "all" : "select",
-          audience_user_ids: audience === "all" ? null : user_ids,
-          scheduled_at: new Date(scheduleAt).toISOString(),
-          status: "scheduled",
-          total_recipients: user_ids.length,
-        });
-        if (error) throw error;
-        toast({ title: "Scheduled ✓", description: `${user_ids.length} recipients at ${scheduleAt}` });
-      } else {
-        const { data, error } = await supabase.functions.invoke("sms-notify", {
-          body: {
-            action: "bulk-send", user_ids,
-            template_name: mode === "template" ? templateName : undefined,
-            message: mode === "custom" ? message : undefined,
-            category, priority, variables, source: "admin_broadcast",
-          },
-        });
-        if (error) throw error;
-        toast({
-          title: "Broadcast complete",
-          description: `Delivered ${data.delivered}/${data.total} • Failed ${data.failed} • Quota-blocked ${data.blocked_quota}`,
-        });
-      }
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally { setSending(false); }
-  };
-
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-primary" /> Broadcast SMS Campaign</CardTitle>
-        <CardDescription>Send to all users with phone numbers, or to a specific list</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Mode</Label>
-            <Select value={mode} onValueChange={(v: any) => setMode(v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="template">DLT Template</SelectItem>
-                <SelectItem value="custom">Custom Message</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Audience</Label>
-            <Select value={audience} onValueChange={(v: any) => setAudience(v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All users with phone</SelectItem>
-                <SelectItem value="phone_list">Specific phone list</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {mode === "template" ? (
-          <div>
-            <Label>Template</Label>
-            <Select value={templateName} onValueChange={setTemplateName}>
-              <SelectTrigger><SelectValue placeholder="Choose template" /></SelectTrigger>
-              <SelectContent>
-                {templates.map(t => <SelectItem key={t.id} value={t.name}>{t.display_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <div>
-            <Label>Message ({message.length}/300)</Label>
-            <Textarea value={message} onChange={e => setMessage(e.target.value.slice(0, 300))} rows={3} />
-          </div>
-        )}
-
-        <div>
-          <Label>Variables (JSON)</Label>
-          <Textarea value={varsJson} onChange={e => setVarsJson(e.target.value)} rows={2}
-            placeholder='{"name":"User","days":3}' className="font-mono text-xs" />
-        </div>
-
-        {audience === "phone_list" && (
-          <div>
-            <Label>Phone numbers (comma/newline separated)</Label>
-            <Textarea value={phoneList} onChange={e => setPhoneList(e.target.value)} rows={3}
-              placeholder="919876543210, 919812345678" />
-          </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <Label>Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="engagement">Engagement</SelectItem>
-                <SelectItem value="transactional">Transactional</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Priority</Label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="critical">Critical (bypass quota)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Schedule (optional)</Label>
-            <Input type="datetime-local" value={scheduleAt} onChange={e => setScheduleAt(e.target.value)} />
-          </div>
-        </div>
-
-        <Button onClick={broadcast} disabled={sending || (mode === "template" && !templateName) || (mode === "custom" && !message)}
-          className="w-full">
-          {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
-          {scheduleAt ? "Schedule Broadcast" : "Send Now"}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-};
-
-// ─── Logs Tab ───
-const SmsLogs = () => {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>("all");
-  const [search, setSearch] = useState("");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    let q = supabase.from("sms_messages")
-      .select("*").order("created_at", { ascending: false }).limit(200);
-    if (filter !== "all") q = q.eq("status", filter);
-    const { data } = await q;
-    setLogs(data || []);
-    setLoading(false);
-  }, [filter]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filtered = logs.filter(l =>
-    !search || l.to_number?.includes(search) || l.template_name?.includes(search) || l.message_body?.includes(search)
-  );
-
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Delivery Logs</CardTitle>
-        <CardDescription>Last 200 SMS messages</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search phone, template, body..." className="pl-9" />
-          </div>
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="blocked_quota">Blocked (quota)</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" onClick={load} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-        <ScrollArea className="h-[500px]">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Phone</TableHead>
-                <TableHead>Template</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Time</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(l => (
-                <TableRow key={l.id}>
-                  <TableCell className="font-mono text-xs">+{l.to_number}</TableCell>
-                  <TableCell className="text-xs">{l.template_name || "—"}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-[10px]">{l.category || "—"}</Badge></TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={
-                      l.status === "sent" || l.status === "delivered" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
-                      l.status === "blocked_quota" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
-                      "bg-red-500/15 text-red-400 border-red-500/30"
-                    }>{l.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{format(new Date(l.created_at), "MMM dd HH:mm")}</TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No logs</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  );
-};
-
-// ─── Quota Viewer Tab ───
-const SmsQuotaViewer = () => {
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data: quotas } = await supabase.from("sms_quota")
-      .select("*").order("count", { ascending: false }).limit(200);
-    if (!quotas?.length) { setUsers([]); setLoading(false); return; }
-    const userIds = quotas.map(q => q.user_id);
-    const { data: profs } = await supabase.from("profiles")
-      .select("id,display_name,phone,email").in("id", userIds);
-    const profMap = new Map((profs || []).map(p => [p.id, p]));
-    setUsers(quotas.map(q => ({ ...q, profile: profMap.get(q.user_id) })));
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filtered = users.filter(u =>
-    !search ||
-    u.profile?.display_name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.profile?.phone?.includes(search) ||
-    u.profile?.email?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> Per-User Quota</CardTitle>
-        <CardDescription>Top 200 users by usage this month</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, phone, email..." className="pl-9" />
-          </div>
-          <Button variant="outline" size="icon" onClick={load} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-        <ScrollArea className="h-[500px]">
-          <div className="space-y-2">
-            {filtered.map(u => {
-              const pct = u.monthly_limit > 0 ? (u.count / u.monthly_limit) * 100 : 0;
-              return (
-                <div key={u.user_id} className="p-3 rounded-lg bg-muted/30 border border-border/30">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{u.profile?.display_name || "Unknown"}</p>
-                      <p className="text-xs text-muted-foreground font-mono">+{u.profile?.phone || "—"}</p>
-                    </div>
-                    <Badge variant={pct >= 100 ? "destructive" : pct >= 80 ? "secondary" : "outline"}>
-                      {u.count} / {u.monthly_limit}
-                    </Badge>
-                  </div>
-                  <Progress value={Math.min(100, pct)} className="h-1.5" />
-                </div>
-              );
-            })}
-            {filtered.length === 0 && <p className="text-center py-8 text-muted-foreground text-sm">No quota records</p>}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  );
-};
-
-// ─── Templates Tab ───
-const SmsTemplates = () => {
-  const { toast } = useToast();
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase.from("sms_templates").select("*").order("name");
-    setTemplates(data || []); setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const save = async (form: any) => {
-    const payload = {
-      ...form,
-      variables: typeof form.variables === "string"
-        ? JSON.parse(form.variables || "[]")
-        : form.variables,
-    };
-    if (editing?.id) {
-      const { error } = await supabase.from("sms_templates").update(payload).eq("id", editing.id);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    } else {
-      const { error } = await supabase.from("sms_templates").insert(payload);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+      setResult({ error: err.message });
+    } finally {
+      setVerifying(false);
     }
-    toast({ title: "Saved ✓" });
-    setOpen(false); setEditing(null); load();
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("Delete this template?")) return;
-    await supabase.from("sms_templates").delete().eq("id", id);
-    load();
-  };
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-bold text-foreground">Test OTP Sender</h3>
+        <p className="text-sm text-muted-foreground">Send test OTPs to verify SMS/WhatsApp delivery</p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TestTube className="h-4 w-4 text-primary" />
+              Send Test OTP
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Mobile Number (with country code)</label>
+              <Input
+                placeholder="919876543210"
+                value={mobile}
+                onChange={e => setMobile(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-2 block">Channel</label>
+              <div className="flex gap-2">
+                <Button
+                  variant={channel === "sms" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setChannel("sms")}
+                  className="flex-1"
+                >
+                  <Smartphone className="h-4 w-4 mr-2" /> SMS
+                </Button>
+                <Button
+                  variant={channel === "whatsapp" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setChannel("whatsapp")}
+                  className="flex-1"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" /> WhatsApp
+                </Button>
+              </div>
+            </div>
+            <Button onClick={sendTestOtp} disabled={sending} className="w-full">
+              {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Send Test OTP
+            </Button>
+
+            {otpSent && (
+              <div className="pt-4 border-t border-border/30 space-y-3">
+                <label className="text-xs text-muted-foreground block">Enter OTP to verify</label>
+                <Input
+                  placeholder="1234"
+                  value={otp}
+                  onChange={e => setOtp(e.target.value)}
+                  maxLength={4}
+                  className="font-mono text-center text-lg tracking-[0.5em]"
+                />
+                <Button onClick={verifyTestOtp} disabled={verifying} variant="outline" className="w-full">
+                  {verifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                  Verify OTP
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Response Panel */}
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4 text-emerald-400" />
+              Response
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {result ? (
+              <div className="space-y-3">
+                <div className={`p-3 rounded-lg border ${
+                  result.success || result.verified
+                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    : "bg-destructive/10 border-destructive/30"
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {result.success || result.verified ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    )}
+                    <span className="text-sm font-medium text-foreground">
+                      {result.success || result.verified ? "Success" : "Failed"}
+                    </span>
+                  </div>
+                </div>
+                <ScrollArea className="h-[300px]">
+                  <pre className="text-xs font-mono text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre-wrap">
+                    {JSON.stringify(result, null, 2)}
+                  </pre>
+                </ScrollArea>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <Activity className="h-8 w-8 mb-2 opacity-30" />
+                <p className="text-sm">Send an OTP to see the response</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ─── Generated OTPs Tab ───
+const GeneratedOtps = () => {
+  const [otps, setOtps] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "verified" | "expired">("all");
+
+  const fetchOtps = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("whatsapp_otps")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (!error && data) setOtps(data);
+    } catch (e) {
+      console.error("Failed to fetch OTPs", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchOtps(); }, [fetchOtps]);
+
+  const now = new Date();
+  const filtered = otps.filter(o => {
+    if (searchQuery && !o.mobile.includes(searchQuery)) return false;
+    if (filterStatus === "verified" && !o.verified) return false;
+    if (filterStatus === "active" && (o.verified || new Date(o.expires_at) < now)) return false;
+    if (filterStatus === "expired" && (o.verified || new Date(o.expires_at) >= now)) return false;
+    return true;
+  });
+
+  const totalActive = otps.filter(o => !o.verified && new Date(o.expires_at) >= now).length;
+  const totalVerified = otps.filter(o => o.verified).length;
+  const totalExpired = otps.filter(o => !o.verified && new Date(o.expires_at) < now).length;
 
   return (
     <Card className="border-border/50">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> SMS Templates</CardTitle>
-          <CardDescription>Manage DLT-approved message templates</CardDescription>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Hash className="h-4 w-4 text-cyan-400" /> Generated SMS OTPs
+            </CardTitle>
+            <CardDescription className="text-xs mt-1">View all OTPs generated by the system</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchOtps} disabled={loading} className="gap-1.5 text-xs">
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" onClick={() => setEditing(null)}><Plus className="h-4 w-4 mr-2" />New</Button>
-          </DialogTrigger>
-          <TemplateDialog template={editing} onSave={save} />
-        </Dialog>
       </CardHeader>
-      <CardContent>
-        {loading ? <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
-          : <div className="space-y-2">
-              {templates.map(t => (
-                <div key={t.id} className="p-3 rounded-lg bg-muted/30 border border-border/30 flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-bold text-foreground">{t.display_name}</p>
-                      <Badge variant="outline" className="text-[10px]">{t.category}</Badge>
-                      {!t.is_active && <Badge variant="secondary" className="text-[10px]">disabled</Badge>}
-                      {t.dlt_template_id && <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">DLT</Badge>}
-                    </div>
-                    <p className="text-xs text-muted-foreground font-mono truncate">{t.body_template}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">name: {t.name}</p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => { setEditing(t); setOpen(true); }}>
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(t.id)}>
-                      <Trash2 className="h-4 w-4 text-red-400" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {templates.length === 0 && <p className="text-center py-8 text-muted-foreground text-sm">No templates yet</p>}
-            </div>}
+      <CardContent className="space-y-4">
+        {/* KPI cards */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Active", value: totalActive, color: "text-success", bg: "bg-success/10" },
+            { label: "Verified", value: totalVerified, color: "text-primary", bg: "bg-primary/10" },
+            { label: "Expired", value: totalExpired, color: "text-muted-foreground", bg: "bg-muted/30" },
+          ].map(s => (
+            <div key={s.label} className={`rounded-lg p-3 ${s.bg} text-center`}>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</p>
+              <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search by mobile..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-8 h-9 text-xs bg-secondary/30"
+            />
+          </div>
+          <div className="flex gap-1">
+            {(["all", "active", "verified", "expired"] as const).map(f => (
+              <Button
+                key={f}
+                variant={filterStatus === f ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterStatus(f)}
+                className="text-[10px] h-9 px-2.5 capitalize"
+              >
+                {f}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+        ) : filtered.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-8">No OTPs found</p>
+        ) : (
+          <ScrollArea className="h-[420px]">
+             <Table>
+              <TableHeader>
+                <TableRow className="text-[10px]">
+                  <TableHead className="text-[10px]">Mobile</TableHead>
+                  <TableHead className="text-[10px]">OTP</TableHead>
+                  <TableHead className="text-[10px]">Channel</TableHead>
+                  <TableHead className="text-[10px]">Status</TableHead>
+                  <TableHead className="text-[10px]">Created</TableHead>
+                  <TableHead className="text-[10px]">Expires</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(o => {
+                  const expired = !o.verified && new Date(o.expires_at) < now;
+                  const status = o.verified ? "verified" : expired ? "expired" : "active";
+                  return (
+                    <TableRow key={o.id} className="text-xs">
+                      <TableCell className="font-mono text-foreground">{o.mobile}</TableCell>
+                      <TableCell>
+                        <span className="font-mono font-bold text-sm tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded">
+                          {o.otp}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={
+                          o.channel === "sms"
+                            ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                            : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                        }>
+                          {o.channel === "sms" ? "SMS" : "WhatsApp"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={
+                          status === "verified"
+                            ? "bg-success/15 text-success border-success/30"
+                            : status === "active"
+                            ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                            : "bg-muted/30 text-muted-foreground border-border/50"
+                        }>
+                          {status === "verified" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                          {status === "active" && <Zap className="h-3 w-3 mr-1" />}
+                          {status === "expired" && <Clock className="h-3 w-3 mr-1" />}
+                          {status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-[10px]">
+                        {format(new Date(o.created_at), "dd MMM, hh:mm a")}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-[10px]">
+                        {format(new Date(o.expires_at), "dd MMM, hh:mm a")}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        )}
       </CardContent>
     </Card>
-  );
-};
-
-const TemplateDialog = ({ template, onSave }: { template: any; onSave: (f: any) => void }) => {
-  const [form, setForm] = useState({
-    name: "", display_name: "", body_template: "", category: "engagement",
-    variables: "[]", dlt_template_id: "", sender_id: "", description: "", is_active: true,
-  });
-  useEffect(() => {
-    if (template) setForm({
-      name: template.name || "",
-      display_name: template.display_name || "",
-      body_template: template.body_template || "",
-      category: template.category || "engagement",
-      variables: JSON.stringify(template.variables || []),
-      dlt_template_id: template.dlt_template_id || "",
-      sender_id: template.sender_id || "",
-      description: template.description || "",
-      is_active: template.is_active !== false,
-    });
-    else setForm({
-      name: "", display_name: "", body_template: "", category: "engagement",
-      variables: "[]", dlt_template_id: "", sender_id: "", description: "", is_active: true,
-    });
-  }, [template]);
-
-  return (
-    <DialogContent className="max-w-2xl">
-      <DialogHeader>
-        <DialogTitle>{template ? "Edit" : "New"} SMS Template</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Internal Name (snake_case)</Label>
-            <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="daily_mission_reminder" />
-          </div>
-          <div>
-            <Label>Display Name</Label>
-            <Input value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })} />
-          </div>
-        </div>
-        <div>
-          <Label>Body Template (use {"{{variable}}"})</Label>
-          <Textarea value={form.body_template} onChange={e => setForm({ ...form, body_template: e.target.value })} rows={3} />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <Label>Category</Label>
-            <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="engagement">Engagement</SelectItem>
-                <SelectItem value="transactional">Transactional</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="otp">OTP</SelectItem>
-                <SelectItem value="security">Security</SelectItem>
-                <SelectItem value="payment">Payment</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>DLT Template ID</Label>
-            <Input value={form.dlt_template_id} onChange={e => setForm({ ...form, dlt_template_id: e.target.value })} />
-          </div>
-          <div>
-            <Label>Sender ID Override</Label>
-            <Input value={form.sender_id} onChange={e => setForm({ ...form, sender_id: e.target.value })} placeholder="ACRYAI" />
-          </div>
-        </div>
-        <div>
-          <Label>Variables (JSON array)</Label>
-          <Input value={form.variables} onChange={e => setForm({ ...form, variables: e.target.value })} className="font-mono text-xs" />
-        </div>
-        <div>
-          <Label>Description</Label>
-          <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-        </div>
-        <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
-          <Label>Active</Label>
-          <Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button onClick={() => onSave(form)} disabled={!form.name || !form.body_template}>Save</Button>
-      </DialogFooter>
-    </DialogContent>
-  );
-};
-
-// ─── Config Tab ───
-const SmsConfig = () => {
-  const { toast } = useToast();
-  const [config, setConfig] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    supabase.from("sms_config").select("*").limit(1).maybeSingle()
-      .then(({ data }) => setConfig(data));
-  }, []);
-
-  const save = async () => {
-    if (!config) return;
-    setSaving(true);
-    const { error } = await supabase.from("sms_config").update({
-      is_enabled: config.is_enabled,
-      monthly_limit_per_user: Number(config.monthly_limit_per_user),
-      sender_id: config.sender_id,
-      default_dlt_template_id: config.default_dlt_template_id,
-      default_route: config.default_route,
-      default_country: config.default_country,
-      auto_fallback_on_quota_exceeded: config.auto_fallback_on_quota_exceeded,
-      allowed_categories: config.allowed_categories,
-      critical_categories: config.critical_categories,
-      fallback_channels: config.fallback_channels,
-      updated_at: new Date().toISOString(),
-    }).eq("id", config.id);
-    setSaving(false);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else toast({ title: "Saved ✓" });
-  };
-
-  if (!config) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-
-  return (
-    <div className="space-y-4">
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary" /> MSG91 SMS Configuration</CardTitle>
-          <CardDescription>Provider settings & quota policy</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
-            <div>
-              <Label className="text-base">Enable SMS Notifications</Label>
-              <p className="text-xs text-muted-foreground">Master switch for all SMS sends</p>
-            </div>
-            <Switch checked={config.is_enabled} onCheckedChange={v => setConfig({ ...config, is_enabled: v })} />
-          </div>
-          <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
-            <div>
-              <Label className="text-base">Auto-fallback on quota</Label>
-              <p className="text-xs text-muted-foreground">Send via push/email when SMS limit reached</p>
-            </div>
-            <Switch checked={config.auto_fallback_on_quota_exceeded}
-              onCheckedChange={v => setConfig({ ...config, auto_fallback_on_quota_exceeded: v })} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Monthly limit / user</Label>
-              <Input type="number" value={config.monthly_limit_per_user}
-                onChange={e => setConfig({ ...config, monthly_limit_per_user: e.target.value })} />
-            </div>
-            <div>
-              <Label>Sender ID</Label>
-              <Input value={config.sender_id} onChange={e => setConfig({ ...config, sender_id: e.target.value })} />
-            </div>
-            <div>
-              <Label>Default DLT Template ID</Label>
-              <Input value={config.default_dlt_template_id || ""}
-                onChange={e => setConfig({ ...config, default_dlt_template_id: e.target.value })} />
-            </div>
-            <div>
-              <Label>MSG91 Route</Label>
-              <Select value={config.default_route} onValueChange={v => setConfig({ ...config, default_route: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="4">4 — Transactional</SelectItem>
-                  <SelectItem value="1">1 — Promotional</SelectItem>
-                  <SelectItem value="11">11 — Marketing</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Country code</Label>
-              <Input value={config.default_country} onChange={e => setConfig({ ...config, default_country: e.target.value })} />
-            </div>
-            <div>
-              <Label>Critical categories (bypass quota)</Label>
-              <Input value={(config.critical_categories || []).join(",")}
-                onChange={e => setConfig({ ...config, critical_categories: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
-                className="font-mono text-xs" />
-            </div>
-            <div>
-              <Label>Allowed categories</Label>
-              <Input value={(config.allowed_categories || []).join(",")}
-                onChange={e => setConfig({ ...config, allowed_categories: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
-                className="font-mono text-xs" />
-            </div>
-            <div>
-              <Label>Fallback channels</Label>
-              <Input value={(config.fallback_channels || []).join(",")}
-                onChange={e => setConfig({ ...config, fallback_channels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
-                className="font-mono text-xs" />
-            </div>
-          </div>
-          <Button onClick={save} disabled={saving} className="w-full">
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-            Save Configuration
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/50 bg-amber-500/5">
-        <CardContent className="p-4 text-xs text-muted-foreground">
-          <p className="flex items-center gap-2 font-medium text-amber-400 mb-2">
-            <AlertTriangle className="h-4 w-4" /> DLT Compliance
-          </p>
-          <p>India SMS regulations require all transactional/promotional SMS to use a DLT-approved template ID and sender ID. OTP-only routes (route 4) work without DLT for whitelisted senders. Template body must match exactly what's approved in your DLT account.</p>
-        </CardContent>
-      </Card>
-    </div>
   );
 };
 
@@ -865,35 +906,44 @@ const SmsCommandCenter = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-          <Smartphone className="h-6 w-6 text-blue-400" />
+        <div className="h-10 w-10 rounded-xl bg-blue-500/15 flex items-center justify-center">
+          <Smartphone className="h-5 w-5 text-blue-400" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-foreground">SMS Notification Center</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            MSG91 SMS · 60 msgs/user/month · auto-fallback to Push & Email · DLT compliant
-          </p>
+          <h2 className="text-xl font-bold text-foreground">SMS Command Center</h2>
+          <p className="text-sm text-muted-foreground">Manage SMS & WhatsApp OTP delivery via MSG91</p>
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="dashboard"><LayoutDashboard className="h-4 w-4 mr-1" />Dashboard</TabsTrigger>
-          <TabsTrigger value="test"><TestTube className="h-4 w-4 mr-1" />Test</TabsTrigger>
-          <TabsTrigger value="broadcast"><Send className="h-4 w-4 mr-1" />Broadcast</TabsTrigger>
-          <TabsTrigger value="logs"><FileText className="h-4 w-4 mr-1" />Logs</TabsTrigger>
-          <TabsTrigger value="quota"><Hash className="h-4 w-4 mr-1" />Quota</TabsTrigger>
-          <TabsTrigger value="templates"><Sparkles className="h-4 w-4 mr-1" />Templates</TabsTrigger>
+      <Tabs defaultValue="generated_otps" className="space-y-4">
+        <TabsList className="bg-muted/30 border border-border/50 p-1 flex-wrap h-auto">
+          <TabsTrigger value="generated_otps" className="gap-2 data-[state=active]:bg-cyan-500/15">
+            <Hash className="h-4 w-4" /> Generated OTPs
+          </TabsTrigger>
+          <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-primary/15">
+            <LayoutDashboard className="h-4 w-4" /> Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="config" className="gap-2 data-[state=active]:bg-amber-500/15">
+            <Settings className="h-4 w-4" /> MSG91 Config
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="gap-2 data-[state=active]:bg-emerald-500/15">
+            <FileText className="h-4 w-4" /> Logs & History
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2 data-[state=active]:bg-violet-500/15">
+            <Copy className="h-4 w-4" /> Templates
+          </TabsTrigger>
+          <TabsTrigger value="test" className="gap-2 data-[state=active]:bg-blue-500/15">
+            <TestTube className="h-4 w-4" /> Test SMS
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="dashboard" className="mt-6"><SmsDashboard /></TabsContent>
-        <TabsContent value="test" className="mt-6"><SmsTest /></TabsContent>
-        <TabsContent value="broadcast" className="mt-6"><SmsBroadcast /></TabsContent>
-        <TabsContent value="logs" className="mt-6"><SmsLogs /></TabsContent>
-        <TabsContent value="quota" className="mt-6"><SmsQuotaViewer /></TabsContent>
-        <TabsContent value="templates" className="mt-6"><SmsTemplates /></TabsContent>
-      </Tabs>
 
-      <SmsConfig />
+        <TabsContent value="generated_otps"><GeneratedOtps /></TabsContent>
+        <TabsContent value="dashboard"><SmsDashboard /></TabsContent>
+        <TabsContent value="config"><Msg91Config /></TabsContent>
+        <TabsContent value="logs"><SmsLogs /></TabsContent>
+        <TabsContent value="templates"><SmsTemplates /></TabsContent>
+        <TabsContent value="test"><SmsTestSender /></TabsContent>
+      </Tabs>
     </div>
   );
 };
