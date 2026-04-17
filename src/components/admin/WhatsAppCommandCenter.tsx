@@ -737,6 +737,35 @@ const MetaTemplatesTab = () => {
               {t.meta_template_id && <p className="text-[10px] text-muted-foreground font-mono">Meta ID: {t.meta_template_id}</p>}
               {t.rejection_reason && <p className="text-[11px] text-destructive">⚠ {t.rejection_reason}</p>}
 
+              {/* Buttons preview (WhatsApp-style) */}
+              {Array.isArray(t.buttons) && t.buttons.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                    <ExternalLink className="w-3 h-3" /> CTA Buttons
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {(t.buttons as MetaButton[]).map((b, idx) => (
+                      <a key={idx}
+                        href={b.type === "URL" ? b.url : b.type === "PHONE_NUMBER" ? `tel:${b.phone_number}` : undefined}
+                        target={b.type === "URL" ? "_blank" : undefined}
+                        rel="noopener noreferrer"
+                        onClick={(e) => { if (b.type === "QUICK_REPLY") e.preventDefault(); }}
+                        className="flex items-center justify-center gap-1.5 w-full py-2 rounded-md bg-success/10 hover:bg-success/20 text-success text-[12px] font-semibold border border-success/30 transition-colors">
+                        {b.type === "URL" && <ExternalLink className="w-3.5 h-3.5" />}
+                        {b.type === "PHONE_NUMBER" && <Phone className="w-3.5 h-3.5" />}
+                        {b.type === "QUICK_REPLY" && <Reply className="w-3.5 h-3.5" />}
+                        {b.text}
+                        {b.type === "URL" && b.url && (
+                          <span className="text-[9px] text-muted-foreground font-normal font-mono ml-1 truncate max-w-[140px]">
+                            {b.url.replace(/^https?:\/\//, "")}
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-1.5 flex-wrap pt-1">
                 {t.approval_status !== "submitted" && (
                   <button onClick={() => updateStatus(t.id, "submitted")}
