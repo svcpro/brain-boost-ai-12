@@ -500,10 +500,13 @@ Deno.serve(async (req) => {
         topicRow = created;
       }
 
-      // Always return the full updated subject + topic tree.
+      // Always return the full updated subject + topic tree, plus exam context.
       const allSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      const { data: profile } = await adminClient
+        .from("profiles").select("exam_type").eq("id", userId).maybeSingle();
       return json({
         success: true,
+        exam_type: profile?.exam_type || null,
         topic: topicRow,
         duplicate,
         subjects: allSubjects,
