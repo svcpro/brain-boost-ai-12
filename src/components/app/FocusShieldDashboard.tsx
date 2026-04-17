@@ -442,13 +442,13 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                     <motion.div className="absolute inset-0 rounded-xl" animate={{ opacity: [0, 0.3, 0] }} transition={{ duration: 2, repeat: Infinity }}
                       style={{ border: `1px solid ${grade.ringColor}` }} />
                   </motion.div>
-                  <div className="flex-1">
-                    <p className="text-[10px] font-bold text-foreground">{todayFocus >= 70 ? "Shield Active & Strong" : "Shield Weakened"}</p>
-                    <p className="text-[8px] text-muted-foreground">{todayFocus >= 70 ? "Focus defenses holding steady" : "Distraction levels elevated — stay alert"}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-foreground truncate">{todayFocus >= 70 ? "Shield Active & Strong" : "Shield Weakened"}</p>
+                    <p className="text-[8px] text-muted-foreground truncate">{todayFocus >= 70 ? "Focus defenses holding steady" : "Distraction levels elevated"}</p>
                   </div>
-                  <div className={`px-2.5 py-1 rounded-full text-[8px] font-black border`}
+                  <div className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black border whitespace-nowrap`}
                     style={{ background: `${grade.ringColor}15`, color: grade.ringColor, borderColor: `${grade.ringColor}30` }}>
-                    {avgDailyMin < 10 ? "LOW RISK" : avgDailyMin < 30 ? "MODERATE" : "HIGH RISK"}
+                    {avgDailyMin < 10 ? "LOW" : avgDailyMin < 30 ? "MODERATE" : "HIGH"}
                   </div>
                 </motion.div>
               </div>
