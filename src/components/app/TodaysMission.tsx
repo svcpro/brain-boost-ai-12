@@ -330,13 +330,7 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
                     <ArrowRight className="w-4 h-4" />
                   </motion.button>
 
-                  <button
-                    onClick={handleComplete}
-                    className="w-full py-2 text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1.5 active:scale-95"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Mark as complete
-                  </button>
+                  {/* Mark as complete — hidden per user request */}
                 </div>
               </div>
             </motion.div>
