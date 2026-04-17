@@ -547,53 +547,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           </div>
         </div>
 
-        {/* SurePass CTA */}
-        <div className="relative z-10 flex items-center justify-center gap-3">
-          <motion.button
-            onClick={() => setSafePassOpen(true)}
-            className="flex items-center gap-1.5 cursor-pointer group"
-            animate={{ opacity: [0.7, 1, 0.7] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <Brain className="w-3.5 h-3.5 text-primary" style={{ filter: "drop-shadow(0 0 4px hsl(var(--primary)/0.4))" }} />
-            <p className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">SurePass</p>
-            <motion.div animate={{ x: [0, 4, 0] }} transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}>
-              <ArrowRight className="w-3 h-3 text-primary" />
-            </motion.div>
-          </motion.button>
-          <motion.button
-            onClick={() => setSafePassOpen(true)}
-            className="relative w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
-            style={{
-              background: "linear-gradient(135deg, hsl(var(--primary)/0.2), hsl(var(--success)/0.15))",
-              border: "1.5px solid hsl(var(--primary)/0.3)",
-            }}
-            whileHover={{ scale: 1.2 }}
-            whileTap={{ scale: 0.85 }}
-            animate={{
-              boxShadow: [
-                "0 0 0px 0px hsl(var(--primary)/0)",
-                "0 0 14px 4px hsl(var(--primary)/0.4)",
-                "0 0 0px 0px hsl(var(--primary)/0)",
-              ],
-            }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <motion.div
-              className="absolute inset-[-4px] rounded-full pointer-events-none"
-              style={{ border: "1.5px dashed hsl(var(--success)/0.35)" }}
-              animate={{ rotate: 360 }}
-              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-            />
-            <motion.div
-              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
-              style={{ background: "hsl(var(--success))", boxShadow: "0 0 6px hsl(var(--success)/0.6)" }}
-              animate={{ scale: [1, 1.5, 1], opacity: [1, 0.4, 1] }}
-              transition={{ duration: 1.2, repeat: Infinity }}
-            />
-            <Trophy className="w-4 h-4 text-primary" style={{ filter: "drop-shadow(0 0 4px hsl(var(--primary)/0.5))" }} />
-          </motion.button>
-        </div>
+        {/* SurePass CTA — hidden per user request */}
 
         {/* Key stats: Rank / Streak / Exam */}
         {hasTopics && (
