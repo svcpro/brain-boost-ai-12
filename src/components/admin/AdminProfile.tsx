@@ -19,7 +19,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const AdminProfile = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { roles } = useAdminRole();
   const { toast } = useToast();
 
@@ -36,7 +36,48 @@ const AdminProfile = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Access token
+  const [showToken, setShowToken] = useState(false);
+  const [refreshingToken, setRefreshingToken] = useState(false);
+
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const accessToken = session?.access_token || "";
+  const tokenExpiresAt = session?.expires_at ? new Date(session.expires_at * 1000) : null;
+  const tokenExpiresIn = tokenExpiresAt ? Math.max(0, Math.floor((tokenExpiresAt.getTime() - Date.now()) / 1000)) : 0;
+  const tokenExpiresLabel = tokenExpiresAt
+    ? tokenExpiresIn > 60
+      ? `in ${Math.floor(tokenExpiresIn / 60)}m ${tokenExpiresIn % 60}s`
+      : `in ${tokenExpiresIn}s`
+    : "—";
+  const maskedToken = accessToken
+    ? `${accessToken.slice(0, 14)}••••••••••••••${accessToken.slice(-10)}`
+    : "";
+
+  const copyAccessToken = async () => {
+    if (!accessToken) {
+      toast({ title: "No active session", variant: "destructive" });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(accessToken);
+      toast({ title: "Token copied ✓", description: "Access token copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard access denied.", variant: "destructive" });
+    }
+  };
+
+  const refreshAccessToken = async () => {
+    setRefreshingToken(true);
+    const { error } = await supabase.auth.refreshSession();
+    if (error) {
+      toast({ title: "Refresh failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Token refreshed ✓" });
+    }
+    setRefreshingToken(false);
+  };
+
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
