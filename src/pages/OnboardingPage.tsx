@@ -291,7 +291,7 @@ const OnboardingPage = () => {
 
   const canProceed = () => {
     if (step === 0) return displayName.trim().length >= 2;
-    if (step === 1) return examType !== "" && (!examType.startsWith("other_") || customExam.trim().length >= 2);
+    if (step === 1) return examType !== "" && (!examType.startsWith("other_") || validateAcademicTerm(customExam).valid);
     if (step === 2) return examDate !== "";
     if (step === 3) return subjects.length > 0;
     if (step === 4) return true;
