@@ -32,38 +32,58 @@ serve(async (req) => {
       const { aiFetch } = await import("../_shared/aiFetch.ts");
       const aiResp = await aiFetch({
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
+          model: "google/gemini-2.5-pro",
           messages: [
             {
               role: "system",
-              content: `You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely.`
+              content: `You are the world's most thorough academic curriculum architect for Indian competitive exams (UPSC, NEET, JEE, SSC, CAT, GATE, Banking, State PSCs, CLAT, etc.) and academic boards (CBSE, ICSE, State Boards) and university courses.
+
+CRITICAL RULES:
+1. Generate the COMPLETE, EXHAUSTIVE official syllabus — do NOT skip ANY subject or topic.
+2. Cover EVERY subject in the official syllabus (e.g., for UPSC GS: History, Geography, Polity, Economy, Environment, Science & Tech, Ethics, Essay, CSAT, Optional placeholder, Current Affairs, etc.).
+3. For EACH subject, include EVERY major topic AND sub-topic from the official syllabus — aim for 15-40 topics per subject (not just 5-10).
+4. Use the OFFICIAL topic names as published by the exam conducting body (UPSC/NTA/SSC/etc.).
+5. Assign accurate marks_impact_weight (0-10) based on real historical question frequency and weightage in past 10 years of papers.
+6. Order topics logically (foundational → advanced) within each subject.
+7. NEVER return a partial or summarized syllabus. Completeness is mandatory.`
             },
             {
               role: "user",
-              content: `Generate the complete subject and topic structure for: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}. Include ALL important topics per subject with accurate marks impact weights based on exam patterns.`
+              content: `Generate the COMPLETE official syllabus for: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}.
+
+Requirements:
+- Include ALL subjects from the official syllabus (no omissions).
+- For each subject, list ALL topics and sub-topics (15-40 per subject is normal for major exams).
+- Use official topic naming conventions.
+- Assign accurate marks_impact_weight (0-10) based on past-paper frequency.
+- Total topics across all subjects should reflect the true syllabus size (typically 200-500+ for major exams).
+
+Return the EXHAUSTIVE structure now.`
             }
           ],
           tools: [{
             type: "function",
             function: {
               name: "generate_curriculum",
-              description: "Generate complete exam curriculum with subjects and topics",
+              description: "Generate the complete exhaustive exam curriculum with ALL subjects and ALL topics from the official syllabus",
               parameters: {
                 type: "object",
                 properties: {
                   subjects: {
                     type: "array",
+                    description: "Complete list of ALL subjects in the official syllabus — do not omit any",
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string", description: "Subject name" },
+                        name: { type: "string", description: "Official subject name as per exam body" },
                         topics: {
                           type: "array",
+                          description: "ALL topics and sub-topics for this subject — exhaustive coverage required (15-40+ per subject)",
                           items: {
                             type: "object",
                             properties: {
-                              name: { type: "string", description: "Topic name" },
-                              marks_impact_weight: { type: "number", description: "Importance weight 0-10 based on exam weightage" },
+                              name: { type: "string", description: "Official topic / sub-topic name" },
+                              marks_impact_weight: { type: "number", description: "Importance weight 0-10 based on historical exam weightage" },
                               priority: { type: "string", enum: ["critical", "high", "medium", "low"], description: "Study priority" }
                             },
                             required: ["name", "marks_impact_weight", "priority"]
@@ -73,7 +93,7 @@ serve(async (req) => {
                       required: ["name", "topics"]
                     }
                   },
-                  total_topics: { type: "number", description: "Total number of topics generated" },
+                  total_topics: { type: "number", description: "Total topic count across all subjects (must be exhaustive — typically 200-500+ for major exams)" },
                   exam_summary: { type: "string", description: "Brief 1-line exam pattern summary" }
                 },
                 required: ["subjects", "total_topics", "exam_summary"]
