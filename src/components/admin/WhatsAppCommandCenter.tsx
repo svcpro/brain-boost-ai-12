@@ -539,6 +539,12 @@ const MetaTemplatesTab = () => {
     else { toast({ title: "Deleted" }); load(); }
   };
 
+  const saveTemplateButtons = async (id: string, buttons: MetaButton[]) => {
+    const { error } = await supabase.from("whatsapp_meta_templates" as any).update({ buttons } as any).eq("id", id);
+    if (error) toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    else { toast({ title: "Buttons updated ✓" }); load(); }
+  };
+
   const filtered = templates.filter(t => filter === "all" || t.approval_status === filter);
 
   const statusBadge = (s: string) => {
