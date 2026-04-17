@@ -324,18 +324,27 @@ Deno.serve(async (req) => {
       return json({ success: true, days_until_exam: daysUntil, next_step: 4 });
     }
 
-    // --- LIST SUBJECTS (for current user) ---
+    // --- LIST SUBJECTS (for current user, scoped to their selected exam) ---
     if (action === "list-subjects" || action === "list_subjects") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const { data: subjects } = await adminClient
-        .from("subjects")
-        .select("id, name, created_at")
-        .eq("user_id", userId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: true });
-      return json({ success: true, subjects: subjects || [], total: (subjects || []).length });
+
+      // Pull profile so we can echo the selected exam alongside the subjects.
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("exam_type, exam_date")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const subjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      return json({
+        success: true,
+        exam_type: profile?.exam_type || null,
+        exam_date: profile?.exam_date || null,
+        subjects,
+        total: subjects.length,
+      });
     }
 
     // --- ADD SINGLE SUBJECT ---
