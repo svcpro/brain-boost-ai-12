@@ -398,7 +398,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
   // Prefer DB display_name; ignore auto-generated "User####" placeholder from auth metadata
   const metaName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.display_name;
-  const isPlaceholderMetaName = typeof metaName === "string" && /^User\d{3,4}$/.test(metaName);
+  const isPlaceholderMetaName = typeof metaName === "string" && /^User\s*\d{2,}$/i.test(metaName.trim());
   const userName = String(displayName || (isPlaceholderMetaName ? "" : metaName) || "Student");
   const greeting = (() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })();
 
