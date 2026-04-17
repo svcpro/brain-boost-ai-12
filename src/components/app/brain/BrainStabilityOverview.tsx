@@ -271,26 +271,7 @@ export default function BrainStabilityOverview({
       />
 
       <div className="relative z-10 p-6">
-        {/* ── Title ── */}
-        <button
-          onClick={onSurePassClick}
-          className="flex items-center justify-center gap-2 mb-2 mx-auto group cursor-pointer"
-        >
-          <motion.div
-            animate={{ scale: [1, 1.15, 1] }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-            className="w-2 h-2 rounded-full bg-primary"
-          />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-primary group-hover:text-primary/80 transition-colors">
-            SurePass
-          </span>
-          <motion.div
-            animate={{ x: [0, 5, 0] }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <ArrowRight className="w-3.5 h-3.5 text-primary" />
-          </motion.div>
-        </button>
+        {/* ── Title (SurePass) — hidden per user request ── */}
 
         {/* ── Arc ── */}
         <StabilityArc value={hasData ? overallHealth : 0} animateKey={arcKey} />
