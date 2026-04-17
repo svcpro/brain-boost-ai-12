@@ -629,6 +629,62 @@ const MetaTemplatesTab = () => {
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
           <input placeholder="Use case (e.g. streak_break, exam_countdown)" value={form.use_case || ""} onChange={e => setForm({ ...form, use_case: e.target.value })}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
+
+          {/* Buttons editor */}
+          <div className="space-y-2 p-2.5 rounded-lg bg-background/40 border border-border/50">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                <ExternalLink className="w-3 h-3" /> Call-to-Action Buttons
+                <span className="text-[10px] text-muted-foreground font-normal">(max 3 · Meta policy)</span>
+              </p>
+              <button onClick={addButton} className="text-[11px] px-2 py-1 rounded-md bg-primary/15 text-primary font-semibold flex items-center gap-1">
+                <Plus className="w-3 h-3" /> Add Button
+              </button>
+            </div>
+            {(((form.buttons as any) || []) as MetaButton[]).length === 0 && (
+              <p className="text-[10px] text-muted-foreground italic">No buttons. Tip: a URL button lets users tap and jump straight to the matching app page.</p>
+            )}
+            {(((form.buttons as any) || []) as MetaButton[]).map((b, idx) => (
+              <div key={idx} className="p-2 rounded-md bg-muted/30 border border-border/40 space-y-1.5">
+                <div className="grid grid-cols-[110px_1fr_auto] gap-1.5 items-center">
+                  <select value={b.type} onChange={e => updateButton(idx, { type: e.target.value as any, url: undefined, phone_number: undefined })}
+                    className="px-2 py-1.5 rounded bg-background border border-border text-[11px]">
+                    <option value="URL">URL</option>
+                    <option value="PHONE_NUMBER">Phone</option>
+                    <option value="QUICK_REPLY">Quick Reply</option>
+                  </select>
+                  <input placeholder="Button text (max 25 chars)" maxLength={25} value={b.text}
+                    onChange={e => updateButton(idx, { text: e.target.value })}
+                    className="px-2 py-1.5 rounded bg-background border border-border text-[11px]" />
+                  <button onClick={() => removeButton(idx)} className="p-1.5 rounded bg-destructive/10 text-destructive">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+                {b.type === "URL" && (
+                  <div className="space-y-1.5">
+                    <input placeholder="https://acry.ai/home" value={b.url || ""}
+                      onChange={e => updateButton(idx, { url: e.target.value })}
+                      className="w-full px-2 py-1.5 rounded bg-background border border-border text-[11px] font-mono" />
+                    <div className="flex gap-1 flex-wrap items-center">
+                      <span className="text-[10px] text-muted-foreground">Quick set:</span>
+                      {APP_PAGES.map(p => (
+                        <button key={p.path} onClick={() => updateButton(idx, { url: APP_BASE_URL + p.path })}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20">
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {b.type === "PHONE_NUMBER" && (
+                  <input placeholder="+919999999999" value={b.phone_number || ""}
+                    onChange={e => updateButton(idx, { phone_number: e.target.value })}
+                    className="w-full px-2 py-1.5 rounded bg-background border border-border text-[11px] font-mono" />
+                )}
+              </div>
+            ))}
+          </div>
+
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 py-2 rounded-lg bg-success text-white text-sm font-semibold">Save Template</button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg bg-muted/40 text-foreground text-sm">Cancel</button>
