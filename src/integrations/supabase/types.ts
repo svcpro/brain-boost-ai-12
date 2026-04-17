@@ -6843,6 +6843,8 @@ export type Database = {
           weekly_focus_goal_minutes: number
           weekly_report_day: number
           weekly_report_hour: number
+          whatsapp_categories: string[]
+          whatsapp_enabled: boolean
           whatsapp_number: string | null
           whatsapp_opted_in: boolean | null
         }
@@ -6874,6 +6876,8 @@ export type Database = {
           weekly_focus_goal_minutes?: number
           weekly_report_day?: number
           weekly_report_hour?: number
+          whatsapp_categories?: string[]
+          whatsapp_enabled?: boolean
           whatsapp_number?: string | null
           whatsapp_opted_in?: boolean | null
         }
@@ -6905,6 +6909,8 @@ export type Database = {
           weekly_focus_goal_minutes?: number
           weekly_report_day?: number
           weekly_report_hour?: number
+          whatsapp_categories?: string[]
+          whatsapp_enabled?: boolean
           whatsapp_number?: string | null
           whatsapp_opted_in?: boolean | null
         }
@@ -9482,6 +9488,48 @@ export type Database = {
           },
         ]
       }
+      whatsapp_config: {
+        Row: {
+          allowed_categories: string[]
+          auto_fallback_on_quota_exceeded: boolean
+          default_namespace: string
+          fallback_channels: string[]
+          id: string
+          integrated_number: string
+          is_enabled: boolean
+          monthly_limit_per_user: number
+          provider: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allowed_categories?: string[]
+          auto_fallback_on_quota_exceeded?: boolean
+          default_namespace?: string
+          fallback_channels?: string[]
+          id?: string
+          integrated_number?: string
+          is_enabled?: boolean
+          monthly_limit_per_user?: number
+          provider?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allowed_categories?: string[]
+          auto_fallback_on_quota_exceeded?: boolean
+          default_namespace?: string
+          fallback_channels?: string[]
+          id?: string
+          integrated_number?: string
+          is_enabled?: boolean
+          monthly_limit_per_user?: number
+          provider?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       whatsapp_cost_tracking: {
         Row: {
           category: string | null
@@ -9691,6 +9739,99 @@ export type Database = {
           trigger_key?: string | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_quota: {
+        Row: {
+          count: number
+          created_at: string
+          last_sent_at: string | null
+          month_key: string
+          monthly_limit: number
+          reset_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          last_sent_at?: string | null
+          month_key: string
+          monthly_limit?: number
+          reset_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          last_sent_at?: string | null
+          month_key?: string
+          monthly_limit?: number
+          reset_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_scheduled_sends: {
+        Row: {
+          audience_filters: Json | null
+          audience_type: string
+          audience_user_ids: string[] | null
+          blocked_quota_count: number
+          category: string
+          created_at: string
+          created_by: string | null
+          delivered_count: number
+          executed_at: string | null
+          failed_count: number
+          id: string
+          scheduled_at: string
+          status: string
+          template_name: string
+          total_recipients: number
+          updated_at: string
+          variables: Json | null
+        }
+        Insert: {
+          audience_filters?: Json | null
+          audience_type?: string
+          audience_user_ids?: string[] | null
+          blocked_quota_count?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number
+          executed_at?: string | null
+          failed_count?: number
+          id?: string
+          scheduled_at: string
+          status?: string
+          template_name: string
+          total_recipients?: number
+          updated_at?: string
+          variables?: Json | null
+        }
+        Update: {
+          audience_filters?: Json | null
+          audience_type?: string
+          audience_user_ids?: string[] | null
+          blocked_quota_count?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number
+          executed_at?: string | null
+          failed_count?: number
+          id?: string
+          scheduled_at?: string
+          status?: string
+          template_name?: string
+          total_recipients?: number
+          updated_at?: string
+          variables?: Json | null
         }
         Relationships: []
       }
@@ -10087,6 +10228,8 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       reset_monthly_api_usage: { Args: never; Returns: undefined }
+      whatsapp_quota_increment: { Args: { p_user_id: string }; Returns: number }
+      whatsapp_quota_remaining: { Args: { p_user_id: string }; Returns: number }
     }
     Enums: {
       app_role:
