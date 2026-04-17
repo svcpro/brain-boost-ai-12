@@ -396,7 +396,7 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                   </div>
 
                   {/* Right side info */}
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 min-w-0 space-y-2">
                     <FocusLevelBadge score={todayFocus} />
 
                     {/* Trend indicator */}
