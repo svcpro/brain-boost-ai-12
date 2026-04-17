@@ -183,11 +183,7 @@ const AppDashboard = () => {
 
   const renderTab = () => {
     if (flagsLoading) {
-      return (
-        <div className="flex items-center justify-center py-20">
-          <ACRYLogo variant="icon" animate={true} className="w-8 h-8 animate-pulse" />
-        </div>
-      );
+      return <div className="py-20" />;
     }
     if (!isTabEnabled(`tab_${activeTab}`)) {
       return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">This section is currently disabled.</div>;
@@ -261,11 +257,7 @@ const AppDashboard = () => {
 
           {/* Content */}
           <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20">
-            <Suspense fallback={
-              <div className="flex items-center justify-center py-20">
-                <ACRYLogo variant="icon" animate={true} className="w-8 h-8 animate-pulse" />
-              </div>
-            }>
+            <Suspense fallback={<div className="py-20" />}>
               <SectionErrorBoundary name="active-tab">
                 {renderTab()}
               </SectionErrorBoundary>
