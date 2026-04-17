@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Camera, Loader2, Check, X, Pencil, Sparkles } from "lucide-react";
+import { LogOut, Camera, Loader2, Check, X, Pencil, Sparkles, BookOpen } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,7 @@ import AIPersonalizationControlCenter from "./you/AIPersonalizationControlCenter
 import CognitiveProfileCard from "./CognitiveProfileCard";
 import PasswordManagement from "./you/PasswordManagement";
 import ApiKeyCard from "./you/ApiKeyCard";
+import AITopicManager from "./AITopicManager";
 
 interface YouTabProps {
   autoOpenVoiceSettings?: boolean;
@@ -60,6 +61,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [showSubscription, setShowSubscription] = useState(false);
   const [currentPlan, setCurrentPlan] = useState("free");
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [showTopicManager, setShowTopicManager] = useState(false);
 
   const LEVEL_THRESHOLDS = useMemo(() => [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000], []);
 
@@ -257,6 +259,57 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
       {/* ═══ Monthly Performance Snapshot ═══ */}
       <MonthlyPerformanceSnapshot />
+
+      {/* ═══ Subjects & Topics Manager ═══ */}
+      <motion.button
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => setShowTopicManager(true)}
+        className="w-full glass rounded-2xl p-4 neural-border text-left hover:glow-primary transition-all"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <BookOpen className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              Subjects & Topics
+              <Sparkles className="w-3 h-3 text-primary" />
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Add, edit, or remove your syllabus</p>
+          </div>
+          <Pencil className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </motion.button>
+
+      {/* Topic Manager Modal */}
+      <AnimatePresence>
+        {showTopicManager && (
+          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-lg max-h-[90vh] overflow-y-auto glass rounded-2xl neural-border p-5"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                  Subjects & Topics
+                </h2>
+                <button
+                  onClick={() => setShowTopicManager(false)}
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-secondary transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              <AITopicManager mode="user" onDone={() => setShowTopicManager(false)} />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* API Key card hidden per user request */}
 
