@@ -84,6 +84,113 @@ const EXAM_TYPES = [
   { name: "KVPY", category: "Research", emoji: "🔬" },
 ];
 
+const GENERAL_SUBJECT_SUGGESTIONS = ["General Studies", "Aptitude", "Reasoning"];
+
+const SUGGESTED_SUBJECTS_BY_EXAM: Record<string, string[]> = {
+  "NEET UG": ["Physics", "Chemistry", "Biology"],
+  "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
+  "JEE Main": ["Physics", "Chemistry", "Mathematics"],
+  "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
+  "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  "UPSC CSE": ["History", "Geography", "Polity", "Economy", "Science & Technology", "Environment", "Ethics", "Essay"],
+  "SSC CGL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
+  "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+  "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
+};
+
+const SUGGESTED_TOPICS_BY_SUBJECT: Record<string, string[]> = {
+  "Physics": ["Mechanics", "Thermodynamics", "Optics", "Electromagnetism", "Modern Physics", "Waves"],
+  "Chemistry": ["Organic Chemistry", "Inorganic Chemistry", "Physical Chemistry"],
+  "Biology": ["Cell Biology", "Genetics", "Ecology", "Human Physiology", "Plant Biology", "Evolution"],
+  "Mathematics": ["Algebra", "Calculus", "Trigonometry", "Coordinate Geometry", "Probability & Statistics"],
+  "History": ["Ancient India", "Medieval India", "Modern India", "World History"],
+  "Geography": ["Physical Geography", "Indian Geography", "World Geography", "Climatology"],
+  "Polity": ["Constitution", "Governance", "Panchayati Raj", "Judiciary"],
+  "Economy": ["Microeconomics", "Macroeconomics", "Indian Economy", "Banking & Finance"],
+  "Anatomy": ["Gross Anatomy", "Neuroanatomy", "Embryology", "Histology"],
+  "Physiology": ["Cardiovascular Physiology", "Respiratory Physiology", "Renal Physiology", "Neurophysiology"],
+  "Biochemistry": ["Metabolism", "Enzymes", "Molecular Biology", "Clinical Biochemistry"],
+  "Pathology": ["General Pathology", "Systemic Pathology", "Hematology", "Cytopathology"],
+  "Pharmacology": ["General Pharmacology", "Autonomic Drugs", "CNS Drugs", "Chemotherapy"],
+  "Microbiology": ["Bacteriology", "Virology", "Immunology", "Parasitology"],
+};
+
+const EXAM_ALIAS_MAP: Record<string, string> = {
+  neet: "NEET UG",
+  neetug: "NEET UG",
+  neet_pg: "NEET PG",
+  neetpg: "NEET PG",
+  jee: "JEE Main",
+  jeemain: "JEE Main",
+  jee_advanced: "JEE Advanced",
+  jeeadvanced: "JEE Advanced",
+  upsc: "UPSC CSE",
+  ssc: "SSC CGL",
+};
+
+const SUGGESTED_SUBJECT_ID_PREFIX = "suggested-subject::";
+const SUGGESTED_TOPIC_ID_PREFIX = "suggested-topic::";
+
+const normalizeExamKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+const CANONICAL_EXAM_TYPE_MAP = new Map(
+  EXAM_TYPES.map((exam) => [normalizeExamKey(exam.name), exam.name]),
+);
+
+const normalizeExamType = (value: unknown): string => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const normalizedKey = normalizeExamKey(raw);
+  return CANONICAL_EXAM_TYPE_MAP.get(normalizedKey) || EXAM_ALIAS_MAP[normalizedKey] || raw;
+};
+
+const getSuggestedSubjectsForExam = (examType: unknown): string[] => {
+  const canonicalExamType = normalizeExamType(examType);
+  return SUGGESTED_SUBJECTS_BY_EXAM[canonicalExamType] || GENERAL_SUBJECT_SUGGESTIONS;
+};
+
+const getSuggestedTopicsForSubject = (subject: unknown): string[] => {
+  const subjectName = String(subject || "").trim();
+  return SUGGESTED_TOPICS_BY_SUBJECT[subjectName] || ["Fundamentals", "Advanced Concepts", "Practice Problems"];
+};
+
+const makeSuggestedSubjectId = (subjectName: string) =>
+  `${SUGGESTED_SUBJECT_ID_PREFIX}${encodeURIComponent(subjectName)}`;
+
+const parseSuggestedSubjectName = (subjectId: unknown): string => {
+  const value = String(subjectId || "").trim();
+  if (!value.startsWith(SUGGESTED_SUBJECT_ID_PREFIX)) return "";
+
+  try {
+    return decodeURIComponent(value.slice(SUGGESTED_SUBJECT_ID_PREFIX.length));
+  } catch {
+    return "";
+  }
+};
+
+const buildSuggestedSubjectsWithTopics = (examType: unknown) =>
+  getSuggestedSubjectsForExam(examType).map((subjectName) => {
+    const subjectId = makeSuggestedSubjectId(subjectName);
+    const topics = getSuggestedTopicsForSubject(subjectName).map((topicName) => ({
+      id: `${SUGGESTED_TOPIC_ID_PREFIX}${encodeURIComponent(subjectName)}::${encodeURIComponent(topicName)}`,
+      name: topicName,
+      subject_id: subjectId,
+      marks_impact_weight: null,
+      created_at: null,
+      is_suggested: true,
+    }));
+
+    return {
+      id: subjectId,
+      name: subjectName,
+      created_at: null,
+      topics,
+      topic_count: topics.length,
+      is_suggested: true,
+    };
+  });
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
