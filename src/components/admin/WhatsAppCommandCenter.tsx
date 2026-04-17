@@ -465,8 +465,8 @@ const MetaTemplatesTab = () => {
   const [form, setForm] = useState<Partial<MetaTemplate>>({
     template_name: "", display_name: "", category: "UTILITY", language: "en",
     header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "",
-    approval_status: "pending",
-  });
+    approval_status: "pending", buttons: [],
+  } as any);
 
   useEffect(() => { load(); }, []);
   const load = async () => {
