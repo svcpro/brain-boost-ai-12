@@ -315,6 +315,61 @@ const AdminProfile = () => {
         </div>
       </motion.div>
 
+      {/* Access Token */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="glass rounded-2xl neural-border p-5 space-y-3"
+      >
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Key className="w-4 h-4 text-primary" />
+            User Access Token
+          </h3>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground">Expires {tokenExpiresLabel}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${tokenExpiresIn > 60 ? "bg-success" : tokenExpiresIn > 0 ? "bg-warning" : "bg-destructive"} animate-pulse`} />
+          </div>
+        </div>
+
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          JWT for authenticated API requests. Use as <code className="px-1 py-0.5 rounded bg-secondary text-foreground font-mono text-[10px]">Authorization: Bearer &lt;token&gt;</code>. Never share publicly.
+        </p>
+
+        <div className="bg-secondary/60 rounded-lg p-3 border border-border break-all">
+          <p className="text-[11px] font-mono text-foreground select-all">
+            {accessToken ? (showToken ? accessToken : maskedToken) : "No active session"}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={copyAccessToken}
+            disabled={!accessToken}
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Copy className="w-3.5 h-3.5" /> Copy Token
+          </button>
+          <button
+            onClick={() => setShowToken(s => !s)}
+            disabled={!accessToken}
+            className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50"
+          >
+            {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {showToken ? "Hide" : "Reveal"}
+          </button>
+          <button
+            onClick={refreshAccessToken}
+            disabled={refreshingToken}
+            className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50"
+          >
+            {refreshingToken ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Refresh
+          </button>
+        </div>
+      </motion.div>
+
       {/* Password Change */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
