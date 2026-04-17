@@ -17,13 +17,32 @@ interface Message { id: string; user_id: string | null; to_number: string; templ
 interface Trigger { id: string; trigger_key: string; display_name: string; category: string; is_enabled: boolean; template_name: string; cooldown_minutes: number; total_sent: number; total_delivered: number; }
 interface ScheduledSend { id: string; template_name: string; category: string; audience_type: string; scheduled_at: string; status: string; total_recipients: number; delivered_count: number; }
 interface Config { id: string; is_enabled: boolean; monthly_limit_per_user: number; allowed_categories: string[]; fallback_channels: string[]; auto_fallback_on_quota_exceeded: boolean; integrated_number: string; }
+interface MetaButton {
+  type: "URL" | "PHONE_NUMBER" | "QUICK_REPLY";
+  text: string;
+  url?: string;
+  phone_number?: string;
+  example?: string[];
+}
 interface MetaTemplate {
   id: string; template_name: string; display_name: string; category: string; language: string;
   header_type: string; body_text: string; footer_text: string | null; variables: any;
   approval_status: string; meta_template_id: string | null; msg91_template_id: string | null;
   use_case: string | null; quality_score: string | null; rejection_reason: string | null;
   is_active: boolean; approved_at: string | null;
+  buttons?: MetaButton[] | any;
 }
+
+const APP_PAGES: { label: string; path: string }[] = [
+  { label: "Home", path: "/home" },
+  { label: "Action", path: "/action" },
+  { label: "Brain", path: "/brain" },
+  { label: "SureShot", path: "/sureshot" },
+  { label: "You", path: "/you" },
+  { label: "BrainLens", path: "/brainlens" },
+  { label: "Community", path: "/community" },
+];
+const APP_BASE_URL = "https://acry.ai";
 
 const WhatsAppCommandCenter = () => {
   const { toast } = useToast();
