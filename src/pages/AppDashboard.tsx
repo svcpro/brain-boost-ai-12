@@ -18,6 +18,7 @@ const ProgressTab = lazy(() => import("@/components/app/ProgressTab"));
 const YouTab = lazy(() => import("@/components/app/YouTab"));
 const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
 const GlobalNotificationCenter = lazy(() => import("@/components/app/GlobalNotificationCenter"));
+import NeuralBootLoader from "@/components/app/NeuralBootLoader";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useVoiceNotification } from "@/hooks/useVoiceNotification";
@@ -44,8 +45,16 @@ const tabDefs = [
   { id: "you", label: "You", icon: User },
 ];
 
+const TAB_LOADER_MESSAGES: Record<string, string> = {
+  action: "Loading Action Center",
+  brain: "Booting Neural Brain",
+  progress: "Calibrating SureShot Engine",
+  you: "Syncing Your Identity Core",
+};
+
 const AppDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
+  const [tabLoading, setTabLoading] = useState<string | null>(null);
   const [autoOpenVoice, setAutoOpenVoice] = useState(false);
   const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
   const [autoOpenNotifHistory, setAutoOpenNotifHistory] = useState(false);
@@ -80,17 +89,26 @@ const AppDashboard = () => {
     });
   }, []);
 
+  // Switch tabs with an ultra-animated loader for non-home tabs
+  const switchTab = (tabId: string) => {
+    if (tabId === activeTab) return;
+    if (tabId !== "home" && TAB_LOADER_MESSAGES[tabId]) {
+      setTabLoading(tabId);
+    }
+    setActiveTab(tabId);
+  };
+
   // Listen for tab switch events from notification clicks
   useEffect(() => {
     const handler = (e: Event) => {
       const tab = (e as CustomEvent).detail;
       if (tab && tabDefs.some((t) => t.id === tab)) {
-        setActiveTab(tab);
+        switchTab(tab);
       }
     };
     window.addEventListener("switch-dashboard-tab", handler);
     return () => window.removeEventListener("switch-dashboard-tab", handler);
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!user) return;
@@ -188,13 +206,23 @@ const AppDashboard = () => {
     if (!isTabEnabled(`tab_${activeTab}`)) {
       return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">This section is currently disabled.</div>;
     }
+    if (tabLoading && tabLoading === activeTab) {
+      return (
+        <div className="px-5 py-6 max-w-lg mx-auto overflow-x-hidden">
+          <NeuralBootLoader
+            message={TAB_LOADER_MESSAGES[tabLoading] || "Loading"}
+            onComplete={() => setTabLoading(null)}
+          />
+        </div>
+      );
+    }
     switch (activeTab) {
-      case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} onNavigateToBrain={() => setActiveTab("brain")} onNavigateToYou={() => setActiveTab("you")} />;
+      case "home": return <HomeTab onNavigateToEmergency={() => switchTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); switchTab("you"); }} onNavigateToBrain={() => switchTab("brain")} onNavigateToYou={() => switchTab("you")} />;
       case "action": 
-        return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
+        return <ActionTab onNavigateToBrain={() => switchTab("brain")} />;
       case "brain": return <BrainTab />;
       case "community": return <CommunityPage inline />;
-      case "progress": return <ProgressTab onUpgrade={() => { setAutoOpenSubscription(true); setActiveTab("you"); }} />;
+      case "progress": return <ProgressTab onUpgrade={() => { setAutoOpenSubscription(true); switchTab("you"); }} />;
       case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
       default: return null;
     }
@@ -220,7 +248,7 @@ const AppDashboard = () => {
                 Renew to keep your benefits.
               </span>
               <button
-                onClick={() => { setAutoOpenSubscription(true); setActiveTab("you"); setDismissedWarning(true); }}
+                onClick={() => { setAutoOpenSubscription(true); switchTab("you"); setDismissedWarning(true); }}
                 className="px-3 py-1 rounded-full bg-warning text-warning-foreground text-xs font-semibold whitespace-nowrap hover:bg-warning/90 transition-colors"
               >
                 Renew Now
@@ -297,7 +325,7 @@ const AppDashboard = () => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => { setActiveTab(tab.id); }}
+                    onClick={() => { switchTab(tab.id); }}
                     className={`flex flex-col items-center gap-0.5 px-1.5 sm:px-3 py-1.5 rounded-xl transition-all duration-300 relative min-w-0 ${
                       isSureShot
                         ? "text-transparent"
