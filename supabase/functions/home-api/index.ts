@@ -6,10 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-api-key, api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const securityHeaders = {
+  "Cache-Control": "private, no-store, no-cache, max-age=0, must-revalidate",
+  "Pragma": "no-cache",
+  "Surrogate-Control": "no-store",
+  "CDN-Cache-Control": "no-store",
+  "Vary": "Authorization, x-api-key, api-key, apikey, x-access-token, access-token",
+};
+
 const rawJson = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" },
   });
 
 const json = (data: unknown, status = 200) => rawJson(sanitizeNulls(data), status);
