@@ -681,10 +681,10 @@ Deno.serve(async (req) => {
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
       // Resolve exam type — fall back to user's profile, then a sensible default.
-      let examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      let examType = normalizeExamType(requestBody.exam_type || url.searchParams.get("exam_type") || "");
       if (!examType) {
         const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
-        examType = String(profile?.exam_type || "").trim();
+        examType = normalizeExamType(profile?.exam_type);
       }
       if (!examType) examType = "general competitive exam";
       const persist = requestBody.persist !== false;
@@ -835,15 +835,16 @@ Deno.serve(async (req) => {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
 
-      const subjectName = String(requestBody.subject || requestBody.subject_name || "").trim();
       const subjectIdInput = String(requestBody.subject_id || "").trim();
+      const subjectNameFromSuggestion = parseSuggestedSubjectName(subjectIdInput);
+      const subjectName = String(requestBody.subject || requestBody.subject_name || subjectNameFromSuggestion || "").trim();
       if (!subjectName && !subjectIdInput) return json({ error: "subject or subject_id is required" }, 400);
       const persist = requestBody.persist !== false;
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
       // Resolve subject
-      let resolvedSubjectId = subjectIdInput;
+      let resolvedSubjectId = subjectNameFromSuggestion ? "" : subjectIdInput;
       let resolvedSubjectName = subjectName;
       if (!resolvedSubjectId && subjectName) {
         const { data: sub } = await adminClient
@@ -856,7 +857,7 @@ Deno.serve(async (req) => {
       }
 
       const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
-      const examType = String(profile?.exam_type || "general").trim();
+      const examType = normalizeExamType(profile?.exam_type || "general") || "general";
 
       // Use shared AI client (Gemini → Lovable gateway fallback)
       const aiResult = await callAI({
@@ -974,37 +975,16 @@ Deno.serve(async (req) => {
 
     // --- Suggested subjects for an exam type ---
     if (action === "suggested-subjects" || action === "suggested_subjects") {
-      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
-      const subjectMap: Record<string, string[]> = {
-        "NEET UG": ["Physics", "Chemistry", "Biology"],
-        "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
-        "JEE Main": ["Physics", "Chemistry", "Mathematics"],
-        "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
-        "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
-        "UPSC CSE": ["History", "Geography", "Polity", "Economy", "Science & Technology", "Environment", "Ethics", "Essay"],
-        "SSC CGL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
-        "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
-        "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
-      };
-      const subjects = subjectMap[examType] || ["General Studies", "Aptitude", "Reasoning"];
-      return json({ success: true, subjects, exam_type: examType });
+      const examType = normalizeExamType(requestBody.exam_type || url.searchParams.get("exam_type") || "");
+      const subjects = getSuggestedSubjectsForExam(examType);
+      return json({ success: true, subjects, exam_type: examType || null });
     }
 
     // --- Suggested topics for a subject ---
     if (action === "suggested-topics" || action === "suggested_topics") {
-      const subject = requestBody.subject || url.searchParams.get("subject") || "";
-      const topicMap: Record<string, string[]> = {
-        "Physics": ["Mechanics", "Thermodynamics", "Optics", "Electromagnetism", "Modern Physics", "Waves"],
-        "Chemistry": ["Organic Chemistry", "Inorganic Chemistry", "Physical Chemistry"],
-        "Biology": ["Cell Biology", "Genetics", "Ecology", "Human Physiology", "Plant Biology", "Evolution"],
-        "Mathematics": ["Algebra", "Calculus", "Trigonometry", "Coordinate Geometry", "Probability & Statistics"],
-        "History": ["Ancient India", "Medieval India", "Modern India", "World History"],
-        "Geography": ["Physical Geography", "Indian Geography", "World Geography", "Climatology"],
-        "Polity": ["Constitution", "Governance", "Panchayati Raj", "Judiciary"],
-        "Economy": ["Microeconomics", "Macroeconomics", "Indian Economy", "Banking & Finance"],
-      };
-      const topics = topicMap[subject] || ["Fundamentals", "Advanced Concepts", "Practice Problems"];
-      return json({ success: true, topics });
+      const subject = String(requestBody.subject || url.searchParams.get("subject") || parseSuggestedSubjectName(requestBody.subject_id) || "").trim();
+      const topics = getSuggestedTopicsForSubject(subject);
+      return json({ success: true, subject: subject || null, topics });
     }
 
     // --- STEP 5: Save topics ---
@@ -1053,7 +1033,7 @@ Deno.serve(async (req) => {
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const updates: Record<string, unknown> = {};
       if (data.display_name) updates.display_name = data.display_name;
-      if (data.exam_type) updates.exam_type = data.exam_type;
+      if (data.exam_type) updates.exam_type = normalizeExamType(data.exam_type);
       if (data.exam_date) updates.exam_date = data.exam_date;
       if (data.study_mode) {
         const { data: existing } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
@@ -1079,7 +1059,7 @@ Deno.serve(async (req) => {
 
       const updates: Record<string, unknown> = {};
       if (requestBody.display_name) updates.display_name = requestBody.display_name;
-      if (requestBody.exam_type) updates.exam_type = requestBody.exam_type;
+      if (requestBody.exam_type) updates.exam_type = normalizeExamType(requestBody.exam_type);
       if (requestBody.exam_date) updates.exam_date = requestBody.exam_date;
 
       // Merge study_preferences: keep existing, add study_mode if provided, set onboarded=true
