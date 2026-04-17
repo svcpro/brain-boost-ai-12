@@ -368,7 +368,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     _riskTopic: atRisk[0],
   } : null);
 
-  const userName = String(displayName || user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Student");
+  // Prefer DB display_name; ignore auto-generated "User####" placeholder from auth metadata
+  const metaName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.display_name;
+  const isPlaceholderMetaName = typeof metaName === "string" && /^User\d{3,4}$/.test(metaName);
+  const userName = String(displayName || (isPlaceholderMetaName ? "" : metaName) || "Student");
   const greeting = (() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })();
 
   const healthColor = overallHealth > 70 ? "hsl(var(--success))" : overallHealth > 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
