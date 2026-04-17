@@ -396,26 +396,15 @@ Deno.serve(async (req) => {
     if (action === "step2-exam" || action === "step2_exam") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
-      const examType = String(requestBody.exam_type || "").trim();
+      const examType = normalizeExamType(requestBody.exam_type);
       if (!examType) return json({ error: "exam_type is required" }, 400);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await adminClient.from("profiles").update({ exam_type: examType }).eq("id", userId);
 
       // Return suggested subjects
-      const subjectMap: Record<string, string[]> = {
-        "NEET UG": ["Physics", "Chemistry", "Biology"],
-        "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
-        "JEE Main": ["Physics", "Chemistry", "Mathematics"],
-        "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
-        "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
-        "UPSC CSE": ["History", "Geography", "Polity", "Economy", "Science & Technology", "Environment", "Ethics", "Essay"],
-        "SSC CGL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
-        "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
-        "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
-      };
-      const subjects = subjectMap[examType] || ["General Studies", "Aptitude", "Reasoning"];
-      return json({ success: true, suggested_subjects: subjects, next_step: 3 });
+      const subjects = getSuggestedSubjectsForExam(examType);
+      return json({ success: true, exam_type: examType, suggested_subjects: subjects, next_step: 3 });
     }
 
     // --- STEP 3: Save exam date ---
@@ -444,13 +433,19 @@ Deno.serve(async (req) => {
         .eq("id", userId)
         .maybeSingle();
 
-      const subjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      const examType = normalizeExamType(profile?.exam_type);
+      const savedSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      const subjects = savedSubjects.length > 0
+        ? savedSubjects
+        : buildSuggestedSubjectsWithTopics(examType);
+
       return json({
         success: true,
-        exam_type: profile?.exam_type || null,
+        exam_type: examType || profile?.exam_type || null,
         exam_date: profile?.exam_date || null,
         subjects,
         total: subjects.length,
+        source: savedSubjects.length > 0 ? "saved" : "suggested",
       });
     }
 
