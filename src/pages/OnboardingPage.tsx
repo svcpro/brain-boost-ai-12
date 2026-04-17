@@ -193,6 +193,14 @@ const OnboardingPage = () => {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  // Auto-trigger AI curriculum generation when entering Step 3 (Subjects)
+  useEffect(() => {
+    if (step === 3 && examType && !aiAutoTriggered && aiSuggestedSubjects.length === 0 && !aiGenerating) {
+      setAiAutoTriggered(true);
+      handleAIGenerate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, examType]);
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
