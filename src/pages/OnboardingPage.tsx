@@ -157,9 +157,6 @@ const OnboardingPage = () => {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
   const [aiProgressLabel, setAiProgressLabel] = useState("");
-  const [aiSuggestedSubjects, setAiSuggestedSubjects] = useState<string[]>([]);
-  const [aiSuggestedTopicsBySubject, setAiSuggestedTopicsBySubject] = useState<Record<string, string[]>>({});
-  const [aiAutoTriggered, setAiAutoTriggered] = useState(false);
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -193,14 +190,6 @@ const OnboardingPage = () => {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // Auto-trigger AI curriculum generation when entering Step 3 (Subjects)
-  useEffect(() => {
-    if (step === 3 && examType && !aiAutoTriggered && aiSuggestedSubjects.length === 0 && !aiGenerating) {
-      setAiAutoTriggered(true);
-      handleAIGenerate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, examType]);
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
@@ -284,18 +273,19 @@ const OnboardingPage = () => {
 
       const curriculum = data as { subjects: { name: string; topics: { name: string }[] }[] };
       if (curriculum?.subjects?.length) {
-        const aiSubs: string[] = [];
-        const aiTopicsMap: Record<string, string[]> = {};
+        const newSubjects: string[] = [];
+        const newTopics: Record<string, string[]> = { ...topicsBySubject };
         for (const sub of curriculum.subjects) {
-          if (!aiSubs.includes(sub.name)) aiSubs.push(sub.name);
-          aiTopicsMap[sub.name] = (sub.topics || []).map(t => t.name).filter(Boolean);
+          if (!subjects.includes(sub.name) && !newSubjects.includes(sub.name)) newSubjects.push(sub.name);
+          const existingTopics = newTopics[sub.name] || [];
+          const aiTopics = (sub.topics || []).map(t => t.name).filter(t => !existingTopics.includes(t));
+          newTopics[sub.name] = [...existingTopics, ...aiTopics];
         }
-        setAiSuggestedSubjects(aiSubs);
-        setAiSuggestedTopicsBySubject(aiTopicsMap);
-        const totalT = Object.values(aiTopicsMap).reduce((a, b) => a + b.length, 0);
+        setSubjects(prev => [...prev, ...newSubjects]);
+        setTopicsBySubject(newTopics);
         setAiProgress(100);
         setAiProgressLabel("Done! ✨");
-        toast({ title: "AI Curriculum Ready ✨", description: `${aiSubs.length} subjects · ${totalT} topics suggested. Tap to add.` });
+        toast({ title: "AI Curriculum Generated ✨", description: `Added ${newSubjects.length} subjects with topics.` });
       }
     } catch (e: any) {
       toast({ title: "AI generation failed", description: e.message || "Try again later", variant: "destructive" });
@@ -876,42 +866,19 @@ const OnboardingPage = () => {
                   )}
                 </AnimatePresence>
 
-                {(() => {
-                  const suggested = aiSuggestedSubjects.length > 0 ? aiSuggestedSubjects : (SUGGESTED_SUBJECTS[examType] || []);
-                  const remaining = suggested.filter(s => !subjects.includes(s));
-                  if (remaining.length === 0) return null;
-                  return (
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-[10px]" style={{ color: "#ffffff30" }}>
-                          {aiSuggestedSubjects.length > 0 ? "AI Suggested:" : "Suggested:"} <span style={{ color: "#00E5FF80" }}>({remaining.length})</span>
-                        </p>
-                        {remaining.length > 1 && (
-                          <button
-                            onClick={() => {
-                              setSubjects(prev => [...prev, ...remaining]);
-                              setTopicsBySubject(prev => {
-                                const next = { ...prev };
-                                remaining.forEach(s => { if (!next[s]) next[s] = []; });
-                                return next;
-                              });
-                            }}
-                            className="text-[9px] font-semibold transition-all"
-                            style={{ color: "#00E5FF" }}
-                          >+ Add all</button>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto scrollbar-hide">
-                        {remaining.map(s => (
-                          <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: prev[s] || [] })); }}
-                            className="px-2.5 py-1 rounded-full text-[10px] transition-all"
-                            style={{ border: "1px dashed #00E5FF35", color: "#00E5FF90", background: "#00E5FF04" }}
-                          >+ {s}</button>
-                        ))}
-                      </div>
+                {SUGGESTED_SUBJECTS[examType] && (
+                  <div className="mb-3">
+                    <p className="text-[10px] mb-1.5" style={{ color: "#ffffff30" }}>Suggested:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SUGGESTED_SUBJECTS[examType].filter(s => !subjects.includes(s)).map(s => (
+                        <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: [] })); }}
+                          className="px-2.5 py-1 rounded-full text-[10px] transition-all"
+                          style={{ border: "1px dashed #00E5FF35", color: "#00E5FF90", background: "#00E5FF04" }}
+                        >+ {s}</button>
+                      ))}
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-1.5">
                   {subjects.map(s => (
@@ -957,37 +924,19 @@ const OnboardingPage = () => {
 
                 {activeSubject && (
                   <div className="space-y-2.5">
-                    {(() => {
-                      const aiTopics = aiSuggestedTopicsBySubject[activeSubject] || [];
-                      const staticTopics = SUGGESTED_TOPICS[activeSubject] || [];
-                      const pool = aiTopics.length > 0 ? aiTopics : staticTopics;
-                      const remaining = pool.filter(t => !(topicsBySubject[activeSubject] || []).includes(t));
-                      if (remaining.length === 0) return null;
-                      return (
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <p className="text-[10px]" style={{ color: "#ffffff30" }}>
-                              {aiTopics.length > 0 ? "AI Suggested:" : "Suggested:"} <span style={{ color: "#00E5FF80" }}>({remaining.length})</span>
-                            </p>
-                            {remaining.length > 1 && (
-                              <button
-                                onClick={() => setTopicsBySubject(prev => ({ ...prev, [activeSubject]: [...(prev[activeSubject] || []), ...remaining] }))}
-                                className="text-[9px] font-semibold transition-all"
-                                style={{ color: "#00E5FF" }}
-                              >+ Add all</button>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1 max-h-56 overflow-y-auto scrollbar-hide">
-                            {remaining.map(t => (
-                              <button key={t} onClick={() => addSuggestedTopic(activeSubject, t)}
-                                className="px-2 py-0.5 rounded-full text-[9px] transition-all"
-                                style={{ border: "1px dashed #00E5FF30", color: "#00E5FF80", background: "#00E5FF04" }}
-                              >+ {t}</button>
-                            ))}
-                          </div>
+                    {SUGGESTED_TOPICS[activeSubject] && (
+                      <div>
+                        <p className="text-[10px] mb-1.5" style={{ color: "#ffffff30" }}>Suggested:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {SUGGESTED_TOPICS[activeSubject].filter(t => !(topicsBySubject[activeSubject] || []).includes(t)).map(t => (
+                            <button key={t} onClick={() => addSuggestedTopic(activeSubject, t)}
+                              className="px-2 py-0.5 rounded-full text-[9px] transition-all"
+                              style={{ border: "1px dashed #00E5FF30", color: "#00E5FF80", background: "#00E5FF04" }}
+                            >+ {t}</button>
+                          ))}
                         </div>
-                      );
-                    })()}
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-1">
                       {(topicsBySubject[activeSubject] || []).map(t => (
                         <motion.span key={t} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}

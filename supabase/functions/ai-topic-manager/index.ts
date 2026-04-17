@@ -32,61 +32,38 @@ serve(async (req) => {
       const { aiFetch } = await import("../_shared/aiFetch.ts");
       const aiResp = await aiFetch({
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             {
               role: "system",
-              content: `You are an expert academic curriculum architect. Your job is to output the REAL, OFFICIAL syllabus for the given exam — actual subject names like "History", "Physics", "Polity", "Quantitative Aptitude", "General Studies", etc.
-
-ABSOLUTE RULES:
-1. Output ONLY real academic subject names that a student would study (e.g., Physics, Chemistry, Mathematics, Biology, History, Geography, Polity, Economy, English, Reasoning, General Awareness, Computer Science, Accountancy, etc.).
-2. NEVER output meta/schema words like "exam_name", "syllabus", "description", "exam_conducting_body", "topic_name", "subject_name", "category" — these are FORBIDDEN as subject or topic names.
-3. NEVER output placeholder words like "Subject 1", "Topic A", "Section 1", "Paper 1" without a real subject name attached.
-4. For each subject, generate 15-40 REAL topic/chapter names from the actual syllabus (e.g., "Newton's Laws of Motion", "Mughal Empire", "Indian Constitution - Fundamental Rights", "Photosynthesis", "Time and Work").
-5. If the exam name is vague or unfamiliar, infer the most likely real-world exam and generate its standard syllabus. NEVER generate generic placeholders.
-6. Assign accurate marks_impact_weight (0-10) based on real exam weightage.
-
-EXAMPLE for "NEET UG":
-- Subject: "Physics" → Topics: "Mechanics", "Thermodynamics", "Electromagnetism", "Optics", "Modern Physics", ...
-- Subject: "Chemistry" → Topics: "Atomic Structure", "Chemical Bonding", "Organic Chemistry - Hydrocarbons", "Coordination Compounds", ...
-- Subject: "Biology" → Topics: "Cell Biology", "Genetics", "Human Physiology", "Plant Physiology", "Ecology", ...
-
-EXAMPLE for "UPSC CSE Prelims":
-- Subject: "Indian Polity" → Topics: "Constitution Framing", "Fundamental Rights", "Parliament", "Judiciary", "Federalism", ...
-- Subject: "Modern History" → Topics: "Revolt of 1857", "Indian National Congress", "Gandhian Movements", "Partition of India", ...`
+              content: `You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely.`
             },
             {
               role: "user",
-              content: `Generate the COMPLETE official syllabus for the exam: "${examLabel}"${custom_exam ? ` (custom: ${custom_exam})` : ""}.
-
-Output REAL subject names (Physics, History, etc.) and REAL topic names (Newton's Laws, Mughal Empire, etc.) — NOT schema field names or placeholders.
-
-Include ALL subjects and 15-40 real topics per subject. Total typically 200-500+ topics for major exams.`
+              content: `Generate the complete subject and topic structure for: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}. Include ALL important topics per subject with accurate marks impact weights based on exam patterns.`
             }
           ],
           tools: [{
             type: "function",
             function: {
               name: "generate_curriculum",
-              description: "Generate the complete exhaustive exam curriculum with ALL subjects and ALL topics from the official syllabus",
+              description: "Generate complete exam curriculum with subjects and topics",
               parameters: {
                 type: "object",
                 properties: {
                   subjects: {
                     type: "array",
-                    description: "Complete list of ALL subjects in the official syllabus — do not omit any",
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string", description: "Official subject name as per exam body" },
+                        name: { type: "string", description: "Subject name" },
                         topics: {
                           type: "array",
-                          description: "ALL topics and sub-topics for this subject — exhaustive coverage required (15-40+ per subject)",
                           items: {
                             type: "object",
                             properties: {
-                              name: { type: "string", description: "Official topic / sub-topic name" },
-                              marks_impact_weight: { type: "number", description: "Importance weight 0-10 based on historical exam weightage" },
+                              name: { type: "string", description: "Topic name" },
+                              marks_impact_weight: { type: "number", description: "Importance weight 0-10 based on exam weightage" },
                               priority: { type: "string", enum: ["critical", "high", "medium", "low"], description: "Study priority" }
                             },
                             required: ["name", "marks_impact_weight", "priority"]
@@ -96,7 +73,7 @@ Include ALL subjects and 15-40 real topics per subject. Total typically 200-500+
                       required: ["name", "topics"]
                     }
                   },
-                  total_topics: { type: "number", description: "Total topic count across all subjects (must be exhaustive — typically 200-500+ for major exams)" },
+                  total_topics: { type: "number", description: "Total number of topics generated" },
                   exam_summary: { type: "string", description: "Brief 1-line exam pattern summary" }
                 },
                 required: ["subjects", "total_topics", "exam_summary"]
@@ -104,7 +81,6 @@ Include ALL subjects and 15-40 real topics per subject. Total typically 200-500+
             }
           }],
           tool_choice: { type: "function", function: { name: "generate_curriculum" } },
-          max_tokens: 16000,
         }),
       });
 
@@ -411,39 +387,16 @@ function normalizeCurriculum(raw: any, examLabel: string) {
       }));
   }
   
-  // Forbidden meta/schema words that the AI sometimes hallucinates instead of real subjects/topics
-  const FORBIDDEN = new Set([
-    "exam_name", "exam name", "examname",
-    "exam_conducting_body", "exam conducting body", "conducting_body",
-    "syllabus", "description", "category",
-    "subject_name", "subjectname", "subject name",
-    "topic_name", "topicname", "topic name",
-    "name", "topics", "subjects", "unknown", "unnamed",
-    "section", "paper", "marks", "weight", "priority",
-  ]);
-  const isGarbage = (s: string) => {
-    if (!s || typeof s !== "string") return true;
-    const lower = s.trim().toLowerCase();
-    if (FORBIDDEN.has(lower)) return true;
-    if (/^(subject|topic|section|paper|chapter)\s*\d*$/i.test(lower)) return true;
-    if (lower.length < 2) return true;
-    return false;
-  };
-
-  result.subjects = subjectArray
-    .map((sub: any) => {
-      const name = (sub.name || sub.subject || sub.subject_name || "").toString().trim();
-      const rawTopics = sub.topics || sub.chapters || [];
-      const topics = rawTopics
-        .map((t: any) => ({
-          name: (t.name || t.topic_name || t.topic || "").toString().trim(),
-          marks_impact_weight: Number(t.marks_impact_weight ?? t.weight ?? t.importance ?? 5),
-          priority: t.priority || (Number(t.marks_impact_weight ?? 5) >= 8 ? "critical" : Number(t.marks_impact_weight ?? 5) >= 6 ? "high" : Number(t.marks_impact_weight ?? 5) >= 4 ? "medium" : "low"),
-        }))
-        .filter((t: any) => !isGarbage(t.name));
-      return { name, topics };
-    })
-    .filter((sub: any) => !isGarbage(sub.name) && sub.topics.length > 0);
+  result.subjects = subjectArray.map((sub: any) => {
+    const name = sub.name || sub.subject || sub.subject_name || "Unknown";
+    const rawTopics = sub.topics || sub.chapters || [];
+    const topics = rawTopics.map((t: any) => ({
+      name: t.name || t.topic_name || t.topic || "Unnamed",
+      marks_impact_weight: Number(t.marks_impact_weight ?? t.weight ?? t.importance ?? 5),
+      priority: t.priority || (Number(t.marks_impact_weight ?? 5) >= 8 ? "critical" : Number(t.marks_impact_weight ?? 5) >= 6 ? "high" : Number(t.marks_impact_weight ?? 5) >= 4 ? "medium" : "low"),
+    }));
+    return { name, topics };
+  });
   
   result.total_topics = result.subjects.reduce((sum, s) => sum + s.topics.length, 0);
   if (raw?.total_topics) result.total_topics = raw.total_topics;
