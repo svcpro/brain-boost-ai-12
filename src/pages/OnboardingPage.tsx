@@ -880,6 +880,22 @@ const OnboardingPage = () => {
                   </div>
                 )}
 
+                <div className="flex gap-2 mb-3">
+                  <input type="text" placeholder="e.g. Physics..." value={newSubject} onChange={e => setNewSubject(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addSubject())}
+                    className="flex-1 rounded-xl px-3 py-2 text-xs placeholder:opacity-40 focus:outline-none transition-all"
+                    style={inputStyle}
+                    onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
+                    onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
+                  />
+                  <button onClick={addSubject} disabled={!newSubject.trim()}
+                    className="px-3 rounded-xl font-semibold text-xs disabled:opacity-30 transition-all"
+                    style={{ background: "linear-gradient(135deg, #00E5FF, #7C4DFF)", color: "#0B0F1A" }}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
                 <div className="flex flex-wrap gap-1.5">
                   {subjects.map(s => (
                     <motion.span key={s} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -937,6 +953,21 @@ const OnboardingPage = () => {
                         </div>
                       </div>
                     )}
+                    <div className="flex gap-2">
+                      <input type="text" placeholder={`Add topic to ${activeSubject}...`} value={newTopic} onChange={e => setNewTopic(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTopic(activeSubject))}
+                        className="flex-1 rounded-xl px-3 py-2 text-xs placeholder:opacity-40 focus:outline-none transition-all"
+                        style={inputStyle}
+                        onFocus={(e) => e.target.style.borderColor = "#00E5FF30"}
+                        onBlur={(e) => e.target.style.borderColor = "#ffffff0a"}
+                      />
+                      <button onClick={() => addTopic(activeSubject)} disabled={!newTopic.trim()}
+                        className="px-2.5 rounded-xl font-semibold text-xs disabled:opacity-30 transition-all"
+                        style={{ background: "linear-gradient(135deg, #00E5FF, #7C4DFF)", color: "#0B0F1A" }}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     <div className="flex flex-wrap gap-1">
                       {(topicsBySubject[activeSubject] || []).map(t => (
                         <motion.span key={t} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
