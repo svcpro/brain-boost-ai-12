@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   User, Mail, Lock, Camera, Save, Loader2, Eye, EyeOff,
-  CheckCircle2, AlertTriangle, Shield, Clock, Calendar
+  CheckCircle2, AlertTriangle, Shield, Clock, Calendar, Key, Copy, RefreshCw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
