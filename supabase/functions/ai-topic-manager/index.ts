@@ -101,6 +101,7 @@ Return the EXHAUSTIVE structure now.`
             }
           }],
           tool_choice: { type: "function", function: { name: "generate_curriculum" } },
+          max_tokens: 16000,
         }),
       });
 
