@@ -320,14 +320,14 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
             className="w-9 h-9 rounded-xl bg-secondary/60 backdrop-blur-sm border border-border/40 flex items-center justify-center">
             <ArrowLeft className="w-4 h-4 text-foreground" />
           </motion.button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 3, repeat: Infinity }}>
-                <ShieldAlert className="w-4 h-4 text-primary" />
+                <ShieldAlert className="w-4 h-4 text-primary shrink-0" />
               </motion.div>
-              <h1 className="text-sm font-black text-foreground tracking-tight">Focus Shield</h1>
+              <h1 className="text-sm font-black text-foreground tracking-tight truncate">Focus Shield</h1>
             </div>
-            <p className="text-[8px] text-muted-foreground mt-0.5 tracking-wider uppercase">Predictive Cognitive Control System</p>
+            <p className="text-[8px] text-muted-foreground mt-0.5 tracking-wider uppercase truncate">Cognitive Control System</p>
           </div>
           <StreakFlame streak={focusStreak} />
           <motion.button whileTap={{ scale: 0.85 }} onClick={load}
@@ -351,10 +351,10 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                 animate={{ x: ["-100%", "200%"] }} transition={{ duration: 4, repeat: Infinity, repeatDelay: 6 }}
                 style={{ background: "linear-gradient(90deg, transparent, hsla(0,0%,100%,0.03), transparent)", width: "50%" }} />
 
-              <div className="relative p-5">
-                <div className="flex items-center gap-5">
+              <div className="relative p-4">
+                <div className="flex items-center gap-3 min-w-0">
                   {/* Ring */}
-                  <div className="relative w-[120px] h-[120px] shrink-0">
+                  <div className="relative w-[104px] h-[104px] shrink-0">
                     {/* Pulse ripples */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <PulseRipple color={`${grade.ringColor}`} />
@@ -396,8 +396,8 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                   </div>
 
                   {/* Right side info */}
-                  <div className="flex-1 space-y-2">
-                    <FocusLevelBadge score={todayFocus} />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex"><FocusLevelBadge score={todayFocus} /></div>
 
                     {/* Trend indicator */}
                     <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.9 }}
@@ -417,10 +417,10 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                         { icon: Flame, label: "Rapid", value: String(today?.rapid_switches ?? 0), warn: (today?.rapid_switches ?? 0) > 5 },
                       ].map((stat, i) => (
                         <motion.div key={stat.label} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + i * 0.08 }}
-                          className="flex items-center gap-1.5">
-                          <stat.icon className={`w-3 h-3 ${stat.warn ? "text-destructive" : "text-muted-foreground"}`} />
-                          <span className="text-[8px] text-muted-foreground flex-1">{stat.label}</span>
-                          <span className={`text-[10px] font-black tabular-nums ${stat.warn ? "text-destructive" : "text-foreground"}`}>{stat.value}</span>
+                          className="flex items-center gap-1.5 min-w-0">
+                          <stat.icon className={`w-3 h-3 shrink-0 ${stat.warn ? "text-destructive" : "text-muted-foreground"}`} />
+                          <span className="text-[8px] text-muted-foreground flex-1 truncate">{stat.label}</span>
+                          <span className={`text-[10px] font-black tabular-nums shrink-0 ${stat.warn ? "text-destructive" : "text-foreground"}`}>{stat.value}</span>
                         </motion.div>
                       ))}
                     </div>
@@ -442,30 +442,30 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                     <motion.div className="absolute inset-0 rounded-xl" animate={{ opacity: [0, 0.3, 0] }} transition={{ duration: 2, repeat: Infinity }}
                       style={{ border: `1px solid ${grade.ringColor}` }} />
                   </motion.div>
-                  <div className="flex-1">
-                    <p className="text-[10px] font-bold text-foreground">{todayFocus >= 70 ? "Shield Active & Strong" : "Shield Weakened"}</p>
-                    <p className="text-[8px] text-muted-foreground">{todayFocus >= 70 ? "Focus defenses holding steady" : "Distraction levels elevated — stay alert"}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-foreground truncate">{todayFocus >= 70 ? "Shield Active & Strong" : "Shield Weakened"}</p>
+                    <p className="text-[8px] text-muted-foreground truncate">{todayFocus >= 70 ? "Focus defenses holding steady" : "Distraction levels elevated"}</p>
                   </div>
-                  <div className={`px-2.5 py-1 rounded-full text-[8px] font-black border`}
+                  <div className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black border whitespace-nowrap`}
                     style={{ background: `${grade.ringColor}15`, color: grade.ringColor, borderColor: `${grade.ringColor}30` }}>
-                    {avgDailyMin < 10 ? "LOW RISK" : avgDailyMin < 30 ? "MODERATE" : "HIGH RISK"}
+                    {avgDailyMin < 10 ? "LOW" : avgDailyMin < 30 ? "MODERATE" : "HIGH"}
                   </div>
                 </motion.div>
               </div>
             </motion.div>
 
             {/* ═══ TAB NAVIGATION ═══ */}
-            <div className="flex gap-0.5 rounded-2xl bg-secondary/30 p-1 border border-border/30">
+            <div className="flex gap-0.5 rounded-2xl bg-secondary/30 p-1 border border-border/30 overflow-x-auto scrollbar-hide">
               {TABS.map(tab => (
                 <motion.button key={tab.key} onClick={() => setActiveTab(tab.key)} whileTap={{ scale: 0.95 }}
-                  className={`flex-1 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all relative flex items-center justify-center gap-1 ${activeTab === tab.key ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                  className={`shrink-0 py-2 px-2.5 rounded-xl text-[9px] font-bold uppercase tracking-tight transition-all relative flex items-center justify-center gap-1 ${activeTab === tab.key ? "text-primary-foreground" : "text-muted-foreground"}`}>
                   {activeTab === tab.key && (
                     <motion.div layoutId="focus-tab-bg" className="absolute inset-0 rounded-xl bg-primary"
                       style={{ boxShadow: `0 0 15px hsl(var(--primary) / 0.3)` }}
                       transition={{ type: "spring", stiffness: 400, damping: 30 }} />
                   )}
-                  <tab.icon className="w-3 h-3 relative z-10" />
-                  <span className="relative z-10 hidden min-[360px]:inline">{tab.label}</span>
+                  <tab.icon className="w-3 h-3 relative z-10 shrink-0" />
+                  <span className="relative z-10 whitespace-nowrap">{tab.label}</span>
                 </motion.button>
               ))}
             </div>
