@@ -281,16 +281,17 @@ async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string
 async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getAdminClient>, normalizedMobile: string) {
   const phoneE164 = `+${normalizedMobile}`;
   const placeholderEmail = `${normalizedMobile}@phone.acry.ai`;
+  // National significant number — last 10 digits — used to match all phone variants
+  // (e.g. 9876543210, 09876543210, 919876543210, +919876543210 all share these 10 digits)
+  const last10 = normalizedMobile.replace(/\D/g, "").slice(-10);
 
-  // Look up user by phone using admin API with proper filtering (not listUsers)
   let existingUser: any = null;
   let isNewUser = false;
 
-  // Try to find by phone in profiles table first (fast indexed lookup)
-  // Check both +91XXXXXXXXXX and 91XXXXXXXXXX formats
+  // 1) Exact match on common formats
   const { data: profileRow } = await adminClient
     .from("profiles")
-    .select("id")
+    .select("id, phone")
     .or(`phone.eq.${phoneE164},phone.eq.${normalizedMobile}`)
     .maybeSingle();
 
@@ -299,7 +300,25 @@ async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getA
     if (userData?.user) existingUser = userData.user;
   }
 
-  // Fallback: try by email pattern
+  // 2) Fuzzy match by last 10 digits — catches every formatting variant
+  if (!existingUser && last10.length === 10) {
+    const { data: fuzzyRows } = await adminClient
+      .from("profiles")
+      .select("id, phone, created_at")
+      .like("phone", `%${last10}`)
+      .order("created_at", { ascending: true })
+      .limit(5);
+
+    const match = (fuzzyRows || []).find(
+      (r: any) => (r.phone || "").replace(/\D/g, "").slice(-10) === last10
+    );
+    if (match?.id) {
+      const { data: userData } = await adminClient.auth.admin.getUserById(match.id);
+      if (userData?.user) existingUser = userData.user;
+    }
+  }
+
+  // 3) Fallback: lookup by placeholder email pattern in profiles
   if (!existingUser) {
     const { data: profileByEmail } = await adminClient
       .from("profiles")
@@ -312,7 +331,7 @@ async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getA
     }
   }
 
-  // Fallback: use admin getUserByEmail (no listUsers scan)
+  // 4) Fallback: try admin getUserById on the email itself (handles legacy)
   if (!existingUser) {
     try {
       const { data: userData } = await adminClient.auth.admin.getUserById(placeholderEmail);
@@ -320,7 +339,8 @@ async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getA
     } catch { /* not found */ }
   }
 
-  console.log("[MSG91] User lookup result:", existingUser?.id || "NOT FOUND", "isNew:", !existingUser);
+  console.log("[MSG91] User lookup result:", existingUser?.id || "NOT FOUND", "isNew:", !existingUser, "last10:", last10);
+
 
   if (!existingUser) {
     // Create new user
