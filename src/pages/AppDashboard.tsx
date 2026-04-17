@@ -18,6 +18,7 @@ const ProgressTab = lazy(() => import("@/components/app/ProgressTab"));
 const YouTab = lazy(() => import("@/components/app/YouTab"));
 const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
 const GlobalNotificationCenter = lazy(() => import("@/components/app/GlobalNotificationCenter"));
+import NeuralBootLoader from "@/components/app/NeuralBootLoader";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useVoiceNotification } from "@/hooks/useVoiceNotification";
@@ -44,8 +45,16 @@ const tabDefs = [
   { id: "you", label: "You", icon: User },
 ];
 
+const TAB_LOADER_MESSAGES: Record<string, string> = {
+  action: "Loading Action Center",
+  brain: "Booting Neural Brain",
+  progress: "Calibrating SureShot Engine",
+  you: "Syncing Your Identity Core",
+};
+
 const AppDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
+  const [tabLoading, setTabLoading] = useState<string | null>(null);
   const [autoOpenVoice, setAutoOpenVoice] = useState(false);
   const [autoOpenSubscription, setAutoOpenSubscription] = useState(false);
   const [autoOpenNotifHistory, setAutoOpenNotifHistory] = useState(false);
