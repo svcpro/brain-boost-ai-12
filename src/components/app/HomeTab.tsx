@@ -184,16 +184,44 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     setDisplayName(null);
 
     const currentUserId = user.id;
-    supabase.from("profiles")
-      .select("avatar_url, display_name")
-      .eq("id", currentUserId)
-      .maybeSingle()
-      .then(({ data }) => {
-        // Guard against race: only apply if user hasn't changed mid-flight
-        if (currentUserId !== user.id) return;
-        setAvatarUrl(data?.avatar_url ?? null);
-        setDisplayName(data?.display_name ?? null);
-      });
+    let cancelled = false;
+
+    const fetchProfile = async () => {
+      const { data } = await supabase.from("profiles")
+        .select("avatar_url, display_name")
+        .eq("id", currentUserId)
+        .maybeSingle();
+      if (cancelled || currentUserId !== user.id) return;
+      setAvatarUrl(data?.avatar_url ?? null);
+      setDisplayName(data?.display_name ?? null);
+    };
+
+    fetchProfile();
+
+    // Refetch when window regains focus (e.g., returning from onboarding flow)
+    const onFocus = () => fetchProfile();
+    window.addEventListener("focus", onFocus);
+
+    // Listen for explicit profile update events (dispatched after onboarding/profile edits)
+    const onProfileUpdated = () => fetchProfile();
+    window.addEventListener("profile-updated", onProfileUpdated);
+
+    // Realtime: refetch when this user's profile row changes
+    const channel = supabase
+      .channel(`profile-${currentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${currentUserId}` },
+        () => fetchProfile()
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("profile-updated", onProfileUpdated);
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   useEffect(() => {
