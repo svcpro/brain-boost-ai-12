@@ -7874,6 +7874,255 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_config: {
+        Row: {
+          allowed_categories: string[]
+          auto_fallback_on_quota_exceeded: boolean
+          critical_categories: string[]
+          default_country: string
+          default_dlt_template_id: string | null
+          default_route: string
+          fallback_channels: string[]
+          id: string
+          is_enabled: boolean
+          monthly_limit_per_user: number
+          provider: string
+          sender_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allowed_categories?: string[]
+          auto_fallback_on_quota_exceeded?: boolean
+          critical_categories?: string[]
+          default_country?: string
+          default_dlt_template_id?: string | null
+          default_route?: string
+          fallback_channels?: string[]
+          id?: string
+          is_enabled?: boolean
+          monthly_limit_per_user?: number
+          provider?: string
+          sender_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allowed_categories?: string[]
+          auto_fallback_on_quota_exceeded?: boolean
+          critical_categories?: string[]
+          default_country?: string
+          default_dlt_template_id?: string | null
+          default_route?: string
+          fallback_channels?: string[]
+          id?: string
+          is_enabled?: boolean
+          monthly_limit_per_user?: number
+          provider?: string
+          sender_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      sms_messages: {
+        Row: {
+          category: string | null
+          created_at: string
+          delivered_at: string | null
+          error_code: string | null
+          error_message: string | null
+          fallback_sent: boolean | null
+          id: string
+          message_body: string
+          msg91_request_id: string | null
+          priority: string | null
+          source: string | null
+          status: string
+          template_name: string | null
+          template_params: Json | null
+          to_number: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          fallback_sent?: boolean | null
+          id?: string
+          message_body: string
+          msg91_request_id?: string | null
+          priority?: string | null
+          source?: string | null
+          status?: string
+          template_name?: string | null
+          template_params?: Json | null
+          to_number: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          fallback_sent?: boolean | null
+          id?: string
+          message_body?: string
+          msg91_request_id?: string | null
+          priority?: string | null
+          source?: string | null
+          status?: string
+          template_name?: string | null
+          template_params?: Json | null
+          to_number?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sms_quota: {
+        Row: {
+          count: number
+          created_at: string
+          last_sent_at: string | null
+          month_key: string
+          monthly_limit: number
+          reset_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          last_sent_at?: string | null
+          month_key: string
+          monthly_limit?: number
+          reset_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          last_sent_at?: string | null
+          month_key?: string
+          monthly_limit?: number
+          reset_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sms_scheduled_sends: {
+        Row: {
+          audience_filters: Json | null
+          audience_type: string
+          audience_user_ids: string[] | null
+          blocked_quota_count: number | null
+          category: string
+          created_at: string
+          created_by: string | null
+          delivered_count: number | null
+          executed_at: string | null
+          failed_count: number | null
+          id: string
+          scheduled_at: string
+          status: string
+          template_name: string
+          total_recipients: number | null
+          updated_at: string
+          variables: Json | null
+        }
+        Insert: {
+          audience_filters?: Json | null
+          audience_type?: string
+          audience_user_ids?: string[] | null
+          blocked_quota_count?: number | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number | null
+          executed_at?: string | null
+          failed_count?: number | null
+          id?: string
+          scheduled_at: string
+          status?: string
+          template_name: string
+          total_recipients?: number | null
+          updated_at?: string
+          variables?: Json | null
+        }
+        Update: {
+          audience_filters?: Json | null
+          audience_type?: string
+          audience_user_ids?: string[] | null
+          blocked_quota_count?: number | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number | null
+          executed_at?: string | null
+          failed_count?: number | null
+          id?: string
+          scheduled_at?: string
+          status?: string
+          template_name?: string
+          total_recipients?: number | null
+          updated_at?: string
+          variables?: Json | null
+        }
+        Relationships: []
+      }
+      sms_templates: {
+        Row: {
+          body_template: string
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_name: string
+          dlt_template_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sender_id: string | null
+          updated_at: string
+          variables: Json | null
+        }
+        Insert: {
+          body_template: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_name: string
+          dlt_template_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sender_id?: string | null
+          updated_at?: string
+          variables?: Json | null
+        }
+        Update: {
+          body_template?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_name?: string
+          dlt_template_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sender_id?: string | null
+          updated_at?: string
+          variables?: Json | null
+        }
+        Relationships: []
+      }
       stq_engine_config: {
         Row: {
           auto_retrain_enabled: boolean | null
@@ -10309,6 +10558,8 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       reset_monthly_api_usage: { Args: never; Returns: undefined }
+      sms_quota_increment: { Args: { p_user_id: string }; Returns: number }
+      sms_quota_remaining: { Args: { p_user_id: string }; Returns: number }
       whatsapp_quota_increment: { Args: { p_user_id: string }; Returns: number }
       whatsapp_quota_remaining: { Args: { p_user_id: string }; Returns: number }
     }
