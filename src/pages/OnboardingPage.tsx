@@ -125,6 +125,24 @@ const OnboardingPage = () => {
 
   const totalSteps = 6;
 
+  // Intercept the browser/device back button so users on /onboarding don't get
+  // bounced back to /auth (which would force a fresh OTP). Instead the back
+  // gesture moves to the previous onboarding step. On step 0 it stays put.
+  useEffect(() => {
+    // Push a sentinel state so the first Back press fires popstate on us.
+    window.history.pushState({ acryOnboarding: true }, "");
+
+    const handlePopState = (_e: PopStateEvent) => {
+      // Always re-arm the sentinel so the next Back press is also captured.
+      window.history.pushState({ acryOnboarding: true }, "");
+      setStep((s) => (s > 0 ? s - 1 : 0));
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+
   const addSubject = () => {
     const trimmed = newSubject.trim();
     if (trimmed && !subjects.includes(trimmed)) {
