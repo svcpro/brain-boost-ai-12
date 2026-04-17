@@ -60,8 +60,9 @@ import DebateEngineAdmin from "@/components/admin/ai-command/DebateEngineAdmin";
 import CompetitiveIntelAdmin from "@/components/admin/ai-command/CompetitiveIntelAdmin";
 import AdminBackup from "@/components/admin/AdminBackup";
 import SmsCommandCenter from "@/components/admin/SmsCommandCenter";
+import SmsAlertsCenter from "@/components/admin/SmsAlertsCenter";
 import WhatsAppCommandCenter from "@/components/admin/WhatsAppCommandCenter";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -146,6 +147,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
       { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
       { key: "sms", label: "SMS Command Center", icon: Smartphone, roles: ["super_admin", "admin", "api_admin"], badge: "NEW", badgeColor: "bg-blue-500/20 text-blue-400" },
+      { key: "sms_alerts", label: "SMS Alerts Center", icon: Smartphone, roles: ["super_admin", "admin", "api_admin"], badge: "ULTRA", badgeColor: "bg-emerald-500/20 text-emerald-400" },
       { key: "whatsapp", label: "WhatsApp Center", icon: MessageSquare, roles: ["super_admin", "admin", "api_admin"], badge: "NEW", badgeColor: "bg-green-500/20 text-green-400" },
     ],
   },
@@ -574,6 +576,7 @@ const AdminPanel = () => {
               {section === "voice" && <VoiceNotificationManagement />}
               {section === "email" && <EmailManagement />}
               {section === "sms" && <SmsCommandCenter />}
+              {section === "sms_alerts" && <SmsAlertsCenter />}
               {section === "whatsapp" && <WhatsAppCommandCenter />}
               {section === "notify_intelligence" && <NotificationIntelligence />}
               {section === "growth_center" && <GrowthControlCenter />}
