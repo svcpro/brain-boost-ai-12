@@ -417,10 +417,10 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                         { icon: Flame, label: "Rapid", value: String(today?.rapid_switches ?? 0), warn: (today?.rapid_switches ?? 0) > 5 },
                       ].map((stat, i) => (
                         <motion.div key={stat.label} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + i * 0.08 }}
-                          className="flex items-center gap-1.5">
-                          <stat.icon className={`w-3 h-3 ${stat.warn ? "text-destructive" : "text-muted-foreground"}`} />
-                          <span className="text-[8px] text-muted-foreground flex-1">{stat.label}</span>
-                          <span className={`text-[10px] font-black tabular-nums ${stat.warn ? "text-destructive" : "text-foreground"}`}>{stat.value}</span>
+                          className="flex items-center gap-1.5 min-w-0">
+                          <stat.icon className={`w-3 h-3 shrink-0 ${stat.warn ? "text-destructive" : "text-muted-foreground"}`} />
+                          <span className="text-[8px] text-muted-foreground flex-1 truncate">{stat.label}</span>
+                          <span className={`text-[10px] font-black tabular-nums shrink-0 ${stat.warn ? "text-destructive" : "text-foreground"}`}>{stat.value}</span>
                         </motion.div>
                       ))}
                     </div>
