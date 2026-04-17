@@ -423,6 +423,22 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   const displayedRank = rankV2Data?.predicted_rank ?? rankData?.predicted_rank ?? null;
   const displayedTrend = (rankV2Data?.trend || rankData?.trend || "neutral") as "rising" | "falling" | "stable" | "neutral";
 
+  // Show ultra-animated boot loader on first dashboard load until core data is ready
+  const isInitialBoot =
+    !!user?.id &&
+    !prediction &&
+    !rankData &&
+    !rankV2Data &&
+    (loading || rankLoading || rankV2Loading || !didInitialFetchRef.current);
+
+  if (isInitialBoot) {
+    return (
+      <div className="px-5 py-6 max-w-lg mx-auto overflow-x-hidden">
+        <NeuralBootLoader />
+      </div>
+    );
+  }
+
   return (
     <div className="px-5 py-6 space-y-5 max-w-lg mx-auto overflow-x-hidden">
 
