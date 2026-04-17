@@ -475,18 +475,28 @@ Deno.serve(async (req) => {
         .is("deleted_at", null)
         .maybeSingle();
 
-      if (existingTopic) {
-        return json({ success: true, topic: existingTopic, duplicate: true });
+      let topicRow = existingTopic;
+      let duplicate = !!existingTopic;
+
+      if (!existingTopic) {
+        const { data: created, error } = await adminClient
+          .from("topics")
+          .insert({ user_id: userId, subject_id: resolvedSubjectId, name, marks_impact_weight: marksWeight })
+          .select("id, name, subject_id, marks_impact_weight, created_at")
+          .single();
+        if (error) return json({ error: error.message }, 500);
+        topicRow = created;
       }
 
-      const { data: created, error } = await adminClient
-        .from("topics")
-        .insert({ user_id: userId, subject_id: resolvedSubjectId, name, marks_impact_weight: marksWeight })
-        .select("id, name, subject_id, marks_impact_weight, created_at")
-        .single();
-
-      if (error) return json({ error: error.message }, 500);
-      return json({ success: true, topic: created, duplicate: false });
+      // Always return the full updated subject + topic tree.
+      const allSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      return json({
+        success: true,
+        topic: topicRow,
+        duplicate,
+        subjects: allSubjects,
+        total_subjects: allSubjects.length,
+      });
     }
 
     // --- DELETE TOPIC ---
