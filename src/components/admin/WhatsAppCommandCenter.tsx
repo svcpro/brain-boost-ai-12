@@ -484,20 +484,44 @@ const MetaTemplatesTab = () => {
     if (!form.template_name || !form.body_text) {
       return toast({ title: "Name & body required", variant: "destructive" });
     }
+    // Validate buttons (max 3 for URL/PHONE mix, max 10 for QUICK_REPLY per Meta policy)
+    const btns: MetaButton[] = (form.buttons as any) || [];
+    for (const b of btns) {
+      if (b.type === "URL" && !b.url) return toast({ title: "URL button missing URL", variant: "destructive" });
+      if (b.type === "PHONE_NUMBER" && !b.phone_number) return toast({ title: "Phone button missing number", variant: "destructive" });
+      if (!b.text) return toast({ title: "Button text required", variant: "destructive" });
+    }
     const payload = {
       ...form,
       template_name: form.template_name?.toLowerCase().replace(/[^a-z0-9_]/g, "_"),
       created_by: user?.id,
       variables: form.variables || [],
+      buttons: btns,
     };
     const { error } = await supabase.from("whatsapp_meta_templates" as any).insert(payload as any);
     if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
     else {
       toast({ title: "Template added ✓", description: "Submit to Meta via MSG91 dashboard for approval" });
       setShowForm(false);
-      setForm({ template_name: "", display_name: "", category: "UTILITY", language: "en", header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "", approval_status: "pending" });
+      setForm({ template_name: "", display_name: "", category: "UTILITY", language: "en", header_type: "NONE", body_text: "", footer_text: "", variables: [], use_case: "", approval_status: "pending", buttons: [] } as any);
       load();
     }
+  };
+
+  const addButton = () => {
+    const current: MetaButton[] = ((form.buttons as any) || []) as MetaButton[];
+    if (current.length >= 3) return toast({ title: "Max 3 buttons per template (Meta policy)", variant: "destructive" });
+    setForm({ ...form, buttons: [...current, { type: "URL", text: "Open ACRY", url: APP_BASE_URL + "/home" }] } as any);
+  };
+  const updateButton = (idx: number, patch: Partial<MetaButton>) => {
+    const current: MetaButton[] = [...(((form.buttons as any) || []) as MetaButton[])];
+    current[idx] = { ...current[idx], ...patch };
+    setForm({ ...form, buttons: current } as any);
+  };
+  const removeButton = (idx: number) => {
+    const current: MetaButton[] = [...(((form.buttons as any) || []) as MetaButton[])];
+    current.splice(idx, 1);
+    setForm({ ...form, buttons: current } as any);
   };
 
   const updateStatus = async (id: string, status: string, extra: Record<string, any> = {}) => {
