@@ -345,12 +345,16 @@ const OnboardingPage = () => {
         }
       }
 
-      const { error: profileErr } = await supabase.from("profiles").update({
+      // Use upsert to defend against rare cases where the auth trigger hasn't yet
+      // created the profile row — without this, an UPDATE silently affects 0 rows
+      // and onboarded never persists, causing an infinite redirect loop on /app.
+      const { error: profileErr } = await supabase.from("profiles").upsert({
+        id: user.id,
         display_name: displayName.trim(),
         exam_type: finalExam,
         exam_date: examDate,
         study_preferences: { mode: studyMode, onboarded: true },
-      }).eq("id", user.id);
+      }, { onConflict: "id" });
       if (profileErr) throw profileErr;
 
       for (const name of subjects) {
