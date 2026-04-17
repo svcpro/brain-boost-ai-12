@@ -574,6 +574,7 @@ const AdminPanel = () => {
               {section === "voice" && <VoiceNotificationManagement />}
               {section === "email" && <EmailManagement />}
               {section === "sms" && <SmsCommandCenter />}
+              {section === "whatsapp" && <WhatsAppCommandCenter />}
               {section === "notify_intelligence" && <NotificationIntelligence />}
               {section === "growth_center" && <GrowthControlCenter />}
               {section === "coming_soon" && <ComingSoonControlPanel />}
