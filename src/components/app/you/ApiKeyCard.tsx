@@ -130,12 +130,12 @@ const ApiKeyCard = () => {
           className="p-1.5 rounded-md hover:bg-muted/60 text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="Copy key"
         >
-          {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
         </button>
       </div>
 
       {!alreadyRevealed && !showFull && (
-        <p className="text-[11px] text-amber-500 flex items-start gap-1.5">
+        <p className="text-[11px] text-destructive flex items-start gap-1.5">
           <ShieldAlert className="w-3 h-3 mt-0.5 shrink-0" />
           For your security, you can reveal this key only once. Copy and store it safely.
         </p>
