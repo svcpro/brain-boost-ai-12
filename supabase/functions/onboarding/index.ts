@@ -324,18 +324,27 @@ Deno.serve(async (req) => {
       return json({ success: true, days_until_exam: daysUntil, next_step: 4 });
     }
 
-    // --- LIST SUBJECTS (for current user) ---
+    // --- LIST SUBJECTS (for current user, scoped to their selected exam) ---
     if (action === "list-subjects" || action === "list_subjects") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const { data: subjects } = await adminClient
-        .from("subjects")
-        .select("id, name, created_at")
-        .eq("user_id", userId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: true });
-      return json({ success: true, subjects: subjects || [], total: (subjects || []).length });
+
+      // Pull profile so we can echo the selected exam alongside the subjects.
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("exam_type, exam_date")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const subjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      return json({
+        success: true,
+        exam_type: profile?.exam_type || null,
+        exam_date: profile?.exam_date || null,
+        subjects,
+        total: subjects.length,
+      });
     }
 
     // --- ADD SINGLE SUBJECT ---
@@ -371,10 +380,13 @@ Deno.serve(async (req) => {
       }
 
       // Always return the full updated subjects list so API testers
-      // never see an empty "Subject List".
+      // never see an empty "Subject List", and echo the user's selected exam.
       const allSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      const { data: profile } = await adminClient
+        .from("profiles").select("exam_type").eq("id", userId).maybeSingle();
       return json({
         success: true,
+        exam_type: profile?.exam_type || null,
         subject: subjectRow,
         duplicate,
         subjects: allSubjects,
@@ -425,7 +437,15 @@ Deno.serve(async (req) => {
       if (resolvedSubjectId) q = q.eq("subject_id", resolvedSubjectId);
 
       const { data: topics } = await q.order("created_at", { ascending: true });
-      return json({ success: true, topics: topics || [], total: (topics || []).length, subject_id: resolvedSubjectId || null });
+      const { data: profile } = await adminClient
+        .from("profiles").select("exam_type").eq("id", userId).maybeSingle();
+      return json({
+        success: true,
+        exam_type: profile?.exam_type || null,
+        topics: topics || [],
+        total: (topics || []).length,
+        subject_id: resolvedSubjectId || null,
+      });
     }
 
     // --- ADD SINGLE TOPIC ---
@@ -488,10 +508,13 @@ Deno.serve(async (req) => {
         topicRow = created;
       }
 
-      // Always return the full updated subject + topic tree.
+      // Always return the full updated subject + topic tree, plus exam context.
       const allSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      const { data: profile } = await adminClient
+        .from("profiles").select("exam_type").eq("id", userId).maybeSingle();
       return json({
         success: true,
+        exam_type: profile?.exam_type || null,
         topic: topicRow,
         duplicate,
         subjects: allSubjects,
