@@ -258,8 +258,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {/* ═══ Monthly Performance Snapshot ═══ */}
       <MonthlyPerformanceSnapshot />
 
-      {/* ═══ API Key (auto-generated per user) ═══ */}
-      <ApiKeyCard />
+      {/* API Key card hidden per user request */}
 
       {/* AI Recalibration hidden per user request */}
 
