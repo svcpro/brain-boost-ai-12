@@ -251,18 +251,32 @@ function Templates() {
                     <code className="text-[10px] bg-secondary px-1.5 py-0.5 rounded">{t.name}</code>
                     {t.dlt_template_id && <Badge variant="outline" className="text-[10px]">DLT</Badge>}
                     {t.target_url && (
-                      <a
-                        href={t.target_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline max-w-[180px] truncate"
-                        title={t.target_url}
-                      >
-                        <LinkIcon className="w-2.5 h-2.5 shrink-0" />
-                        <span className="truncate">{t.target_url.replace(/^https?:\/\//, "")}</span>
-                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
-                      </a>
+                      <>
+                        <a
+                          href={t.target_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline max-w-[180px] truncate"
+                          title={t.target_url}
+                        >
+                          <LinkIcon className="w-2.5 h-2.5 shrink-0" />
+                          <span className="truncate">{t.target_url.replace(/^https?:\/\//, "")}</span>
+                          <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => copyUrl(t.id, t.target_url)}
+                          title="Copy URL"
+                          className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-border/40 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {copiedId === t.id ? (
+                            <><Check className="w-2.5 h-2.5 text-emerald-400" /> Copied</>
+                          ) : (
+                            <><Copy className="w-2.5 h-2.5" /> Copy URL</>
+                          )}
+                        </button>
+                      </>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground line-clamp-2">{t.body_template}</div>
