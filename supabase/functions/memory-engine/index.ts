@@ -88,16 +88,24 @@ serve(async (req) => {
         topicUpdates.push({ id: topic.id, memory_strength: memoryStrength, next_predicted_drop_date: dropDate.toISOString() });
         scoreInserts.push({ user_id: userId!, topic_id: topic.id, score: memoryStrength, predicted_drop_date: dropDate.toISOString() });
 
+        const lastRevForOutput = topic.last_revision_date
+          ? new Date(topic.last_revision_date)
+          : new Date(topicLogs[0]?.created_at || topic.created_at || now);
+        const hrsSinceForOutput = (now.getTime() - lastRevForOutput.getTime()) / (1000 * 60 * 60);
+        const hrsUntilDropOutput = hoursUntilThreshold(stability, 0.5);
+
         updatedTopics.push({
           id: topic.id,
           name: topic.name,
           subject_name: topic.subjects?.name,
           memory_strength: memoryStrength,
           next_predicted_drop_date: dropDate.toISOString(),
-          hours_until_drop: Math.max(0, hoursUntilDrop - hoursSinceReview),
+          hours_until_drop: hasBeenStudied ? Math.max(0, hrsUntilDropOutput - hrsSinceForOutput) : 0,
           stability,
           review_count: reviewCount,
-          risk_level: memoryStrength < 30 ? "critical" : memoryStrength < 50 ? "high" : memoryStrength < 70 ? "medium" : "low",
+          risk_level: !hasBeenStudied
+            ? "untouched"
+            : memoryStrength < 30 ? "critical" : memoryStrength < 50 ? "high" : memoryStrength < 70 ? "medium" : "low",
         });
       }
 
