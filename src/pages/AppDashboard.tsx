@@ -206,13 +206,23 @@ const AppDashboard = () => {
     if (!isTabEnabled(`tab_${activeTab}`)) {
       return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">This section is currently disabled.</div>;
     }
+    if (tabLoading && tabLoading === activeTab) {
+      return (
+        <div className="px-5 py-6 max-w-lg mx-auto overflow-x-hidden">
+          <NeuralBootLoader
+            message={TAB_LOADER_MESSAGES[tabLoading] || "Loading"}
+            onComplete={() => setTabLoading(null)}
+          />
+        </div>
+      );
+    }
     switch (activeTab) {
-      case "home": return <HomeTab onNavigateToEmergency={() => setActiveTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); setActiveTab("you"); }} onNavigateToBrain={() => setActiveTab("brain")} onNavigateToYou={() => setActiveTab("you")} />;
+      case "home": return <HomeTab onNavigateToEmergency={() => switchTab("action")} onRecommendationsSeen={() => setRecCount(0)} onOpenVoiceSettings={() => { setAutoOpenVoice(true); switchTab("you"); }} onNavigateToBrain={() => switchTab("brain")} onNavigateToYou={() => switchTab("you")} />;
       case "action": 
-        return <ActionTab onNavigateToBrain={() => setActiveTab("brain")} />;
+        return <ActionTab onNavigateToBrain={() => switchTab("brain")} />;
       case "brain": return <BrainTab />;
       case "community": return <CommunityPage inline />;
-      case "progress": return <ProgressTab onUpgrade={() => { setAutoOpenSubscription(true); setActiveTab("you"); }} />;
+      case "progress": return <ProgressTab onUpgrade={() => { setAutoOpenSubscription(true); switchTab("you"); }} />;
       case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
       default: return null;
     }
@@ -315,7 +325,7 @@ const AppDashboard = () => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => { setActiveTab(tab.id); }}
+                    onClick={() => { switchTab(tab.id); }}
                     className={`flex flex-col items-center gap-0.5 px-1.5 sm:px-3 py-1.5 rounded-xl transition-all duration-300 relative min-w-0 ${
                       isSureShot
                         ? "text-transparent"
