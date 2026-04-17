@@ -437,7 +437,15 @@ Deno.serve(async (req) => {
       if (resolvedSubjectId) q = q.eq("subject_id", resolvedSubjectId);
 
       const { data: topics } = await q.order("created_at", { ascending: true });
-      return json({ success: true, topics: topics || [], total: (topics || []).length, subject_id: resolvedSubjectId || null });
+      const { data: profile } = await adminClient
+        .from("profiles").select("exam_type").eq("id", userId).maybeSingle();
+      return json({
+        success: true,
+        exam_type: profile?.exam_type || null,
+        topics: topics || [],
+        total: (topics || []).length,
+        subject_id: resolvedSubjectId || null,
+      });
     }
 
     // --- ADD SINGLE TOPIC ---
