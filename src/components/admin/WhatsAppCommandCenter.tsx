@@ -510,9 +510,9 @@ const MetaTemplatesTab = () => {
   };
 
   const categoryColor = (c: string) => {
-    if (c === "AUTHENTICATION") return "bg-blue-500/15 text-blue-400";
-    if (c === "MARKETING") return "bg-purple-500/15 text-purple-400";
-    return "bg-emerald-500/15 text-emerald-400";
+    if (c === "AUTHENTICATION") return "bg-primary/15 text-primary";
+    if (c === "MARKETING") return "bg-accent/15 text-accent-foreground";
+    return "bg-success/15 text-success";
   };
 
   const counts = {
