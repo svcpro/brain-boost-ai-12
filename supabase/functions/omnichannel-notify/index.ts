@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const PRIORITY_MAP: Record<string, string[]> = {
-  critical: ["push", "email", "voice"],
+  critical: ["push", "sms", "email", "voice"],
   high: ["push", "email"],
   medium: ["push"],
   low: ["in_app"],
