@@ -150,7 +150,11 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     return () => observer.disconnect();
   }, [recommendations.length, onRecommendationsSeen]);
 
+  // Run initial data fetch ONLY after auth/user is ready.
+  // This prevents the "No data yet" blank-state on first dashboard load
+  // when the Supabase session is still being restored from storage.
   useEffect(() => {
+    if (!user?.id) return;
     predict().then(() => setRadarLastUpdated(new Date()));
     predictRank();
     computeRankV2();
@@ -163,7 +167,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       predict().then(() => setRadarLastUpdated(new Date()));
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user?.id]);
 
   // User-dependent fetches — re-run when user becomes available or changes
   useEffect(() => {
