@@ -679,9 +679,25 @@ const MetaTemplatesTab = () => {
                 </div>
                 {b.type === "URL" && (
                   <div className="space-y-1.5">
-                    <input placeholder="https://acry.ai/home" value={b.url || ""}
-                      onChange={e => updateButton(idx, { url: e.target.value })}
-                      className="w-full px-2 py-1.5 rounded bg-background border border-border text-[11px] font-mono" />
+                    <div className="flex gap-1">
+                      <input placeholder="https://acry.ai/home" value={b.url || ""}
+                        onChange={e => updateButton(idx, { url: e.target.value })}
+                        className="flex-1 px-2 py-1.5 rounded bg-background border border-border text-[11px] font-mono" />
+                      {b.url && (
+                        <button
+                          type="button"
+                          onClick={() => copyUrl(b.url!, `form:${idx}`)}
+                          title="Copy URL"
+                          className={`px-2 rounded border text-[10px] font-semibold flex items-center gap-1 ${
+                            copiedKey === `form:${idx}`
+                              ? "bg-success/20 text-success border-success/40"
+                              : "bg-muted/30 hover:bg-muted/50 text-foreground border-border/40"
+                          }`}
+                        >
+                          {copiedKey === `form:${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                      )}
+                    </div>
                     <div className="flex gap-1 flex-wrap items-center">
                       <span className="text-[10px] text-muted-foreground">Quick set:</span>
                       {APP_PAGES.map(p => (
