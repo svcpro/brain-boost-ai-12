@@ -397,7 +397,7 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
 
                   {/* Right side info */}
                   <div className="flex-1 min-w-0 space-y-2">
-                    <FocusLevelBadge score={todayFocus} />
+                    <div className="flex"><FocusLevelBadge score={todayFocus} /></div>
 
                     {/* Trend indicator */}
                     <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.9 }}
