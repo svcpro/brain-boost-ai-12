@@ -21,7 +21,7 @@ import {
 import {
   Smartphone, Send, Activity, FileText, Megaphone, Clock, BarChart3, Settings,
   CheckCircle2, XCircle, AlertTriangle, RefreshCw, Loader2, Zap, Shield,
-  Users, Plus, Pencil, Eye, Sparkles, TrendingUp, Radio, Gauge,
+  Users, Plus, Pencil, Eye, Sparkles, TrendingUp, Radio, Gauge, Link as LinkIcon, ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -187,6 +187,7 @@ function Templates() {
       dlt_template_id: edit.dlt_template_id || null, sender_id: edit.sender_id || null,
       is_active: edit.is_active !== false, description: edit.description || null,
       variables: edit.variables || [],
+      target_url: edit.target_url?.trim() || null,
     };
     const op = edit.id
       ? supabase.from("sms_templates").update(payload).eq("id", edit.id)
@@ -233,10 +234,24 @@ function Templates() {
             {items.map(t => (
               <div key={t.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/40 hover:border-border transition-colors">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-sm font-semibold text-foreground">{t.display_name}</span>
                     <code className="text-[10px] bg-secondary px-1.5 py-0.5 rounded">{t.name}</code>
                     {t.dlt_template_id && <Badge variant="outline" className="text-[10px]">DLT</Badge>}
+                    {t.target_url && (
+                      <a
+                        href={t.target_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline max-w-[180px] truncate"
+                        title={t.target_url}
+                      >
+                        <LinkIcon className="w-2.5 h-2.5 shrink-0" />
+                        <span className="truncate">{t.target_url.replace(/^https?:\/\//, "")}</span>
+                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                      </a>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground line-clamp-2">{t.body_template}</div>
                 </div>
@@ -282,6 +297,19 @@ function Templates() {
                   <Input value={edit.dlt_template_id || ""} onChange={(e) => setEdit({ ...edit, dlt_template_id: e.target.value })} /></div>
                 <div><Label className="text-xs">Sender ID</Label>
                   <Input value={edit.sender_id || ""} onChange={(e) => setEdit({ ...edit, sender_id: e.target.value })} placeholder="ACRYAI" /></div>
+              </div>
+              <div>
+                <Label className="text-xs flex items-center gap-1.5">
+                  <LinkIcon className="w-3 h-3" /> Target URL (auto-fills <code className="text-[10px] bg-secondary px-1 rounded">{`{{link}}`}</code>)
+                </Label>
+                <Input
+                  value={edit.target_url || ""}
+                  onChange={(e) => setEdit({ ...edit, target_url: e.target.value })}
+                  placeholder="https://acry.ai/app?tab=action"
+                />
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  Common: <code>?tab=action</code> · <code>?tab=brain</code> · <code>?tab=progress</code> · <code>?tab=you</code>
+                </div>
               </div>
               <div className="flex items-center gap-2"><Switch checked={edit.is_active !== false} onCheckedChange={(v) => setEdit({ ...edit, is_active: v })} /><Label className="text-xs">Active</Label></div>
             </div>

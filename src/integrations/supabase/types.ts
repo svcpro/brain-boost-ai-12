@@ -8088,6 +8088,7 @@ export type Database = {
           is_active: boolean
           name: string
           sender_id: string | null
+          target_url: string | null
           updated_at: string
           variables: Json | null
         }
@@ -8103,6 +8104,7 @@ export type Database = {
           is_active?: boolean
           name: string
           sender_id?: string | null
+          target_url?: string | null
           updated_at?: string
           variables?: Json | null
         }
@@ -8118,6 +8120,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           sender_id?: string | null
+          target_url?: string | null
           updated_at?: string
           variables?: Json | null
         }
