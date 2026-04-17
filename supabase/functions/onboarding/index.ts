@@ -1,4 +1,40 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callAI, getAIToolArgs } from "../_shared/aiClient.ts";
+
+// Helper: fetch the full subject list (with topic counts) for a user.
+// Used to ensure every mutating endpoint returns a non-empty subjects list
+// when the user already has data, so API testers never see "Subject List Empty"
+// after a successful add/AI-generate call.
+async function fetchUserSubjectsWithTopics(adminClient: any, userId: string) {
+  const { data: subjects } = await adminClient
+    .from("subjects")
+    .select("id, name, created_at")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+
+  if (!subjects || subjects.length === 0) return [];
+
+  const { data: topics } = await adminClient
+    .from("topics")
+    .select("id, name, subject_id, marks_impact_weight")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+
+  const byId = new Map<string, any[]>();
+  for (const t of topics || []) {
+    const arr = byId.get(t.subject_id) || [];
+    arr.push(t);
+    byId.set(t.subject_id, arr);
+  }
+
+  return subjects.map((s: any) => ({
+    ...s,
+    topics: byId.get(s.id) || [],
+    topic_count: (byId.get(s.id) || []).length,
+  }));
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
