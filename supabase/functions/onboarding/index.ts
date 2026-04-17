@@ -1,4 +1,40 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callAI, getAIToolArgs } from "../_shared/aiClient.ts";
+
+// Helper: fetch the full subject list (with topic counts) for a user.
+// Used to ensure every mutating endpoint returns a non-empty subjects list
+// when the user already has data, so API testers never see "Subject List Empty"
+// after a successful add/AI-generate call.
+async function fetchUserSubjectsWithTopics(adminClient: any, userId: string) {
+  const { data: subjects } = await adminClient
+    .from("subjects")
+    .select("id, name, created_at")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+
+  if (!subjects || subjects.length === 0) return [];
+
+  const { data: topics } = await adminClient
+    .from("topics")
+    .select("id, name, subject_id, marks_impact_weight")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+
+  const byId = new Map<string, any[]>();
+  for (const t of topics || []) {
+    const arr = byId.get(t.subject_id) || [];
+    arr.push(t);
+    byId.set(t.subject_id, arr);
+  }
+
+  return subjects.map((s: any) => ({
+    ...s,
+    topics: byId.get(s.id) || [],
+    topic_count: (byId.get(s.id) || []).length,
+  }));
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -321,18 +357,29 @@ Deno.serve(async (req) => {
         .is("deleted_at", null)
         .maybeSingle();
 
-      if (existing) {
-        return json({ success: true, subject: existing, duplicate: true });
+      let subjectRow = existing;
+      let duplicate = !!existing;
+
+      if (!existing) {
+        const { data: created, error } = await adminClient
+          .from("subjects")
+          .insert({ user_id: userId, name })
+          .select("id, name, created_at")
+          .single();
+        if (error) return json({ error: error.message }, 500);
+        subjectRow = created;
       }
 
-      const { data: created, error } = await adminClient
-        .from("subjects")
-        .insert({ user_id: userId, name })
-        .select("id, name, created_at")
-        .single();
-
-      if (error) return json({ error: error.message }, 500);
-      return json({ success: true, subject: created, duplicate: false });
+      // Always return the full updated subjects list so API testers
+      // never see an empty "Subject List".
+      const allSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      return json({
+        success: true,
+        subject: subjectRow,
+        duplicate,
+        subjects: allSubjects,
+        total: allSubjects.length,
+      });
     }
 
     // --- DELETE SUBJECT ---
@@ -428,18 +475,28 @@ Deno.serve(async (req) => {
         .is("deleted_at", null)
         .maybeSingle();
 
-      if (existingTopic) {
-        return json({ success: true, topic: existingTopic, duplicate: true });
+      let topicRow = existingTopic;
+      let duplicate = !!existingTopic;
+
+      if (!existingTopic) {
+        const { data: created, error } = await adminClient
+          .from("topics")
+          .insert({ user_id: userId, subject_id: resolvedSubjectId, name, marks_impact_weight: marksWeight })
+          .select("id, name, subject_id, marks_impact_weight, created_at")
+          .single();
+        if (error) return json({ error: error.message }, 500);
+        topicRow = created;
       }
 
-      const { data: created, error } = await adminClient
-        .from("topics")
-        .insert({ user_id: userId, subject_id: resolvedSubjectId, name, marks_impact_weight: marksWeight })
-        .select("id, name, subject_id, marks_impact_weight, created_at")
-        .single();
-
-      if (error) return json({ error: error.message }, 500);
-      return json({ success: true, topic: created, duplicate: false });
+      // Always return the full updated subject + topic tree.
+      const allSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      return json({
+        success: true,
+        topic: topicRow,
+        duplicate,
+        subjects: allSubjects,
+        total_subjects: allSubjects.length,
+      });
     }
 
     // --- DELETE TOPIC ---
@@ -459,93 +516,107 @@ Deno.serve(async (req) => {
         action === "ai-generate-subjects-topics" || action === "ai_generate_subjects_topics") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) return json({ error: "AI gateway not configured" }, 500);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-      // Resolve exam type
+      // Resolve exam type — fall back to user's profile, then a sensible default.
       let examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
       if (!examType) {
         const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
-        examType = String(profile?.exam_type || "general").trim();
+        examType = String(profile?.exam_type || "").trim();
       }
-      const persist = requestBody.persist !== false; // default: save to DB
+      if (!examType) examType = "general competitive exam";
+      const persist = requestBody.persist !== false;
 
-      // Call AI gateway with structured tool-calling
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            {
-              role: "system",
-              content: "You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely."
-            },
-            {
-              role: "user",
-              content: `Generate the complete subject and topic structure for: ${examType}. Include ALL important topics per subject with accurate marks impact weights based on exam patterns.`
-            }
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "generate_curriculum",
-              description: "Generate complete exam curriculum with subjects and topics",
-              parameters: {
-                type: "object",
-                properties: {
-                  subjects: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        topics: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              name: { type: "string" },
-                              marks_impact_weight: { type: "number" },
-                              priority: { type: "string", enum: ["critical", "high", "medium", "low"] }
-                            },
-                            required: ["name", "marks_impact_weight", "priority"]
-                          }
-                        }
+      // Use shared AI client (Gemini direct → Lovable gateway fallback) so the
+      // endpoint keeps working even when one provider is rate-limited / out of credits.
+      const aiResult = await callAI({
+        model: "google/gemini-2.5-flash-lite",
+        temperature: 0.4,
+        maxTokens: 4096,
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely. Respond with valid JSON only.",
+          },
+          {
+            role: "user",
+            content: `Generate the complete subject and topic structure for: ${examType}. Include ALL important subjects (5-10) and 6-15 topics per subject with accurate marks_impact_weight (0-10) and priority (critical/high/medium/low). Return JSON of shape: { "exam_summary": string, "subjects": [{ "name": string, "topics": [{ "name": string, "marks_impact_weight": number, "priority": "critical"|"high"|"medium"|"low" }] }] }`,
+          },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "generate_curriculum",
+            description: "Generate complete exam curriculum with subjects and topics",
+            parameters: {
+              type: "object",
+              properties: {
+                subjects: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      topics: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            marks_impact_weight: { type: "number" },
+                            priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                          },
+                          required: ["name", "marks_impact_weight", "priority"],
+                        },
                       },
-                      required: ["name", "topics"]
-                    }
+                    },
+                    required: ["name", "topics"],
                   },
-                  exam_summary: { type: "string" }
                 },
-                required: ["subjects", "exam_summary"]
-              }
-            }
-          }],
-          tool_choice: { type: "function", function: { name: "generate_curriculum" } },
-        }),
+                exam_summary: { type: "string" },
+              },
+              required: ["subjects", "exam_summary"],
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "generate_curriculum" } },
       });
 
-      if (!aiResp.ok) {
-        if (aiResp.status === 429) return json({ error: "Rate limited, please try again later" }, 429);
-        if (aiResp.status === 402) return json({ error: "AI credits exhausted" }, 402);
-        return json({ error: "AI gateway error" }, 500);
+      if (!aiResult.ok) {
+        // Even on AI failure, return whatever the user already has so the
+        // tester does not display a blank "subjects: []".
+        const existingSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+        const status = aiResult.status === 429 ? 429 : aiResult.status === 402 ? 402 : 500;
+        return json({
+          success: false,
+          error: aiResult.error || (status === 429 ? "Rate limited, please try again later" : status === 402 ? "AI credits exhausted" : "AI gateway error"),
+          exam_type: examType,
+          subjects: existingSubjects,
+          subjects_created: 0,
+          topics_created: 0,
+        }, status);
       }
 
-      const aiData = await aiResp.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      let curriculum: any = { subjects: [], exam_summary: `${examType} curriculum` };
-      if (toolCall?.function?.arguments) {
-        try { curriculum = JSON.parse(toolCall.function.arguments); } catch { /* ignore */ }
+      // Try tool args first, fall back to parsing the message content as JSON
+      // (the Gemini direct path returns JSON in `content` rather than `tool_calls`).
+      let curriculum: any = getAIToolArgs(aiResult);
+      if (!curriculum) {
+        const text = aiResult.data?.choices?.[0]?.message?.content || "";
+        try {
+          const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+          const start = cleaned.search(/[{[]/);
+          const end = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+          if (start !== -1 && end > start) {
+            curriculum = JSON.parse(cleaned.slice(start, end + 1));
+          }
+        } catch { /* ignore */ }
+      }
+      if (!curriculum || !Array.isArray(curriculum.subjects)) {
+        curriculum = { subjects: [], exam_summary: `${examType} curriculum` };
       }
 
       let subjectsCreated = 0, topicsCreated = 0;
-      const persistedSubjects: any[] = [];
 
       if (persist) {
         for (const sub of curriculum.subjects || []) {
@@ -565,36 +636,36 @@ Deno.serve(async (req) => {
             subjectsCreated++;
           }
 
-          const persistedTopics: any[] = [];
           for (const t of sub.topics || []) {
             const tName = String(t.name || "").trim();
             if (!tName) continue;
             const { data: existingT } = await adminClient
               .from("topics").select("id").eq("user_id", userId).eq("subject_id", subjectId).eq("name", tName).is("deleted_at", null).maybeSingle();
-            if (existingT) {
-              persistedTopics.push({ id: existingT.id, name: tName, marks_impact_weight: t.marks_impact_weight ?? 5 });
-              continue;
-            }
-            const { data: newT, error: tErr } = await adminClient
+            if (existingT) continue;
+            const { error: tErr } = await adminClient
               .from("topics")
-              .insert({ user_id: userId, subject_id: subjectId, name: tName, marks_impact_weight: Number(t.marks_impact_weight ?? 5) })
-              .select("id, name, marks_impact_weight").single();
-            if (tErr) continue;
-            persistedTopics.push(newT);
-            topicsCreated++;
+              .insert({ user_id: userId, subject_id: subjectId, name: tName, marks_impact_weight: Number(t.marks_impact_weight ?? 5) });
+            if (!tErr) topicsCreated++;
           }
-          persistedSubjects.push({ id: subjectId, name: subName, topics: persistedTopics });
         }
       }
+
+      // Always return the full updated subject/topic tree from the DB so the
+      // API tester never sees an empty list when generation succeeds.
+      const allSubjects = persist
+        ? await fetchUserSubjectsWithTopics(adminClient, userId)
+        : (curriculum.subjects || []);
 
       return json({
         success: true,
         exam_type: examType,
         exam_summary: curriculum.exam_summary,
-        subjects: persist ? persistedSubjects : (curriculum.subjects || []),
+        subjects: allSubjects,
+        total: Array.isArray(allSubjects) ? allSubjects.length : 0,
         subjects_created: subjectsCreated,
         topics_created: topicsCreated,
         persisted: persist,
+        ai_source: aiResult.source,
       });
     }
 
@@ -602,8 +673,6 @@ Deno.serve(async (req) => {
     if (action === "ai-generate-topics" || action === "ai_generate_topics") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) return json({ error: "AI gateway not configured" }, 500);
 
       const subjectName = String(requestBody.subject || requestBody.subject_name || "").trim();
       const subjectIdInput = String(requestBody.subject_id || "").trim();
@@ -628,53 +697,65 @@ Deno.serve(async (req) => {
       const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
       const examType = String(profile?.exam_type || "general").trim();
 
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: "You generate exam-relevant topics for a single subject. Each topic gets a marks_impact_weight (0-10) reflecting exam weightage." },
-            { role: "user", content: `Generate the complete topic list for subject "${resolvedSubjectName}" in exam "${examType}". Return all important topics.` },
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "generate_topics",
-              parameters: {
-                type: "object",
-                properties: {
-                  topics: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        marks_impact_weight: { type: "number" },
-                      },
-                      required: ["name", "marks_impact_weight"],
-                    },
+      // Use shared AI client (Gemini → Lovable gateway fallback)
+      const aiResult = await callAI({
+        model: "google/gemini-2.5-flash-lite",
+        temperature: 0.4,
+        maxTokens: 2048,
+        messages: [
+          { role: "system", content: "You generate exam-relevant topics for a single subject. Each topic gets a marks_impact_weight (0-10) reflecting exam weightage. Respond with valid JSON only." },
+          { role: "user", content: `Generate the complete topic list for subject "${resolvedSubjectName}" in exam "${examType}". Return JSON: { "topics": [{ "name": string, "marks_impact_weight": number }] }` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "generate_topics",
+            parameters: {
+              type: "object",
+              properties: {
+                topics: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: { name: { type: "string" }, marks_impact_weight: { type: "number" } },
+                    required: ["name", "marks_impact_weight"],
                   },
                 },
-                required: ["topics"],
               },
+              required: ["topics"],
             },
-          }],
-          tool_choice: { type: "function", function: { name: "generate_topics" } },
-        }),
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "generate_topics" } },
       });
 
-      if (!aiResp.ok) {
-        if (aiResp.status === 429) return json({ error: "Rate limited, please try again later" }, 429);
-        if (aiResp.status === 402) return json({ error: "AI credits exhausted" }, 402);
-        return json({ error: "AI gateway error" }, 500);
+      if (!aiResult.ok) {
+        const existingSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+        const status = aiResult.status === 429 ? 429 : aiResult.status === 402 ? 402 : 500;
+        return json({
+          success: false,
+          error: aiResult.error || "AI gateway error",
+          subject: resolvedSubjectName,
+          subject_id: resolvedSubjectId || null,
+          topics: [],
+          subjects: existingSubjects,
+        }, status);
       }
 
-      const aiData = await aiResp.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
       let topicsRaw: any[] = [];
-      if (toolCall?.function?.arguments) {
-        try { topicsRaw = JSON.parse(toolCall.function.arguments)?.topics || []; } catch { /* ignore */ }
+      const parsed = getAIToolArgs(aiResult);
+      if (parsed?.topics) {
+        topicsRaw = parsed.topics;
+      } else {
+        const text = aiResult.data?.choices?.[0]?.message?.content || "";
+        try {
+          const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+          const start = cleaned.search(/[{[]/);
+          const end = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+          if (start !== -1 && end > start) {
+            topicsRaw = JSON.parse(cleaned.slice(start, end + 1))?.topics || [];
+          }
+        } catch { /* ignore */ }
       }
 
       // Auto-create subject if needed (when persisting)
@@ -701,13 +782,18 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Always include the full subject tree so the API tester never sees an empty list.
+      const allSubjects = persist ? await fetchUserSubjectsWithTopics(adminClient, userId) : [];
+
       return json({
         success: true,
         subject: resolvedSubjectName,
         subject_id: resolvedSubjectId || null,
         topics: persist ? persistedTopics : topicsRaw,
         topics_created: topicsCreated,
+        subjects: allSubjects,
         persisted: persist,
+        ai_source: aiResult.source,
       });
     }
 
