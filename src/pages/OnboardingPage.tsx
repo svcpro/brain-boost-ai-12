@@ -876,19 +876,42 @@ const OnboardingPage = () => {
                   )}
                 </AnimatePresence>
 
-                {SUGGESTED_SUBJECTS[examType] && (
-                  <div className="mb-3">
-                    <p className="text-[10px] mb-1.5" style={{ color: "#ffffff30" }}>Suggested:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {SUGGESTED_SUBJECTS[examType].filter(s => !subjects.includes(s)).map(s => (
-                        <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: [] })); }}
-                          className="px-2.5 py-1 rounded-full text-[10px] transition-all"
-                          style={{ border: "1px dashed #00E5FF35", color: "#00E5FF90", background: "#00E5FF04" }}
-                        >+ {s}</button>
-                      ))}
+                {(() => {
+                  const suggested = aiSuggestedSubjects.length > 0 ? aiSuggestedSubjects : (SUGGESTED_SUBJECTS[examType] || []);
+                  const remaining = suggested.filter(s => !subjects.includes(s));
+                  if (remaining.length === 0) return null;
+                  return (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[10px]" style={{ color: "#ffffff30" }}>
+                          {aiSuggestedSubjects.length > 0 ? "AI Suggested:" : "Suggested:"} <span style={{ color: "#00E5FF80" }}>({remaining.length})</span>
+                        </p>
+                        {remaining.length > 1 && (
+                          <button
+                            onClick={() => {
+                              setSubjects(prev => [...prev, ...remaining]);
+                              setTopicsBySubject(prev => {
+                                const next = { ...prev };
+                                remaining.forEach(s => { if (!next[s]) next[s] = []; });
+                                return next;
+                              });
+                            }}
+                            className="text-[9px] font-semibold transition-all"
+                            style={{ color: "#00E5FF" }}
+                          >+ Add all</button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto scrollbar-hide">
+                        {remaining.map(s => (
+                          <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: prev[s] || [] })); }}
+                            className="px-2.5 py-1 rounded-full text-[10px] transition-all"
+                            style={{ border: "1px dashed #00E5FF35", color: "#00E5FF90", background: "#00E5FF04" }}
+                          >+ {s}</button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div className="flex flex-wrap gap-1.5">
                   {subjects.map(s => (
