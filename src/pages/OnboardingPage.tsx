@@ -266,6 +266,8 @@ const OnboardingPage = () => {
       emitEvent("exam_setup", { exam_type: finalExam, exam_date: examDate }, { title: "Exam Target Set!", body: `Preparing for ${finalExam}` });
 
       toast({ title: "You're all set! 🧠", description: "Your AI brain is now configured." });
+      // Notify dashboard to refetch the freshly-saved profile (display_name, etc.)
+      try { window.dispatchEvent(new CustomEvent("profile-updated")); } catch {}
       navigate("/app", { replace: true });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
