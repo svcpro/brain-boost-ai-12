@@ -151,10 +151,16 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
   }, [recommendations.length, onRecommendationsSeen]);
 
   // Run initial data fetch ONLY after auth/user is ready.
-  // This prevents the "No data yet" blank-state on first dashboard load
-  // when the Supabase session is still being restored from storage.
+  // Gate on user?.id AND track predict/predictRank/computeRankV2 references —
+  // these callbacks are recreated when `session` becomes available, so depending
+  // on them ensures we re-fire as soon as Supabase finishes restoring the session.
+  // Without this, the stale closure (from the first render where session was null)
+  // would early-return inside the hooks and leave the dashboard at "No data yet".
+  const didInitialFetchRef = useRef(false);
   useEffect(() => {
     if (!user?.id) return;
+    if (didInitialFetchRef.current) return;
+    didInitialFetchRef.current = true;
     predict().then(() => setRadarLastUpdated(new Date()));
     predictRank();
     computeRankV2();
@@ -163,11 +169,16 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
       if (data) setBurnoutData(data);
     }).catch(() => {});
     loadExamDate();
+  }, [user?.id, predict, predictRank, computeRankV2]);
+
+  // Periodic background refresh (every 5 min) — independent of initial fetch
+  useEffect(() => {
+    if (!user?.id) return;
     const interval = setInterval(() => {
       predict().then(() => setRadarLastUpdated(new Date()));
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [user?.id]);
+  }, [user?.id, predict]);
 
   // User-dependent fetches — re-run when user becomes available or changes
   useEffect(() => {
