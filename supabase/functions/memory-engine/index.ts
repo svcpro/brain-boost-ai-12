@@ -56,23 +56,34 @@ serve(async (req) => {
 
         const baseStability = 24;
         const reviewBonus = reviewCount * 12;
-        const confidenceBonus = topicLogs.reduce((sum: number, l: any) => {
-          if (l.confidence_level === "high") return sum + 24;
-          if (l.confidence_level === "medium") return sum + 12;
-          return sum + 4;
-        }, 0) / Math.max(reviewCount, 1);
+        const confidenceBonus = reviewCount > 0
+          ? topicLogs.reduce((sum: number, l: any) => {
+              if (l.confidence_level === "high") return sum + 24;
+              if (l.confidence_level === "medium") return sum + 12;
+              return sum + 4;
+            }, 0) / reviewCount
+          : 0;
         const stability = baseStability + reviewBonus + confidenceBonus;
 
-        const lastRevision = topic.last_revision_date
-          ? new Date(topic.last_revision_date)
-          : topic.created_at ? new Date(topic.created_at) : now;
-        const hoursSinceReview = (now.getTime() - lastRevision.getTime()) / (1000 * 60 * 60);
+        // CRITICAL FIX: never-studied topics must start at 0% memory.
+        // Memory should ONLY grow as the user actually studies/reviews.
+        const hasBeenStudied = reviewCount > 0 || !!topic.last_revision_date;
 
-        const retention = calculateRetention(hoursSinceReview, stability);
-        const memoryStrength = Math.round(retention * 100 * 100) / 100;
+        let memoryStrength = 0;
+        let dropDate = now;
 
-        const hoursUntilDrop = hoursUntilThreshold(stability, 0.5);
-        const dropDate = new Date(lastRevision.getTime() + hoursUntilDrop * 60 * 60 * 1000);
+        if (hasBeenStudied) {
+          const lastRevision = topic.last_revision_date
+            ? new Date(topic.last_revision_date)
+            : new Date(topicLogs[0]?.created_at || topic.created_at || now);
+          const hoursSinceReview = (now.getTime() - lastRevision.getTime()) / (1000 * 60 * 60);
+
+          const retention = calculateRetention(hoursSinceReview, stability);
+          memoryStrength = Math.round(retention * 100 * 100) / 100;
+
+          const hoursUntilDrop = hoursUntilThreshold(stability, 0.5);
+          dropDate = new Date(lastRevision.getTime() + hoursUntilDrop * 60 * 60 * 1000);
+        }
 
         topicUpdates.push({ id: topic.id, memory_strength: memoryStrength, next_predicted_drop_date: dropDate.toISOString() });
         scoreInserts.push({ user_id: userId!, topic_id: topic.id, score: memoryStrength, predicted_drop_date: dropDate.toISOString() });
