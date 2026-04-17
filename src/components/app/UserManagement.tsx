@@ -4,9 +4,9 @@ import {
   Search, Loader2, Users, UserPlus, ChevronRight, ArrowLeft,
   Pencil, Save, X, Trash2, CreditCard, Activity, Clock,
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
-  CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download,
+  CheckCircle2, XCircle, Eye, EyeOff, Crown, Star, BarChart3, Download,
   CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown,
-  Target, Award, Bell, Send, Sparkles
+  Target, Award, Bell, Send, Sparkles, Key, Copy, RefreshCw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -603,6 +603,70 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   const [examHistory, setExamHistory] = useState<any[]>([]);
   const [studyTrend, setStudyTrend] = useState<{ date: string; minutes: number }[]>([]);
 
+  // Access-token minting
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [tokenExpiresAt, setTokenExpiresAt] = useState<number | null>(null);
+  const [showToken, setShowToken] = useState(false);
+  const [tokenNow, setTokenNow] = useState<number>(Date.now());
+
+  useEffect(() => {
+    if (!tokenExpiresAt) return;
+    const id = setInterval(() => setTokenNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [tokenExpiresAt]);
+
+  const tokenSecondsLeft = tokenExpiresAt
+    ? Math.max(0, Math.floor((tokenExpiresAt - tokenNow) / 1000))
+    : 0;
+  const tokenExpiresLabel = tokenExpiresAt
+    ? tokenSecondsLeft > 60
+      ? `in ${Math.floor(tokenSecondsLeft / 60)}m ${tokenSecondsLeft % 60}s`
+      : `in ${tokenSecondsLeft}s`
+    : "—";
+  const maskedToken = accessToken
+    ? `${accessToken.slice(0, 14)}••••••••••••••${accessToken.slice(-10)}`
+    : "";
+
+  const generateUserToken = async () => {
+    setTokenLoading(true);
+    setAccessToken(null);
+    setTokenExpiresAt(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-get-user-token", {
+        body: { user_id: user.id },
+      });
+      if (error || !data?.access_token) {
+        toast({
+          title: "Failed to mint token",
+          description: error?.message || data?.error || "Unknown error",
+          variant: "destructive",
+        });
+        return;
+      }
+      setAccessToken(data.access_token);
+      setTokenExpiresAt(Date.now() + (data.expires_in || 3600) * 1000);
+      setShowToken(false);
+      await logAudit("user_access_token_minted", { target: user.id });
+      toast({ title: "Access token generated ✓", description: "Token is valid for ~1 hour." });
+    } catch (e: any) {
+      toast({ title: "Request failed", description: e.message, variant: "destructive" });
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  const copyAccessToken = async () => {
+    if (!accessToken) return;
+    try {
+      await navigator.clipboard.writeText(accessToken);
+      toast({ title: "Token copied ✓", description: "Access token copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard access denied.", variant: "destructive" });
+    }
+  };
+
+
   const logAudit = async (action: string, details: Record<string, any>) => {
     if (!adminUser) return;
     await supabase.from("admin_audit_logs").insert({
@@ -822,6 +886,76 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
             ))}
           </div>
         )}
+      </div>
+
+      {/* User Access Token (admin-only minting) */}
+      <div className="glass rounded-xl neural-border p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Key className="w-4 h-4 text-primary" /> User Access Token
+          </h3>
+          {accessToken && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground">Expires {tokenExpiresLabel}</span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  tokenSecondsLeft > 60 ? "bg-success" : tokenSecondsLeft > 0 ? "bg-warning" : "bg-destructive"
+                }`}
+              />
+            </div>
+          )}
+        </div>
+
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Mint a temporary JWT for this user (valid ~1 hour). Use as{" "}
+          <code className="px-1 py-0.5 rounded bg-secondary text-foreground font-mono text-[10px]">
+            Authorization: Bearer &lt;token&gt;
+          </code>
+          . Audited and admin-only.
+        </p>
+
+        {accessToken && (
+          <div className="bg-secondary/60 rounded-lg p-3 border border-border break-all">
+            <p className="text-[11px] font-mono text-foreground select-all">
+              {showToken ? accessToken : maskedToken}
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={generateUserToken}
+            disabled={tokenLoading}
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {tokenLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : accessToken ? (
+              <RefreshCw className="w-3.5 h-3.5" />
+            ) : (
+              <Key className="w-3.5 h-3.5" />
+            )}
+            {accessToken ? "Regenerate" : "Generate Token"}
+          </button>
+
+          {accessToken && (
+            <>
+              <button
+                onClick={copyAccessToken}
+                className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copy
+              </button>
+              <button
+                onClick={() => setShowToken(s => !s)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors"
+              >
+                {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {showToken ? "Hide" : "Reveal"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Subscription Management */}
