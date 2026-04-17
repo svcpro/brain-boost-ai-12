@@ -28,7 +28,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         const [profileRes, subRes] = await Promise.all([
           supabase
             .from("profiles")
-            .select("study_preferences, is_banned")
+            .select("study_preferences, is_banned, exam_type, display_name")
             .eq("id", user.id)
             .maybeSingle(),
           supabase
