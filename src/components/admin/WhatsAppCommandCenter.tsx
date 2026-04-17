@@ -51,6 +51,7 @@ const WhatsAppCommandCenter = () => {
           { key: "history" as Tab, label: "History", icon: Clock },
           { key: "quotas" as Tab, label: "User Quotas", icon: Users },
           { key: "templates" as Tab, label: "Templates", icon: FileText },
+          { key: "meta" as Tab, label: "Meta Approval", icon: ShieldCheck },
           { key: "rules" as Tab, label: "Automation", icon: Zap },
           { key: "schedule" as Tab, label: "Schedule", icon: CalendarClock },
           { key: "analytics" as Tab, label: "Analytics", icon: BarChart3 },
@@ -75,6 +76,7 @@ const WhatsAppCommandCenter = () => {
         {tab === "history" && <HistoryTab />}
         {tab === "quotas" && <QuotasTab />}
         {tab === "templates" && <TemplatesTab />}
+        {tab === "meta" && <MetaTemplatesTab />}
         {tab === "rules" && <RulesTab />}
         {tab === "schedule" && <ScheduleTab />}
         {tab === "analytics" && <AnalyticsTab />}
