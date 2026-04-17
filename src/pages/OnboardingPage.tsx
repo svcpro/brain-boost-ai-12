@@ -162,11 +162,14 @@ const OnboardingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useState(() => {
-    const meta = user?.user_metadata;
+  // Pre-fill display name from auth metadata once user becomes available.
+  useEffect(() => {
+    if (!user) return;
+    const meta = user.user_metadata as Record<string, any> | undefined;
     const name = meta?.full_name || meta?.name || meta?.display_name || "";
-    if (name) setDisplayName(name);
-  });
+    if (name && !displayName) setDisplayName(name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const totalSteps = 6;
 
