@@ -465,7 +465,7 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                       transition={{ type: "spring", stiffness: 400, damping: 30 }} />
                   )}
                   <tab.icon className="w-3 h-3 relative z-10 shrink-0" />
-                  <span className="relative z-10 hidden min-[460px]:inline truncate">{tab.label}</span>
+                  <span className="relative z-10 hidden min-[400px]:inline truncate">{tab.label}</span>
                 </motion.button>
               ))}
             </div>
