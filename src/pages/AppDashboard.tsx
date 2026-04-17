@@ -89,17 +89,26 @@ const AppDashboard = () => {
     });
   }, []);
 
+  // Switch tabs with an ultra-animated loader for non-home tabs
+  const switchTab = (tabId: string) => {
+    if (tabId === activeTab) return;
+    if (tabId !== "home" && TAB_LOADER_MESSAGES[tabId]) {
+      setTabLoading(tabId);
+    }
+    setActiveTab(tabId);
+  };
+
   // Listen for tab switch events from notification clicks
   useEffect(() => {
     const handler = (e: Event) => {
       const tab = (e as CustomEvent).detail;
       if (tab && tabDefs.some((t) => t.id === tab)) {
-        setActiveTab(tab);
+        switchTab(tab);
       }
     };
     window.addEventListener("switch-dashboard-tab", handler);
     return () => window.removeEventListener("switch-dashboard-tab", handler);
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!user) return;
