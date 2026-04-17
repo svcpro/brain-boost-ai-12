@@ -319,6 +319,29 @@ const OnboardingPage = () => {
       const isOther = examType.startsWith("other_");
       const selectedExam = EXAM_TYPES.find(e => e.id === examType);
       const finalExam = isOther ? (customExam || "Custom Exam") : (selectedExam?.label || examType.toUpperCase());
+      // Final defense: validate every subject + topic before saving (catches edge cases)
+      for (const s of subjects) {
+        const sCheck = validateAcademicTerm(s);
+        if (!sCheck.valid) {
+          toast({ title: `Invalid subject: "${s}"`, description: sCheck.reason, variant: "destructive" });
+          setStep(3); setLoading(false); return;
+        }
+        for (const t of topicsBySubject[s] || []) {
+          const tCheck = validateAcademicTerm(t);
+          if (!tCheck.valid) {
+            toast({ title: `Invalid topic: "${t}"`, description: tCheck.reason, variant: "destructive" });
+            setStep(4); setActiveSubject(s); setLoading(false); return;
+          }
+        }
+      }
+      if (isOther) {
+        const eCheck = validateAcademicTerm(customExam);
+        if (!eCheck.valid) {
+          toast({ title: "Invalid exam name", description: eCheck.reason, variant: "destructive" });
+          setStep(1); setLoading(false); return;
+        }
+      }
+
       const { error: profileErr } = await supabase.from("profiles").update({
         display_name: displayName.trim(),
         exam_type: finalExam,
