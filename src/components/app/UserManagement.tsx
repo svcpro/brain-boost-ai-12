@@ -4,9 +4,9 @@ import {
   Search, Loader2, Users, UserPlus, ChevronRight, ArrowLeft,
   Pencil, Save, X, Trash2, CreditCard, Activity, Clock,
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
-  CheckCircle2, XCircle, Eye, Crown, Star, BarChart3, Download,
+  CheckCircle2, XCircle, Eye, EyeOff, Crown, Star, BarChart3, Download,
   CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown,
-  Target, Award, Bell, Send, Sparkles
+  Target, Award, Bell, Send, Sparkles, Key, Copy, RefreshCw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
