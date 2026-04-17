@@ -411,16 +411,39 @@ function normalizeCurriculum(raw: any, examLabel: string) {
       }));
   }
   
-  result.subjects = subjectArray.map((sub: any) => {
-    const name = sub.name || sub.subject || sub.subject_name || "Unknown";
-    const rawTopics = sub.topics || sub.chapters || [];
-    const topics = rawTopics.map((t: any) => ({
-      name: t.name || t.topic_name || t.topic || "Unnamed",
-      marks_impact_weight: Number(t.marks_impact_weight ?? t.weight ?? t.importance ?? 5),
-      priority: t.priority || (Number(t.marks_impact_weight ?? 5) >= 8 ? "critical" : Number(t.marks_impact_weight ?? 5) >= 6 ? "high" : Number(t.marks_impact_weight ?? 5) >= 4 ? "medium" : "low"),
-    }));
-    return { name, topics };
-  });
+  // Forbidden meta/schema words that the AI sometimes hallucinates instead of real subjects/topics
+  const FORBIDDEN = new Set([
+    "exam_name", "exam name", "examname",
+    "exam_conducting_body", "exam conducting body", "conducting_body",
+    "syllabus", "description", "category",
+    "subject_name", "subjectname", "subject name",
+    "topic_name", "topicname", "topic name",
+    "name", "topics", "subjects", "unknown", "unnamed",
+    "section", "paper", "marks", "weight", "priority",
+  ]);
+  const isGarbage = (s: string) => {
+    if (!s || typeof s !== "string") return true;
+    const lower = s.trim().toLowerCase();
+    if (FORBIDDEN.has(lower)) return true;
+    if (/^(subject|topic|section|paper|chapter)\s*\d*$/i.test(lower)) return true;
+    if (lower.length < 2) return true;
+    return false;
+  };
+
+  result.subjects = subjectArray
+    .map((sub: any) => {
+      const name = (sub.name || sub.subject || sub.subject_name || "").toString().trim();
+      const rawTopics = sub.topics || sub.chapters || [];
+      const topics = rawTopics
+        .map((t: any) => ({
+          name: (t.name || t.topic_name || t.topic || "").toString().trim(),
+          marks_impact_weight: Number(t.marks_impact_weight ?? t.weight ?? t.importance ?? 5),
+          priority: t.priority || (Number(t.marks_impact_weight ?? 5) >= 8 ? "critical" : Number(t.marks_impact_weight ?? 5) >= 6 ? "high" : Number(t.marks_impact_weight ?? 5) >= 4 ? "medium" : "low"),
+        }))
+        .filter((t: any) => !isGarbage(t.name));
+      return { name, topics };
+    })
+    .filter((sub: any) => !isGarbage(sub.name) && sub.topics.length > 0);
   
   result.total_topics = result.subjects.reduce((sum, s) => sum + s.topics.length, 0);
   if (raw?.total_topics) result.total_topics = raw.total_topics;
