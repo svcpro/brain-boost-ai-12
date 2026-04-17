@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const PRIORITY_MAP: Record<string, string[]> = {
-  critical: ["push", "email", "voice"],
+  critical: ["push", "sms", "email", "voice"],
   high: ["push", "email"],
   medium: ["push"],
   low: ["in_app"],
@@ -285,6 +285,8 @@ async function dispatchToChannel(
           return await sendVoice(supabaseUrl, serviceKey, userId, title, body, data);
         case "whatsapp":
           return await sendWhatsApp(supabaseUrl, serviceKey, userId, title, body, data);
+        case "sms":
+          return await sendSMS(supabaseUrl, serviceKey, userId, title, body, data, params.priority);
         case "in_app":
           // Store in-app notification directly
           await supabase.from("notifications").insert({
@@ -362,6 +364,26 @@ async function sendWhatsApp(
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId, template_name: templateName, category, variables, source: "omnichannel" }),
+  });
+  const result = await res.json();
+  return { success: !!result.ok, retryCount: 0, error: result.error || result.blocked };
+}
+
+async function sendSMS(
+  url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>, priority: string
+) {
+  const templateName = data.sms_template || data.template_name;
+  const category = data.sms_category || data.category ||
+    (priority === "critical" ? "critical" : "engagement");
+  const variables = data.sms_variables || data.variables || { name: title };
+  const message = templateName ? undefined : `${title}. ${body}`.trim().slice(0, 300);
+  const res = await fetch(`${url}/functions/v1/sms-notify?action=send`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: userId, template_name: templateName, message,
+      category, priority, variables, source: "omnichannel",
+    }),
   });
   const result = await res.json();
   return { success: !!result.ok, retryCount: 0, error: result.error || result.blocked };
