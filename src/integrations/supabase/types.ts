@@ -9649,6 +9649,87 @@ export type Database = {
           },
         ]
       }
+      whatsapp_meta_templates: {
+        Row: {
+          approval_status: string
+          approved_at: string | null
+          body_text: string
+          buttons: Json | null
+          category: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          footer_text: string | null
+          header_content: string | null
+          header_type: string | null
+          id: string
+          is_active: boolean
+          language: string
+          meta_template_id: string | null
+          msg91_template_id: string | null
+          namespace: string | null
+          quality_score: string | null
+          rejection_reason: string | null
+          sample_values: Json | null
+          template_name: string
+          updated_at: string
+          use_case: string | null
+          variables: Json | null
+        }
+        Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          body_text: string
+          buttons?: Json | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          footer_text?: string | null
+          header_content?: string | null
+          header_type?: string | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          meta_template_id?: string | null
+          msg91_template_id?: string | null
+          namespace?: string | null
+          quality_score?: string | null
+          rejection_reason?: string | null
+          sample_values?: Json | null
+          template_name: string
+          updated_at?: string
+          use_case?: string | null
+          variables?: Json | null
+        }
+        Update: {
+          approval_status?: string
+          approved_at?: string | null
+          body_text?: string
+          buttons?: Json | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          footer_text?: string | null
+          header_content?: string | null
+          header_type?: string | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          meta_template_id?: string | null
+          msg91_template_id?: string | null
+          namespace?: string | null
+          quality_score?: string | null
+          rejection_reason?: string | null
+          sample_values?: Json | null
+          template_name?: string
+          updated_at?: string
+          use_case?: string | null
+          variables?: Json | null
+        }
+        Relationships: []
+      }
       whatsapp_otps: {
         Row: {
           channel: string
