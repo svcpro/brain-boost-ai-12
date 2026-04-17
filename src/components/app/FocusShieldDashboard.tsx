@@ -320,14 +320,14 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
             className="w-9 h-9 rounded-xl bg-secondary/60 backdrop-blur-sm border border-border/40 flex items-center justify-center">
             <ArrowLeft className="w-4 h-4 text-foreground" />
           </motion.button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 3, repeat: Infinity }}>
-                <ShieldAlert className="w-4 h-4 text-primary" />
+                <ShieldAlert className="w-4 h-4 text-primary shrink-0" />
               </motion.div>
-              <h1 className="text-sm font-black text-foreground tracking-tight">Focus Shield</h1>
+              <h1 className="text-sm font-black text-foreground tracking-tight truncate">Focus Shield</h1>
             </div>
-            <p className="text-[8px] text-muted-foreground mt-0.5 tracking-wider uppercase">Predictive Cognitive Control System</p>
+            <p className="text-[8px] text-muted-foreground mt-0.5 tracking-wider uppercase truncate">Cognitive Control System</p>
           </div>
           <StreakFlame streak={focusStreak} />
           <motion.button whileTap={{ scale: 0.85 }} onClick={load}
