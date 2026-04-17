@@ -248,7 +248,7 @@ const AppDashboard = () => {
                 Renew to keep your benefits.
               </span>
               <button
-                onClick={() => { setAutoOpenSubscription(true); setActiveTab("you"); setDismissedWarning(true); }}
+                onClick={() => { setAutoOpenSubscription(true); switchTab("you"); setDismissedWarning(true); }}
                 className="px-3 py-1 rounded-full bg-warning text-warning-foreground text-xs font-semibold whitespace-nowrap hover:bg-warning/90 transition-colors"
               >
                 Renew Now
