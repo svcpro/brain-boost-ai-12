@@ -32,6 +32,7 @@ import QuickMicroActions from "./QuickMicroActions";
 import PlanGateWrapper from "./PlanGateWrapper";
 import SafePassPopup from "./SafePassPopup";
 import TrialBanner from "./TrialBanner";
+import NeuralBootLoader from "./NeuralBootLoader";
 const AutopilotWidget = lazy(() => import("./AutopilotWidget"));
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
