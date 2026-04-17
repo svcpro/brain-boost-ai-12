@@ -842,6 +842,7 @@ const MetaTemplatesTab = () => {
                   const urlBtn = (Array.isArray(t.buttons) ? t.buttons : []).find((b: any) => b.type === "URL") as MetaButton | undefined;
                   const actionKey = `action:${t.id}`;
                   const copied = copiedKey === actionKey;
+                  const copyTarget = urlBtn?.url || `${APP_BASE_URL}/home`;
                   const openEditor = () => {
                     const current = (Array.isArray(t.buttons) ? t.buttons : []) as MetaButton[];
                     const text = prompt("Button label (e.g. 'Open Brain'):", urlBtn?.text || "Open ACRY");
@@ -859,32 +860,22 @@ const MetaTemplatesTab = () => {
                   return (
                     <>
                       <button
-                        onClick={() => urlBtn?.url ? copyUrl(urlBtn.url, actionKey) : openEditor()}
-                        title={urlBtn?.url ? `Click to copy: ${urlBtn.url}` : "Set destination URL"}
+                        onClick={() => copyUrl(copyTarget, actionKey)}
+                        title={`Click to copy: ${copyTarget}`}
                         className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 transition-colors ${
-                          copied
-                            ? "bg-success/25 text-success"
-                            : urlBtn?.url
-                              ? "bg-primary/15 text-primary hover:bg-primary/25"
-                              : "bg-muted/40 text-foreground hover:bg-muted/60"
+                          copied ? "bg-success/25 text-success" : "bg-primary/15 text-primary hover:bg-primary/25"
                         }`}
                       >
                         {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                        {copied
-                          ? "URL Copied!"
-                          : urlBtn?.url
-                            ? "Copy URL"
-                            : "Set URL Button"}
+                        {copied ? "URL Copied!" : "Copy URL"}
                       </button>
-                      {urlBtn?.url && (
-                        <button
-                          onClick={openEditor}
-                          title="Edit URL"
-                          className="px-2 py-1 rounded-md bg-muted/40 text-foreground text-[11px] font-semibold flex items-center gap-1 hover:bg-muted/60"
-                        >
-                          <ExternalLink className="w-3 h-3" /> Edit
-                        </button>
-                      )}
+                      <button
+                        onClick={openEditor}
+                        title={urlBtn?.url ? "Edit URL" : "Set URL"}
+                        className="px-2 py-1 rounded-md bg-muted/40 text-foreground text-[11px] font-semibold flex items-center gap-1 hover:bg-muted/60"
+                      >
+                        <ExternalLink className="w-3 h-3" /> {urlBtn?.url ? "Edit URL" : "Set URL"}
+                      </button>
                     </>
                   );
                 })()}
