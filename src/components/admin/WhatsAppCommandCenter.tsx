@@ -783,6 +783,27 @@ const MetaTemplatesTab = () => {
                     if (reason) updateStatus(t.id, "rejected", { rejection_reason: reason });
                   }} className="px-2.5 py-1 rounded-md bg-destructive/15 text-destructive text-[11px] font-semibold">Mark Rejected</button>
                 )}
+                <button onClick={() => {
+                  const current = (Array.isArray(t.buttons) ? t.buttons : []) as MetaButton[];
+                  const text = prompt("Button label (e.g. 'Open Brain'):", current[0]?.text || "Open ACRY");
+                  if (!text) return;
+                  const url = prompt("Destination URL (https://acry.ai/<page>):", current[0]?.url || `${APP_BASE_URL}/home`);
+                  if (!url) return;
+                  const next: MetaButton[] = [...current];
+                  const urlBtn: MetaButton = { type: "URL", text, url };
+                  const idx = next.findIndex(b => b.type === "URL");
+                  if (idx >= 0) next[idx] = urlBtn;
+                  else if (next.length < 3) next.unshift(urlBtn);
+                  else next[0] = urlBtn;
+                  saveTemplateButtons(t.id, next);
+                }} className="px-2.5 py-1 rounded-md bg-primary/15 text-primary text-[11px] font-semibold flex items-center gap-1">
+                  <ExternalLink className="w-3 h-3" /> Set URL Button
+                </button>
+                {Array.isArray(t.buttons) && t.buttons.length > 0 && (
+                  <button onClick={() => {
+                    if (confirm("Remove all buttons from this template?")) saveTemplateButtons(t.id, []);
+                  }} className="px-2.5 py-1 rounded-md bg-muted/40 text-muted-foreground text-[11px] font-semibold">Clear Buttons</button>
+                )}
               </div>
             </div>
           ))}
