@@ -220,6 +220,15 @@ async function processOneRecipient(
     .eq("is_active", true)
     .maybeSingle();
 
+  // Load Meta-approved template metadata (buttons, language, namespace) for richer payload
+  const { data: metaTpl } = await supabase
+    .from("whatsapp_meta_templates")
+    .select("buttons, language")
+    .eq("template_name", templateName)
+    .maybeSingle();
+  const metaButtons = (metaTpl?.buttons as any) || [];
+  const metaLanguage = (metaTpl?.language as any) || undefined;
+
   const bodyText = tpl?.body_template ? applyTemplate(tpl.body_template, variables) : `${templateName}`;
   const titleText = tpl?.name || templateName;
 
