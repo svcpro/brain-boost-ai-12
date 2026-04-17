@@ -276,19 +276,18 @@ const OnboardingPage = () => {
 
       const curriculum = data as { subjects: { name: string; topics: { name: string }[] }[] };
       if (curriculum?.subjects?.length) {
-        const newSubjects: string[] = [];
-        const newTopics: Record<string, string[]> = { ...topicsBySubject };
+        const aiSubs: string[] = [];
+        const aiTopicsMap: Record<string, string[]> = {};
         for (const sub of curriculum.subjects) {
-          if (!subjects.includes(sub.name) && !newSubjects.includes(sub.name)) newSubjects.push(sub.name);
-          const existingTopics = newTopics[sub.name] || [];
-          const aiTopics = (sub.topics || []).map(t => t.name).filter(t => !existingTopics.includes(t));
-          newTopics[sub.name] = [...existingTopics, ...aiTopics];
+          if (!aiSubs.includes(sub.name)) aiSubs.push(sub.name);
+          aiTopicsMap[sub.name] = (sub.topics || []).map(t => t.name).filter(Boolean);
         }
-        setSubjects(prev => [...prev, ...newSubjects]);
-        setTopicsBySubject(newTopics);
+        setAiSuggestedSubjects(aiSubs);
+        setAiSuggestedTopicsBySubject(aiTopicsMap);
+        const totalT = Object.values(aiTopicsMap).reduce((a, b) => a + b.length, 0);
         setAiProgress(100);
         setAiProgressLabel("Done! ✨");
-        toast({ title: "AI Curriculum Generated ✨", description: `Added ${newSubjects.length} subjects with topics.` });
+        toast({ title: "AI Curriculum Ready ✨", description: `${aiSubs.length} subjects · ${totalT} topics suggested. Tap to add.` });
       }
     } catch (e: any) {
       toast({ title: "AI generation failed", description: e.message || "Try again later", variant: "destructive" });
