@@ -253,13 +253,15 @@ async function processOneRecipient(
     return { ok: false, blocked: "quota_exceeded", fallbackSent: config.auto_fallback_on_quota_exceeded };
   }
 
-  // Send via MSG91
+  // Send via MSG91 (with buttons + language from Meta-approved template if available)
   const result = await sendViaMSG91({
     authKey,
     config,
     templateName,
     mobile,
     variables,
+    buttons: metaButtons,
+    language: metaLanguage,
   });
 
   // Log
