@@ -864,7 +864,7 @@ Deno.serve(async (req) => {
         // ─── Onboarding gate — block dashboard if user hasn't completed onboarding ───
         const { data: gateProfile } = await adminClient
           .from("profiles")
-          .select("study_preferences, is_banned")
+          .select("display_name, study_preferences, is_banned, onboarding_completed, exam_type")
           .eq("id", userId)
           .maybeSingle();
 
@@ -878,11 +878,29 @@ Deno.serve(async (req) => {
         }
 
         const prefs = (gateProfile as any)?.study_preferences as Record<string, unknown> | null;
-        if (!prefs?.onboarded) {
+        const onboardingCompleted =
+          (gateProfile as any)?.onboarding_completed === true ||
+          prefs?.onboarded === true;
+
+        if (!onboardingCompleted) {
+          const [subjCountRes, topicCountRes] = await Promise.all([
+            adminClient.from("subjects").select("id", { count: "exact", head: true }).eq("user_id", userId),
+            adminClient.from("topics").select("id", { count: "exact", head: true }).eq("user_id", userId).is("deleted_at", null),
+          ]);
+
+          let currentStep = 1;
+          if ((gateProfile as any)?.display_name) currentStep = 2;
+          if ((gateProfile as any)?.exam_type) currentStep = 3;
+          if ((subjCountRes.count || 0) > 0) currentStep = 4;
+          if ((topicCountRes.count || 0) > 0) currentStep = 5;
+          if ((prefs as any)?.study_mode) currentStep = 6;
+
           return json({
             error: "onboarding_required",
             onboarding_required: true,
             onboarded: false,
+            current_step: currentStep,
+            next_action: "POST /functions/v1/onboarding with { action: 'get-status' }",
             message: "User has not completed onboarding. Complete onboarding before accessing the dashboard.",
             redirect_to: "/onboarding",
           }, 403);
