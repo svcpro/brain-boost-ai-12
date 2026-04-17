@@ -861,6 +861,33 @@ Deno.serve(async (req) => {
       // ═══ UNIFIED DASHBOARD — All data in one call ═══
       case "dashboard":
       case "all": {
+        // ─── Onboarding gate — block dashboard if user hasn't completed onboarding ───
+        const { data: gateProfile } = await adminClient
+          .from("profiles")
+          .select("study_preferences, is_banned")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if ((gateProfile as any)?.is_banned) {
+          return json({
+            error: "account_suspended",
+            onboarding_required: false,
+            message: "Your account has been suspended. Please contact support.",
+            redirect_to: "/banned",
+          }, 403);
+        }
+
+        const prefs = (gateProfile as any)?.study_preferences as Record<string, unknown> | null;
+        if (!prefs?.onboarded) {
+          return json({
+            error: "onboarding_required",
+            onboarding_required: true,
+            onboarded: false,
+            message: "User has not completed onboarding. Complete onboarding before accessing the dashboard.",
+            redirect_to: "/onboarding",
+          }, 403);
+        }
+
         const today = new Date().toISOString().split("T")[0];
         const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
         const yearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
