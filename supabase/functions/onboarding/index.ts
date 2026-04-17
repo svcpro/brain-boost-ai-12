@@ -84,6 +84,113 @@ const EXAM_TYPES = [
   { name: "KVPY", category: "Research", emoji: "🔬" },
 ];
 
+const GENERAL_SUBJECT_SUGGESTIONS = ["General Studies", "Aptitude", "Reasoning"];
+
+const SUGGESTED_SUBJECTS_BY_EXAM: Record<string, string[]> = {
+  "NEET UG": ["Physics", "Chemistry", "Biology"],
+  "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
+  "JEE Main": ["Physics", "Chemistry", "Mathematics"],
+  "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
+  "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  "UPSC CSE": ["History", "Geography", "Polity", "Economy", "Science & Technology", "Environment", "Ethics", "Essay"],
+  "SSC CGL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
+  "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+  "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
+};
+
+const SUGGESTED_TOPICS_BY_SUBJECT: Record<string, string[]> = {
+  "Physics": ["Mechanics", "Thermodynamics", "Optics", "Electromagnetism", "Modern Physics", "Waves"],
+  "Chemistry": ["Organic Chemistry", "Inorganic Chemistry", "Physical Chemistry"],
+  "Biology": ["Cell Biology", "Genetics", "Ecology", "Human Physiology", "Plant Biology", "Evolution"],
+  "Mathematics": ["Algebra", "Calculus", "Trigonometry", "Coordinate Geometry", "Probability & Statistics"],
+  "History": ["Ancient India", "Medieval India", "Modern India", "World History"],
+  "Geography": ["Physical Geography", "Indian Geography", "World Geography", "Climatology"],
+  "Polity": ["Constitution", "Governance", "Panchayati Raj", "Judiciary"],
+  "Economy": ["Microeconomics", "Macroeconomics", "Indian Economy", "Banking & Finance"],
+  "Anatomy": ["Gross Anatomy", "Neuroanatomy", "Embryology", "Histology"],
+  "Physiology": ["Cardiovascular Physiology", "Respiratory Physiology", "Renal Physiology", "Neurophysiology"],
+  "Biochemistry": ["Metabolism", "Enzymes", "Molecular Biology", "Clinical Biochemistry"],
+  "Pathology": ["General Pathology", "Systemic Pathology", "Hematology", "Cytopathology"],
+  "Pharmacology": ["General Pharmacology", "Autonomic Drugs", "CNS Drugs", "Chemotherapy"],
+  "Microbiology": ["Bacteriology", "Virology", "Immunology", "Parasitology"],
+};
+
+const EXAM_ALIAS_MAP: Record<string, string> = {
+  neet: "NEET UG",
+  neetug: "NEET UG",
+  neet_pg: "NEET PG",
+  neetpg: "NEET PG",
+  jee: "JEE Main",
+  jeemain: "JEE Main",
+  jee_advanced: "JEE Advanced",
+  jeeadvanced: "JEE Advanced",
+  upsc: "UPSC CSE",
+  ssc: "SSC CGL",
+};
+
+const SUGGESTED_SUBJECT_ID_PREFIX = "suggested-subject::";
+const SUGGESTED_TOPIC_ID_PREFIX = "suggested-topic::";
+
+const normalizeExamKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+const CANONICAL_EXAM_TYPE_MAP = new Map(
+  EXAM_TYPES.map((exam) => [normalizeExamKey(exam.name), exam.name]),
+);
+
+const normalizeExamType = (value: unknown): string => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const normalizedKey = normalizeExamKey(raw);
+  return CANONICAL_EXAM_TYPE_MAP.get(normalizedKey) || EXAM_ALIAS_MAP[normalizedKey] || raw;
+};
+
+const getSuggestedSubjectsForExam = (examType: unknown): string[] => {
+  const canonicalExamType = normalizeExamType(examType);
+  return SUGGESTED_SUBJECTS_BY_EXAM[canonicalExamType] || GENERAL_SUBJECT_SUGGESTIONS;
+};
+
+const getSuggestedTopicsForSubject = (subject: unknown): string[] => {
+  const subjectName = String(subject || "").trim();
+  return SUGGESTED_TOPICS_BY_SUBJECT[subjectName] || ["Fundamentals", "Advanced Concepts", "Practice Problems"];
+};
+
+const makeSuggestedSubjectId = (subjectName: string) =>
+  `${SUGGESTED_SUBJECT_ID_PREFIX}${encodeURIComponent(subjectName)}`;
+
+const parseSuggestedSubjectName = (subjectId: unknown): string => {
+  const value = String(subjectId || "").trim();
+  if (!value.startsWith(SUGGESTED_SUBJECT_ID_PREFIX)) return "";
+
+  try {
+    return decodeURIComponent(value.slice(SUGGESTED_SUBJECT_ID_PREFIX.length));
+  } catch {
+    return "";
+  }
+};
+
+const buildSuggestedSubjectsWithTopics = (examType: unknown) =>
+  getSuggestedSubjectsForExam(examType).map((subjectName) => {
+    const subjectId = makeSuggestedSubjectId(subjectName);
+    const topics = getSuggestedTopicsForSubject(subjectName).map((topicName) => ({
+      id: `${SUGGESTED_TOPIC_ID_PREFIX}${encodeURIComponent(subjectName)}::${encodeURIComponent(topicName)}`,
+      name: topicName,
+      subject_id: subjectId,
+      marks_impact_weight: null,
+      created_at: null,
+      is_suggested: true,
+    }));
+
+    return {
+      id: subjectId,
+      name: subjectName,
+      created_at: null,
+      topics,
+      topic_count: topics.length,
+      is_suggested: true,
+    };
+  });
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -289,26 +396,15 @@ Deno.serve(async (req) => {
     if (action === "step2-exam" || action === "step2_exam") {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
-      const examType = String(requestBody.exam_type || "").trim();
+      const examType = normalizeExamType(requestBody.exam_type);
       if (!examType) return json({ error: "exam_type is required" }, 400);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await adminClient.from("profiles").update({ exam_type: examType }).eq("id", userId);
 
       // Return suggested subjects
-      const subjectMap: Record<string, string[]> = {
-        "NEET UG": ["Physics", "Chemistry", "Biology"],
-        "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
-        "JEE Main": ["Physics", "Chemistry", "Mathematics"],
-        "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
-        "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
-        "UPSC CSE": ["History", "Geography", "Polity", "Economy", "Science & Technology", "Environment", "Ethics", "Essay"],
-        "SSC CGL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
-        "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
-        "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
-      };
-      const subjects = subjectMap[examType] || ["General Studies", "Aptitude", "Reasoning"];
-      return json({ success: true, suggested_subjects: subjects, next_step: 3 });
+      const subjects = getSuggestedSubjectsForExam(examType);
+      return json({ success: true, exam_type: examType, suggested_subjects: subjects, next_step: 3 });
     }
 
     // --- STEP 3: Save exam date ---
@@ -337,13 +433,19 @@ Deno.serve(async (req) => {
         .eq("id", userId)
         .maybeSingle();
 
-      const subjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      const examType = normalizeExamType(profile?.exam_type);
+      const savedSubjects = await fetchUserSubjectsWithTopics(adminClient, userId);
+      const subjects = savedSubjects.length > 0
+        ? savedSubjects
+        : buildSuggestedSubjectsWithTopics(examType);
+
       return json({
         success: true,
-        exam_type: profile?.exam_type || null,
+        exam_type: examType || profile?.exam_type || null,
         exam_date: profile?.exam_date || null,
         subjects,
         total: subjects.length,
+        source: savedSubjects.length > 0 ? "saved" : "suggested",
       });
     }
 
@@ -414,19 +516,40 @@ Deno.serve(async (req) => {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
       const subjectId = String(requestBody.subject_id || url.searchParams.get("subject_id") || "").trim();
-      const subjectName = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
+      const subjectNameInput = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      let resolvedSubjectId = subjectId;
-      if (!resolvedSubjectId && subjectName) {
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("exam_type")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const examType = normalizeExamType(profile?.exam_type);
+      const subjectNameFromSuggestion = parseSuggestedSubjectName(subjectId);
+      const requestedSubjectName = subjectNameInput || subjectNameFromSuggestion;
+      let resolvedSubjectId = subjectNameFromSuggestion ? "" : subjectId;
+      let resolvedSubjectName = requestedSubjectName;
+
+      if (!resolvedSubjectId && requestedSubjectName) {
         const { data: sub } = await adminClient
           .from("subjects")
-          .select("id")
+          .select("id, name")
           .eq("user_id", userId)
-          .eq("name", subjectName)
+          .eq("name", requestedSubjectName)
           .is("deleted_at", null)
           .maybeSingle();
         resolvedSubjectId = sub?.id || "";
+        resolvedSubjectName = sub?.name || requestedSubjectName;
+      } else if (resolvedSubjectId) {
+        const { data: sub } = await adminClient
+          .from("subjects")
+          .select("id, name")
+          .eq("user_id", userId)
+          .eq("id", resolvedSubjectId)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (sub) resolvedSubjectName = sub.name;
       }
 
       let q = adminClient
@@ -437,14 +560,28 @@ Deno.serve(async (req) => {
       if (resolvedSubjectId) q = q.eq("subject_id", resolvedSubjectId);
 
       const { data: topics } = await q.order("created_at", { ascending: true });
-      const { data: profile } = await adminClient
-        .from("profiles").select("exam_type").eq("id", userId).maybeSingle();
+      const savedTopics = topics || [];
+      const fallbackTopics = savedTopics.length === 0 && resolvedSubjectName
+        ? getSuggestedTopicsForSubject(resolvedSubjectName).map((topicName) => ({
+            id: `${SUGGESTED_TOPIC_ID_PREFIX}${encodeURIComponent(resolvedSubjectName)}::${encodeURIComponent(topicName)}`,
+            name: topicName,
+            subject_id: resolvedSubjectId || makeSuggestedSubjectId(resolvedSubjectName),
+            marks_impact_weight: null,
+            memory_strength: null,
+            created_at: null,
+            is_suggested: true,
+          }))
+        : [];
+      const finalTopics = savedTopics.length > 0 ? savedTopics : fallbackTopics;
+
       return json({
         success: true,
-        exam_type: profile?.exam_type || null,
-        topics: topics || [],
-        total: (topics || []).length,
-        subject_id: resolvedSubjectId || null,
+        exam_type: examType || profile?.exam_type || null,
+        topics: finalTopics,
+        total: finalTopics.length,
+        subject_id: resolvedSubjectId || (resolvedSubjectName ? makeSuggestedSubjectId(resolvedSubjectName) : null),
+        subject_name: resolvedSubjectName || null,
+        source: savedTopics.length > 0 ? "saved" : (fallbackTopics.length > 0 ? "suggested" : "saved"),
       });
     }
 
@@ -453,17 +590,18 @@ Deno.serve(async (req) => {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
       const name = String(requestBody.name || requestBody.topic || "").trim();
-      const subjectId = String(requestBody.subject_id || "").trim();
-      const subjectName = String(requestBody.subject || "").trim();
+      const subjectIdInput = String(requestBody.subject_id || "").trim();
+      const subjectNameFromSuggestion = parseSuggestedSubjectName(subjectIdInput);
+      const subjectName = String(requestBody.subject || subjectNameFromSuggestion || "").trim();
       const marksWeight = Number(requestBody.marks_impact_weight ?? 5);
       if (name.length < 1) return json({ error: "topic name is required" }, 400);
       if (name.length > 200) return json({ error: "topic name too long (max 200 chars)" }, 400);
-      if (!subjectId && !subjectName) return json({ error: "subject_id or subject name required" }, 400);
+      if (!subjectIdInput && !subjectName) return json({ error: "subject_id or subject name required" }, 400);
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
       // Resolve / auto-create subject
-      let resolvedSubjectId = subjectId;
+      let resolvedSubjectId = subjectNameFromSuggestion ? "" : subjectIdInput;
       if (!resolvedSubjectId) {
         const { data: existingSub } = await adminClient
           .from("subjects")
@@ -543,10 +681,10 @@ Deno.serve(async (req) => {
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
       // Resolve exam type — fall back to user's profile, then a sensible default.
-      let examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      let examType = normalizeExamType(requestBody.exam_type || url.searchParams.get("exam_type") || "");
       if (!examType) {
         const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
-        examType = String(profile?.exam_type || "").trim();
+        examType = normalizeExamType(profile?.exam_type);
       }
       if (!examType) examType = "general competitive exam";
       const persist = requestBody.persist !== false;
@@ -697,15 +835,16 @@ Deno.serve(async (req) => {
       const userId = await resolveUserId();
       if (!userId) return json({ error: "Unauthorized" }, 401);
 
-      const subjectName = String(requestBody.subject || requestBody.subject_name || "").trim();
       const subjectIdInput = String(requestBody.subject_id || "").trim();
+      const subjectNameFromSuggestion = parseSuggestedSubjectName(subjectIdInput);
+      const subjectName = String(requestBody.subject || requestBody.subject_name || subjectNameFromSuggestion || "").trim();
       if (!subjectName && !subjectIdInput) return json({ error: "subject or subject_id is required" }, 400);
       const persist = requestBody.persist !== false;
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
       // Resolve subject
-      let resolvedSubjectId = subjectIdInput;
+      let resolvedSubjectId = subjectNameFromSuggestion ? "" : subjectIdInput;
       let resolvedSubjectName = subjectName;
       if (!resolvedSubjectId && subjectName) {
         const { data: sub } = await adminClient
@@ -718,7 +857,7 @@ Deno.serve(async (req) => {
       }
 
       const { data: profile } = await adminClient.from("profiles").select("exam_type").eq("id", userId).maybeSingle();
-      const examType = String(profile?.exam_type || "general").trim();
+      const examType = normalizeExamType(profile?.exam_type || "general") || "general";
 
       // Use shared AI client (Gemini → Lovable gateway fallback)
       const aiResult = await callAI({
@@ -836,37 +975,16 @@ Deno.serve(async (req) => {
 
     // --- Suggested subjects for an exam type ---
     if (action === "suggested-subjects" || action === "suggested_subjects") {
-      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
-      const subjectMap: Record<string, string[]> = {
-        "NEET UG": ["Physics", "Chemistry", "Biology"],
-        "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
-        "JEE Main": ["Physics", "Chemistry", "Mathematics"],
-        "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
-        "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
-        "UPSC CSE": ["History", "Geography", "Polity", "Economy", "Science & Technology", "Environment", "Ethics", "Essay"],
-        "SSC CGL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
-        "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
-        "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
-      };
-      const subjects = subjectMap[examType] || ["General Studies", "Aptitude", "Reasoning"];
-      return json({ success: true, subjects, exam_type: examType });
+      const examType = normalizeExamType(requestBody.exam_type || url.searchParams.get("exam_type") || "");
+      const subjects = getSuggestedSubjectsForExam(examType);
+      return json({ success: true, subjects, exam_type: examType || null });
     }
 
     // --- Suggested topics for a subject ---
     if (action === "suggested-topics" || action === "suggested_topics") {
-      const subject = requestBody.subject || url.searchParams.get("subject") || "";
-      const topicMap: Record<string, string[]> = {
-        "Physics": ["Mechanics", "Thermodynamics", "Optics", "Electromagnetism", "Modern Physics", "Waves"],
-        "Chemistry": ["Organic Chemistry", "Inorganic Chemistry", "Physical Chemistry"],
-        "Biology": ["Cell Biology", "Genetics", "Ecology", "Human Physiology", "Plant Biology", "Evolution"],
-        "Mathematics": ["Algebra", "Calculus", "Trigonometry", "Coordinate Geometry", "Probability & Statistics"],
-        "History": ["Ancient India", "Medieval India", "Modern India", "World History"],
-        "Geography": ["Physical Geography", "Indian Geography", "World Geography", "Climatology"],
-        "Polity": ["Constitution", "Governance", "Panchayati Raj", "Judiciary"],
-        "Economy": ["Microeconomics", "Macroeconomics", "Indian Economy", "Banking & Finance"],
-      };
-      const topics = topicMap[subject] || ["Fundamentals", "Advanced Concepts", "Practice Problems"];
-      return json({ success: true, topics });
+      const subject = String(requestBody.subject || url.searchParams.get("subject") || parseSuggestedSubjectName(requestBody.subject_id) || "").trim();
+      const topics = getSuggestedTopicsForSubject(subject);
+      return json({ success: true, subject: subject || null, topics });
     }
 
     // --- STEP 5: Save topics ---
@@ -915,7 +1033,7 @@ Deno.serve(async (req) => {
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const updates: Record<string, unknown> = {};
       if (data.display_name) updates.display_name = data.display_name;
-      if (data.exam_type) updates.exam_type = data.exam_type;
+      if (data.exam_type) updates.exam_type = normalizeExamType(data.exam_type);
       if (data.exam_date) updates.exam_date = data.exam_date;
       if (data.study_mode) {
         const { data: existing } = await adminClient.from("profiles").select("study_preferences").eq("id", userId).maybeSingle();
@@ -941,7 +1059,7 @@ Deno.serve(async (req) => {
 
       const updates: Record<string, unknown> = {};
       if (requestBody.display_name) updates.display_name = requestBody.display_name;
-      if (requestBody.exam_type) updates.exam_type = requestBody.exam_type;
+      if (requestBody.exam_type) updates.exam_type = normalizeExamType(requestBody.exam_type);
       if (requestBody.exam_date) updates.exam_date = requestBody.exam_date;
 
       // Merge study_preferences: keep existing, add study_mode if provided, set onboarded=true
