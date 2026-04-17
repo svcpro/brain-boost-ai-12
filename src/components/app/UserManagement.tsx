@@ -636,10 +636,23 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
       const { data, error } = await supabase.functions.invoke("admin-get-user-token", {
         body: { user_id: user.id },
       });
+
+      // FunctionsHttpError hides the response body inside error.context (a Response).
+      // Extract it so admins see the real reason ("Forbidden", "Target user not found", etc.)
+      let serverMsg: string | null = null;
+      if (error && (error as any).context && typeof (error as any).context.json === "function") {
+        try {
+          const parsed = await (error as any).context.json();
+          serverMsg = parsed?.error || parsed?.message || null;
+        } catch {
+          try { serverMsg = await (error as any).context.text(); } catch { /* noop */ }
+        }
+      }
+
       if (error || !data?.access_token) {
         toast({
           title: "Failed to mint token",
-          description: error?.message || data?.error || "Unknown error",
+          description: serverMsg || data?.error || error?.message || "Unknown error",
           variant: "destructive",
         });
         return;
