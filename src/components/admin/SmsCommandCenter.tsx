@@ -865,16 +865,13 @@ const SmsCommandCenter = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-cyan-500/20 flex items-center justify-center ring-1 ring-blue-400/30 shadow-lg shadow-blue-500/10">
+        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
           <Smartphone className="h-6 w-6 text-blue-400" />
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">SMS Alerts Center</h2>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-300 ring-1 ring-blue-400/40">ULTRA</span>
-          </div>
+        <div>
+          <h2 className="text-xl font-bold text-foreground">SMS Notification Center</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            MSG91 SMS · 60 msgs/user/month · 22 alert templates · auto-fallback to Push & Email · DLT compliant
+            MSG91 SMS · 60 msgs/user/month · auto-fallback to Push & Email · DLT compliant
           </p>
         </div>
       </div>
