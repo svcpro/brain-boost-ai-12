@@ -5857,6 +5857,45 @@ export type Database = {
         }
         Relationships: []
       }
+      myrank_handles: {
+        Row: {
+          anon_session_id: string | null
+          click_count: number
+          created_at: string
+          display_name: string | null
+          handle: string
+          id: string
+          last_clicked_at: string | null
+          signup_count: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          anon_session_id?: string | null
+          click_count?: number
+          created_at?: string
+          display_name?: string | null
+          handle: string
+          id?: string
+          last_clicked_at?: string | null
+          signup_count?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          anon_session_id?: string | null
+          click_count?: number
+          created_at?: string
+          display_name?: string | null
+          handle?: string
+          id?: string
+          last_clicked_at?: string | null
+          signup_count?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       myrank_referrals: {
         Row: {
           converted_at: string | null
