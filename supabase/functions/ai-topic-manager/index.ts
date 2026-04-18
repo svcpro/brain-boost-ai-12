@@ -34,26 +34,26 @@ serve(async (req) => {
       // Target latency: 3-5s. Topics are intentionally limited to the most important ones —
       // the user can add more later via Manage Topics.
       const aiResp = await aiFetch({
-        timeoutMs: 15000,
+        timeoutMs: 20000,
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          temperature: 0.3,
-          max_tokens: 1200,
+          model: "google/gemini-2.5-flash",
+          temperature: 0.2,
+          max_tokens: 2400,
           messages: [
             {
               role: "system",
-              content: `Curriculum designer. Output ONLY the tool call. Be concise.`
+              content: `You are a curriculum designer for competitive exams. You MUST call the generate_curriculum tool. Each subject MUST have a real human-readable name (e.g. "General Awareness", "Quantitative Aptitude") — never use field names like "exam", "core_subjects", "subjects" as a subject name. Each subject MUST have a non-empty topics array.`
             },
             {
               role: "user",
-              content: `Exam: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}. List 4-6 core subjects, each with 5-8 most important topics. For each topic give marks_impact_weight (0-10).`
+              content: `Generate the official curriculum for: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}.\nReturn 4-6 standard subjects (use the real subject names from the official syllabus), each with 6-10 most important topics. For each topic include a marks_impact_weight from 0-10.`
             }
           ],
           tools: [{
             type: "function",
             function: {
               name: "generate_curriculum",
-              description: "Return subjects and topics",
+              description: "Return the exam's standard subjects and their topics",
               parameters: {
                 type: "object",
                 properties: {
@@ -62,7 +62,7 @@ serve(async (req) => {
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string" },
+                        name: { type: "string", description: "Official subject name from the syllabus" },
                         topics: {
                           type: "array",
                           items: {
@@ -112,8 +112,26 @@ serve(async (req) => {
         }
       }
       
+      // Unwrap common Gemini wrappers: {tool_code, tool_name, parameters: {...}}
+      // or {function: {arguments: ...}} or {arguments: ...}
+      if (rawParsed && typeof rawParsed === "object") {
+        if (rawParsed.parameters && typeof rawParsed.parameters === "object") rawParsed = rawParsed.parameters;
+        else if (rawParsed.arguments && typeof rawParsed.arguments === "object") rawParsed = rawParsed.arguments;
+        else if (rawParsed.function?.arguments) {
+          try { rawParsed = typeof rawParsed.function.arguments === "string" ? JSON.parse(rawParsed.function.arguments) : rawParsed.function.arguments; } catch {}
+        }
+      }
+
       if (rawParsed) {
         curriculum = normalizeCurriculum(rawParsed, examLabel);
+      }
+      if (curriculum.subjects.length === 0) {
+        console.log("Empty curriculum. Raw AI response:", JSON.stringify({
+          hasToolCall: !!toolCall,
+          toolArgs: toolCall?.function?.arguments?.slice(0, 500),
+          contentText: contentText?.slice(0, 500),
+          rawParsedKeys: rawParsed && typeof rawParsed === "object" ? Object.keys(rawParsed) : null,
+        }));
       }
       console.log("Curriculum result:", curriculum.subjects.length, "subjects,", curriculum.total_topics, "topics");
 
@@ -365,44 +383,66 @@ serve(async (req) => {
   }
 });
 
+// Reserved keys that must NEVER be treated as subject names — these are JSON
+// field names the AI sometimes returns at the root instead of inside `subjects`.
+const RESERVED_KEYS = new Set([
+  "subjects", "topics", "exam", "exam_type", "exam_name", "exam_summary",
+  "core_subjects", "optional_subjects", "total_topics", "summary",
+  "curriculum", "data", "result", "name",
+]);
+
 // Normalize various AI response formats into our expected curriculum structure
 function normalizeCurriculum(raw: any, examLabel: string) {
   const result = { subjects: [] as any[], total_topics: 0, exam_summary: `${examLabel} curriculum` };
-  
+
   let subjectArray: any[] = [];
-  
+
   // Handle: { subjects: [...] } format
   if (raw?.subjects && Array.isArray(raw.subjects)) {
     subjectArray = raw.subjects;
     if (raw.exam_summary) result.exam_summary = raw.exam_summary;
   }
-  // Handle: direct array of subjects [...] 
+  // Handle: { core_subjects: [...] } / { optional_subjects: [...] } — merge them
+  else if (raw && typeof raw === "object" && (Array.isArray(raw.core_subjects) || Array.isArray(raw.optional_subjects))) {
+    subjectArray = [
+      ...(Array.isArray(raw.core_subjects) ? raw.core_subjects : []),
+      ...(Array.isArray(raw.optional_subjects) ? raw.optional_subjects : []),
+    ];
+  }
+  // Handle: direct array of subjects [...]
   else if (Array.isArray(raw)) {
     subjectArray = raw;
   }
-  // Handle: { subject_name: { topics: [...] } } or similar object
-  else if (typeof raw === "object" && !Array.isArray(raw)) {
+  // Handle: { subject_name: { topics: [...] } } — but ONLY when keys look like
+  // real subject names (not reserved JSON field names).
+  else if (typeof raw === "object" && raw !== null) {
     subjectArray = Object.entries(raw)
-      .filter(([k]) => k !== "total_topics" && k !== "exam_summary")
+      .filter(([k, v]) => {
+        if (RESERVED_KEYS.has(k.toLowerCase())) return false;
+        return Array.isArray(v) || (v && typeof v === "object" && Array.isArray((v as any).topics));
+      })
       .map(([name, val]: [string, any]) => ({
         name,
         topics: Array.isArray(val) ? val : (val?.topics || []),
       }));
   }
-  
-  result.subjects = subjectArray.map((sub: any) => {
-    const name = sub.name || sub.subject || sub.subject_name || "Unknown";
-    const rawTopics = sub.topics || sub.chapters || [];
-    const topics = rawTopics.map((t: any) => ({
-      name: t.name || t.topic_name || t.topic || "Unnamed",
-      marks_impact_weight: Number(t.marks_impact_weight ?? t.weight ?? t.importance ?? 5),
-      priority: t.priority || (Number(t.marks_impact_weight ?? 5) >= 8 ? "critical" : Number(t.marks_impact_weight ?? 5) >= 6 ? "high" : Number(t.marks_impact_weight ?? 5) >= 4 ? "medium" : "low"),
-    }));
-    return { name, topics };
-  });
-  
+
+  result.subjects = subjectArray
+    .map((sub: any) => {
+      const rawName = String(sub?.name || sub?.subject || sub?.subject_name || "").trim();
+      const rawTopics = sub?.topics || sub?.chapters || [];
+      const topics = (Array.isArray(rawTopics) ? rawTopics : [])
+        .map((t: any) => ({
+          name: String(t?.name || t?.topic_name || t?.topic || (typeof t === "string" ? t : "")).trim(),
+          marks_impact_weight: Number(t?.marks_impact_weight ?? t?.weight ?? t?.importance ?? 5),
+          priority: t?.priority || (Number(t?.marks_impact_weight ?? 5) >= 8 ? "critical" : Number(t?.marks_impact_weight ?? 5) >= 6 ? "high" : Number(t?.marks_impact_weight ?? 5) >= 4 ? "medium" : "low"),
+        }))
+        .filter((t: any) => t.name.length > 0);
+      return { name: rawName, topics };
+    })
+    // Drop subjects with no name, reserved/junk names, or no real topics
+    .filter((s: any) => s.name.length > 0 && !RESERVED_KEYS.has(s.name.toLowerCase()) && s.topics.length > 0);
+
   result.total_topics = result.subjects.reduce((sum, s) => sum + s.topics.length, 0);
-  if (raw?.total_topics) result.total_topics = raw.total_topics;
-  
   return result;
 }
