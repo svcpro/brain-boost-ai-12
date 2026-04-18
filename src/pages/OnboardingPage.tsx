@@ -885,9 +885,9 @@ const OnboardingPage = () => {
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.97 }}
-                    disabled={aiGenerating || !SUGGESTED_SUBJECTS[examType]}
+                    disabled={aiGenerating || getPresetSubjects(examType, examCategory).length === 0}
                     onClick={() => {
-                      const presetSubjects = SUGGESTED_SUBJECTS[examType] || [];
+                      const presetSubjects = getPresetSubjects(examType, examCategory);
                       if (!presetSubjects.length) {
                         toast({ title: "No preset available", description: "Add subjects manually below.", variant: "destructive" });
                         return;
