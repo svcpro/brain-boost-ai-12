@@ -4,7 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trophy, Zap, Users, TrendingUp, Sparkles } from "lucide-react";
-import { Helmet } from "react-helmet-async";
+
+const setSeo = (title: string, desc: string) => {
+  document.title = title;
+  let m = document.querySelector('meta[name="description"]');
+  if (!m) { m = document.createElement("meta"); m.setAttribute("name", "description"); document.head.appendChild(m); }
+  m.setAttribute("content", desc);
+};
 
 const CATEGORIES = [
   { key: "UPSC", label: "UPSC", emoji: "🇮🇳", color: "from-orange-500 to-red-500" },
@@ -23,6 +29,7 @@ const MyRankLanding = () => {
   const ref = searchParams.get("ref");
 
   useEffect(() => {
+    setSeo("MyRank — Check Your Rank in 60 Seconds", "Take a 60-second AI-powered test. Get your rank instantly. Compete with millions across India.");
     if (ref) sessionStorage.setItem("myrank_ref", ref);
 
     supabase.functions.invoke("myrank-engine", { body: { action: "stats" } })
@@ -46,11 +53,6 @@ const MyRankLanding = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <Helmet>
-        <title>MyRank — Check Your Rank in 60 Seconds</title>
-        <meta name="description" content="Take a 60-second AI-powered test. Get your rank instantly. Compete with millions across India." />
-      </Helmet>
-
       <div className="max-w-md mx-auto px-4 py-8 space-y-6">
         {/* Hero */}
         <div className="text-center space-y-3 pt-4">
