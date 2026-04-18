@@ -268,13 +268,34 @@ const MyRankResult = () => {
 
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const encoded = encodeURIComponent(currentMessage);
-    let target = "";
 
+    // Native: use the system Web Share sheet (NOT WhatsApp)
+    if (channel === "native") {
+      const nav: any = navigator;
+      if (typeof nav.share === "function") {
+        try {
+          await nav.share({
+            title: "My ACRY AI Rank",
+            text: currentMessage,
+            url: shareUrl,
+          });
+          await logShare("native");
+        } catch (err: any) {
+          if (err?.name !== "AbortError") {
+            toast({ title: "Caption copied 📋", description: "Paste anywhere to share." });
+          }
+        }
+      } else {
+        // Desktop / unsupported — just rely on the clipboard copy
+        toast({ title: "Caption copied 📋", description: "Paste anywhere to share." });
+        await logShare("native");
+      }
+      return;
+    }
+
+    let target = "";
     switch (channel) {
       case "telegram": {
-        // Telegram's t.me/share/url requires an absolute http(s) URL in `url=`.
-        // Our caption already contains the share link, so we strip it from the
-        // text to avoid duplication and pass it cleanly as the `url` param.
         const absoluteUrl = /^https?:\/\//i.test(shareUrl)
           ? shareUrl
           : `https://${(shareUrl || "acry.ai").replace(/^\/+/, "")}`;
@@ -289,17 +310,11 @@ const MyRankResult = () => {
         break;
       }
       case "instagram":
-        // Instagram has no public web text-share intent.
-        // Best we can do: deep-link into the IG app on mobile (Direct inbox so
-        // the user can paste the already-copied caption into a chat),
-        // and on desktop open IG Direct in a new tab.
-        // Caption is guaranteed copied above so paste works everywhere.
         target = isMobile
           ? "instagram://direct-inbox"
           : "https://www.instagram.com/direct/inbox/";
         break;
       case "whatsapp":
-      case "native":
       default:
         target = isMobile
           ? `https://wa.me/?text=${encoded}`
@@ -308,14 +323,11 @@ const MyRankResult = () => {
     }
 
     if (isMobile) {
-      // For Instagram on mobile: try deep-link, fall back to web after a beat
-      // (in case the IG app isn't installed and the scheme silently fails).
       if (channel === "instagram") {
         const fallback = "https://www.instagram.com/direct/inbox/";
         const start = Date.now();
         window.location.href = target;
         setTimeout(() => {
-          // If the page is still here ~1.2s later, the deep-link likely failed.
           if (Date.now() - start < 1500 && document.visibilityState === "visible") {
             window.location.href = fallback;
           }
