@@ -112,6 +112,16 @@ serve(async (req) => {
         }
       }
       
+      // Unwrap common Gemini wrappers: {tool_code, tool_name, parameters: {...}}
+      // or {function: {arguments: ...}} or {arguments: ...}
+      if (rawParsed && typeof rawParsed === "object") {
+        if (rawParsed.parameters && typeof rawParsed.parameters === "object") rawParsed = rawParsed.parameters;
+        else if (rawParsed.arguments && typeof rawParsed.arguments === "object") rawParsed = rawParsed.arguments;
+        else if (rawParsed.function?.arguments) {
+          try { rawParsed = typeof rawParsed.function.arguments === "string" ? JSON.parse(rawParsed.function.arguments) : rawParsed.function.arguments; } catch {}
+        }
+      }
+
       if (rawParsed) {
         curriculum = normalizeCurriculum(rawParsed, examLabel);
       }
