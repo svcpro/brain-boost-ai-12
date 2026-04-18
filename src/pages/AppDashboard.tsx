@@ -89,12 +89,9 @@ const AppDashboard = () => {
     });
   }, []);
 
-  // Switch tabs with an ultra-animated loader for non-home tabs
+  // Switch tabs instantly (loader removed per request)
   const switchTab = (tabId: string) => {
     if (tabId === activeTab) return;
-    if (tabId !== "home" && TAB_LOADER_MESSAGES[tabId]) {
-      setTabLoading(tabId);
-    }
     setActiveTab(tabId);
   };
 
