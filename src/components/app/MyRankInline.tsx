@@ -42,8 +42,8 @@ const MyRankInline = () => {
         const u = new URL(String(url), window.location.origin);
         if (u.pathname.startsWith("/myrank")) {
           routeFromPath(u.pathname, u.search);
-          // Roll URL back so BrowserRouter never sees /myrank
-          origReplace.call(window.history, {}, "", "/app");
+          // Roll URL back to /app but preserve query string so useSearchParams works
+          origReplace.call(window.history, {}, "", `/app${u.search || ""}`);
           return true;
         }
       } catch {
