@@ -177,7 +177,12 @@ export default function ForgettingCurve2Card() {
     );
   }
 
-  if (!data || data.topic_decays.length === 0) return null;
+  if (!data || !data.topic_decays || data.topic_decays.length === 0) return null;
+
+  // Defensive defaults so a partial/legacy API response cannot crash the card
+  const userContext = data.user_context ?? { best_study_hour: 18, recent_load_minutes_24h: 0, late_night_sessions: 0 };
+  const memoryLandscape = data.memory_landscape ?? [];
+  const factorCount = data.factor_count ?? 12;
 
   const displayTopics = expanded ? data.topic_decays.slice(0, 12) : data.topic_decays.slice(0, 4);
   const simTopic = data.topic_decays.find(t => t.topic_id === simTopicId);
@@ -207,7 +212,7 @@ export default function ForgettingCurve2Card() {
                   <h3 className="text-sm font-bold text-foreground">Forgetting Curve 2.0</h3>
                   <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-bold">NEURAL</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground">{data.factor_count}-Factor Decay · DSR + Circadian + Interference</p>
+                <p className="text-[10px] text-muted-foreground">{factorCount}-Factor Decay · DSR + Circadian + Interference</p>
               </div>
             </div>
             <button
@@ -224,8 +229,8 @@ export default function ForgettingCurve2Card() {
           <div className="grid grid-cols-4 gap-2 mt-3">
             <Metric icon={<Target className="w-3 h-3" />} label="Retention" value={`${data.overall_retention_pct}%`} colorClass={RISK_COLOR[overallRisk]} />
             <Metric icon={<AlertTriangle className="w-3 h-3" />} label="Urgent" value={data.urgent_count} colorClass="text-destructive" />
-            <Metric icon={<Clock className="w-3 h-3" />} label="Best hr" value={`${data.user_context.best_study_hour}:00`} colorClass="text-chart-2" />
-            <Metric icon={<Cpu className="w-3 h-3" />} label="Load 24h" value={`${data.user_context.recent_load_minutes_24h}m`} colorClass="text-chart-5" />
+            <Metric icon={<Clock className="w-3 h-3" />} label="Best hr" value={`${userContext.best_study_hour}:00`} colorClass="text-chart-2" />
+            <Metric icon={<Cpu className="w-3 h-3" />} label="Load 24h" value={`${userContext.recent_load_minutes_24h}m`} colorClass="text-chart-5" />
           </div>
         </div>
 
@@ -302,7 +307,7 @@ export default function ForgettingCurve2Card() {
                 className="space-y-2"
               >
                 <p className="text-[10px] text-muted-foreground mb-2">Memory health by subject (lower = riskier).</p>
-                {data.memory_landscape.map(row => (
+                {memoryLandscape.map(row => (
                   <div key={row.subject} className="px-3 py-2.5 rounded-xl bg-secondary/30 border border-border/30">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-medium text-foreground truncate">{row.subject}</span>
