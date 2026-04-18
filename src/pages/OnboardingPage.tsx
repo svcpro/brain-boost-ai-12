@@ -209,13 +209,12 @@ const OnboardingPage = () => {
     setAiProgress(0);
     setAiProgressLabel("Initializing AI...");
 
-    // Simulate progress steps while waiting for AI
+    // Simulate progress steps while waiting for AI (~3-4s target)
     const progressSteps = [
-      { target: 15, label: "Analyzing exam pattern...", delay: 400 },
-      { target: 35, label: "Mapping syllabus structure...", delay: 1200 },
-      { target: 55, label: "Generating subjects...", delay: 2500 },
-      { target: 70, label: "Creating topic hierarchy...", delay: 4000 },
-      { target: 85, label: "Assigning weightages...", delay: 6000 },
+      { target: 25, label: "Analyzing exam pattern...", delay: 200 },
+      { target: 50, label: "Mapping syllabus...", delay: 800 },
+      { target: 75, label: "Generating topics...", delay: 1800 },
+      { target: 90, label: "Assigning weightages...", delay: 2800 },
     ];
 
     const timers: ReturnType<typeof setTimeout>[] = [];
