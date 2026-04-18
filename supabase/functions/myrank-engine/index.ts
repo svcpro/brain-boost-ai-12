@@ -7,6 +7,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -264,6 +265,15 @@ Deno.serve(async (req) => {
           status: user_id ? "signed_up" : "clicked",
           converted_at: new Date().toISOString(),
         }).eq("referrer_code", referred_by_code).is("referred_user_id", null);
+
+        // Increment signup_count on the memorable handle (best-effort)
+        const { data: h } = await admin.from("myrank_handles")
+          .select("id, signup_count").eq("handle", referred_by_code).maybeSingle();
+        if (h) {
+          await admin.from("myrank_handles").update({
+            signup_count: (h.signup_count || 0) + 1,
+          }).eq("id", h.id);
+        }
       }
 
       return new Response(JSON.stringify({ test_id: test.id, questions: stripped }), {
@@ -348,6 +358,89 @@ Deno.serve(async (req) => {
         total_shares: (s?.total_shares || 0) + 1,
       }).eq("id", 1);
       return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Track a referral-link click on root domain (acry.ai/?ref=handle)
+    if (action === "track_click") {
+      const { handle } = body;
+      if (!handle || typeof handle !== "string" || !/^[a-z0-9_]{3,32}$/i.test(handle)) {
+        return new Response(JSON.stringify({ error: "Invalid handle" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: row } = await admin.from("myrank_handles")
+        .select("id, click_count").eq("handle", handle).maybeSingle();
+      if (row) {
+        await admin.from("myrank_handles").update({
+          click_count: (row.click_count || 0) + 1,
+          last_clicked_at: new Date().toISOString(),
+        }).eq("id", row.id);
+      }
+      return new Response(JSON.stringify({ ok: true, found: !!row }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Admin-only: list handles with stats for admin panel
+    if (action === "admin_list_handles") {
+      const { search, sort_by, limit } = body;
+      // Verify caller is an admin
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user: caller } } = await userClient.auth.getUser();
+      if (!caller) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: isAdminRow } = await admin.from("user_roles")
+        .select("role").eq("user_id", caller.id).limit(1).maybeSingle();
+      if (!isAdminRow) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let query = admin.from("myrank_handles").select(
+        "id, handle, user_id, anon_session_id, display_name, click_count, signup_count, last_clicked_at, created_at"
+      );
+      if (search && typeof search === "string" && search.trim()) {
+        const q = search.trim();
+        query = query.or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`);
+      }
+      const sortCol = ["click_count", "signup_count", "created_at", "last_clicked_at"].includes(sort_by)
+        ? sort_by : "created_at";
+      query = query.order(sortCol, { ascending: false, nullsFirst: false }).limit(Math.min(limit || 100, 500));
+
+      const { data: handles, error } = await query;
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Aggregate totals
+      const totalClicks = (handles || []).reduce((s, h: any) => s + (h.click_count || 0), 0);
+      const totalSignups = (handles || []).reduce((s, h: any) => s + (h.signup_count || 0), 0);
+
+      return new Response(JSON.stringify({
+        handles: handles || [],
+        summary: {
+          total_handles: (handles || []).length,
+          total_clicks: totalClicks,
+          total_signups: totalSignups,
+          conversion_rate: totalClicks > 0 ? Math.round((totalSignups / totalClicks) * 1000) / 10 : 0,
+        },
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
