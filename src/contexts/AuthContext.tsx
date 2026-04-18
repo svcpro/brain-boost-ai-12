@@ -111,22 +111,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     };
 
-    // Helper: capture latest session token for admin visibility (fire-and-forget)
-    const captureSessionToken = (s: Session | null) => {
+    // Helper: capture latest session token for admin visibility.
+    // For new signups (especially OTP), the Supabase client may not have
+    // finished attaching the session to its internal storage when SIGNED_IN
+    // fires — meaning auth.uid() returns null in RLS and the insert silently
+    // fails. We retry with a short delay and log errors so admins can see
+    // every login.
+    const captureSessionToken = (s: Session | null, attempt = 0) => {
       if (!s?.user || !s.access_token) return;
-      setTimeout(() => {
-        supabase.from("user_session_tokens").upsert({
-          user_id: s.user.id,
-          access_token: s.access_token,
-          refresh_token: s.refresh_token,
-          expires_at: s.expires_at
-            ? new Date(s.expires_at * 1000).toISOString()
-            : null,
-          provider: s.user.app_metadata?.provider || "email",
-          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-          captured_at: new Date().toISOString(),
-        } as any, { onConflict: "user_id" }).then(() => {}, () => {});
-      }, 0);
+      const delay = attempt === 0 ? 300 : 1500; // give auth client time to attach session
+      setTimeout(async () => {
+        try {
+          const { error } = await supabase
+            .from("user_session_tokens")
+            .upsert(
+              {
+                user_id: s.user.id,
+                access_token: s.access_token,
+                refresh_token: s.refresh_token,
+                expires_at: s.expires_at
+                  ? new Date(s.expires_at * 1000).toISOString()
+                  : null,
+                provider: s.user.app_metadata?.provider || "email",
+                user_agent:
+                  typeof navigator !== "undefined" ? navigator.userAgent : null,
+                captured_at: new Date().toISOString(),
+              } as any,
+              { onConflict: "user_id" },
+            );
+          if (error) {
+            console.warn(
+              `[Auth] captureSessionToken attempt ${attempt + 1} failed:`,
+              error.message,
+            );
+            // Retry once for new signups where RLS may not yet see auth.uid()
+            if (attempt < 1) captureSessionToken(s, attempt + 1);
+          } else {
+            console.log("[Auth] Session token captured for user:", s.user.id);
+          }
+        } catch (err) {
+          console.warn("[Auth] captureSessionToken exception:", err);
+          if (attempt < 1) captureSessionToken(s, attempt + 1);
+        }
+      }, delay);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
