@@ -1,0 +1,237 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+
+const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+const CATEGORY_PROMPTS: Record<string, string> = {
+  UPSC: "UPSC Civil Services Prelims style — Indian polity, history, geography, economy, current affairs",
+  SSC: "SSC CGL style — quantitative aptitude, reasoning, English, general awareness",
+  JEE: "JEE Main style — physics, chemistry, mathematics (class 11-12 level)",
+  NEET: "NEET UG style — biology, physics, chemistry (class 11-12 level)",
+  IQ: "Classic IQ test — pattern recognition, logical reasoning, numerical sequences, spatial reasoning",
+};
+
+async function generateQuestions(category: string, count = 7) {
+  const prompt = `Generate ${count} multiple-choice questions in ${CATEGORY_PROMPTS[category] || "general knowledge"}.
+Each question must have exactly 4 options. Mix of easy/medium/hard. Return strict JSON only.`;
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash-lite",
+      messages: [
+        { role: "system", content: "You generate exam MCQs. Output strict JSON only." },
+        { role: "user", content: prompt },
+      ],
+      tools: [{
+        type: "function",
+        function: {
+          name: "return_questions",
+          description: "Return MCQs",
+          parameters: {
+            type: "object",
+            properties: {
+              questions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    question: { type: "string" },
+                    options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+                    correct_index: { type: "integer", minimum: 0, maximum: 3 },
+                  },
+                  required: ["question", "options", "correct_index"],
+                },
+              },
+            },
+            required: ["questions"],
+          },
+        },
+      }],
+      tool_choice: { type: "function", function: { name: "return_questions" } },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`AI gateway ${res.status}: ${err}`);
+  }
+  const data = await res.json();
+  const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  const parsed = JSON.parse(args);
+  return parsed.questions.slice(0, count);
+}
+
+function computeRank(score: number, total: number, timeSeconds: number, category: string) {
+  // Scalable rank: combine accuracy + speed against simulated pool
+  const accuracy = (score / total) * 100;
+  const speedBonus = Math.max(0, 90 - timeSeconds) * 0.5;
+  const rawScore = accuracy + speedBonus;
+
+  // Simulated pool size per category (grows over time)
+  const poolBase: Record<string, number> = {
+    UPSC: 487293, SSC: 612847, JEE: 392184, NEET: 423917, IQ: 234567,
+  };
+  const pool = poolBase[category] || 300000;
+
+  // Percentile: higher rawScore = higher percentile
+  // rawScore 0 → 5th percentile, rawScore 100 → 99th percentile
+  const percentile = Math.min(99.9, Math.max(1, 5 + (rawScore / 145) * 94));
+  const rank = Math.max(1, Math.floor(pool * (1 - percentile / 100)));
+
+  let aiTag = "Rising Mind";
+  if (percentile >= 99) aiTag = category === "UPSC" ? "Future IAS 🇮🇳" : category === "JEE" ? "IIT Material 🚀" : category === "NEET" ? "Future Doctor 🩺" : category === "IQ" ? "Genius Mind 🧠" : "Top 1% Brain 🏆";
+  else if (percentile >= 95) aiTag = "Top 5% Mind 💎";
+  else if (percentile >= 85) aiTag = "Top 15% Performer ⚡";
+  else if (percentile >= 70) aiTag = "Above Average Hustler 🔥";
+  else if (percentile >= 50) aiTag = "Solid Contender 💪";
+  else aiTag = "Diamond in the Rough 🌱";
+
+  return { rank, percentile: Math.round(percentile * 10) / 10, ai_tag: aiTag };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const body = await req.json();
+    const { action } = body;
+
+    if (action === "start_test") {
+      const { category, anon_session_id, user_id, referred_by_code } = body;
+      if (!category || !CATEGORY_PROMPTS[category]) {
+        return new Response(JSON.stringify({ error: "Invalid category" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const questions = await generateQuestions(category, 7);
+      const stripped = questions.map((q: any, i: number) => ({
+        idx: i, question: q.question, options: q.options,
+      }));
+
+      const { data: test, error } = await admin.from("myrank_tests").insert({
+        user_id: user_id || null,
+        anon_session_id: anon_session_id || null,
+        category,
+        questions, // full with answers (server-side only)
+        total_questions: questions.length,
+        referred_by_code: referred_by_code || null,
+      }).select("id").single();
+
+      if (error) throw error;
+
+      // Track referral click conversion → signed_up
+      if (referred_by_code) {
+        await admin.from("myrank_referrals").update({
+          referred_user_id: user_id || null,
+          referred_anon_id: anon_session_id || null,
+          status: user_id ? "signed_up" : "clicked",
+          converted_at: new Date().toISOString(),
+        }).eq("referrer_code", referred_by_code).is("referred_user_id", null);
+      }
+
+      return new Response(JSON.stringify({ test_id: test.id, questions: stripped }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "submit_test") {
+      const { test_id, answers, time_taken_seconds } = body;
+      const { data: test, error: fetchErr } = await admin.from("myrank_tests")
+        .select("*").eq("id", test_id).single();
+      if (fetchErr || !test) {
+        return new Response(JSON.stringify({ error: "Test not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const questions = test.questions as any[];
+      let score = 0;
+      questions.forEach((q, i) => {
+        if (answers[i] === q.correct_index) score++;
+      });
+
+      const { rank, percentile, ai_tag } = computeRank(
+        score, questions.length, time_taken_seconds, test.category
+      );
+
+      const accuracy = Math.round((score / questions.length) * 1000) / 10;
+      const aiInsight = percentile >= 90
+        ? `You outperformed ${percentile.toFixed(1)}% of test-takers. Only ${(100 - percentile).toFixed(1)}% scored higher than you!`
+        : percentile >= 50
+        ? `You're better than ${percentile.toFixed(1)}% of users. Push harder to break into the top 10%!`
+        : `${(100 - percentile).toFixed(1)}% scored above you. Don't worry — every topper started here.`;
+
+      await admin.from("myrank_tests").update({
+        answers, score, accuracy, time_taken_seconds,
+        rank, percentile, ai_tag, ai_insight,
+        completed_at: new Date().toISOString(),
+      }).eq("id", test_id);
+
+      // Bump global stats
+      await admin.rpc("increment_myrank_stats", {}).then(() => {}).catch(async () => {
+        const { data: s } = await admin.from("myrank_stats").select("total_tests").eq("id", 1).single();
+        await admin.from("myrank_stats").update({
+          total_tests: (s?.total_tests || 0) + 1,
+          updated_at: new Date().toISOString(),
+        }).eq("id", 1);
+      });
+
+      // Mark referral as completed_test
+      if (test.referred_by_code) {
+        await admin.from("myrank_referrals").update({ status: "completed_test" })
+          .eq("referrer_code", test.referred_by_code)
+          .or(`referred_user_id.eq.${test.user_id || "00000000-0000-0000-0000-000000000000"},referred_anon_id.eq.${test.anon_session_id || ""}`);
+      }
+
+      return new Response(JSON.stringify({
+        score, accuracy, rank, percentile, ai_tag, ai_insight,
+        total: questions.length, category: test.category,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (action === "log_share") {
+      const { test_id, user_id, anon_session_id, channel } = body;
+      await admin.from("myrank_shares").insert({
+        test_id, user_id: user_id || null,
+        anon_session_id: anon_session_id || null,
+        channel: channel || "whatsapp",
+      });
+      const { data: s } = await admin.from("myrank_stats").select("total_shares").eq("id", 1).single();
+      await admin.from("myrank_stats").update({
+        total_shares: (s?.total_shares || 0) + 1,
+      }).eq("id", 1);
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "stats") {
+      const { data } = await admin.from("myrank_stats").select("*").eq("id", 1).single();
+      return new Response(JSON.stringify(data || { total_tests: 234567 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Unknown action" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e: any) {
+    console.error("[myrank-engine]", e);
+    return new Response(JSON.stringify({ error: e.message || "Internal error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
