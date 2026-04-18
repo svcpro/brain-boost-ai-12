@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
-import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair } from "lucide-react";
+import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair, Trophy } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -39,6 +39,7 @@ export const useVoice = () => useContext(VoiceContext);
 const tabDefs = [
   { id: "home", label: "Home", icon: Home },
   { id: "action", label: "Action", icon: Zap },
+  { id: "myrank", label: "MyRank", icon: Trophy, route: "/myrank" },
   { id: "brain", label: "Brain", icon: Brain },
   // { id: "community", label: "Community", icon: Users }, // hidden per user request
   { id: "progress", label: "SureShot", icon: Crosshair },
@@ -333,12 +334,19 @@ const AppDashboard = () => {
               {tabDefs.filter(tab => isTabEnabled(`tab_${tab.id}`)).map((tab) => {
                 const active = activeTab === tab.id;
                 const isSureShot = tab.id === "progress";
+                const isMyRank = tab.id === "myrank";
+                const handleClick = () => {
+                  if ((tab as any).route) { navigate((tab as any).route); return; }
+                  switchTab(tab.id);
+                };
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => { switchTab(tab.id); }}
+                    onClick={handleClick}
                     className={`flex flex-col items-center gap-0.5 px-1.5 sm:px-3 py-1.5 rounded-xl transition-all duration-300 relative min-w-0 ${
                       isSureShot
+                        ? "text-transparent"
+                        : isMyRank
                         ? "text-transparent"
                         : active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                     }`}
@@ -353,6 +361,19 @@ const AppDashboard = () => {
                             🔥
                           </span>
                         </div>
+                      ) : isMyRank ? (
+                        <div className="relative">
+                          <tab.icon
+                            className="w-5 h-5 animate-[flame-flicker_1.8s_ease-in-out_infinite]"
+                            style={{ color: 'hsl(45, 100%, 55%)', filter: 'drop-shadow(0 0 6px hsl(45,100%,55%))' }}
+                          />
+                          <span
+                            className="absolute -top-2 -right-3 px-1 py-0.5 rounded-full text-[6px] font-black leading-none animate-[pulse_2s_ease-in-out_infinite]"
+                            style={{ background: 'linear-gradient(135deg, hsl(280,90%,55%), hsl(195,100%,50%))', color: 'white' }}
+                          >
+                            NEW
+                          </span>
+                        </div>
                       ) : (
                         <>
                           <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""} ${tab.id === "community" ? "animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
@@ -364,8 +385,20 @@ const AppDashboard = () => {
                         </>
                       )}
                     </div>
-                    <span className={`text-[9px] ${isSureShot ? "font-bold sureshot-gradient-text" : active ? "font-bold" : "font-medium"}`}>{tab.label}</span>
-                    {active && !isSureShot && (
+                    <span
+                      className={`text-[9px] ${
+                        isSureShot
+                          ? "font-bold sureshot-gradient-text"
+                          : isMyRank
+                          ? "font-bold bg-gradient-to-r from-amber-300 via-fuchsia-400 to-cyan-300 bg-clip-text"
+                          : active
+                          ? "font-bold"
+                          : "font-medium"
+                      }`}
+                    >
+                      {tab.label}
+                    </span>
+                    {active && !isSureShot && !isMyRank && (
                       <div className="w-1 h-1 rounded-full bg-primary" />
                     )}
                   </button>
