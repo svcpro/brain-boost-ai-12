@@ -1294,6 +1294,53 @@ Deno.serve(async (req) => {
           },
         };
 
+        // ─── Build pricing for all active plans (monthly + yearly + discount + per-month price) ───
+        const buildPricing = (p: any) => {
+          const monthly = Number(p?.price ?? 0);
+          const yearly = Number(p?.yearly_price ?? 0);
+          const yearlyAsMonthly = monthly > 0 ? monthly * 12 : 0;
+          const yearlySavings = yearlyAsMonthly > 0 && yearly > 0 ? Math.max(0, yearlyAsMonthly - yearly) : 0;
+          const yearlyDiscountPct = yearlyAsMonthly > 0 && yearly > 0 ? Math.round((yearlySavings / yearlyAsMonthly) * 100) : 0;
+          const yearlyPerMonth = yearly > 0 ? Math.round(yearly / 12) : 0;
+          return {
+            plan_key: p?.plan_key ?? "",
+            plan_name: p?.name ?? "",
+            currency: p?.currency ?? "INR",
+            is_popular: !!p?.is_popular,
+            trial_days: Number(p?.trial_days ?? 0),
+            monthly: {
+              price: monthly,
+              billing_period: "monthly",
+              label: `${p?.currency ?? "INR"} ${monthly}/month`,
+            },
+            yearly: {
+              price: yearly,
+              per_month_price: yearlyPerMonth,
+              compare_at_price: yearlyAsMonthly, // 12× monthly for strike-through display
+              savings: yearlySavings,
+              discount_percent: yearlyDiscountPct,
+              billing_period: "yearly",
+              label: `${p?.currency ?? "INR"} ${yearly}/year`,
+              tagline: yearlyDiscountPct > 0 ? `Save ${yearlyDiscountPct}% — only ${p?.currency ?? "INR"} ${yearlyPerMonth}/month` : "",
+            },
+            features: Array.isArray(p?.features) ? p.features : [],
+          };
+        };
+
+        const allPlansPricing = ((plansRes.data as any[]) || []).map(buildPricing);
+        const premiumPricing = allPlansPricing.find((p) => p.plan_key === "premium") || allPlansPricing[0] || null;
+
+        // ─── Trial / subscription progress ───
+        let totalDays = 0;
+        let leftDays = 0;
+        if (sub?.is_trial && sub?.trial_start_date && sub?.trial_end_date) {
+          totalDays = Math.max(1, Math.ceil((new Date(sub.trial_end_date).getTime() - new Date(sub.trial_start_date).getTime()) / 86400000));
+          leftDays = Math.max(0, Math.ceil((new Date(sub.trial_end_date).getTime() - Date.now()) / 86400000));
+        } else if (sub?.expires_at && sub?.created_at) {
+          totalDays = Math.max(1, Math.ceil((new Date(sub.expires_at).getTime() - new Date(sub.created_at).getTime()) / 86400000));
+          leftDays = Math.max(0, Math.ceil((new Date(sub.expires_at).getTime() - Date.now()) / 86400000));
+        }
+
         const trialStatus = sub
           ? {
               plan_key: subPlan?.plan_key ?? "unknown",
@@ -1302,7 +1349,16 @@ Deno.serve(async (req) => {
               trial_days_remaining: trialDaysRemaining,
               status: sub.status,
               expires_at: sub.expires_at ?? "",
-              upgrade_prompt: "",
+              total_days: totalDays,
+              left_days: leftDays,
+              billing_cycle: sub.billing_cycle ?? "monthly",
+              current_amount: Number(sub.amount ?? 0),
+              current_currency: sub.currency ?? "INR",
+              pricing: premiumPricing,
+              all_plans: allPlansPricing,
+              upgrade_prompt: (sub.is_trial ?? false)
+                ? `Trial ends in ${leftDays} day${leftDays === 1 ? "" : "s"} — upgrade to keep your progress.`
+                : "",
             }
           : {
               plan_key: "free",
@@ -1311,6 +1367,13 @@ Deno.serve(async (req) => {
               trial_days_remaining: 0,
               status: "free",
               expires_at: "",
+              total_days: 0,
+              left_days: 0,
+              billing_cycle: "none",
+              current_amount: 0,
+              current_currency: "INR",
+              pricing: premiumPricing,
+              all_plans: allPlansPricing,
               upgrade_prompt: "Upgrade to Premium for AI-powered study plans, unlimited topics, and rank predictions!",
             };
 
