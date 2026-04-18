@@ -968,12 +968,12 @@ const OnboardingPage = () => {
                   )}
                 </AnimatePresence>
 
-                {SUGGESTED_SUBJECTS[examType] && (
+                {getPresetSubjects(examType, examCategory).length > 0 && (
                   <div className="mb-3">
                     <p className="text-[10px] mb-1.5" style={{ color: "#ffffff30" }}>Suggested:</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {SUGGESTED_SUBJECTS[examType].filter(s => !subjects.includes(s)).map(s => (
-                        <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: [] })); }}
+                      {getPresetSubjects(examType, examCategory).filter(s => !subjects.includes(s)).map(s => (
+                        <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: SUGGESTED_TOPICS[s] ? [...SUGGESTED_TOPICS[s]] : [] })); }}
                           className="px-2.5 py-1 rounded-full text-[10px] transition-all"
                           style={{ border: "1px dashed #00E5FF35", color: "#00E5FF90", background: "#00E5FF04" }}
                         >+ {s}</button>
