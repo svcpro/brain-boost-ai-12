@@ -90,13 +90,9 @@ const SUGGESTED_TOPICS: Record<string, string[]> = {
   "Logical Reasoning": ["Arrangements", "Puzzles", "Syllogisms", "Blood Relations"],
 };
 
-// Validates that user input looks like a real word/subject (rejects gibberish like "KKKKK", "HJKKJH")
-// Returns { valid: boolean, reason?: string }
+// Validation removed per user request — accept any non-empty trimmed input.
 const validateAcademicTerm = (raw: string): { valid: boolean; reason?: string } => {
-  const text = raw.trim();
-  if (text.length < 1) return { valid: false, reason: "Cannot be empty." };
-  if (text.length > 100) return { valid: false, reason: "Too long — keep it under 100 characters." };
-  return { valid: true };
+  return { valid: raw.trim().length > 0 };
 };
 
 const STUDY_MODES = [
