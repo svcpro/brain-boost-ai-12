@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Share2, RefreshCw, Lock, Crown, Sparkles, Users, Gift, Loader2,
   ListOrdered, Target, Flame, TrendingUp, ChevronRight, Copy, Check,
+  Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff,
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 
@@ -48,6 +49,7 @@ const TIER_CONFIG = {
     ring: "from-yellow-300 via-orange-400 to-red-500",
     text: "text-amber-300",
     confettiColors: ["#fbbf24", "#f97316", "#ef4444", "#ec4899"],
+    flexLine: "Only 1 in 100 reach this. Flex it.",
   },
   elite: {
     label: "ELITE",
@@ -57,6 +59,7 @@ const TIER_CONFIG = {
     ring: "from-purple-400 via-pink-400 to-rose-500",
     text: "text-pink-300",
     confettiColors: ["#a855f7", "#ec4899", "#f43f5e", "#06b6d4"],
+    flexLine: "Top 10% — your friends NEED to see this.",
   },
   great: {
     label: "GREAT",
@@ -66,6 +69,7 @@ const TIER_CONFIG = {
     ring: "from-blue-400 via-cyan-400 to-teal-500",
     text: "text-cyan-300",
     confettiColors: ["#3b82f6", "#06b6d4", "#14b8a6", "#a855f7"],
+    flexLine: "Solid score — challenge friends to beat you.",
   },
   good: {
     label: "RISING",
@@ -75,8 +79,37 @@ const TIER_CONFIG = {
     ring: "from-emerald-400 via-green-400 to-teal-500",
     text: "text-emerald-300",
     confettiColors: ["#10b981", "#22c55e", "#06b6d4", "#fbbf24"],
+    flexLine: "Find out who in your group ranks higher 👀",
   },
 };
+
+// Pre-written share templates (one-tap copy, increases share volume)
+const SHARE_TEMPLATES = [
+  {
+    label: "Flex 🔥",
+    icon: "🏆",
+    builder: (r: Result, url: string) =>
+      `🏆 I'm ranked #${r.rank.toLocaleString("en-IN")} in India for ${r.category}!\n${r.percentile}% percentile · ${r.ai_tag}\n\nThink you can beat me? 😎\n👉 ${url}`,
+  },
+  {
+    label: "Challenge ⚔️",
+    icon: "⚔️",
+    builder: (r: Result, url: string) =>
+      `⚔️ CHALLENGE TIME ⚔️\nI scored ${r.percentile}% in ACRY's ${r.category} test.\nYour rank? Take the 90-sec test 👇\n${url}`,
+  },
+  {
+    label: "Humble brag 😏",
+    icon: "😏",
+    builder: (r: Result, url: string) =>
+      `Just took the ACRY AI Rank Test — apparently I'm in the top ${Math.max(1, 100 - Math.round(r.percentile))}% of India 🇮🇳\nNo big deal 😏\n${url}`,
+  },
+  {
+    label: "Group war 👥",
+    icon: "👥",
+    builder: (r: Result, url: string) =>
+      `Yo squad, find your India rank in 90 seconds — I got #${r.rank.toLocaleString("en-IN")} (${r.ai_tag})\nWho's #1 in our group?\n${url}`,
+  },
+];
 
 const MyRankResult = () => {
   const navigate = useNavigate();
@@ -88,7 +121,11 @@ const MyRankResult = () => {
   const [animatedRank, setAnimatedRank] = useState(0);
   const [animatedPct, setAnimatedPct] = useState(0);
   const [showConfetti, setShowConfetti] = useState(true);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [activeTemplate, setActiveTemplate] = useState(0);
+  const [showShareBoost, setShowShareBoost] = useState(false);
+  const [liveShareCount, setLiveShareCount] = useState(0);
+  const [tagTimer, setTagTimer] = useState(60);
 
   const refCode = user?.id?.slice(0, 8) || localStorage.getItem("myrank_anon_id")?.slice(0, 8) || "guest";
   const anonId = typeof window !== "undefined" ? localStorage.getItem("myrank_anon_id") : null;
@@ -115,10 +152,8 @@ const MyRankResult = () => {
     setResult(r);
     fetchUnlockStatus();
 
-    // Vibrate on reveal
     if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 100]);
 
-    // Animate rank counter
     const dur = 1800;
     const start = performance.now();
     const tick = (now: number) => {
@@ -138,6 +173,23 @@ const MyRankResult = () => {
     return () => clearTimeout(conf);
   }, [navigate, fetchUnlockStatus]);
 
+  // Live ticker — fake-but-believable social proof (cycles + slow growth)
+  useEffect(() => {
+    const seed = 1240 + Math.floor(Math.random() * 80);
+    setLiveShareCount(seed);
+    const id = setInterval(() => {
+      setLiveShareCount(c => c + Math.floor(Math.random() * 3) + 1);
+    }, 3500);
+    return () => clearInterval(id);
+  }, []);
+
+  // 60s tag-to-bonus countdown — drives urgency
+  useEffect(() => {
+    if (tagTimer <= 0) return;
+    const id = setTimeout(() => setTagTimer(t => Math.max(0, t - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [tagTimer]);
+
   if (!result) return null;
 
   const tier = (result.percentile >= 99
@@ -151,7 +203,7 @@ const MyRankResult = () => {
   const TierIcon = cfg.icon;
 
   const shareUrl = `${window.location.origin}/myrank?ref=${refCode}`;
-  const shareMessage = `🔥 I am ranked #${result.rank.toLocaleString("en-IN")} in ACRY AI Rank Test (${result.category})\nPercentile: ${result.percentile}% — ${result.ai_tag}\n\nCan you beat me? 😎\n👉 ${shareUrl}`;
+  const currentMessage = SHARE_TEMPLATES[activeTemplate].builder(result, shareUrl);
 
   const logShare = async (channel: string) => {
     await supabase.functions.invoke("myrank-engine", {
@@ -163,18 +215,36 @@ const MyRankResult = () => {
         channel,
       },
     });
+    // Reward burst animation
+    setShowShareBoost(true);
+    if (navigator.vibrate) navigator.vibrate([15, 40, 60]);
+    setTimeout(() => setShowShareBoost(false), 1400);
     setTimeout(fetchUnlockStatus, 500);
   };
 
   const handleWhatsAppShare = async () => {
     await logShare("whatsapp");
-    window.open(`https://wa.me/?text=${encodeURIComponent(shareMessage)}`, "_blank");
+    window.open(`https://wa.me/?text=${encodeURIComponent(currentMessage)}`, "_blank");
+  };
+
+  const handleInstagramShare = async () => {
+    await logShare("instagram");
+    await navigator.clipboard.writeText(currentMessage);
+    setCopied("ig");
+    setTimeout(() => setCopied(null), 2000);
+    // Open Instagram (deep-link best-effort)
+    window.open("https://www.instagram.com/", "_blank");
+  };
+
+  const handleTelegramShare = async () => {
+    await logShare("telegram");
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(currentMessage)}`, "_blank");
   };
 
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: "My ACRY Rank", text: shareMessage, url: shareUrl });
+        await navigator.share({ title: "My ACRY Rank", text: currentMessage, url: shareUrl });
         await logShare("native");
       } catch {}
     } else {
@@ -182,10 +252,16 @@ const MyRankResult = () => {
     }
   };
 
-  const handleCopy = async () => {
+  const handleCopyMessage = async () => {
+    await navigator.clipboard.writeText(currentMessage);
+    setCopied("msg");
+    setTimeout(() => setCopied(null), 1800);
+  };
+
+  const handleCopyLink = async () => {
     await navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    setCopied("link");
+    setTimeout(() => setCopied(null), 1800);
   };
 
   const handleUnlockAnalysis = async () => {
@@ -211,22 +287,35 @@ const MyRankResult = () => {
   const referralsNeeded = Math.max(0, 3 - (unlock?.referrals || 0));
   const sharePct = Math.min(100, ((unlock?.shares || 0) / 2) * 100);
   const refPct = Math.min(100, ((unlock?.referrals || 0) / 3) * 100);
+  const sharesDone = unlock?.shares || 0;
 
-  // Estimate beat-count
   const beats = Math.floor((result.percentile / 100) * 5_000_000);
+  const tagBonusActive = tagTimer > 0 && sharesDone < 3;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white">
-      {/* Aurora background */}
+    <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white pb-32">
       <AuroraBg tier={tier} />
       {showConfetti && <Confetti colors={cfg.confettiColors} />}
+      {showShareBoost && <ShareBoostBurst colors={cfg.confettiColors} />}
 
-      <div className="relative z-10 max-w-md mx-auto px-4 pt-4 pb-10 space-y-5">
+      <div className="relative z-10 max-w-md mx-auto px-4 pt-4 space-y-5">
+        {/* Live social proof ticker */}
+        <div className="flex justify-center pt-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/20 bg-emerald-500/[0.08] backdrop-blur-md text-[10px] font-bold animate-[fade-in_0.4s_ease-out]">
+            <span className="relative flex w-1.5 h-1.5">
+              <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            </span>
+            <span className="text-white/80 tabular-nums">
+              {liveShareCount.toLocaleString("en-IN")}
+            </span>
+            <span className="text-white/50">people sharing right now</span>
+          </div>
+        </div>
+
         {/* Tier announcement chip */}
-        <div className="flex justify-center pt-2">
-          <div
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/15 bg-white/[0.05] backdrop-blur-md text-[10px] font-extrabold uppercase tracking-[0.25em] animate-[fade-in_0.5s_ease-out]`}
-          >
+        <div className="flex justify-center -mt-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/15 bg-white/[0.05] backdrop-blur-md text-[10px] font-extrabold uppercase tracking-[0.25em]">
             <Sparkles className={`w-3 h-3 ${cfg.text}`} />
             <span className={`bg-gradient-to-r ${cfg.gradient} bg-clip-text text-transparent`}>
               {cfg.label} TIER
@@ -241,13 +330,11 @@ const MyRankResult = () => {
             background: "linear-gradient(140deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
           }}
         >
-          {/* Animated tier glow */}
           <div className={`absolute inset-0 bg-gradient-to-br ${cfg.gradient} opacity-20`} />
           <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-3xl opacity-50 animate-pulse"
             style={{ background: `radial-gradient(circle, var(--tw-gradient-from), transparent 70%)` }}
           />
 
-          {/* Conic ring around icon */}
           <div className="relative flex justify-center mb-3">
             <div className="relative w-20 h-20 flex items-center justify-center">
               <div
@@ -274,15 +361,120 @@ const MyRankResult = () => {
             {result.category} · {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
           </div>
 
-          {/* AI tag */}
           <div className="relative mt-4 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-sm font-bold">
             <Flame className={`w-3.5 h-3.5 ${cfg.text}`} />
             {result.ai_tag}
           </div>
 
-          {/* Beats meter */}
           <div className="relative mt-5 text-[11px] text-white/70">
             You beat <span className="font-extrabold text-white tabular-nums">{beats.toLocaleString("en-IN")}</span> Indians today 🇮🇳
+          </div>
+
+          {/* Tier-specific flex line — drives share intent */}
+          <div className={`relative mt-3 text-[12px] font-bold ${cfg.text} animate-pulse`} style={{ animationDuration: "2.5s" }}>
+            {cfg.flexLine}
+          </div>
+        </div>
+
+        {/* === PRIMARY SHARE BLOCK (above the fold after hero) === */}
+        <div className="relative overflow-hidden rounded-3xl p-4 border border-white/15 bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl">
+          <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-fuchsia-500/20 blur-3xl" />
+          <div className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full bg-cyan-500/20 blur-3xl" />
+
+          <div className="relative flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-fuchsia-500 to-cyan-500 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="text-sm font-extrabold">Pick your flex style</div>
+                <div className="text-[10px] text-white/50">One tap → ready-to-send caption</div>
+              </div>
+            </div>
+            {tagBonusActive && (
+              <div className="px-2 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-[9px] font-extrabold text-amber-300 tabular-nums animate-pulse">
+                +BONUS {tagTimer}s
+              </div>
+            )}
+          </div>
+
+          {/* Template chips */}
+          <div className="relative flex gap-2 overflow-x-auto pb-1 mb-3 scrollbar-none -mx-1 px-1">
+            {SHARE_TEMPLATES.map((tpl, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setActiveTemplate(i);
+                  if (navigator.vibrate) navigator.vibrate(8);
+                }}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition ${
+                  activeTemplate === i
+                    ? `bg-gradient-to-r ${cfg.gradient} text-white border-transparent shadow-[0_0_16px_-4px_rgba(236,72,153,0.6)]`
+                    : "bg-white/[0.04] border-white/10 text-white/70 hover:bg-white/[0.08]"
+                }`}
+              >
+                <span className="mr-1">{tpl.icon}</span>
+                {tpl.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Preview message */}
+          <div className="relative rounded-2xl p-3 bg-black/30 border border-white/10 mb-3 text-[12px] leading-relaxed text-white/85 whitespace-pre-line max-h-32 overflow-y-auto scrollbar-none">
+            {currentMessage}
+            <button
+              onClick={handleCopyMessage}
+              className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur flex items-center justify-center transition"
+              aria-label="Copy message"
+            >
+              {copied === "msg" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-white/70" />}
+            </button>
+          </div>
+
+          {/* Channel grid — multi-platform pressure */}
+          <div className="relative grid grid-cols-4 gap-2">
+            <ChannelBtn
+              onClick={handleWhatsAppShare}
+              icon={<MessageCircle className="w-4 h-4" />}
+              label="WhatsApp"
+              color="from-[#25D366] to-[#128C7E]"
+              primary
+            />
+            <ChannelBtn
+              onClick={handleInstagramShare}
+              icon={<Instagram className="w-4 h-4" />}
+              label={copied === "ig" ? "Copied!" : "Instagram"}
+              color="from-fuchsia-500 via-pink-500 to-amber-500"
+            />
+            <ChannelBtn
+              onClick={handleTelegramShare}
+              icon={<Send className="w-4 h-4" />}
+              label="Telegram"
+              color="from-sky-400 to-blue-500"
+            />
+            <ChannelBtn
+              onClick={handleNativeShare}
+              icon={<Share2 className="w-4 h-4" />}
+              label="More"
+              color="from-slate-500 to-slate-700"
+            />
+          </div>
+
+          {/* Share streak indicator */}
+          <div className="relative mt-3 flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span className="text-white/70">
+                Share streak: <span className="font-extrabold text-orange-300 tabular-nums">{sharesDone}</span>
+              </span>
+            </div>
+            <button
+              onClick={handleCopyLink}
+              className="flex items-center gap-1 text-white/50 hover:text-white/80 transition"
+            >
+              {copied === "link" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+              {copied === "link" ? "Link copied" : "Copy link"}
+            </button>
           </div>
         </div>
 
@@ -306,7 +498,7 @@ const MyRankResult = () => {
           ))}
         </div>
 
-        {/* Percentile arc visualization */}
+        {/* Percentile arc */}
         <div className="relative overflow-hidden rounded-2xl p-4 border border-white/10 bg-white/[0.03] backdrop-blur">
           <div className="flex items-center justify-between mb-2">
             <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Your position</div>
@@ -341,44 +533,37 @@ const MyRankResult = () => {
           </div>
         </div>
 
-        {/* WhatsApp CTA */}
-        <button
-          onClick={handleWhatsAppShare}
-          className="group relative w-full overflow-hidden h-14 rounded-2xl font-extrabold text-base text-white shadow-[0_0_30px_-5px_rgba(37,211,102,0.6)] active:scale-[0.98] transition"
-          style={{ background: "linear-gradient(135deg, #25D366, #128C7E)" }}
-        >
-          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-          <span className="relative flex items-center justify-center gap-2">
-            <Share2 className="w-5 h-5" />
-            Share on WhatsApp · Challenge Friends
-          </span>
-        </button>
-
-        {/* Secondary share row */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={handleNativeShare}
-            className="px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-xs font-semibold text-white/80 hover:bg-white/[0.06] hover:border-white/20 transition flex items-center justify-center gap-1.5"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            More options
-          </button>
-          <button
-            onClick={handleCopy}
-            className="px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-xs font-semibold text-white/80 hover:bg-white/[0.06] hover:border-white/20 transition flex items-center justify-center gap-1.5"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? "Copied!" : "Copy link"}
-          </button>
+        {/* === CHALLENGE FRIENDS — direct intent === */}
+        <div className="relative overflow-hidden rounded-2xl p-4 border border-rose-400/25 bg-gradient-to-br from-rose-500/10 via-orange-500/10 to-amber-500/10 backdrop-blur-xl">
+          <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-rose-500/30 blur-3xl animate-pulse" />
+          <div className="relative flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shrink-0 shadow-lg">
+              <Swords className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-extrabold text-white">Who can beat your rank?</div>
+              <div className="text-[11px] text-white/60 mt-0.5">
+                Send to your study group → see who tops the chat 🔥
+              </div>
+              <button
+                onClick={handleWhatsAppShare}
+                className="mt-2.5 w-full h-10 rounded-xl text-xs font-extrabold text-white shadow-[0_0_20px_-4px_rgba(244,63,94,0.5)] active:scale-[0.98] transition flex items-center justify-center gap-2"
+                style={{ background: "linear-gradient(135deg, #f43f5e, #f97316)" }}
+              >
+                <Swords className="w-3.5 h-3.5" />
+                Challenge group on WhatsApp
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Shareable Badge */}
         <div className="rounded-2xl p-4 border border-white/10 bg-white/[0.03] backdrop-blur space-y-2">
           <div className="text-sm font-bold flex items-center gap-2 text-white">
-            <Trophy className="w-4 h-4 text-amber-400" /> Shareable Badge
+            <Trophy className="w-4 h-4 text-amber-400" /> Your shareable badge
           </div>
           <div className="text-[11px] text-white/50">
-            Auto-generated 1080×1080 — perfect for WhatsApp Status & Instagram.
+            1080×1080 — perfect for WhatsApp Status & Instagram Story.
           </div>
           <ShareableBadge
             rank={result.rank}
@@ -576,9 +761,69 @@ const MyRankResult = () => {
           Try another category
         </button>
       </div>
+
+      {/* === STICKY BOTTOM SHARE BAR — always visible === */}
+      <div className="fixed bottom-0 inset-x-0 z-30 px-4 pb-4 pt-3 pointer-events-none">
+        <div className="max-w-md mx-auto pointer-events-auto">
+          <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#0a0b18]/85 backdrop-blur-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)]">
+            <div className={`absolute inset-0 bg-gradient-to-r ${cfg.gradient} opacity-10`} />
+            <div className="relative flex items-center gap-2 p-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] text-white/50 font-semibold leading-tight">
+                  {sharesDone === 0 ? "🚀 Don't keep this win to yourself" : `🔥 ${sharesDone} share${sharesDone > 1 ? "s" : ""} so far — keep going!`}
+                </div>
+                <div className="text-[11px] font-bold text-white truncate">
+                  Rank #{result.rank.toLocaleString("en-IN")} · {result.ai_tag}
+                </div>
+              </div>
+              <button
+                onClick={handleWhatsAppShare}
+                className="shrink-0 h-11 px-4 rounded-xl text-xs font-extrabold text-white shadow-lg active:scale-[0.96] transition flex items-center gap-1.5"
+                style={{ background: "linear-gradient(135deg, #25D366, #128C7E)" }}
+              >
+                <MessageCircle className="w-4 h-4" />
+                Share
+              </button>
+              <button
+                onClick={handleNativeShare}
+                className="shrink-0 w-11 h-11 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 flex items-center justify-center transition"
+                aria-label="More share options"
+              >
+                <Share2 className="w-4 h-4 text-white/80" />
+              </button>
+            </div>
+            {/* Mini share progress */}
+            <div className="relative h-0.5 bg-white/[0.05]">
+              <div
+                className={`h-full bg-gradient-to-r ${cfg.gradient} transition-all duration-500`}
+                style={{ width: `${sharePct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+
+const ChannelBtn = ({
+  onClick, icon, label, color, primary,
+}: { onClick: () => void; icon: React.ReactNode; label: string; color: string; primary?: boolean }) => (
+  <button
+    onClick={onClick}
+    className={`group relative overflow-hidden rounded-xl py-2.5 flex flex-col items-center gap-1 border active:scale-[0.96] transition ${
+      primary
+        ? "border-emerald-400/30 shadow-[0_0_18px_-6px_rgba(37,211,102,0.5)]"
+        : "border-white/10"
+    }`}
+    style={{ background: `linear-gradient(135deg, ${primary ? "rgba(37,211,102,0.18), rgba(18,140,126,0.12)" : "rgba(255,255,255,0.04), rgba(255,255,255,0.02)"})` }}
+  >
+    <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center text-white shadow-md`}>
+      {icon}
+    </div>
+    <span className="text-[9px] font-bold text-white/80 leading-tight">{label}</span>
+  </button>
+);
 
 const RewardRow = ({ icon: Icon, label, done, progress }: { icon: typeof Users; label: string; done: boolean; progress: string }) => (
   <div
@@ -681,5 +926,27 @@ const Confetti = ({ colors }: { colors: string[] }) => {
     </div>
   );
 };
+
+/* ===== Mini share-reward burst (after each share) ===== */
+const ShareBoostBurst = ({ colors }: { colors: string[] }) => (
+  <div className="fixed inset-0 pointer-events-none z-40 flex items-center justify-center">
+    <div className="relative">
+      <div
+        className="absolute inset-0 rounded-full blur-2xl animate-ping"
+        style={{ width: 240, height: 240, background: `radial-gradient(circle, ${colors[0]}cc, transparent 70%)`, animationDuration: "1.2s" }}
+      />
+      <div
+        className="relative px-6 py-3 rounded-2xl bg-black/70 backdrop-blur-xl border border-white/20 text-center animate-[fade-in_0.3s_ease-out]"
+        style={{ boxShadow: `0 0 40px ${colors[0]}80` }}
+      >
+        <div className="text-2xl mb-0.5">🚀</div>
+        <div className="text-sm font-extrabold bg-gradient-to-r from-amber-300 to-pink-300 bg-clip-text text-transparent">
+          Share counted!
+        </div>
+        <div className="text-[10px] text-white/70 mt-0.5">+1 toward unlocking AI analysis</div>
+      </div>
+    </div>
+  </div>
+);
 
 export default MyRankResult;
