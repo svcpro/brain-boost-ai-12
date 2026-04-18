@@ -1,0 +1,2 @@
+ALTER TABLE public.myrank_tests DROP CONSTRAINT IF EXISTS myrank_tests_category_check;
+ALTER TABLE public.myrank_tests ADD CONSTRAINT myrank_tests_category_check CHECK (category IS NOT NULL AND length(category) BETWEEN 1 AND 50);
