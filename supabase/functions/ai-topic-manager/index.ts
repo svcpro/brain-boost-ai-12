@@ -34,26 +34,26 @@ serve(async (req) => {
       // Target latency: 3-5s. Topics are intentionally limited to the most important ones —
       // the user can add more later via Manage Topics.
       const aiResp = await aiFetch({
-        timeoutMs: 15000,
+        timeoutMs: 20000,
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          temperature: 0.3,
-          max_tokens: 1200,
+          model: "google/gemini-2.5-flash",
+          temperature: 0.2,
+          max_tokens: 2400,
           messages: [
             {
               role: "system",
-              content: `Curriculum designer. Output ONLY the tool call. Be concise.`
+              content: `You are a curriculum designer for competitive exams. You MUST call the generate_curriculum tool. Each subject MUST have a real human-readable name (e.g. "General Awareness", "Quantitative Aptitude") — never use field names like "exam", "core_subjects", "subjects" as a subject name. Each subject MUST have a non-empty topics array.`
             },
             {
               role: "user",
-              content: `Exam: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}. List 4-6 core subjects, each with 5-8 most important topics. For each topic give marks_impact_weight (0-10).`
+              content: `Generate the official curriculum for: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}.\nReturn 4-6 standard subjects (use the real subject names from the official syllabus), each with 6-10 most important topics. For each topic include a marks_impact_weight from 0-10.`
             }
           ],
           tools: [{
             type: "function",
             function: {
               name: "generate_curriculum",
-              description: "Return subjects and topics",
+              description: "Return the exam's standard subjects and their topics",
               parameters: {
                 type: "object",
                 properties: {
@@ -62,7 +62,7 @@ serve(async (req) => {
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string" },
+                        name: { type: "string", description: "Official subject name from the syllabus" },
                         topics: {
                           type: "array",
                           items: {
