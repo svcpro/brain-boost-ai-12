@@ -7,6 +7,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -264,6 +265,15 @@ Deno.serve(async (req) => {
           status: user_id ? "signed_up" : "clicked",
           converted_at: new Date().toISOString(),
         }).eq("referrer_code", referred_by_code).is("referred_user_id", null);
+
+        // Increment signup_count on the memorable handle (best-effort)
+        const { data: h } = await admin.from("myrank_handles")
+          .select("id, signup_count").eq("handle", referred_by_code).maybeSingle();
+        if (h) {
+          await admin.from("myrank_handles").update({
+            signup_count: (h.signup_count || 0) + 1,
+          }).eq("id", h.id);
+        }
       }
 
       return new Response(JSON.stringify({ test_id: test.id, questions: stripped }), {
@@ -383,7 +393,7 @@ Deno.serve(async (req) => {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const userClient = createClient(supabaseUrl!, anonKey!, {
+      const userClient = createClient(SUPABASE_URL, ANON_KEY, {
         global: { headers: { Authorization: authHeader } },
       });
       const { data: { user: caller } } = await userClient.auth.getUser();
