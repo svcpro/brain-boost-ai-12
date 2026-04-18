@@ -603,10 +603,12 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   const [examHistory, setExamHistory] = useState<any[]>([]);
   const [studyTrend, setStudyTrend] = useState<{ date: string; minutes: number }[]>([]);
 
-  // Access-token minting
-  const [tokenLoading, setTokenLoading] = useState(false);
+  // Captured login token (recorded when user signs in)
+  const [tokenLoading, setTokenLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [tokenExpiresAt, setTokenExpiresAt] = useState<number | null>(null);
+  const [tokenCapturedAt, setTokenCapturedAt] = useState<string | null>(null);
+  const [tokenProvider, setTokenProvider] = useState<string | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [tokenNow, setTokenNow] = useState<number>(Date.now());
 
@@ -620,7 +622,9 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
     ? Math.max(0, Math.floor((tokenExpiresAt - tokenNow) / 1000))
     : 0;
   const tokenExpiresLabel = tokenExpiresAt
-    ? tokenSecondsLeft > 60
+    ? tokenSecondsLeft <= 0
+      ? "expired"
+      : tokenSecondsLeft > 60
       ? `in ${Math.floor(tokenSecondsLeft / 60)}m ${tokenSecondsLeft % 60}s`
       : `in ${tokenSecondsLeft}s`
     : "—";
@@ -628,52 +632,41 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
     ? `${accessToken.slice(0, 14)}••••••••••••••${accessToken.slice(-10)}`
     : "";
 
-  const generateUserToken = async () => {
+  const fetchUserToken = async () => {
     setTokenLoading(true);
-    setAccessToken(null);
-    setTokenExpiresAt(null);
     try {
-      const { data, error } = await supabase.functions.invoke("admin-get-user-token", {
-        body: { user_id: user.id },
-      });
-
-      // FunctionsHttpError hides the response body inside error.context (a Response).
-      // Extract it so admins see the real reason ("Forbidden", "Target user not found", etc.)
-      let serverMsg: string | null = null;
-      if (error && (error as any).context && typeof (error as any).context.json === "function") {
-        try {
-          const parsed = await (error as any).context.json();
-          serverMsg = parsed?.error || parsed?.message || null;
-        } catch {
-          try { serverMsg = await (error as any).context.text(); } catch { /* noop */ }
-        }
+      const { data, error } = await supabase
+        .from("user_session_tokens")
+        .select("access_token, expires_at, captured_at, provider")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) {
+        setAccessToken((data as any).access_token || null);
+        setTokenExpiresAt((data as any).expires_at ? new Date((data as any).expires_at).getTime() : null);
+        setTokenCapturedAt((data as any).captured_at || null);
+        setTokenProvider((data as any).provider || null);
+      } else {
+        setAccessToken(null);
+        setTokenExpiresAt(null);
+        setTokenCapturedAt(null);
+        setTokenProvider(null);
       }
-
-      if (error || !data?.access_token) {
-        toast({
-          title: "Failed to mint token",
-          description: serverMsg || data?.error || error?.message || "Unknown error",
-          variant: "destructive",
-        });
-        return;
-      }
-      setAccessToken(data.access_token);
-      setTokenExpiresAt(Date.now() + (data.expires_in || 3600) * 1000);
-      setShowToken(false);
-      await logAudit("user_access_token_minted", { target: user.id });
-      toast({ title: "Access token generated ✓", description: "Token is valid for ~1 hour." });
     } catch (e: any) {
-      toast({ title: "Request failed", description: e.message, variant: "destructive" });
+      toast({ title: "Failed to load token", description: e.message, variant: "destructive" });
     } finally {
       setTokenLoading(false);
     }
   };
+
+  useEffect(() => { fetchUserToken(); }, [user.id]);
 
   const copyAccessToken = async () => {
     if (!accessToken) return;
     try {
       await navigator.clipboard.writeText(accessToken);
       toast({ title: "Token copied ✓", description: "Access token copied to clipboard." });
+      await logAudit("user_access_token_viewed", { target: user.id });
     } catch {
       toast({ title: "Copy failed", description: "Clipboard access denied.", variant: "destructive" });
     }
