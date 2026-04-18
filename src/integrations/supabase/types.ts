@@ -4039,6 +4039,126 @@ export type Database = {
         }
         Relationships: []
       }
+      fc2_ai_insights: {
+        Row: {
+          content: Json
+          expires_at: string
+          generated_at: string
+          insight_key: string
+          model_used: string | null
+          user_id: string
+        }
+        Insert: {
+          content?: Json
+          expires_at?: string
+          generated_at?: string
+          insight_key: string
+          model_used?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          expires_at?: string
+          generated_at?: string
+          insight_key?: string
+          model_used?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      fc2_interventions: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string
+          dispatched_at: string | null
+          id: string
+          intervention_type: string
+          payload: Json | null
+          predicted_retention: number | null
+          risk_score: number | null
+          status: string
+          subject_name: string | null
+          topic_id: string | null
+          topic_name: string
+          trigger_reason: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string
+          dispatched_at?: string | null
+          id?: string
+          intervention_type: string
+          payload?: Json | null
+          predicted_retention?: number | null
+          risk_score?: number | null
+          status?: string
+          subject_name?: string | null
+          topic_id?: string | null
+          topic_name: string
+          trigger_reason: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string
+          dispatched_at?: string | null
+          id?: string
+          intervention_type?: string
+          payload?: Json | null
+          predicted_retention?: number | null
+          risk_score?: number | null
+          status?: string
+          subject_name?: string | null
+          topic_id?: string | null
+          topic_name?: string
+          trigger_reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      fc2_risk_events: {
+        Row: {
+          created_at: string
+          decay_velocity: number | null
+          factors: Json | null
+          id: string
+          model_version: string
+          new_risk: string
+          predicted_retention: number | null
+          previous_risk: string | null
+          topic_id: string | null
+          topic_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decay_velocity?: number | null
+          factors?: Json | null
+          id?: string
+          model_version?: string
+          new_risk: string
+          predicted_retention?: number | null
+          previous_risk?: string | null
+          topic_id?: string | null
+          topic_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decay_velocity?: number | null
+          factors?: Json | null
+          id?: string
+          model_version?: string
+          new_risk?: string
+          predicted_retention?: number | null
+          previous_risk?: string | null
+          topic_id?: string | null
+          topic_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       feature_flags: {
         Row: {
           enabled: boolean
