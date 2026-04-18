@@ -113,6 +113,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "autopilot", label: "Autopilot Engine", icon: Workflow, roles: ["super_admin", "admin", "ai_admin"], badge: "v5", badgeColor: "bg-accent/20 text-accent" },
       { key: "notify_intelligence", label: "AI Intelligence", icon: Brain, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
       { key: "growth_center", label: "Growth Engine", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
+      { key: "referral_handles", label: "Referral Handles", icon: LinkIcon, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-emerald-500/20 text-emerald-400" },
       { key: "sureshot", label: "SureShot AI Lab", icon: Target, roles: ["super_admin", "admin", "ai_admin"], badge: "ML", badgeColor: "bg-accent/20 text-accent" },
       { key: "exam_countdown", label: "Exam AI Control", icon: Brain, roles: ["super_admin", "admin"], badge: "AI", badgeColor: "bg-accent/20 text-accent" },
       { key: "stq", label: "STQ Engine v9.0", icon: Database, roles: ["super_admin", "admin", "ai_admin"], badge: "v9", badgeColor: "bg-accent/20 text-accent" },
@@ -580,6 +581,7 @@ const AdminPanel = () => {
               {section === "whatsapp" && <WhatsAppCommandCenter />}
               {section === "notify_intelligence" && <NotificationIntelligence />}
               {section === "growth_center" && <GrowthControlCenter />}
+              {section === "referral_handles" && <ReferralHandlesAdmin />}
               {section === "coming_soon" && <ComingSoonControlPanel />}
               {section === "autopilot" && <AutopilotAdminPanel />}
               {section === "institutions" && <InstitutionManagement />}
