@@ -215,21 +215,26 @@ function triggerDownload(blob: Blob, name: string) {
 
 function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, url: string) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const encoded = encodeURIComponent(caption);
   let target = "";
   switch (channel) {
     case "whatsapp":
-      // wa.me universal link — works on desktop & mobile, deep-links into app on mobile
-      target = `https://wa.me/?text=${encodeURIComponent(caption)}`;
+    case "native":
+    default:
+      // On desktop, wa.me/?text=... often just opens the WhatsApp landing page
+      // without pre-filling the message. web.whatsapp.com/send?text=... reliably
+      // opens WhatsApp Web with the caption ready to send.
+      // On mobile, wa.me/ deep-links into the native app.
+      target = isMobile
+        ? `https://wa.me/?text=${encoded}`
+        : `https://web.whatsapp.com/send?text=${encoded}`;
       break;
     case "telegram":
-      target = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(caption)}`;
+      target = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encoded}`;
       break;
     case "instagram":
       target = "https://www.instagram.com/";
       break;
-    case "native":
-    default:
-      target = `https://wa.me/?text=${encodeURIComponent(caption)}`;
   }
   // Open in new tab on desktop, same tab on mobile for reliable deep-link
   if (isMobile) {
@@ -240,3 +245,6 @@ function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, 
     if (!w) window.location.href = target;
   }
 }
+
+// Re-export for completeness so the only export surface stays stable.
+export { openChannelUrl as _openChannelUrlInternal };
