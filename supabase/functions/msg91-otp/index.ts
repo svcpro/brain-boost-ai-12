@@ -227,13 +227,20 @@ function generateOTP4(): string {
 }
 
 async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, otp: string, channel: string = "whatsapp") {
-  await adminClient.from("whatsapp_otps").delete().eq("mobile", mobile).eq("verified", false);
+  // Only invalidate prior unverified OTPs on the SAME channel to avoid cross-channel races
+  await adminClient
+    .from("whatsapp_otps")
+    .delete()
+    .eq("mobile", mobile)
+    .eq("verified", false)
+    .eq("channel", channel);
   const { error } = await adminClient.from("whatsapp_otps").insert({
     mobile,
     otp,
     expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     channel,
   });
+  if (error) console.error("[MSG91] storeOTP insert error:", error);
   return error;
 }
 
@@ -450,59 +457,75 @@ async function handleSendWhatsApp(authKey: string, mobile: string) {
 }
 
 async function handleVerify(authKey: string, mobile: string, otp: string | undefined) {
-  if (!otp || otp.length !== 4) {
-    return json({ error: "Invalid OTP" }, 400);
+  // Trim & sanitize OTP — users sometimes paste with spaces/newlines
+  const cleanOtp = (otp || "").replace(/\D/g, "").trim();
+  if (!cleanOtp || cleanOtp.length !== 4) {
+    return json({ error: "Invalid OTP. Please enter the 4-digit code." }, 400);
   }
 
   const adminClient = getAdminClient();
+  let otpVerified = false;
+  let verifySource = "";
 
-  // Check WhatsApp OTP in DB first (unverified)
-  const { data: waOtp } = await adminClient
+  // ─── Step 1: Check DB for matching OTP (any channel: sms or whatsapp) ───
+  // Use 30s clock-skew buffer to avoid false expirations at the boundary
+  const expiryBuffer = new Date(Date.now() - 30 * 1000).toISOString();
+  const { data: dbOtps } = await adminClient
     .from("whatsapp_otps")
     .select("*")
     .eq("mobile", mobile)
-    .eq("otp", otp)
-    .eq("verified", false)
-    .gte("expires_at", new Date().toISOString())
+    .eq("otp", cleanOtp)
+    .gte("expires_at", expiryBuffer)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+    .limit(5);
 
-  let otpVerified = false;
+  // Prefer unverified; fall back to recently-verified (retry/double-submit)
+  const unverifiedHit = (dbOtps || []).find((r: any) => !r.verified);
+  const verifiedHit = (dbOtps || []).find((r: any) => r.verified);
 
-  if (waOtp) {
-    await adminClient.from("whatsapp_otps").update({ verified: true }).eq("id", waOtp.id);
+  if (unverifiedHit) {
+    await adminClient.from("whatsapp_otps").update({ verified: true }).eq("id", unverifiedHit.id);
     otpVerified = true;
-    console.log("[MSG91] WhatsApp OTP verified from DB");
-  } else {
-    // Check if OTP was already verified recently (retry scenario)
-    const { data: alreadyVerified } = await adminClient
-      .from("whatsapp_otps")
-      .select("id")
-      .eq("mobile", mobile)
-      .eq("otp", otp)
-      .eq("verified", true)
-      .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
-      .limit(1)
-      .single();
-
-    if (alreadyVerified) {
+    verifySource = "db_fresh";
+  } else if (verifiedHit) {
+    // Allow retry within 10 min if already verified
+    const ageMs = Date.now() - new Date(verifiedHit.created_at).getTime();
+    if (ageMs < 10 * 60 * 1000) {
       otpVerified = true;
-      console.log("[MSG91] WhatsApp OTP already verified (retry)");
-    } else {
-      // Fallback to MSG91 SMS verify
-      const { data } = await msg91VerifyOTP(authKey, mobile, otp);
-      otpVerified = data.type === "success" || 
-        (data.message && data.message.toLowerCase().includes("already verified"));
+      verifySource = "db_retry";
     }
   }
 
-  if (otpVerified) {
-    const userResult = await findOrCreateUserAndGetSession(adminClient, mobile);
-    return json({ success: true, verified: true, ...userResult });
+  // ─── Step 2: Fallback to MSG91 server-side verify (handles SMS path) ───
+  if (!otpVerified) {
+    try {
+      const { data } = await msg91VerifyOTP(authKey, mobile, cleanOtp);
+      const msg = String((data as any)?.message || "").toLowerCase();
+      const type = String((data as any)?.type || "").toLowerCase();
+      if (type === "success" || msg.includes("verified successfully") || msg.includes("already verified")) {
+        otpVerified = true;
+        verifySource = "msg91";
+      } else {
+        console.warn("[MSG91] Verify rejected:", JSON.stringify(data));
+      }
+    } catch (e) {
+      console.error("[MSG91] Verify call threw:", e);
+    }
   }
 
-  return json({ success: false, verified: false, error: "OTP verification failed" }, 400);
+  console.log("[MSG91] Verify result:", { mobile, otpVerified, verifySource });
+
+  if (otpVerified) {
+    try {
+      const userResult = await findOrCreateUserAndGetSession(adminClient, mobile);
+      return json({ success: true, verified: true, ...userResult });
+    } catch (e) {
+      console.error("[MSG91] Session creation failed after verify:", e);
+      return json({ success: false, verified: true, error: "Verified but session creation failed. Please try again." }, 500);
+    }
+  }
+
+  return json({ success: false, verified: false, error: "Incorrect or expired OTP. Please request a new code." }, 400);
 }
 
 async function handleResendSMS(authKey: string, templateId: string, mobile: string) {
