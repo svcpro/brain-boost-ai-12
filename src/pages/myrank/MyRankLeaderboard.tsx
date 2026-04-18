@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Trophy, ArrowLeft, Crown, MapPin, Calendar, Globe } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, MapPin, Calendar, Globe, Flame, Sparkles, Zap, TrendingUp } from "lucide-react";
 
 const CATEGORIES = ["ALL", "UPSC", "SSC", "JEE", "NEET", "IQ"];
 const SCOPES: { key: string; label: string; icon: typeof Globe }[] = [
   { key: "india", label: "India", icon: Globe },
-  { key: "weekly", label: "This week", icon: Calendar },
-  { key: "city", label: "My city", icon: MapPin },
+  { key: "weekly", label: "Weekly", icon: Calendar },
+  { key: "city", label: "My City", icon: MapPin },
 ];
 
 interface Row {
@@ -52,113 +52,342 @@ const MyRankLeaderboard = () => {
     });
   }, [category, scope, user?.id]);
 
-  const medal = (pos: number) => pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : `#${pos}`;
+  const top3 = rows.slice(0, 3);
+  const rest = rows.slice(3);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-md mx-auto px-4 py-6 space-y-4">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Animated ambient orbs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl animate-pulse" />
+        <div className="absolute top-1/3 -right-24 w-80 h-80 rounded-full bg-accent/20 blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute bottom-0 left-1/4 w-64 h-64 rounded-full bg-warning/15 blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
+      </div>
+
+      <div className="relative max-w-md mx-auto px-4 py-5 space-y-5">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/myrank")}>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3"
+        >
+          <Button variant="ghost" size="icon" onClick={() => navigate("/myrank")} className="shrink-0 hover:bg-primary/10">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-500" /> Leaderboard
+              <span className="relative">
+                <Trophy className="w-6 h-6 text-warning drop-shadow-[0_0_8px_hsl(var(--warning)/0.6)]" />
+                <Sparkles className="w-3 h-3 text-warning absolute -top-1 -right-1 animate-pulse" />
+              </span>
+              <span className="bg-gradient-to-r from-warning via-primary to-accent bg-clip-text text-transparent">
+                Hall of Fame
+              </span>
             </h1>
-            <p className="text-xs text-muted-foreground">Top 100 across India</p>
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Flame className="w-3 h-3 text-destructive" />
+              Live rankings · Top 100 minds
+            </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Scope tabs */}
-        <div className="grid grid-cols-3 gap-2">
-          {SCOPES.map(s => {
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="grid grid-cols-3 gap-2"
+        >
+          {SCOPES.map((s, idx) => {
             const Icon = s.icon;
+            const active = scope === s.key;
             return (
-              <button
+              <motion.button
                 key={s.key}
                 onClick={() => setScope(s.key as any)}
-                className={`flex flex-col items-center gap-1 p-2 rounded-xl text-xs font-semibold transition-all ${
-                  scope === s.key
-                    ? "bg-primary text-primary-foreground shadow"
-                    : "bg-muted text-muted-foreground"
+                whileTap={{ scale: 0.95 }}
+                className={`relative flex flex-col items-center gap-1 p-2.5 rounded-xl text-xs font-semibold transition-all overflow-hidden ${
+                  active
+                    ? "text-primary-foreground shadow-lg shadow-primary/30"
+                    : "bg-card/50 backdrop-blur-sm text-muted-foreground border border-border/50 hover:border-primary/30"
                 }`}
+                style={{ animationDelay: `${idx * 50}ms` }}
               >
-                <Icon className="w-4 h-4" />
-                {s.label}
-              </button>
+                {active && (
+                  <motion.div
+                    layoutId="scope-bg"
+                    className="absolute inset-0 bg-gradient-to-br from-primary to-accent"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <Icon className="w-4 h-4 relative z-10" />
+                <span className="relative z-10">{s.label}</span>
+              </motion.button>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Category chips */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-          {CATEGORIES.map(c => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                category === c
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        {/* My position */}
-        {myPos && myPos > 100 && (
-          <Card className="p-3 bg-primary/5 border-primary/30 text-sm flex justify-between items-center">
-            <span className="text-muted-foreground">Your position:</span>
-            <span className="font-bold text-primary">#{myPos.toLocaleString("en-IN")}</span>
-          </Card>
-        )}
-
-        {/* Leaderboard list */}
-        {loading ? (
-          <div className="text-center py-12 text-sm text-muted-foreground">Loading…</div>
-        ) : rows.length === 0 ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">
-            No rankings yet. Be the first to take this test!
-          </Card>
-        ) : (
-          <div className="space-y-1.5">
-            {rows.map(r => (
-              <Card
-                key={`${r.position}-${r.name}`}
-                className={`p-3 flex items-center gap-3 ${
-                  r.is_me ? "ring-2 ring-primary bg-primary/5" : ""
-                } ${r.position <= 3 ? "bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20" : ""}`}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none"
+        >
+          {CATEGORIES.map(c => {
+            const active = category === c;
+            return (
+              <motion.button
+                key={c}
+                onClick={() => setCategory(c)}
+                whileTap={{ scale: 0.92 }}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all relative ${
+                  active
+                    ? "bg-foreground text-background shadow-md shadow-foreground/20"
+                    : "bg-card/50 backdrop-blur-sm text-muted-foreground border border-border/50 hover:border-foreground/30"
+                }`}
               >
-                <div className="w-10 text-center text-lg font-bold">
-                  {r.position <= 3 ? medal(r.position) : <span className="text-sm text-muted-foreground">#{r.position}</span>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate flex items-center gap-1">
-                    {r.name}
-                    {r.is_me && <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded">YOU</span>}
-                    {r.position === 1 && <Crown className="w-3 h-3 text-yellow-500" />}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground truncate">
-                    {r.category} · {r.ai_tag}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold tabular-nums">{r.percentile}%</div>
-                  <div className="text-[10px] text-muted-foreground">percentile</div>
-                </div>
-              </Card>
-            ))}
+                {c}
+                {active && (
+                  <motion.span
+                    layoutId="cat-glow"
+                    className="absolute inset-0 rounded-full ring-2 ring-primary/40"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+            );
+          })}
+        </motion.div>
+
+        {/* My position floating card */}
+        <AnimatePresence>
+          {myPos && myPos > 100 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative p-3 rounded-2xl bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border border-primary/30 backdrop-blur-md overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.2),transparent_50%)]" />
+              <div className="relative flex justify-between items-center text-sm">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  Your position
+                </span>
+                <span className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  #{myPos.toLocaleString("en-IN")}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Loading */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full border-2 border-primary/20" />
+              <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              <Trophy className="absolute inset-0 m-auto w-5 h-5 text-primary" />
+            </div>
+            <p className="text-xs text-muted-foreground animate-pulse">Loading champions...</p>
           </div>
+        ) : rows.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="p-10 text-center rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50"
+          >
+            <Trophy className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">No champions yet.<br/>Be the first to take this test!</p>
+          </motion.div>
+        ) : (
+          <>
+            {/* Podium for Top 3 */}
+            {top3.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="relative grid grid-cols-3 gap-2 items-end pt-4"
+              >
+                {/* 2nd place */}
+                {top3[1] && (
+                  <PodiumCard
+                    row={top3[1]}
+                    place={2}
+                    height="h-32"
+                    gradient="from-slate-400 to-slate-600"
+                    medal="🥈"
+                    delay={0.25}
+                  />
+                )}
+                {/* 1st place */}
+                {top3[0] && (
+                  <PodiumCard
+                    row={top3[0]}
+                    place={1}
+                    height="h-40"
+                    gradient="from-warning via-yellow-400 to-warning"
+                    medal="🥇"
+                    delay={0.2}
+                    isFirst
+                  />
+                )}
+                {/* 3rd place */}
+                {top3[2] && (
+                  <PodiumCard
+                    row={top3[2]}
+                    place={3}
+                    height="h-28"
+                    gradient="from-orange-500 to-amber-700"
+                    medal="🥉"
+                    delay={0.3}
+                  />
+                )}
+              </motion.div>
+            )}
+
+            {/* Rest of leaderboard */}
+            {rest.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
+                  <span className="text-[10px] font-semibold text-muted-foreground tracking-wider">RANKED CHALLENGERS</span>
+                  <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
+                </div>
+                <AnimatePresence>
+                  {rest.map((r, idx) => (
+                    <motion.div
+                      key={`${r.position}-${r.name}`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.35 + idx * 0.03, duration: 0.3 }}
+                      whileHover={{ scale: 1.02, x: 4 }}
+                      className={`relative flex items-center gap-3 p-3 rounded-xl backdrop-blur-sm overflow-hidden transition-all ${
+                        r.is_me
+                          ? "bg-gradient-to-r from-primary/15 via-accent/10 to-transparent border border-primary/40 shadow-lg shadow-primary/10"
+                          : "bg-card/40 border border-border/50 hover:border-primary/20"
+                      }`}
+                    >
+                      {r.is_me && (
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,hsl(var(--primary)/0.15),transparent_60%)]" />
+                      )}
+                      <div className="relative w-9 text-center shrink-0">
+                        <span className="text-sm font-bold text-muted-foreground tabular-nums">#{r.position}</span>
+                      </div>
+                      <div className="relative flex-1 min-w-0">
+                        <div className="font-semibold text-sm truncate flex items-center gap-1.5">
+                          {r.name}
+                          {r.is_me && (
+                            <span className="text-[9px] bg-gradient-to-r from-primary to-accent text-primary-foreground px-1.5 py-0.5 rounded-md font-bold shadow shadow-primary/30">
+                              YOU
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                          <Zap className="w-2.5 h-2.5 text-accent" />
+                          {r.category} · {r.ai_tag}
+                        </div>
+                      </div>
+                      <div className="relative text-right shrink-0">
+                        <div className="text-sm font-bold tabular-nums bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                          {r.percentile}%
+                        </div>
+                        <div className="text-[9px] text-muted-foreground">percentile</div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </>
         )}
 
-        <Button onClick={() => navigate("/myrank")} className="w-full" variant="outline">
-          Take a test to climb
-        </Button>
+        {/* CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="pt-2 pb-4"
+        >
+          <Button
+            onClick={() => navigate("/myrank")}
+            className="w-full h-12 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] hover:bg-[position:100%_0] text-primary-foreground font-bold shadow-lg shadow-primary/30 transition-all duration-500 group"
+          >
+            <Flame className="w-4 h-4 mr-2 group-hover:scale-125 transition-transform" />
+            Take a test to climb the ranks
+            <Sparkles className="w-4 h-4 ml-2 group-hover:rotate-12 transition-transform" />
+          </Button>
+        </motion.div>
       </div>
     </div>
+  );
+};
+
+// Podium Card Component
+interface PodiumCardProps {
+  row: Row;
+  place: number;
+  height: string;
+  gradient: string;
+  medal: string;
+  delay: number;
+  isFirst?: boolean;
+}
+
+const PodiumCard = ({ row, place, height, gradient, medal, delay, isFirst }: PodiumCardProps) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30, scale: 0.8 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay, type: "spring", stiffness: 200, damping: 15 }}
+      className="flex flex-col items-center gap-2"
+    >
+      {/* Avatar circle */}
+      <motion.div
+        animate={isFirst ? { y: [0, -4, 0] } : {}}
+        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+        className="relative"
+      >
+        {isFirst && (
+          <Crown className="absolute -top-5 left-1/2 -translate-x-1/2 w-5 h-5 text-warning drop-shadow-[0_0_6px_hsl(var(--warning)/0.8)] animate-pulse" />
+        )}
+        <div className={`relative w-14 h-14 rounded-full bg-gradient-to-br ${gradient} p-0.5 shadow-xl ${isFirst ? "shadow-warning/50" : ""}`}>
+          <div className="w-full h-full rounded-full bg-card flex items-center justify-center text-2xl">
+            {medal}
+          </div>
+          {row.is_me && (
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md font-bold whitespace-nowrap">
+              YOU
+            </span>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Name + percentile */}
+      <div className="text-center w-full px-1">
+        <div className="text-[11px] font-bold truncate">{row.name}</div>
+        <div className={`text-sm font-extrabold bg-gradient-to-r ${gradient} bg-clip-text text-transparent tabular-nums`}>
+          {row.percentile}%
+        </div>
+      </div>
+
+      {/* Podium block */}
+      <div className={`relative w-full ${height} rounded-t-xl bg-gradient-to-b ${gradient} flex items-start justify-center pt-2 overflow-hidden shadow-lg`}>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
+        <span className="relative text-2xl font-black text-white drop-shadow-md">#{place}</span>
+        {isFirst && (
+          <motion.div
+            animate={{ opacity: [0.3, 0.8, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="absolute inset-0 bg-gradient-to-t from-warning/40 to-transparent"
+          />
+        )}
+      </div>
+    </motion.div>
   );
 };
 
