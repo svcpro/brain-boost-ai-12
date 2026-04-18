@@ -128,6 +128,8 @@ const MyRankLanding = () => {
         >
           🏆 View Top 100 India Leaderboard →
         </button>
+
+        {ref && (
           <div className="text-center text-xs text-muted-foreground bg-primary/5 p-2 rounded-lg">
             🎯 Invited by a friend — beat their rank!
           </div>
