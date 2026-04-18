@@ -8,6 +8,7 @@ import {
   Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff,
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
+import { useReferralHandle } from "@/hooks/useReferralHandle";
 
 interface Result {
   test_id: string;
@@ -127,7 +128,7 @@ const MyRankResult = () => {
   const [liveShareCount, setLiveShareCount] = useState(0);
   const [tagTimer, setTagTimer] = useState(60);
 
-  const refCode = user?.id?.slice(0, 8) || localStorage.getItem("myrank_anon_id")?.slice(0, 8) || "guest";
+  const { handle: refCode, shareUrl: cleanShareUrl } = useReferralHandle();
   const anonId = typeof window !== "undefined" ? localStorage.getItem("myrank_anon_id") : null;
 
   const fetchUnlockStatus = useCallback(async () => {
@@ -202,7 +203,8 @@ const MyRankResult = () => {
   const cfg = TIER_CONFIG[tier];
   const TierIcon = cfg.icon;
 
-  const shareUrl = `${window.location.origin}/myrank?ref=${refCode}`;
+  // Memorable share URL like acry.ai/?ref=rahul123
+  const shareUrl = cleanShareUrl;
   const currentMessage = SHARE_TEMPLATES[activeTemplate].builder(result, shareUrl);
 
   const logShare = async (channel: string) => {
