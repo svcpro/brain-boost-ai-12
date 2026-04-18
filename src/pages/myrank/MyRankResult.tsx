@@ -271,9 +271,23 @@ const MyRankResult = () => {
     let target = "";
 
     switch (channel) {
-      case "telegram":
-        target = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encoded}`;
+      case "telegram": {
+        // Telegram's t.me/share/url requires an absolute http(s) URL in `url=`.
+        // Our caption already contains the share link, so we strip it from the
+        // text to avoid duplication and pass it cleanly as the `url` param.
+        const absoluteUrl = /^https?:\/\//i.test(shareUrl)
+          ? shareUrl
+          : `https://${(shareUrl || "acry.ai").replace(/^\/+/, "")}`;
+        const textWithoutUrl = currentMessage
+          .replace(shareUrl, "")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+        target =
+          `https://t.me/share/url` +
+          `?url=${encodeURIComponent(absoluteUrl)}` +
+          `&text=${encodeURIComponent(textWithoutUrl)}`;
         break;
+      }
       case "instagram":
         // Instagram has no public web text-share intent.
         // Best we can do: deep-link into the IG app on mobile (Direct inbox so
