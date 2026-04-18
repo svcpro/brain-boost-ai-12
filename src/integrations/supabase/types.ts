@@ -9286,6 +9286,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_session_tokens: {
+        Row: {
+          access_token: string
+          captured_at: string
+          expires_at: string | null
+          provider: string | null
+          refresh_token: string | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          captured_at?: string
+          expires_at?: string | null
+          provider?: string | null
+          refresh_token?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          captured_at?: string
+          expires_at?: string | null
+          provider?: string | null
+          refresh_token?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           created_at: string
