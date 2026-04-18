@@ -12,11 +12,56 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
 const CATEGORY_PROMPTS: Record<string, string> = {
-  UPSC: "UPSC Civil Services Prelims style — Indian polity, history, geography, economy, current affairs",
-  SSC: "SSC CGL style — quantitative aptitude, reasoning, English, general awareness",
-  JEE: "JEE Main style — physics, chemistry, mathematics (class 11-12 level)",
-  NEET: "NEET UG style — biology, physics, chemistry (class 11-12 level)",
+  // Featured
   IQ: "Classic IQ test — pattern recognition, logical reasoning, numerical sequences, spatial reasoning",
+  // Civil Services
+  "UPSC CSE": "UPSC Civil Services Prelims style — Indian polity, history, geography, economy, current affairs",
+  "UPSC IES": "UPSC Indian Engineering Services — engineering aptitude, general studies, technical reasoning",
+  "UPSC CMS": "UPSC Combined Medical Services — medical sciences, general ability, clinical reasoning",
+  "UPSC CAPF": "UPSC CAPF Assistant Commandant — general ability, intelligence, current affairs, reasoning",
+  "State PSC": "State Public Service Commission style — Indian polity, state-level GK, general studies",
+  // Medical & Engineering
+  "NEET UG": "NEET UG style — biology, physics, chemistry (class 11-12 level)",
+  "NEET PG": "NEET PG style — clinical medicine, anatomy, pathology, pharmacology",
+  "JEE Main": "JEE Main style — physics, chemistry, mathematics (class 11-12 level)",
+  "JEE Advanced": "JEE Advanced style — advanced physics, chemistry, mathematics, conceptual problem-solving",
+  GATE: "GATE engineering style — core engineering subjects, aptitude, technical reasoning",
+  BITSAT: "BITSAT style — physics, chemistry, mathematics, English, logical reasoning",
+  // MBA & Law
+  CAT: "CAT MBA entrance — quantitative aptitude, verbal ability, data interpretation, logical reasoning",
+  XAT: "XAT MBA style — decision making, verbal ability, quantitative aptitude, GK",
+  CLAT: "CLAT law entrance — legal reasoning, English, GK, logical reasoning, quantitative",
+  AILET: "AILET law entrance — legal aptitude, English, GK, reasoning, mathematics",
+  LSAT: "LSAT style — analytical reasoning, logical reasoning, reading comprehension",
+  NMAT: "NMAT MBA style — language skills, quantitative skills, logical reasoning",
+  // Government Jobs
+  "SSC CGL": "SSC CGL style — quantitative aptitude, reasoning, English, general awareness",
+  "SSC CHSL": "SSC CHSL style — quantitative aptitude, reasoning, English, general awareness (10+2)",
+  "SSC MTS": "SSC MTS style — basic reasoning, numerical aptitude, English, GK",
+  "IBPS PO": "IBPS PO banking style — reasoning, quantitative aptitude, English, banking awareness",
+  "IBPS Clerk": "IBPS Clerk banking style — reasoning, quantitative aptitude, English, computer awareness",
+  "SBI PO": "SBI PO banking style — reasoning, quantitative aptitude, English, banking & economy",
+  "SBI Clerk": "SBI Clerk style — reasoning, quantitative aptitude, English, general awareness",
+  "RBI Grade B": "RBI Grade B style — finance, economics, English, reasoning, GK",
+  "RRB NTPC": "RRB NTPC railway style — mathematics, reasoning, general awareness",
+  "RRB Group D": "RRB Group D railway style — basic mathematics, reasoning, GK, general science",
+  // Defence
+  NDA: "NDA defence style — mathematics, general ability, English, GK",
+  CDS: "CDS defence style — English, GK, elementary mathematics",
+  AFCAT: "AFCAT Air Force style — verbal ability, numerical ability, reasoning, military aptitude",
+  // International
+  GRE: "GRE style — verbal reasoning, quantitative reasoning, analytical writing",
+  GMAT: "GMAT MBA style — quantitative, verbal, integrated reasoning, data sufficiency",
+  SAT: "SAT style — evidence-based reading, writing, mathematics",
+  TOEFL: "TOEFL English proficiency — reading, listening, vocabulary, grammar",
+  IELTS: "IELTS English proficiency — reading, listening, grammar, vocabulary",
+  // Teaching & Research
+  "UGC NET": "UGC NET style — teaching aptitude, research methodology, general paper",
+  "CSIR NET": "CSIR NET science style — general aptitude, scientific reasoning, research",
+  CTET: "CTET teaching style — child development, pedagogy, language, mathematics, EVS",
+  // Other
+  CUET: "CUET undergraduate style — general test, language, domain knowledge",
+  KVPY: "KVPY science aptitude — physics, chemistry, biology, mathematics",
 };
 
 async function generateQuestions(category: string, count = 7) {
