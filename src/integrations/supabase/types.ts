@@ -5960,9 +5960,11 @@ export type Database = {
           anon_session_id: string | null
           answers: Json
           category: string
+          city: string | null
           completed_at: string | null
           created_at: string
           id: string
+          last_reengaged_at: string | null
           percentile: number | null
           questions: Json
           rank: number | null
@@ -5979,9 +5981,11 @@ export type Database = {
           anon_session_id?: string | null
           answers?: Json
           category: string
+          city?: string | null
           completed_at?: string | null
           created_at?: string
           id?: string
+          last_reengaged_at?: string | null
           percentile?: number | null
           questions?: Json
           rank?: number | null
@@ -5998,9 +6002,11 @@ export type Database = {
           anon_session_id?: string | null
           answers?: Json
           category?: string
+          city?: string | null
           completed_at?: string | null
           created_at?: string
           id?: string
+          last_reengaged_at?: string | null
           percentile?: number | null
           questions?: Json
           rank?: number | null
