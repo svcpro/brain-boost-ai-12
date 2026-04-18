@@ -225,6 +225,132 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Returns share+referral progress and which unlocks are earned
+    if (action === "unlock_status") {
+      const { user_id, anon_session_id, referrer_code } = body;
+      const idFilter = user_id
+        ? { col: "user_id", val: user_id }
+        : { col: "anon_session_id", val: anon_session_id };
+
+      // Count distinct shares (whatsapp counts toward gate)
+      const { count: shareCount } = await admin
+        .from("myrank_shares")
+        .select("*", { count: "exact", head: true })
+        .eq(idFilter.col, idFilter.val);
+
+      // Count successful referrals (status = signed_up OR completed_test)
+      let referralCount = 0;
+      if (referrer_code) {
+        const { count } = await admin
+          .from("myrank_referrals")
+          .select("*", { count: "exact", head: true })
+          .eq("referrer_code", referrer_code)
+          .in("status", ["signed_up", "completed_test"]);
+        referralCount = count || 0;
+      }
+
+      const shares = shareCount || 0;
+      const unlocks = {
+        detailed_analysis: shares >= 2 || referralCount >= 3, // Gate 1
+        weak_subject_breakdown: shares >= 2 || referralCount >= 3,
+        topper_strategy: shares >= 2 || referralCount >= 3,
+        premium_test: referralCount >= 5, // Reward tier 1
+        ai_study_plan: referralCount >= 10, // Reward tier 2
+      };
+
+      return new Response(JSON.stringify({
+        shares, referrals: referralCount, unlocks,
+        next_unlock: !unlocks.detailed_analysis
+          ? { type: "detailed_analysis", needs_shares: Math.max(0, 2 - shares), needs_referrals: Math.max(0, 3 - referralCount) }
+          : !unlocks.premium_test
+          ? { type: "premium_test", needs_referrals: Math.max(0, 5 - referralCount) }
+          : !unlocks.ai_study_plan
+          ? { type: "ai_study_plan", needs_referrals: Math.max(0, 10 - referralCount) }
+          : null,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Returns AI-generated detailed analysis (gated)
+    if (action === "detailed_analysis") {
+      const { test_id, user_id, anon_session_id } = body;
+
+      // Re-verify gate server-side (anti-cheat)
+      const idFilter = user_id
+        ? { col: "user_id", val: user_id }
+        : { col: "anon_session_id", val: anon_session_id };
+      const { count: shareCount } = await admin
+        .from("myrank_shares")
+        .select("*", { count: "exact", head: true })
+        .eq(idFilter.col, idFilter.val);
+
+      if ((shareCount || 0) < 2) {
+        return new Response(JSON.stringify({
+          error: "locked",
+          message: "Share with 2 friends to unlock detailed analysis",
+          shares: shareCount || 0,
+          needed: 2,
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const { data: test } = await admin.from("myrank_tests").select("*").eq("id", test_id).single();
+      if (!test) {
+        return new Response(JSON.stringify({ error: "Test not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const questions = test.questions as any[];
+      const answers = test.answers as number[] || [];
+      const wrongQuestions = questions
+        .map((q, i) => ({ q: q.question, correct: q.options[q.correct_index], chose: q.options[answers[i]] || "skipped", right: answers[i] === q.correct_index }))
+        .filter(x => !x.right);
+
+      const prompt = `Student took ${test.category} test. Score: ${test.score}/${questions.length}, percentile: ${test.percentile}%.
+Wrong questions:
+${wrongQuestions.map((w, i) => `${i + 1}. Q: ${w.q}\n   Correct: ${w.correct}\n   Chose: ${w.chose}`).join("\n")}
+
+Generate a JSON object with:
+- weak_areas: array of {topic, severity (high|medium|low), why}
+- topper_strategy: 3-bullet strategy a top scorer would use
+- next_steps: 3 concrete actions to climb 10 percentile points`;
+
+      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            { role: "system", content: "You are an exam coach. Output strict JSON only." },
+            { role: "user", content: prompt },
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "return_analysis",
+              parameters: {
+                type: "object",
+                properties: {
+                  weak_areas: { type: "array", items: { type: "object", properties: { topic: { type: "string" }, severity: { type: "string" }, why: { type: "string" } }, required: ["topic", "severity", "why"] } },
+                  topper_strategy: { type: "array", items: { type: "string" } },
+                  next_steps: { type: "array", items: { type: "string" } },
+                },
+                required: ["weak_areas", "topper_strategy", "next_steps"],
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "return_analysis" } },
+        }),
+      });
+
+      if (!aiRes.ok) throw new Error(`AI gateway ${aiRes.status}`);
+      const aiData = await aiRes.json();
+      const analysis = JSON.parse(aiData.choices[0].message.tool_calls[0].function.arguments);
+
+      return new Response(JSON.stringify(analysis), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
