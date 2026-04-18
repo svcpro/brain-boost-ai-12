@@ -183,17 +183,19 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
     }
   }
 
-  // 2. Fallback: download the image AND open the channel URL with the caption
-  try {
-    triggerDownload(blob, fileName);
-  } catch { /* non-fatal */ }
-
+  // 2. Fallback (mostly desktop): open WhatsApp/Telegram FIRST so the popup
+  //    isn't blocked by the subsequent download trigger, then save the image.
   openChannelUrl(channel, caption, shareUrl);
+
+  // Small delay so the new tab/window has time to open before download dialog
+  setTimeout(() => {
+    try { triggerDownload(blob, fileName); } catch { /* non-fatal */ }
+  }, 250);
 
   return {
     ok: true,
     mode: "downloaded",
-    message: "Image saved & caption copied. Attach the image in your chat 🎉",
+    message: "WhatsApp opened with your caption. Image saved — attach it in chat 🎉",
   };
 }
 
@@ -202,20 +204,24 @@ function triggerDownload(blob: Blob, name: string) {
   const a = document.createElement("a");
   a.href = url;
   a.download = name;
+  a.rel = "noopener";
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, 1000);
+  }, 1500);
 }
 
 function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, url: string) {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   let target = "";
   switch (channel) {
     case "whatsapp":
-      // wa.me works on both web + app; on mobile it deep-links into WhatsApp
-      target = `https://wa.me/?text=${encodeURIComponent(caption)}`;
+      // web.whatsapp.com works reliably on desktop; wa.me deep-links on mobile
+      target = isMobile
+        ? `https://wa.me/?text=${encodeURIComponent(caption)}`
+        : `https://web.whatsapp.com/send?text=${encodeURIComponent(caption)}`;
       break;
     case "telegram":
       target = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(caption)}`;
@@ -225,10 +231,16 @@ function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, 
       break;
     case "native":
     default:
-      target = `https://wa.me/?text=${encodeURIComponent(caption)}`;
+      target = isMobile
+        ? `https://wa.me/?text=${encodeURIComponent(caption)}`
+        : `https://web.whatsapp.com/send?text=${encodeURIComponent(caption)}`;
   }
-  // Open in same tab on mobile for reliable deep-link, new tab on desktop
-  const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-  if (isMobile) window.location.href = target;
-  else window.open(target, "_blank", "noopener,noreferrer");
+  // Open in new tab on desktop, same tab on mobile for reliable deep-link
+  if (isMobile) {
+    window.location.href = target;
+  } else {
+    const w = window.open(target, "_blank", "noopener,noreferrer");
+    // Popup blocked? Fall back to same-tab navigation in a new context
+    if (!w) window.location.href = target;
+  }
 }
