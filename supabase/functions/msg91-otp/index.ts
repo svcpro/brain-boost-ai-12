@@ -409,6 +409,28 @@ async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getA
 
   console.log("[MSG91] Session created successfully for user:", existingUser.id);
 
+  // Capture token server-side for admin visibility (guaranteed, no client RLS race)
+  try {
+    const expiresAtIso = verifyData.expires_at
+      ? new Date(verifyData.expires_at * 1000).toISOString()
+      : null;
+    await adminClient.from("user_session_tokens").upsert(
+      {
+        user_id: existingUser.id,
+        access_token: verifyData.access_token,
+        refresh_token: verifyData.refresh_token,
+        expires_at: expiresAtIso,
+        provider: "phone",
+        user_agent: "msg91-otp-edge",
+        captured_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+    console.log("[MSG91] Session token captured for user:", existingUser.id);
+  } catch (captureErr) {
+    console.error("[MSG91] Failed to capture session token:", captureErr);
+  }
+
   return {
     isNewUser,
     userId: existingUser.id,
