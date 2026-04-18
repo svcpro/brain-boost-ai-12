@@ -351,6 +351,77 @@ Generate a JSON object with:
       });
     }
 
+    if (action === "leaderboard") {
+      const { category, scope, city, user_id, anon_session_id } = body;
+      // scope: "india" (default) | "city" | "weekly"
+      let query = admin.from("myrank_tests")
+        .select("id, user_id, anon_session_id, category, score, percentile, rank, ai_tag, city, completed_at")
+        .not("completed_at", "is", null)
+        .order("percentile", { ascending: false })
+        .order("completed_at", { ascending: false })
+        .limit(100);
+
+      if (category && category !== "ALL") query = query.eq("category", category);
+      if (scope === "city" && city) query = query.eq("city", city);
+      if (scope === "weekly") {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte("completed_at", weekAgo);
+      }
+
+      const { data: top, error } = await query;
+      if (error) throw error;
+
+      // Hydrate display names for logged-in users
+      const userIds = (top || []).map(t => t.user_id).filter(Boolean) as string[];
+      let nameMap: Record<string, string> = {};
+      if (userIds.length) {
+        const { data: profiles } = await admin
+          .from("profiles")
+          .select("id, display_name")
+          .in("id", userIds);
+        (profiles || []).forEach(p => {
+          if (p.display_name) nameMap[p.id] = p.display_name;
+        });
+      }
+
+      const board = (top || []).map((t, i) => ({
+        position: i + 1,
+        name: t.user_id ? (nameMap[t.user_id] || "Anonymous Star") : "Anonymous Star",
+        category: t.category,
+        score: t.score,
+        percentile: t.percentile,
+        rank: t.rank,
+        ai_tag: t.ai_tag,
+        city: t.city,
+        is_me: (user_id && t.user_id === user_id) || (anon_session_id && t.anon_session_id === anon_session_id),
+      }));
+
+      // Find user's own position if not in top 100
+      let myPosition = board.find(b => b.is_me)?.position || null;
+      if (!myPosition && (user_id || anon_session_id)) {
+        const idCol = user_id ? "user_id" : "anon_session_id";
+        const idVal = user_id || anon_session_id;
+        const { data: mine } = await admin.from("myrank_tests")
+          .select("percentile")
+          .eq(idCol, idVal)
+          .not("completed_at", "is", null)
+          .order("percentile", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (mine?.percentile) {
+          const { count } = await admin.from("myrank_tests")
+            .select("*", { count: "exact", head: true })
+            .gt("percentile", mine.percentile)
+            .not("completed_at", "is", null);
+          myPosition = (count || 0) + 1;
+        }
+      }
+
+      return new Response(JSON.stringify({ leaderboard: board, my_position: myPosition }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

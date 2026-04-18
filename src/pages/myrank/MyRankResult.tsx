@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Trophy, Share2, RefreshCw, Lock, Crown, Sparkles, Users, Gift, Loader2 } from "lucide-react";
+import { Trophy, Share2, RefreshCw, Lock, Crown, Sparkles, Users, Gift, Loader2, ListOrdered } from "lucide-react";
+import ShareableBadge from "@/components/myrank/ShareableBadge";
 
 interface Result {
   test_id: string;
@@ -187,6 +188,29 @@ const MyRankResult = () => {
 
         <Button onClick={handleNativeShare} variant="outline" className="w-full">
           More share options
+        </Button>
+
+        {/* Shareable Badge */}
+        <Card className="p-4 space-y-2">
+          <div className="text-sm font-bold flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-yellow-500" /> Your Shareable Badge
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Auto-generated 1080×1080 image — perfect for WhatsApp Status & Instagram.
+          </div>
+          <ShareableBadge
+            rank={result.rank}
+            percentile={result.percentile}
+            category={result.category}
+            aiTag={result.ai_tag}
+            userName={user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion"}
+          />
+        </Card>
+
+        {/* Leaderboard CTA */}
+        <Button onClick={() => navigate("/myrank/leaderboard")} variant="secondary" className="w-full">
+          <ListOrdered className="w-4 h-4 mr-2" />
+          See Top 100 India Leaderboard
         </Button>
 
         {/* Hard viral gate — Detailed Analysis */}
