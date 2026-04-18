@@ -1,6 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import NeuralBackground from "@/components/landing/NeuralBackground";
 import HeroSection from "@/components/landing/HeroSection";
@@ -24,6 +24,33 @@ const CTASection = lazy(() => import("@/components/landing/CTASection"));
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Capture memorable referral handle (?ref=rahul123) on root domain
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref && ref.length >= 3 && ref.length <= 32 && /^[a-z0-9_]+$/i.test(ref)) {
+      sessionStorage.setItem("myrank_ref", ref);
+      localStorage.setItem("acry_pending_ref", ref);
+      // Track click (best-effort, non-blocking)
+      supabase
+        .from("myrank_handles")
+        .select("handle, click_count")
+        .eq("handle", ref)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            supabase
+              .from("myrank_handles")
+              .update({
+                click_count: (data.click_count || 0) + 1,
+                last_clicked_at: new Date().toISOString(),
+              } as any)
+              .eq("handle", ref);
+          }
+        });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!loading && user) {

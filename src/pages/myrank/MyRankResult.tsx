@@ -8,6 +8,7 @@ import {
   Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff,
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
+import { useReferralHandle } from "@/hooks/useReferralHandle";
 
 interface Result {
   test_id: string;
@@ -127,7 +128,7 @@ const MyRankResult = () => {
   const [liveShareCount, setLiveShareCount] = useState(0);
   const [tagTimer, setTagTimer] = useState(60);
 
-  const refCode = user?.id?.slice(0, 8) || localStorage.getItem("myrank_anon_id")?.slice(0, 8) || "guest";
+  const { handle: refCode, shareUrl: cleanShareUrl } = useReferralHandle();
   const anonId = typeof window !== "undefined" ? localStorage.getItem("myrank_anon_id") : null;
 
   const fetchUnlockStatus = useCallback(async () => {
@@ -202,7 +203,8 @@ const MyRankResult = () => {
   const cfg = TIER_CONFIG[tier];
   const TierIcon = cfg.icon;
 
-  const shareUrl = `${window.location.origin}/myrank?ref=${refCode}`;
+  // Memorable share URL like acry.ai/?ref=rahul123
+  const shareUrl = cleanShareUrl;
   const currentMessage = SHARE_TEMPLATES[activeTemplate].builder(result, shareUrl);
 
   const logShare = async (channel: string) => {
@@ -748,8 +750,27 @@ const MyRankResult = () => {
               progress={`${unlock?.referrals || 0}/10`}
             />
           </div>
-          <div className="relative text-[10px] text-center text-white/40 pt-1 font-mono truncate">
-            {shareUrl}
+          {/* Memorable share link — your unique handle */}
+          <div className="relative mt-2 rounded-xl border border-purple-400/30 bg-black/40 p-2.5 backdrop-blur">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-[9px] uppercase tracking-widest text-purple-300/70 font-bold">Your unique link</div>
+                <div className="text-[12px] font-mono font-bold text-white truncate">
+                  acry.ai/?ref=<span className="bg-gradient-to-r from-fuchsia-300 to-cyan-300 bg-clip-text text-transparent">{refCode}</span>
+                </div>
+              </div>
+              <button
+                onClick={handleCopyLink}
+                className="shrink-0 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-fuchsia-500/30 to-cyan-500/30 border border-white/15 hover:from-fuchsia-500/50 hover:to-cyan-500/50 transition flex items-center gap-1 text-[10px] font-bold"
+                aria-label="Copy unique link"
+              >
+                {copied === "link" ? (
+                  <><Check className="w-3 h-3 text-emerald-400" /> Copied</>
+                ) : (
+                  <><Copy className="w-3 h-3 text-white/80" /> Copy</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
