@@ -287,16 +287,22 @@ Deno.serve(async (req) => {
         if (answers[i] === q.correct_index) score++;
       });
 
-      const { rank, percentile, ai_tag } = computeRank(
+      const { rank, percentile, ai_tag, methodology, sample_size, pool_size, composite_score } = await computeRank(
         score, questions.length, time_taken_seconds, test.category
       );
 
       const accuracy = Math.round((score / questions.length) * 1000) / 10;
+      const trustNote = methodology === "empirical"
+        ? `Ranked against ${sample_size.toLocaleString()} real test-takers in ${test.category}.`
+        : methodology === "hybrid"
+        ? `Calibrated using ${sample_size} real attempts + ML model.`
+        : `Predicted via ML model (early access — ranking will sharpen as more aspirants attempt).`;
+
       const aiInsight = percentile >= 90
-        ? `You outperformed ${percentile.toFixed(1)}% of test-takers. Only ${(100 - percentile).toFixed(1)}% scored higher than you!`
+        ? `You outperformed ${percentile.toFixed(1)}% of test-takers. ${trustNote}`
         : percentile >= 50
-        ? `You're better than ${percentile.toFixed(1)}% of users. Push harder to break into the top 10%!`
-        : `${(100 - percentile).toFixed(1)}% scored above you. Don't worry — every topper started here.`;
+        ? `You're better than ${percentile.toFixed(1)}% of users. ${trustNote}`
+        : `${(100 - percentile).toFixed(1)}% scored above you. ${trustNote}`;
 
       await admin.from("myrank_tests").update({
         answers, score, accuracy, time_taken_seconds,
@@ -323,6 +329,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         score, accuracy, rank, percentile, ai_tag, ai_insight: aiInsight,
         total: questions.length, category: test.category,
+        prediction: {
+          methodology, sample_size, pool_size, composite_score,
+          confidence: methodology === "empirical" ? "high" : methodology === "hybrid" ? "medium" : "early-access",
+        },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
