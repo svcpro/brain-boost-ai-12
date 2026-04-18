@@ -178,6 +178,26 @@ const SUGGESTED_TOPICS: Record<string, string[]> = {
   "Audit & Assurance": ["Audit Process", "Risk Assessment", "Reporting"],
 };
 
+// Generic fallback subjects for "Other" / custom exams (by category)
+const GENERIC_SUBJECTS_BY_CATEGORY: Record<string, string[]> = {
+  government: ["General Studies", "General Knowledge", "Quantitative Aptitude", "Reasoning", "English Language", "Current Affairs"],
+  entrance: ["Mathematics", "Physics", "Chemistry", "English", "Logical Reasoning"],
+  global: ["English", "Quantitative Reasoning", "Verbal Reasoning", "Analytical Writing"],
+};
+
+// Resolve which preset key to use — handles "other_*" by falling back to category
+const resolvePresetKey = (examId: string, examCategory: string): string | null => {
+  if (SUGGESTED_SUBJECTS[examId]) return examId;
+  if (examId?.startsWith("other_")) return `__generic_${examCategory}`;
+  return null;
+};
+
+const getPresetSubjects = (examId: string, examCategory: string): string[] => {
+  if (SUGGESTED_SUBJECTS[examId]) return SUGGESTED_SUBJECTS[examId];
+  if (examId?.startsWith("other_")) return GENERIC_SUBJECTS_BY_CATEGORY[examCategory] || GENERIC_SUBJECTS_BY_CATEGORY.government;
+  return [];
+};
+
 // Validation removed per user request — accept any non-empty trimmed input.
 const validateAcademicTerm = (raw: string): { valid: boolean; reason?: string } => {
   return { valid: raw.trim().length > 0 };
