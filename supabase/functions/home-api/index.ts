@@ -974,6 +974,7 @@ Deno.serve(async (req) => {
           rankPredV2Res, rankPredRes, reportsRes, recentLogsRes,
           autopilotRes, autopilotCfgRes, subRes,
           completionRes, reviewQueueRes, streakLogsRes,
+          plansRes,
         ] = await Promise.all([
           adminClient.from("topics").select("id, name, memory_strength, next_predicted_drop_date, subject_id").eq("user_id", userId).is("deleted_at", null),
           adminClient.from("profiles").select("display_name, avatar_url, exam_date, daily_study_goal_minutes, created_at").eq("id", userId).maybeSingle(),
@@ -988,10 +989,11 @@ Deno.serve(async (req) => {
           adminClient.from("study_logs").select("id, duration_minutes, study_mode, subject_id, topic_id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
           adminClient.from("autopilot_sessions").select("*").eq("user_id", userId).eq("session_date", today).maybeSingle(),
           adminClient.from("autopilot_config").select("is_enabled").limit(1).maybeSingle(),
-          adminClient.from("user_subscriptions").select("*, plan:subscription_plans(plan_key, name)").eq("user_id", userId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          adminClient.from("user_subscriptions").select("*, plan:subscription_plans(plan_key, name, price, yearly_price, currency, trial_days)").eq("user_id", userId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           adminClient.from("plan_quality_logs").select("overall_completion_rate").eq("user_id", userId).order("created_at", { ascending: false }).limit(2),
           adminClient.from("topics").select("id, name, memory_strength, next_predicted_drop_date, subject_id").eq("user_id", userId).is("deleted_at", null).not("next_predicted_drop_date", "is", null).lte("next_predicted_drop_date", nowIso).order("next_predicted_drop_date", { ascending: true }).limit(10),
           adminClient.from("study_logs").select("created_at").eq("user_id", userId).gte("created_at", yearAgo).order("created_at", { ascending: false }).limit(500),
+          adminClient.from("subscription_plans").select("plan_key, name, price, yearly_price, currency, trial_days, features, is_popular").eq("is_active", true).order("sort_order", { ascending: true }),
         ]);
 
         const profile = profileRes.data;
