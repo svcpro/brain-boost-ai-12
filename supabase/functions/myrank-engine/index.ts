@@ -65,9 +65,10 @@ const CATEGORY_PROMPTS: Record<string, string> = {
   KVPY: "KVPY science aptitude — physics, chemistry, biology, mathematics",
 };
 
-async function generateQuestions(category: string, count = 7) {
-  const prompt = `Generate ${count} multiple-choice questions in ${CATEGORY_PROMPTS[category] || "general knowledge"}.
-Each question must have exactly 4 options. Mix of easy/medium/hard. Return strict JSON only.`;
+async function callAIForQuestions(model: string, category: string, count: number) {
+  const prompt = `Generate exactly ${count} multiple-choice questions in ${CATEGORY_PROMPTS[category] || "general knowledge"}.
+Each question MUST have exactly 4 options and one correct_index (0-3). Mix easy/medium/hard.
+You MUST call the return_questions function with all ${count} questions.`;
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -76,9 +77,9 @@ Each question must have exactly 4 options. Mix of easy/medium/hard. Return stric
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
+      model,
       messages: [
-        { role: "system", content: "You generate exam MCQs. Output strict JSON only." },
+        { role: "system", content: "You generate exam MCQs. Always call the provided function with all requested questions." },
         { role: "user", content: prompt },
       ],
       tools: [{
@@ -117,27 +118,41 @@ Each question must have exactly 4 options. Mix of easy/medium/hard. Return stric
   const data = await res.json();
   const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
   if (!args) {
-    console.error("[myrank] No tool_calls in AI response:", JSON.stringify(data).slice(0, 500));
-    throw new Error("AI did not return questions (no tool_calls)");
+    console.error(`[myrank] ${model} returned no tool_calls. finish_reason=${data.choices?.[0]?.finish_reason}, raw=`, JSON.stringify(data).slice(0, 800));
+    return [];
   }
   let parsed: any;
   try {
     parsed = typeof args === "string" ? JSON.parse(args) : args;
-  } catch (e) {
-    console.error("[myrank] Failed to parse AI args:", args);
-    throw new Error("AI returned malformed JSON");
+  } catch {
+    console.error(`[myrank] ${model} malformed JSON:`, String(args).slice(0, 500));
+    return [];
   }
   const qs = Array.isArray(parsed?.questions) ? parsed.questions : [];
-  // Validate each question has the required shape
   const valid = qs.filter((q: any) =>
     q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct_index === "number"
   );
-  if (valid.length === 0) {
-    console.error("[myrank] AI returned 0 valid questions for", category, "raw:", JSON.stringify(parsed).slice(0, 500));
-    throw new Error("AI returned no valid questions — please retry");
-  }
   return valid.slice(0, count);
 }
+
+async function generateQuestions(category: string, count = 7) {
+  // Try in order: flash (smart enough + fast) → flash-lite (fallback) → pro (last resort)
+  const models = ["google/gemini-2.5-flash", "google/gemini-2.5-flash-lite", "google/gemini-2.5-pro"];
+  for (const model of models) {
+    try {
+      const qs = await callAIForQuestions(model, category, count);
+      if (qs.length > 0) {
+        console.log(`[myrank] ${model} returned ${qs.length} questions for ${category}`);
+        return qs;
+      }
+      console.warn(`[myrank] ${model} returned 0 valid questions for ${category}, trying next model...`);
+    } catch (e) {
+      console.error(`[myrank] ${model} threw:`, (e as Error).message);
+    }
+  }
+  throw new Error("All AI models failed to generate valid questions");
+}
+
 
 // Standard normal CDF (Abramowitz & Stegun approximation) — used for ML-grade percentile
 function normalCdf(z: number): number {
