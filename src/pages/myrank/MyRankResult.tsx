@@ -87,30 +87,63 @@ const TIER_CONFIG = {
 };
 
 // Pre-written share templates (one-tap copy, increases share volume)
+// Designed for WhatsApp: bold-feeling unicode, clean lines, eye-catching headers.
 const SHARE_TEMPLATES = [
   {
     label: "Flex 🔥",
     icon: "🏆",
     builder: (r: Result, url: string) =>
-      `🏆 I'm ranked #${r.rank.toLocaleString("en-IN")} in India for ${r.category}!\n${r.percentile}% percentile · ${r.ai_tag}\n\nThink you can beat me? 😎\n👉 ${url}`,
+      `🏆 *ACRY AI RANK TEST* 🏆
+━━━━━━━━━━━━━━━━━
+🇮🇳 All-India Rank: *#${r.rank.toLocaleString("en-IN")}*
+🎯 Category: ${r.category}
+📊 Percentile: *${r.percentile}%*
+🧠 AI Tag: _${r.ai_tag}_
+━━━━━━━━━━━━━━━━━
+
+Think you can beat me? 😎
+Take the 90-sec test 👇
+${url}`,
   },
   {
     label: "Challenge ⚔️",
     icon: "⚔️",
     builder: (r: Result, url: string) =>
-      `⚔️ CHALLENGE TIME ⚔️\nI scored ${r.percentile}% in ACRY's ${r.category} test.\nYour rank? Take the 90-sec test 👇\n${url}`,
+      `⚔️ *CHALLENGE ACCEPTED?* ⚔️
+
+I just scored *${r.percentile}%* on ACRY's
+${r.category} AI Rank Test 🧠⚡
+
+🏅 Rank: #${r.rank.toLocaleString("en-IN")} in India
+🎖 Tag: ${r.ai_tag}
+
+Your turn. 90 seconds. Let's see your rank 👇
+${url}`,
   },
   {
     label: "Humble brag 😏",
     icon: "😏",
     builder: (r: Result, url: string) =>
-      `Just took the ACRY AI Rank Test — apparently I'm in the top ${Math.max(1, 100 - Math.round(r.percentile))}% of India 🇮🇳\nNo big deal 😏\n${url}`,
+      `Just took the *ACRY AI Rank Test*…
+apparently I'm in the *top ${Math.max(1, 100 - Math.round(r.percentile))}%* of India 🇮🇳
+
+🏆 Rank #${r.rank.toLocaleString("en-IN")} · ${r.category}
+🧠 ${r.ai_tag}
+
+No big deal 😏
+${url}`,
   },
   {
     label: "Group war 👥",
     icon: "👥",
     builder: (r: Result, url: string) =>
-      `Yo squad, find your India rank in 90 seconds — I got #${r.rank.toLocaleString("en-IN")} (${r.ai_tag})\nWho's #1 in our group?\n${url}`,
+      `Yo squad 👋
+
+Find your *India rank in 90 seconds* on ACRY.
+I got *#${r.rank.toLocaleString("en-IN")}* (${r.ai_tag}) in ${r.category} 🔥
+
+Who's #1 in our group? 👀
+${url}`,
   },
 ];
 
@@ -230,42 +263,48 @@ const MyRankResult = () => {
   const userName = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion";
 
   const runShare = async (channel: "whatsapp" | "instagram" | "telegram" | "native") => {
-    toast({ title: "Preparing your card…", description: "Generating image" });
+    // Always copy caption first — guarantees user can paste anywhere
+    try { await navigator.clipboard?.writeText(currentMessage); } catch { /* non-fatal */ }
 
-    const res = await shareBadgeOneClick({
-      badge: {
-        rank: result.rank,
-        percentile: result.percentile,
-        category: result.category,
-        aiTag: result.ai_tag,
-        userName,
-      },
-      caption: currentMessage,
-      shareUrl,
-      channel,
-    });
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const encoded = encodeURIComponent(currentMessage);
+    let target = "";
 
-    if (res.mode === "cancelled") return;
+    switch (channel) {
+      case "telegram":
+        target = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encoded}`;
+        break;
+      case "instagram":
+        // Instagram has no text-share web intent — open IG and rely on copied caption
+        target = "https://www.instagram.com/";
+        break;
+      case "whatsapp":
+      case "native":
+      default:
+        target = isMobile
+          ? `https://wa.me/?text=${encoded}`
+          : `https://web.whatsapp.com/send?text=${encoded}`;
+        break;
+    }
+
+    if (isMobile) {
+      window.location.href = target;
+    } else {
+      const w = window.open(target, "_blank", "noopener,noreferrer");
+      if (!w) window.location.href = target;
+    }
 
     await logShare(channel);
 
-    if (res.mode === "native-files") {
-      toast({ title: "Shared! 🎉", description: "Your rank card is on its way." });
-    } else if (res.mode === "downloaded") {
+    if (channel === "instagram") {
       toast({
-        title: "Image saved + caption copied",
-        description: "Attach the saved image in your chat and paste the caption.",
+        title: "Caption copied 📋",
+        description: "Paste it in your Instagram story or bio link.",
       });
-    } else if (res.mode === "channel-url") {
+    } else {
       toast({
-        title: "Caption copied",
-        description: "Paste it in your chat — image couldn't be generated here.",
-      });
-    } else if (res.mode === "error") {
-      toast({
-        title: "Couldn't share",
-        description: res.message || "Please try again",
-        variant: "destructive",
+        title: "Opening… 🚀",
+        description: "Your caption is pre-filled and copied as backup.",
       });
     }
   };
