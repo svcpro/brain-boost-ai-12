@@ -229,7 +229,7 @@ function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, 
       break;
     case "native":
     default:
-      target = `https://api.whatsapp.com/send?text=${encodeURIComponent(caption)}`;
+      target = `https://wa.me/?text=${encodeURIComponent(caption)}`;
   }
   // Open in new tab on desktop, same tab on mobile for reliable deep-link
   if (isMobile) {
