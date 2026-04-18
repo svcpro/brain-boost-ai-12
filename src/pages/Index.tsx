@@ -32,23 +32,10 @@ const Index = () => {
     if (ref && ref.length >= 3 && ref.length <= 32 && /^[a-z0-9_]+$/i.test(ref)) {
       sessionStorage.setItem("myrank_ref", ref);
       localStorage.setItem("acry_pending_ref", ref);
-      // Track click (best-effort, non-blocking)
-      supabase
-        .from("myrank_handles")
-        .select("handle, click_count")
-        .eq("handle", ref)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) {
-            supabase
-              .from("myrank_handles")
-              .update({
-                click_count: (data.click_count || 0) + 1,
-                last_clicked_at: new Date().toISOString(),
-              } as any)
-              .eq("handle", ref);
-          }
-        });
+      // Track click via edge function (service role can update click_count)
+      supabase.functions
+        .invoke("myrank-engine", { body: { action: "track_click", handle: ref } })
+        .catch(() => {});
     }
   }, [searchParams]);
 
