@@ -33,7 +33,6 @@ const Index = () => {
       sessionStorage.setItem("myrank_ref", ref);
       localStorage.setItem("acry_pending_ref", ref);
       // Track click (best-effort, non-blocking)
-      supabase.rpc("increment_api_usage" as any, { p_service_name: "noop" }).catch(() => {});
       supabase
         .from("myrank_handles")
         .select("handle, click_count")
