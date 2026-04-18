@@ -227,35 +227,57 @@ const MyRankResult = () => {
     setTimeout(fetchUnlockStatus, 500);
   };
 
-  const handleWhatsAppShare = async () => {
-    await logShare("whatsapp");
-    window.open(`https://wa.me/?text=${encodeURIComponent(currentMessage)}`, "_blank");
-  };
+  const userName = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion";
 
-  const handleInstagramShare = async () => {
-    await logShare("instagram");
-    await navigator.clipboard.writeText(currentMessage);
-    setCopied("ig");
-    setTimeout(() => setCopied(null), 2000);
-    // Open Instagram (deep-link best-effort)
-    window.open("https://www.instagram.com/", "_blank");
-  };
+  const runShare = async (channel: "whatsapp" | "instagram" | "telegram" | "native") => {
+    toast({ title: "Preparing your card…", description: "Generating image" });
 
-  const handleTelegramShare = async () => {
-    await logShare("telegram");
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(currentMessage)}`, "_blank");
-  };
+    const res = await shareBadgeOneClick({
+      badge: {
+        rank: result.rank,
+        percentile: result.percentile,
+        category: result.category,
+        aiTag: result.ai_tag,
+        userName,
+      },
+      caption: currentMessage,
+      shareUrl,
+      channel,
+    });
 
-  const handleNativeShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "My ACRY Rank", text: currentMessage, url: shareUrl });
-        await logShare("native");
-      } catch {}
-    } else {
-      handleWhatsAppShare();
+    if (res.mode === "cancelled") return;
+
+    await logShare(channel);
+
+    if (res.mode === "native-files") {
+      toast({ title: "Shared! 🎉", description: "Your rank card is on its way." });
+    } else if (res.mode === "downloaded") {
+      toast({
+        title: "Image saved + caption copied",
+        description: "Attach the saved image in your chat and paste the caption.",
+      });
+    } else if (res.mode === "channel-url") {
+      toast({
+        title: "Caption copied",
+        description: "Paste it in your chat — image couldn't be generated here.",
+      });
+    } else if (res.mode === "error") {
+      toast({
+        title: "Couldn't share",
+        description: res.message || "Please try again",
+        variant: "destructive",
+      });
     }
   };
+
+  const handleWhatsAppShare = () => runShare("whatsapp");
+  const handleInstagramShare = () => {
+    setCopied("ig");
+    setTimeout(() => setCopied(null), 2000);
+    return runShare("instagram");
+  };
+  const handleTelegramShare = () => runShare("telegram");
+  const handleNativeShare = () => runShare("native");
 
   const handleCopyMessage = async () => {
     await navigator.clipboard.writeText(currentMessage);
