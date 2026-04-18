@@ -87,30 +87,63 @@ const TIER_CONFIG = {
 };
 
 // Pre-written share templates (one-tap copy, increases share volume)
+// Designed for WhatsApp: bold-feeling unicode, clean lines, eye-catching headers.
 const SHARE_TEMPLATES = [
   {
     label: "Flex 🔥",
     icon: "🏆",
     builder: (r: Result, url: string) =>
-      `🏆 I'm ranked #${r.rank.toLocaleString("en-IN")} in India for ${r.category}!\n${r.percentile}% percentile · ${r.ai_tag}\n\nThink you can beat me? 😎\n👉 ${url}`,
+      `🏆 *ACRY AI RANK TEST* 🏆
+━━━━━━━━━━━━━━━━━
+🇮🇳 All-India Rank: *#${r.rank.toLocaleString("en-IN")}*
+🎯 Category: ${r.category}
+📊 Percentile: *${r.percentile}%*
+🧠 AI Tag: _${r.ai_tag}_
+━━━━━━━━━━━━━━━━━
+
+Think you can beat me? 😎
+Take the 90-sec test 👇
+${url}`,
   },
   {
     label: "Challenge ⚔️",
     icon: "⚔️",
     builder: (r: Result, url: string) =>
-      `⚔️ CHALLENGE TIME ⚔️\nI scored ${r.percentile}% in ACRY's ${r.category} test.\nYour rank? Take the 90-sec test 👇\n${url}`,
+      `⚔️ *CHALLENGE ACCEPTED?* ⚔️
+
+I just scored *${r.percentile}%* on ACRY's
+${r.category} AI Rank Test 🧠⚡
+
+🏅 Rank: #${r.rank.toLocaleString("en-IN")} in India
+🎖 Tag: ${r.ai_tag}
+
+Your turn. 90 seconds. Let's see your rank 👇
+${url}`,
   },
   {
     label: "Humble brag 😏",
     icon: "😏",
     builder: (r: Result, url: string) =>
-      `Just took the ACRY AI Rank Test — apparently I'm in the top ${Math.max(1, 100 - Math.round(r.percentile))}% of India 🇮🇳\nNo big deal 😏\n${url}`,
+      `Just took the *ACRY AI Rank Test*…
+apparently I'm in the *top ${Math.max(1, 100 - Math.round(r.percentile))}%* of India 🇮🇳
+
+🏆 Rank #${r.rank.toLocaleString("en-IN")} · ${r.category}
+🧠 ${r.ai_tag}
+
+No big deal 😏
+${url}`,
   },
   {
     label: "Group war 👥",
     icon: "👥",
     builder: (r: Result, url: string) =>
-      `Yo squad, find your India rank in 90 seconds — I got #${r.rank.toLocaleString("en-IN")} (${r.ai_tag})\nWho's #1 in our group?\n${url}`,
+      `Yo squad 👋
+
+Find your *India rank in 90 seconds* on ACRY.
+I got *#${r.rank.toLocaleString("en-IN")}* (${r.ai_tag}) in ${r.category} 🔥
+
+Who's #1 in our group? 👀
+${url}`,
   },
 ];
 
