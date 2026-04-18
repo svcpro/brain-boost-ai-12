@@ -263,42 +263,48 @@ const MyRankResult = () => {
   const userName = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion";
 
   const runShare = async (channel: "whatsapp" | "instagram" | "telegram" | "native") => {
-    toast({ title: "Preparing your card…", description: "Generating image" });
+    // Always copy caption first — guarantees user can paste anywhere
+    try { await navigator.clipboard?.writeText(currentMessage); } catch { /* non-fatal */ }
 
-    const res = await shareBadgeOneClick({
-      badge: {
-        rank: result.rank,
-        percentile: result.percentile,
-        category: result.category,
-        aiTag: result.ai_tag,
-        userName,
-      },
-      caption: currentMessage,
-      shareUrl,
-      channel,
-    });
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const encoded = encodeURIComponent(currentMessage);
+    let target = "";
 
-    if (res.mode === "cancelled") return;
+    switch (channel) {
+      case "telegram":
+        target = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encoded}`;
+        break;
+      case "instagram":
+        // Instagram has no text-share web intent — open IG and rely on copied caption
+        target = "https://www.instagram.com/";
+        break;
+      case "whatsapp":
+      case "native":
+      default:
+        target = isMobile
+          ? `https://wa.me/?text=${encoded}`
+          : `https://web.whatsapp.com/send?text=${encoded}`;
+        break;
+    }
+
+    if (isMobile) {
+      window.location.href = target;
+    } else {
+      const w = window.open(target, "_blank", "noopener,noreferrer");
+      if (!w) window.location.href = target;
+    }
 
     await logShare(channel);
 
-    if (res.mode === "native-files") {
-      toast({ title: "Shared! 🎉", description: "Your rank card is on its way." });
-    } else if (res.mode === "downloaded") {
+    if (channel === "instagram") {
       toast({
-        title: "Image saved + caption copied",
-        description: "Attach the saved image in your chat and paste the caption.",
+        title: "Caption copied 📋",
+        description: "Paste it in your Instagram story or bio link.",
       });
-    } else if (res.mode === "channel-url") {
+    } else {
       toast({
-        title: "Caption copied",
-        description: "Paste it in your chat — image couldn't be generated here.",
-      });
-    } else if (res.mode === "error") {
-      toast({
-        title: "Couldn't share",
-        description: res.message || "Please try again",
-        variant: "destructive",
+        title: "Opening… 🚀",
+        description: "Your caption is pre-filled and copied as backup.",
       });
     }
   };
