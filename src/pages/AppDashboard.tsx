@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
-import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair } from "lucide-react";
+import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair, Trophy } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { useNavigate, useSearchParams } from "react-router-dom";
