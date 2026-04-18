@@ -162,11 +162,12 @@ export const useReferralHandle = (): HandleData => {
     };
   }, [user?.id]);
 
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "https://acry.ai";
+  // Always use the brand domain for share links — never lovable preview URLs.
+  // This keeps shared links short, memorable, and on-brand: acry.ai/?ref=rahul123
+  const BRAND_DOMAIN = "https://acry.ai";
 
-  // Clean memorable URL: acry.ai/?ref=rahul123
-  const shareUrl = handle ? `${origin}/?ref=${handle}` : origin;
+  // Clean memorable URL on the brand domain
+  const shareUrl = handle ? `${BRAND_DOMAIN}/?ref=${handle}` : BRAND_DOMAIN;
 
   return { handle: handle || "guest", shareUrl, loading };
 };
