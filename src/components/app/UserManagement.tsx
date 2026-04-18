@@ -894,13 +894,13 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         )}
       </div>
 
-      {/* User Access Token (admin-only minting) */}
+      {/* User Login Token (captured at sign-in) */}
       <div className="glass rounded-xl neural-border p-4 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Key className="w-4 h-4 text-primary" /> User Access Token
+            <Key className="w-4 h-4 text-primary" /> User Login Token
           </h3>
-          {accessToken && (
+          {accessToken && tokenExpiresAt && (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-muted-foreground">Expires {tokenExpiresLabel}</span>
               <span
@@ -913,42 +913,34 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         </div>
 
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          Mint a temporary JWT for this user (valid ~1 hour). Use as{" "}
+          Token is automatically captured the moment this user signs in. Use as{" "}
           <code className="px-1 py-0.5 rounded bg-secondary text-foreground font-mono text-[10px]">
             Authorization: Bearer &lt;token&gt;
           </code>
-          . Audited and admin-only.
+          . Read-only and audited.
         </p>
 
-        {accessToken && (
-          <div className="bg-secondary/60 rounded-lg p-3 border border-border break-all">
-            <p className="text-[11px] font-mono text-foreground select-all">
-              {showToken ? accessToken : maskedToken}
-            </p>
+        {tokenLoading ? (
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading token…
           </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={generateUserToken}
-            disabled={tokenLoading}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {tokenLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : accessToken ? (
-              <RefreshCw className="w-3.5 h-3.5" />
-            ) : (
-              <Key className="w-3.5 h-3.5" />
-            )}
-            {accessToken ? "Regenerate" : "Generate Token"}
-          </button>
-
-          {accessToken && (
-            <>
+        ) : accessToken ? (
+          <>
+            <div className="bg-secondary/60 rounded-lg p-3 border border-border break-all">
+              <p className="text-[11px] font-mono text-foreground select-all">
+                {showToken ? accessToken : maskedToken}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+              {tokenCapturedAt && (
+                <span>Captured {formatDistanceToNow(new Date(tokenCapturedAt), { addSuffix: true })}</span>
+              )}
+              {tokenProvider && <span>· via {tokenProvider}</span>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={copyAccessToken}
-                className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
               >
                 <Copy className="w-3.5 h-3.5" /> Copy
               </button>
@@ -959,9 +951,19 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
                 {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 {showToken ? "Hide" : "Reveal"}
               </button>
-            </>
-          )}
-        </div>
+              <button
+                onClick={fetchUserToken}
+                className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Refresh
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="bg-secondary/40 rounded-lg p-3 border border-border text-[11px] text-muted-foreground">
+            No token captured yet. It will appear here automatically the next time this user signs in.
+          </div>
+        )}
       </div>
 
       {/* Subscription Management */}
