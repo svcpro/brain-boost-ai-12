@@ -30,24 +30,30 @@ serve(async (req) => {
       const examLabel = exam_type || "general";
 
       const { aiFetch } = await import("../_shared/aiFetch.ts");
+      // Speed-optimized: tight prompt, capped tokens, smaller schema (no priority/totals/summary).
+      // Target latency: 3-5s. Topics are intentionally limited to the most important ones —
+      // the user can add more later via Manage Topics.
       const aiResp = await aiFetch({
+        timeoutMs: 15000,
         body: JSON.stringify({
           model: "google/gemini-2.5-flash-lite",
+          temperature: 0.3,
+          max_tokens: 1200,
           messages: [
             {
               role: "system",
-              content: `You are an expert academic curriculum designer for Indian competitive exams. Generate a complete subject and topic structure. Each topic needs a marks_impact_weight (0-10). Cover the full syllabus concisely.`
+              content: `Curriculum designer. Output ONLY the tool call. Be concise.`
             },
             {
               role: "user",
-              content: `Generate the complete subject and topic structure for: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}. Include ALL important topics per subject with accurate marks impact weights based on exam patterns.`
+              content: `Exam: ${examLabel}${custom_exam ? ` (${custom_exam})` : ""}. List 4-6 core subjects, each with 5-8 most important topics. For each topic give marks_impact_weight (0-10).`
             }
           ],
           tools: [{
             type: "function",
             function: {
               name: "generate_curriculum",
-              description: "Generate complete exam curriculum with subjects and topics",
+              description: "Return subjects and topics",
               parameters: {
                 type: "object",
                 properties: {
@@ -56,27 +62,24 @@ serve(async (req) => {
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string", description: "Subject name" },
+                        name: { type: "string" },
                         topics: {
                           type: "array",
                           items: {
                             type: "object",
                             properties: {
-                              name: { type: "string", description: "Topic name" },
-                              marks_impact_weight: { type: "number", description: "Importance weight 0-10 based on exam weightage" },
-                              priority: { type: "string", enum: ["critical", "high", "medium", "low"], description: "Study priority" }
+                              name: { type: "string" },
+                              marks_impact_weight: { type: "number" }
                             },
-                            required: ["name", "marks_impact_weight", "priority"]
+                            required: ["name", "marks_impact_weight"]
                           }
                         }
                       },
                       required: ["name", "topics"]
                     }
-                  },
-                  total_topics: { type: "number", description: "Total number of topics generated" },
-                  exam_summary: { type: "string", description: "Brief 1-line exam pattern summary" }
+                  }
                 },
-                required: ["subjects", "total_topics", "exam_summary"]
+                required: ["subjects"]
               }
             }
           }],
