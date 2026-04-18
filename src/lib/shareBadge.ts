@@ -218,9 +218,8 @@ function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, 
   let target = "";
   switch (channel) {
     case "whatsapp":
-      // api.whatsapp.com/send works on both desktop & mobile and isn't blocked
-      // by networks that filter web.whatsapp.com. On mobile it deep-links into the app.
-      target = `https://api.whatsapp.com/send?text=${encodeURIComponent(caption)}`;
+      // wa.me universal link — works on desktop & mobile, deep-links into app on mobile
+      target = `https://wa.me/?text=${encodeURIComponent(caption)}`;
       break;
     case "telegram":
       target = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(caption)}`;
@@ -230,7 +229,7 @@ function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, 
       break;
     case "native":
     default:
-      target = `https://api.whatsapp.com/send?text=${encodeURIComponent(caption)}`;
+      target = `https://wa.me/?text=${encodeURIComponent(caption)}`;
   }
   // Open in new tab on desktop, same tab on mobile for reliable deep-link
   if (isMobile) {
