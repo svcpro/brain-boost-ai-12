@@ -900,14 +900,14 @@ const OnboardingPage = () => {
                       const totalT = Object.values(newTopicMap).reduce((a, t) => a + t.length, 0);
                       toast({ title: "Preset Loaded ⚡", description: `${presetSubjects.length} subjects, ${totalT} topics added instantly.` });
                     }}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] disabled:opacity-50 transition-all"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] disabled:opacity-50 transition-all"
                     style={{ border: "1px solid #7C4DFF55", color: "#B794FF", background: "#7C4DFF10" }}
                   >
                     <Sparkles className="w-3 h-3" /> Quick Preset
                   </motion.button>
                 </div>
                 <p className="text-[9px] mb-2 text-center" style={{ color: "#ffffff35" }}>
-                  Preset = instant & accurate · AI = custom but slower
+                  Tap to instantly load subjects & topics for your exam
                 </p>
 
                 {/* AI Progress Bar */}
