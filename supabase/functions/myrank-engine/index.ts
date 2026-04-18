@@ -260,7 +260,23 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const questions = await generateQuestions(category, 7);
+      let questions: any[] = [];
+      let lastErr: any = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          questions = await generateQuestions(category, 7);
+          if (questions.length > 0) break;
+        } catch (e) {
+          lastErr = e;
+          console.error(`[myrank] generateQuestions attempt ${attempt + 1} failed:`, (e as Error).message);
+        }
+      }
+      if (!questions || questions.length === 0) {
+        return new Response(JSON.stringify({
+          error: "Could not generate questions right now. Please try again.",
+          detail: lastErr ? String((lastErr as Error).message) : "empty",
+        }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const stripped = questions.map((q: any, i: number) => ({
         idx: i, question: q.question, options: q.options,
       }));
