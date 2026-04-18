@@ -178,6 +178,26 @@ const SUGGESTED_TOPICS: Record<string, string[]> = {
   "Audit & Assurance": ["Audit Process", "Risk Assessment", "Reporting"],
 };
 
+// Generic fallback subjects for "Other" / custom exams (by category)
+const GENERIC_SUBJECTS_BY_CATEGORY: Record<string, string[]> = {
+  government: ["General Studies", "General Knowledge", "Quantitative Aptitude", "Reasoning", "English Language", "Current Affairs"],
+  entrance: ["Mathematics", "Physics", "Chemistry", "English", "Logical Reasoning"],
+  global: ["English", "Quantitative Reasoning", "Verbal Reasoning", "Analytical Writing"],
+};
+
+// Resolve which preset key to use — handles "other_*" by falling back to category
+const resolvePresetKey = (examId: string, examCategory: string): string | null => {
+  if (SUGGESTED_SUBJECTS[examId]) return examId;
+  if (examId?.startsWith("other_")) return `__generic_${examCategory}`;
+  return null;
+};
+
+const getPresetSubjects = (examId: string, examCategory: string): string[] => {
+  if (SUGGESTED_SUBJECTS[examId]) return SUGGESTED_SUBJECTS[examId];
+  if (examId?.startsWith("other_")) return GENERIC_SUBJECTS_BY_CATEGORY[examCategory] || GENERIC_SUBJECTS_BY_CATEGORY.government;
+  return [];
+};
+
 // Validation removed per user request — accept any non-empty trimmed input.
 const validateAcademicTerm = (raw: string): { valid: boolean; reason?: string } => {
   return { valid: raw.trim().length > 0 };
@@ -865,9 +885,9 @@ const OnboardingPage = () => {
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.97 }}
-                    disabled={aiGenerating || !SUGGESTED_SUBJECTS[examType]}
+                    disabled={aiGenerating || getPresetSubjects(examType, examCategory).length === 0}
                     onClick={() => {
-                      const presetSubjects = SUGGESTED_SUBJECTS[examType] || [];
+                      const presetSubjects = getPresetSubjects(examType, examCategory);
                       if (!presetSubjects.length) {
                         toast({ title: "No preset available", description: "Add subjects manually below.", variant: "destructive" });
                         return;
@@ -948,12 +968,12 @@ const OnboardingPage = () => {
                   )}
                 </AnimatePresence>
 
-                {SUGGESTED_SUBJECTS[examType] && (
+                {getPresetSubjects(examType, examCategory).length > 0 && (
                   <div className="mb-3">
                     <p className="text-[10px] mb-1.5" style={{ color: "#ffffff30" }}>Suggested:</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {SUGGESTED_SUBJECTS[examType].filter(s => !subjects.includes(s)).map(s => (
-                        <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: [] })); }}
+                      {getPresetSubjects(examType, examCategory).filter(s => !subjects.includes(s)).map(s => (
+                        <button key={s} onClick={() => { setSubjects(prev => [...prev, s]); setTopicsBySubject(prev => ({ ...prev, [s]: SUGGESTED_TOPICS[s] ? [...SUGGESTED_TOPICS[s]] : [] })); }}
                           className="px-2.5 py-1 rounded-full text-[10px] transition-all"
                           style={{ border: "1px dashed #00E5FF35", color: "#00E5FF90", background: "#00E5FF04" }}
                         >+ {s}</button>
