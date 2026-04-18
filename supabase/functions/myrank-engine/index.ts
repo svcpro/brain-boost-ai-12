@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
 
       await admin.from("myrank_tests").update({
         answers, score, accuracy, time_taken_seconds,
-        rank, percentile, ai_tag, ai_insight,
+        rank, percentile, ai_tag, ai_insight: aiInsight,
         completed_at: new Date().toISOString(),
       }).eq("id", test_id);
 
@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({
-        score, accuracy, rank, percentile, ai_tag, ai_insight,
+        score, accuracy, rank, percentile, ai_tag, ai_insight: aiInsight,
         total: questions.length, category: test.category,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
