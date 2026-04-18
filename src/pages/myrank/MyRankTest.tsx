@@ -119,8 +119,12 @@ const MyRankTest = () => {
 
   if (submitting) return <UltraLoader category="Calculating your rank" />;
 
-  const q = questions[current];
-  const progress = ((current + 1) / questions.length) * 100;
+  if (!questions.length) return <UltraLoader category={category} />;
+
+  const safeIdx = Math.min(Math.max(current, 0), questions.length - 1);
+  const q = questions[safeIdx];
+  if (!q) return <UltraLoader category={category} />;
+  const progress = ((safeIdx + 1) / questions.length) * 100;
   const timePct = (timeLeft / TEST_DURATION) * 100;
   const lowTime = timeLeft <= 15;
   const midTime = timeLeft <= 30 && timeLeft > 15;
