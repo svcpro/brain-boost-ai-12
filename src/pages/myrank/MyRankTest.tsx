@@ -51,8 +51,10 @@ const MyRankTest = () => {
         referred_by_code: ref,
       },
     }).then(({ data, error }) => {
-      if (error || !data?.questions) {
-        console.error("Test start failed:", error);
+      if (error || !data?.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+        console.error("Test start failed:", error || data);
+        const msg = (data as any)?.error || (error as any)?.message || "Could not start test. Please try again.";
+        alert(msg);
         navigate("/myrank");
         return;
       }

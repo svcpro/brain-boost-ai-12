@@ -116,8 +116,27 @@ Each question must have exactly 4 options. Mix of easy/medium/hard. Return stric
   }
   const data = await res.json();
   const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-  const parsed = JSON.parse(args);
-  return parsed.questions.slice(0, count);
+  if (!args) {
+    console.error("[myrank] No tool_calls in AI response:", JSON.stringify(data).slice(0, 500));
+    throw new Error("AI did not return questions (no tool_calls)");
+  }
+  let parsed: any;
+  try {
+    parsed = typeof args === "string" ? JSON.parse(args) : args;
+  } catch (e) {
+    console.error("[myrank] Failed to parse AI args:", args);
+    throw new Error("AI returned malformed JSON");
+  }
+  const qs = Array.isArray(parsed?.questions) ? parsed.questions : [];
+  // Validate each question has the required shape
+  const valid = qs.filter((q: any) =>
+    q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct_index === "number"
+  );
+  if (valid.length === 0) {
+    console.error("[myrank] AI returned 0 valid questions for", category, "raw:", JSON.stringify(parsed).slice(0, 500));
+    throw new Error("AI returned no valid questions — please retry");
+  }
+  return valid.slice(0, count);
 }
 
 // Standard normal CDF (Abramowitz & Stegun approximation) — used for ML-grade percentile
@@ -241,7 +260,23 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const questions = await generateQuestions(category, 7);
+      let questions: any[] = [];
+      let lastErr: any = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          questions = await generateQuestions(category, 7);
+          if (questions.length > 0) break;
+        } catch (e) {
+          lastErr = e;
+          console.error(`[myrank] generateQuestions attempt ${attempt + 1} failed:`, (e as Error).message);
+        }
+      }
+      if (!questions || questions.length === 0) {
+        return new Response(JSON.stringify({
+          error: "Could not generate questions right now. Please try again.",
+          detail: lastErr ? String((lastErr as Error).message) : "empty",
+        }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const stripped = questions.map((q: any, i: number) => ({
         idx: i, question: q.question, options: q.options,
       }));
