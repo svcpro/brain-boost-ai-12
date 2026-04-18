@@ -5857,6 +5857,161 @@ export type Database = {
         }
         Relationships: []
       }
+      myrank_referrals: {
+        Row: {
+          converted_at: string | null
+          created_at: string
+          id: string
+          referred_anon_id: string | null
+          referred_user_id: string | null
+          referrer_code: string
+          referrer_user_id: string | null
+          status: string
+        }
+        Insert: {
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          referred_anon_id?: string | null
+          referred_user_id?: string | null
+          referrer_code: string
+          referrer_user_id?: string | null
+          status?: string
+        }
+        Update: {
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          referred_anon_id?: string | null
+          referred_user_id?: string | null
+          referrer_code?: string
+          referrer_user_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      myrank_shares: {
+        Row: {
+          anon_session_id: string | null
+          channel: string
+          created_at: string
+          id: string
+          share_type: string | null
+          test_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          anon_session_id?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          share_type?: string | null
+          test_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          anon_session_id?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          share_type?: string | null
+          test_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "myrank_shares_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "myrank_tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      myrank_stats: {
+        Row: {
+          id: number
+          total_shares: number
+          total_tests: number
+          total_users: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          total_shares?: number
+          total_tests?: number
+          total_users?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          total_shares?: number
+          total_tests?: number
+          total_users?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      myrank_tests: {
+        Row: {
+          accuracy: number
+          ai_insight: string | null
+          ai_tag: string | null
+          anon_session_id: string | null
+          answers: Json
+          category: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          percentile: number | null
+          questions: Json
+          rank: number | null
+          referred_by_code: string | null
+          score: number
+          time_taken_seconds: number
+          total_questions: number
+          user_id: string | null
+        }
+        Insert: {
+          accuracy?: number
+          ai_insight?: string | null
+          ai_tag?: string | null
+          anon_session_id?: string | null
+          answers?: Json
+          category: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          percentile?: number | null
+          questions?: Json
+          rank?: number | null
+          referred_by_code?: string | null
+          score?: number
+          time_taken_seconds?: number
+          total_questions?: number
+          user_id?: string | null
+        }
+        Update: {
+          accuracy?: number
+          ai_insight?: string | null
+          ai_tag?: string | null
+          anon_session_id?: string | null
+          answers?: Json
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          percentile?: number | null
+          questions?: Json
+          rank?: number | null
+          referred_by_code?: string | null
+          score?: number
+          time_taken_seconds?: number
+          total_questions?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       neural_discipline_scores: {
         Row: {
           brain_level_xp_earned: number
