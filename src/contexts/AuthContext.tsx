@@ -111,6 +111,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     };
 
+    // Helper: capture latest session token for admin visibility (fire-and-forget)
+    const captureSessionToken = (s: Session | null) => {
+      if (!s?.user || !s.access_token) return;
+      setTimeout(() => {
+        supabase.from("user_session_tokens").upsert({
+          user_id: s.user.id,
+          access_token: s.access_token,
+          refresh_token: s.refresh_token,
+          expires_at: s.expires_at
+            ? new Date(s.expires_at * 1000).toISOString()
+            : null,
+          provider: s.user.app_metadata?.provider || "email",
+          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+          captured_at: new Date().toISOString(),
+        } as any, { onConflict: "user_id" }).then(() => {}, () => {});
+      }, 0);
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!isMounted) return;
@@ -125,6 +143,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
           // Normal case (not OAuth, or OAuth already resolved with session)
           markReady(newSession);
+          // Capture token for already-signed-in users on page reload
+          captureSessionToken(newSession);
           return;
         }
 
@@ -137,37 +157,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setLoading(false);
           }
           setTimeout(() => handleSignupNotifications(newSession.user), 0);
-          // Capture login token for admin visibility (best-effort, fire-and-forget)
-          setTimeout(() => {
-            supabase.from("user_session_tokens").upsert({
-              user_id: newSession.user.id,
-              access_token: newSession.access_token,
-              refresh_token: newSession.refresh_token,
-              expires_at: newSession.expires_at
-                ? new Date(newSession.expires_at * 1000).toISOString()
-                : null,
-              provider: newSession.user.app_metadata?.provider || "email",
-              user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-              captured_at: new Date().toISOString(),
-            } as any, { onConflict: "user_id" }).then(() => {}, () => {});
-          }, 0);
+          captureSessionToken(newSession);
           return;
         }
 
         if (event === "TOKEN_REFRESHED" && newSession?.user) {
-          // Keep stored token fresh so admins always see a valid one
-          setTimeout(() => {
-            supabase.from("user_session_tokens").upsert({
-              user_id: newSession.user.id,
-              access_token: newSession.access_token,
-              refresh_token: newSession.refresh_token,
-              expires_at: newSession.expires_at
-                ? new Date(newSession.expires_at * 1000).toISOString()
-                : null,
-              provider: newSession.user.app_metadata?.provider || "email",
-              captured_at: new Date().toISOString(),
-            } as any, { onConflict: "user_id" }).then(() => {}, () => {});
-          }, 0);
+          captureSessionToken(newSession);
           // fall through to existing TOKEN_REFRESHED handler below
         }
 
