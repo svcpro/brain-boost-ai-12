@@ -1107,8 +1107,8 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         )}
       </div>
 
-      {/* Send Notification */}
-      <SendNotificationSection userId={user.id} userName={user.display_name || "Anonymous"} toast={toast} logAudit={logAudit} />
+      {/* Send Notification — hidden per admin request */}
+      {/* <SendNotificationSection userId={user.id} userName={user.display_name || "Anonymous"} toast={toast} logAudit={logAudit} /> */}
 
       {/* Ban / Unban Section */}
       <div className={`glass rounded-xl neural-border p-4 space-y-3 ${isBanned ? 'border-destructive/30' : ''}`}>
