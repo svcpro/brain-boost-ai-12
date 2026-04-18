@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Trophy, Share2, RefreshCw, Lock, Crown, Sparkles, Users, Gift, Loader2 } from "lucide-react";
+import { Trophy, Share2, RefreshCw, Lock, Crown, Sparkles, Users, Gift, Loader2, ListOrdered } from "lucide-react";
+import ShareableBadge from "@/components/myrank/ShareableBadge";
 
 interface Result {
   test_id: string;
