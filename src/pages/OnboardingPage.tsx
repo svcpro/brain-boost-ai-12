@@ -876,13 +876,8 @@ const OnboardingPage = () => {
                 </div>
                 <p className="text-xs mb-3" style={{ color: "#ffffff40" }}>You'll add topics for each subject next.</p>
 
-                <div className="grid grid-cols-2 gap-2 mb-1">
-                  <motion.button whileTap={{ scale: 0.97 }} onClick={handleAIGenerate} disabled={aiGenerating}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] disabled:opacity-50 transition-all"
-                    style={{ border: "1px dashed #00E5FF40", color: "#00E5FF", background: "#00E5FF06" }}
-                  >
-                    {aiGenerating ? <><Loader2 className="w-3 h-3 animate-spin" /> AI...</> : <><Wand2 className="w-3 h-3" /> AI Generate</>}
-                  </motion.button>
+                <div className="mb-1">
+
                   <motion.button
                     whileTap={{ scale: 0.97 }}
                     disabled={aiGenerating || getPresetSubjects(examType, examCategory).length === 0}
