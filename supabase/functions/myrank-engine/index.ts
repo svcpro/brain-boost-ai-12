@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({
-        score, accuracy, rank, percentile, ai_tag, ai_insight,
+        score, accuracy, rank, percentile, ai_tag, ai_insight: aiInsight,
         total: questions.length, category: test.category,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
