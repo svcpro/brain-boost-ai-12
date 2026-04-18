@@ -58,6 +58,12 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [editNameValue, setEditNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
   const prevLevelRef = useRef<number | null>(null);
+  // Mobile OTP users may have stale auth metadata from a previous identity —
+  // never fall back to user_metadata or email for them.
+  const isMobileSignup =
+    user?.user_metadata?.signup_method === "mobile_otp" ||
+    user?.app_metadata?.provider === "phone" ||
+    !!user?.phone;
   const [showSubscription, setShowSubscription] = useState(false);
   const [currentPlan, setCurrentPlan] = useState("free");
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
