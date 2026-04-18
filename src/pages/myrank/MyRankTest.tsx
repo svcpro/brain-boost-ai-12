@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
+import UltraLoader from "@/components/myrank/UltraLoader";
 
 interface Question {
   idx: number;
@@ -113,14 +114,7 @@ const MyRankTest = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
-          <div className="text-sm text-muted-foreground">AI is crafting your test...</div>
-        </div>
-      </div>
-    );
+    return <UltraLoader category={category} />;
   }
 
   const q = questions[current];
