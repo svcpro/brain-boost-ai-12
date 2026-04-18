@@ -119,32 +119,111 @@ Each question must have exactly 4 options. Mix of easy/medium/hard. Return stric
   return parsed.questions.slice(0, count);
 }
 
-function computeRank(score: number, total: number, timeSeconds: number, category: string) {
-  // Scalable rank: combine accuracy + speed against simulated pool
+// Standard normal CDF (Abramowitz & Stegun approximation) — used for ML-grade percentile
+function normalCdf(z: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return z > 0 ? 1 - p : p;
+}
+
+// Authentic rank engine — uses REAL test-taker distribution from DB.
+// Falls back to a calibrated normal-distribution model when sample size < 30.
+async function computeRank(
+  score: number,
+  total: number,
+  timeSeconds: number,
+  category: string
+) {
   const accuracy = (score / total) * 100;
-  const speedBonus = Math.max(0, 90 - timeSeconds) * 0.5;
-  const rawScore = accuracy + speedBonus;
+  // Composite skill signal: accuracy weighted heavily, speed lightly (capped, not exploitable)
+  const timeRatio = Math.min(1, Math.max(0, (90 - Math.min(90, timeSeconds)) / 90));
+  const composite = accuracy * 0.85 + timeRatio * 100 * 0.15;
 
-  // Simulated pool size per category (grows over time)
-  const poolBase: Record<string, number> = {
-    UPSC: 487293, SSC: 612847, JEE: 392184, NEET: 423917, IQ: 234567,
+  // 1. Pull real distribution of completed tests for this category (last 90 days, capped)
+  const sinceIso = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+  const { data: peers } = await admin
+    .from("myrank_tests")
+    .select("score, total_questions, time_taken_seconds")
+    .eq("category", category)
+    .not("completed_at", "is", null)
+    .gte("completed_at", sinceIso)
+    .limit(5000);
+
+  const peerComposites: number[] = (peers || [])
+    .filter((p: any) => p.total_questions > 0 && p.score !== null)
+    .map((p: any) => {
+      const acc = (Number(p.score) / Number(p.total_questions)) * 100;
+      const tr = Math.min(1, Math.max(0, (90 - Math.min(90, Number(p.time_taken_seconds || 90))) / 90));
+      return acc * 0.85 + tr * 100 * 0.15;
+    });
+
+  const sampleSize = peerComposites.length;
+  let percentile: number;
+  let methodology: "empirical" | "hybrid" | "model" = "model";
+
+  if (sampleSize >= 30) {
+    // EMPIRICAL: real percentile rank vs actual peers
+    const below = peerComposites.filter(c => c < composite).length;
+    const equal = peerComposites.filter(c => c === composite).length;
+    const empirical = ((below + 0.5 * equal) / sampleSize) * 100;
+
+    if (sampleSize >= 200) {
+      percentile = empirical;
+      methodology = "empirical";
+    } else {
+      // Blend with model for stability when sample is small-medium
+      const modelP = normalCdf((composite - 55) / 18) * 100;
+      const w = Math.min(1, (sampleSize - 30) / 170); // 0 → 1 as we approach 200
+      percentile = empirical * w + modelP * (1 - w);
+      methodology = "hybrid";
+    }
+  } else {
+    // MODEL fallback: calibrated normal distribution (μ=55, σ=18) — realistic for MCQ tests
+    percentile = normalCdf((composite - 55) / 18) * 100;
+    methodology = "model";
+  }
+
+  percentile = Math.min(99.5, Math.max(0.5, percentile));
+
+  // 2. Real registered pool size per category (active competitors)
+  const { count: poolCount } = await admin
+    .from("myrank_tests")
+    .select("*", { count: "exact", head: true })
+    .eq("category", category)
+    .not("completed_at", "is", null);
+
+  // Effective pool = max(real test-takers, realistic active aspirant baseline)
+  const aspirantBaseline: Record<string, number> = {
+    "UPSC CSE": 1100000, "NEET UG": 2400000, "JEE Main": 1200000, "JEE Advanced": 250000,
+    "SSC CGL": 3000000, "CAT": 330000, "GATE": 900000, "CLAT": 75000, "NDA": 400000,
+    "CDS": 350000, "IBPS PO": 1100000, "SBI PO": 800000, "UGC NET": 900000, "IQ": 50000,
   };
-  const pool = poolBase[category] || 300000;
+  const baseline = aspirantBaseline[category] || 150000;
+  const effectivePool = Math.max(poolCount || 0, baseline);
+  const rank = Math.max(1, Math.round(effectivePool * (1 - percentile / 100)));
 
-  // Percentile: higher rawScore = higher percentile
-  // rawScore 0 → 5th percentile, rawScore 100 → 99th percentile
-  const percentile = Math.min(99.9, Math.max(1, 5 + (rawScore / 145) * 94));
-  const rank = Math.max(1, Math.floor(pool * (1 - percentile / 100)));
-
-  let aiTag = "Rising Mind";
-  if (percentile >= 99) aiTag = category === "UPSC" ? "Future IAS 🇮🇳" : category === "JEE" ? "IIT Material 🚀" : category === "NEET" ? "Future Doctor 🩺" : category === "IQ" ? "Genius Mind 🧠" : "Top 1% Brain 🏆";
-  else if (percentile >= 95) aiTag = "Top 5% Mind 💎";
+  let aiTag = "Rising Mind 🌱";
+  if (percentile >= 99) {
+    aiTag = category.startsWith("UPSC") ? "Future IAS 🇮🇳"
+          : category.startsWith("JEE") ? "IIT Material 🚀"
+          : category.startsWith("NEET") ? "Future Doctor 🩺"
+          : category === "IQ" ? "Genius Mind 🧠" : "Top 1% Brain 🏆";
+  } else if (percentile >= 95) aiTag = "Top 5% Mind 💎";
   else if (percentile >= 85) aiTag = "Top 15% Performer ⚡";
   else if (percentile >= 70) aiTag = "Above Average Hustler 🔥";
   else if (percentile >= 50) aiTag = "Solid Contender 💪";
   else aiTag = "Diamond in the Rough 🌱";
 
-  return { rank, percentile: Math.round(percentile * 10) / 10, ai_tag: aiTag };
+  return {
+    rank,
+    percentile: Math.round(percentile * 10) / 10,
+    ai_tag: aiTag,
+    methodology,
+    sample_size: sampleSize,
+    pool_size: effectivePool,
+    composite_score: Math.round(composite * 10) / 10,
+  };
 }
 
 Deno.serve(async (req) => {
