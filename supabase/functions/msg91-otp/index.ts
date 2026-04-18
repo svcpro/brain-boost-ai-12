@@ -227,13 +227,20 @@ function generateOTP4(): string {
 }
 
 async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, otp: string, channel: string = "whatsapp") {
-  await adminClient.from("whatsapp_otps").delete().eq("mobile", mobile).eq("verified", false);
+  // Only invalidate prior unverified OTPs on the SAME channel to avoid cross-channel races
+  await adminClient
+    .from("whatsapp_otps")
+    .delete()
+    .eq("mobile", mobile)
+    .eq("verified", false)
+    .eq("channel", channel);
   const { error } = await adminClient.from("whatsapp_otps").insert({
     mobile,
     otp,
     expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     channel,
   });
+  if (error) console.error("[MSG91] storeOTP insert error:", error);
   return error;
 }
 
