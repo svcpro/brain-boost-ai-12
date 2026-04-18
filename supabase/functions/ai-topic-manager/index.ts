@@ -115,6 +115,14 @@ serve(async (req) => {
       if (rawParsed) {
         curriculum = normalizeCurriculum(rawParsed, examLabel);
       }
+      if (curriculum.subjects.length === 0) {
+        console.log("Empty curriculum. Raw AI response:", JSON.stringify({
+          hasToolCall: !!toolCall,
+          toolArgs: toolCall?.function?.arguments?.slice(0, 500),
+          contentText: contentText?.slice(0, 500),
+          rawParsedKeys: rawParsed && typeof rawParsed === "object" ? Object.keys(rawParsed) : null,
+        }));
+      }
       console.log("Curriculum result:", curriculum.subjects.length, "subjects,", curriculum.total_topics, "topics");
 
       // Track usage
