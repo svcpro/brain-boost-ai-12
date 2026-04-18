@@ -412,8 +412,20 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     _riskTopic: atRisk[0],
   } : null);
 
-  // Prefer DB display_name; ignore auto-generated "User####" placeholder from auth metadata
-  const metaName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.display_name;
+  // Always prefer DB display_name (the source of truth set during onboarding).
+  // Fall back to auth metadata ONLY for non-mobile signups, because mobile OTP
+  // users may have stale user_metadata from a prior identity bound to the same
+  // device/session (which would show the WRONG name). For mobile signups we
+  // wait for DB or show "Student" rather than risk leaking another user's name.
+  const isMobileSignup =
+    user?.user_metadata?.signup_method === "mobile_otp" ||
+    user?.app_metadata?.provider === "phone" ||
+    !!user?.phone;
+  const metaName = isMobileSignup
+    ? null
+    : (user?.user_metadata?.full_name ||
+       user?.user_metadata?.name ||
+       user?.user_metadata?.display_name);
   const isPlaceholderMetaName = typeof metaName === "string" && /^User\s*\d{2,}$/i.test(metaName.trim());
   const userName = String(displayName || (isPlaceholderMetaName ? "" : metaName) || "Student");
   const greeting = (() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })();

@@ -58,6 +58,12 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [editNameValue, setEditNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
   const prevLevelRef = useRef<number | null>(null);
+  // Mobile OTP users may have stale auth metadata from a previous identity —
+  // never fall back to user_metadata or email for them.
+  const isMobileSignup =
+    user?.user_metadata?.signup_method === "mobile_otp" ||
+    user?.app_metadata?.provider === "phone" ||
+    !!user?.phone;
   const [showSubscription, setShowSubscription] = useState(false);
   const [currentPlan, setCurrentPlan] = useState("free");
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
@@ -160,7 +166,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                 <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
               ) : (
                 <span className="text-lg font-bold text-primary">
-                  {(profileDisplayName || user?.user_metadata?.display_name || "S").slice(0, 2).toUpperCase()}
+                  {(profileDisplayName || (isMobileSignup ? "S" : (user?.user_metadata?.display_name || "S"))).slice(0, 2).toUpperCase()}
                 </span>
               )}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
@@ -218,10 +224,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               ) : (
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-bold text-foreground truncate">
-                    {profileDisplayName || user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"}
+                    {profileDisplayName || (isMobileSignup ? "Student" : (user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"))}
                   </h2>
                   <button
-                    onClick={() => { setEditNameValue(profileDisplayName || user?.user_metadata?.display_name || user?.email?.split("@")[0] || ""); setEditingName(true); }}
+                    onClick={() => { setEditNameValue(profileDisplayName || (isMobileSignup ? "" : (user?.user_metadata?.display_name || user?.email?.split("@")[0] || ""))); setEditingName(true); }}
                     className="p-1 rounded-md hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Pencil className="w-3.5 h-3.5" />
