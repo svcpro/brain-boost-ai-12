@@ -218,10 +218,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               ) : (
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-bold text-foreground truncate">
-                    {profileDisplayName || user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"}
+                    {profileDisplayName || (isMobileSignup ? "Student" : (user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"))}
                   </h2>
                   <button
-                    onClick={() => { setEditNameValue(profileDisplayName || user?.user_metadata?.display_name || user?.email?.split("@")[0] || ""); setEditingName(true); }}
+                    onClick={() => { setEditNameValue(profileDisplayName || (isMobileSignup ? "" : (user?.user_metadata?.display_name || user?.email?.split("@")[0] || ""))); setEditingName(true); }}
                     className="p-1 rounded-md hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Pencil className="w-3.5 h-3.5" />
