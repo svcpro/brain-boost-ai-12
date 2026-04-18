@@ -122,7 +122,12 @@ const MyRankLanding = () => {
           ))}
         </div>
 
-        {ref && (
+        <button
+          onClick={() => navigate("/myrank/leaderboard")}
+          className="w-full text-center text-sm font-semibold text-primary underline-offset-4 hover:underline py-2"
+        >
+          🏆 View Top 100 India Leaderboard →
+        </button>
           <div className="text-center text-xs text-muted-foreground bg-primary/5 p-2 rounded-lg">
             🎯 Invited by a friend — beat their rank!
           </div>
