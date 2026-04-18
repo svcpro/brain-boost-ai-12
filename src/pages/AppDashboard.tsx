@@ -17,6 +17,7 @@ const BrainTab = lazy(() => import("@/components/app/BrainTab"));
 const ProgressTab = lazy(() => import("@/components/app/ProgressTab"));
 const YouTab = lazy(() => import("@/components/app/YouTab"));
 const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
+const MyRankLanding = lazy(() => import("@/pages/myrank/MyRankLanding"));
 const GlobalNotificationCenter = lazy(() => import("@/components/app/GlobalNotificationCenter"));
 import NeuralBootLoader from "@/components/app/NeuralBootLoader";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
