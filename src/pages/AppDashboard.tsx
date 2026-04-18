@@ -17,7 +17,7 @@ const BrainTab = lazy(() => import("@/components/app/BrainTab"));
 const ProgressTab = lazy(() => import("@/components/app/ProgressTab"));
 const YouTab = lazy(() => import("@/components/app/YouTab"));
 const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
-const MyRankLanding = lazy(() => import("@/pages/myrank/MyRankLanding"));
+const MyRankInline = lazy(() => import("@/components/app/MyRankInline"));
 const GlobalNotificationCenter = lazy(() => import("@/components/app/GlobalNotificationCenter"));
 import NeuralBootLoader from "@/components/app/NeuralBootLoader";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
@@ -234,7 +234,7 @@ const AppDashboard = () => {
       case "action": 
         return <ActionTab onNavigateToBrain={() => switchTab("brain")} />;
       case "brain": return <BrainTab />;
-      case "myrank": return <MyRankLanding />;
+      case "myrank": return <MyRankInline />;
       case "community": return <CommunityPage inline />;
       case "progress": return <ProgressTab onUpgrade={() => { setAutoOpenSubscription(true); switchTab("you"); }} />;
       case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
