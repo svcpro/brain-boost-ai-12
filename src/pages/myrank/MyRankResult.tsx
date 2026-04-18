@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
+import { shareBadgeOneClick } from "@/lib/shareBadge";
+import { useToast } from "@/hooks/use-toast";
 
 interface Result {
   test_id: string;
@@ -115,6 +117,7 @@ const SHARE_TEMPLATES = [
 const MyRankResult = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [result, setResult] = useState<Result | null>(null);
   const [unlock, setUnlock] = useState<UnlockStatus | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
