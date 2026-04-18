@@ -876,13 +876,8 @@ const OnboardingPage = () => {
                 </div>
                 <p className="text-xs mb-3" style={{ color: "#ffffff40" }}>You'll add topics for each subject next.</p>
 
-                <div className="grid grid-cols-2 gap-2 mb-1">
-                  <motion.button whileTap={{ scale: 0.97 }} onClick={handleAIGenerate} disabled={aiGenerating}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] disabled:opacity-50 transition-all"
-                    style={{ border: "1px dashed #00E5FF40", color: "#00E5FF", background: "#00E5FF06" }}
-                  >
-                    {aiGenerating ? <><Loader2 className="w-3 h-3 animate-spin" /> AI...</> : <><Wand2 className="w-3 h-3" /> AI Generate</>}
-                  </motion.button>
+                <div className="mb-1">
+
                   <motion.button
                     whileTap={{ scale: 0.97 }}
                     disabled={aiGenerating || getPresetSubjects(examType, examCategory).length === 0}
@@ -905,14 +900,14 @@ const OnboardingPage = () => {
                       const totalT = Object.values(newTopicMap).reduce((a, t) => a + t.length, 0);
                       toast({ title: "Preset Loaded ⚡", description: `${presetSubjects.length} subjects, ${totalT} topics added instantly.` });
                     }}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] disabled:opacity-50 transition-all"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] disabled:opacity-50 transition-all"
                     style={{ border: "1px solid #7C4DFF55", color: "#B794FF", background: "#7C4DFF10" }}
                   >
                     <Sparkles className="w-3 h-3" /> Quick Preset
                   </motion.button>
                 </div>
                 <p className="text-[9px] mb-2 text-center" style={{ color: "#ffffff35" }}>
-                  Preset = instant & accurate · AI = custom but slower
+                  Tap to instantly load subjects & topics for your exam
                 </p>
 
                 {/* AI Progress Bar */}
