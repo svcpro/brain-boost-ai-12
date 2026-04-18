@@ -275,8 +275,14 @@ const MyRankResult = () => {
         target = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encoded}`;
         break;
       case "instagram":
-        // Instagram has no text-share web intent — open IG and rely on copied caption
-        target = "https://www.instagram.com/";
+        // Instagram has no public web text-share intent.
+        // Best we can do: deep-link into the IG app on mobile (Direct inbox so
+        // the user can paste the already-copied caption into a chat),
+        // and on desktop open IG Direct in a new tab.
+        // Caption is guaranteed copied above so paste works everywhere.
+        target = isMobile
+          ? "instagram://direct-inbox"
+          : "https://www.instagram.com/direct/inbox/";
         break;
       case "whatsapp":
       case "native":
@@ -288,7 +294,21 @@ const MyRankResult = () => {
     }
 
     if (isMobile) {
-      window.location.href = target;
+      // For Instagram on mobile: try deep-link, fall back to web after a beat
+      // (in case the IG app isn't installed and the scheme silently fails).
+      if (channel === "instagram") {
+        const fallback = "https://www.instagram.com/direct/inbox/";
+        const start = Date.now();
+        window.location.href = target;
+        setTimeout(() => {
+          // If the page is still here ~1.2s later, the deep-link likely failed.
+          if (Date.now() - start < 1500 && document.visibilityState === "visible") {
+            window.location.href = fallback;
+          }
+        }, 1200);
+      } else {
+        window.location.href = target;
+      }
     } else {
       const w = window.open(target, "_blank", "noopener,noreferrer");
       if (!w) window.location.href = target;
@@ -298,8 +318,8 @@ const MyRankResult = () => {
 
     if (channel === "instagram") {
       toast({
-        title: "Caption copied 📋",
-        description: "Paste it in your Instagram story or bio link.",
+        title: "Caption copied 📋 — paste in Instagram",
+        description: "Pick a chat or your story, then long-press to paste.",
       });
     } else {
       toast({
