@@ -1,5 +1,5 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from "react";
-import { MemoryRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 const MyRankLanding = lazy(() => import("@/pages/myrank/MyRankLanding"));
 const MyRankTest = lazy(() => import("@/pages/myrank/MyRankTest"));
