@@ -39,6 +39,7 @@ export const useVoice = () => useContext(VoiceContext);
 const tabDefs = [
   { id: "home", label: "Home", icon: Home },
   { id: "action", label: "Action", icon: Zap },
+  { id: "myrank", label: "MyRank", icon: Trophy, route: "/myrank" },
   { id: "brain", label: "Brain", icon: Brain },
   // { id: "community", label: "Community", icon: Users }, // hidden per user request
   { id: "progress", label: "SureShot", icon: Crosshair },
