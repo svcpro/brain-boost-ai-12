@@ -41,7 +41,7 @@ const tabDefs = [
   { id: "home", label: "Home", icon: Home },
   { id: "action", label: "Action", icon: Zap },
   { id: "myrank", label: "MyRank", icon: Trophy },
-  { id: "brain", label: "Brain", icon: Brain },
+  // { id: "brain", label: "Brain", icon: Brain }, // hidden per user request
   // { id: "community", label: "Community", icon: Users }, // hidden per user request
   { id: "progress", label: "SureShot", icon: Crosshair },
   { id: "you", label: "You", icon: User },
