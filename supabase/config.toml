@@ -107,6 +107,8 @@ project_id = "yvxrsujwgmzdjzsjyqfb"
     verify_jwt = false
   [functions.msg91-otp]
     verify_jwt = false
+  [functions.myrank-engine]
+    verify_jwt = false
   [functions.onboarding]
     verify_jwt = false
   [functions.omnichannel-notify]
