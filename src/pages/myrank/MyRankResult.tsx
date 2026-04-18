@@ -190,6 +190,29 @@ const MyRankResult = () => {
           More share options
         </Button>
 
+        {/* Shareable Badge */}
+        <Card className="p-4 space-y-2">
+          <div className="text-sm font-bold flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-yellow-500" /> Your Shareable Badge
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Auto-generated 1080×1080 image — perfect for WhatsApp Status & Instagram.
+          </div>
+          <ShareableBadge
+            rank={result.rank}
+            percentile={result.percentile}
+            category={result.category}
+            aiTag={result.ai_tag}
+            userName={user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion"}
+          />
+        </Card>
+
+        {/* Leaderboard CTA */}
+        <Button onClick={() => navigate("/myrank/leaderboard")} variant="secondary" className="w-full">
+          <ListOrdered className="w-4 h-4 mr-2" />
+          See Top 100 India Leaderboard
+        </Button>
+
         {/* Hard viral gate — Detailed Analysis */}
         {!isUnlocked && !analysis && (
           <Card className="p-4 space-y-3 border-2 border-dashed border-orange-300 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-950/20 dark:to-yellow-950/20">
