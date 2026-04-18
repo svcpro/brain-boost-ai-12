@@ -768,12 +768,44 @@ const OnboardingPage = () => {
                 </div>
                 <p className="text-xs mb-3" style={{ color: "#ffffff40" }}>You'll add topics for each subject next.</p>
 
-                <motion.button whileTap={{ scale: 0.97 }} onClick={handleAIGenerate} disabled={aiGenerating}
-                  className="w-full flex items-center justify-center gap-2 py-2 mb-1 rounded-xl text-xs disabled:opacity-50 transition-all"
-                  style={{ border: "1px dashed #00E5FF40", color: "#00E5FF", background: "#00E5FF06" }}
-                >
-                  {aiGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Wand2 className="w-3.5 h-3.5" /> AI Generate Subjects & Topics</>}
-                </motion.button>
+                <div className="grid grid-cols-2 gap-2 mb-1">
+                  <motion.button whileTap={{ scale: 0.97 }} onClick={handleAIGenerate} disabled={aiGenerating}
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] disabled:opacity-50 transition-all"
+                    style={{ border: "1px dashed #00E5FF40", color: "#00E5FF", background: "#00E5FF06" }}
+                  >
+                    {aiGenerating ? <><Loader2 className="w-3 h-3 animate-spin" /> AI...</> : <><Wand2 className="w-3 h-3" /> AI Generate</>}
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    disabled={aiGenerating || !SUGGESTED_SUBJECTS[examType]}
+                    onClick={() => {
+                      const presetSubjects = SUGGESTED_SUBJECTS[examType] || [];
+                      if (!presetSubjects.length) {
+                        toast({ title: "No preset available", description: "Add subjects manually below.", variant: "destructive" });
+                        return;
+                      }
+                      const newSubs: string[] = [];
+                      const newTopicMap: Record<string, string[]> = { ...topicsBySubject };
+                      for (const s of presetSubjects) {
+                        if (!subjects.includes(s)) newSubs.push(s);
+                        if (!newTopicMap[s] || newTopicMap[s].length === 0) {
+                          newTopicMap[s] = SUGGESTED_TOPICS[s] ? [...SUGGESTED_TOPICS[s]] : [];
+                        }
+                      }
+                      setSubjects(prev => [...prev, ...newSubs]);
+                      setTopicsBySubject(newTopicMap);
+                      const totalT = Object.values(newTopicMap).reduce((a, t) => a + t.length, 0);
+                      toast({ title: "Preset Loaded ⚡", description: `${presetSubjects.length} subjects, ${totalT} topics added instantly.` });
+                    }}
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] disabled:opacity-50 transition-all"
+                    style={{ border: "1px solid #7C4DFF55", color: "#B794FF", background: "#7C4DFF10" }}
+                  >
+                    <Sparkles className="w-3 h-3" /> Quick Preset
+                  </motion.button>
+                </div>
+                <p className="text-[9px] mb-2 text-center" style={{ color: "#ffffff35" }}>
+                  Preset = instant & accurate · AI = custom but slower
+                </p>
 
                 {/* AI Progress Bar */}
                 <AnimatePresence>
