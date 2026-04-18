@@ -91,6 +91,28 @@ const AppDashboard = () => {
     });
   }, []);
 
+  // Preload all tab modules in the background after first paint so tab switches are instant.
+  // Uses requestIdleCallback (with setTimeout fallback) to avoid blocking the active tab render.
+  useEffect(() => {
+    const preload = () => {
+      import("@/components/app/HomeTab");
+      import("@/components/app/ActionTab");
+      import("@/components/app/BrainTab");
+      import("@/components/app/ProgressTab");
+      import("@/components/app/YouTab");
+      import("@/components/app/MyRankInline");
+      import("@/components/app/GlobalNotificationCenter");
+    };
+    const w = window as any;
+    const id = w.requestIdleCallback
+      ? w.requestIdleCallback(preload, { timeout: 2000 })
+      : window.setTimeout(preload, 1200);
+    return () => {
+      if (w.cancelIdleCallback) w.cancelIdleCallback(id);
+      else clearTimeout(id);
+    };
+  }, []);
+
   // Switch tabs instantly (loader removed per request)
   const switchTab = (tabId: string) => {
     if (tabId === activeTab) return;
