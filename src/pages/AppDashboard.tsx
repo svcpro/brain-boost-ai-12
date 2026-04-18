@@ -17,6 +17,7 @@ const BrainTab = lazy(() => import("@/components/app/BrainTab"));
 const ProgressTab = lazy(() => import("@/components/app/ProgressTab"));
 const YouTab = lazy(() => import("@/components/app/YouTab"));
 const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
+const MyRankLanding = lazy(() => import("@/pages/myrank/MyRankLanding"));
 const GlobalNotificationCenter = lazy(() => import("@/components/app/GlobalNotificationCenter"));
 import NeuralBootLoader from "@/components/app/NeuralBootLoader";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
@@ -39,7 +40,7 @@ export const useVoice = () => useContext(VoiceContext);
 const tabDefs = [
   { id: "home", label: "Home", icon: Home },
   { id: "action", label: "Action", icon: Zap },
-  { id: "myrank", label: "MyRank", icon: Trophy, route: "/myrank" },
+  { id: "myrank", label: "MyRank", icon: Trophy },
   { id: "brain", label: "Brain", icon: Brain },
   // { id: "community", label: "Community", icon: Users }, // hidden per user request
   { id: "progress", label: "SureShot", icon: Crosshair },
@@ -233,6 +234,7 @@ const AppDashboard = () => {
       case "action": 
         return <ActionTab onNavigateToBrain={() => switchTab("brain")} />;
       case "brain": return <BrainTab />;
+      case "myrank": return <MyRankLanding />;
       case "community": return <CommunityPage inline />;
       case "progress": return <ProgressTab onUpgrade={() => { setAutoOpenSubscription(true); switchTab("you"); }} />;
       case "you": return <YouTab autoOpenVoiceSettings={autoOpenVoice} onVoiceSettingsOpened={() => setAutoOpenVoice(false)} autoOpenSubscription={autoOpenSubscription} onSubscriptionOpened={() => setAutoOpenSubscription(false)} autoOpenNotifHistory={autoOpenNotifHistory} onNotifHistoryOpened={() => setAutoOpenNotifHistory(false)} />;
