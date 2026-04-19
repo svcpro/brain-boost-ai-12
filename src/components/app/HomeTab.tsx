@@ -683,49 +683,10 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           </motion.div>
         )}
 
-        {/* Consistency & Decay Shield bars */}
-        {hasTopics && rankData?.factors && (
+        {/* Consistency & Decay Shield bars — hidden per user request */}
+        {false && hasTopics && rankData?.factors && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="relative z-10 grid grid-cols-2 gap-2.5 mt-3">
-            <div className="rounded-xl bg-card/50 backdrop-blur-sm p-2.5 border border-primary/10">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1">
-                  <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }}>
-                    <Target className="w-3 h-3 text-primary" style={{ filter: "drop-shadow(0 0 3px hsl(var(--primary)/0.4))" }} />
-                  </motion.div>
-                  <span className="text-[8px] text-muted-foreground">Consistency</span>
-                </div>
-                <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.consistency_score ?? 0}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary)/0.7))", boxShadow: "0 0 8px hsl(var(--primary)/0.3)" }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${rankData.factors.consistency_score ?? 0}%` }}
-                  transition={{ duration: 1.2, delay: 1.2, ease: "easeOut" }}
-                />
-              </div>
-            </div>
-            <div className="rounded-xl bg-card/50 backdrop-blur-sm p-2.5 border border-success/10">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1">
-                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                    <Shield className="w-3 h-3 text-success" style={{ filter: "drop-shadow(0 0 3px hsl(var(--success)/0.4))" }} />
-                  </motion.div>
-                  <span className="text-[8px] text-muted-foreground">Decay Shield</span>
-                </div>
-                <span className="text-[9px] font-bold text-foreground tabular-nums">{rankData.factors.decay_velocity_score ?? 0}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg, hsl(var(--success)), hsl(var(--success)/0.7))", boxShadow: "0 0 8px hsl(var(--success)/0.3)" }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${rankData.factors.decay_velocity_score ?? 0}%` }}
-                  transition={{ duration: 1.2, delay: 1.3, ease: "easeOut" }}
-                />
-              </div>
-            </div>
+            {/* hidden */}
           </motion.div>
         )}
 
