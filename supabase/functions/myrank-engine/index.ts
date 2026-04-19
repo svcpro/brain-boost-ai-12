@@ -403,11 +403,16 @@ Deno.serve(async (req) => {
         }).eq("id", 1);
       });
 
-      // Mark referral as completed_test
+      // Mark referral as completed_test (highest tier)
       if (test.referred_by_code) {
-        await admin.from("myrank_referrals").update({ status: "completed_test" })
-          .eq("referrer_code", test.referred_by_code)
-          .or(`referred_user_id.eq.${test.user_id || "00000000-0000-0000-0000-000000000000"},referred_anon_id.eq.${test.anon_session_id || ""}`);
+        let q = admin.from("myrank_referrals").update({ status: "completed_test" })
+          .eq("referrer_code", test.referred_by_code);
+        if (test.user_id) {
+          q = q.eq("referred_user_id", test.user_id);
+        } else if (test.anon_session_id) {
+          q = q.eq("referred_anon_id", test.anon_session_id);
+        }
+        await q;
       }
 
       return new Response(JSON.stringify({
