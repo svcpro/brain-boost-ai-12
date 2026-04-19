@@ -609,8 +609,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               const tone = goalMet ? "hsl(var(--success))" : pct >= 50 ? "hsl(var(--primary))" : "hsl(var(--warning))";
               return (
                 <motion.div
-                  className="rounded-2xl p-3 border backdrop-blur-md relative overflow-hidden"
-                  style={{ background: "hsl(var(--card)/0.7)", borderColor: `${tone} / 0.18`, boxShadow: `0 0 12px ${tone}10` }}
+                  className="rounded-2xl p-3 border border-primary/15 backdrop-blur-md relative overflow-hidden"
+                  style={{ background: "hsl(var(--card)/0.7)", boxShadow: `0 0 12px ${tone}10` }}
                   whileHover={{ scale: 1.03, boxShadow: `0 0 20px ${tone}25` }}
                 >
                   {/* progress fill background */}
