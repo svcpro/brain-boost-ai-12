@@ -792,6 +792,13 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         />
       </SectionErrorBoundary>
 
+      {/* ═══ Forgetting Curve 2.0 ═══ */}
+      {hasTopics && (
+        <Suspense fallback={null}>
+          <ForgettingCurve2Card />
+        </Suspense>
+      )}
+
       {/* ══════════════════════════════════════════════════════════════
            SECTION 3: QUICK ACTIONS — 3 One-Tap Power Tools
            Purpose: "Smart Recall / Risk Shield / Rank Boost"
@@ -805,13 +812,6 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             onStartRecall={(subject, topic, minutes) => openSignalWithPrefill(subject, topic, minutes)}
           />
         </SectionErrorBoundary>
-      )}
-
-      {/* ═══ Forgetting Curve 2.0 ═══ */}
-      {hasTopics && (
-        <Suspense fallback={null}>
-          <ForgettingCurve2Card />
-        </Suspense>
       )}
 
       {/* ═══ Momentum — hidden per user request ═══ */}
