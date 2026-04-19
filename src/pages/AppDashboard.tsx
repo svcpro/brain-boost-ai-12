@@ -375,9 +375,7 @@ const AppDashboard = () => {
                     key={tab.id}
                     onClick={handleClick}
                     className={`flex flex-col items-center gap-0.5 px-1.5 sm:px-3 py-1.5 rounded-xl transition-all duration-300 relative min-w-0 ${
-                      isSureShot
-                        ? "text-transparent"
-                        : isMyRank
+                      isMyRank
                         ? "text-transparent"
                         : active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                     }`}
