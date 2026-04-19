@@ -221,13 +221,7 @@ function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, 
     case "whatsapp":
     case "native":
     default:
-      // On desktop, wa.me/?text=... often just opens the WhatsApp landing page
-      // without pre-filling the message. web.whatsapp.com/send?text=... reliably
-      // opens WhatsApp Web with the caption ready to send.
-      // On mobile, wa.me/ deep-links into the native app.
-      target = isMobile
-        ? `https://wa.me/?text=${encoded}`
-        : `https://web.whatsapp.com/send?text=${encoded}`;
+      target = `https://wa.me/?text=${encoded}`;
       break;
     case "telegram":
       target = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encoded}`;
