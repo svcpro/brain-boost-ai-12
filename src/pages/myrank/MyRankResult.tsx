@@ -181,30 +181,51 @@ const MyRankResult = () => {
 
   useEffect(() => {
     const stored = sessionStorage.getItem("myrank_result");
-    if (!stored) {
+    const pending = sessionStorage.getItem("myrank_result_pending");
+    const inflight = (window as any).__myrankSubmitPromise as Promise<Result | null> | undefined;
+
+    const startAnimations = (r: Result) => {
+      setResult(r);
+      fetchUnlockStatus();
+      if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 100]);
+      const dur = 1800;
+      const start = performance.now();
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - start) / dur);
+        const ease = 1 - Math.pow(1 - t, 3);
+        setAnimatedRank(Math.floor(r.rank * ease));
+        setAnimatedPct(Math.floor(r.percentile * ease));
+        if (t < 1) requestAnimationFrame(tick);
+        else {
+          setAnimatedRank(r.rank);
+          setAnimatedPct(r.percentile);
+        }
+      };
+      requestAnimationFrame(tick);
+    };
+
+    if (stored) {
+      startAnimations(JSON.parse(stored) as Result);
+    } else if (pending && inflight) {
+      // Submission in flight — await it instead of bouncing back to landing.
+      inflight.then((r) => {
+        if (r) startAnimations(r as Result);
+        else navigate("/myrank");
+      });
+    } else if (pending) {
+      // Listen for the result event in case the promise reference was lost.
+      const onReady = (e: Event) => startAnimations((e as CustomEvent).detail as Result);
+      window.addEventListener("myrank:result-ready", onReady, { once: true });
+      // Safety fallback: if nothing arrives in 15s, return to landing.
+      const t = setTimeout(() => navigate("/myrank"), 15000);
+      return () => {
+        window.removeEventListener("myrank:result-ready", onReady);
+        clearTimeout(t);
+      };
+    } else {
       navigate("/myrank");
       return;
     }
-    const r = JSON.parse(stored) as Result;
-    setResult(r);
-    fetchUnlockStatus();
-
-    if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 100]);
-
-    const dur = 1800;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / dur);
-      const ease = 1 - Math.pow(1 - t, 3);
-      setAnimatedRank(Math.floor(r.rank * ease));
-      setAnimatedPct(Math.floor(r.percentile * ease));
-      if (t < 1) requestAnimationFrame(tick);
-      else {
-        setAnimatedRank(r.rank);
-        setAnimatedPct(r.percentile);
-      }
-    };
-    requestAnimationFrame(tick);
 
     const conf = setTimeout(() => setShowConfetti(false), 4500);
     return () => clearTimeout(conf);
@@ -227,7 +248,34 @@ const MyRankResult = () => {
     return () => clearTimeout(id);
   }, [tagTimer]);
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center justify-center bg-[#05060f] text-white overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.18),transparent_60%),radial-gradient(ellipse_at_bottom,rgba(6,182,212,0.15),transparent_60%)]" />
+          <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-fuchsia-600/25 blur-3xl animate-pulse" />
+          <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-cyan-500/20 blur-3xl animate-pulse" style={{ animationDuration: "4s" }} />
+        </div>
+        <div className="relative z-10 flex flex-col items-center gap-5">
+          <div className="relative w-20 h-20">
+            <div className="absolute inset-0 rounded-full border-4 border-white/10" />
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-fuchsia-400 border-r-cyan-400 animate-spin" />
+            <div className="absolute inset-3 rounded-full bg-gradient-to-br from-fuchsia-500/30 to-cyan-500/30 backdrop-blur flex items-center justify-center">
+              <Trophy className="w-7 h-7 text-white" />
+            </div>
+          </div>
+          <div className="text-center space-y-1.5">
+            <div className="text-base font-bold bg-gradient-to-r from-fuchsia-300 to-cyan-300 bg-clip-text text-transparent">
+              Calculating your India rank…
+            </div>
+            <div className="text-[11px] text-white/50 tracking-widest uppercase">
+              AI is comparing you to 5M+ aspirants
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tier = (result.percentile >= 99
     ? "legendary"
