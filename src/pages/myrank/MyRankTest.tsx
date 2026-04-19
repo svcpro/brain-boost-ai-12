@@ -29,6 +29,7 @@ const MyRankTest = () => {
   const [timeLeft, setTimeLeft] = useState(TEST_DURATION);
   const [selectedFlash, setSelectedFlash] = useState<number | null>(null);
   const startTime = useRef(Date.now());
+  const submittedRef = useRef(false);
 
   useEffect(() => {
     // Prefer the prefetched in-flight request started on pointerdown.
@@ -82,23 +83,49 @@ const MyRankTest = () => {
   };
 
   const submitTest = async (finalAnswers: number[]) => {
-    if (submitting || !testId) return;
+    // Synchronous guard prevents duplicate submissions (React strict mode,
+    // timer + click race, etc.) — state updates are async so we can't rely on `submitting`.
+    if (submittedRef.current || !testId) return;
+    submittedRef.current = true;
     setSubmitting(true);
+
     const elapsed = Math.floor((Date.now() - startTime.current) / 1000);
-    const { data, error } = await supabase.functions.invoke("myrank-engine", {
-      body: {
-        action: "submit_test",
-        test_id: testId,
-        answers: finalAnswers,
-        time_taken_seconds: Math.min(elapsed, TEST_DURATION),
-      },
-    });
-    if (error || !data) {
-      console.error(error);
-      setSubmitting(false);
-      return;
-    }
-    sessionStorage.setItem("myrank_result", JSON.stringify({ ...data, test_id: testId }));
+
+    // Stash a placeholder so the result page mounts instantly with a skeleton
+    // while the network call is still in flight.
+    sessionStorage.setItem(
+      "myrank_result_pending",
+      JSON.stringify({ test_id: testId, category, total: questions.length })
+    );
+
+    // Kick off the request and navigate in parallel — result page will await it.
+    const submitPromise = supabase.functions
+      .invoke("myrank-engine", {
+        body: {
+          action: "submit_test",
+          test_id: testId,
+          answers: finalAnswers,
+          time_taken_seconds: Math.min(elapsed, TEST_DURATION),
+        },
+      })
+      .then(({ data, error }) => {
+        if (error || !data) {
+          console.error(error);
+          sessionStorage.removeItem("myrank_result_pending");
+          submittedRef.current = false;
+          return null;
+        }
+        const payload = { ...data, test_id: testId };
+        sessionStorage.setItem("myrank_result", JSON.stringify(payload));
+        sessionStorage.removeItem("myrank_result_pending");
+        window.dispatchEvent(new CustomEvent("myrank:result-ready", { detail: payload }));
+        return payload;
+      });
+
+    // Expose the in-flight promise so the result page can await it instead of
+    // showing nothing or refetching.
+    (window as any).__myrankSubmitPromise = submitPromise;
+
     navigate("/myrank/result");
   };
 
