@@ -375,23 +375,14 @@ const AppDashboard = () => {
                     key={tab.id}
                     onClick={handleClick}
                     className={`flex flex-col items-center gap-0.5 px-1.5 sm:px-3 py-1.5 rounded-xl transition-all duration-300 relative min-w-0 ${
-                      isSureShot
-                        ? "text-transparent"
-                        : isMyRank
+                      isMyRank
                         ? "text-transparent"
                         : active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <div className="relative">
                       {isSureShot ? (
-                        <div className="relative">
-                          <div className="absolute inset-0 rounded-full animate-[glow-ring_2s_ease-in-out_infinite]" />
-                          <tab.icon className={`w-5 h-5 sureshot-icon-glow animate-[flame-flicker_1.5s_ease-in-out_infinite]`} style={{ color: 'hsl(15, 100%, 55%)' }} />
-                          <span className="absolute -top-2.5 -right-3.5 flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[6px] font-black leading-none animate-[hot-badge-pulse_1.5s_ease-in-out_infinite] sureshot-glow"
-                            style={{ background: 'linear-gradient(135deg, hsl(0,85%,50%), hsl(330,100%,55%))', color: 'white' }}>
-                            🔥
-                          </span>
-                        </div>
+                        <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""}`} />
                       ) : isMyRank ? (
                         <div className="relative">
                           <tab.icon
@@ -418,9 +409,7 @@ const AppDashboard = () => {
                     </div>
                     <span
                       className={`text-[9px] ${
-                        isSureShot
-                          ? "font-bold sureshot-gradient-text"
-                          : isMyRank
+                        isMyRank
                           ? "font-bold bg-gradient-to-r from-amber-300 via-fuchsia-400 to-cyan-300 bg-clip-text"
                           : active
                           ? "font-bold"
@@ -429,7 +418,7 @@ const AppDashboard = () => {
                     >
                       {tab.label}
                     </span>
-                    {active && !isSureShot && !isMyRank && (
+                    {active && !isMyRank && (
                       <div className="w-1 h-1 rounded-full bg-primary" />
                     )}
                   </button>
