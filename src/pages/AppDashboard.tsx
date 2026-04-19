@@ -50,6 +50,7 @@ const tabDefs = [
 const TAB_LOADER_MESSAGES: Record<string, string> = {
   action: "Loading Action Center",
   brain: "Booting Neural Brain",
+  myrank: "Loading MyRank",
   progress: "Calibrating SureShot Engine",
   you: "Syncing Your Identity Core",
 };
