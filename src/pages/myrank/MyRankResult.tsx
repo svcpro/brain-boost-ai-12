@@ -248,7 +248,34 @@ const MyRankResult = () => {
     return () => clearTimeout(id);
   }, [tagTimer]);
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center justify-center bg-[#05060f] text-white overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.18),transparent_60%),radial-gradient(ellipse_at_bottom,rgba(6,182,212,0.15),transparent_60%)]" />
+          <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-fuchsia-600/25 blur-3xl animate-pulse" />
+          <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-cyan-500/20 blur-3xl animate-pulse" style={{ animationDuration: "4s" }} />
+        </div>
+        <div className="relative z-10 flex flex-col items-center gap-5">
+          <div className="relative w-20 h-20">
+            <div className="absolute inset-0 rounded-full border-4 border-white/10" />
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-fuchsia-400 border-r-cyan-400 animate-spin" />
+            <div className="absolute inset-3 rounded-full bg-gradient-to-br from-fuchsia-500/30 to-cyan-500/30 backdrop-blur flex items-center justify-center">
+              <Trophy className="w-7 h-7 text-white" />
+            </div>
+          </div>
+          <div className="text-center space-y-1.5">
+            <div className="text-base font-bold bg-gradient-to-r from-fuchsia-300 to-cyan-300 bg-clip-text text-transparent">
+              Calculating your India rank…
+            </div>
+            <div className="text-[11px] text-white/50 tracking-widest uppercase">
+              AI is comparing you to 5M+ aspirants
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tier = (result.percentile >= 99
     ? "legendary"
