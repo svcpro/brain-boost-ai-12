@@ -384,14 +384,7 @@ const AppDashboard = () => {
                   >
                     <div className="relative">
                       {isSureShot ? (
-                        <div className="relative">
-                          <div className="absolute inset-0 rounded-full animate-[glow-ring_2s_ease-in-out_infinite]" />
-                          <tab.icon className={`w-5 h-5 sureshot-icon-glow animate-[flame-flicker_1.5s_ease-in-out_infinite]`} style={{ color: 'hsl(15, 100%, 55%)' }} />
-                          <span className="absolute -top-2.5 -right-3.5 flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[6px] font-black leading-none animate-[hot-badge-pulse_1.5s_ease-in-out_infinite] sureshot-glow"
-                            style={{ background: 'linear-gradient(135deg, hsl(0,85%,50%), hsl(330,100%,55%))', color: 'white' }}>
-                            🔥
-                          </span>
-                        </div>
+                        <tab.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_6px_hsl(175,80%,50%)]" : ""}`} />
                       ) : isMyRank ? (
                         <div className="relative">
                           <tab.icon
