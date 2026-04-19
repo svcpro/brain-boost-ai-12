@@ -600,24 +600,49 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             transition={{ delay: 0.8 }}
             className="relative z-10 grid grid-cols-3 gap-2.5 mt-5"
           >
-            <motion.div
-              className="rounded-2xl p-3 border backdrop-blur-md"
-              style={{ background: "hsl(var(--card)/0.7)", borderColor: "hsl(var(--primary)/0.15)", boxShadow: "0 0 12px hsl(var(--primary)/0.05)" }}
-              whileHover={{ scale: 1.03, boxShadow: "0 0 20px hsl(var(--primary)/0.15)" }}
-            >
-              <motion.div animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="flex justify-center mb-1">
-                <TrendingUp className="w-4 h-4 text-primary" style={{ filter: "drop-shadow(0 0 6px hsl(var(--primary)/0.5))" }} />
-              </motion.div>
-              <p className="text-lg font-black text-foreground tabular-nums text-center">
-                {displayedRank ? `#${displayedRank.toLocaleString()}` : "—"}
-              </p>
-              {displayedTrend !== "stable" && displayedTrend !== "neutral" && (
-                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className={`text-[9px] font-bold block text-center ${displayedTrend === "rising" ? "text-success" : "text-destructive"}`}>
-                  {displayedTrend === "rising" ? "↑ Rising" : "↓ Falling"}
-                </motion.span>
-              )}
-              <p className="text-[9px] text-muted-foreground text-center mt-0.5">Rank</p>
-            </motion.div>
+            {/* Today's Progress — habit-forming real-time metric (replaces Rank) */}
+            {(() => {
+              const goal = streakData?.goalMinutes ?? 60;
+              const done = streakData?.todayMinutes ?? 0;
+              const pct = Math.min(100, Math.round((done / goal) * 100));
+              const goalMet = done >= goal;
+              const tone = goalMet ? "hsl(var(--success))" : pct >= 50 ? "hsl(var(--primary))" : "hsl(var(--warning))";
+              return (
+                <motion.div
+                  className="rounded-2xl p-3 border backdrop-blur-md relative overflow-hidden"
+                  style={{ background: "hsl(var(--card)/0.7)", borderColor: `${tone} / 0.18`, boxShadow: `0 0 12px ${tone}10` }}
+                  whileHover={{ scale: 1.03, boxShadow: `0 0 20px ${tone}25` }}
+                >
+                  {/* progress fill background */}
+                  <motion.div
+                    className="absolute inset-x-0 bottom-0 pointer-events-none"
+                    style={{ background: `linear-gradient(to top, ${tone}22, transparent)` }}
+                    initial={{ height: 0 }}
+                    animate={{ height: `${pct}%` }}
+                    transition={{ duration: 1.2, ease: "easeOut", delay: 0.5 }}
+                  />
+                  <motion.div
+                    animate={goalMet ? { scale: [1, 1.25, 1], rotate: [0, 12, -12, 0] } : { y: [0, -2, 0] }}
+                    transition={{ duration: goalMet ? 1.6 : 2.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="flex justify-center mb-1 relative z-10"
+                  >
+                    {goalMet
+                      ? <CheckCircle className="w-4 h-4" style={{ color: tone, filter: `drop-shadow(0 0 6px ${tone}80)` }} />
+                      : <Zap className="w-4 h-4" style={{ color: tone, filter: `drop-shadow(0 0 6px ${tone}80)` }} />
+                    }
+                  </motion.div>
+                  <p className="text-lg font-black text-foreground tabular-nums text-center relative z-10">
+                    {pct}<span className="text-[9px] text-muted-foreground ml-0.5">%</span>
+                  </p>
+                  <p className="text-[8px] text-muted-foreground text-center mt-0.5 relative z-10 tabular-nums">
+                    {done}/{goal}m
+                  </p>
+                  <p className="text-[9px] text-muted-foreground text-center mt-0.5 relative z-10">
+                    {goalMet ? "Goal Hit ✓" : "Today"}
+                  </p>
+                </motion.div>
+              );
+            })()}
 
             <motion.div
               className="rounded-2xl p-3 border backdrop-blur-md"
