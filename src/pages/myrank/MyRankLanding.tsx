@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,8 @@ import {
   GraduationCap, Stethoscope, Rocket, Scale, Briefcase, Shield,
   Globe2, BookOpen, Brain, ChevronRight,
 } from "lucide-react";
+
+const MyRankRewards = lazy(() => import("@/components/myrank/MyRankRewards"));
 
 const setSeo = (title: string, desc: string) => {
   document.title = title;
@@ -193,6 +195,11 @@ const MyRankLanding = () => {
             </div>
           </div>
         </Card>
+
+        {/* Referral rewards — Premium Test + AI Study Plan */}
+        <Suspense fallback={null}>
+          <MyRankRewards />
+        </Suspense>
 
         {/* Search */}
         <div className="relative">

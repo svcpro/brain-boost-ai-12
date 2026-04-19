@@ -728,6 +728,339 @@ Generate a JSON object with:
       });
     }
 
+    // ─────────── Referral reward claims ───────────
+    // Helper: count verified referrals for a referrer code
+    const countReferrals = async (refCode: string): Promise<number> => {
+      const { count } = await admin
+        .from("myrank_referrals")
+        .select("*", { count: "exact", head: true })
+        .eq("referrer_code", refCode)
+        .in("status", ["signed_up", "completed_test"]);
+      return count || 0;
+    };
+
+    // Returns the user's claimed rewards (premium_test window + ai_study_plan)
+    if (action === "rewards_status") {
+      const { user_id, referrer_code } = body;
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: "user_id required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const referralCount = referrer_code ? await countReferrals(referrer_code) : 0;
+
+      const { data: rewards } = await admin
+        .from("myrank_rewards")
+        .select("reward_type, claimed_at, expires_at, study_plan_id, metadata")
+        .eq("user_id", user_id);
+
+      const findR = (t: string) => (rewards || []).find((r: any) => r.reward_type === t);
+      const premium = findR("premium_test");
+      const aiPlan = findR("ai_study_plan");
+
+      let planSummary: string | null = null;
+      if (aiPlan?.study_plan_id) {
+        const { data: sp } = await admin
+          .from("study_plans")
+          .select("summary")
+          .eq("id", aiPlan.study_plan_id)
+          .maybeSingle();
+        planSummary = sp?.summary || null;
+      }
+
+      const now = Date.now();
+      const premiumActive = premium && (!premium.expires_at || new Date(premium.expires_at).getTime() > now);
+
+      return new Response(JSON.stringify({
+        referrals: referralCount,
+        premium_test: {
+          eligible: referralCount >= 5,
+          claimed: !!premium,
+          active: !!premiumActive,
+          claimed_at: premium?.claimed_at || null,
+          expires_at: premium?.expires_at || null,
+          days_left: premium?.expires_at
+            ? Math.max(0, Math.ceil((new Date(premium.expires_at).getTime() - now) / 86400000))
+            : null,
+        },
+        ai_study_plan: {
+          eligible: referralCount >= 10,
+          claimed: !!aiPlan,
+          claimed_at: aiPlan?.claimed_at || null,
+          plan_id: aiPlan?.study_plan_id || null,
+          summary: planSummary,
+        },
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Claim Premium Test reward → grants 30-day premium subscription window
+    if (action === "claim_premium_test") {
+      const { user_id, referrer_code } = body;
+      if (!user_id || !referrer_code) {
+        return new Response(JSON.stringify({ error: "user_id and referrer_code required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const referralCount = await countReferrals(referrer_code);
+      if (referralCount < 5) {
+        return new Response(JSON.stringify({
+          error: "not_eligible",
+          message: `Need 5 referrals (you have ${referralCount})`,
+          referrals: referralCount,
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Already claimed?
+      const { data: existing } = await admin
+        .from("myrank_rewards")
+        .select("id, expires_at")
+        .eq("user_id", user_id)
+        .eq("reward_type", "premium_test")
+        .maybeSingle();
+      if (existing) {
+        return new Response(JSON.stringify({
+          error: "already_claimed",
+          message: "Premium Test reward already claimed",
+          expires_at: existing.expires_at,
+        }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const expiresAt = new Date(Date.now() + 30 * 86400000).toISOString();
+
+      // Insert reward record
+      const { error: rewardErr } = await admin.from("myrank_rewards").insert({
+        user_id,
+        reward_type: "premium_test",
+        expires_at: expiresAt,
+        metadata: { source: "myrank_referral", referrals_at_claim: referralCount },
+      });
+      if (rewardErr) {
+        console.error("[claim_premium_test] reward insert failed:", rewardErr);
+        throw new Error("Failed to record reward");
+      }
+
+      // Grant access by extending the user's subscription via a trial extension.
+      // We deactivate any current "none" state and add a 30-day reward subscription.
+      const { data: premiumPlan } = await admin
+        .from("subscription_plans")
+        .select("id")
+        .eq("plan_key", "premium")
+        .maybeSingle();
+
+      const { data: currentSub } = await admin
+        .from("user_subscriptions")
+        .select("id, expires_at, trial_end_date, is_trial, status")
+        .eq("user_id", user_id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Compute new effective expiry: extend if existing window is later, else +30d
+      const baseExpiry = currentSub?.expires_at ? new Date(currentSub.expires_at).getTime() : 0;
+      const trialExpiry = currentSub?.trial_end_date ? new Date(currentSub.trial_end_date).getTime() : 0;
+      const effectiveBase = Math.max(baseExpiry, trialExpiry, Date.now());
+      const newExpiry = new Date(effectiveBase + 30 * 86400000).toISOString();
+
+      if (currentSub) {
+        await admin.from("user_subscriptions").update({
+          plan_id: premiumPlan?.id || currentSub.id,
+          is_trial: true,
+          trial_end_date: newExpiry,
+          expires_at: newExpiry,
+          status: "active",
+        }).eq("id", currentSub.id);
+      } else {
+        await admin.from("user_subscriptions").insert({
+          user_id,
+          plan_id: premiumPlan?.id || "premium",
+          status: "active",
+          is_trial: true,
+          trial_start_date: new Date().toISOString(),
+          trial_end_date: newExpiry,
+          expires_at: newExpiry,
+          billing_cycle: "monthly",
+          amount: 0,
+          currency: "INR",
+        });
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        reward: "premium_test",
+        expires_at: expiresAt,
+        days: 30,
+        message: "Premium Test access unlocked for 30 days",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Claim AI Study Plan reward → AI generates personalized 30-day plan
+    if (action === "claim_ai_study_plan") {
+      const { user_id, referrer_code } = body;
+      if (!user_id || !referrer_code) {
+        return new Response(JSON.stringify({ error: "user_id and referrer_code required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const referralCount = await countReferrals(referrer_code);
+      if (referralCount < 10) {
+        return new Response(JSON.stringify({
+          error: "not_eligible",
+          message: `Need 10 referrals (you have ${referralCount})`,
+          referrals: referralCount,
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Already claimed?
+      const { data: existing } = await admin
+        .from("myrank_rewards")
+        .select("id, study_plan_id")
+        .eq("user_id", user_id)
+        .eq("reward_type", "ai_study_plan")
+        .maybeSingle();
+      if (existing) {
+        const { data: sp } = existing.study_plan_id
+          ? await admin.from("study_plans").select("summary").eq("id", existing.study_plan_id).maybeSingle()
+          : { data: null };
+        return new Response(JSON.stringify({
+          error: "already_claimed",
+          message: "AI Study Plan already generated",
+          summary: sp?.summary || null,
+          plan_id: existing.study_plan_id,
+        }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Gather context: profile + weak topics
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("display_name, exam_type, exam_date, daily_study_goal_minutes")
+        .eq("id", user_id)
+        .maybeSingle();
+
+      const { data: weakTopics } = await admin
+        .from("topics")
+        .select("name, memory_strength, subject_id")
+        .eq("user_id", user_id)
+        .is("deleted_at", null)
+        .order("memory_strength", { ascending: true })
+        .limit(20);
+
+      const { data: subjects } = await admin
+        .from("subjects")
+        .select("id, name")
+        .eq("user_id", user_id)
+        .is("deleted_at", null);
+      const subjectMap = new Map((subjects || []).map((s: any) => [s.id, s.name]));
+
+      const examType = profile?.exam_type || "general competitive exam";
+      const examDate = profile?.exam_date;
+      const daysToExam = examDate
+        ? Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000)
+        : null;
+      const dailyGoal = profile?.daily_study_goal_minutes || 90;
+
+      const topicLines = (weakTopics || []).slice(0, 15).map((t: any) =>
+        `- ${t.name} (${subjectMap.get(t.subject_id) || "General"}): mastery ${Math.round((t.memory_strength || 0) * 100)}%`
+      ).join("\n") || "- (No weak-topic data yet — focus on syllabus fundamentals)";
+
+      const prompt = `You are a top-tier exam coach generating a personalized 30-day mastery plan.
+
+STUDENT PROFILE:
+- Name: ${profile?.display_name || "Student"}
+- Target exam: ${examType}
+- Days to exam: ${daysToExam !== null ? daysToExam : "Not set"}
+- Daily study goal: ${dailyGoal} minutes
+
+WEAKEST TOPICS (focus areas):
+${topicLines}
+
+Generate a structured 30-day plan in markdown:
+# 30-Day Personalized Plan for ${examType}
+
+## Overview
+2-3 sentences explaining the strategy.
+
+## Week 1 (Days 1–7): Foundation Repair
+For each day list: Topic + 2-3 focused tasks (≤30 min each).
+
+## Week 2 (Days 8–14): Active Recall
+## Week 3 (Days 15–21): Speed + Mock Tests
+## Week 4 (Days 22–30): Final Polish
+
+## Daily Routine
+- Morning, afternoon, evening blocks.
+
+## Key Rules
+- 5 short, non-negotiable rules.
+
+Be specific to the listed weak topics. Keep total length under 1500 words.`;
+
+      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "You are an elite exam coach. Output ONLY valid markdown — no preamble." },
+            { role: "user", content: prompt },
+          ],
+        }),
+      });
+
+      if (!aiRes.ok) {
+        if (aiRes.status === 429) {
+          return new Response(JSON.stringify({ error: "rate_limited", message: "AI is busy. Try again shortly." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (aiRes.status === 402) {
+          return new Response(JSON.stringify({ error: "credits_exhausted", message: "AI credits exhausted." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const errText = await aiRes.text();
+        console.error("[claim_ai_study_plan] AI error:", aiRes.status, errText);
+        throw new Error("AI generation failed");
+      }
+
+      const aiData = await aiRes.json();
+      const summary = aiData.choices?.[0]?.message?.content?.trim() || "";
+      if (!summary) throw new Error("Empty AI response");
+
+      // Persist study plan
+      const { data: planRow, error: planErr } = await admin
+        .from("study_plans")
+        .insert({ user_id, summary })
+        .select("id")
+        .single();
+      if (planErr || !planRow) {
+        console.error("[claim_ai_study_plan] plan insert failed:", planErr);
+        throw new Error("Failed to save study plan");
+      }
+
+      // Record the reward
+      await admin.from("myrank_rewards").insert({
+        user_id,
+        reward_type: "ai_study_plan",
+        study_plan_id: planRow.id,
+        metadata: { source: "myrank_referral", referrals_at_claim: referralCount, exam_type: examType },
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        reward: "ai_study_plan",
+        plan_id: planRow.id,
+        summary,
+        message: "Your personalized 30-day plan is ready",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
