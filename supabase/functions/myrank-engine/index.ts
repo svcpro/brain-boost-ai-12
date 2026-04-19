@@ -307,22 +307,46 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      // Track referral click conversion → signed_up
+      // Track referral conversion: ensure a row exists for THIS referee
       if (referred_by_code) {
-        await admin.from("myrank_referrals").update({
-          referred_user_id: user_id || null,
-          referred_anon_id: anon_session_id || null,
-          status: user_id ? "signed_up" : "clicked",
-          converted_at: new Date().toISOString(),
-        }).eq("referrer_code", referred_by_code).is("referred_user_id", null);
-
-        // Increment signup_count on the memorable handle (best-effort)
+        // Resolve referrer_user_id from handle (best-effort)
         const { data: h } = await admin.from("myrank_handles")
-          .select("id, signup_count").eq("handle", referred_by_code).maybeSingle();
-        if (h) {
-          await admin.from("myrank_handles").update({
-            signup_count: (h.signup_count || 0) + 1,
-          }).eq("id", h.id);
+          .select("id, user_id, signup_count").eq("handle", referred_by_code).maybeSingle();
+
+        // Check if a referral row already exists for this referee+referrer pair
+        let existingQuery = admin.from("myrank_referrals")
+          .select("id, status").eq("referrer_code", referred_by_code);
+        if (user_id) existingQuery = existingQuery.eq("referred_user_id", user_id);
+        else if (anon_session_id) existingQuery = existingQuery.eq("referred_anon_id", anon_session_id);
+        const { data: existing } = await existingQuery.maybeSingle();
+
+        const newStatus = user_id ? "signed_up" : "clicked";
+        if (existing) {
+          // Only upgrade status (clicked → signed_up); never downgrade
+          if (existing.status === "clicked" && newStatus === "signed_up") {
+            await admin.from("myrank_referrals").update({
+              referred_user_id: user_id,
+              status: "signed_up",
+              converted_at: new Date().toISOString(),
+            }).eq("id", existing.id);
+          }
+        } else {
+          // Insert a fresh referral row so it can later be counted
+          await admin.from("myrank_referrals").insert({
+            referrer_code: referred_by_code,
+            referrer_user_id: h?.user_id || null,
+            referred_user_id: user_id || null,
+            referred_anon_id: anon_session_id || null,
+            status: newStatus,
+            converted_at: new Date().toISOString(),
+          });
+
+          // Increment signup_count only on first signup conversion
+          if (h && user_id) {
+            await admin.from("myrank_handles").update({
+              signup_count: (h.signup_count || 0) + 1,
+            }).eq("id", h.id);
+          }
         }
       }
 
