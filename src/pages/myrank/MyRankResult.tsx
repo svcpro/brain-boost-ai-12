@@ -364,9 +364,7 @@ const MyRankResult = () => {
         break;
       case "whatsapp":
       default:
-        target = isMobile
-          ? `https://wa.me/?text=${encoded}`
-          : `https://web.whatsapp.com/send?text=${encoded}`;
+        target = `https://wa.me/?text=${encoded}`;
         break;
     }
 
