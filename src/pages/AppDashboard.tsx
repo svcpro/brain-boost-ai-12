@@ -50,6 +50,7 @@ const tabDefs = [
 const TAB_LOADER_MESSAGES: Record<string, string> = {
   action: "Loading Action Center",
   brain: "Booting Neural Brain",
+  myrank: "Loading MyRank",
   progress: "Calibrating SureShot Engine",
   you: "Syncing Your Identity Core",
 };
@@ -113,10 +114,16 @@ const AppDashboard = () => {
     };
   }, []);
 
-  // Switch tabs instantly (loader removed per request)
+  // Switch tabs — show Apple-style loader for heavy tabs
+  const TABS_WITH_LOADER = new Set(["action", "myrank", "progress", "you"]);
   const switchTab = (tabId: string) => {
     if (tabId === activeTab) return;
     setActiveTab(tabId);
+    if (TABS_WITH_LOADER.has(tabId)) {
+      setTabLoading(tabId);
+    } else {
+      setTabLoading(null);
+    }
   };
 
   // Honor `?tab=action|brain|progress|you|home` from SMS / email deep-links
