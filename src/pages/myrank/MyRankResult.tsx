@@ -181,30 +181,51 @@ const MyRankResult = () => {
 
   useEffect(() => {
     const stored = sessionStorage.getItem("myrank_result");
-    if (!stored) {
+    const pending = sessionStorage.getItem("myrank_result_pending");
+    const inflight = (window as any).__myrankSubmitPromise as Promise<Result | null> | undefined;
+
+    const startAnimations = (r: Result) => {
+      setResult(r);
+      fetchUnlockStatus();
+      if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 100]);
+      const dur = 1800;
+      const start = performance.now();
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - start) / dur);
+        const ease = 1 - Math.pow(1 - t, 3);
+        setAnimatedRank(Math.floor(r.rank * ease));
+        setAnimatedPct(Math.floor(r.percentile * ease));
+        if (t < 1) requestAnimationFrame(tick);
+        else {
+          setAnimatedRank(r.rank);
+          setAnimatedPct(r.percentile);
+        }
+      };
+      requestAnimationFrame(tick);
+    };
+
+    if (stored) {
+      startAnimations(JSON.parse(stored) as Result);
+    } else if (pending && inflight) {
+      // Submission in flight — await it instead of bouncing back to landing.
+      inflight.then((r) => {
+        if (r) startAnimations(r as Result);
+        else navigate("/myrank");
+      });
+    } else if (pending) {
+      // Listen for the result event in case the promise reference was lost.
+      const onReady = (e: Event) => startAnimations((e as CustomEvent).detail as Result);
+      window.addEventListener("myrank:result-ready", onReady, { once: true });
+      // Safety fallback: if nothing arrives in 15s, return to landing.
+      const t = setTimeout(() => navigate("/myrank"), 15000);
+      return () => {
+        window.removeEventListener("myrank:result-ready", onReady);
+        clearTimeout(t);
+      };
+    } else {
       navigate("/myrank");
       return;
     }
-    const r = JSON.parse(stored) as Result;
-    setResult(r);
-    fetchUnlockStatus();
-
-    if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 100]);
-
-    const dur = 1800;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / dur);
-      const ease = 1 - Math.pow(1 - t, 3);
-      setAnimatedRank(Math.floor(r.rank * ease));
-      setAnimatedPct(Math.floor(r.percentile * ease));
-      if (t < 1) requestAnimationFrame(tick);
-      else {
-        setAnimatedRank(r.rank);
-        setAnimatedPct(r.percentile);
-      }
-    };
-    requestAnimationFrame(tick);
 
     const conf = setTimeout(() => setShowConfetti(false), 4500);
     return () => clearTimeout(conf);
