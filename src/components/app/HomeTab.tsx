@@ -592,7 +592,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
 
         {/* SurePass CTA — hidden per user request */}
 
-        {/* Key stats: Today / Streak / Exam — ULTRA UNIQUE animated cards */}
+        {/* Key stats: Rank / Streak / Exam */}
         {hasTopics && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -600,236 +600,87 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             transition={{ delay: 0.8 }}
             className="relative z-10 grid grid-cols-3 gap-2.5 mt-5"
           >
-            {/* ─── 1. TODAY'S PROGRESS — Circular ring with liquid fill ─── */}
+            {/* Today's Progress — habit-forming real-time metric (replaces Rank) */}
             {(() => {
               const goal = streakData?.goalMinutes ?? 60;
               const done = streakData?.todayMinutes ?? 0;
               const pct = Math.min(100, Math.round((done / goal) * 100));
               const goalMet = done >= goal;
               const tone = goalMet ? "hsl(var(--success))" : pct >= 50 ? "hsl(var(--primary))" : "hsl(var(--warning))";
-              const toneA = (a: number) => tone.replace("hsl(", "hsla(").replace(")", `, ${a})`);
-              const r = 22;
-              const c = 2 * Math.PI * r;
               return (
                 <motion.div
-                  className="relative rounded-2xl p-3 border backdrop-blur-md overflow-hidden"
-                  style={{
-                    background: `linear-gradient(140deg, hsl(var(--card)/0.85), hsl(var(--secondary)/0.4))`,
-                    borderColor: toneA(0.25),
-                    boxShadow: `0 4px 20px ${toneA(0.12)}, inset 0 1px 0 ${toneA(0.15)}`,
-                  }}
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
+                  className="rounded-2xl p-3 border backdrop-blur-md relative overflow-hidden"
+                  style={{ background: "hsl(var(--card)/0.7)", borderColor: `${tone} / 0.18`, boxShadow: `0 0 12px ${tone}10` }}
+                  whileHover={{ scale: 1.03, boxShadow: `0 0 20px ${tone}25` }}
                 >
-                  {/* Liquid wave fill */}
+                  {/* progress fill background */}
                   <motion.div
                     className="absolute inset-x-0 bottom-0 pointer-events-none"
-                    style={{ background: `linear-gradient(to top, ${toneA(0.18)}, transparent)` }}
+                    style={{ background: `linear-gradient(to top, ${tone}22, transparent)` }}
                     initial={{ height: 0 }}
                     animate={{ height: `${pct}%` }}
-                    transition={{ duration: 1.4, ease: [0.34, 1.56, 0.64, 1], delay: 0.6 }}
+                    transition={{ duration: 1.2, ease: "easeOut", delay: 0.5 }}
                   />
-                  {/* Floating particles when goal met */}
-                  {goalMet && [...Array(3)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className="absolute w-1 h-1 rounded-full pointer-events-none"
-                      style={{ background: tone, left: `${20 + i * 25}%`, bottom: 0 }}
-                      animate={{ y: [0, -50, -80], opacity: [0, 1, 0], scale: [0.5, 1, 0] }}
-                      transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.6, ease: "easeOut" }}
-                    />
-                  ))}
-                  {/* Mini ring */}
-                  <div className="relative z-10 flex justify-center mb-1">
-                    <div className="relative w-12 h-12">
-                      <svg viewBox="0 0 60 60" className="w-full h-full -rotate-90">
-                        <circle cx="30" cy="30" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="3.5" strokeOpacity="0.3" />
-                        <motion.circle
-                          cx="30" cy="30" r={r} fill="none"
-                          stroke={tone} strokeWidth="3.5" strokeLinecap="round"
-                          strokeDasharray={c}
-                          initial={{ strokeDashoffset: c }}
-                          animate={{ strokeDashoffset: c * (1 - pct / 100) }}
-                          transition={{ duration: 1.4, ease: "easeOut", delay: 0.4 }}
-                          style={{ filter: `drop-shadow(0 0 5px ${tone})` }}
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <motion.div
-                          animate={goalMet ? { scale: [1, 1.3, 1], rotate: [0, 360] } : { scale: [1, 1.1, 1] }}
-                          transition={{ duration: goalMet ? 2 : 2.5, repeat: Infinity, ease: "easeInOut" }}
-                        >
-                          {goalMet
-                            ? <CheckCircle className="w-4 h-4" style={{ color: tone, filter: `drop-shadow(0 0 4px ${tone})` }} />
-                            : <Zap className="w-4 h-4" style={{ color: tone, filter: `drop-shadow(0 0 4px ${tone})` }} />
-                          }
-                        </motion.div>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-base font-black text-foreground tabular-nums text-center relative z-10 leading-none">
+                  <motion.div
+                    animate={goalMet ? { scale: [1, 1.25, 1], rotate: [0, 12, -12, 0] } : { y: [0, -2, 0] }}
+                    transition={{ duration: goalMet ? 1.6 : 2.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="flex justify-center mb-1 relative z-10"
+                  >
+                    {goalMet
+                      ? <CheckCircle className="w-4 h-4" style={{ color: tone, filter: `drop-shadow(0 0 6px ${tone}80)` }} />
+                      : <Zap className="w-4 h-4" style={{ color: tone, filter: `drop-shadow(0 0 6px ${tone}80)` }} />
+                    }
+                  </motion.div>
+                  <p className="text-lg font-black text-foreground tabular-nums text-center relative z-10">
                     {pct}<span className="text-[9px] text-muted-foreground ml-0.5">%</span>
                   </p>
-                  <p className="text-[8px] text-muted-foreground text-center mt-1 relative z-10 tabular-nums font-medium">
+                  <p className="text-[8px] text-muted-foreground text-center mt-0.5 relative z-10 tabular-nums">
                     {done}/{goal}m
                   </p>
-                  <p className="text-[9px] font-bold text-center mt-0.5 relative z-10" style={{ color: tone }}>
+                  <p className="text-[9px] text-muted-foreground text-center mt-0.5 relative z-10">
                     {goalMet ? "Goal Hit ✓" : "Today"}
                   </p>
                 </motion.div>
               );
             })()}
 
-            {/* ─── 2. STREAK — Stacked flames with ember particles ─── */}
-            {(() => {
-              const days = streakData?.currentStreak ?? 0;
-              const todayMet = streakData?.todayMet ?? false;
-              const fireTier = days >= 30 ? 3 : days >= 7 ? 2 : days >= 1 ? 1 : 0;
-              const flameColor = fireTier === 3 ? "hsl(var(--destructive))" : fireTier === 2 ? "hsl(var(--warning))" : fireTier === 1 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
-              const fA = (a: number) => flameColor.replace("hsl(", "hsla(").replace(")", `, ${a})`);
-              return (
-                <motion.div
-                  className="relative rounded-2xl p-3 border backdrop-blur-md overflow-hidden"
-                  style={{
-                    background: fireTier > 0
-                      ? `radial-gradient(ellipse at bottom, ${fA(0.18)}, hsl(var(--card)/0.85) 70%)`
-                      : `linear-gradient(140deg, hsl(var(--card)/0.85), hsl(var(--secondary)/0.4))`,
-                    borderColor: fA(0.25),
-                    boxShadow: fireTier > 0 ? `0 4px 20px ${fA(0.18)}, inset 0 -1px 8px ${fA(0.12)}` : "none",
-                  }}
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  {/* Rising ember particles */}
-                  {fireTier > 0 && [...Array(4)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className="absolute w-0.5 h-0.5 rounded-full pointer-events-none"
-                      style={{ background: flameColor, left: `${30 + i * 12}%`, bottom: "30%", boxShadow: `0 0 4px ${flameColor}` }}
-                      animate={{ y: [0, -25, -45], opacity: [0, 1, 0], x: [0, i % 2 === 0 ? 4 : -4, 0] }}
-                      transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.4, ease: "easeOut" }}
-                    />
-                  ))}
-                  {/* Pulsing glow halo */}
-                  {fireTier > 0 && (
-                    <motion.div
-                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full pointer-events-none"
-                      style={{ background: `radial-gradient(circle, ${fA(0.3)}, transparent 70%)` }}
-                      animate={{ scale: [1, 1.4, 1], opacity: [0.4, 0.8, 0.4] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                  )}
-                  {/* Stacked flames */}
-                  <div className="relative z-10 flex justify-center items-end gap-0.5 mb-1 h-12">
-                    {fireTier >= 3 && (
-                      <motion.div animate={{ scale: [1, 1.25, 1], y: [0, -1, 0] }} transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}>
-                        <Flame className="w-3 h-3" style={{ color: flameColor, filter: `drop-shadow(0 0 4px ${flameColor})` }} fill="currentColor" />
-                      </motion.div>
-                    )}
-                    <motion.div
-                      animate={fireTier > 0 ? { scale: [1, 1.3, 1], rotate: [-3, 3, -3], y: [0, -1, 0] } : {}}
-                      transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      <Flame className="w-6 h-6" style={{ color: flameColor, filter: fireTier > 0 ? `drop-shadow(0 0 6px ${flameColor})` : "none" }} fill={fireTier > 0 ? "currentColor" : "none"} />
-                    </motion.div>
-                    {fireTier >= 2 && (
-                      <motion.div animate={{ scale: [1, 1.2, 1], y: [0, -1, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}>
-                        <Flame className="w-3 h-3" style={{ color: flameColor, filter: `drop-shadow(0 0 4px ${flameColor})` }} fill="currentColor" />
-                      </motion.div>
-                    )}
-                  </div>
-                  <p className="text-base font-black text-foreground tabular-nums text-center relative z-10 leading-none">
-                    {days}<span className="text-[9px] text-muted-foreground ml-0.5">d</span>
-                  </p>
-                  <p className="text-[8px] text-muted-foreground text-center mt-1 relative z-10 font-medium">
-                    {todayMet ? "On fire" : days > 0 ? "Keep going" : "Start today"}
-                  </p>
-                  <p className="text-[9px] font-bold text-center mt-0.5 relative z-10" style={{ color: flameColor }}>
-                    Streak
-                  </p>
-                </motion.div>
-              );
-            })()}
+            <motion.div
+              className="rounded-2xl p-3 border backdrop-blur-md"
+              style={{ background: "hsl(var(--card)/0.7)", borderColor: "hsl(var(--warning)/0.15)", boxShadow: "0 0 12px hsl(var(--warning)/0.05)" }}
+              whileHover={{ scale: 1.03, boxShadow: "0 0 20px hsl(var(--warning)/0.15)" }}
+            >
+              <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="flex justify-center mb-1">
+                <Flame className="w-4 h-4 text-warning" style={{ filter: "drop-shadow(0 0 6px hsl(var(--warning)/0.6))" }} />
+              </motion.div>
+              <p className="text-lg font-black text-foreground tabular-nums text-center">{streakData?.currentStreak ?? 0}</p>
+              <p className="text-[9px] text-muted-foreground text-center mt-0.5">Streak 🔥</p>
+            </motion.div>
 
-            {/* ─── 3. EXAM COUNTDOWN — Urgency-tiered with scan-line + sand ─── */}
-            {(() => {
-              const days = examDaysLeft;
-              const hasExam = days !== null;
-              const urgency = !hasExam ? "none" : days! <= 7 ? "critical" : days! <= 30 ? "warning" : days! <= 90 ? "active" : "calm";
-              const urgencyColor =
-                urgency === "critical" ? "hsl(var(--destructive))" :
-                urgency === "warning" ? "hsl(var(--warning))" :
-                urgency === "active" ? "hsl(var(--primary))" :
-                "hsl(var(--muted-foreground))";
-              const uA = (a: number) => urgencyColor.replace("hsl(", "hsla(").replace(")", `, ${a})`);
-              return (
-                <motion.div
-                  className="relative rounded-2xl p-3 border backdrop-blur-md overflow-hidden"
-                  style={{
-                    background: urgency === "critical"
-                      ? `radial-gradient(circle at top, ${uA(0.2)}, hsl(var(--card)/0.85) 70%)`
-                      : `linear-gradient(140deg, hsl(var(--card)/0.85), hsl(var(--secondary)/0.4))`,
-                    borderColor: uA(0.25),
-                    boxShadow: urgency === "critical"
-                      ? `0 4px 20px ${uA(0.25)}, inset 0 1px 0 ${uA(0.2)}`
-                      : `0 4px 12px ${uA(0.08)}`,
-                  }}
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                  animate={urgency === "critical" ? { boxShadow: [`0 4px 20px ${uA(0.25)}`, `0 4px 30px ${uA(0.45)}`, `0 4px 20px ${uA(0.25)}`] } : {}}
-                  transition={urgency === "critical" ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
-                >
-                  {/* Urgency scan-line */}
-                  {urgency === "critical" && (
-                    <motion.div
-                      className="absolute inset-x-0 h-px pointer-events-none"
-                      style={{ background: `linear-gradient(90deg, transparent, ${urgencyColor}, transparent)`, boxShadow: `0 0 6px ${urgencyColor}` }}
-                      animate={{ y: [0, 80, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                  )}
-                  {/* Clock icon with sand */}
-                  <div className="relative z-10 flex justify-center mb-1 h-12 items-center">
-                    <motion.div
-                      animate={
-                        urgency === "critical" ? { rotate: [0, 180, 360], scale: [1, 1.2, 1] } :
-                        urgency === "warning" ? { rotate: [0, 10, -10, 0] } :
-                        { y: [0, -2, 0] }
-                      }
-                      transition={{
-                        duration: urgency === "critical" ? 2 : urgency === "warning" ? 3 : 4,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    >
-                      <Clock className="w-6 h-6" style={{
-                        color: urgencyColor,
-                        filter: urgency !== "calm" && urgency !== "none" ? `drop-shadow(0 0 6px ${urgencyColor})` : "none",
-                      }} />
-                    </motion.div>
-                    {urgency === "critical" && [...Array(2)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="absolute w-0.5 h-0.5 rounded-full pointer-events-none"
-                        style={{ background: urgencyColor, left: `${48 + i * 4}%`, top: 0, boxShadow: `0 0 3px ${urgencyColor}` }}
-                        animate={{ y: [0, 36], opacity: [1, 0] }}
-                        transition={{ duration: 1, repeat: Infinity, delay: i * 0.5, ease: "easeIn" }}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-base font-black text-foreground tabular-nums text-center relative z-10 leading-none">
-                    {hasExam ? days : "—"}
-                    {hasExam && <span className="text-[9px] text-muted-foreground ml-0.5">d</span>}
-                  </p>
-                  <p className="text-[8px] text-muted-foreground text-center mt-1 relative z-10 font-medium">
-                    {!hasExam ? "Set date" : urgency === "critical" ? "Final push" : urgency === "warning" ? "Crunch time" : urgency === "active" ? "Stay sharp" : "Plenty time"}
-                  </p>
-                  <p className="text-[9px] font-bold text-center mt-0.5 relative z-10" style={{ color: urgencyColor }}>
-                    Exam
-                  </p>
-                </motion.div>
-              );
-            })()}
+            <motion.div
+              className="rounded-2xl p-3 border backdrop-blur-md"
+              style={{
+                background: "hsl(var(--card)/0.7)",
+                borderColor: examDaysLeft !== null && examDaysLeft <= 30 ? "hsl(var(--destructive)/0.2)" : "hsl(var(--border)/0.3)",
+                boxShadow: examDaysLeft !== null && examDaysLeft <= 30 ? "0 0 12px hsl(var(--destructive)/0.08)" : "none",
+              }}
+              whileHover={{ scale: 1.03 }}
+            >
+              <motion.div
+                animate={examDaysLeft !== null && examDaysLeft <= 7 ? { scale: [1, 1.3, 1], opacity: [1, 0.5, 1] } : { rotate: [0, 5, -5, 0] }}
+                transition={{ duration: examDaysLeft !== null && examDaysLeft <= 7 ? 1 : 3, repeat: Infinity }}
+                className="flex justify-center mb-1"
+              >
+                <Clock className="w-4 h-4" style={{
+                  color: examDaysLeft !== null && examDaysLeft <= 7 ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))",
+                  filter: examDaysLeft !== null && examDaysLeft <= 7 ? "drop-shadow(0 0 6px hsl(var(--destructive)/0.5))" : "none",
+                }} />
+              </motion.div>
+              <p className="text-lg font-black text-foreground tabular-nums text-center">
+                {examDaysLeft !== null ? examDaysLeft : "—"}
+                {examDaysLeft !== null && <span className="text-[9px] text-muted-foreground ml-0.5">d</span>}
+              </p>
+              <p className="text-[9px] text-muted-foreground text-center mt-0.5">Exam</p>
+            </motion.div>
           </motion.div>
         )}
 
