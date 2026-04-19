@@ -275,88 +275,42 @@ const ConfidencePracticeTab = () => {
   if (section === "menu") {
     return (
       <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
-        {/* ─── Hero Header (HomeTab style) ─── */}
-        <motion.section
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-3xl p-6 text-center"
+        {/* ─── Hero Header (plain, matches Action tab style) ─── */}
+        <section
+          className="rounded-2xl p-5 border"
           style={{
-            background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
-            border: "1px solid hsl(var(--border))",
+            background: "hsl(var(--card))",
+            borderColor: "hsl(var(--border))",
           }}
         >
-          {/* Decorative glows */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "hsl(var(--primary))" }} />
-          <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full opacity-10 blur-2xl pointer-events-none" style={{ background: "hsl(var(--primary))" }} />
-
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.8, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
-            style={{
-              background: "linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.05))",
-              border: "1px solid hsl(var(--primary) / 0.3)",
-            }}
-          >
-            <Target className="w-8 h-8 text-primary" />
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-3"
-            style={{
-              background: "hsl(var(--primary) / 0.1)",
-              border: "1px solid hsl(var(--primary) / 0.2)",
-            }}
-          >
-            <Zap className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Exam Focus Mode</span>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-2xl font-bold text-foreground mb-1"
-          >
-            Confidence Practice
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-xs text-muted-foreground max-w-xs mx-auto"
-          >
-            No pressure. No ranks. Just you and your preparation.
-          </motion.p>
+          <div className="flex items-center gap-2 mb-1">
+            <Target className="w-5 h-5 text-primary" />
+            <h1 className="text-lg font-bold text-foreground tracking-tight">
+              Confidence Practice
+            </h1>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Exam Focus Mode • No pressure. No ranks. Just you and your preparation.
+          </p>
 
           {/* Mini stats row */}
           {stats && stats.total > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="grid grid-cols-3 gap-2 mt-5"
-            >
-              <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <div className="rounded-xl p-2.5 border" style={{ background: "hsl(var(--secondary) / 0.4)", borderColor: "hsl(var(--border))" }}>
                 <p className="text-lg font-bold text-foreground tabular-nums">{stats.total}</p>
-                <p className="text-[9px] text-muted-foreground">Practiced</p>
+                <p className="text-[10px] text-muted-foreground">Practiced</p>
               </div>
-              <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
+              <div className="rounded-xl p-2.5 border" style={{ background: "hsl(var(--secondary) / 0.4)", borderColor: "hsl(var(--border))" }}>
                 <p className="text-lg font-bold text-primary tabular-nums">{stats.accuracy}%</p>
-                <p className="text-[9px] text-muted-foreground">Accuracy</p>
+                <p className="text-[10px] text-muted-foreground">Accuracy</p>
               </div>
-              <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
+              <div className="rounded-xl p-2.5 border" style={{ background: "hsl(var(--secondary) / 0.4)", borderColor: "hsl(var(--border))" }}>
                 <p className="text-lg font-bold text-foreground tabular-nums">{stats.correct}</p>
-                <p className="text-[9px] text-muted-foreground">Correct</p>
+                <p className="text-[10px] text-muted-foreground">Correct</p>
               </div>
-            </motion.div>
+            </div>
           )}
-        </motion.section>
+        </section>
 
         {/* Section A: Question Bank Card — hidden from user frontend */}
 
