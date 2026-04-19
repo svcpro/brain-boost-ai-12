@@ -5929,6 +5929,47 @@ export type Database = {
         }
         Relationships: []
       }
+      myrank_rewards: {
+        Row: {
+          claimed_at: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          metadata: Json
+          reward_type: string
+          study_plan_id: string | null
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          reward_type: string
+          study_plan_id?: string | null
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          reward_type?: string
+          study_plan_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "myrank_rewards_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       myrank_shares: {
         Row: {
           anon_session_id: string | null
