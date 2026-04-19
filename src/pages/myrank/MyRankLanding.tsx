@@ -196,6 +196,11 @@ const MyRankLanding = () => {
           </div>
         </Card>
 
+        {/* Referral rewards — Premium Test + AI Study Plan */}
+        <Suspense fallback={null}>
+          <MyRankRewards />
+        </Suspense>
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
