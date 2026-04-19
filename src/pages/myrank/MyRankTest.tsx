@@ -92,41 +92,45 @@ const MyRankTest = () => {
     const elapsed = Math.floor((Date.now() - startTime.current) / 1000);
 
     // Stash a placeholder so the result page mounts instantly with a skeleton
-    // while the network call is still in flight.
+    // if it ever opens before the result lands.
     sessionStorage.setItem(
       "myrank_result_pending",
       JSON.stringify({ test_id: testId, category, total: questions.length })
     );
 
-    // Kick off the request and navigate in parallel — result page will await it.
-    const submitPromise = supabase.functions
-      .invoke("myrank-engine", {
+    // Await the submission so the loader stays visible until the rank is ready,
+    // then navigate straight to the populated result page.
+    try {
+      const { data, error } = await supabase.functions.invoke("myrank-engine", {
         body: {
           action: "submit_test",
           test_id: testId,
           answers: finalAnswers,
           time_taken_seconds: Math.min(elapsed, TEST_DURATION),
         },
-      })
-      .then(({ data, error }) => {
-        if (error || !data) {
-          console.error(error);
-          sessionStorage.removeItem("myrank_result_pending");
-          submittedRef.current = false;
-          return null;
-        }
-        const payload = { ...data, test_id: testId };
-        sessionStorage.setItem("myrank_result", JSON.stringify(payload));
-        sessionStorage.removeItem("myrank_result_pending");
-        window.dispatchEvent(new CustomEvent("myrank:result-ready", { detail: payload }));
-        return payload;
       });
 
-    // Expose the in-flight promise so the result page can await it instead of
-    // showing nothing or refetching.
-    (window as any).__myrankSubmitPromise = submitPromise;
+      if (error || !data) {
+        console.error(error);
+        sessionStorage.removeItem("myrank_result_pending");
+        submittedRef.current = false;
+        setSubmitting(false);
+        return;
+      }
 
-    navigate("/myrank/result");
+      const payload = { ...data, test_id: testId };
+      sessionStorage.setItem("myrank_result", JSON.stringify(payload));
+      sessionStorage.removeItem("myrank_result_pending");
+      (window as any).__myrankSubmitPromise = Promise.resolve(payload);
+      window.dispatchEvent(new CustomEvent("myrank:result-ready", { detail: payload }));
+
+      navigate("/myrank/result");
+    } catch (e) {
+      console.error(e);
+      sessionStorage.removeItem("myrank_result_pending");
+      submittedRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   if (loading) return <UltraLoader category={category} />;
