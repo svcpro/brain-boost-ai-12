@@ -609,8 +609,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
               const tone = goalMet ? "hsl(var(--success))" : pct >= 50 ? "hsl(var(--primary))" : "hsl(var(--warning))";
               return (
                 <motion.div
-                  className="rounded-2xl p-3 border backdrop-blur-md relative overflow-hidden"
-                  style={{ background: "hsl(var(--card)/0.7)", borderColor: `${tone} / 0.18`, boxShadow: `0 0 12px ${tone}10` }}
+                  className="rounded-2xl p-3 border border-primary/15 backdrop-blur-md relative overflow-hidden"
+                  style={{ background: "hsl(var(--card)/0.7)", boxShadow: `0 0 12px ${tone}10` }}
                   whileHover={{ scale: 1.03, boxShadow: `0 0 20px ${tone}25` }}
                 >
                   {/* progress fill background */}
@@ -645,8 +645,8 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             })()}
 
             <motion.div
-              className="rounded-2xl p-3 border backdrop-blur-md"
-              style={{ background: "hsl(var(--card)/0.7)", borderColor: "hsl(var(--warning)/0.15)", boxShadow: "0 0 12px hsl(var(--warning)/0.05)" }}
+              className="rounded-2xl p-3 border border-primary/15 backdrop-blur-md"
+              style={{ background: "hsl(var(--card)/0.7)", boxShadow: "0 0 12px hsl(var(--warning)/0.05)" }}
               whileHover={{ scale: 1.03, boxShadow: "0 0 20px hsl(var(--warning)/0.15)" }}
             >
               <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="flex justify-center mb-1">
@@ -657,10 +657,9 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
             </motion.div>
 
             <motion.div
-              className="rounded-2xl p-3 border backdrop-blur-md"
+              className="rounded-2xl p-3 border border-primary/15 backdrop-blur-md"
               style={{
                 background: "hsl(var(--card)/0.7)",
-                borderColor: examDaysLeft !== null && examDaysLeft <= 30 ? "hsl(var(--destructive)/0.2)" : "hsl(var(--border)/0.3)",
                 boxShadow: examDaysLeft !== null && examDaysLeft <= 30 ? "0 0 12px hsl(var(--destructive)/0.08)" : "none",
               }}
               whileHover={{ scale: 1.03 }}
