@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { prefetchTest, preloadTestChunk } from "@/pages/myrank/prefetchTest";
 import {
   Trophy, Zap, Users, TrendingUp, Sparkles, Search, Flame,
   GraduationCap, Stethoscope, Rocket, Scale, Briefcase, Shield,
@@ -97,6 +99,7 @@ const GROUPS = [
 const MyRankLanding = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [stats, setStats] = useState({ total_tests: 234567, total_shares: 0 });
   const [liveCount, setLiveCount] = useState(234567);
   const [activeGroup, setActiveGroup] = useState<string>("All");
@@ -107,6 +110,9 @@ const MyRankLanding = () => {
   useEffect(() => {
     setSeo("MyRank — Check Your Rank in 60 Seconds | 40+ Exams", "Take a 60-second AI-powered test for UPSC, JEE, NEET, CAT, SSC, GATE, GRE, IELTS & 30+ exams. Get your India rank instantly.");
     if (ref) sessionStorage.setItem("myrank_ref", ref);
+
+    // Preload the test page chunk so navigation is instant
+    preloadTestChunk();
 
     supabase.functions.invoke("myrank-engine", { body: { action: "stats" } })
       .then(({ data }) => {
@@ -131,7 +137,13 @@ const MyRankLanding = () => {
     });
   }, [activeGroup, search]);
 
+  // Fire AI question generation as soon as the user even touches the card
+  const warmStart = (category: string) => {
+    prefetchTest(category, user?.id);
+  };
+
   const startTest = (category: string) => {
+    prefetchTest(category, user?.id); // ensure cached even if pointerdown missed
     navigate(`/myrank/test?category=${encodeURIComponent(category)}`);
   };
 
@@ -233,6 +245,9 @@ const MyRankLanding = () => {
               <button
                 key={exam.key}
                 onClick={() => startTest(exam.key)}
+                onPointerDown={() => warmStart(exam.key)}
+                onMouseEnter={() => warmStart(exam.key)}
+                onTouchStart={() => warmStart(exam.key)}
                 style={{ animationDelay: `${Math.min(i, 20) * 30}ms` }}
                 className={`group relative overflow-hidden p-3 rounded-2xl text-left animate-fade-in active:scale-[0.97] transition-transform duration-200 ${exam.glow}`}
               >
