@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Clock, ChevronLeft, Flag, Sparkles } from "lucide-react";
 import UltraLoader from "@/components/myrank/UltraLoader";
+import { consumePrefetched, prefetchTest } from "@/pages/myrank/prefetchTest";
 
 interface Question {
   idx: number;
@@ -12,15 +13,6 @@ interface Question {
 }
 
 const TEST_DURATION = 90;
-
-const getOrCreateAnonId = () => {
-  let id = localStorage.getItem("myrank_anon_id");
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("myrank_anon_id", id);
-  }
-  return id;
-};
 
 const MyRankTest = () => {
   const [params] = useSearchParams();
@@ -39,18 +31,11 @@ const MyRankTest = () => {
   const startTime = useRef(Date.now());
 
   useEffect(() => {
-    const anonId = getOrCreateAnonId();
-    const ref = sessionStorage.getItem("myrank_ref");
+    // Prefer the prefetched in-flight request started on pointerdown.
+    // If absent (direct URL hit, refresh), kick off a fresh one now.
+    const promise = consumePrefetched(category) ?? prefetchTest(category, user?.id);
 
-    supabase.functions.invoke("myrank-engine", {
-      body: {
-        action: "start_test",
-        category,
-        anon_session_id: anonId,
-        user_id: user?.id || null,
-        referred_by_code: ref,
-      },
-    }).then(({ data, error }) => {
+    promise.then(({ data, error }) => {
       if (error || !data?.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
         console.error("Test start failed:", error || data);
         const msg = (data as any)?.error || (error as any)?.message || "Could not start test. Please try again.";
