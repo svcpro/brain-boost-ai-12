@@ -245,6 +245,9 @@ const MyRankLanding = () => {
               <button
                 key={exam.key}
                 onClick={() => startTest(exam.key)}
+                onPointerDown={() => warmStart(exam.key)}
+                onMouseEnter={() => warmStart(exam.key)}
+                onTouchStart={() => warmStart(exam.key)}
                 style={{ animationDelay: `${Math.min(i, 20) * 30}ms` }}
                 className={`group relative overflow-hidden p-3 rounded-2xl text-left animate-fade-in active:scale-[0.97] transition-transform duration-200 ${exam.glow}`}
               >
