@@ -116,18 +116,9 @@ const MyRankRewards = () => {
     }
   };
 
-  const shareLink = async () => {
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "Check your rank on ACRY MyRank",
-          text: "Find out where you stand among India's exam toppers — instant AI rank in 60 seconds.",
-          url: shareUrl,
-        });
-      } else {
-        await copyLink();
-      }
-    } catch { /* user cancelled */ }
+  const shareLink = () => {
+    const text = `🚀 Find out where you stand among India's exam toppers — instant AI rank in 60 seconds.\n\n${shareUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   if (!user) {
