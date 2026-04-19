@@ -409,9 +409,7 @@ const AppDashboard = () => {
                     </div>
                     <span
                       className={`text-[9px] ${
-                        isSureShot
-                          ? "font-bold sureshot-gradient-text"
-                          : isMyRank
+                        isMyRank
                           ? "font-bold bg-gradient-to-r from-amber-300 via-fuchsia-400 to-cyan-300 bg-clip-text"
                           : active
                           ? "font-bold"
@@ -420,7 +418,7 @@ const AppDashboard = () => {
                     >
                       {tab.label}
                     </span>
-                    {active && !isSureShot && !isMyRank && (
+                    {active && !isMyRank && (
                       <div className="w-1 h-1 rounded-full bg-primary" />
                     )}
                   </button>
