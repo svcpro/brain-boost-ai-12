@@ -152,12 +152,16 @@ const AuthPage = () => {
   const showSplashParam = searchParams.get("splash") === "1";
   const [showSplash, setShowSplash] = useState(showSplashParam);
   // Optional redirect target after a successful login (used by /myrank gate, etc.).
+  // Persisted in sessionStorage so it survives the new-user onboarding bounce
+  // (AuthPage → /app → ProtectedRoute → /onboarding → /app). OnboardingPage and
+  // ProtectedRoute both consume "post_login_redirect" once the user is ready.
   // Only allow same-origin paths to prevent open-redirect attacks.
   const rawRedirect = searchParams.get("redirect");
-  const redirectTo =
-    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
-      ? rawRedirect
-      : "/app";
+  useEffect(() => {
+    if (rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")) {
+      try { sessionStorage.setItem("post_login_redirect", rawRedirect); } catch {}
+    }
+  }, [rawRedirect]);
   const [isLogin, setIsLogin] = useState(true);
   const [authMethod, setAuthMethod] = useState<AuthMethod>("mobile");
   const [mobile, setMobile] = useState("");
@@ -185,7 +189,10 @@ const AuthPage = () => {
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       if (data.session) {
-        navigate(redirectTo, { replace: true });
+        // Always send through /app so ProtectedRoute can enforce onboarding.
+        // If a `redirect=` was supplied, sessionStorage has already stored it
+        // and OnboardingPage / ProtectedRoute will honor it after onboarding.
+        navigate("/app", { replace: true });
       }
     })();
     return () => { cancelled = true; };
@@ -278,7 +285,10 @@ const AuthPage = () => {
       }
 
       setVerifySuccess(true);
-      setTimeout(() => navigate(redirectTo), 800);
+      // Always send through /app so ProtectedRoute enforces onboarding for new
+      // users. The original `redirect=` target is stored in sessionStorage and
+      // honored by OnboardingPage / ProtectedRoute after onboarding completes.
+      setTimeout(() => navigate("/app"), 800);
     } catch (error: any) {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
       setOtpCode(["", "", "", ""]);

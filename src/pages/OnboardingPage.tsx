@@ -441,7 +441,20 @@ const OnboardingPage = () => {
       toast({ title: "You're all set! 🧠", description: "Your AI brain is now configured." });
       // Notify dashboard to refetch the freshly-saved profile (display_name, etc.)
       try { window.dispatchEvent(new CustomEvent("profile-updated")); } catch {}
-      navigate("/app", { replace: true });
+
+      // If the user came in via a deep-link (e.g. clicked a /myrank exam card
+      // before logging in), AuthPage stored the original target in sessionStorage.
+      // Honor it here so they land on the page they actually wanted.
+      let postLoginRedirect: string | null = null;
+      try {
+        const stored = sessionStorage.getItem("post_login_redirect");
+        if (stored && stored.startsWith("/") && !stored.startsWith("//")) {
+          postLoginRedirect = stored;
+        }
+        sessionStorage.removeItem("post_login_redirect");
+      } catch {}
+
+      navigate(postLoginRedirect || "/app", { replace: true });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {

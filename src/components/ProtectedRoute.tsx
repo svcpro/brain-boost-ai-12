@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import ACRYLogo from "@/components/landing/ACRYLogo";
@@ -7,8 +7,26 @@ import ExpiredTrialGate from "@/components/app/ExpiredTrialGate";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   const [profileState, setProfileState] = useState<"loading" | "onboarding" | "banned" | "expired" | "ready">("loading");
   const checkedUserIdRef = useRef<string | null>(null);
+
+  // If the user logged in via a deep-link (e.g. /myrank exam card) and finished
+  // onboarding, AuthPage stored the original target in sessionStorage. Honor it
+  // once they reach /app (the post-onboarding destination) — but only at /app
+  // itself, never for nested ProtectedRoutes the user may navigate into later.
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
+  useEffect(() => {
+    if (profileState !== "ready" || !user) return;
+    if (location.pathname !== "/app") return;
+    try {
+      const stored = sessionStorage.getItem("post_login_redirect");
+      if (stored && stored.startsWith("/") && !stored.startsWith("//") && stored !== "/app") {
+        sessionStorage.removeItem("post_login_redirect");
+        setPendingRedirect(stored);
+      }
+    } catch {}
+  }, [profileState, user, location.pathname]);
 
   useEffect(() => {
     if (loading) return;
@@ -126,6 +144,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       setProfileState("loading");
     }} />;
   }
+
+  if (pendingRedirect) return <Navigate to={pendingRedirect} replace />;
 
   return <>{children}</>;
 };
