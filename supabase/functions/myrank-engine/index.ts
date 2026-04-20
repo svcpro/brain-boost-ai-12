@@ -677,22 +677,25 @@ Generate a JSON object with:
       const { data: top, error } = await query;
       if (error) throw error;
 
-      // Hydrate display names for logged-in users
+      // Hydrate display names + avatars for logged-in users
       const userIds = (top || []).map(t => t.user_id).filter(Boolean) as string[];
       let nameMap: Record<string, string> = {};
+      let avatarMap: Record<string, string> = {};
       if (userIds.length) {
         const { data: profiles } = await admin
           .from("profiles")
-          .select("id, display_name")
+          .select("id, display_name, avatar_url")
           .in("id", userIds);
         (profiles || []).forEach(p => {
           if (p.display_name) nameMap[p.id] = p.display_name;
+          if (p.avatar_url) avatarMap[p.id] = p.avatar_url;
         });
       }
 
       const board = (top || []).map((t, i) => ({
         position: i + 1,
         name: t.user_id ? (nameMap[t.user_id] || "Anonymous Star") : "Anonymous Star",
+        avatar_url: t.user_id ? (avatarMap[t.user_id] || null) : null,
         category: t.category,
         score: t.score,
         percentile: t.percentile,
