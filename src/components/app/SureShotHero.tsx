@@ -75,7 +75,7 @@ const SureShotHero = ({ onUpgrade }: { onUpgrade?: () => void }) => {
             <Brain className="w-5 h-5 sureshot-icon-glow" style={{ color: "hsl(25, 100%, 55%)" }} />
             <h2 className="text-lg font-black sureshot-gradient-text tracking-tight"
               style={{ textShadow: "0 0 20px hsl(15 100% 55% / 0.3)" }}>
-              SureShot Prediction
+              Practice Zone Prediction
             </h2>
           </motion.div>
           <p className="text-[10px] text-muted-foreground font-medium tracking-wide">
