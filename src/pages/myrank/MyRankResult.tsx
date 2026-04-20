@@ -568,25 +568,30 @@ const MyRankResult = () => {
       {showConfetti && <Confetti colors={cfg.confettiColors} />}
       {showShareBoost && <ShareBoostBurst colors={cfg.confettiColors} />}
 
-      {/* Back to Home — fixed animated CTA, always visible */}
-      <div className="fixed top-3 left-3 z-50 animate-[fade-in_0.4s_ease-out] safe-top">
-        <button
-          onClick={() => navigate("/app")}
-          className="group relative inline-flex items-center gap-2 pl-3 pr-4 py-2 rounded-full border border-white/20 bg-black/50 backdrop-blur-xl text-[12px] font-bold text-white/90 hover:text-white hover:border-white/40 hover:bg-black/70 transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_8px_32px_-6px_rgba(0,0,0,0.8)] overflow-hidden"
-        >
-          <span className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-400/25 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <span className="absolute -inset-px rounded-full bg-gradient-to-r from-cyan-400/50 via-purple-400/50 to-pink-400/50 opacity-40 group-hover:opacity-100 blur-md transition-opacity duration-500 -z-10" />
-          <ArrowLeft className="relative w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
-          <Home className="relative w-3.5 h-3.5 text-cyan-300 transition-transform duration-500 group-hover:rotate-[-8deg] group-hover:scale-110" />
-          <span className="relative tracking-wide">Back to Home</span>
-          <span className="relative ml-0.5 flex w-1.5 h-1.5">
-            <span className="absolute inline-flex w-full h-full rounded-full bg-cyan-400 opacity-60 animate-ping" />
-            <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-cyan-400" />
-          </span>
-        </button>
+      {/* Back to Home — fixed, centered, highlighted CTA */}
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 animate-[fade-in_0.4s_ease-out] safe-top">
+        <div className="relative">
+          {/* Outer pulsing glow ring */}
+          <span className="absolute -inset-2 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 opacity-70 blur-xl animate-pulse" />
+          <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 opacity-90 blur-md" />
+          <button
+            onClick={() => navigate("/app")}
+            className="group relative inline-flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full border-2 border-white/40 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white text-[13px] font-extrabold tracking-wide shadow-[0_10px_40px_-5px_rgba(168,85,247,0.8)] transition-all duration-300 hover:scale-110 active:scale-95 overflow-hidden"
+          >
+            {/* Shimmer sweep */}
+            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700" />
+            <ArrowLeft className="relative w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
+            <Home className="relative w-4 h-4 transition-transform duration-500 group-hover:rotate-[-12deg] group-hover:scale-125" strokeWidth={2.5} />
+            <span className="relative uppercase">Back to Home</span>
+            <span className="relative flex w-2 h-2">
+              <span className="absolute inline-flex w-full h-full rounded-full bg-white opacity-80 animate-ping" />
+              <span className="relative inline-flex w-2 h-2 rounded-full bg-white" />
+            </span>
+          </button>
+        </div>
       </div>
 
-      <div className="relative z-10 max-w-md mx-auto px-4 pt-16 space-y-5">
+      <div className="relative z-10 max-w-md mx-auto px-4 pt-20 space-y-5">
         {/* Live social proof ticker */}
         <div className="flex justify-center pt-1">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/20 bg-emerald-500/[0.08] backdrop-blur-md text-[10px] font-bold animate-[fade-in_0.4s_ease-out]">
