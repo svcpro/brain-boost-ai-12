@@ -400,54 +400,7 @@ const LearningIdentitySummary = () => {
 
       {/* Strength & Growth Zones hidden per user request */}
 
-      {/* ══════ LEARNING EVOLUTION PATH ══════ */}
-      {evolution.length > 0 && (
-        <div className="glass rounded-2xl p-4 neural-border">
-          <div className="flex items-center gap-2 mb-3">
-            <Star className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Evolution Path</span>
-            <span className="ml-auto text-[10px] text-primary font-semibold">{evolutionPct}%</span>
-          </div>
-
-          {/* Progress line */}
-          <div className="relative flex items-center justify-between mb-1">
-            {/* Background line */}
-            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-secondary -translate-y-1/2 rounded-full" />
-            <motion.div
-              className="absolute top-1/2 left-0 h-0.5 bg-primary -translate-y-1/2 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${evolutionPct}%` }}
-              transition={{ duration: 1, delay: 0.3 }}
-            />
-
-            {evolution.map((stage, i) => (
-              <div key={i} className="relative z-10 flex flex-col items-center">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2 + i * 0.1, type: "spring" }}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 ${
-                    stage.current
-                      ? "bg-primary/20 border-primary glow-primary"
-                      : stage.reached
-                        ? "bg-primary/10 border-primary/50"
-                        : "bg-secondary border-border/50"
-                  }`}
-                >
-                  {stage.icon}
-                </motion.div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between">
-            {evolution.map((stage, i) => (
-              <span key={i} className={`text-[7px] w-10 text-center leading-tight ${stage.current ? "text-primary font-semibold" : stage.reached ? "text-muted-foreground" : "text-muted-foreground/50"}`}>
-                {stage.label}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Evolution Path hidden per user request */}
 
       {/* ══════ AUTO RECALIBRATE ══════ */}
       <motion.button
