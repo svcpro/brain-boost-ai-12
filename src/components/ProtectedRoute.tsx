@@ -145,6 +145,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     }} />;
   }
 
+  if (pendingRedirect) return <Navigate to={pendingRedirect} replace />;
+
   return <>{children}</>;
 };
 
