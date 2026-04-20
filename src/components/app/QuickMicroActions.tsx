@@ -137,7 +137,8 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
         priority: 55,
       },
     ];
-    return items.sort((a, b) => b.priority - a.priority);
+    // Only show Focus Shield; keep others hidden for now
+    return items.filter((it) => it.id === "focus-shield");
   }, [atRisk.length, overallHealth, streakDays, focusScore]);
 
   const handleAction = async (id: string) => {
