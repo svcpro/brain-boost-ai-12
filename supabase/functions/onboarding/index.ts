@@ -1296,11 +1296,9 @@ Deno.serve(async (req) => {
       }
 
       const examLabel = normalizeExamType(examType || examId) || examType || examId;
-
-      // Step 1 — preset lookup
       let { subjects: subjectNames, source } = resolveQuickPresetSubjects(examType, examId, examCategory);
       let usedAI = false;
-      let subjectPayload: Array<{ name: string; topics: string[] }>;
+      let subjectPayload: Array<{ name: string; topics: string[] }> = [];
 
       if (subjectNames.length > 0) {
         subjectPayload = subjectNames.slice(0, maxSubjects).map((name) => ({
@@ -1308,7 +1306,6 @@ Deno.serve(async (req) => {
           topics: resolveQuickPresetTopics(name).slice(0, topicsPerSubject),
         }));
       } else {
-        // Step 2 — AI fallback
         try {
           const aiSubjects = await aiGenerateQuickPreset(examLabel, examCategory, maxSubjects, topicsPerSubject);
           if (aiSubjects.length > 0) {
@@ -1316,14 +1313,11 @@ Deno.serve(async (req) => {
               name: s.name,
               topics: s.topics.slice(0, topicsPerSubject),
             }));
-            source = "preset";
+            source = "ai";
             usedAI = true;
-          } else {
-            subjectPayload = [];
           }
         } catch (e) {
           console.error("[quick-preset] AI fallback failed:", e);
-          subjectPayload = [];
         }
       }
 
@@ -1333,10 +1327,11 @@ Deno.serve(async (req) => {
           error: "No preset available and AI fallback failed.",
           exam: { type: examLabel, id: examId, category: examCategory },
           subjects: [],
+          saved: false,
         }, 200);
       }
 
-      let saved: any = null;
+      let saved: any = false;
       if (autoSave) {
         const { userId, reason, debug } = await resolveAuthenticatedUserId();
         if (!userId) {
@@ -1351,7 +1346,7 @@ Deno.serve(async (req) => {
             used_ai: usedAI,
             exam: { type: examLabel, id: examId, category: examCategory },
             subjects: subjectPayload,
-            saved: null,
+            saved: false,
           }, 401);
         }
 
@@ -1414,19 +1409,20 @@ Deno.serve(async (req) => {
     if (action === "quick-preset-subject" || action === "quick_preset_subject") {
       const subject = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
       const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
-      const autoSave = requestBody.auto_save === true || url.searchParams.get("auto_save") === "true";
+      const examId = String(requestBody.exam_id || url.searchParams.get("exam_id") || "").trim();
       const count = Math.min(Math.max(Number(requestBody.count ?? url.searchParams.get("count") ?? 6) || 6, 3), 12);
+      const autoSave = requestBody.auto_save === true || url.searchParams.get("auto_save") === "true";
 
-      if (!subject) return json({ error: "subject is required" }, 400);
+      if (!subject) {
+        return json({ error: "subject is required" }, 400);
+      }
 
-      const examLabel = normalizeExamType(examType) || examType;
-
+      const examLabel = normalizeExamType(examType || examId) || examType || examId || "General";
       let topics = resolveQuickPresetTopics(subject).slice(0, count);
+      let source = topics.length > 0 ? "preset" : "none";
       let usedAI = false;
-      let source: "preset" | "ai" | "fallback" =
-        QUICK_PRESET_TOPICS[subject] || SUGGESTED_TOPICS_BY_SUBJECT[subject] ? "preset" : "fallback";
 
-      if (source === "fallback") {
+      if (topics.length === 0) {
         try {
           const aiTopics = await aiGenerateTopicsForSubject(subject, examLabel, count);
           if (aiTopics.length > 0) {
@@ -1439,7 +1435,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      let saved: any = null;
+      let saved: any = false;
       if (autoSave) {
         const { userId, reason, debug } = await resolveAuthenticatedUserId();
         if (!userId) {
@@ -1454,7 +1450,7 @@ Deno.serve(async (req) => {
             source,
             used_ai: usedAI,
             topics,
-            saved: null,
+            saved: false,
           }, 401);
         }
 
