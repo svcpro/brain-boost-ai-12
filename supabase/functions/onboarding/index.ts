@@ -1296,11 +1296,9 @@ Deno.serve(async (req) => {
       }
 
       const examLabel = normalizeExamType(examType || examId) || examType || examId;
-
-      // Step 1 — preset lookup
       let { subjects: subjectNames, source } = resolveQuickPresetSubjects(examType, examId, examCategory);
       let usedAI = false;
-      let subjectPayload: Array<{ name: string; topics: string[] }>;
+      let subjectPayload: Array<{ name: string; topics: string[] }> = [];
 
       if (subjectNames.length > 0) {
         subjectPayload = subjectNames.slice(0, maxSubjects).map((name) => ({
@@ -1308,7 +1306,6 @@ Deno.serve(async (req) => {
           topics: resolveQuickPresetTopics(name).slice(0, topicsPerSubject),
         }));
       } else {
-        // Step 2 — AI fallback
         try {
           const aiSubjects = await aiGenerateQuickPreset(examLabel, examCategory, maxSubjects, topicsPerSubject);
           if (aiSubjects.length > 0) {
@@ -1316,14 +1313,11 @@ Deno.serve(async (req) => {
               name: s.name,
               topics: s.topics.slice(0, topicsPerSubject),
             }));
-            source = "preset";
+            source = "ai";
             usedAI = true;
-          } else {
-            subjectPayload = [];
           }
         } catch (e) {
           console.error("[quick-preset] AI fallback failed:", e);
-          subjectPayload = [];
         }
       }
 
@@ -1333,6 +1327,7 @@ Deno.serve(async (req) => {
           error: "No preset available and AI fallback failed.",
           exam: { type: examLabel, id: examId, category: examCategory },
           subjects: [],
+          saved: false,
         }, 200);
       }
 
@@ -1354,7 +1349,92 @@ Deno.serve(async (req) => {
             saved: false,
           }, 401);
         }
-...
+
+        const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        let subjectsInserted = 0;
+        let topicsInserted = 0;
+
+        for (const sub of subjectPayload) {
+          await adminClient
+            .from("subjects")
+            .upsert({ user_id: userId, name: sub.name }, { onConflict: "user_id,name", ignoreDuplicates: true });
+
+          const { data: subjectRow } = await adminClient
+            .from("subjects")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("name", sub.name)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+          if (!subjectRow?.id) continue;
+          subjectsInserted++;
+
+          for (const topicName of sub.topics) {
+            const trimmed = String(topicName || "").trim();
+            if (!trimmed) continue;
+            await adminClient
+              .from("topics")
+              .upsert(
+                { user_id: userId, subject_id: subjectRow.id, name: trimmed },
+                { onConflict: "user_id,subject_id,name", ignoreDuplicates: true },
+              );
+            topicsInserted++;
+          }
+        }
+
+        const fullList = await fetchUserSubjectsWithTopics(adminClient, userId);
+        saved = {
+          subjects_added: subjectsInserted,
+          topics_added: topicsInserted,
+          subjects_in_db: fullList,
+        };
+      }
+
+      return json({
+        success: true,
+        source: usedAI ? "ai" : source,
+        used_ai: usedAI,
+        exam: { type: examLabel, id: examId, category: examCategory },
+        subject_count: subjectPayload.length,
+        topic_count: subjectPayload.reduce((acc, s) => acc + s.topics.length, 0),
+        subjects: subjectPayload,
+        saved,
+      });
+    }
+
+    // ─── QUICK PRESET (per-subject) ───
+    // POST { subject, exam_type?, count?, auto_save? }
+    // → { success, subject, source, topics: [...], saved? }
+    if (action === "quick-preset-subject" || action === "quick_preset_subject") {
+      const subject = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
+      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      const examId = String(requestBody.exam_id || url.searchParams.get("exam_id") || "").trim();
+      const count = Math.min(Math.max(Number(requestBody.count ?? url.searchParams.get("count") ?? 6) || 6, 3), 12);
+      const autoSave = requestBody.auto_save === true || url.searchParams.get("auto_save") === "true";
+
+      if (!subject) {
+        return json({ error: "subject is required" }, 400);
+      }
+
+      const examLabel = normalizeExamType(examType || examId) || examType || examId || "General";
+      let topics = resolveQuickPresetTopics(subject).slice(0, count);
+      let source = topics.length > 0 ? "preset" : "none";
+      let usedAI = false;
+
+      if (topics.length === 0) {
+        try {
+          const aiTopics = await aiGenerateTopicsForSubject(subject, examLabel, count);
+          if (aiTopics.length > 0) {
+            topics = aiTopics.slice(0, count);
+            source = "ai";
+            usedAI = true;
+          }
+        } catch (e) {
+          console.error("[quick-preset-subject] AI fallback failed:", e);
+        }
+      }
+
       let saved: any = false;
       if (autoSave) {
         const { userId, reason, debug } = await resolveAuthenticatedUserId();
