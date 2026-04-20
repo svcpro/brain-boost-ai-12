@@ -248,6 +248,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {/* ═══ SECTION 1: MyRank Leaderboard Rank (replaces Level/Personal Growth) ═══ */}
       <MyRankRankCard />
 
+      {/* ═══ SECTION 1b: Ultra-Advanced Rank Share Card ═══ */}
+      <MyRankShareCard />
+
       {/* ═══ SECTION 4: Subscription Overview (moved above Exam Intelligence) ═══ */}
       <SubscriptionOverview currentPlan={currentPlan} onManagePlan={() => setShowSubscription(true)} />
 
