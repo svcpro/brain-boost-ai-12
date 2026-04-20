@@ -194,7 +194,10 @@ const AuthPage = () => {
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       if (data.session) {
-        navigate(redirectTo, { replace: true });
+        // Always send through /app so ProtectedRoute can enforce onboarding.
+        // If a `redirect=` was supplied, sessionStorage has already stored it
+        // and OnboardingPage / ProtectedRoute will honor it after onboarding.
+        navigate("/app", { replace: true });
       }
     })();
     return () => { cancelled = true; };
