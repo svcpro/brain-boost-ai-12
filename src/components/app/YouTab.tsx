@@ -22,6 +22,7 @@ import PlanGateWrapper from "./PlanGateWrapper";
 
 // Identity sections
 import IdentityCommandCenter from "./you/IdentityCommandCenter";
+import MyRankRankCard from "./you/MyRankRankCard";
 import LearningIdentitySummary from "./you/LearningIdentitySummary";
 import AIPersonalStrategy from "./you/AIPersonalStrategy";
 import AchievementWall from "./you/AchievementWall";
@@ -240,15 +241,8 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         </motion.div>
       )}
 
-      {/* ═══ SECTION 1: Personal Growth Snapshot ═══ */}
-      {isEnabled("you_level_plan") && (
-        <IdentityCommandCenter
-          totalXp={totalXp}
-          currentLevel={currentLevel}
-          nextThreshold={nextThreshold}
-          currentThreshold={currentThreshold}
-        />
-      )}
+      {/* ═══ SECTION 1: MyRank Leaderboard Rank (replaces Level/Personal Growth) ═══ */}
+      <MyRankRankCard />
 
       {/* ═══ SECTION 4: Subscription Overview (moved above Exam Intelligence) ═══ */}
       <SubscriptionOverview currentPlan={currentPlan} onManagePlan={() => setShowSubscription(true)} />
