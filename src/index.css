@@ -427,3 +427,18 @@
 @keyframes circular-progress {
   0% { stroke-dashoffset: 283; }
 }
+
+@keyframes share-card-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes share-twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.6); }
+}
+
+@keyframes ai-share-gradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
