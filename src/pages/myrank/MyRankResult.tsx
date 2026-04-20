@@ -318,12 +318,22 @@ const MyRankResult = () => {
   ) => {
     if (!result) return;
 
-    // Always copy caption first — guarantees user can paste anywhere
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    // 🚀 STEP 1 (sync, inside gesture): on desktop, redirect the placeholder
+    // window to the channel URL with the caption RIGHT NOW. This guarantees
+    // the share window opens before any async work can kill the gesture.
+    if (!isMobile && preOpenedWindow && channel !== "native") {
+      const targetChannel = channel === "instagram" ? "instagram" : channel;
+      redirectToChannel(preOpenedWindow, targetChannel, currentMessage, shareUrl);
+    }
+
+    // Always copy caption — guarantees user can paste anywhere
     try { await navigator.clipboard?.writeText(currentMessage); } catch { /* non-fatal */ }
 
     // 🚀 Try image share via shareBadgeOneClick — generates 1080×1080 PNG and
     // hands it to WhatsApp/Telegram/IG via the Web Share API on mobile, or
-    // redirects the pre-opened popup window on desktop (avoids popup blocker).
+    // (on desktop) downloads it so the user can attach manually.
     try {
       const shareRes = await shareBadgeOneClick({
         badge: {
@@ -336,7 +346,9 @@ const MyRankResult = () => {
         caption: currentMessage,
         shareUrl,
         channel,
-        preOpenedWindow,
+        // We've already redirected the window above on desktop; pass null so
+        // shareBadgeOneClick doesn't try to open another tab.
+        preOpenedWindow: isMobile ? preOpenedWindow : null,
       });
 
       if (shareRes.mode === "native-files") {
