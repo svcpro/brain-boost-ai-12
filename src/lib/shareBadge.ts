@@ -164,69 +164,33 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
   const file = new File([blob], fileName, { type: "image/png" });
 
   // 1. Best path: native file share (mobile Safari/Chrome → WA/IG accept files)
-  // Some browsers support `navigator.share({ files })` but return false / throw on
-  // `navigator.canShare`, so do NOT hard-block on canShare.
-  const hasNativeShare = typeof navigator.share === "function";
-  const canShareFiles = typeof navigator.canShare !== "function"
-    ? true
-    : navigator.canShare({ files: [file] });
+  const canShareFiles =
+    typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
 
-  // IMPORTANT: when the caption contains a URL, WhatsApp often converts the share
-  // into a link-preview card and drops the attached image. For file shares, strip
-  // URLs from the text payload so the badge image stays the primary shared asset.
-  const fileShareText = caption
-    .replace(/https?:\/\/\S+/gi, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  if (hasNativeShare && canShareFiles) {
+  if (canShareFiles && typeof navigator.share === "function") {
     try {
-      const payload = fileShareText
-        ? { files: [file], text: fileShareText }
-        : { files: [file] };
-
-      await navigator.share(payload);
-      return {
-        ok: true,
-        mode: "native-files",
-        message: "Badge image shared. Full caption is copied if you want to paste the link too.",
-      };
-    } catch (err: any) {
-      // Some WhatsApp / browser combos reject files+text but accept files-only.
-      if (err?.name === "AbortError") return { ok: false, mode: "cancelled" };
-      try {
-        await navigator.share({ files: [file] });
-        return {
-          ok: true,
-          mode: "native-files",
-          message: "Badge image shared. Caption copied — paste it in chat after sending.",
-        };
-      } catch (retryErr: any) {
-        if (retryErr?.name === "AbortError") return { ok: false, mode: "cancelled" };
-        // fall through to fallback
-      }
-    }
-  }
-
-  // 2. Retry native text share before download fallback when file share isn't supported.
-  if (hasNativeShare) {
-    try {
+      // Send BOTH the badge image AND the caption text together.
+      // Caption is already in clipboard above as a guaranteed backup,
+      // so even if a target app drops `text`, the user can long-press → paste.
       await navigator.share({
+        files: [file],
         title: "My ACRY Rank",
         text: caption,
       });
       return {
         ok: true,
-        mode: "native-text",
-        message: "Caption shared. Badge image downloaded — attach it if needed.",
+        mode: "native-files",
+        message: "Image + caption shared. Caption also copied — paste if needed.",
       };
     } catch (err: any) {
       if (err?.name === "AbortError") return { ok: false, mode: "cancelled" };
+      // fall through to fallback
     }
   }
 
-  // 3. Final fallback (mostly desktop): open WhatsApp/Telegram FIRST with the caption
-  //    pre-filled, then auto-download the badge image so the user attaches it via 📎.
+  // 2. Fallback (mostly desktop): open WhatsApp/Telegram FIRST with the caption
+  //    pre-filled (text), then auto-download the badge image so the user
+  //    attaches it via 📎. This guarantees BOTH text + image reach the chat.
   openChannelUrl(channel, caption, shareUrl);
 
   setTimeout(() => {
@@ -236,7 +200,7 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
   return {
     ok: true,
     mode: "downloaded",
-    message: "Caption opened in chat. Badge image downloaded — attach it with 📎.",
+    message: "Caption pre-filled in chat ✓  Image saved to device — tap 📎 to attach it 🎉",
   };
 }
 
