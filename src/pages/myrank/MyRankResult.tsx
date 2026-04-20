@@ -448,6 +448,80 @@ const MyRankResult = () => {
   const handleTelegramShare = () => runShare("telegram");
   const handleNativeShare = () => runShare("native");
 
+  /** AI Auto-Share: AI picks best channel + writes optimized caption + shares — zero-click. */
+  const pickBestChannel = (p: number): "whatsapp" | "instagram" | "telegram" => {
+    if (p >= 99) return "instagram";
+    if (p >= 90) return "whatsapp";
+    return "telegram";
+  };
+  const channelLabels: Record<string, string> = {
+    whatsapp: "WhatsApp", instagram: "Instagram", telegram: "Telegram",
+  };
+
+  const handleAIAutoShare = async () => {
+    if (!result || aiSharing) return;
+    setAiSharing(true);
+    try {
+      const channel = pickBestChannel(result.percentile);
+      const label = channelLabels[channel];
+
+      setAiStatus(`AI is picking ${label}…`);
+      await new Promise(r => setTimeout(r, 350));
+
+      setAiStatus("Writing your viral caption…");
+      let caption = currentMessage;
+      try {
+        const { data } = await supabase.functions.invoke("myrank-ai-caption", {
+          body: {
+            rank: result.rank,
+            percentile: result.percentile,
+            category: result.category,
+            ai_tag: result.ai_tag,
+            user_name: userName,
+            channel,
+            tone: result.percentile >= 90 ? "flex" : "challenge",
+            share_url: shareUrl,
+          },
+        });
+        if (data?.caption) caption = data.caption as string;
+      } catch { /* fallback to template */ }
+
+      setAiStatus(`Opening ${label}…`);
+      try { await navigator.clipboard?.writeText(caption); } catch {}
+
+      const res = await shareBadgeOneClick({
+        badge: {
+          rank: result.rank,
+          percentile: result.percentile,
+          category: result.category,
+          aiTag: result.ai_tag,
+          userName,
+        },
+        caption,
+        shareUrl,
+        channel,
+      });
+
+      await logShare(channel);
+
+      if (res.mode === "native-files") {
+        toast({ title: "🤖 AI Shared! 🎉", description: `Posted to ${label} with AI-crafted caption.` });
+      } else if (res.mode === "cancelled") {
+        // silent
+      } else {
+        toast({
+          title: `🤖 AI opened ${label}`,
+          description: res.message || "Caption auto-pasted. Image saved to attach.",
+        });
+      }
+    } catch (e: any) {
+      toast({ title: "AI share failed", description: e?.message || "Try a manual channel.", variant: "destructive" });
+    } finally {
+      setAiSharing(false);
+      setAiStatus("");
+    }
+  };
+
   const handleCopyMessage = async () => {
     await navigator.clipboard.writeText(currentMessage);
     setCopied("msg");
