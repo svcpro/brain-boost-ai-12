@@ -106,6 +106,7 @@ const MyRankLanding = () => {
   const [liveCount, setLiveCount] = useState(234567);
   const [activeGroup, setActiveGroup] = useState<string>("All");
   const [search, setSearch] = useState("");
+  const [loginGate, setLoginGate] = useState<{ open: boolean; category: string | null }>({ open: false, category: null });
 
   const ref = searchParams.get("ref");
 
