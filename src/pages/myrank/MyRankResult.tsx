@@ -701,6 +701,44 @@ const MyRankResult = () => {
             </button>
           </div>
 
+          {/* 🤖 AI AUTO-SHARE — picks best channel + writes viral caption */}
+          <button
+            onClick={handleAIAutoShare}
+            disabled={aiSharing}
+            className="relative w-full mb-3 overflow-hidden rounded-2xl p-[2px] active:scale-[0.99] transition disabled:opacity-80"
+            style={{
+              background:
+                "conic-gradient(from 0deg, #f59e0b, #ec4899, #8b5cf6, #06b6d4, #10b981, #f59e0b)",
+              animation: aiSharing ? "share-card-rotate 2.5s linear infinite" : "share-card-rotate 8s linear infinite",
+            }}
+          >
+            <div
+              className="relative flex items-center justify-center gap-2 h-12 rounded-[14px] text-sm font-extrabold text-white"
+              style={{
+                background:
+                  "linear-gradient(120deg, #1e1b4b 0%, #4c1d95 35%, #7c2d92 65%, #1e1b4b 100%)",
+                backgroundSize: "200% 200%",
+                animation: "ai-share-gradient 4s ease infinite",
+              }}
+            >
+              {aiSharing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-[12.5px] tracking-wide">{aiStatus || "AI is sharing…"}</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4 text-amber-300" />
+                  <span>AI Auto-Share</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-white/15 text-[9px] font-black uppercase tracking-wider">
+                    1-tap
+                  </span>
+                  <Sparkles className="w-3.5 h-3.5 text-pink-300 animate-pulse" />
+                </>
+              )}
+            </div>
+          </button>
+
           {/* Channel grid — multi-platform pressure */}
           <div className="relative grid grid-cols-4 gap-2">
             <ChannelBtn
