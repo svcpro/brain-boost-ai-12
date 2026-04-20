@@ -179,13 +179,20 @@ const MyRankLanding = () => {
         {/* ─── ULTRA ADVANCED LEADERBOARD HERO ─── */}
         <button
           onClick={() => navigate("/myrank/leaderboard")}
-          className="group relative w-full overflow-hidden rounded-3xl p-[1.5px] active:scale-[0.99] transition-transform duration-200"
-          style={{
-            background: "conic-gradient(from 0deg, #f59e0b, #ec4899, #06b6d4, #10b981, #f59e0b)",
-            animation: "spin 8s linear infinite",
-          }}
+          className="group relative w-full overflow-hidden rounded-3xl p-[2px] active:scale-[0.99] transition-transform duration-200 isolate"
+          style={{ background: "#0a0b1a" }}
         >
-          <div className="relative rounded-[calc(1.5rem-1.5px)] overflow-hidden bg-[#0a0b1a]">
+          {/* Spinning conic-gradient border */}
+          <span
+            aria-hidden
+            className="absolute -inset-[60%] z-0 pointer-events-none"
+            style={{
+              background:
+                "conic-gradient(from 0deg, #f59e0b, #ec4899, #06b6d4, #10b981, #f59e0b)",
+              animation: "myrank-rotate 4s linear infinite",
+            }}
+          />
+          <div className="relative z-10 rounded-[calc(1.5rem-2px)] overflow-hidden bg-[#0a0b1a]">
             {/* Animated mesh gradient */}
             <div
               className="absolute inset-0 opacity-90"
