@@ -1610,7 +1610,7 @@ Deno.serve(async (req) => {
       return json({ success: true, redirect_to: "/app" });
     }
 
-    return json({ error: "Invalid action. Supported: exam-types, status, suggested-subjects, suggested-topics, list-subjects, add-subject, delete-subject, list-topics, add-topic, delete-topic, ai-generate-curriculum, ai-generate-topics, step1-name, step2-exam, step3-date, step4-subjects, step5-topics, step6-mode, save-step, complete, skip" }, 400);
+    return json({ error: "Invalid action. Supported: exam-types, status, suggested-subjects, suggested-topics, quick-preset, quick-preset-subject, list-subjects, add-subject, delete-subject, list-topics, add-topic, delete-topic, ai-generate-curriculum, ai-generate-topics, step1-name, step2-exam, step3-date, step4-subjects, step5-topics, step6-mode, save-step, complete, skip" }, 400);
   } catch (e) {
     console.error("onboarding error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
