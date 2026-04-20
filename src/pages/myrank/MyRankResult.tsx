@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
-import { shareBadgeOneClick, openSharePlaceholder } from "@/lib/shareBadge";
+import { shareBadgeOneClick, openSharePlaceholder, redirectToChannel, buildChannelShareUrl, renderBadgeBlob } from "@/lib/shareBadge";
 import { useToast } from "@/hooks/use-toast";
 
 interface Result {
