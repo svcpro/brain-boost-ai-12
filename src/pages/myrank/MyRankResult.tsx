@@ -563,7 +563,7 @@ const MyRankResult = () => {
   const tagBonusActive = tagTimer > 0 && sharesDone < 3;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white pb-32">
+    <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white pb-[200px]">
       <AuroraBg tier={tier} />
       {showConfetti && <Confetti colors={cfg.confettiColors} />}
       {showShareBoost && <ShareBoostBurst colors={cfg.confettiColors} />}
@@ -1154,8 +1154,11 @@ const MyRankResult = () => {
         </button>
       </div>
 
-      {/* === STICKY BOTTOM SHARE BAR — always visible === */}
-      <div className="fixed bottom-0 inset-x-0 z-30 px-4 pb-4 pt-3 pointer-events-none">
+      {/* === STICKY BOTTOM SHARE BAR — always visible, lifted above app tab bar === */}
+      <div
+        className="fixed inset-x-0 z-50 px-4 pt-3 pointer-events-none"
+        style={{ bottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}
+      >
         <div className="max-w-md mx-auto pointer-events-auto">
           <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#0a0b18]/85 backdrop-blur-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)]">
             <div className={`absolute inset-0 bg-gradient-to-r ${cfg.gradient} opacity-10`} />
