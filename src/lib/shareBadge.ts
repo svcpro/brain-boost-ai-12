@@ -164,14 +164,15 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
   const file = new File([blob], fileName, { type: "image/png" });
 
   // 1. Best path: native file share (mobile Safari/Chrome → WA/IG accept files)
-  const canShareFiles =
-    typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+  // Some browsers support `navigator.share({ files })` but return false / throw on
+  // `navigator.canShare`, so do NOT hard-block on canShare.
+  const hasNativeShare = typeof navigator.share === "function";
+  const canShareFiles = typeof navigator.canShare !== "function"
+    ? true
+    : navigator.canShare({ files: [file] });
 
-  if (canShareFiles && typeof navigator.share === "function") {
+  if (hasNativeShare && canShareFiles) {
     try {
-      // Send BOTH the badge image AND the caption text together.
-      // Caption is already in clipboard above as a guaranteed backup,
-      // so even if a target app drops `text`, the user can long-press → paste.
       await navigator.share({
         files: [file],
         title: "My ACRY Rank",
@@ -188,9 +189,25 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
     }
   }
 
-  // 2. Fallback (mostly desktop): open WhatsApp/Telegram FIRST with the caption
-  //    pre-filled (text), then auto-download the badge image so the user
-  //    attaches it via 📎. This guarantees BOTH text + image reach the chat.
+  // 2. Retry native text share before download fallback when file share isn't supported.
+  if (hasNativeShare) {
+    try {
+      await navigator.share({
+        title: "My ACRY Rank",
+        text: caption,
+      });
+      return {
+        ok: true,
+        mode: "native-text",
+        message: "Caption shared. Badge image downloaded — attach it if needed.",
+      };
+    } catch (err: any) {
+      if (err?.name === "AbortError") return { ok: false, mode: "cancelled" };
+    }
+  }
+
+  // 3. Final fallback (mostly desktop): open WhatsApp/Telegram FIRST with the caption
+  //    pre-filled, then auto-download the badge image so the user attaches it via 📎.
   openChannelUrl(channel, caption, shareUrl);
 
   setTimeout(() => {
@@ -200,7 +217,7 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
   return {
     ok: true,
     mode: "downloaded",
-    message: "Caption pre-filled in chat ✓  Image saved to device — tap 📎 to attach it 🎉",
+    message: "Caption opened in chat. Badge image downloaded — attach it with 📎.",
   };
 }
 
