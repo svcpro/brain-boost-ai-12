@@ -152,16 +152,11 @@ const AuthPage = () => {
   const showSplashParam = searchParams.get("splash") === "1";
   const [showSplash, setShowSplash] = useState(showSplashParam);
   // Optional redirect target after a successful login (used by /myrank gate, etc.).
+  // Persisted in sessionStorage so it survives the new-user onboarding bounce
+  // (AuthPage → /app → ProtectedRoute → /onboarding → /app). OnboardingPage and
+  // ProtectedRoute both consume "post_login_redirect" once the user is ready.
   // Only allow same-origin paths to prevent open-redirect attacks.
   const rawRedirect = searchParams.get("redirect");
-  const redirectTo =
-    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
-      ? rawRedirect
-      : "/app";
-
-  // Persist the redirect intent so it survives the onboarding bounce that
-  // happens for new users (AuthPage → /app → ProtectedRoute → /onboarding →
-  // /app). OnboardingPage and ProtectedRoute both consume this key on success.
   useEffect(() => {
     if (rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")) {
       try { sessionStorage.setItem("post_login_redirect", rawRedirect); } catch {}
