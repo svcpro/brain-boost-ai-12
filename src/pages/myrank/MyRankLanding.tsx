@@ -320,25 +320,7 @@ const MyRankLanding = () => {
           ))}
         </div>
 
-        {/* Leaderboard CTA */}
-        <button
-          onClick={() => navigate("/myrank/leaderboard")}
-          className="group w-full relative overflow-hidden rounded-2xl p-4 border border-white/10 bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-cyan-500/10 backdrop-blur-xl hover:border-white/20 transition"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(245,158,11,0.2),transparent_60%)]" />
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg">
-                <Trophy className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-white">Top 100 India</div>
-                <div className="text-[11px] text-white/50">Live leaderboard · Updated every min</div>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
+        {/* Leaderboard CTA moved to top — see hero section */}
 
         {ref && (
           <div className="text-center text-xs font-medium text-white/70 bg-gradient-to-r from-fuchsia-500/10 to-cyan-500/10 border border-white/10 p-2.5 rounded-xl backdrop-blur">
