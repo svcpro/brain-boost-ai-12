@@ -191,8 +191,6 @@ const AuthPage = () => {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
 
   const accentColor = authMethod === "whatsapp" ? "#25D366" : "#00E5FF";
