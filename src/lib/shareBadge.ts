@@ -130,6 +130,24 @@ export interface OneClickShareOpts {
   shareUrl: string;
   channel: "whatsapp" | "instagram" | "telegram" | "native";
   fileName?: string;
+  /**
+   * Pre-opened window from a synchronous click handler. Required on desktop
+   * to avoid popup blockers eating the share window after async work.
+   * Pass `null` if user is on mobile (native share takes priority there).
+   */
+  preOpenedWindow?: Window | null;
+}
+
+/** Open a placeholder popup synchronously inside a user gesture. */
+export function openSharePlaceholder(): Window | null {
+  if (typeof window === "undefined") return null;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) return null; // mobile uses navigator.share or location.href
+  try {
+    return window.open("about:blank", "_blank", "noopener,noreferrer,width=720,height=720");
+  } catch {
+    return null;
+  }
 }
 
 export interface ShareResult {
