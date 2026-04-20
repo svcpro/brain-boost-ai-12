@@ -568,30 +568,32 @@ const MyRankResult = () => {
       {showConfetti && <Confetti colors={cfg.confettiColors} />}
       {showShareBoost && <ShareBoostBurst colors={cfg.confettiColors} />}
 
-      {/* Back to Home — fixed, centered, highlighted CTA */}
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 animate-[fade-in_0.4s_ease-out] safe-top">
-        <div className="relative">
-          {/* Outer pulsing glow ring */}
-          <span className="absolute -inset-2 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 opacity-70 blur-xl animate-pulse" />
-          <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 opacity-90 blur-md" />
-          <button
-            onClick={() => navigate("/app")}
-            className="group relative inline-flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full border-2 border-white/40 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white text-[13px] font-extrabold tracking-wide shadow-[0_10px_40px_-5px_rgba(168,85,247,0.8)] transition-all duration-300 hover:scale-110 active:scale-95 overflow-hidden"
-          >
-            {/* Shimmer sweep */}
-            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700" />
-            <ArrowLeft className="relative w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
-            <Home className="relative w-4 h-4 transition-transform duration-500 group-hover:rotate-[-12deg] group-hover:scale-125" strokeWidth={2.5} />
-            <span className="relative uppercase">Back to Home</span>
-            <span className="relative flex w-2 h-2">
-              <span className="absolute inline-flex w-full h-full rounded-full bg-white opacity-80 animate-ping" />
-              <span className="relative inline-flex w-2 h-2 rounded-full bg-white" />
-            </span>
-          </button>
+      {/* Back to Home — only for unauthenticated visitors (shared links) */}
+      {!user && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 animate-[fade-in_0.4s_ease-out] safe-top">
+          <div className="relative">
+            {/* Outer pulsing glow ring */}
+            <span className="absolute -inset-2 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 opacity-70 blur-xl animate-pulse" />
+            <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 opacity-90 blur-md" />
+            <button
+              onClick={() => navigate("/app")}
+              className="group relative inline-flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full border-2 border-white/40 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white text-[13px] font-extrabold tracking-wide shadow-[0_10px_40px_-5px_rgba(168,85,247,0.8)] transition-all duration-300 hover:scale-110 active:scale-95 overflow-hidden"
+            >
+              {/* Shimmer sweep */}
+              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700" />
+              <ArrowLeft className="relative w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
+              <Home className="relative w-4 h-4 transition-transform duration-500 group-hover:rotate-[-12deg] group-hover:scale-125" strokeWidth={2.5} />
+              <span className="relative uppercase">Back to Home</span>
+              <span className="relative flex w-2 h-2">
+                <span className="absolute inline-flex w-full h-full rounded-full bg-white opacity-80 animate-ping" />
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-white" />
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="relative z-10 max-w-md mx-auto px-4 pt-20 space-y-5">
+      <div className={`relative z-10 max-w-md mx-auto px-4 ${!user ? "pt-20" : "pt-4"} space-y-5`}>
         {/* Live social proof ticker */}
         <div className="flex justify-center pt-1">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/20 bg-emerald-500/[0.08] backdrop-blur-md text-[10px] font-bold animate-[fade-in_0.4s_ease-out]">
