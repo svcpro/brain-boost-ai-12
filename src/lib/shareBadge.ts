@@ -171,21 +171,40 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
     ? true
     : navigator.canShare({ files: [file] });
 
+  // IMPORTANT: when the caption contains a URL, WhatsApp often converts the share
+  // into a link-preview card and drops the attached image. For file shares, strip
+  // URLs from the text payload so the badge image stays the primary shared asset.
+  const fileShareText = caption
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
   if (hasNativeShare && canShareFiles) {
     try {
-      await navigator.share({
-        files: [file],
-        title: "My ACRY Rank",
-        text: caption,
-      });
+      const payload = fileShareText
+        ? { files: [file], text: fileShareText }
+        : { files: [file] };
+
+      await navigator.share(payload);
       return {
         ok: true,
         mode: "native-files",
-        message: "Image + caption shared. Caption also copied — paste if needed.",
+        message: "Badge image shared. Full caption is copied if you want to paste the link too.",
       };
     } catch (err: any) {
+      // Some WhatsApp / browser combos reject files+text but accept files-only.
       if (err?.name === "AbortError") return { ok: false, mode: "cancelled" };
-      // fall through to fallback
+      try {
+        await navigator.share({ files: [file] });
+        return {
+          ok: true,
+          mode: "native-files",
+          message: "Badge image shared. Caption copied — paste it in chat after sending.",
+        };
+      } catch (retryErr: any) {
+        if (retryErr?.name === "AbortError") return { ok: false, mode: "cancelled" };
+        // fall through to fallback
+      }
     }
   }
 
