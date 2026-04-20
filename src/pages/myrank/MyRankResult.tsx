@@ -734,7 +734,7 @@ const MyRankResult = () => {
 
         {/* Leaderboard CTA */}
         <button
-          onClick={() => navigate("/myrank/leaderboard")}
+          onClick={() => navigate(`/myrank/leaderboard?category=${encodeURIComponent(result.category || "ALL")}`)}
           className="group w-full relative overflow-hidden rounded-2xl p-3.5 border border-white/10 bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-cyan-500/10 hover:border-white/20 transition"
         >
           <div className="relative flex items-center justify-between">
