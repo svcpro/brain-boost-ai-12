@@ -481,6 +481,9 @@ const MyRankResult = () => {
 
   const handleAIAutoShare = async () => {
     if (!result || aiSharing) return;
+    // 🚨 Open the placeholder window SYNCHRONOUSLY inside the click gesture.
+    // Otherwise desktop browsers (Chrome/Safari) block the popup after async work.
+    const preWin = openSharePlaceholder();
     setAiSharing(true);
     try {
       const channel = pickBestChannel(result.percentile);
@@ -521,6 +524,7 @@ const MyRankResult = () => {
         caption,
         shareUrl,
         channel,
+        preOpenedWindow: preWin,
       });
 
       await logShare(channel);
@@ -536,6 +540,7 @@ const MyRankResult = () => {
         });
       }
     } catch (e: any) {
+      try { preWin?.close(); } catch {}
       toast({ title: "AI share failed", description: e?.message || "Try a manual channel.", variant: "destructive" });
     } finally {
       setAiSharing(false);
