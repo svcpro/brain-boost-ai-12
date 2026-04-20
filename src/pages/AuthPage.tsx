@@ -278,7 +278,7 @@ const AuthPage = () => {
       }
 
       setVerifySuccess(true);
-      setTimeout(() => navigate("/app"), 800);
+      setTimeout(() => navigate(redirectTo), 800);
     } catch (error: any) {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
       setOtpCode(["", "", "", ""]);
