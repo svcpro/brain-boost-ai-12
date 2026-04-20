@@ -43,7 +43,7 @@ const tabDefs = [
   { id: "myrank", label: "MyRank", icon: Trophy },
   // { id: "brain", label: "Brain", icon: Brain }, // hidden per user request
   // { id: "community", label: "Community", icon: Users }, // hidden per user request
-  { id: "progress", label: "Practice Zone", icon: Crosshair },
+  { id: "progress", label: "Practice Zone", icon: Zap },
   { id: "you", label: "You", icon: User },
 ];
 
