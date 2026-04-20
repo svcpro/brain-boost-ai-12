@@ -8,7 +8,7 @@ import { prefetchTest, preloadTestChunk } from "@/pages/myrank/prefetchTest";
 import {
   Trophy, Zap, Users, TrendingUp, Sparkles, Search, Flame,
   GraduationCap, Stethoscope, Rocket, Scale, Briefcase, Shield,
-  Globe2, BookOpen, Brain, ChevronRight,
+  Globe2, BookOpen, Brain, ChevronRight, Lock, X,
 } from "lucide-react";
 
 const MyRankRewards = lazy(() => import("@/components/myrank/MyRankRewards"));
