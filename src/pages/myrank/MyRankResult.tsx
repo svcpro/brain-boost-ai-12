@@ -311,22 +311,59 @@ const MyRankResult = () => {
   const userName = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion";
 
   const runShare = async (channel: "whatsapp" | "instagram" | "telegram" | "native") => {
+    if (!result) return;
+
     // Always copy caption first — guarantees user can paste anywhere
     try { await navigator.clipboard?.writeText(currentMessage); } catch { /* non-fatal */ }
 
+    // 🚀 Try image share via shareBadgeOneClick — generates 1080×1080 PNG and
+    // hands it to WhatsApp/Telegram/IG via the Web Share API. This is what
+    // actually attaches the image (wa.me?text= is text-only and produced
+    // the "blank image" symptom users saw before).
+    try {
+      const shareRes = await shareBadgeOneClick({
+        badge: {
+          rank: result.rank,
+          percentile: result.percentile,
+          category: result.category,
+          aiTag: result.ai_tag,
+          userName,
+        },
+        caption: currentMessage,
+        shareUrl,
+        channel,
+      });
+
+      // If the native sheet handled it (image attached) or user cancelled, stop here
+      if (shareRes.mode === "native-files") {
+        await logShare(channel);
+        toast({ title: "Shared! 🎉", description: "Image attached — caption copied as backup." });
+        return;
+      }
+      if (shareRes.mode === "cancelled") {
+        return; // user dismissed — no toast, no log
+      }
+      if (shareRes.mode === "downloaded") {
+        // Channel URL already opened + image saved to device — user attaches it manually
+        await logShare(channel);
+        toast({
+          title: "Image saved 📥 — attach it in chat",
+          description: shareRes.message || "Caption is pre-filled. Tap 📎 to attach the image.",
+        });
+        return;
+      }
+      // mode === "channel-url" or "error" → fall through to legacy text-only path
+    } catch { /* fall through */ }
+
+    // ───── Legacy fallback (text-only) ─────
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const encoded = encodeURIComponent(currentMessage);
 
-    // Native: use the system Web Share sheet (NOT WhatsApp)
     if (channel === "native") {
       const nav: any = navigator;
       if (typeof nav.share === "function") {
         try {
-          await nav.share({
-            title: "My ACRY AI Rank",
-            text: currentMessage,
-            url: shareUrl,
-          });
+          await nav.share({ title: "My ACRY AI Rank", text: currentMessage, url: shareUrl });
           await logShare("native");
         } catch (err: any) {
           if (err?.name !== "AbortError") {
@@ -334,7 +371,6 @@ const MyRankResult = () => {
           }
         }
       } else {
-        // Desktop / unsupported — just rely on the clipboard copy
         toast({ title: "Caption copied 📋", description: "Paste anywhere to share." });
         await logShare("native");
       }
