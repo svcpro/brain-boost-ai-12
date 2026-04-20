@@ -316,6 +316,7 @@ const MyRankLanding = () => {
             @keyframes myrank-beam { 0% { left: -2px; } 100% { left: 100%; } }
             @keyframes myrank-shine { 0% { left: -60%; } 100% { left: 120%; } }
             @keyframes myrank-shimmer { 0% { background-position: 0% 0%; } 100% { background-position: 200% 0%; } }
+            @keyframes myrank-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
           `}</style>
         </button>
 
