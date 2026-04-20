@@ -176,7 +176,7 @@ const MyRankRewards = () => {
             <div className="flex items-start gap-2 min-w-0">
               <Target className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <div className="text-[13px] font-bold text-white">Premium SureShot Tests</div>
+                <div className="text-[13px] font-bold text-white">Premium Practice Zone Tests</div>
                 <div className="text-[10px] text-white/55">
                   Invite 5 friends → 30-day full access
                 </div>
