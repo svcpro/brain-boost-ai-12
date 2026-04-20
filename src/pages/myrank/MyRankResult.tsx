@@ -1078,6 +1078,71 @@ const MyRankResult = () => {
               </button>
             </div>
           </div>
+
+          {/* PRIMARY INVITE CTA — actually triggers a share */}
+          <button
+            onClick={async () => {
+              const inviteMsg =
+                `🎯 *${userName} just got Rank #${result.rank.toLocaleString("en-IN")} on ACRY MyRank!*\n\n` +
+                `🧠 ${result.ai_tag} · Top ${(100 - result.percentile).toFixed(1)}% in ${result.category}\n\n` +
+                `Take the 60-sec AI Rank Test and see where YOU stand 👇\n` +
+                `${shareUrl}\n\n` +
+                `(Use my link so we both unlock rewards 🎁)`;
+              try { await navigator.clipboard?.writeText(inviteMsg); } catch {}
+              try {
+                const res = await shareBadgeOneClick({
+                  badge: {
+                    rank: result.rank,
+                    percentile: result.percentile,
+                    category: result.category,
+                    aiTag: result.ai_tag,
+                    userName,
+                  },
+                  caption: inviteMsg,
+                  shareUrl,
+                  channel: "whatsapp",
+                });
+                await logShare("invite_whatsapp");
+                if (res.mode === "native-files") {
+                  toast({ title: "Invite sent! 🎉", description: "Friends who tap your link unlock rewards for both of you." });
+                } else if (res.mode !== "cancelled") {
+                  toast({ title: "WhatsApp opened 🚀", description: "Caption copied. Paste & send to your group." });
+                }
+              } catch {
+                toast({ title: "Invite copied 📋", description: "Paste it anywhere to share your link.", variant: "default" });
+              }
+            }}
+            className="relative w-full h-12 rounded-xl text-sm font-extrabold text-white shadow-[0_0_24px_-6px_rgba(236,72,153,0.7)] active:scale-[0.98] transition flex items-center justify-center gap-2 overflow-hidden"
+            style={{ background: "linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f59e0b 100%)" }}
+          >
+            <Gift className="w-4 h-4" />
+            Invite friends & earn rewards
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          {/* Claim CTAs when unlocked */}
+          {(unlock?.unlocks.premium_test || unlock?.unlocks.ai_study_plan) && (
+            <div className="relative grid grid-cols-1 gap-2">
+              {unlock?.unlocks.premium_test && (
+                <button
+                  onClick={() => navigate("/app?tab=you")}
+                  className="w-full h-10 rounded-xl text-[12px] font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg active:scale-[0.98] transition flex items-center justify-center gap-2"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Claim your Premium Test reward
+                </button>
+              )}
+              {unlock?.unlocks.ai_study_plan && (
+                <button
+                  onClick={() => navigate("/app?tab=you")}
+                  className="w-full h-10 rounded-xl text-[12px] font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 shadow-lg active:scale-[0.98] transition flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Claim your AI Study Plan
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <button
