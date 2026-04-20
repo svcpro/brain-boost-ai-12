@@ -152,8 +152,8 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
   return (
     <div className="px-5 py-6 space-y-5 max-w-lg mx-auto overflow-x-hidden">
-      {/* ═══ PROFILE CARD ═══ */}
-      {isEnabled("you_profile") && (
+      {/* ═══ PROFILE CARD (always visible — avatar upload lives here) ═══ */}
+      {(
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-5 neural-border">
           <div className="flex items-center gap-4">
             <motion.label
