@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,7 +38,13 @@ const getInitials = (name: string) =>
 const MyRankLeaderboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [category, setCategory] = useState("ALL");
+  const [searchParams] = useSearchParams();
+  // Auto-select the exam category the user just completed (passed via ?category=)
+  const initialCategory = (() => {
+    const raw = (searchParams.get("category") || "ALL").toUpperCase();
+    return CATEGORIES.includes(raw) ? raw : "ALL";
+  })();
+  const [category, setCategory] = useState(initialCategory);
   const [scope, setScope] = useState<"india" | "weekly" | "city">("india");
   const [rows, setRows] = useState<Row[]>([]);
   const [myPos, setMyPos] = useState<number | null>(null);
