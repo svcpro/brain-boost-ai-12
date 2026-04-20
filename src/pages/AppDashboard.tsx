@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
-import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, Crosshair, Trophy } from "lucide-react";
+import { Home, Zap, Brain, User, AlertTriangle, X, Shield, Users, GraduationCap, Trophy } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -43,7 +43,7 @@ const tabDefs = [
   { id: "myrank", label: "MyRank", icon: Trophy },
   // { id: "brain", label: "Brain", icon: Brain }, // hidden per user request
   // { id: "community", label: "Community", icon: Users }, // hidden per user request
-  { id: "progress", label: "Practice Zone", icon: Crosshair },
+  { id: "progress", label: "Exam Practice", icon: GraduationCap },
   { id: "you", label: "You", icon: User },
 ];
 
