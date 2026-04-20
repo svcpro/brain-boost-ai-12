@@ -158,6 +158,15 @@ const AuthPage = () => {
     rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
       ? rawRedirect
       : "/app";
+
+  // Persist the redirect intent so it survives the onboarding bounce that
+  // happens for new users (AuthPage → /app → ProtectedRoute → /onboarding →
+  // /app). OnboardingPage and ProtectedRoute both consume this key on success.
+  useEffect(() => {
+    if (rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")) {
+      try { sessionStorage.setItem("post_login_redirect", rawRedirect); } catch {}
+    }
+  }, [rawRedirect]);
   const [isLogin, setIsLogin] = useState(true);
   const [authMethod, setAuthMethod] = useState<AuthMethod>("mobile");
   const [mobile, setMobile] = useState("");
