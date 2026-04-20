@@ -185,10 +185,12 @@ const AuthPage = () => {
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       if (data.session) {
-        navigate("/app", { replace: true });
+        navigate(redirectTo, { replace: true });
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
