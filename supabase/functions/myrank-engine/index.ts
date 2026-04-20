@@ -667,7 +667,15 @@ Generate a JSON object with:
         .order("completed_at", { ascending: false })
         .limit(100);
 
-      if (category && category !== "ALL") query = query.eq("category", category);
+      if (category && category !== "ALL") {
+        // Prefix-match so chip "SSC" covers "SSC CGL", "SSC MTS"; "UPSC" covers "UPSC CSE", "UPSC CMS", etc.
+        // "IQ" stays exact since it has no sub-variants.
+        if (category === "IQ") {
+          query = query.eq("category", "IQ");
+        } else {
+          query = query.or(`category.eq.${category},category.ilike.${category} %`);
+        }
+      }
       if (scope === "city" && city) query = query.eq("city", city);
       if (scope === "weekly") {
         const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
