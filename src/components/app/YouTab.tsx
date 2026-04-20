@@ -23,6 +23,7 @@ import PlanGateWrapper from "./PlanGateWrapper";
 // Identity sections
 import IdentityCommandCenter from "./you/IdentityCommandCenter";
 import MyRankRankCard from "./you/MyRankRankCard";
+import MyRankShareCard from "./you/MyRankShareCard";
 import LearningIdentitySummary from "./you/LearningIdentitySummary";
 import AIPersonalStrategy from "./you/AIPersonalStrategy";
 import AchievementWall from "./you/AchievementWall";
