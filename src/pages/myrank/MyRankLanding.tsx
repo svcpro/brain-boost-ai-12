@@ -340,10 +340,11 @@ const MyRankLanding = () => {
           </div>
         </Card>
 
-        {/* Referral rewards — Premium Test + AI Study Plan */}
+        {/* Referral rewards hidden per request
         <Suspense fallback={null}>
           <MyRankRewards />
         </Suspense>
+        */}
 
         {/* Search */}
         <div className="relative">
