@@ -271,5 +271,47 @@ function openChannelUrl(
   if (!w) window.location.href = target;
 }
 
+/**
+ * Build the share URL for a given channel + caption — synchronously.
+ * Useful when you want to redirect a pre-opened window IMMEDIATELY (preserving
+ * the user gesture) before doing any async work.
+ */
+export function buildChannelShareUrl(
+  channel: OneClickShareOpts["channel"],
+  caption: string,
+  url: string,
+): string {
+  const encoded = encodeURIComponent(caption);
+  switch (channel) {
+    case "telegram":
+      return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encoded}`;
+    case "instagram":
+      return "https://www.instagram.com/direct/inbox/";
+    case "whatsapp":
+    case "native":
+    default:
+      return `https://wa.me/?text=${encoded}`;
+  }
+}
+
+/**
+ * Redirect a pre-opened window to the channel share URL synchronously.
+ * Returns true if the window was redirected, false otherwise.
+ */
+export function redirectToChannel(
+  win: Window | null | undefined,
+  channel: OneClickShareOpts["channel"],
+  caption: string,
+  url: string,
+): boolean {
+  if (!win || win.closed) return false;
+  try {
+    win.location.href = buildChannelShareUrl(channel, caption, url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Re-export for completeness so the only export surface stays stable.
 export { openChannelUrl as _openChannelUrlInternal };

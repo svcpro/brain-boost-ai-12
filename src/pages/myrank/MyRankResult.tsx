@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
-import { shareBadgeOneClick, openSharePlaceholder } from "@/lib/shareBadge";
+import { shareBadgeOneClick, openSharePlaceholder, redirectToChannel, buildChannelShareUrl, renderBadgeBlob } from "@/lib/shareBadge";
 import { useToast } from "@/hooks/use-toast";
 
 interface Result {
@@ -318,12 +318,22 @@ const MyRankResult = () => {
   ) => {
     if (!result) return;
 
-    // Always copy caption first — guarantees user can paste anywhere
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    // 🚀 STEP 1 (sync, inside gesture): on desktop, redirect the placeholder
+    // window to the channel URL with the caption RIGHT NOW. This guarantees
+    // the share window opens before any async work can kill the gesture.
+    if (!isMobile && preOpenedWindow && channel !== "native") {
+      const targetChannel = channel === "instagram" ? "instagram" : channel;
+      redirectToChannel(preOpenedWindow, targetChannel, currentMessage, shareUrl);
+    }
+
+    // Always copy caption — guarantees user can paste anywhere
     try { await navigator.clipboard?.writeText(currentMessage); } catch { /* non-fatal */ }
 
     // 🚀 Try image share via shareBadgeOneClick — generates 1080×1080 PNG and
     // hands it to WhatsApp/Telegram/IG via the Web Share API on mobile, or
-    // redirects the pre-opened popup window on desktop (avoids popup blocker).
+    // (on desktop) downloads it so the user can attach manually.
     try {
       const shareRes = await shareBadgeOneClick({
         badge: {
@@ -336,7 +346,9 @@ const MyRankResult = () => {
         caption: currentMessage,
         shareUrl,
         channel,
-        preOpenedWindow,
+        // We've already redirected the window above on desktop; pass null so
+        // shareBadgeOneClick doesn't try to open another tab.
+        preOpenedWindow: isMobile ? preOpenedWindow : null,
       });
 
       if (shareRes.mode === "native-files") {
@@ -364,7 +376,6 @@ const MyRankResult = () => {
     } catch { /* fall through */ }
 
     // ───── Legacy fallback (text-only) ─────
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const encoded = encodeURIComponent(currentMessage);
 
     if (channel === "native") {
@@ -481,66 +492,114 @@ const MyRankResult = () => {
 
   const handleAIAutoShare = async () => {
     if (!result || aiSharing) return;
-    // 🚨 Open the placeholder window SYNCHRONOUSLY inside the click gesture.
-    // Otherwise desktop browsers (Chrome/Safari) block the popup after async work.
-    const preWin = openSharePlaceholder();
+
+    const channel = pickBestChannel(result.percentile);
+    const label = channelLabels[channel];
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    // 🚀 STEP 1 (synchronous, inside gesture): open the channel IMMEDIATELY
+    //    with the template caption. This guarantees the share window opens on
+    //    every browser — desktop popup blockers and Safari's strict gesture
+    //    rules can't kill it because there is zero awaited work in between.
+    const templateCaption = currentMessage;
+
+    if (isMobile) {
+      // On mobile, native file share is best — try it inline (gesture is fresh).
+      // We still kick off the same flow, but mobile branch of shareBadgeOneClick
+      // will use navigator.share. Keep it synchronous-ish.
+      // Fallback: deep-link the channel URL right away.
+    } else {
+      const preWin = openSharePlaceholder();
+      if (preWin) {
+        redirectToChannel(preWin, channel, templateCaption, shareUrl);
+        // Stash so we can update the window later if needed (we won't — once
+        // the share URL is loaded with the caption, our job is done).
+        (window as any).__acryAiShareWin = preWin;
+      }
+    }
+
     setAiSharing(true);
+    setAiStatus(`Opening ${label}…`);
+    // Copy template immediately as a safety net for mobile users
+    try { await navigator.clipboard?.writeText(templateCaption); } catch {}
+
     try {
-      const channel = pickBestChannel(result.percentile);
-      const label = channelLabels[channel];
-
-      setAiStatus(`AI is picking ${label}…`);
-      await new Promise(r => setTimeout(r, 350));
-
-      setAiStatus("Writing your viral caption…");
-      let caption = currentMessage;
-      try {
-        const { data } = await supabase.functions.invoke("myrank-ai-caption", {
-          body: {
+      // STEP 2: on mobile, try the rich native-files share now (gesture still
+      // valid because we haven't awaited anything heavy yet).
+      if (isMobile) {
+        try {
+          const blob = await renderBadgeBlob({
             rank: result.rank,
             percentile: result.percentile,
             category: result.category,
-            ai_tag: result.ai_tag,
-            user_name: userName,
-            channel,
-            tone: result.percentile >= 90 ? "flex" : "challenge",
-            share_url: shareUrl,
-          },
-        });
-        if (data?.caption) caption = data.caption as string;
-      } catch { /* fallback to template */ }
-
-      setAiStatus(`Opening ${label}…`);
-      try { await navigator.clipboard?.writeText(caption); } catch {}
-
-      const res = await shareBadgeOneClick({
-        badge: {
+            aiTag: result.ai_tag,
+            userName,
+          });
+          const file = new File([blob], `acry-rank-${result.rank}.png`, { type: "image/png" });
+          if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: "My ACRY Rank", text: templateCaption });
+            await logShare(channel);
+            toast({ title: "🤖 AI Shared! 🎉", description: `Posted with AI badge image.` });
+          } else {
+            // No file share — open the channel URL directly
+            window.location.href = buildChannelShareUrl(channel, templateCaption, shareUrl);
+            await logShare(channel);
+          }
+        } catch (err: any) {
+          if (err?.name === "AbortError") return;
+          // Fallback: deep-link
+          window.location.href = buildChannelShareUrl(channel, templateCaption, shareUrl);
+          await logShare(channel);
+        }
+      } else {
+        // Desktop: window already opened with template caption.
+        // Generate badge in background and trigger download so user can attach.
+        renderBadgeBlob({
           rank: result.rank,
           percentile: result.percentile,
           category: result.category,
           aiTag: result.ai_tag,
           userName,
-        },
-        caption,
-        shareUrl,
-        channel,
-        preOpenedWindow: preWin,
-      });
-
-      await logShare(channel);
-
-      if (res.mode === "native-files") {
-        toast({ title: "🤖 AI Shared! 🎉", description: `Posted to ${label} with AI-crafted caption.` });
-      } else if (res.mode === "cancelled") {
-        // silent
-      } else {
+        }).then(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `acry-rank-${result.rank}.png`;
+          a.rel = "noopener";
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 1500);
+        }).catch(() => {});
+        await logShare(channel);
         toast({
-          title: `🤖 AI opened ${label}`,
-          description: res.message || "Caption auto-pasted. Image saved to attach.",
+          title: `🤖 AI opened ${label} 🎉`,
+          description: "Caption pre-filled. Image saved — attach it in the chat.",
         });
       }
+
+      // STEP 3 (background, non-blocking): fetch AI caption and update clipboard
+      setAiStatus("AI polishing your caption…");
+      supabase.functions.invoke("myrank-ai-caption", {
+        body: {
+          rank: result.rank,
+          percentile: result.percentile,
+          category: result.category,
+          ai_tag: result.ai_tag,
+          user_name: userName,
+          channel,
+          tone: result.percentile >= 90 ? "flex" : "challenge",
+          share_url: shareUrl,
+        },
+      }).then(({ data }) => {
+        if (data?.caption) {
+          navigator.clipboard?.writeText(data.caption as string).catch(() => {});
+          toast({ title: "✨ AI caption ready", description: "Paste it in the chat for max impact!" });
+        }
+      }).catch(() => { /* template stays on clipboard */ });
     } catch (e: any) {
-      try { preWin?.close(); } catch {}
       toast({ title: "AI share failed", description: e?.message || "Try a manual channel.", variant: "destructive" });
     } finally {
       setAiSharing(false);
