@@ -284,8 +284,18 @@ const MyRankLeaderboard = () => {
                       {r.is_me && (
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,hsl(var(--primary)/0.15),transparent_60%)]" />
                       )}
-                      <div className="relative w-9 text-center shrink-0">
+                      <div className="relative w-7 text-center shrink-0">
                         <span className="text-sm font-bold text-muted-foreground tabular-nums">#{r.position}</span>
+                      </div>
+                      {/* Avatar */}
+                      <div className="relative shrink-0">
+                        <div className={`w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-primary/30 to-accent/20 border ${r.is_me ? "border-primary/60 ring-2 ring-primary/30" : "border-border/60"} flex items-center justify-center`}>
+                          {r.avatar_url ? (
+                            <img src={r.avatar_url} alt={r.name} className="w-full h-full object-cover" loading="lazy" />
+                          ) : (
+                            <span className="text-[10px] font-bold text-primary">{getInitials(r.name)}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="relative flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate flex items-center gap-1.5">
