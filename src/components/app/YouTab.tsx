@@ -23,6 +23,7 @@ import PlanGateWrapper from "./PlanGateWrapper";
 // Identity sections
 import IdentityCommandCenter from "./you/IdentityCommandCenter";
 import MyRankRankCard from "./you/MyRankRankCard";
+import MyRankShareCard from "./you/MyRankShareCard";
 import LearningIdentitySummary from "./you/LearningIdentitySummary";
 import AIPersonalStrategy from "./you/AIPersonalStrategy";
 import AchievementWall from "./you/AchievementWall";
@@ -246,6 +247,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
       {/* ═══ SECTION 1: MyRank Leaderboard Rank (replaces Level/Personal Growth) ═══ */}
       <MyRankRankCard />
+
+      {/* ═══ SECTION 1b: Ultra-Advanced Rank Share Card ═══ */}
+      <MyRankShareCard />
 
       {/* ═══ SECTION 4: Subscription Overview (moved above Exam Intelligence) ═══ */}
       <SubscriptionOverview currentPlan={currentPlan} onManagePlan={() => setShowSubscription(true)} />
