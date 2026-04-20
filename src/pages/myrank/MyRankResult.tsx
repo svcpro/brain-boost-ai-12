@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Share2, RefreshCw, Lock, Crown, Sparkles, Users, Gift, Loader2,
   ListOrdered, Target, Flame, TrendingUp, ChevronRight, Copy, Check,
-  Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff,
+  Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff, Wand2,
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
@@ -163,6 +163,8 @@ const MyRankResult = () => {
   const [showShareBoost, setShowShareBoost] = useState(false);
   const [liveShareCount, setLiveShareCount] = useState(0);
   const [tagTimer, setTagTimer] = useState(60);
+  const [aiSharing, setAiSharing] = useState(false);
+  const [aiStatus, setAiStatus] = useState<string>("");
 
   const { handle: refCode, shareUrl: cleanShareUrl } = useReferralHandle();
   const anonId = typeof window !== "undefined" ? localStorage.getItem("myrank_anon_id") : null;
@@ -446,6 +448,80 @@ const MyRankResult = () => {
   const handleTelegramShare = () => runShare("telegram");
   const handleNativeShare = () => runShare("native");
 
+  /** AI Auto-Share: AI picks best channel + writes optimized caption + shares — zero-click. */
+  const pickBestChannel = (p: number): "whatsapp" | "instagram" | "telegram" => {
+    if (p >= 99) return "instagram";
+    if (p >= 90) return "whatsapp";
+    return "telegram";
+  };
+  const channelLabels: Record<string, string> = {
+    whatsapp: "WhatsApp", instagram: "Instagram", telegram: "Telegram",
+  };
+
+  const handleAIAutoShare = async () => {
+    if (!result || aiSharing) return;
+    setAiSharing(true);
+    try {
+      const channel = pickBestChannel(result.percentile);
+      const label = channelLabels[channel];
+
+      setAiStatus(`AI is picking ${label}…`);
+      await new Promise(r => setTimeout(r, 350));
+
+      setAiStatus("Writing your viral caption…");
+      let caption = currentMessage;
+      try {
+        const { data } = await supabase.functions.invoke("myrank-ai-caption", {
+          body: {
+            rank: result.rank,
+            percentile: result.percentile,
+            category: result.category,
+            ai_tag: result.ai_tag,
+            user_name: userName,
+            channel,
+            tone: result.percentile >= 90 ? "flex" : "challenge",
+            share_url: shareUrl,
+          },
+        });
+        if (data?.caption) caption = data.caption as string;
+      } catch { /* fallback to template */ }
+
+      setAiStatus(`Opening ${label}…`);
+      try { await navigator.clipboard?.writeText(caption); } catch {}
+
+      const res = await shareBadgeOneClick({
+        badge: {
+          rank: result.rank,
+          percentile: result.percentile,
+          category: result.category,
+          aiTag: result.ai_tag,
+          userName,
+        },
+        caption,
+        shareUrl,
+        channel,
+      });
+
+      await logShare(channel);
+
+      if (res.mode === "native-files") {
+        toast({ title: "🤖 AI Shared! 🎉", description: `Posted to ${label} with AI-crafted caption.` });
+      } else if (res.mode === "cancelled") {
+        // silent
+      } else {
+        toast({
+          title: `🤖 AI opened ${label}`,
+          description: res.message || "Caption auto-pasted. Image saved to attach.",
+        });
+      }
+    } catch (e: any) {
+      toast({ title: "AI share failed", description: e?.message || "Try a manual channel.", variant: "destructive" });
+    } finally {
+      setAiSharing(false);
+      setAiStatus("");
+    }
+  };
+
   const handleCopyMessage = async () => {
     await navigator.clipboard.writeText(currentMessage);
     setCopied("msg");
@@ -624,6 +700,44 @@ const MyRankResult = () => {
               {copied === "msg" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-white/70" />}
             </button>
           </div>
+
+          {/* 🤖 AI AUTO-SHARE — picks best channel + writes viral caption */}
+          <button
+            onClick={handleAIAutoShare}
+            disabled={aiSharing}
+            className="relative w-full mb-3 overflow-hidden rounded-2xl p-[2px] active:scale-[0.99] transition disabled:opacity-80"
+            style={{
+              background:
+                "conic-gradient(from 0deg, #f59e0b, #ec4899, #8b5cf6, #06b6d4, #10b981, #f59e0b)",
+              animation: aiSharing ? "share-card-rotate 2.5s linear infinite" : "share-card-rotate 8s linear infinite",
+            }}
+          >
+            <div
+              className="relative flex items-center justify-center gap-2 h-12 rounded-[14px] text-sm font-extrabold text-white"
+              style={{
+                background:
+                  "linear-gradient(120deg, #1e1b4b 0%, #4c1d95 35%, #7c2d92 65%, #1e1b4b 100%)",
+                backgroundSize: "200% 200%",
+                animation: "ai-share-gradient 4s ease infinite",
+              }}
+            >
+              {aiSharing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-[12.5px] tracking-wide">{aiStatus || "AI is sharing…"}</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4 text-amber-300" />
+                  <span>AI Auto-Share</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-white/15 text-[9px] font-black uppercase tracking-wider">
+                    1-tap
+                  </span>
+                  <Sparkles className="w-3.5 h-3.5 text-pink-300 animate-pulse" />
+                </>
+              )}
+            </div>
+          </button>
 
           {/* Channel grid — multi-platform pressure */}
           <div className="relative grid grid-cols-4 gap-2">
