@@ -151,6 +151,13 @@ const AuthPage = () => {
   const [searchParams] = useSearchParams();
   const showSplashParam = searchParams.get("splash") === "1";
   const [showSplash, setShowSplash] = useState(showSplashParam);
+  // Optional redirect target after a successful login (used by /myrank gate, etc.).
+  // Only allow same-origin paths to prevent open-redirect attacks.
+  const rawRedirect = searchParams.get("redirect");
+  const redirectTo =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/app";
   const [isLogin, setIsLogin] = useState(true);
   const [authMethod, setAuthMethod] = useState<AuthMethod>("mobile");
   const [mobile, setMobile] = useState("");
@@ -178,7 +185,7 @@ const AuthPage = () => {
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       if (data.session) {
-        navigate("/app", { replace: true });
+        navigate(redirectTo, { replace: true });
       }
     })();
     return () => { cancelled = true; };
@@ -271,7 +278,7 @@ const AuthPage = () => {
       }
 
       setVerifySuccess(true);
-      setTimeout(() => navigate("/app"), 800);
+      setTimeout(() => navigate(redirectTo), 800);
     } catch (error: any) {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
       setOtpCode(["", "", "", ""]);

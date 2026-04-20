@@ -8,7 +8,7 @@ import { prefetchTest, preloadTestChunk } from "@/pages/myrank/prefetchTest";
 import {
   Trophy, Zap, Users, TrendingUp, Sparkles, Search, Flame,
   GraduationCap, Stethoscope, Rocket, Scale, Briefcase, Shield,
-  Globe2, BookOpen, Brain, ChevronRight,
+  Globe2, BookOpen, Brain, ChevronRight, Lock, X,
 } from "lucide-react";
 
 const MyRankRewards = lazy(() => import("@/components/myrank/MyRankRewards"));
@@ -106,6 +106,7 @@ const MyRankLanding = () => {
   const [liveCount, setLiveCount] = useState(234567);
   const [activeGroup, setActiveGroup] = useState<string>("All");
   const [search, setSearch] = useState("");
+  const [loginGate, setLoginGate] = useState<{ open: boolean; category: string | null }>({ open: false, category: null });
 
   const ref = searchParams.get("ref");
 
@@ -145,8 +146,21 @@ const MyRankLanding = () => {
   };
 
   const startTest = (category: string) => {
+    if (!user) {
+      // Anonymous visitor — show login popup before starting the test
+      setLoginGate({ open: true, category });
+      return;
+    }
     prefetchTest(category, user?.id); // ensure cached even if pointerdown missed
     navigate(`/myrank/test?category=${encodeURIComponent(category)}`);
+  };
+
+  const goToLogin = () => {
+    const cat = loginGate.category;
+    const redirect = cat
+      ? `/myrank/test?category=${encodeURIComponent(cat)}`
+      : "/myrank";
+    navigate(`/auth?redirect=${encodeURIComponent(redirect)}`);
   };
 
   return (
@@ -475,6 +489,69 @@ const MyRankLanding = () => {
 
         <div className="h-4" />
       </div>
+
+      {/* ─── Login required popup ─── */}
+      {loginGate.open && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in"
+          onClick={() => setLoginGate({ open: false, category: null })}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md mx-auto rounded-t-3xl sm:rounded-3xl overflow-hidden border border-white/10 bg-gradient-to-br from-[#0d0e1f] via-[#10112a] to-[#0a0b1a] p-6 shadow-2xl animate-slide-in-right"
+          >
+            {/* glow */}
+            <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-fuchsia-500/30 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 right-0 w-64 h-64 rounded-full bg-cyan-500/20 blur-3xl pointer-events-none" />
+
+            <button
+              onClick={() => setLoginGate({ open: false, category: null })}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/70 transition"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="relative space-y-5 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-amber-400 flex items-center justify-center shadow-[0_0_40px_-5px_rgba(236,72,153,0.6)]">
+                <Lock className="w-7 h-7 text-white drop-shadow" />
+              </div>
+
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-extrabold bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
+                  Login to Start Your Test
+                </h3>
+                <p className="text-sm text-white/60">
+                  {loginGate.category
+                    ? <>Sign in to take the <span className="font-bold text-white/90">{loginGate.category}</span> rank test and save your score on the leaderboard.</>
+                    : "Sign in to take the rank test and save your score on the leaderboard."}
+                </p>
+              </div>
+
+              <ul className="text-left space-y-2 text-xs text-white/70 px-2">
+                <li className="flex items-center gap-2"><Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" /> Save & track your All-India rank</li>
+                <li className="flex items-center gap-2"><Trophy className="w-3.5 h-3.5 text-fuchsia-300 shrink-0" /> Compete on the live leaderboard</li>
+                <li className="flex items-center gap-2"><Zap className="w-3.5 h-3.5 text-cyan-300 shrink-0" /> Unlock detailed AI analysis</li>
+              </ul>
+
+              <button
+                onClick={goToLogin}
+                className="relative w-full py-3.5 rounded-2xl font-bold text-white bg-gradient-to-r from-fuchsia-500 via-pink-500 to-amber-500 hover:brightness-110 active:scale-[0.98] transition shadow-[0_8px_30px_-8px_rgba(236,72,153,0.7)]"
+              >
+                Login & Continue
+                <ChevronRight className="inline-block w-4 h-4 ml-1 -mt-0.5" />
+              </button>
+
+              <button
+                onClick={() => setLoginGate({ open: false, category: null })}
+                className="text-[11px] text-white/40 hover:text-white/70 transition"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
