@@ -137,7 +137,8 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
         priority: 55,
       },
     ];
-    return items.sort((a, b) => b.priority - a.priority);
+    // Only show Focus Shield; keep others hidden for now
+    return items.filter((it) => it.id === "focus-shield");
   }, [atRisk.length, overallHealth, streakDays, focusScore]);
 
   const handleAction = async (id: string) => {
@@ -195,7 +196,7 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
       </div>
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 gap-2.5">
         {actions.map((item, i) => {
           const isLoading = loadingId === item.id;
           const isPressed = pressedId === item.id;
