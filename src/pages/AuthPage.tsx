@@ -290,7 +290,10 @@ const AuthPage = () => {
       }
 
       setVerifySuccess(true);
-      setTimeout(() => navigate(redirectTo), 800);
+      // Always send through /app so ProtectedRoute enforces onboarding for new
+      // users. The original `redirect=` target is stored in sessionStorage and
+      // honored by OnboardingPage / ProtectedRoute after onboarding completes.
+      setTimeout(() => navigate("/app"), 800);
     } catch (error: any) {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
       setOtpCode(["", "", "", ""]);
