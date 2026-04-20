@@ -176,6 +176,142 @@ const MyRankLanding = () => {
           </p>
         </header>
 
+        {/* ─── ULTRA ADVANCED LEADERBOARD HERO ─── */}
+        <button
+          onClick={() => navigate("/myrank/leaderboard")}
+          className="group relative w-full overflow-hidden rounded-3xl p-[1.5px] active:scale-[0.99] transition-transform duration-200"
+          style={{
+            background: "conic-gradient(from 0deg, #f59e0b, #ec4899, #06b6d4, #10b981, #f59e0b)",
+            animation: "spin 8s linear infinite",
+          }}
+        >
+          <div className="relative rounded-[calc(1.5rem-1.5px)] overflow-hidden bg-[#0a0b1a]">
+            {/* Animated mesh gradient */}
+            <div
+              className="absolute inset-0 opacity-90"
+              style={{
+                background:
+                  "radial-gradient(circle at 15% 20%, rgba(245,158,11,0.45), transparent 45%), radial-gradient(circle at 85% 80%, rgba(236,72,153,0.40), transparent 45%), radial-gradient(circle at 50% 50%, rgba(6,182,212,0.30), transparent 60%)",
+              }}
+            />
+            {/* Animated grid */}
+            <div
+              className="absolute inset-0 opacity-[0.08]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+                backgroundSize: "24px 24px",
+                animation: "spin 60s linear infinite reverse",
+              }}
+            />
+            {/* Scanning beam */}
+            <div
+              className="absolute top-0 bottom-0 w-[2px] pointer-events-none"
+              style={{
+                background: "linear-gradient(180deg, transparent, rgba(252,211,77,0.95), transparent)",
+                boxShadow: "0 0 16px rgba(252,211,77,0.9), 0 0 32px rgba(252,211,77,0.5)",
+                animation: "myrank-beam 3.5s linear infinite",
+              }}
+            />
+            {/* Floating spark particles */}
+            {Array.from({ length: 12 }).map((_, i) => (
+              <span
+                key={i}
+                className="absolute w-1 h-1 rounded-full bg-white animate-pulse"
+                style={{
+                  top: `${(i * 47 + 10) % 90}%`,
+                  left: `${(i * 31 + 5) % 95}%`,
+                  opacity: 0.5 + (i % 4) * 0.12,
+                  boxShadow: "0 0 8px rgba(255,255,255,0.9), 0 0 16px rgba(252,211,77,0.6)",
+                  animationDuration: `${2 + (i % 4)}s`,
+                  animationDelay: `${(i % 5) * 0.25}s`,
+                }}
+              />
+            ))}
+
+            {/* CONTENT */}
+            <div className="relative z-10 px-4 py-4 flex items-center gap-3.5">
+              {/* 3D Trophy podium */}
+              <div className="relative shrink-0">
+                {/* Outer pulse ring */}
+                <span className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 opacity-30 blur-md animate-pulse" />
+                {/* Trophy box */}
+                <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-500 to-orange-600 flex items-center justify-center shadow-[0_8px_24px_-4px_rgba(245,158,11,0.7),inset_0_1px_0_rgba(255,255,255,0.4)] border border-amber-200/50">
+                  <Trophy className="w-7 h-7 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" strokeWidth={2.4} />
+                  {/* Inner shine sweep */}
+                  <span
+                    className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none"
+                  >
+                    <span
+                      className="absolute top-0 bottom-0 w-1/2"
+                      style={{
+                        background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)",
+                        animation: "myrank-shine 2.6s ease-in-out infinite",
+                      }}
+                    />
+                  </span>
+                </div>
+                {/* Rank #1 medal */}
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-300 to-amber-600 border-[1.5px] border-white text-[9px] font-black text-white flex items-center justify-center shadow-lg">
+                  1
+                </span>
+              </div>
+
+              {/* Text block */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-400/20 border border-amber-300/40 text-amber-200 text-[8px] font-black uppercase tracking-widest animate-pulse">
+                    🔥 Live
+                  </span>
+                  <span className="text-[9px] font-bold text-white/50 uppercase tracking-wider">
+                    Updated every 60s
+                  </span>
+                </div>
+                <h2 className="text-base font-extrabold leading-tight tracking-tight bg-gradient-to-r from-amber-200 via-pink-200 to-cyan-200 bg-clip-text text-transparent">
+                  Top 100 India Leaderboard
+                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  {/* Mini avatars */}
+                  <div className="flex -space-x-1.5">
+                    {["from-fuchsia-400 to-pink-600", "from-cyan-400 to-blue-600", "from-emerald-400 to-teal-600"].map((g, i) => (
+                      <span
+                        key={i}
+                        className={`w-4 h-4 rounded-full bg-gradient-to-br ${g} border-[1.5px] border-[#0a0b1a] shadow`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-white/70 font-semibold">
+                    See where you stand
+                  </span>
+                </div>
+              </div>
+
+              {/* CTA arrow */}
+              <div className="shrink-0 w-9 h-9 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center group-hover:bg-amber-400/30 group-hover:border-amber-300/50 transition-colors">
+                <ChevronRight className="w-4 h-4 text-white group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </div>
+
+            {/* Bottom rainbow bar */}
+            <div
+              className="absolute bottom-0 left-0 right-0 h-[2px]"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent, #f59e0b, #ec4899, #06b6d4, #10b981, transparent)",
+                backgroundSize: "200% 100%",
+                animation: "myrank-shimmer 3s linear infinite",
+              }}
+            />
+          </div>
+
+          {/* Local keyframes */}
+          <style>{`
+            @keyframes myrank-beam { 0% { left: -2px; } 100% { left: 100%; } }
+            @keyframes myrank-shine { 0% { left: -60%; } 100% { left: 120%; } }
+            @keyframes myrank-shimmer { 0% { background-position: 0% 0%; } 100% { background-position: 200% 0%; } }
+          `}</style>
+        </button>
+
         {/* Live counter card */}
         <Card className="relative overflow-hidden p-4 border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(236,72,153,0.15),transparent_60%)] pointer-events-none" />
@@ -320,25 +456,7 @@ const MyRankLanding = () => {
           ))}
         </div>
 
-        {/* Leaderboard CTA */}
-        <button
-          onClick={() => navigate("/myrank/leaderboard")}
-          className="group w-full relative overflow-hidden rounded-2xl p-4 border border-white/10 bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-cyan-500/10 backdrop-blur-xl hover:border-white/20 transition"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(245,158,11,0.2),transparent_60%)]" />
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg">
-                <Trophy className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-white">Top 100 India</div>
-                <div className="text-[11px] text-white/50">Live leaderboard · Updated every min</div>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
+        {/* Leaderboard CTA moved to top — see hero section */}
 
         {ref && (
           <div className="text-center text-xs font-medium text-white/70 bg-gradient-to-r from-fuchsia-500/10 to-cyan-500/10 border border-white/10 p-2.5 rounded-xl backdrop-blur">
