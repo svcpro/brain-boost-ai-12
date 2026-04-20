@@ -164,24 +164,24 @@ export interface ShareResult {
  * 3. Always copy caption to clipboard as a safety net
  */
 export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<ShareResult> {
-  const { badge, caption, shareUrl, channel } = opts;
+  const { badge, caption, shareUrl, channel, preOpenedWindow } = opts;
   const fileName = opts.fileName || `acry-rank-${badge.rank}.png`;
 
   // Always copy caption — guarantees user can paste even on cold fallback
   try { await navigator.clipboard?.writeText(caption); } catch { /* non-fatal */ }
 
-  let blob: Blob;
+  let blob: Blob | null = null;
   try {
     blob = await renderBadgeBlob(badge);
-  } catch (e) {
+  } catch {
     // No image → just open channel URL with text
-    openChannelUrl(channel, caption, shareUrl);
+    openChannelUrl(channel, caption, shareUrl, preOpenedWindow);
     return { ok: true, mode: "channel-url", message: "Caption copied. Paste it after the link." };
   }
 
   const file = new File([blob], fileName, { type: "image/png" });
 
-  // 1. Best path: native file share (mobile Safari/Chrome → WA/IG accept files)
+  // 1. Best path (mobile): native file share — WhatsApp/IG accept files
   const canShareFiles =
     typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
 
@@ -191,23 +191,25 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
         files: [file],
         title: "My ACRY Rank",
         text: caption,
-        // Some platforms reject `url` when files are present; omit on iOS-style flow.
       });
+      // Native share took over — close the placeholder if any
+      try { preOpenedWindow?.close(); } catch {}
       return { ok: true, mode: "native-files" };
     } catch (err: any) {
-      // AbortError = user dismissed; do not fall back loudly
-      if (err?.name === "AbortError") return { ok: false, mode: "cancelled" };
+      if (err?.name === "AbortError") {
+        try { preOpenedWindow?.close(); } catch {}
+        return { ok: false, mode: "cancelled" };
+      }
       // fall through to fallback
     }
   }
 
-  // 2. Fallback (mostly desktop): open WhatsApp/Telegram FIRST so the popup
-  //    isn't blocked by the subsequent download trigger, then save the image.
-  openChannelUrl(channel, caption, shareUrl);
+  // 2. Fallback (desktop): redirect the pre-opened window to the share URL,
+  //    then download the image so user can attach it manually.
+  openChannelUrl(channel, caption, shareUrl, preOpenedWindow);
 
-  // Small delay so the new tab/window has time to open before download dialog
   setTimeout(() => {
-    try { triggerDownload(blob, fileName); } catch { /* non-fatal */ }
+    try { triggerDownload(blob!, fileName); } catch { /* non-fatal */ }
   }, 250);
 
   return {
@@ -231,7 +233,12 @@ function triggerDownload(blob: Blob, name: string) {
   }, 1500);
 }
 
-function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, url: string) {
+function openChannelUrl(
+  channel: OneClickShareOpts["channel"],
+  caption: string,
+  url: string,
+  preOpenedWindow?: Window | null,
+) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const encoded = encodeURIComponent(caption);
   let target = "";
