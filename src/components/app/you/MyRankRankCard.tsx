@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { Trophy, ChevronRight, Sparkles, TrendingUp, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const MyRankRankCard = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [position, setPosition] = useState<number | null>(null);
   const [hasRank, setHasRank] = useState(false);
+
+  const openMyRankInApp = () => {
+    // Switch the bottom-tab to MyRank (handled by AppDashboard listener)
+    window.dispatchEvent(new CustomEvent("switch-dashboard-tab", { detail: "myrank" }));
+  };
 
   useEffect(() => {
     let active = true;
