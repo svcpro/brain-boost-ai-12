@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Share2, RefreshCw, Lock, Crown, Sparkles, Users, Gift, Loader2,
   ListOrdered, Target, Flame, TrendingUp, ChevronRight, Copy, Check,
-  Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff, Wand2,
+  Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff, Wand2, Home, ArrowLeft,
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
