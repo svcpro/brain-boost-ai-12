@@ -1441,17 +1441,21 @@ Deno.serve(async (req) => {
 
       let saved: any = null;
       if (autoSave) {
-        const { userId } = await resolveAuthenticatedUserId();
+        const { userId, reason, debug } = await resolveAuthenticatedUserId();
         if (!userId) {
           return json({
-            success: true,
+            success: false,
+            error: reason === "missing_bearer"
+              ? "auto_save=true requires a user JWT. Pass it as the 'Authorization: Bearer <USER_JWT>' header in Postman."
+              : "auto_save=true received an invalid or expired user JWT. Re-login in the app, copy a fresh access_token, and retry.",
+            hint: "In Postman: open your app, copy the access_token from the browser (Application → Local Storage → sb-...-auth-token → access_token), and set 'Authorization: Bearer <that token>'. The 'apikey' header alone is NOT a user JWT.",
+            auth_debug: debug,
             subject,
             source,
             used_ai: usedAI,
             topics,
             saved: null,
-            warning: "auto_save requested but no valid Bearer token; data returned but not saved.",
-          });
+          }, 401);
         }
 
         const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
