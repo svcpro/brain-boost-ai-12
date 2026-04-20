@@ -271,231 +271,218 @@ const ConfidencePracticeTab = () => {
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
-  // ─── MAIN MENU ───
+  // ─── MAIN MENU (Ultra-Advanced, User-Focused) ───
   if (section === "menu") {
+    const accuracy = stats?.accuracy ?? 0;
+    const totalDone = stats?.total ?? 0;
     return (
       <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
-        {/* ─── Hero Header (HomeTab style) ─── */}
+        {/* ─── Focused Hero ─── */}
         <motion.section
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-3xl p-6 text-center"
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="relative overflow-hidden rounded-3xl p-6"
           style={{
-            background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
+            background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%)",
             border: "1px solid hsl(var(--border))",
           }}
         >
-          {/* Decorative glows */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "hsl(var(--primary))" }} />
-          <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full opacity-10 blur-2xl pointer-events-none" style={{ background: "hsl(var(--primary))" }} />
-
+          {/* Ambient glow */}
           <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.8, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
-            style={{
-              background: "linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.05))",
-              border: "1px solid hsl(var(--primary) / 0.3)",
-            }}
-          >
-            <Target className="w-8 h-8 text-primary" />
-          </motion.div>
+            className="absolute -top-16 -right-16 w-56 h-56 rounded-full pointer-events-none"
+            style={{ background: "hsl(var(--primary))", filter: "blur(80px)" }}
+            animate={{ opacity: [0.12, 0.22, 0.12] }}
+            transition={{ duration: 4, repeat: Infinity }}
+          />
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-3"
-            style={{
-              background: "hsl(var(--primary) / 0.1)",
-              border: "1px solid hsl(var(--primary) / 0.2)",
-            }}
-          >
-            <Zap className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Exam Focus Mode</span>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-2xl font-bold text-foreground mb-1"
-          >
-            Confidence Practice
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-xs text-muted-foreground max-w-xs mx-auto"
-          >
-            No pressure. No ranks. Just you and your preparation.
-          </motion.p>
-
-          {/* Mini stats row */}
-          {stats && stats.total > 0 && (
+          <div className="relative z-10 flex items-start gap-4">
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="grid grid-cols-3 gap-2 mt-5"
+              initial={{ scale: 0, rotate: -90 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ duration: 0.6, type: "spring", stiffness: 180 }}
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+              style={{
+                background: "linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.05))",
+                border: "1px solid hsl(var(--primary) / 0.3)",
+                boxShadow: "0 0 24px hsl(var(--primary) / 0.18)",
+              }}
             >
-              <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
-                <p className="text-lg font-bold text-foreground tabular-nums">{stats.total}</p>
-                <p className="text-[9px] text-muted-foreground">Practiced</p>
+              <Target className="w-7 h-7 text-primary" />
+            </motion.div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl font-bold text-foreground leading-tight">Confidence Practice</h1>
+              <p className="text-xs text-muted-foreground mt-1">
+                {userExamType ? `Personalized for ${userExamType}` : "AI-powered exam practice"}
+              </p>
+            </div>
+          </div>
+
+          {/* Stats — only when user has data */}
+          {stats && totalDone > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="relative z-10 grid grid-cols-3 gap-2 mt-5"
+            >
+              <div className="rounded-xl bg-background/60 backdrop-blur-sm p-3 border border-border/50 text-center">
+                <p className="text-lg font-bold text-foreground tabular-nums">{totalDone}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">Solved</p>
               </div>
-              <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
-                <p className="text-lg font-bold text-primary tabular-nums">{stats.accuracy}%</p>
-                <p className="text-[9px] text-muted-foreground">Accuracy</p>
+              <div className="rounded-xl bg-background/60 backdrop-blur-sm p-3 border border-primary/30 text-center">
+                <p className="text-lg font-bold text-primary tabular-nums">{accuracy}%</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">Accuracy</p>
               </div>
-              <div className="rounded-xl bg-background/50 backdrop-blur-sm p-2.5 border border-border/50">
+              <div className="rounded-xl bg-background/60 backdrop-blur-sm p-3 border border-border/50 text-center">
                 <p className="text-lg font-bold text-foreground tabular-nums">{stats.correct}</p>
-                <p className="text-[9px] text-muted-foreground">Correct</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">Correct</p>
               </div>
             </motion.div>
           )}
         </motion.section>
 
-        {/* Section A: Question Bank Card — hidden from user frontend */}
-
-        {/* ─── Section B: AI Predicted Card ─── */}
+        {/* ─── Primary CTA: Start Practice ─── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
+          transition={{ delay: 0.2 }}
         >
           <motion.button
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => { setSource("predicted"); if (userExamType) setSelExam(userExamType); setSection("predicted_setup"); }}
-            className="w-full rounded-3xl p-5 text-left relative overflow-hidden group"
+            className="w-full rounded-3xl p-6 text-left relative overflow-hidden group"
             style={{
-              background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 50%, hsl(var(--card)) 100%)",
-              border: "1px solid hsl(var(--border))",
+              background: "linear-gradient(135deg, hsl(var(--primary) / 0.15) 0%, hsl(var(--card)) 50%, hsl(var(--accent) / 0.1) 100%)",
+              border: "1px solid hsl(var(--primary) / 0.3)",
+              boxShadow: "0 8px 32px hsl(var(--primary) / 0.1)",
             }}
           >
-            {/* Animated glow */}
+            {/* Animated mesh */}
             <motion.div
-              className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none"
-              style={{ background: "hsl(var(--primary))", filter: "blur(60px)" }}
-              animate={{ opacity: [0.08, 0.15, 0.08] }}
-              transition={{ duration: 3, repeat: Infinity }}
+              className="absolute top-0 right-0 w-48 h-48 rounded-full pointer-events-none"
+              style={{ background: "hsl(var(--primary))", filter: "blur(70px)" }}
+              animate={{ opacity: [0.15, 0.28, 0.15], scale: [1, 1.15, 1] }}
+              transition={{ duration: 4, repeat: Infinity }}
             />
             <motion.div
-              className="absolute bottom-0 left-0 w-24 h-24 rounded-full pointer-events-none"
-              style={{ background: "hsl(var(--accent))", filter: "blur(40px)" }}
-              animate={{ opacity: [0.05, 0.1, 0.05] }}
-              transition={{ duration: 4, repeat: Infinity, delay: 1 }}
+              className="absolute bottom-0 left-0 w-32 h-32 rounded-full pointer-events-none"
+              style={{ background: "hsl(var(--accent))", filter: "blur(50px)" }}
+              animate={{ opacity: [0.08, 0.18, 0.08] }}
+              transition={{ duration: 5, repeat: Infinity, delay: 1 }}
             />
 
-            <div className="relative z-10 flex items-start gap-4">
-              <motion.div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-                style={{
-                  background: "linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--accent) / 0.1))",
-                  border: "1px solid hsl(var(--primary) / 0.35)",
-                  boxShadow: "0 0 20px hsl(var(--primary) / 0.15)",
-                }}
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <Sparkles className="w-7 h-7 text-primary" />
-              </motion.div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-bold text-foreground text-base">AI Predicted Questions</h3>
-                  <motion.span
-                    animate={{ opacity: [0.7, 1, 0.7] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold"
-                    style={{
-                      background: "linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.15))",
-                      color: "hsl(var(--primary))",
-                      border: "1px solid hsl(var(--primary) / 0.3)",
-                    }}
-                  >
-                    ML v3.0 ✨
-                  </motion.span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  Ultra-Advanced Trend-Based ML Research Engine v3.0 — 8-factor hybrid model analyzing multi-year patterns, cross-exam correlation, syllabus coverage gaps & examiner behavior.
-                </p>
-                {/* Dynamic exam info */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                    <BookOpen className="w-3 h-3 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">Exam Type</p>
-                      <p className="text-[11px] font-bold text-foreground truncate">{userExamType || "General"}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                    <BarChart3 className="w-3 h-3 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">Subjects</p>
-                      <p className="text-[11px] font-bold text-foreground truncate">{(examSubjectsMap[userExamType] || ["General"]).length} subjects</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                    <Target className="w-3 h-3 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">Questions</p>
-                      <p className="text-[11px] font-bold text-foreground">{selCount} per session</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                    <Activity className="w-3 h-3 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">Practice Mode</p>
-                      <p className="text-[11px] font-bold text-foreground capitalize">{mode}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {[
-                    { label: "Trend Research", glow: true },
-                    { label: "8-Factor ML", glow: true },
-                    { label: "Cross-Exam Intel", glow: true },
-                    { label: "Pattern Drift", glow: false },
-                  ].map(({ label, glow }) => (
-                    <span
-                      key={label}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-semibold"
-                      style={{
-                        background: glow ? "hsl(var(--primary) / 0.15)" : "hsl(var(--secondary))",
-                        color: glow ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
-                        border: `1px solid ${glow ? "hsl(var(--primary) / 0.2)" : "hsl(var(--border))"}`,
-                        ...(glow ? { boxShadow: "0 0 8px hsl(var(--primary) / 0.1)" } : {}),
-                      }}
-                    >
-                      {label}
-                    </span>
-                  ))}
+            <div className="relative z-10">
+              <div className="flex items-start gap-4 mb-4">
+                <motion.div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(var(--primary) / 0.3), hsl(var(--primary) / 0.1))",
+                    border: "1px solid hsl(var(--primary) / 0.4)",
+                    boxShadow: "0 0 24px hsl(var(--primary) / 0.25)",
+                  }}
+                  animate={{ scale: [1, 1.06, 1] }}
+                  transition={{ duration: 2.2, repeat: Infinity }}
+                >
+                  <Sparkles className="w-7 h-7 text-primary" />
+                </motion.div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-foreground text-lg leading-tight">Start Smart Practice</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    AI predicts the most likely questions for your next exam.
+                  </p>
                 </div>
               </div>
-              <motion.div
-                animate={{ x: [0, 4, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="shrink-0 mt-2"
+
+              {/* Simple value props */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="rounded-xl px-2 py-2 text-center" style={{ background: "hsl(var(--background) / 0.5)", border: "1px solid hsl(var(--border) / 0.5)" }}>
+                  <Brain className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Smart AI</p>
+                </div>
+                <div className="rounded-xl px-2 py-2 text-center" style={{ background: "hsl(var(--background) / 0.5)", border: "1px solid hsl(var(--border) / 0.5)" }}>
+                  <TrendingUp className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Trending</p>
+                </div>
+                <div className="rounded-xl px-2 py-2 text-center" style={{ background: "hsl(var(--background) / 0.5)", border: "1px solid hsl(var(--border) / 0.5)" }}>
+                  <Target className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">High-Yield</p>
+                </div>
+              </div>
+
+              <div
+                className="flex items-center justify-between rounded-xl px-4 py-3"
+                style={{
+                  background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.85))",
+                  boxShadow: "0 4px 16px hsl(var(--primary) / 0.3)",
+                }}
               >
-                <ChevronRight className="w-5 h-5 text-primary/60 group-hover:text-primary transition-colors" />
-              </motion.div>
+                <span className="text-sm font-bold text-primary-foreground">Begin Practice</span>
+                <motion.div
+                  animate={{ x: [0, 4, 0] }}
+                  transition={{ duration: 1.4, repeat: Infinity }}
+                >
+                  <ChevronRight className="w-5 h-5 text-primary-foreground" />
+                </motion.div>
+              </div>
             </div>
           </motion.button>
+        </motion.div>
+
+        {/* ─── How it works (3 simple steps) ─── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="rounded-2xl p-4 space-y-3"
+          style={{
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+          }}
+        >
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">How it works</p>
+          <div className="space-y-2.5">
+            {[
+              { n: 1, title: "Pick your mode", desc: "Calm, Exam, or Rapid" },
+              { n: 2, title: "Practice with AI questions", desc: "Predicted by our ML engine" },
+              { n: 3, title: "Build real confidence", desc: "Track accuracy over time" },
+            ].map((step, i) => (
+              <motion.div
+                key={step.n}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + i * 0.08 }}
+                className="flex items-center gap-3"
+              >
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-primary"
+                  style={{
+                    background: "hsl(var(--primary) / 0.12)",
+                    border: "1px solid hsl(var(--primary) / 0.25)",
+                  }}
+                >
+                  {step.n}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-foreground">{step.title}</p>
+                  <p className="text-[10px] text-muted-foreground">{step.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
 
         {/* Calming footer */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-center py-3"
+          transition={{ delay: 0.6 }}
+          className="text-center py-2"
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: "hsl(var(--primary) / 0.05)", border: "1px solid hsl(var(--primary) / 0.1)" }}>
             <Heart className="w-3.5 h-3.5 text-primary/60" />
-            <span className="text-xs text-muted-foreground italic">Take a deep breath. You've got this.</span>
+            <span className="text-xs text-muted-foreground italic">No pressure. Just progress.</span>
           </div>
         </motion.div>
       </div>
