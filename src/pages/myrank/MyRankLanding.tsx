@@ -146,8 +146,21 @@ const MyRankLanding = () => {
   };
 
   const startTest = (category: string) => {
+    if (!user) {
+      // Anonymous visitor — show login popup before starting the test
+      setLoginGate({ open: true, category });
+      return;
+    }
     prefetchTest(category, user?.id); // ensure cached even if pointerdown missed
     navigate(`/myrank/test?category=${encodeURIComponent(category)}`);
+  };
+
+  const goToLogin = () => {
+    const cat = loginGate.category;
+    const redirect = cat
+      ? `/myrank/test?category=${encodeURIComponent(cat)}`
+      : "/myrank";
+    navigate(`/auth?redirect=${encodeURIComponent(redirect)}`);
   };
 
   return (
