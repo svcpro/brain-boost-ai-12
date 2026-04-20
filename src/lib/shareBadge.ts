@@ -130,6 +130,24 @@ export interface OneClickShareOpts {
   shareUrl: string;
   channel: "whatsapp" | "instagram" | "telegram" | "native";
   fileName?: string;
+  /**
+   * Pre-opened window from a synchronous click handler. Required on desktop
+   * to avoid popup blockers eating the share window after async work.
+   * Pass `null` if user is on mobile (native share takes priority there).
+   */
+  preOpenedWindow?: Window | null;
+}
+
+/** Open a placeholder popup synchronously inside a user gesture. */
+export function openSharePlaceholder(): Window | null {
+  if (typeof window === "undefined") return null;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) return null; // mobile uses navigator.share or location.href
+  try {
+    return window.open("about:blank", "_blank", "noopener,noreferrer,width=720,height=720");
+  } catch {
+    return null;
+  }
 }
 
 export interface ShareResult {
@@ -146,24 +164,24 @@ export interface ShareResult {
  * 3. Always copy caption to clipboard as a safety net
  */
 export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<ShareResult> {
-  const { badge, caption, shareUrl, channel } = opts;
+  const { badge, caption, shareUrl, channel, preOpenedWindow } = opts;
   const fileName = opts.fileName || `acry-rank-${badge.rank}.png`;
 
   // Always copy caption — guarantees user can paste even on cold fallback
   try { await navigator.clipboard?.writeText(caption); } catch { /* non-fatal */ }
 
-  let blob: Blob;
+  let blob: Blob | null = null;
   try {
     blob = await renderBadgeBlob(badge);
-  } catch (e) {
+  } catch {
     // No image → just open channel URL with text
-    openChannelUrl(channel, caption, shareUrl);
+    openChannelUrl(channel, caption, shareUrl, preOpenedWindow);
     return { ok: true, mode: "channel-url", message: "Caption copied. Paste it after the link." };
   }
 
   const file = new File([blob], fileName, { type: "image/png" });
 
-  // 1. Best path: native file share (mobile Safari/Chrome → WA/IG accept files)
+  // 1. Best path (mobile): native file share — WhatsApp/IG accept files
   const canShareFiles =
     typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
 
@@ -173,23 +191,25 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
         files: [file],
         title: "My ACRY Rank",
         text: caption,
-        // Some platforms reject `url` when files are present; omit on iOS-style flow.
       });
+      // Native share took over — close the placeholder if any
+      try { preOpenedWindow?.close(); } catch {}
       return { ok: true, mode: "native-files" };
     } catch (err: any) {
-      // AbortError = user dismissed; do not fall back loudly
-      if (err?.name === "AbortError") return { ok: false, mode: "cancelled" };
+      if (err?.name === "AbortError") {
+        try { preOpenedWindow?.close(); } catch {}
+        return { ok: false, mode: "cancelled" };
+      }
       // fall through to fallback
     }
   }
 
-  // 2. Fallback (mostly desktop): open WhatsApp/Telegram FIRST so the popup
-  //    isn't blocked by the subsequent download trigger, then save the image.
-  openChannelUrl(channel, caption, shareUrl);
+  // 2. Fallback (desktop): redirect the pre-opened window to the share URL,
+  //    then download the image so user can attach it manually.
+  openChannelUrl(channel, caption, shareUrl, preOpenedWindow);
 
-  // Small delay so the new tab/window has time to open before download dialog
   setTimeout(() => {
-    try { triggerDownload(blob, fileName); } catch { /* non-fatal */ }
+    try { triggerDownload(blob!, fileName); } catch { /* non-fatal */ }
   }, 250);
 
   return {
@@ -213,7 +233,12 @@ function triggerDownload(blob: Blob, name: string) {
   }, 1500);
 }
 
-function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, url: string) {
+function openChannelUrl(
+  channel: OneClickShareOpts["channel"],
+  caption: string,
+  url: string,
+  preOpenedWindow?: Window | null,
+) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const encoded = encodeURIComponent(caption);
   let target = "";
@@ -230,14 +255,20 @@ function openChannelUrl(channel: OneClickShareOpts["channel"], caption: string, 
       target = "https://www.instagram.com/";
       break;
   }
-  // Open in new tab on desktop, same tab on mobile for reliable deep-link
+  // Mobile: same-tab deep-link (works inside user gesture).
   if (isMobile) {
     window.location.href = target;
-  } else {
-    const w = window.open(target, "_blank", "noopener,noreferrer");
-    // Popup blocked? Fall back to same-tab navigation in a new context
-    if (!w) window.location.href = target;
+    return;
   }
+  // Desktop: prefer redirecting the pre-opened window (gesture preserved).
+  if (preOpenedWindow && !preOpenedWindow.closed) {
+    try {
+      preOpenedWindow.location.href = target;
+      return;
+    } catch { /* cross-origin or blocked — fall through */ }
+  }
+  const w = window.open(target, "_blank", "noopener,noreferrer");
+  if (!w) window.location.href = target;
 }
 
 // Re-export for completeness so the only export surface stays stable.

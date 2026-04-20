@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
-import { shareBadgeOneClick } from "@/lib/shareBadge";
+import { shareBadgeOneClick, openSharePlaceholder } from "@/lib/shareBadge";
 import { useToast } from "@/hooks/use-toast";
 
 interface Result {
@@ -312,16 +312,18 @@ const MyRankResult = () => {
 
   const userName = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion";
 
-  const runShare = async (channel: "whatsapp" | "instagram" | "telegram" | "native") => {
+  const runShare = async (
+    channel: "whatsapp" | "instagram" | "telegram" | "native",
+    preOpenedWindow?: Window | null,
+  ) => {
     if (!result) return;
 
     // Always copy caption first — guarantees user can paste anywhere
     try { await navigator.clipboard?.writeText(currentMessage); } catch { /* non-fatal */ }
 
     // 🚀 Try image share via shareBadgeOneClick — generates 1080×1080 PNG and
-    // hands it to WhatsApp/Telegram/IG via the Web Share API. This is what
-    // actually attaches the image (wa.me?text= is text-only and produced
-    // the "blank image" symptom users saw before).
+    // hands it to WhatsApp/Telegram/IG via the Web Share API on mobile, or
+    // redirects the pre-opened popup window on desktop (avoids popup blocker).
     try {
       const shareRes = await shareBadgeOneClick({
         badge: {
@@ -334,19 +336,18 @@ const MyRankResult = () => {
         caption: currentMessage,
         shareUrl,
         channel,
+        preOpenedWindow,
       });
 
-      // If the native sheet handled it (image attached) or user cancelled, stop here
       if (shareRes.mode === "native-files") {
         await logShare(channel);
         toast({ title: "Shared! 🎉", description: "Image attached — caption copied as backup." });
         return;
       }
       if (shareRes.mode === "cancelled") {
-        return; // user dismissed — no toast, no log
+        return;
       }
       if (shareRes.mode === "downloaded") {
-        // Channel URL already opened + image saved to device — user attaches it manually
         await logShare(channel);
         toast({
           title: "Image saved 📥 — attach it in chat",
@@ -354,7 +355,12 @@ const MyRankResult = () => {
         });
         return;
       }
-      // mode === "channel-url" or "error" → fall through to legacy text-only path
+      if (shareRes.mode === "channel-url") {
+        await logShare(channel);
+        toast({ title: "Opening… 🚀", description: "Caption copied as backup." });
+        return;
+      }
+      // mode === "error" → fall through to legacy text-only path
     } catch { /* fall through */ }
 
     // ───── Legacy fallback (text-only) ─────
@@ -419,6 +425,11 @@ const MyRankResult = () => {
       } else {
         window.location.href = target;
       }
+    } else if (preOpenedWindow && !preOpenedWindow.closed) {
+      try { preOpenedWindow.location.href = target; } catch {
+        const w = window.open(target, "_blank", "noopener,noreferrer");
+        if (!w) window.location.href = target;
+      }
     } else {
       const w = window.open(target, "_blank", "noopener,noreferrer");
       if (!w) window.location.href = target;
@@ -439,14 +450,24 @@ const MyRankResult = () => {
     }
   };
 
-  const handleWhatsAppShare = () => runShare("whatsapp");
+  const handleWhatsAppShare = () => {
+    const win = openSharePlaceholder();
+    return runShare("whatsapp", win);
+  };
   const handleInstagramShare = () => {
+    const win = openSharePlaceholder();
     setCopied("ig");
     setTimeout(() => setCopied(null), 2000);
-    return runShare("instagram");
+    return runShare("instagram", win);
   };
-  const handleTelegramShare = () => runShare("telegram");
-  const handleNativeShare = () => runShare("native");
+  const handleTelegramShare = () => {
+    const win = openSharePlaceholder();
+    return runShare("telegram", win);
+  };
+  const handleNativeShare = () => {
+    const win = openSharePlaceholder();
+    return runShare("native", win);
+  };
 
   /** AI Auto-Share: AI picks best channel + writes optimized caption + shares — zero-click. */
   const pickBestChannel = (p: number): "whatsapp" | "instagram" | "telegram" => {
@@ -460,6 +481,9 @@ const MyRankResult = () => {
 
   const handleAIAutoShare = async () => {
     if (!result || aiSharing) return;
+    // 🚨 Open the placeholder window SYNCHRONOUSLY inside the click gesture.
+    // Otherwise desktop browsers (Chrome/Safari) block the popup after async work.
+    const preWin = openSharePlaceholder();
     setAiSharing(true);
     try {
       const channel = pickBestChannel(result.percentile);
@@ -500,6 +524,7 @@ const MyRankResult = () => {
         caption,
         shareUrl,
         channel,
+        preOpenedWindow: preWin,
       });
 
       await logShare(channel);
@@ -515,6 +540,7 @@ const MyRankResult = () => {
         });
       }
     } catch (e: any) {
+      try { preWin?.close(); } catch {}
       toast({ title: "AI share failed", description: e?.message || "Try a manual channel.", variant: "destructive" });
     } finally {
       setAiSharing(false);
