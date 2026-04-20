@@ -196,7 +196,7 @@ export default function QuickMicroActions({ atRisk, overallHealth, streakDays, o
       </div>
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 gap-2.5">
         {actions.map((item, i) => {
           const isLoading = loadingId === item.id;
           const isPressed = pressedId === item.id;
