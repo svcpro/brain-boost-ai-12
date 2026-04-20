@@ -163,6 +163,8 @@ const MyRankResult = () => {
   const [showShareBoost, setShowShareBoost] = useState(false);
   const [liveShareCount, setLiveShareCount] = useState(0);
   const [tagTimer, setTagTimer] = useState(60);
+  const [aiSharing, setAiSharing] = useState(false);
+  const [aiStatus, setAiStatus] = useState<string>("");
 
   const { handle: refCode, shareUrl: cleanShareUrl } = useReferralHandle();
   const anonId = typeof window !== "undefined" ? localStorage.getItem("myrank_anon_id") : null;
