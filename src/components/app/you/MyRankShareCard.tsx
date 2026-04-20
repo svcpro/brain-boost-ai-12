@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Share2, Trophy, Sparkles, MessageCircle, Send, Instagram,
-  Loader2, CheckCircle2, Crown, Flame, Zap, Users,
+  Loader2, CheckCircle2, Crown, Flame, Zap, Users, Wand2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,7 +18,7 @@ interface LatestRank {
 
 const SHARE_URL = "https://acry.ai/myrank";
 
-const buildCaption = (r: LatestRank, name: string) =>
+const buildFallbackCaption = (r: LatestRank, name: string) =>
   `🏆 *I just got ranked on ACRY MyRank!*
 
 🇮🇳 All-India Rank: *#${r.rank.toLocaleString("en-IN")}*
@@ -29,19 +29,36 @@ const buildCaption = (r: LatestRank, name: string) =>
 Think you can beat ${name}?
 👉 Take the 60-sec AI test: ${SHARE_URL}`;
 
+/**
+ * Pick the optimal channel based on rank tier.
+ * - Legendary (top 1%): Instagram (max flex)
+ * - Elite (top 10%): WhatsApp (friend groups react fastest)
+ * - Great/Good: Telegram (study groups give the most validation)
+ */
+const pickBestChannel = (percentile: number): "whatsapp" | "instagram" | "telegram" => {
+  if (percentile >= 99) return "instagram";
+  if (percentile >= 90) return "whatsapp";
+  return "telegram";
+};
+
+const channelMeta: Record<string, { label: string; icon: any; color: string }> = {
+  whatsapp: { label: "WhatsApp", icon: MessageCircle, color: "text-emerald-300" },
+  instagram: { label: "Instagram", icon: Instagram, color: "text-pink-300" },
+  telegram: { label: "Telegram", icon: Send, color: "text-sky-300" },
+};
+
 const MyRankShareCard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [latest, setLatest] = useState<LatestRank | null>(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState<string | null>(null);
+  const [aiSharing, setAiSharing] = useState(false);
+  const [aiStatus, setAiStatus] = useState<string>("");
   const [pulse, setPulse] = useState(true);
 
-  // Soft attention pulse — runs for 6s every 18s to draw eye without being annoying
   useEffect(() => {
-    const id = setInterval(() => {
-      setPulse(p => !p);
-    }, 6000);
+    const id = setInterval(() => setPulse(p => !p), 6000);
     return () => clearInterval(id);
   }, []);
 
@@ -50,7 +67,6 @@ const MyRankShareCard = () => {
     (async () => {
       try {
         if (!user?.id) {
-          // Try anonymous test
           const anonId = localStorage.getItem("myrank_anon_id");
           if (!anonId) { setLoading(false); return; }
           const { data } = await supabase
@@ -83,11 +99,39 @@ const MyRankShareCard = () => {
     || user?.email?.split("@")[0]
     || "Champion";
 
+  /** Generate AI caption for a specific channel via edge function. */
+  const generateAICaption = async (
+    channel: "whatsapp" | "instagram" | "telegram",
+    tone: "flex" | "humble" | "challenge" = "flex",
+  ): Promise<string> => {
+    if (!latest) return "";
+    try {
+      const { data, error } = await supabase.functions.invoke("myrank-ai-caption", {
+        body: {
+          rank: latest.rank,
+          percentile: latest.percentile,
+          category: latest.category,
+          ai_tag: latest.ai_tag,
+          user_name: userName,
+          channel,
+          tone,
+          share_url: SHARE_URL,
+        },
+      });
+      if (error) throw error;
+      return (data?.caption as string) || buildFallbackCaption(latest, userName);
+    } catch {
+      return buildFallbackCaption(latest, userName);
+    }
+  };
+
+  /** Manual single-channel share (uses AI caption per channel). */
   const handleShare = async (channel: "whatsapp" | "instagram" | "telegram" | "native") => {
     if (!latest) return;
     setSharing(channel);
     try {
-      const caption = buildCaption(latest, userName);
+      const captionChannel = channel === "native" ? "whatsapp" : channel;
+      const caption = await generateAICaption(captionChannel, "flex");
       const result = await shareBadgeOneClick({
         badge: {
           rank: latest.rank,
@@ -101,7 +145,6 @@ const MyRankShareCard = () => {
         channel,
       });
 
-      // Log to backend
       try {
         const anonId = localStorage.getItem("myrank_anon_id");
         await supabase.functions.invoke("myrank-engine", {
@@ -110,32 +153,94 @@ const MyRankShareCard = () => {
             channel,
             user_id: user?.id,
             anon_session_id: anonId,
+            ai_powered: true,
           },
         });
       } catch { /* non-fatal */ }
 
       if (result.mode === "native-files") {
-        toast({ title: "Shared! 🎉", description: "Your rank is out there crushing it." });
+        toast({ title: "Shared! 🎉", description: "AI-crafted caption included." });
       } else if (result.mode === "cancelled") {
         // silent
       } else {
         toast({
-          title: channel === "instagram" ? "Caption copied 📋" : "Opening… 🚀",
+          title: channel === "instagram" ? "AI caption copied 📋" : "Opening… 🚀",
           description: result.message || "Paste your caption to share.",
         });
       }
     } catch (e: any) {
-      toast({
-        title: "Share failed",
-        description: e?.message || "Try a different channel",
-        variant: "destructive",
-      });
+      toast({ title: "Share failed", description: e?.message || "Try again", variant: "destructive" });
     } finally {
       setSharing(null);
     }
   };
 
-  // Loading skeleton
+  /** AI Auto-Share: AI picks best channel + writes optimized caption + shares — fully zero-click. */
+  const handleAIAutoShare = async () => {
+    if (!latest || aiSharing) return;
+    setAiSharing(true);
+    try {
+      const channel = pickBestChannel(latest.percentile);
+      const meta = channelMeta[channel];
+
+      setAiStatus(`AI is picking ${meta.label}…`);
+      await new Promise(r => setTimeout(r, 350));
+
+      setAiStatus("Writing your viral caption…");
+      const caption = await generateAICaption(channel, latest.percentile >= 90 ? "flex" : "challenge");
+
+      setAiStatus("Generating badge image…");
+      await new Promise(r => setTimeout(r, 200));
+
+      setAiStatus(`Opening ${meta.label}…`);
+      const result = await shareBadgeOneClick({
+        badge: {
+          rank: latest.rank,
+          percentile: latest.percentile,
+          category: latest.category,
+          aiTag: latest.ai_tag,
+          userName,
+        },
+        caption,
+        shareUrl: SHARE_URL,
+        channel,
+      });
+
+      try {
+        const anonId = localStorage.getItem("myrank_anon_id");
+        await supabase.functions.invoke("myrank-engine", {
+          body: {
+            action: "log_share",
+            channel,
+            user_id: user?.id,
+            anon_session_id: anonId,
+            ai_powered: true,
+            auto_share: true,
+          },
+        });
+      } catch { /* non-fatal */ }
+
+      if (result.mode === "native-files") {
+        toast({
+          title: `🤖 AI shared on ${meta.label}!`,
+          description: "Best channel + viral caption — done.",
+        });
+      } else if (result.mode === "cancelled") {
+        // silent
+      } else {
+        toast({
+          title: `🤖 AI picked ${meta.label}`,
+          description: result.message || "Caption copied & ready to paste.",
+        });
+      }
+    } catch (e: any) {
+      toast({ title: "AI share failed", description: e?.message || "Try a manual channel", variant: "destructive" });
+    } finally {
+      setAiSharing(false);
+      setAiStatus("");
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full rounded-3xl p-5 glass neural-border">
@@ -145,7 +250,6 @@ const MyRankShareCard = () => {
     );
   }
 
-  // No rank yet → friendly CTA
   if (!latest) {
     return (
       <motion.button
@@ -184,6 +288,9 @@ const MyRankShareCard = () => {
   }[tier];
   const TierIcon = tierConfig.icon;
 
+  const aiSuggestedChannel = pickBestChannel(latest.percentile);
+  const aiMeta = channelMeta[aiSuggestedChannel];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -191,7 +298,6 @@ const MyRankShareCard = () => {
       className="w-full rounded-3xl p-[2px] relative overflow-hidden isolate"
       style={{ background: "#0a0b1a" }}
     >
-      {/* Spinning conic gradient border for ULTRA attention */}
       <span
         aria-hidden
         className="absolute -inset-[60%] z-0 pointer-events-none"
@@ -209,7 +315,6 @@ const MyRankShareCard = () => {
             "radial-gradient(ellipse at top right, rgba(236,72,153,0.18), transparent 55%), radial-gradient(ellipse at bottom left, rgba(6,182,212,0.18), transparent 55%), linear-gradient(135deg, #0b0c1f 0%, #0a0b1a 100%)",
         }}
       >
-        {/* Floating sparkles */}
         {[
           { top: "14%", left: "12%", delay: "0s" },
           { top: "60%", right: "10%", delay: "0.7s" },
@@ -229,7 +334,6 @@ const MyRankShareCard = () => {
           />
         ))}
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-4 relative">
           <div className="flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-fuchsia-300" />
@@ -252,7 +356,6 @@ const MyRankShareCard = () => {
           </AnimatePresence>
         </div>
 
-        {/* Rank showcase */}
         <div className="flex items-center gap-4 mb-4 relative">
           <motion.div
             animate={{ rotate: [0, -5, 5, 0], scale: [1, 1.05, 1] }}
@@ -285,7 +388,46 @@ const MyRankShareCard = () => {
           </div>
         </div>
 
-        {/* Social proof / urgency */}
+        {/* ⚡ AI AUTO-SHARE — hero CTA */}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          whileHover={{ scale: 1.01 }}
+          onClick={handleAIAutoShare}
+          disabled={aiSharing}
+          className="w-full mb-3 p-[1.5px] rounded-2xl relative overflow-hidden disabled:opacity-80"
+          style={{
+            background: "linear-gradient(120deg, #f59e0b, #ec4899, #8b5cf6, #06b6d4, #f59e0b)",
+            backgroundSize: "300% 300%",
+            animation: "ai-share-gradient 4s ease infinite",
+          }}
+        >
+          <div className="rounded-[14px] px-4 py-3 bg-[#0a0b1a]/90 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 via-purple-500 to-cyan-500 flex items-center justify-center shrink-0 shadow-lg">
+              {aiSharing ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Wand2 className="w-5 h-5 text-white" />
+              )}
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-300 via-fuchsia-300 to-cyan-300 bg-clip-text text-transparent">
+                  AI Auto-Share
+                </span>
+                <span className="text-[8px] font-bold px-1 py-px rounded bg-amber-400/20 text-amber-200 border border-amber-300/30">
+                  NEW
+                </span>
+              </div>
+              <p className="text-[10px] text-white/70 truncate mt-0.5">
+                {aiSharing && aiStatus
+                  ? aiStatus
+                  : <>AI picks <span className={`font-bold ${aiMeta.color}`}>{aiMeta.label}</span> + writes viral caption</>}
+              </p>
+            </div>
+            <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+          </div>
+        </motion.button>
+
         <div className="flex items-center gap-1.5 mb-3 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10">
           <Users className="w-3 h-3 text-cyan-300" />
           <span className="text-[10px] text-white/70">
@@ -293,7 +435,11 @@ const MyRankShareCard = () => {
           </span>
         </div>
 
-        {/* Share buttons */}
+        {/* Manual override grid */}
+        <div className="mb-2 flex items-center gap-1.5">
+          <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Or pick a channel</span>
+          <span className="flex-1 h-px bg-white/10" />
+        </div>
         <div className="grid grid-cols-4 gap-2 relative">
           <ShareButton
             icon={MessageCircle}
@@ -301,7 +447,6 @@ const MyRankShareCard = () => {
             color="bg-emerald-500"
             loading={sharing === "whatsapp"}
             onClick={() => handleShare("whatsapp")}
-            highlight
           />
           <ShareButton
             icon={Instagram}
@@ -326,7 +471,6 @@ const MyRankShareCard = () => {
           />
         </div>
 
-        {/* Bottom shimmer line */}
         <span
           aria-hidden
           className="absolute left-0 right-0 bottom-0 h-[2px] pointer-events-none"
@@ -342,7 +486,7 @@ const MyRankShareCard = () => {
         @keyframes share-card-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes share-shimmer { 0% { background-position: 0% 0%; } 100% { background-position: 200% 0%; } }
         @keyframes share-twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.3); } }
-        @keyframes share-btn-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 50% { box-shadow: 0 0 0 8px rgba(16,185,129,0); } }
+        @keyframes ai-share-gradient { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
       `}</style>
     </motion.div>
   );
@@ -353,18 +497,16 @@ interface ShareButtonProps {
   label: string;
   color: string;
   loading?: boolean;
-  highlight?: boolean;
   onClick: () => void;
 }
 
-const ShareButton = ({ icon: Icon, label, color, loading, highlight, onClick }: ShareButtonProps) => (
+const ShareButton = ({ icon: Icon, label, color, loading, onClick }: ShareButtonProps) => (
   <motion.button
     whileTap={{ scale: 0.92 }}
     whileHover={{ scale: 1.05 }}
     onClick={onClick}
     disabled={loading}
     className="flex flex-col items-center gap-1 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all disabled:opacity-60 relative"
-    style={highlight ? { animation: "share-btn-pulse 2s ease-in-out infinite" } : undefined}
   >
     <div className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center shadow-md`}>
       {loading ? (
@@ -374,9 +516,6 @@ const ShareButton = ({ icon: Icon, label, color, loading, highlight, onClick }: 
       )}
     </div>
     <span className="text-[9px] font-bold text-white/80">{label}</span>
-    {highlight && (
-      <CheckCircle2 className="absolute top-1 right-1 w-2.5 h-2.5 text-emerald-300" />
-    )}
   </motion.button>
 );
 
