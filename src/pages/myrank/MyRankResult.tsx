@@ -1154,10 +1154,10 @@ const MyRankResult = () => {
         </button>
       </div>
 
-      {/* === STICKY BOTTOM SHARE BAR — always visible, lifted above app tab bar === */}
+      {/* === BOTTOM SHARE BAR — sticky inside app scroll container so it stays visible on mobile === */}
       <div
-        className="fixed inset-x-0 z-50 px-4 pt-3 pointer-events-none"
-        style={{ bottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}
+        className="sticky z-30 px-4 pt-3 pb-2 pointer-events-none"
+        style={{ bottom: "calc(76px + env(safe-area-inset-bottom, 0px))" }}
       >
         <div className="max-w-md mx-auto pointer-events-auto">
           <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#0a0b18]/85 backdrop-blur-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)]">
