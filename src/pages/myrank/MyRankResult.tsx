@@ -1176,49 +1176,6 @@ const MyRankResult = () => {
         </button>
       </div>
 
-      {/* === BOTTOM SHARE BAR — sticky inside app scroll container so it stays visible on mobile === */}
-      <div
-        className="sticky z-30 px-4 pt-3 pb-2 pointer-events-none"
-        style={{ bottom: "calc(76px + env(safe-area-inset-bottom, 0px))" }}
-      >
-        <div className="max-w-md mx-auto pointer-events-auto">
-          <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#0a0b18]/85 backdrop-blur-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)]">
-            <div className={`absolute inset-0 bg-gradient-to-r ${cfg.gradient} opacity-10`} />
-            <div className="relative flex items-center gap-2 p-2">
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] text-white/50 font-semibold leading-tight">
-                  {sharesDone === 0 ? "🚀 Don't keep this win to yourself" : `🔥 ${sharesDone} share${sharesDone > 1 ? "s" : ""} so far — keep going!`}
-                </div>
-                <div className="text-[11px] font-bold text-white truncate">
-                  Rank #{result.rank.toLocaleString("en-IN")} · {result.ai_tag}
-                </div>
-              </div>
-              <button
-                onClick={handleWhatsAppShare}
-                className="shrink-0 h-11 px-4 rounded-xl text-xs font-extrabold text-white shadow-lg active:scale-[0.96] transition flex items-center gap-1.5"
-                style={{ background: "linear-gradient(135deg, #25D366, #128C7E)" }}
-              >
-                <MessageCircle className="w-4 h-4" />
-                Share
-              </button>
-              <button
-                onClick={handleNativeShare}
-                className="shrink-0 w-11 h-11 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 flex items-center justify-center transition"
-                aria-label="More share options"
-              >
-                <Share2 className="w-4 h-4 text-white/80" />
-              </button>
-            </div>
-            {/* Mini share progress */}
-            <div className="relative h-0.5 bg-white/[0.05]">
-              <div
-                className={`h-full bg-gradient-to-r ${cfg.gradient} transition-all duration-500`}
-                style={{ width: `${sharePct}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
