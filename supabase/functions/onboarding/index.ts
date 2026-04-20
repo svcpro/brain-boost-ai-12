@@ -1280,6 +1280,220 @@ Deno.serve(async (req) => {
       return json({ success: true, subject: subject || null, topics });
     }
 
+    // ─── QUICK PRESET (combined) ───
+    // POST { exam_type?, exam_id?, exam_category?, auto_save?, max_subjects?, topics_per_subject? }
+    // → { success, source, exam, subjects: [{ name, topics: [...] }], saved? }
+    if (action === "quick-preset" || action === "quick_preset") {
+      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      const examId = String(requestBody.exam_id || url.searchParams.get("exam_id") || "").trim();
+      const examCategory = String(requestBody.exam_category || url.searchParams.get("exam_category") || "").trim();
+      const autoSave = requestBody.auto_save === true || url.searchParams.get("auto_save") === "true";
+      const maxSubjects = Math.min(Math.max(Number(requestBody.max_subjects ?? url.searchParams.get("max_subjects") ?? 6) || 6, 3), 10);
+      const topicsPerSubject = Math.min(Math.max(Number(requestBody.topics_per_subject ?? url.searchParams.get("topics_per_subject") ?? 6) || 6, 3), 10);
+
+      if (!examType && !examId) {
+        return json({ error: "exam_type or exam_id is required" }, 400);
+      }
+
+      const examLabel = normalizeExamType(examType || examId) || examType || examId;
+
+      // Step 1 — preset lookup
+      let { subjects: subjectNames, source } = resolveQuickPresetSubjects(examType, examId, examCategory);
+      let usedAI = false;
+      let subjectPayload: Array<{ name: string; topics: string[] }>;
+
+      if (subjectNames.length > 0) {
+        subjectPayload = subjectNames.slice(0, maxSubjects).map((name) => ({
+          name,
+          topics: resolveQuickPresetTopics(name).slice(0, topicsPerSubject),
+        }));
+      } else {
+        // Step 2 — AI fallback
+        try {
+          const aiSubjects = await aiGenerateQuickPreset(examLabel, examCategory, maxSubjects, topicsPerSubject);
+          if (aiSubjects.length > 0) {
+            subjectPayload = aiSubjects.slice(0, maxSubjects).map((s) => ({
+              name: s.name,
+              topics: s.topics.slice(0, topicsPerSubject),
+            }));
+            source = "preset";
+            usedAI = true;
+          } else {
+            subjectPayload = [];
+          }
+        } catch (e) {
+          console.error("[quick-preset] AI fallback failed:", e);
+          subjectPayload = [];
+        }
+      }
+
+      if (subjectPayload.length === 0) {
+        return json({
+          success: false,
+          error: "No preset available and AI fallback failed.",
+          exam: { type: examLabel, id: examId, category: examCategory },
+          subjects: [],
+        }, 200);
+      }
+
+      let saved: any = null;
+      if (autoSave) {
+        const { userId } = await resolveAuthenticatedUserId();
+        if (!userId) {
+          return json({
+            success: true,
+            source: usedAI ? "ai" : source,
+            used_ai: usedAI,
+            exam: { type: examLabel, id: examId, category: examCategory },
+            subjects: subjectPayload,
+            saved: null,
+            warning: "auto_save requested but no valid Bearer token; data returned but not saved.",
+          });
+        }
+
+        const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        let subjectsInserted = 0;
+        let topicsInserted = 0;
+
+        for (const sub of subjectPayload) {
+          await adminClient
+            .from("subjects")
+            .upsert({ user_id: userId, name: sub.name }, { onConflict: "user_id,name", ignoreDuplicates: true });
+
+          const { data: subjectRow } = await adminClient
+            .from("subjects")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("name", sub.name)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+          if (!subjectRow?.id) continue;
+          subjectsInserted++;
+
+          for (const topicName of sub.topics) {
+            const trimmed = String(topicName || "").trim();
+            if (!trimmed) continue;
+            await adminClient
+              .from("topics")
+              .upsert(
+                { user_id: userId, subject_id: subjectRow.id, name: trimmed },
+                { onConflict: "user_id,subject_id,name", ignoreDuplicates: true },
+              );
+            topicsInserted++;
+          }
+        }
+
+        const fullList = await fetchUserSubjectsWithTopics(adminClient, userId);
+        saved = {
+          subjects_added: subjectsInserted,
+          topics_added: topicsInserted,
+          subjects_in_db: fullList,
+        };
+      }
+
+      return json({
+        success: true,
+        source: usedAI ? "ai" : source,
+        used_ai: usedAI,
+        exam: { type: examLabel, id: examId, category: examCategory },
+        subject_count: subjectPayload.length,
+        topic_count: subjectPayload.reduce((acc, s) => acc + s.topics.length, 0),
+        subjects: subjectPayload,
+        saved,
+      });
+    }
+
+    // ─── QUICK PRESET (per-subject) ───
+    // POST { subject, exam_type?, count?, auto_save? }
+    // → { success, subject, source, topics: [...], saved? }
+    if (action === "quick-preset-subject" || action === "quick_preset_subject") {
+      const subject = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
+      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      const autoSave = requestBody.auto_save === true || url.searchParams.get("auto_save") === "true";
+      const count = Math.min(Math.max(Number(requestBody.count ?? url.searchParams.get("count") ?? 6) || 6, 3), 12);
+
+      if (!subject) return json({ error: "subject is required" }, 400);
+
+      const examLabel = normalizeExamType(examType) || examType;
+
+      let topics = resolveQuickPresetTopics(subject).slice(0, count);
+      let usedAI = false;
+      let source: "preset" | "ai" | "fallback" =
+        QUICK_PRESET_TOPICS[subject] || SUGGESTED_TOPICS_BY_SUBJECT[subject] ? "preset" : "fallback";
+
+      if (source === "fallback") {
+        try {
+          const aiTopics = await aiGenerateTopicsForSubject(subject, examLabel, count);
+          if (aiTopics.length > 0) {
+            topics = aiTopics.slice(0, count);
+            source = "ai";
+            usedAI = true;
+          }
+        } catch (e) {
+          console.error("[quick-preset-subject] AI fallback failed:", e);
+        }
+      }
+
+      let saved: any = null;
+      if (autoSave) {
+        const { userId } = await resolveAuthenticatedUserId();
+        if (!userId) {
+          return json({
+            success: true,
+            subject,
+            source,
+            used_ai: usedAI,
+            topics,
+            saved: null,
+            warning: "auto_save requested but no valid Bearer token; data returned but not saved.",
+          });
+        }
+
+        const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+        await adminClient
+          .from("subjects")
+          .upsert({ user_id: userId, name: subject }, { onConflict: "user_id,name", ignoreDuplicates: true });
+
+        const { data: subjectRow } = await adminClient
+          .from("subjects")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("name", subject)
+          .is("deleted_at", null)
+          .maybeSingle();
+
+        let topicsInserted = 0;
+        if (subjectRow?.id) {
+          for (const t of topics) {
+            const trimmed = String(t || "").trim();
+            if (!trimmed) continue;
+            await adminClient
+              .from("topics")
+              .upsert(
+                { user_id: userId, subject_id: subjectRow.id, name: trimmed },
+                { onConflict: "user_id,subject_id,name", ignoreDuplicates: true },
+              );
+            topicsInserted++;
+          }
+        }
+
+        saved = { subject_id: subjectRow?.id || null, topics_added: topicsInserted };
+      }
+
+      return json({
+        success: true,
+        subject,
+        exam_type: examLabel || null,
+        source,
+        used_ai: usedAI,
+        topic_count: topics.length,
+        topics,
+        saved,
+      });
+    }
+
     // --- STEP 5: Save topics ---
     if (action === "step5-topics" || action === "step5_topics") {
       const userId = await resolveUserId();
