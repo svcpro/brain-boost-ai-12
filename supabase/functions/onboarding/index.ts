@@ -128,6 +128,299 @@ const EXAM_ALIAS_MAP: Record<string, string> = {
   ssc: "SSC CGL",
 };
 
+// ─── EXTENDED PRESETS — covers Quick Preset button on onboarding ───
+// Keyed by canonical exam name (after normalizeExamType)
+const QUICK_PRESET_SUBJECTS: Record<string, string[]> = {
+  // Civil Services
+  "UPSC CSE": ["History", "Geography", "Polity", "Economy", "Science & Technology", "Environment", "Ethics", "Essay", "Current Affairs"],
+  "UPSC IES": ["General Studies", "Engineering Discipline", "English"],
+  "UPSC CMS": ["General Medicine", "Surgery", "Gynaecology", "Paediatrics", "Preventive Medicine"],
+  "UPSC CAPF": ["General Ability", "Essay", "Comprehension", "Current Affairs"],
+  "State PSC": ["General Studies", "CSAT", "Optional Subject", "History", "Geography", "Polity"],
+  // Medical
+  "NEET UG": ["Physics", "Chemistry", "Biology"],
+  "NEET PG": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
+  // Engineering
+  "JEE Main": ["Physics", "Chemistry", "Mathematics"],
+  "JEE Advanced": ["Physics", "Chemistry", "Mathematics"],
+  "GATE": ["Engineering Mathematics", "General Aptitude", "Core Subject"],
+  "BITSAT": ["Physics", "Chemistry", "Mathematics", "English Proficiency", "Logical Reasoning"],
+  // MBA
+  "CAT": ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+  "XAT": ["Quantitative Aptitude", "Verbal Ability", "Decision Making", "General Knowledge"],
+  "NMAT": ["Quantitative Skills", "Logical Reasoning", "Language Skills"],
+  // Law
+  "CLAT": ["English", "Current Affairs", "Legal Reasoning", "Logical Reasoning", "Quantitative Techniques"],
+  "AILET": ["English", "General Knowledge", "Legal Reasoning", "Logical Reasoning", "Mathematics"],
+  "LSAT": ["Reading Comprehension", "Logical Reasoning", "Analytical Reasoning"],
+  // SSC
+  "SSC CGL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
+  "SSC CHSL": ["Quantitative Aptitude", "English", "General Intelligence", "General Awareness"],
+  "SSC MTS": ["Numerical Aptitude", "English", "General Intelligence", "General Awareness"],
+  // Banking
+  "IBPS PO": ["Quantitative Aptitude", "Reasoning", "English", "General Awareness", "Computer Aptitude"],
+  "IBPS Clerk": ["Quantitative Aptitude", "Reasoning", "English", "General Awareness", "Computer Aptitude"],
+  "SBI PO": ["Quantitative Aptitude", "Reasoning", "English", "General Awareness", "Computer Aptitude"],
+  "SBI Clerk": ["Quantitative Aptitude", "Reasoning", "English", "General Awareness", "Computer Aptitude"],
+  "RBI Grade B": ["General Awareness", "English", "Quantitative Aptitude", "Reasoning", "Finance & Management"],
+  // Railways
+  "RRB NTPC": ["Mathematics", "General Intelligence", "General Awareness"],
+  "RRB Group D": ["Mathematics", "General Intelligence", "General Science", "General Awareness"],
+  // Defence
+  "NDA": ["Mathematics", "General Ability Test", "English", "General Knowledge"],
+  "CDS": ["English", "General Knowledge", "Mathematics"],
+  "AFCAT": ["English", "General Awareness", "Numerical Ability", "Reasoning"],
+  // International
+  "GRE": ["Verbal Reasoning", "Quantitative Reasoning", "Analytical Writing"],
+  "GMAT": ["Quantitative", "Verbal", "Integrated Reasoning", "Analytical Writing"],
+  "SAT": ["Math", "Evidence-Based Reading", "Writing"],
+  "TOEFL": ["Listening", "Reading", "Writing", "Speaking"],
+  "IELTS": ["Listening", "Reading", "Writing", "Speaking"],
+  // Teaching & Research / University / Research
+  "UGC NET": ["General Paper", "Subject Paper"],
+  "CSIR NET": ["General Aptitude", "Subject Paper"],
+  "CTET": ["Child Development & Pedagogy", "Language I", "Language II", "Mathematics", "Environmental Studies"],
+  "CUET": ["Language", "Domain Subject", "General Test"],
+  "KVPY": ["Physics", "Chemistry", "Mathematics", "Biology"],
+  // Finance certifications (commonly requested)
+  "USMLE": ["Anatomy", "Physiology", "Biochemistry", "Pathology", "Pharmacology", "Microbiology"],
+  "MCAT": ["Biology", "Chemistry", "Physics", "Psychology", "Critical Analysis"],
+  "CFA": ["Ethics", "Quantitative Methods", "Economics", "Financial Reporting", "Corporate Finance", "Equity Investments"],
+  "CPA": ["Auditing", "Financial Accounting", "Regulation", "Business Environment"],
+  "ACCA": ["Financial Accounting", "Management Accounting", "Taxation", "Audit & Assurance", "Financial Reporting"],
+};
+
+// Generic category-based fallbacks for unknown / "other_*" exams
+const QUICK_PRESET_GENERIC_BY_CATEGORY: Record<string, string[]> = {
+  government: ["General Studies", "General Knowledge", "Quantitative Aptitude", "Reasoning", "English Language", "Current Affairs"],
+  "Government Jobs": ["General Studies", "General Knowledge", "Quantitative Aptitude", "Reasoning", "English Language", "Current Affairs"],
+  banking: ["Quantitative Aptitude", "Reasoning", "English", "General Awareness", "Computer Aptitude"],
+  Banking: ["Quantitative Aptitude", "Reasoning", "English", "General Awareness", "Computer Aptitude"],
+  railways: ["Mathematics", "General Intelligence", "General Science", "General Awareness"],
+  Railways: ["Mathematics", "General Intelligence", "General Science", "General Awareness"],
+  defence: ["Mathematics", "General Ability Test", "English", "General Knowledge"],
+  Defence: ["Mathematics", "General Ability Test", "English", "General Knowledge"],
+  entrance: ["Mathematics", "Physics", "Chemistry", "English", "Logical Reasoning"],
+  Engineering: ["Mathematics", "Physics", "Chemistry", "English", "Logical Reasoning"],
+  Medical: ["Physics", "Chemistry", "Biology"],
+  MBA: ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
+  Law: ["English", "Legal Reasoning", "Logical Reasoning", "Current Affairs"],
+  global: ["English", "Quantitative Reasoning", "Verbal Reasoning", "Analytical Writing"],
+  International: ["English", "Quantitative Reasoning", "Verbal Reasoning", "Analytical Writing"],
+  "Teaching & Research": ["General Paper", "Subject Paper"],
+  University: ["Language", "Domain Subject", "General Test"],
+  Research: ["General Aptitude", "Subject Paper"],
+  "Civil Services": ["General Studies", "CSAT", "History", "Geography", "Polity", "Economy", "Current Affairs"],
+};
+
+// Extended topic suggestions (adds rows the original map didn't cover)
+const QUICK_PRESET_TOPICS: Record<string, string[]> = {
+  // Reuse what's in SUGGESTED_TOPICS_BY_SUBJECT plus extras
+  "Engineering Mathematics": ["Linear Algebra", "Calculus", "Differential Equations", "Probability", "Numerical Methods"],
+  "General Aptitude": ["Verbal Ability", "Numerical Ability", "Reasoning"],
+  "Core Subject": ["Fundamentals", "Advanced Topics", "Applications", "Problem Solving"],
+  "Quantitative Aptitude": ["Arithmetic", "Algebra", "Geometry", "Number Systems", "Time & Work", "Percentages"],
+  "Quantitative Skills": ["Arithmetic", "Algebra", "Geometry", "Data Interpretation"],
+  "Quantitative Methods": ["Time Value of Money", "Probability", "Statistics", "Hypothesis Testing"],
+  "Quantitative Techniques": ["Arithmetic", "Algebra", "Mensuration", "Data Interpretation"],
+  "Quantitative Reasoning": ["Arithmetic", "Algebra", "Geometry", "Data Analysis"],
+  "Quantitative": ["Problem Solving", "Data Sufficiency", "Arithmetic", "Algebra", "Geometry"],
+  "Verbal Ability": ["Reading Comprehension", "Para Jumbles", "Sentence Correction", "Vocabulary"],
+  "Verbal Reasoning": ["Reading Comprehension", "Text Completion", "Sentence Equivalence"],
+  "Verbal": ["Reading Comprehension", "Critical Reasoning", "Sentence Correction"],
+  "Data Interpretation": ["Tables", "Bar Graphs", "Pie Charts", "Caselets", "Line Graphs"],
+  "Logical Reasoning": ["Arrangements", "Puzzles", "Syllogisms", "Blood Relations", "Coding-Decoding"],
+  "Reasoning": ["Verbal Reasoning", "Non-Verbal Reasoning", "Puzzles", "Syllogisms", "Series"],
+  "General Intelligence": ["Analogies", "Series", "Coding-Decoding", "Puzzles", "Mirror Images"],
+  "Analytical Reasoning": ["Logic Games", "Sequencing", "Grouping", "Matching"],
+  "Decision Making": ["Case Studies", "Logical Decisions", "Ethical Dilemmas"],
+  "English": ["Grammar", "Vocabulary", "Reading Comprehension", "Sentence Correction"],
+  "English Language": ["Grammar", "Vocabulary", "Reading Comprehension", "Cloze Test", "Para Jumbles"],
+  "English Proficiency": ["Grammar", "Vocabulary", "Reading Comprehension"],
+  "Writing": ["Essay", "Argument Analysis", "Grammar"],
+  "Analytical Writing": ["Issue Essay", "Argument Essay"],
+  "Evidence-Based Reading": ["Reading Comprehension", "Vocabulary in Context", "Inference"],
+  "Reading": ["Skimming", "Scanning", "Inference", "Vocabulary"],
+  "Reading Comprehension": ["Main Idea", "Inference", "Vocabulary", "Author's Tone"],
+  "Listening": ["Note Taking", "Multiple Choice", "Form Completion"],
+  "Speaking": ["Introduction", "Cue Card", "Discussion"],
+  "Math": ["Algebra", "Geometry", "Trigonometry", "Statistics", "Word Problems"],
+  "Numerical Ability": ["Arithmetic", "Number Series", "Simplification", "Data Interpretation"],
+  "Numerical Aptitude": ["Arithmetic", "Algebra", "Geometry", "Mensuration"],
+  "General Studies": ["History", "Geography", "Polity", "Economy", "Environment", "Science & Tech"],
+  "General Knowledge": ["Current Affairs", "History", "Geography", "Polity", "Sports", "Awards"],
+  "General Awareness": ["Current Affairs", "Banking Awareness", "Static GK", "Economy", "Sports"],
+  "General Science": ["Physics Basics", "Chemistry Basics", "Biology Basics", "Everyday Science"],
+  "General Ability": ["English", "General Knowledge", "Reasoning"],
+  "General Ability Test": ["English", "General Knowledge", "Reasoning"],
+  "General Paper": ["Teaching Aptitude", "Research Aptitude", "Reasoning", "Communication", "ICT"],
+  "Subject Paper": ["Core Subject Theory", "Advanced Concepts", "Research Methodology"],
+  "Optional Subject": ["Paper 1", "Paper 2", "Case Studies"],
+  "Domain Subject": ["Core Concepts", "Applied Theory", "Practice Questions"],
+  "Current Affairs": ["National", "International", "Economy", "Sports", "Awards", "Government Schemes"],
+  "Computer Aptitude": ["Computer Basics", "MS Office", "Internet", "Networking", "Hardware/Software"],
+  "Comprehension": ["Reading Comprehension", "Vocabulary", "Inference"],
+  "Essay": ["Structure", "Argumentation", "Vocabulary", "Sample Topics"],
+  "Ethics": ["Professional Standards", "Code of Conduct", "Case Studies"],
+  "Environment": ["Ecology", "Biodiversity", "Climate Change", "Pollution", "Conservation"],
+  "Science & Technology": ["Space Tech", "Defence Tech", "IT", "Biotech", "Recent Innovations"],
+  "Polity": ["Constitution", "Governance", "Panchayati Raj", "Judiciary"],
+  "Economy": ["Microeconomics", "Macroeconomics", "Indian Economy", "Banking & Finance"],
+  "Economics": ["Microeconomics", "Macroeconomics", "Indian Economy", "Banking"],
+  "Finance & Management": ["Financial Markets", "Risk Management", "Corporate Governance"],
+  "Legal Reasoning": ["Constitutional Law", "Contract Law", "Tort Law", "Criminal Law"],
+  "CSAT": ["Comprehension", "Logical Reasoning", "Basic Numeracy", "Decision Making"],
+  "Child Development & Pedagogy": ["Theories of Learning", "Inclusive Education", "Assessment", "Cognitive Development"],
+  "Language I": ["Grammar", "Comprehension", "Pedagogy of Language"],
+  "Language II": ["Grammar", "Comprehension", "Pedagogy of Language"],
+  "Environmental Studies": ["Family & Friends", "Food", "Shelter", "Water", "Travel"],
+  "Engineering Discipline": ["Core Subject Theory", "Design", "Applications"],
+  "General Medicine": ["Cardiology", "Respiratory", "Endocrinology", "Neurology"],
+  "Surgery": ["General Surgery", "Trauma", "Pre/Post-op Care"],
+  "Gynaecology": ["Obstetrics", "Gynaecology", "Family Planning"],
+  "Paediatrics": ["Neonatology", "Common Childhood Illnesses", "Vaccinations"],
+  "Preventive Medicine": ["Epidemiology", "Public Health", "Health Programs"],
+};
+
+const resolveQuickPresetSubjects = (
+  examType: string,
+  examId: string,
+  examCategory: string,
+): { subjects: string[]; source: "preset" | "generic" | "none" } => {
+  const canonical = normalizeExamType(examType || examId);
+  if (canonical && QUICK_PRESET_SUBJECTS[canonical]) {
+    return { subjects: QUICK_PRESET_SUBJECTS[canonical], source: "preset" };
+  }
+  const cat = String(examCategory || "").trim();
+  if (cat && QUICK_PRESET_GENERIC_BY_CATEGORY[cat]) {
+    return { subjects: QUICK_PRESET_GENERIC_BY_CATEGORY[cat], source: "generic" };
+  }
+  // try lowercase category key
+  const catLower = cat.toLowerCase();
+  if (catLower && QUICK_PRESET_GENERIC_BY_CATEGORY[catLower]) {
+    return { subjects: QUICK_PRESET_GENERIC_BY_CATEGORY[catLower], source: "generic" };
+  }
+  return { subjects: [], source: "none" };
+};
+
+const resolveQuickPresetTopics = (subjectName: string): string[] => {
+  const name = String(subjectName || "").trim();
+  if (!name) return [];
+  return (
+    QUICK_PRESET_TOPICS[name] ||
+    SUGGESTED_TOPICS_BY_SUBJECT[name] ||
+    ["Fundamentals", "Advanced Concepts", "Practice Problems"]
+  );
+};
+
+// AI fallback — generates {subject: topics[]} for unknown exams
+async function aiGenerateQuickPreset(
+  examLabel: string,
+  examCategory: string,
+  maxSubjects = 6,
+  topicsPerSubject = 6,
+): Promise<Array<{ name: string; topics: string[] }>> {
+  const prompt = `You are an expert exam-curriculum designer. Generate a concise study curriculum for the exam:
+  - Exam: "${examLabel}"
+  - Category: "${examCategory || "general"}"
+
+Return ${maxSubjects} core subjects, each with ${topicsPerSubject} essential topics that a beginner-to-intermediate student should master.
+Use SHORT canonical names (e.g., "Physics", "Mechanics"). No descriptions, no numbering.`;
+
+  const result = await callAI({
+    model: "google/gemini-3-flash-preview",
+    temperature: 0.3,
+    maxTokens: 1200,
+    messages: [
+      { role: "system", content: "You are an expert exam curriculum designer. Always respond using the provided tool." },
+      { role: "user", content: prompt },
+    ],
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "return_curriculum",
+          description: "Return a structured curriculum (subjects with topics).",
+          parameters: {
+            type: "object",
+            properties: {
+              subjects: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string", description: "Short subject name" },
+                    topics: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Short topic names (no numbering, no descriptions)",
+                    },
+                  },
+                  required: ["name", "topics"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["subjects"],
+            additionalProperties: false,
+          },
+        },
+      },
+    ],
+    tool_choice: { type: "function", function: { name: "return_curriculum" } },
+  });
+
+  const args = getAIToolArgs(result);
+  const subjects = Array.isArray(args?.subjects) ? args.subjects : [];
+  return subjects
+    .map((s: any) => ({
+      name: String(s?.name || "").trim(),
+      topics: Array.isArray(s?.topics) ? s.topics.map((t: any) => String(t || "").trim()).filter(Boolean) : [],
+    }))
+    .filter((s: any) => s.name);
+}
+
+async function aiGenerateTopicsForSubject(
+  subject: string,
+  examLabel: string,
+  count = 6,
+): Promise<string[]> {
+  const result = await callAI({
+    model: "google/gemini-3-flash-preview",
+    temperature: 0.3,
+    maxTokens: 400,
+    messages: [
+      { role: "system", content: "You generate concise exam topic lists. Always use the provided tool." },
+      {
+        role: "user",
+        content: `List ${count} essential topics for the subject "${subject}" in the context of the "${examLabel || "general"}" exam. Use short canonical names.`,
+      },
+    ],
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "return_topics",
+          description: "Return short topic names.",
+          parameters: {
+            type: "object",
+            properties: {
+              topics: { type: "array", items: { type: "string" } },
+            },
+            required: ["topics"],
+            additionalProperties: false,
+          },
+        },
+      },
+    ],
+    tool_choice: { type: "function", function: { name: "return_topics" } },
+  });
+
+  const args = getAIToolArgs(result);
+  const topics = Array.isArray(args?.topics) ? args.topics : [];
+  return topics.map((t: any) => String(t || "").trim()).filter(Boolean);
+}
+
 const SUGGESTED_SUBJECT_ID_PREFIX = "suggested-subject::";
 const SUGGESTED_TOPIC_ID_PREFIX = "suggested-topic::";
 
@@ -987,6 +1280,220 @@ Deno.serve(async (req) => {
       return json({ success: true, subject: subject || null, topics });
     }
 
+    // ─── QUICK PRESET (combined) ───
+    // POST { exam_type?, exam_id?, exam_category?, auto_save?, max_subjects?, topics_per_subject? }
+    // → { success, source, exam, subjects: [{ name, topics: [...] }], saved? }
+    if (action === "quick-preset" || action === "quick_preset") {
+      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      const examId = String(requestBody.exam_id || url.searchParams.get("exam_id") || "").trim();
+      const examCategory = String(requestBody.exam_category || url.searchParams.get("exam_category") || "").trim();
+      const autoSave = requestBody.auto_save === true || url.searchParams.get("auto_save") === "true";
+      const maxSubjects = Math.min(Math.max(Number(requestBody.max_subjects ?? url.searchParams.get("max_subjects") ?? 6) || 6, 3), 10);
+      const topicsPerSubject = Math.min(Math.max(Number(requestBody.topics_per_subject ?? url.searchParams.get("topics_per_subject") ?? 6) || 6, 3), 10);
+
+      if (!examType && !examId) {
+        return json({ error: "exam_type or exam_id is required" }, 400);
+      }
+
+      const examLabel = normalizeExamType(examType || examId) || examType || examId;
+
+      // Step 1 — preset lookup
+      let { subjects: subjectNames, source } = resolveQuickPresetSubjects(examType, examId, examCategory);
+      let usedAI = false;
+      let subjectPayload: Array<{ name: string; topics: string[] }>;
+
+      if (subjectNames.length > 0) {
+        subjectPayload = subjectNames.slice(0, maxSubjects).map((name) => ({
+          name,
+          topics: resolveQuickPresetTopics(name).slice(0, topicsPerSubject),
+        }));
+      } else {
+        // Step 2 — AI fallback
+        try {
+          const aiSubjects = await aiGenerateQuickPreset(examLabel, examCategory, maxSubjects, topicsPerSubject);
+          if (aiSubjects.length > 0) {
+            subjectPayload = aiSubjects.slice(0, maxSubjects).map((s) => ({
+              name: s.name,
+              topics: s.topics.slice(0, topicsPerSubject),
+            }));
+            source = "preset";
+            usedAI = true;
+          } else {
+            subjectPayload = [];
+          }
+        } catch (e) {
+          console.error("[quick-preset] AI fallback failed:", e);
+          subjectPayload = [];
+        }
+      }
+
+      if (subjectPayload.length === 0) {
+        return json({
+          success: false,
+          error: "No preset available and AI fallback failed.",
+          exam: { type: examLabel, id: examId, category: examCategory },
+          subjects: [],
+        }, 200);
+      }
+
+      let saved: any = null;
+      if (autoSave) {
+        const { userId } = await resolveAuthenticatedUserId();
+        if (!userId) {
+          return json({
+            success: true,
+            source: usedAI ? "ai" : source,
+            used_ai: usedAI,
+            exam: { type: examLabel, id: examId, category: examCategory },
+            subjects: subjectPayload,
+            saved: null,
+            warning: "auto_save requested but no valid Bearer token; data returned but not saved.",
+          });
+        }
+
+        const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        let subjectsInserted = 0;
+        let topicsInserted = 0;
+
+        for (const sub of subjectPayload) {
+          await adminClient
+            .from("subjects")
+            .upsert({ user_id: userId, name: sub.name }, { onConflict: "user_id,name", ignoreDuplicates: true });
+
+          const { data: subjectRow } = await adminClient
+            .from("subjects")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("name", sub.name)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+          if (!subjectRow?.id) continue;
+          subjectsInserted++;
+
+          for (const topicName of sub.topics) {
+            const trimmed = String(topicName || "").trim();
+            if (!trimmed) continue;
+            await adminClient
+              .from("topics")
+              .upsert(
+                { user_id: userId, subject_id: subjectRow.id, name: trimmed },
+                { onConflict: "user_id,subject_id,name", ignoreDuplicates: true },
+              );
+            topicsInserted++;
+          }
+        }
+
+        const fullList = await fetchUserSubjectsWithTopics(adminClient, userId);
+        saved = {
+          subjects_added: subjectsInserted,
+          topics_added: topicsInserted,
+          subjects_in_db: fullList,
+        };
+      }
+
+      return json({
+        success: true,
+        source: usedAI ? "ai" : source,
+        used_ai: usedAI,
+        exam: { type: examLabel, id: examId, category: examCategory },
+        subject_count: subjectPayload.length,
+        topic_count: subjectPayload.reduce((acc, s) => acc + s.topics.length, 0),
+        subjects: subjectPayload,
+        saved,
+      });
+    }
+
+    // ─── QUICK PRESET (per-subject) ───
+    // POST { subject, exam_type?, count?, auto_save? }
+    // → { success, subject, source, topics: [...], saved? }
+    if (action === "quick-preset-subject" || action === "quick_preset_subject") {
+      const subject = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
+      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
+      const autoSave = requestBody.auto_save === true || url.searchParams.get("auto_save") === "true";
+      const count = Math.min(Math.max(Number(requestBody.count ?? url.searchParams.get("count") ?? 6) || 6, 3), 12);
+
+      if (!subject) return json({ error: "subject is required" }, 400);
+
+      const examLabel = normalizeExamType(examType) || examType;
+
+      let topics = resolveQuickPresetTopics(subject).slice(0, count);
+      let usedAI = false;
+      let source: "preset" | "ai" | "fallback" =
+        QUICK_PRESET_TOPICS[subject] || SUGGESTED_TOPICS_BY_SUBJECT[subject] ? "preset" : "fallback";
+
+      if (source === "fallback") {
+        try {
+          const aiTopics = await aiGenerateTopicsForSubject(subject, examLabel, count);
+          if (aiTopics.length > 0) {
+            topics = aiTopics.slice(0, count);
+            source = "ai";
+            usedAI = true;
+          }
+        } catch (e) {
+          console.error("[quick-preset-subject] AI fallback failed:", e);
+        }
+      }
+
+      let saved: any = null;
+      if (autoSave) {
+        const { userId } = await resolveAuthenticatedUserId();
+        if (!userId) {
+          return json({
+            success: true,
+            subject,
+            source,
+            used_ai: usedAI,
+            topics,
+            saved: null,
+            warning: "auto_save requested but no valid Bearer token; data returned but not saved.",
+          });
+        }
+
+        const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+        await adminClient
+          .from("subjects")
+          .upsert({ user_id: userId, name: subject }, { onConflict: "user_id,name", ignoreDuplicates: true });
+
+        const { data: subjectRow } = await adminClient
+          .from("subjects")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("name", subject)
+          .is("deleted_at", null)
+          .maybeSingle();
+
+        let topicsInserted = 0;
+        if (subjectRow?.id) {
+          for (const t of topics) {
+            const trimmed = String(t || "").trim();
+            if (!trimmed) continue;
+            await adminClient
+              .from("topics")
+              .upsert(
+                { user_id: userId, subject_id: subjectRow.id, name: trimmed },
+                { onConflict: "user_id,subject_id,name", ignoreDuplicates: true },
+              );
+            topicsInserted++;
+          }
+        }
+
+        saved = { subject_id: subjectRow?.id || null, topics_added: topicsInserted };
+      }
+
+      return json({
+        success: true,
+        subject,
+        exam_type: examLabel || null,
+        source,
+        used_ai: usedAI,
+        topic_count: topics.length,
+        topics,
+        saved,
+      });
+    }
+
     // --- STEP 5: Save topics ---
     if (action === "step5-topics" || action === "step5_topics") {
       const userId = await resolveUserId();
@@ -1103,7 +1610,7 @@ Deno.serve(async (req) => {
       return json({ success: true, redirect_to: "/app" });
     }
 
-    return json({ error: "Invalid action. Supported: exam-types, status, suggested-subjects, suggested-topics, list-subjects, add-subject, delete-subject, list-topics, add-topic, delete-topic, ai-generate-curriculum, ai-generate-topics, step1-name, step2-exam, step3-date, step4-subjects, step5-topics, step6-mode, save-step, complete, skip" }, 400);
+    return json({ error: "Invalid action. Supported: exam-types, status, suggested-subjects, suggested-topics, quick-preset, quick-preset-subject, list-subjects, add-subject, delete-subject, list-topics, add-topic, delete-topic, ai-generate-curriculum, ai-generate-topics, step1-name, step2-exam, step3-date, step4-subjects, step5-topics, step6-mode, save-step, complete, skip" }, 400);
   } catch (e) {
     console.error("onboarding error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
