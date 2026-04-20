@@ -376,7 +376,6 @@ const MyRankResult = () => {
     } catch { /* fall through */ }
 
     // ───── Legacy fallback (text-only) ─────
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const encoded = encodeURIComponent(currentMessage);
 
     if (channel === "native") {
