@@ -16,6 +16,7 @@ const SCOPES: { key: string; label: string; icon: typeof Globe }[] = [
 interface Row {
   position: number;
   name: string;
+  avatar_url?: string | null;
   category: string;
   score: number;
   percentile: number;
@@ -24,6 +25,15 @@ interface Row {
   city: string | null;
   is_me: boolean;
 }
+
+const getInitials = (name: string) =>
+  (name || "?")
+    .split(" ")
+    .map(n => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
 const MyRankLeaderboard = () => {
   const navigate = useNavigate();
