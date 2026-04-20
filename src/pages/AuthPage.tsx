@@ -151,6 +151,13 @@ const AuthPage = () => {
   const [searchParams] = useSearchParams();
   const showSplashParam = searchParams.get("splash") === "1";
   const [showSplash, setShowSplash] = useState(showSplashParam);
+  // Optional redirect target after a successful login (used by /myrank gate, etc.).
+  // Only allow same-origin paths to prevent open-redirect attacks.
+  const rawRedirect = searchParams.get("redirect");
+  const redirectTo =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/app";
   const [isLogin, setIsLogin] = useState(true);
   const [authMethod, setAuthMethod] = useState<AuthMethod>("mobile");
   const [mobile, setMobile] = useState("");
