@@ -255,14 +255,20 @@ function openChannelUrl(
       target = "https://www.instagram.com/";
       break;
   }
-  // Open in new tab on desktop, same tab on mobile for reliable deep-link
+  // Mobile: same-tab deep-link (works inside user gesture).
   if (isMobile) {
     window.location.href = target;
-  } else {
-    const w = window.open(target, "_blank", "noopener,noreferrer");
-    // Popup blocked? Fall back to same-tab navigation in a new context
-    if (!w) window.location.href = target;
+    return;
   }
+  // Desktop: prefer redirecting the pre-opened window (gesture preserved).
+  if (preOpenedWindow && !preOpenedWindow.closed) {
+    try {
+      preOpenedWindow.location.href = target;
+      return;
+    } catch { /* cross-origin or blocked — fall through */ }
+  }
+  const w = window.open(target, "_blank", "noopener,noreferrer");
+  if (!w) window.location.href = target;
 }
 
 // Re-export for completeness so the only export surface stays stable.
