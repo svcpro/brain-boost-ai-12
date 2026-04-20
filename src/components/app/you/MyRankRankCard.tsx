@@ -47,7 +47,7 @@ const MyRankRankCard = () => {
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
-      onClick={() => navigate("/myrank")}
+      onClick={openMyRankInApp}
       className="group relative w-full overflow-hidden rounded-3xl p-[2px] text-left isolate"
       style={{ background: "#0a0b1a" }}
     >
