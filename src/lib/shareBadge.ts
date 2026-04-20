@@ -169,30 +169,25 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
 
   if (canShareFiles && typeof navigator.share === "function") {
     try {
-      // Send BOTH the badge image AND the caption text together.
-      // Caption is already in clipboard above as a guaranteed backup,
-      // so even if a target app drops `text`, the user can long-press → paste.
       await navigator.share({
         files: [file],
         title: "My ACRY Rank",
         text: caption,
+        // Some platforms reject `url` when files are present; omit on iOS-style flow.
       });
-      return {
-        ok: true,
-        mode: "native-files",
-        message: "Image + caption shared. Caption also copied — paste if needed.",
-      };
+      return { ok: true, mode: "native-files" };
     } catch (err: any) {
+      // AbortError = user dismissed; do not fall back loudly
       if (err?.name === "AbortError") return { ok: false, mode: "cancelled" };
       // fall through to fallback
     }
   }
 
-  // 2. Fallback (mostly desktop): open WhatsApp/Telegram FIRST with the caption
-  //    pre-filled (text), then auto-download the badge image so the user
-  //    attaches it via 📎. This guarantees BOTH text + image reach the chat.
+  // 2. Fallback (mostly desktop): open WhatsApp/Telegram FIRST so the popup
+  //    isn't blocked by the subsequent download trigger, then save the image.
   openChannelUrl(channel, caption, shareUrl);
 
+  // Small delay so the new tab/window has time to open before download dialog
   setTimeout(() => {
     try { triggerDownload(blob, fileName); } catch { /* non-fatal */ }
   }, 250);
@@ -200,7 +195,7 @@ export async function shareBadgeOneClick(opts: OneClickShareOpts): Promise<Share
   return {
     ok: true,
     mode: "downloaded",
-    message: "Caption pre-filled in chat ✓  Image saved to device — tap 📎 to attach it 🎉",
+    message: "WhatsApp opened with your caption. Image saved — attach it in chat 🎉",
   };
 }
 
