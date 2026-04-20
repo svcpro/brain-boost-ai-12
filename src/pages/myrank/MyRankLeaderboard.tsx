@@ -16,6 +16,7 @@ const SCOPES: { key: string; label: string; icon: typeof Globe }[] = [
 interface Row {
   position: number;
   name: string;
+  avatar_url?: string | null;
   category: string;
   score: number;
   percentile: number;
@@ -24,6 +25,15 @@ interface Row {
   city: string | null;
   is_me: boolean;
 }
+
+const getInitials = (name: string) =>
+  (name || "?")
+    .split(" ")
+    .map(n => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
 const MyRankLeaderboard = () => {
   const navigate = useNavigate();
@@ -274,8 +284,18 @@ const MyRankLeaderboard = () => {
                       {r.is_me && (
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,hsl(var(--primary)/0.15),transparent_60%)]" />
                       )}
-                      <div className="relative w-9 text-center shrink-0">
+                      <div className="relative w-7 text-center shrink-0">
                         <span className="text-sm font-bold text-muted-foreground tabular-nums">#{r.position}</span>
+                      </div>
+                      {/* Avatar */}
+                      <div className="relative shrink-0">
+                        <div className={`w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-primary/30 to-accent/20 border ${r.is_me ? "border-primary/60 ring-2 ring-primary/30" : "border-border/60"} flex items-center justify-center`}>
+                          {r.avatar_url ? (
+                            <img src={r.avatar_url} alt={r.name} className="w-full h-full object-cover" loading="lazy" />
+                          ) : (
+                            <span className="text-[10px] font-bold text-primary">{getInitials(r.name)}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="relative flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate flex items-center gap-1.5">
@@ -355,11 +375,19 @@ const PodiumCard = ({ row, place, height, gradient, medal, delay, isFirst }: Pod
           <Crown className="absolute -top-5 left-1/2 -translate-x-1/2 w-5 h-5 text-warning drop-shadow-[0_0_6px_hsl(var(--warning)/0.8)] animate-pulse" />
         )}
         <div className={`relative w-14 h-14 rounded-full bg-gradient-to-br ${gradient} p-0.5 shadow-xl ${isFirst ? "shadow-warning/50" : ""}`}>
-          <div className="w-full h-full rounded-full bg-card flex items-center justify-center text-2xl">
-            {medal}
+          <div className="w-full h-full rounded-full bg-card flex items-center justify-center overflow-hidden">
+            {row.avatar_url ? (
+              <img src={row.avatar_url} alt={row.name} className="w-full h-full object-cover" loading="lazy" />
+            ) : (
+              <span className="text-sm font-extrabold text-foreground">{getInitials(row.name)}</span>
+            )}
           </div>
+          {/* Medal overlay */}
+          <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center text-sm shadow-md">
+            {medal}
+          </span>
           {row.is_me && (
-            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md font-bold whitespace-nowrap">
+            <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[8px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md font-bold whitespace-nowrap">
               YOU
             </span>
           )}

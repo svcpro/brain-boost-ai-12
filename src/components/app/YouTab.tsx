@@ -161,18 +161,21 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-              className="relative w-14 h-14 rounded-2xl neural-gradient neural-border flex items-center justify-center shrink-0 cursor-pointer group overflow-hidden"
+              className="relative w-14 h-14 rounded-2xl neural-gradient neural-border flex items-center justify-center shrink-0 cursor-pointer group overflow-visible"
             >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
-              ) : (
-                <span className="text-lg font-bold text-primary">
-                  {(profileDisplayName || (isMobileSignup ? "S" : (user?.user_metadata?.display_name || "S"))).slice(0, 2).toUpperCase()}
-                </span>
-              )}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
-                {uploadingAvatar ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
+              <div className="w-full h-full rounded-2xl overflow-hidden flex items-center justify-center">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-lg font-bold text-primary">
+                    {(profileDisplayName || (isMobileSignup ? "S" : (user?.user_metadata?.display_name || "S"))).slice(0, 2).toUpperCase()}
+                  </span>
+                )}
               </div>
+              {/* Always-visible camera badge for discoverability */}
+              <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary text-primary-foreground border-2 border-background flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                {uploadingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+              </span>
               <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
             </motion.label>
             <div className="flex-1 min-w-0">
