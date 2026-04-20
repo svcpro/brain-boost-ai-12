@@ -1336,7 +1336,7 @@ Deno.serve(async (req) => {
         }, 200);
       }
 
-      let saved: any = null;
+      let saved: any = false;
       if (autoSave) {
         const { userId, reason, debug } = await resolveAuthenticatedUserId();
         if (!userId) {
@@ -1351,95 +1351,11 @@ Deno.serve(async (req) => {
             used_ai: usedAI,
             exam: { type: examLabel, id: examId, category: examCategory },
             subjects: subjectPayload,
-            saved: null,
+            saved: false,
           }, 401);
         }
-
-        const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-        let subjectsInserted = 0;
-        let topicsInserted = 0;
-
-        for (const sub of subjectPayload) {
-          await adminClient
-            .from("subjects")
-            .upsert({ user_id: userId, name: sub.name }, { onConflict: "user_id,name", ignoreDuplicates: true });
-
-          const { data: subjectRow } = await adminClient
-            .from("subjects")
-            .select("id")
-            .eq("user_id", userId)
-            .eq("name", sub.name)
-            .is("deleted_at", null)
-            .maybeSingle();
-
-          if (!subjectRow?.id) continue;
-          subjectsInserted++;
-
-          for (const topicName of sub.topics) {
-            const trimmed = String(topicName || "").trim();
-            if (!trimmed) continue;
-            await adminClient
-              .from("topics")
-              .upsert(
-                { user_id: userId, subject_id: subjectRow.id, name: trimmed },
-                { onConflict: "user_id,subject_id,name", ignoreDuplicates: true },
-              );
-            topicsInserted++;
-          }
-        }
-
-        const fullList = await fetchUserSubjectsWithTopics(adminClient, userId);
-        saved = {
-          subjects_added: subjectsInserted,
-          topics_added: topicsInserted,
-          subjects_in_db: fullList,
-        };
-      }
-
-      return json({
-        success: true,
-        source: usedAI ? "ai" : source,
-        used_ai: usedAI,
-        exam: { type: examLabel, id: examId, category: examCategory },
-        subject_count: subjectPayload.length,
-        topic_count: subjectPayload.reduce((acc, s) => acc + s.topics.length, 0),
-        subjects: subjectPayload,
-        saved,
-      });
-    }
-
-    // ─── QUICK PRESET (per-subject) ───
-    // POST { subject, exam_type?, count?, auto_save? }
-    // → { success, subject, source, topics: [...], saved? }
-    if (action === "quick-preset-subject" || action === "quick_preset_subject") {
-      const subject = String(requestBody.subject || url.searchParams.get("subject") || "").trim();
-      const examType = String(requestBody.exam_type || url.searchParams.get("exam_type") || "").trim();
-      const autoSave = requestBody.auto_save === true || url.searchParams.get("auto_save") === "true";
-      const count = Math.min(Math.max(Number(requestBody.count ?? url.searchParams.get("count") ?? 6) || 6, 3), 12);
-
-      if (!subject) return json({ error: "subject is required" }, 400);
-
-      const examLabel = normalizeExamType(examType) || examType;
-
-      let topics = resolveQuickPresetTopics(subject).slice(0, count);
-      let usedAI = false;
-      let source: "preset" | "ai" | "fallback" =
-        QUICK_PRESET_TOPICS[subject] || SUGGESTED_TOPICS_BY_SUBJECT[subject] ? "preset" : "fallback";
-
-      if (source === "fallback") {
-        try {
-          const aiTopics = await aiGenerateTopicsForSubject(subject, examLabel, count);
-          if (aiTopics.length > 0) {
-            topics = aiTopics.slice(0, count);
-            source = "ai";
-            usedAI = true;
-          }
-        } catch (e) {
-          console.error("[quick-preset-subject] AI fallback failed:", e);
-        }
-      }
-
-      let saved: any = null;
+...
+      let saved: any = false;
       if (autoSave) {
         const { userId, reason, debug } = await resolveAuthenticatedUserId();
         if (!userId) {
@@ -1454,7 +1370,7 @@ Deno.serve(async (req) => {
             source,
             used_ai: usedAI,
             topics,
-            saved: null,
+            saved: false,
           }, 401);
         }
 
