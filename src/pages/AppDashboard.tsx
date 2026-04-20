@@ -48,10 +48,11 @@ const tabDefs = [
 ];
 
 const TAB_LOADER_MESSAGES: Record<string, string> = {
-  action: "Loading Action Center",
+  home: "Booting Neural Dashboard",
+  action: "Activating Action Engine",
   brain: "Booting Neural Brain",
-  myrank: "Loading MyRank",
-  progress: "Loading Practice Zone",
+  myrank: "Computing MyRank Intelligence",
+  progress: "Initializing Practice Zone AI",
   you: "Syncing Your Identity Core",
 };
 
