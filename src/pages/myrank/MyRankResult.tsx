@@ -709,7 +709,6 @@ const MyRankResult = () => {
             style={{
               background:
                 "conic-gradient(from 0deg, #f59e0b, #ec4899, #8b5cf6, #06b6d4, #10b981, #f59e0b)",
-              animation: aiSharing ? "share-card-rotate 2.5s linear infinite" : "share-card-rotate 8s linear infinite",
             }}
           >
             <div
