@@ -402,19 +402,7 @@ const LearningIdentitySummary = () => {
 
       {/* Evolution Path hidden per user request */}
 
-      {/* ══════ AUTO RECALIBRATE — always visible ══════ */}
-      <motion.button
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        onClick={handleRecalibrate}
-        disabled={recalibrating}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary/10 hover:bg-primary/15 border border-primary/30 transition-all text-sm font-semibold text-primary disabled:opacity-50"
-        whileTap={{ scale: 0.98 }}
-      >
-        {recalibrating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-        {recalibrating ? "Recalibrating..." : "Recalibrate Identity"}
-      </motion.button>
+      {/* Recalibrate Identity hidden per user request */}
     </motion.div>
   );
 };
