@@ -81,16 +81,23 @@ const SubscriptionOverview = ({ currentPlan, onManagePlan }: SubscriptionOvervie
           </div>
 
           {/* Reinforcement message */}
-          {isPremium && (
+          {(isPremium || isStarter) && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10 mb-3">
               <Zap className="w-4 h-4 text-primary shrink-0" />
-              <p className="text-xs text-foreground/80 font-medium">You have full AI access unlocked.</p>
+              <p className="text-xs text-foreground/80 font-medium">
+                {isPremium
+                  ? "You have full AI + Exam Practice access unlocked."
+                  : "You're on Starter — upgrade to Premium to unlock Exam Practice."}
+              </p>
             </div>
           )}
 
           {/* Feature summary */}
           <div className="grid grid-cols-2 gap-1.5">
-            {["AI Second Brain", "Focus Study Mode", "Neural Memory Map", "AI Strategy", "Voice Notifications", "Unlimited Usage"].map(f => (
+            {(isPremium
+              ? ["AI Second Brain", "Focus Study Mode", "Neural Memory Map", "AI Strategy", "Exam Practice", "Unlimited Usage"]
+              : ["AI Second Brain", "Focus Study Mode", "Neural Memory Map", "AI Strategy", "Voice Notifications", "Unlimited Usage"]
+            ).map(f => (
               <div key={f} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <Check className="w-3 h-3 text-success shrink-0" />
                 {f}
