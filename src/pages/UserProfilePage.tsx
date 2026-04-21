@@ -233,24 +233,28 @@ const UserProfilePage = () => {
         >
           <div className="flex items-start gap-5">
             {/* Avatar */}
-            <div className="relative group">
-              <div className="w-20 h-20 rounded-2xl overflow-hidden ring-2 ring-primary/20 bg-secondary flex items-center justify-center">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="block w-20 h-20 rounded-2xl overflow-hidden ring-2 ring-primary/20 bg-secondary flex items-center justify-center disabled:opacity-50"
+              >
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-xl font-bold text-muted-foreground">{initials}</span>
                 )}
-              </div>
+              </button>
+              {/* Always-visible camera badge */}
               <button
+                type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                aria-label="Change profile photo"
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg ring-2 ring-background hover:scale-105 active:scale-95 transition-transform disabled:opacity-50"
               >
-                {uploading ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-white" />
-                ) : (
-                  <Camera className="w-5 h-5 text-white" />
-                )}
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
               </button>
               <input
                 ref={fileRef}
