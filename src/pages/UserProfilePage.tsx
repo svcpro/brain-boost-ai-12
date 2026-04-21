@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
 
 const UserProfilePage = () => {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ const UserProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   // Password change
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -113,19 +115,18 @@ const UserProfilePage = () => {
     setSaving(false);
   };
 
-  const uploadAvatar = async (file: File) => {
+  const uploadAvatar = async (file: Blob, ext = "jpg") => {
     if (!user) return;
     if (file.size > 2 * 1024 * 1024) {
       toast({ title: "File too large", description: "Max 2MB allowed", variant: "destructive" });
       return;
     }
     setUploading(true);
-    const ext = file.name.split(".").pop();
     const path = `${user.id}/avatar.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { upsert: true });
+      .upload(path, file, { upsert: true, contentType: file.type || "image/jpeg" });
 
     if (uploadError) {
       toast({ title: "Upload failed", variant: "destructive" });
@@ -258,7 +259,11 @@ const UserProfilePage = () => {
                 className="hidden"
                 onChange={e => {
                   const f = e.target.files?.[0];
-                  if (f) uploadAvatar(f);
+                  if (f) {
+                    const reader = new FileReader();
+                    reader.onload = () => setCropSrc(reader.result as string);
+                    reader.readAsDataURL(f);
+                  }
                   e.target.value = "";
                 }}
               />
@@ -527,6 +532,16 @@ const UserProfilePage = () => {
           </AnimatePresence>
         </motion.div>
       </div>
+
+      <AvatarCropDialog
+        open={!!cropSrc}
+        imageSrc={cropSrc || ""}
+        onCancel={() => setCropSrc(null)}
+        onConfirm={async blob => {
+          await uploadAvatar(blob, "jpg");
+          setCropSrc(null);
+        }}
+      />
     </div>
   );
 };
