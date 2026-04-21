@@ -41,7 +41,7 @@ export function useFocusShield() {
   const [warningCount, setWarningCount] = useState(0);
   const [todayScore, setTodayScore] = useState<DistractionScore | null>(null);
 
-  // Tracking refs
+  // Tracking refs (session-local deltas — added to DB totals on flush)
   const tabSwitches = useRef(0);
   const blurEvents = useRef(0);
   const rapidSwitchTimestamps = useRef<number[]>([]);
@@ -50,6 +50,10 @@ export function useFocusShield() {
   const focusSessionId = useRef<string | null>(null);
   const warningCooldownRef = useRef(false);
   const flushInterval = useRef<ReturnType<typeof setInterval>>();
+  // Persistent baseline loaded from DB so we accumulate across reloads instead of overwriting
+  const baseline = useRef({ switches: 0, blurs: 0, distractedSec: 0, rapid: 0 });
+  // Spurious-event guard: ignore micro hidden/visible flips (<400ms — dev preview re-renders, devtools, focus changes)
+  const SPURIOUS_THRESHOLD_MS = 400;
 
   // Load config
   useEffect(() => {
@@ -63,7 +67,7 @@ export function useFocusShield() {
     })();
   }, []);
 
-  // Load today's score
+  // Load today's score AND seed baseline so we accumulate, not overwrite
   const loadTodayScore = useCallback(async () => {
     if (!user) return;
     const today = new Date().toISOString().slice(0, 10);
@@ -73,7 +77,15 @@ export function useFocusShield() {
       .eq("user_id", user.id)
       .eq("score_date", today)
       .maybeSingle();
-    if (data) setTodayScore(data as any);
+    if (data) {
+      setTodayScore(data as any);
+      baseline.current = {
+        switches: data.tab_switches ?? 0,
+        blurs: data.blur_events ?? 0,
+        distractedSec: data.total_distraction_seconds ?? 0,
+        rapid: data.rapid_switches ?? 0,
+      };
+    }
   }, [user]);
 
   useEffect(() => { loadTodayScore(); }, [loadTodayScore]);
@@ -97,23 +109,26 @@ export function useFocusShield() {
     } catch {}
   }, [user, isFocusActive]);
 
-  // Compute and flush distraction score
+  // Compute and flush distraction score (accumulates with DB baseline)
   const flushScore = useCallback(async () => {
     if (!user) return;
     const today = new Date().toISOString().slice(0, 10);
     const hour = new Date().getHours();
     const lateNightMin = (hour >= 23 || hour < 5) ? 1 : 0;
 
-    const totalSeconds = Math.round(totalDistractedMs.current / 1000);
-    const switches = tabSwitches.current;
-    const blurs = blurEvents.current;
-    const rapid = rapidSwitchTimestamps.current.filter(
-      t => Date.now() - t < 60000
-    ).length;
+    // Combine session-local deltas with DB baseline so reloads/multi-tabs don't overwrite
+    const sessionSeconds = Math.round(totalDistractedMs.current / 1000);
+    const totalSeconds = baseline.current.distractedSec + sessionSeconds;
+    const switches = baseline.current.switches + tabSwitches.current;
+    const blurs = baseline.current.blurs + blurEvents.current;
+    const rapidNow = rapidSwitchTimestamps.current.filter(t => Date.now() - t < 60000).length;
+    const rapid = Math.max(baseline.current.rapid, rapidNow);
 
-    // Distraction Score: weighted formula (0-100)
+    // Distraction Score: weighted formula (0-100). Tab-switch and app-blur are the SAME signal
+    // counted on enter+exit, so we average them to avoid double-penalising.
+    const switchSignal = (switches + blurs) / 2;
     const rawScore = Math.min(100, Math.round(
-      (switches * 2) + (blurs * 1.5) + (rapid * 5) + (totalSeconds * 0.1) + (lateNightMin * 10)
+      (switchSignal * 2) + (rapid * 5) + (totalSeconds * 0.1) + (lateNightMin * 10)
     ));
 
     try {
@@ -147,17 +162,8 @@ export function useFocusShield() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // User switched away
-        tabSwitches.current += 1;
+        // User switched away — record start time, defer counting until we know it's not spurious
         lastBlurAt.current = Date.now();
-
-        // Check rapid switching
-        rapidSwitchTimestamps.current.push(Date.now());
-        rapidSwitchTimestamps.current = rapidSwitchTimestamps.current.filter(
-          t => Date.now() - t < 30000
-        );
-
-        logEvent("tab_switch", 0, { rapid: rapidSwitchTimestamps.current.length >= 3 });
 
         // Trigger warning during focus
         if (isFocusActive && !warningCooldownRef.current) {
@@ -180,12 +186,38 @@ export function useFocusShield() {
           }).then(() => {});
         }
       } else {
-        // Came back
+        // Came back — only count if the absence was meaningful (>400ms)
         if (lastBlurAt.current > 0) {
           const away = Date.now() - lastBlurAt.current;
-          totalDistractedMs.current += away;
-          blurEvents.current += 1;
-          logEvent("app_blur", Math.round(away / 1000));
+          if (away >= SPURIOUS_THRESHOLD_MS) {
+            totalDistractedMs.current += away;
+            tabSwitches.current += 1;
+            blurEvents.current += 1;
+            // Rapid-switch detection
+            rapidSwitchTimestamps.current.push(Date.now());
+            rapidSwitchTimestamps.current = rapidSwitchTimestamps.current.filter(t => Date.now() - t < 30000);
+            const isRapid = rapidSwitchTimestamps.current.length >= 3;
+            logEvent("tab_switch", 0, { rapid: isRapid });
+            logEvent("app_blur", Math.round(away / 1000));
+            // In-focus warning logic (was previously in the hidden branch — moved here so it fires on real switches only)
+            if (isFocusActive && !warningCooldownRef.current) {
+              const newCount = warningCount + 1;
+              setWarningCount(newCount);
+              if (config.auto_freeze_enabled && newCount >= config.max_warnings_before_freeze) {
+                setShowFreeze(true);
+                logEvent("freeze_triggered", config.freeze_duration_seconds);
+              } else {
+                setShowWarning(true);
+                warningCooldownRef.current = true;
+                setTimeout(() => { warningCooldownRef.current = false; }, config.warning_cooldown_seconds * 1000);
+              }
+              supabase.from("focus_shield_warnings").insert({
+                user_id: user.id,
+                warning_type: newCount >= config.max_warnings_before_freeze ? "freeze" : "distraction",
+              }).then(() => {});
+            }
+          }
+          lastBlurAt.current = 0;
         }
       }
     };
