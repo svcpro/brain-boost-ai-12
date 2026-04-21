@@ -184,7 +184,8 @@ export default function ForgettingCurve2Card() {
   const memoryLandscape = data.memory_landscape ?? [];
   const factorCount = data.factor_count ?? 12;
 
-  const displayTopics = expanded ? data.topic_decays.slice(0, 12) : data.topic_decays.slice(0, 4);
+  const MAX_EXPANDED = 50;
+  const displayTopics = expanded ? data.topic_decays.slice(0, MAX_EXPANDED) : data.topic_decays.slice(0, 4);
   const simTopic = data.topic_decays.find(t => t.topic_id === simTopicId);
 
   return (
@@ -228,7 +229,7 @@ export default function ForgettingCurve2Card() {
           {/* Headline metrics */}
           <div className="grid grid-cols-4 gap-2 mt-3">
             <Metric icon={<Target className="w-3 h-3" />} label="Retention" value={`${data.overall_retention_pct}%`} colorClass={RISK_COLOR[overallRisk]} />
-            <Metric icon={<AlertTriangle className="w-3 h-3" />} label="Urgent" value={data.urgent_count} colorClass="text-destructive" />
+            <Metric icon={<AlertTriangle className="w-3 h-3" />} label="Urgent" value={`${data.urgent_count}/${data.total_topics}`} colorClass="text-destructive" />
             <Metric icon={<Clock className="w-3 h-3" />} label="Best hr" value={`${userContext.best_study_hour}:00`} colorClass="text-chart-2" />
             <Metric icon={<Cpu className="w-3 h-3" />} label="Load 24h" value={`${userContext.recent_load_minutes_24h}m`} colorClass="text-chart-5" />
           </div>
@@ -292,7 +293,9 @@ export default function ForgettingCurve2Card() {
                     className="w-full flex items-center justify-center gap-1 py-2 mt-2 text-[10px] text-muted-foreground hover:text-primary transition-colors"
                   >
                     {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    {expanded ? "Show less" : `Show ${Math.min(data.topic_decays.length, 12) - 4} more`}
+                    {expanded
+                      ? `Show less (${Math.min(data.topic_decays.length, MAX_EXPANDED)} of ${data.topic_decays.length})`
+                      : `Show ${Math.min(data.topic_decays.length, MAX_EXPANDED) - 4} more · ${data.topic_decays.length} total`}
                   </button>
                 )}
               </motion.div>
