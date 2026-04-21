@@ -218,13 +218,15 @@ const MyRankLeaderboard = () => {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-sm font-bold text-foreground">{myCity}</span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-accent/20 text-accent font-semibold">
-                          {citySource === "explicit" ? "Profile" : "Auto-detected"}
+                          {citySource === "profile" ? "From Profile" : citySource === "explicit" ? "Manual" : "Auto-detected"}
                         </span>
                       </div>
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                         <Info className="w-2.5 h-2.5" />
-                        {citySource === "explicit"
-                          ? "Set from your profile city."
+                        {citySource === "profile"
+                          ? "Set from your profile city — update it anytime in Settings."
+                          : citySource === "explicit"
+                          ? "Set manually for this session."
                           : "Detected from your last test attempt's IP geolocation."}
                       </p>
                       {cityCapturedAt && citySource === "last_test" && (
