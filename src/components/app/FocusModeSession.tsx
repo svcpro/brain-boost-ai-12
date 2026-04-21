@@ -420,14 +420,29 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
     setTimeout(() => confetti({ particleCount: 80, spread: 110, origin: { y: 0.4, x: 0.75 } }), 700);
 
     const elapsedMs = Date.now() - startTimeRef.current;
-    const elapsed = Math.max(1, Math.round(elapsedMs / 60000));
-    const accuracy = totalAnswered > 0 ? correctAnswers / totalAnswered : 0.5;
+    const elapsedMinutesExact = elapsedMs / 60000;
+    const elapsed = Math.max(1, Math.round(elapsedMinutesExact));
+    // Honest accuracy: no answers = 0 contribution (not a default 0.5)
+    const accuracy = totalAnswered > 0 ? correctAnswers / totalAnswered : 0;
+    // Honest time factor: needs real time on task vs planned duration
+    const timeFactor = Math.min(elapsedMinutesExact / Math.max(1, plan.duration), 1);
+    // Honest engagement: phases auto-skipped without spending time count less
+    const engagementRatio = plan.phases.length > 0
+      ? plan.phases.filter(p => p.completed).length / plan.phases.length
+      : 0;
 
-    const quality = Math.round(
-      (accuracy * 40) +
-      (Math.min(elapsed / plan.duration, 1) * 35) +
-      (plan.phases.filter(p => p.completed).length / plan.phases.length * 25)
+    // Weights: accuracy 50%, time-on-task 35%, phase engagement 15%
+    // If user answered nothing AND spent <20% of planned time → quality is near 0
+    let quality = Math.round(
+      (accuracy * 50) +
+      (timeFactor * 35) +
+      (engagementRatio * timeFactor * 15)
     );
+    // Clamp: a session with zero answers and <20% time can't exceed 10%
+    if (totalAnswered === 0 && timeFactor < 0.2) {
+      quality = Math.min(quality, 5);
+    }
+    quality = Math.max(0, Math.min(100, quality));
     setFocusQuality(quality);
 
     await logStudy({
@@ -860,7 +875,6 @@ const FocusModeSession = ({ open, onClose, onSessionComplete }: FocusModeSession
                 {[
                   { icon: Brain, label: "Stability", value: stabilityAfter !== null ? `${stabilityAfter}%` : `${stabilityBefore}%`, color: "text-primary" },
                   { icon: TrendingUp, label: "Stability Gain", value: stabilityAfter !== null ? `+${Math.max(0, stabilityAfter - stabilityBefore)}%` : plan.expectedGain, color: "text-success" },
-                  { icon: Flame, label: "Rank Impact", value: plan.rankImpact, color: "text-primary" },
                   { icon: Star, label: "Focus Quality", value: `${focusQuality}%`, color: focusQuality > 70 ? "text-success" : focusQuality > 40 ? "text-warning" : "text-destructive" },
                   { icon: Target, label: "Accuracy", value: totalAnswered > 0 ? `${Math.round((correctAnswers / totalAnswered) * 100)}%` : "N/A", color: "text-success" },
                   { icon: Clock, label: "Time Focused", value: `${Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000))}m`, color: "text-primary" },
