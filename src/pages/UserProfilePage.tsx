@@ -121,8 +121,9 @@ const UserProfilePage = () => {
   // Avatar upload limits
   const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MB raw upload (cropped output is much smaller)
   const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-  const MIN_DIMENSION = 200;   // need enough resolution for a clear avatar
-  const MAX_DIMENSION = 8000;  // reject absurdly huge images that crash decoders
+  const MIN_DIMENSION = 200;     // need enough resolution for a clear avatar
+  const MAX_DIMENSION = 8000;    // hard ceiling — anything bigger is decoder-risky
+  const RESIZE_TARGET = 2048;    // downscale target for the cropper input
 
   // Async helpers — promise-based so we can `await` and drive a spinner
   const probeImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
@@ -147,6 +148,48 @@ const UserProfilePage = () => {
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = () => reject(new Error("read_failed"));
       reader.readAsDataURL(file);
+    });
+
+  // Downscale a large image to fit within `maxEdge` while preserving aspect ratio.
+  // Returns a JPEG data URL plus the new dimensions.
+  const downscaleImage = (
+    file: File,
+    maxEdge: number,
+  ): Promise<{ dataUrl: string; width: number; height: number }> =>
+    new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const { naturalWidth: w, naturalHeight: h } = img;
+          const scale = Math.min(1, maxEdge / Math.max(w, h));
+          const targetW = Math.round(w * scale);
+          const targetH = Math.round(h * scale);
+
+          const canvas = document.createElement("canvas");
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("no_canvas_ctx");
+
+          // High-quality downscale
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+          URL.revokeObjectURL(objectUrl);
+          resolve({ dataUrl, width: targetW, height: targetH });
+        } catch (e) {
+          URL.revokeObjectURL(objectUrl);
+          reject(e instanceof Error ? e : new Error("resize_failed"));
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("decode_failed"));
+      };
+      img.src = objectUrl;
     });
 
   const openAvatarCropper = useCallback(async (file?: File) => {
@@ -182,6 +225,7 @@ const UserProfilePage = () => {
     try {
       const { width: w, height: h } = await probeImageDimensions(file);
 
+      // Reject anything below the minimum quality bar
       if (w < MIN_DIMENSION || h < MIN_DIMENSION) {
         toast({
           title: "Image too small",
@@ -190,6 +234,8 @@ const UserProfilePage = () => {
         });
         return;
       }
+
+      // Hard ceiling — extremely large images may crash the decoder. Bail early.
       if (w > MAX_DIMENSION || h > MAX_DIMENSION) {
         toast({
           title: "Image dimensions too large",
@@ -199,14 +245,26 @@ const UserProfilePage = () => {
         return;
       }
 
-      // Passed all checks → read into data URL and open cropper
-      const dataUrl = await readFileAsDataUrl(file);
-      setCropSrc(dataUrl);
+      // Auto-downscale anything bigger than the cropper target so the UI stays snappy.
+      if (Math.max(w, h) > RESIZE_TARGET) {
+        const { dataUrl, width: nw, height: nh } = await downscaleImage(file, RESIZE_TARGET);
+        toast({
+          title: "📐 Resized for you",
+          description: `Scaled ${w}×${h} → ${nw}×${nh} so cropping stays smooth.`,
+        });
+        setCropSrc(dataUrl);
+      } else {
+        // Small enough — read original directly to preserve fidelity
+        const dataUrl = await readFileAsDataUrl(file);
+        setCropSrc(dataUrl);
+      }
     } catch (err) {
       const reason = (err as Error)?.message;
       toast({
-        title: reason === "read_failed" ? "Couldn't read image" : "Invalid image",
-        description: "We couldn't decode this file. Try another image.",
+        title: reason === "read_failed" ? "Couldn't read image"
+          : reason === "resize_failed" ? "Couldn't resize image"
+          : "Invalid image",
+        description: "We couldn't process this file. Try another image.",
         variant: "destructive",
       });
     } finally {
