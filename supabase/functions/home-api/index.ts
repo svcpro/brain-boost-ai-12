@@ -358,7 +358,7 @@ Deno.serve(async (req) => {
           return json({
             mission: {
               ...rec, topic_name: info.topic_name, subject_name: info.subject_name,
-              estimated_minutes: 15, brain_improvement_pct: 5,
+              estimated_minutes: 15, estimatedMinutes: 15, brain_improvement_pct: 5, brainImprovementPct: 5,
               reasoning: rec.description || "AI recommendation based on your learning patterns.",
             },
             source: "ai_recommendation",
