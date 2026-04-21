@@ -71,6 +71,11 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [currentPlan, setCurrentPlan] = useState("free");
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [showTopicManager, setShowTopicManager] = useState(false);
+  const personalProgressPct = useMemo(() => {
+    const streak = streakData?.current_streak || 0;
+    // Scale: 0 days → 0%, 30+ days → 100%
+    return Math.min(100, Math.round((streak / 30) * 100));
+  }, [streakData?.current_streak]);
 
   const LEVEL_THRESHOLDS = useMemo(() => [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000], []);
 
