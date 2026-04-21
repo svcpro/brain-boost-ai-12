@@ -435,19 +435,31 @@ export default function ForgettingCurve2Card() {
                 className="space-y-3"
               >
                 <p className="text-[10px] text-muted-foreground">See how an action will change your retention.</p>
-                <div>
+                <div className="min-w-0">
                   <label className="text-[10px] text-muted-foreground">Topic</label>
-                  <select
-                    value={simTopicId}
-                    onChange={e => { setSimTopicId(e.target.value); setSimResult(null); }}
-                    className="w-full mt-1 px-2 py-1.5 rounded-lg bg-secondary border border-border text-xs text-foreground outline-none focus:border-primary"
-                  >
-                    {data.topic_decays.map(t => (
-                      <option key={t.topic_id} value={t.topic_id}>
-                        {t.topic_name} ({t.predicted_retention_pct}%)
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative mt-1">
+                    <select
+                      value={simTopicId}
+                      onChange={e => { setSimTopicId(e.target.value); setSimResult(null); }}
+                      className="w-full max-w-full px-2 py-1.5 pr-7 rounded-lg bg-secondary border border-border text-xs text-foreground outline-none focus:border-primary appearance-none truncate"
+                      style={{ textOverflow: "ellipsis" }}
+                    >
+                      {data.topic_decays.map(t => {
+                        const name = t.topic_name.length > 32 ? t.topic_name.slice(0, 30) + "…" : t.topic_name;
+                        return (
+                          <option key={t.topic_id} value={t.topic_id}>
+                            {name} · {t.predicted_retention_pct}%
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  {simTopic && (
+                    <p className="text-[9px] text-muted-foreground mt-1 truncate">
+                      {simTopic.subject_name ? `${simTopic.subject_name} · ` : ""}{simTopic.topic_name}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="text-[10px] text-muted-foreground">Scenario</label>
