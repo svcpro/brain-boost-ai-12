@@ -22,6 +22,7 @@ import CompetitiveIntelDashboard from "./CompetitiveIntelDashboard";
 
 // v7.0 Precision Intelligence
 import PrecisionIntelligenceCard from "./PrecisionIntelligenceCard";
+import ColorProgressChart from "./ColorProgressChart";
 import RankPredictionV2Card from "./RankPredictionV2Card";
 import DecayForecastV2Card from "./DecayForecastV2Card";
 

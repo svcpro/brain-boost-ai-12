@@ -28,6 +28,7 @@ import { useStudyStreak } from "@/hooks/useStudyStreak";
 import StreakMilestoneCelebration from "./StreakMilestoneCelebration";
 import ExplainButton from "./ExplainButton";
 import TodaysMission from "./TodaysMission";
+import ColorProgressChart from "./ColorProgressChart";
 import QuickMicroActions from "./QuickMicroActions";
 import PlanGateWrapper from "./PlanGateWrapper";
 import SafePassPopup from "./SafePassPopup";
