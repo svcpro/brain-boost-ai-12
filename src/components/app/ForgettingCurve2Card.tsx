@@ -189,8 +189,17 @@ export default function ForgettingCurve2Card() {
   const factorCount = data.factor_count ?? 12;
 
   const MAX_EXPANDED = 50;
-  const displayTopics = expanded ? data.topic_decays.slice(0, MAX_EXPANDED) : data.topic_decays.slice(0, 4);
+  const filteredTopics = subjectFilter
+    ? data.topic_decays.filter(t => (t.subject_name || "Unsorted") === subjectFilter)
+    : data.topic_decays;
+  const displayTopics = expanded ? filteredTopics.slice(0, MAX_EXPANDED) : filteredTopics.slice(0, 4);
   const simTopic = data.topic_decays.find(t => t.topic_id === simTopicId);
+
+  const sortedLandscape = [...memoryLandscape].sort((a, b) => {
+    if (landscapeSort === "urgent") return (b.critical + b.high) - (a.critical + a.high);
+    if (landscapeSort === "size") return b.total - a.total;
+    return a.health_score - b.health_score;
+  });
 
   return (
     <>
