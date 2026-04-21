@@ -596,13 +596,13 @@ const UserProfilePage = () => {
       </div>
 
       <AvatarCropDialog
-        open={!!cropSrc}
+        open={!!cropSrc && !previewBlob}
         imageSrc={cropSrc || ""}
-        onCancel={() => setCropSrc(null)}
+        onCancel={() => { setCropSrc(null); setPreviewBlob(null); }}
         onConfirm={blob => {
-          // Hand off to the preview step instead of uploading immediately
+          // Hand off to the preview step instead of uploading immediately.
+          // Keep cropSrc so the user can jump back into the cropper via "Re-crop".
           setPreviewBlob(blob);
-          setCropSrc(null);
         }}
       />
 
@@ -610,17 +610,13 @@ const UserProfilePage = () => {
         open={!!previewBlob}
         blob={previewBlob}
         uploading={uploading}
-        onCancel={() => setPreviewBlob(null)}
-        onRecrop={() => {
-          // Go back to the cropper with the original source
-          setPreviewBlob(null);
-          // cropSrc may have been cleared; re-open it if we still have it
-          // Otherwise the user can pick a new file.
-        }}
+        onCancel={() => { setPreviewBlob(null); setCropSrc(null); }}
+        onRecrop={() => setPreviewBlob(null)}
         onConfirm={async () => {
           if (!previewBlob) return;
           await uploadAvatar(previewBlob, "jpg");
           setPreviewBlob(null);
+          setCropSrc(null);
         }}
       />
     </div>
