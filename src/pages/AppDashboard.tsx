@@ -330,6 +330,36 @@ const AppDashboard = () => {
 
           {/* Content */}
           <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20">
+            {/* Contextual plan hint per screen */}
+            {(() => {
+              const TAB_FEATURES: Record<string, { key: string; label: string }[]> = {
+                home: [
+                  { key: "ai_recommendations", label: "AI Recommendations" },
+                  { key: "brain_missions", label: "Brain Missions" },
+                  { key: "study_insights", label: "Study Insights" },
+                ],
+                action: [
+                  { key: "exam_practice", label: "Exam Practice" },
+                ],
+                brain: [
+                  { key: "cognitive_embedding", label: "Cognitive Embedding" },
+                ],
+                progress: [
+                  { key: "exam_practice", label: "Exam Practice & SureShot" },
+                ],
+                you: [
+                  { key: "voice_notifications", label: "Voice Notifications" },
+                ],
+              };
+              const features = TAB_FEATURES[activeTab] || [];
+              if (features.length === 0) return null;
+              return (
+                <PlanContextBar
+                  relevantFeatures={features}
+                  onUpgrade={() => { setAutoOpenSubscription(true); switchTab("you"); }}
+                />
+              );
+            })()}
             <Suspense fallback={<div className="py-20" />}>
               <SectionErrorBoundary name="active-tab">
                 {renderTab()}
