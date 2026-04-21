@@ -86,6 +86,8 @@ export default function ForgettingCurve2Card() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   const [expanded, setExpanded] = useState(false);
+  const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
+  const [landscapeSort, setLandscapeSort] = useState<"health" | "urgent" | "size">("health");
   const [fixSession, setFixSession] = useState<{ subject: string; topic: string; retention: number } | null>(null);
 
   // AI narrative
