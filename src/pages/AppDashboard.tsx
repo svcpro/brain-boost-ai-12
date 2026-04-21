@@ -20,6 +20,7 @@ const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
 const MyRankInline = lazy(() => import("@/components/app/MyRankInline"));
 const GlobalNotificationCenter = lazy(() => import("@/components/app/GlobalNotificationCenter"));
 import NeuralBootLoader from "@/components/app/NeuralBootLoader";
+import PlanContextBar from "@/components/app/PlanContextBar";
 import { useStudyReminder } from "@/hooks/useStudyReminder";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useVoiceNotification } from "@/hooks/useVoiceNotification";
