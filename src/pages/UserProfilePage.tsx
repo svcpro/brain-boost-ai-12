@@ -262,7 +262,7 @@ const UserProfilePage = () => {
                 accept="image/*"
                 disabled={uploading}
                 aria-label="Change profile photo"
-                className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                className="absolute -inset-2 z-10 cursor-pointer opacity-0 disabled:cursor-not-allowed"
                 onChange={e => {
                   openAvatarCropper(e.target.files?.[0]);
                   e.target.value = "";
