@@ -586,12 +586,25 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   const { user: adminUser } = useAuth();
   const { hasAnyRole } = useAdminRole();
   const [editing, setEditing] = useState(false);
+  // Re-key form to the currently viewed user. Without this, opening a second
+  // user re-uses the first user's stale display_name and silently overwrites
+  // it on the next save (root cause of users being renamed to whoever was
+  // viewed previously, e.g. "Harpreet").
   const [editForm, setEditForm] = useState({
     display_name: user.display_name || "",
     exam_type: user.exam_type || "",
     daily_study_goal_minutes: user.daily_study_goal_minutes,
     weekly_focus_goal_minutes: user.weekly_focus_goal_minutes,
   });
+  useEffect(() => {
+    setEditForm({
+      display_name: user.display_name || "",
+      exam_type: user.exam_type || "",
+      daily_study_goal_minutes: user.daily_study_goal_minutes,
+      weekly_focus_goal_minutes: user.weekly_focus_goal_minutes,
+    });
+    setEditing(false);
+  }, [user.id, user.display_name, user.exam_type, user.daily_study_goal_minutes, user.weekly_focus_goal_minutes]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
