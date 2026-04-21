@@ -869,12 +869,7 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         />
       </SectionErrorBoundary>
 
-      {/* ═══ Professional 5-Tier Color Progress Ring ═══ */}
-      <ProfessionalProgressRing
-        value={latestCompletionRate}
-        label="Today's Plan Completion"
-        sublabel="Ring color shifts across 5 performance tiers"
-      />
+      {/* Today's Plan Completion ring — hidden per product decision */}
 
       {/* ═══ Forgetting Curve 2.0 ═══ */}
       {hasTopics && (
