@@ -369,37 +369,62 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                       className="overflow-hidden mb-4"
                     >
                       <div
-                        className="relative rounded-2xl p-3 overflow-hidden"
+                        className="relative rounded-2xl p-3.5 overflow-hidden"
                         style={{
-                          background: "linear-gradient(135deg, rgba(0,255,148,0.10), rgba(0,229,255,0.06))",
-                          border: "1px solid rgba(0,255,148,0.25)",
+                          background: "linear-gradient(135deg, rgba(0,255,148,0.16), rgba(0,229,255,0.10))",
+                          border: "1px solid rgba(0,255,148,0.40)",
+                          boxShadow: "0 0 24px rgba(0,255,148,0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
                         }}
                       >
                         <motion.div
                           className="absolute inset-0 pointer-events-none"
-                          style={{ background: "linear-gradient(110deg, transparent 30%, rgba(0,255,148,0.18) 50%, transparent 70%)" }}
+                          style={{ background: "linear-gradient(110deg, transparent 30%, rgba(0,255,148,0.20) 50%, transparent 70%)" }}
                           initial={{ x: "-100%" }}
                           animate={{ x: "100%" }}
                           transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
                         />
-                        <div className="relative z-10 flex items-center gap-2.5">
+                        <div className="relative z-10 flex items-center gap-3">
                           <div
-                            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ background: "rgba(0,255,148,0.15)", border: "1px solid rgba(0,255,148,0.3)" }}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                            style={{
+                              background: "linear-gradient(135deg, rgba(0,255,148,0.28), rgba(0,229,255,0.18))",
+                              border: "1px solid rgba(0,255,148,0.45)",
+                              boxShadow: "0 0 12px rgba(0,255,148,0.35)",
+                            }}
                           >
                             <Sparkles className="w-4 h-4" style={{ color: "#00FF94" }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-[11px] font-bold text-foreground leading-tight tabular-nums">
-                              Total yearly savings: <span style={{ color: "#00FF94" }}>₹{plans.reduce((sum, p) => sum + Math.max(0, p.price * 12 - p.yearly_price), 0).toLocaleString("en-IN")}</span>
+                            <div className="flex items-baseline gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: "#00FF94", textShadow: "0 0 8px rgba(0,255,148,0.4)" }}>
+                                You save
+                              </span>
+                              <span
+                                className="text-[15px] font-black tabular-nums leading-none"
+                                style={{ color: "#FFFFFF", textShadow: "0 0 10px rgba(0,255,148,0.5)" }}
+                              >
+                                ₹{plans.reduce((sum, p) => sum + Math.max(0, p.price * 12 - p.yearly_price), 0).toLocaleString("en-IN")}
+                              </span>
+                              <span className="text-[10px] font-semibold text-white/70">this year</span>
                             </div>
-                            <div className="text-[9px] text-muted-foreground mt-0.5 tabular-nums">
-                              {plans.map(p => `${p.name}: −₹${(p.price * 12 - p.yearly_price).toLocaleString("en-IN")}`).join(" · ")}
+                            <div className="text-[10px] mt-1 tabular-nums leading-snug text-white/75">
+                              {plans.map((p, i) => (
+                                <span key={p.id}>
+                                  {i > 0 && <span className="text-white/30 mx-1.5">·</span>}
+                                  <span className="font-semibold text-white/85">{p.name}</span>
+                                  <span className="text-white/55">: </span>
+                                  <span className="font-bold" style={{ color: "#00FF94" }}>−₹{(p.price * 12 - p.yearly_price).toLocaleString("en-IN")}</span>
+                                </span>
+                              ))}
                             </div>
                           </div>
                           <div
-                            className="relative overflow-hidden text-[9px] font-bold px-2 py-1 rounded-full shrink-0"
-                            style={{ background: "#00FF94", color: "#0B0F1A" }}
+                            className="relative overflow-hidden text-[9px] font-black px-2.5 py-1.5 rounded-full shrink-0 tracking-wider"
+                            style={{
+                              background: "linear-gradient(135deg, #00FF94, #00E5B0)",
+                              color: "#001A0E",
+                              boxShadow: "0 2px 12px rgba(0,255,148,0.45), inset 0 1px 0 rgba(255,255,255,0.4)",
+                            }}
                           >
                             <span className="relative z-10">2 MO FREE</span>
                             <motion.span
