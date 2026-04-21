@@ -97,12 +97,12 @@ const ProgressTab = ({ onUpgrade }: { onUpgrade?: () => void }) => {
               }}
             >
               <Crown className="w-4 h-4" />
-              <span>Upgrade to ACRY Premium</span>
+              <span>Upgrade to Premium · ₹499/mo</span>
               <Sparkles className="w-4 h-4" />
             </motion.button>
 
             <p className="text-[10px] text-muted-foreground/60 mt-3">
-              Starts at ₹499/mo · cancel anytime
+              Save 17% on yearly · cancel anytime
             </p>
           </div>
         </motion.div>
