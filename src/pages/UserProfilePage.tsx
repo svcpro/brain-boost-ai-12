@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
+import AvatarPreviewDialog from "@/components/profile/AvatarPreviewDialog";
 
 const UserProfilePage = () => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ const UserProfilePage = () => {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
 
   // Password change
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -594,11 +596,26 @@ const UserProfilePage = () => {
       </div>
 
       <AvatarCropDialog
-        open={!!cropSrc}
+        open={!!cropSrc && !previewBlob}
         imageSrc={cropSrc || ""}
-        onCancel={() => setCropSrc(null)}
-        onConfirm={async blob => {
-          await uploadAvatar(blob, "jpg");
+        onCancel={() => { setCropSrc(null); setPreviewBlob(null); }}
+        onConfirm={blob => {
+          // Hand off to the preview step instead of uploading immediately.
+          // Keep cropSrc so the user can jump back into the cropper via "Re-crop".
+          setPreviewBlob(blob);
+        }}
+      />
+
+      <AvatarPreviewDialog
+        open={!!previewBlob}
+        blob={previewBlob}
+        uploading={uploading}
+        onCancel={() => { setPreviewBlob(null); setCropSrc(null); }}
+        onRecrop={() => setPreviewBlob(null)}
+        onConfirm={async () => {
+          if (!previewBlob) return;
+          await uploadAvatar(previewBlob, "jpg");
+          setPreviewBlob(null);
           setCropSrc(null);
         }}
       />
