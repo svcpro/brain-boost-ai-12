@@ -342,6 +342,55 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                   ))}
                 </motion.div>
 
+                {/* Yearly savings banner */}
+                <AnimatePresence>
+                  {billingCycle === "yearly" && plans.length > 0 && (
+                    <motion.div
+                      key="yearly-savings-banner"
+                      initial={{ opacity: 0, y: -8, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: -8, height: 0 }}
+                      transition={{ type: "spring", damping: 20, stiffness: 280 }}
+                      className="overflow-hidden mb-4"
+                    >
+                      <div
+                        className="relative rounded-2xl p-3 overflow-hidden"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(0,255,148,0.10), rgba(0,229,255,0.06))",
+                          border: "1px solid rgba(0,255,148,0.25)",
+                        }}
+                      >
+                        <motion.div
+                          className="absolute inset-0 pointer-events-none"
+                          style={{ background: "linear-gradient(110deg, transparent 30%, rgba(0,255,148,0.18) 50%, transparent 70%)" }}
+                          initial={{ x: "-100%" }}
+                          animate={{ x: "100%" }}
+                          transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                        />
+                        <div className="relative z-10 flex items-center gap-2.5">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ background: "rgba(0,255,148,0.15)", border: "1px solid rgba(0,255,148,0.3)" }}
+                          >
+                            <Sparkles className="w-4 h-4" style={{ color: "#00FF94" }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-foreground leading-tight">
+                              You save up to ₹{Math.max(...plans.map(p => p.price * 12 - p.yearly_price))} this year
+                            </div>
+                            <div className="text-[9px] text-muted-foreground mt-0.5">
+                              {plans.map(p => `${p.name}: ₹${p.price * 12 - p.yearly_price} off`).join(" · ")}
+                            </div>
+                          </div>
+                          <div className="text-[9px] font-bold px-2 py-1 rounded-full shrink-0" style={{ background: "#00FF94", color: "#0B0F1A" }}>
+                            2 MO FREE
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Plan cards */}
                 <div className="space-y-3">
                   {plans.map((p, idx) => {
