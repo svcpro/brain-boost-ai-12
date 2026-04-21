@@ -58,7 +58,7 @@ const SubscriptionOverview = ({ currentPlan, onManagePlan }: SubscriptionOvervie
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-foreground">ACRY Premium</h3>
+                <h3 className="text-base font-bold text-foreground">{planName}</h3>
                 {isActive && !isTrial && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-success/20 text-success border border-success/30 uppercase tracking-wider">
                     Active
