@@ -176,27 +176,69 @@ const MyRankLeaderboard = () => {
           })}
         </motion.div>
 
-        {/* My position floating card */}
+        {/* My position pinned card — always visible when ranked outside top 3 */}
         <AnimatePresence>
-          {myPos && myPos > 100 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative p-3 rounded-2xl bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border border-primary/30 backdrop-blur-md overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.2),transparent_50%)]" />
-              <div className="relative flex justify-between items-center text-sm">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  Your position
-                </span>
-                <span className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  #{myPos.toLocaleString("en-IN")}
-                </span>
-              </div>
-            </motion.div>
-          )}
+          {(() => {
+            const meRow = rows.find(r => r.is_me);
+            const showPinned = meRow && meRow.position > 3;
+            if (!showPinned && !(myPos && myPos > 100)) return null;
+            return (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="relative p-3 rounded-2xl bg-gradient-to-r from-primary/15 via-accent/10 to-primary/15 border border-primary/40 backdrop-blur-md overflow-hidden shadow-lg shadow-primary/10"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.25),transparent_60%)]" />
+                {meRow ? (
+                  <div className="relative flex items-center gap-3">
+                    <div className="w-9 text-center shrink-0">
+                      <span className="text-base font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent tabular-nums">
+                        #{meRow.position}
+                      </span>
+                    </div>
+                    <div className="relative shrink-0">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary/30 to-accent/20 border border-primary/60 ring-2 ring-primary/30 flex items-center justify-center">
+                        {meRow.avatar_url ? (
+                          <img src={meRow.avatar_url} alt={meRow.name} className="w-full h-full object-cover" loading="lazy" />
+                        ) : (
+                          <span className="text-[11px] font-bold text-primary">{getInitials(meRow.name)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm truncate flex items-center gap-1.5">
+                        {meRow.name}
+                        <span className="text-[9px] bg-gradient-to-r from-primary to-accent text-primary-foreground px-1.5 py-0.5 rounded-md font-bold shadow shadow-primary/30">
+                          YOU
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                        <TrendingUp className="w-2.5 h-2.5 text-primary" />
+                        Pinned for quick access · {meRow.category}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold tabular-nums bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        {meRow.percentile}%
+                      </div>
+                      <div className="text-[9px] text-muted-foreground">percentile</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      Your position
+                    </span>
+                    <span className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      #{myPos!.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
 
         {/* Loading */}
