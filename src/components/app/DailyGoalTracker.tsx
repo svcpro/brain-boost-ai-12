@@ -33,17 +33,23 @@ const DailyGoalTracker = () => {
       setGoalMinutes(profile.daily_study_goal_minutes);
     }
 
-    // Load today's study minutes
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Load today's study minutes — strictly bounded to the user's LOCAL day
+    // (start of local day → start of next local day). created_at is stored in
+    // UTC; .toISOString() converts the local boundary to the correct UTC
+    // instant, so a session at 11:59pm and 12:01am land in the right days.
+    const localStart = new Date();
+    localStart.setHours(0, 0, 0, 0);
+    const localEnd = new Date(localStart);
+    localEnd.setDate(localEnd.getDate() + 1);
 
     const { data: logs } = await supabase
       .from("study_logs")
-      .select("duration_minutes")
+      .select("duration_minutes, created_at")
       .eq("user_id", user.id)
-      .gte("created_at", today.toISOString());
+      .gte("created_at", localStart.toISOString())
+      .lt("created_at", localEnd.toISOString());
 
-    const total = logs?.reduce((s, l) => s + l.duration_minutes, 0) ?? 0;
+    const total = logs?.reduce((s, l) => s + (l.duration_minutes || 0), 0) ?? 0;
     setTodayMinutes(total);
     setLoading(false);
   }, [user]);
