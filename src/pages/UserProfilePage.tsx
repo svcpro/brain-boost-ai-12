@@ -310,9 +310,19 @@ const UserProfilePage = () => {
                   />
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground -mt-1">
-                Used to rank you in the <span className="text-primary font-semibold">My City</span> leaderboard scope.
-              </p>
+              <div className="flex items-center justify-between -mt-1">
+                <p className="text-[10px] text-muted-foreground">
+                  Used to rank you in the <span className="text-primary font-semibold">My City</span> leaderboard.
+                </p>
+                <button
+                  onClick={() => detectLocation(false)}
+                  disabled={detectingLocation}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                >
+                  {detectingLocation ? <Loader2 className="w-3 h-3 animate-spin" /> : <Locate className="w-3 h-3" />}
+                  {detectingLocation ? "Detecting..." : "Auto-detect"}
+                </button>
+              </div>
 
               {avatarUrl && (
                 <button onClick={removeAvatar} disabled={uploading} className="flex items-center gap-1 text-[11px] text-destructive hover:text-destructive/80 transition-colors">
