@@ -658,8 +658,31 @@ Generate a JSON object with:
     }
 
     if (action === "leaderboard") {
-      const { category, scope, city, user_id, anon_session_id } = body;
+      const { category, scope, city: clientCity, user_id, anon_session_id } = body;
       // scope: "india" (default) | "city" | "weekly"
+
+      // ─── Auto-derive user's city for transparency ───
+      // Source priority: 1) explicit clientCity 2) latest myrank_tests.city for this user
+      let resolvedCity: string | null = clientCity || null;
+      let citySource: "explicit" | "last_test" | null = clientCity ? "explicit" : null;
+      let cityCapturedAt: string | null = null;
+      if (!resolvedCity && (user_id || anon_session_id)) {
+        const idCol = user_id ? "user_id" : "anon_session_id";
+        const idVal = user_id || anon_session_id;
+        const { data: lastTest } = await admin.from("myrank_tests")
+          .select("city, completed_at")
+          .eq(idCol, idVal)
+          .not("city", "is", null)
+          .order("completed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastTest?.city) {
+          resolvedCity = lastTest.city;
+          citySource = "last_test";
+          cityCapturedAt = lastTest.completed_at;
+        }
+      }
+
       let query = admin.from("myrank_tests")
         .select("id, user_id, anon_session_id, category, score, percentile, rank, ai_tag, city, completed_at")
         .not("completed_at", "is", null)
@@ -668,15 +691,13 @@ Generate a JSON object with:
         .limit(100);
 
       if (category && category !== "ALL") {
-        // Prefix-match so chip "SSC" covers "SSC CGL", "SSC MTS"; "UPSC" covers "UPSC CSE", "UPSC CMS", etc.
-        // "IQ" stays exact since it has no sub-variants.
         if (category === "IQ") {
           query = query.eq("category", "IQ");
         } else {
           query = query.or(`category.eq.${category},category.ilike.${category} %`);
         }
       }
-      if (scope === "city" && city) query = query.eq("city", city);
+      if (scope === "city" && resolvedCity) query = query.eq("city", resolvedCity);
       if (scope === "weekly") {
         const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         query = query.gte("completed_at", weekAgo);
@@ -685,7 +706,6 @@ Generate a JSON object with:
       const { data: top, error } = await query;
       if (error) throw error;
 
-      // Hydrate display names + avatars for logged-in users
       const userIds = (top || []).map(t => t.user_id).filter(Boolean) as string[];
       let nameMap: Record<string, string> = {};
       let avatarMap: Record<string, string> = {};
@@ -713,7 +733,6 @@ Generate a JSON object with:
         is_me: (user_id && t.user_id === user_id) || (anon_session_id && t.anon_session_id === anon_session_id),
       }));
 
-      // Find user's own position if not in top 100
       let myPosition = board.find(b => b.is_me)?.position || null;
       if (!myPosition && (user_id || anon_session_id)) {
         const idCol = user_id ? "user_id" : "anon_session_id";
@@ -734,7 +753,17 @@ Generate a JSON object with:
         }
       }
 
-      return new Response(JSON.stringify({ leaderboard: board, my_position: myPosition }), {
+      // Last-updated = newest completed_at in the returned board (or now)
+      const lastUpdatedAt = (top && top.length > 0) ? top[0].completed_at : new Date().toISOString();
+
+      return new Response(JSON.stringify({
+        leaderboard: board,
+        my_position: myPosition,
+        my_city: resolvedCity,
+        city_source: citySource,
+        city_captured_at: cityCapturedAt,
+        last_updated_at: lastUpdatedAt,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
