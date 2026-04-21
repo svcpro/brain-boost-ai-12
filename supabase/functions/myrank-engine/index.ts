@@ -744,7 +744,9 @@ Generate a JSON object with:
         rank: t.rank,
         ai_tag: t.ai_tag,
         city: t.city,
-        is_me: (user_id && t.user_id === user_id) || (anon_session_id && t.anon_session_id === anon_session_id),
+        is_me: user_id
+          ? t.user_id === user_id
+          : (anon_session_id && t.anon_session_id === anon_session_id && !t.user_id),
       }));
 
       let myPosition = board.find(b => b.is_me)?.position || null;
