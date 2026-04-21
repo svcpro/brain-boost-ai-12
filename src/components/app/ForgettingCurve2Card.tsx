@@ -33,6 +33,8 @@ interface LandscapeRow {
   low: number;
   total: number;
   health_score: number;
+  avg_retention_pct?: number;
+  urgent_topics?: string[];
 }
 
 interface DashboardData {
