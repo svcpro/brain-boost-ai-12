@@ -584,10 +584,10 @@ const PodiumCard = ({ row, place, height, gradient, medal, delay, isFirst }: Pod
         )}
         <div className={`relative w-14 h-14 rounded-full bg-gradient-to-br ${gradient} p-0.5 shadow-xl ${isFirst ? "shadow-warning/50" : ""}`}>
           <div className="w-full h-full rounded-full bg-card flex items-center justify-center overflow-hidden">
-            {row.avatar_url ? (
-              <img src={row.avatar_url} alt={row.name} className="w-full h-full object-cover" loading="lazy" />
+            {row.is_me && row.avatar_url ? (
+              <img src={row.avatar_url} alt={displayNameFor(row)} className="w-full h-full object-cover" loading="lazy" />
             ) : (
-              <span className="text-sm font-extrabold text-foreground">{getInitials(row.name)}</span>
+              <span className="text-sm font-extrabold text-foreground">{getInitials(displayNameFor(row))}</span>
             )}
           </div>
           {/* Medal overlay */}
@@ -604,7 +604,7 @@ const PodiumCard = ({ row, place, height, gradient, medal, delay, isFirst }: Pod
 
       {/* Name + percentile */}
       <div className="text-center w-full px-1">
-        <div className="text-[11px] font-bold truncate">{row.name}</div>
+        <div className="text-[11px] font-bold truncate">{displayNameFor(row)}</div>
         <div className={`text-sm font-extrabold bg-gradient-to-r ${gradient} bg-clip-text text-transparent tabular-nums`}>
           {row.percentile}%
         </div>
