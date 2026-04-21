@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Trophy, ArrowLeft, Crown, MapPin, Calendar, Globe, Flame, Sparkles, Zap, TrendingUp, Info, Clock } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, MapPin, Calendar, Globe, Flame, Sparkles, Zap, TrendingUp, Info, Clock, ChevronRight } from "lucide-react";
 
 const formatRelative = (iso: string | null | undefined): string => {
   if (!iso) return "just now";
