@@ -68,6 +68,7 @@ const MyRankLeaderboard = () => {
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoDetecting, setAutoDetecting] = useState(false);
+  const [noCompletedTests, setNoCompletedTests] = useState(false);
 
   // Cached IP-detected city (per browser session) — avoids re-hitting ipapi
   const getCachedDetectedCity = () => {
