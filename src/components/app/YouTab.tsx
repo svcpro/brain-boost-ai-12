@@ -268,6 +268,16 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {/* ═══ Monthly Performance Snapshot ═══ */}
       <MonthlyPerformanceSnapshot />
 
+      {/* ═══ Color-coded Personal Progress (gauge) ═══ */}
+      <ColorProgressChart
+        value={personalProgressPct}
+        label="Your Overall Progress"
+        sublabel="Color tier reflects your study consistency this month"
+        thresholds="tier5"
+        style="gauge"
+        size={140}
+      />
+
       {/* ═══ Subjects & Topics Manager ═══ */}
       <motion.button
         initial={{ opacity: 0, y: 12 }}
