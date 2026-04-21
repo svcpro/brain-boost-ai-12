@@ -63,7 +63,7 @@ const MyRankLeaderboard = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [myPos, setMyPos] = useState<number | null>(null);
   const [myCity, setMyCity] = useState<string | null>(null);
-  const [citySource, setCitySource] = useState<"explicit" | "last_test" | null>(null);
+  const [citySource, setCitySource] = useState<"explicit" | "profile" | "last_test" | null>(null);
   const [cityCapturedAt, setCityCapturedAt] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
