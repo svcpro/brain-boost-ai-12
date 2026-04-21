@@ -242,15 +242,36 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
     return hours.map((count, i) => ({ hour: i, count, intensity: count / max }));
   }, [events]);
 
-  // Category breakdown
-  const categoryBreakdown = useMemo(() => {
-    const totalEvents = Math.max(1, events.length);
-    return APP_CATEGORIES.map((cat, i) => {
-      const share = events.filter((_, idx) => idx % APP_CATEGORIES.length === i);
-      const totalSec = share.reduce((s, e) => s + (e.duration_seconds || 0), 0);
-      const percentage = Math.round((share.length / totalEvents) * 100);
-      return { ...cat, events: share.length, totalMinutes: Math.round(totalSec / 60), percentage };
-    }).sort((a, b) => b.events - a.events);
+  // Real event-type breakdown (we only track in-app signals, not external apps)
+  const eventTypeBreakdown = useMemo(() => {
+    if (events.length === 0) return [];
+    const buckets: Record<string, { label: string; icon: any; gradient: string; accent: string; description: string }> = {
+      tab_switch: { label: "Tab Switches", icon: Globe, gradient: "from-cyan-400 to-blue-500", accent: "hsl(var(--primary))", description: "Switched browser tab away from study" },
+      app_blur: { label: "App Blurs", icon: Smartphone, gradient: "from-violet-500 to-purple-600", accent: "hsl(var(--accent))", description: "Switched to another app or window" },
+      focus_started: { label: "Focus Sessions", icon: ShieldCheck, gradient: "from-emerald-400 to-green-500", accent: "hsl(var(--success))", description: "Entered deep focus mode" },
+      focus_ended: { label: "Sessions Ended", icon: ShieldHalf, gradient: "from-amber-400 to-orange-500", accent: "hsl(var(--warning))", description: "Exited focus mode" },
+      freeze_triggered: { label: "Auto Freezes", icon: Lock, gradient: "from-red-500 to-rose-600", accent: "hsl(var(--destructive))", description: "Shield locked due to repeated distractions" },
+    };
+    const grouped = new Map<string, { count: number; totalSec: number }>();
+    for (const e of events) {
+      const cur = grouped.get(e.event_type) ?? { count: 0, totalSec: 0 };
+      cur.count += 1;
+      cur.totalSec += e.duration_seconds || 0;
+      grouped.set(e.event_type, cur);
+    }
+    const total = events.length;
+    return Array.from(grouped.entries())
+      .map(([type, v], idx) => {
+        const meta = buckets[type] ?? { label: type.replace(/_/g, " "), icon: Activity, gradient: "from-slate-400 to-slate-600", accent: "hsl(var(--muted-foreground))", description: "" };
+        return {
+          id: type,
+          ...meta,
+          events: v.count,
+          totalMinutes: Math.round(v.totalSec / 60),
+          percentage: Math.round((v.count / total) * 100),
+        };
+      })
+      .sort((a, b) => b.events - a.events);
   }, [events]);
 
   const weekData = useMemo(() => {
