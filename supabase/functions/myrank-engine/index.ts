@@ -663,9 +663,19 @@ Generate a JSON object with:
       // anon_session_id — browsers share localStorage across logins, causing
       // rank/name leakage between users. Strip it from the request entirely.
       const anon_session_id = user_id ? null : (body.anon_session_id || null);
-      if (user_id && body.anon_session_id) {
-        console.log("[myrank-engine] Ignoring anon_session_id for authenticated user", user_id);
-      }
+      const _debugId = `lb_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+      console.log(JSON.stringify({
+        tag: "myrank.leaderboard.request",
+        debug_id: _debugId,
+        user_id: user_id || null,
+        raw_anon_session_id: body.anon_session_id || null,
+        used_anon_session_id: anon_session_id,
+        anon_stripped: !!(user_id && body.anon_session_id),
+        category: category || "ALL",
+        scope: scope || "india",
+        client_city: clientCity || null,
+      }));
+
 
       // SAFE DEFAULT: If the caller has NO completed tests for this category/scope,
       // never surface a phantom rank. Return the public board with my_position=null
@@ -728,6 +738,17 @@ Generate a JSON object with:
             city: t.city,
             is_me: false,
           }));
+          console.log(JSON.stringify({
+            tag: "myrank.leaderboard.no_completed_tests",
+            debug_id: _debugId,
+            user_id: user_id || null,
+            anon_session_id,
+            category: category || "ALL",
+            scope: scope || "india",
+            my_completed_count: myCompletedCount || 0,
+            board_size: safeBoard.length,
+            my_position: null,
+          }));
           return new Response(JSON.stringify({
             leaderboard: safeBoard,
             my_position: null,
@@ -736,6 +757,7 @@ Generate a JSON object with:
             city_captured_at: null,
             last_updated_at: safeBoard.length ? (pub as any)[0].completed_at : new Date().toISOString(),
             no_completed_tests: true,
+            debug_id: _debugId,
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -876,6 +898,23 @@ Generate a JSON object with:
       // Last-updated = newest completed_at in the returned board (or now)
       const lastUpdatedAt = (top && top.length > 0) ? top[0].completed_at : new Date().toISOString();
 
+      const _isMeRow = board.find(b => b.is_me);
+      console.log(JSON.stringify({
+        tag: "myrank.leaderboard.result",
+        debug_id: _debugId,
+        user_id: user_id || null,
+        anon_session_id,
+        category: category || "ALL",
+        scope: scope || "india",
+        board_size: board.length,
+        is_me_count: board.filter(b => b.is_me).length,
+        is_me_position: _isMeRow?.position || null,
+        is_me_name: _isMeRow?.name || null,
+        is_me_user_id: (top || []).find((t: any, i: number) => board[i]?.is_me)?.user_id || null,
+        my_position: myPosition,
+        resolved_city: resolvedCity,
+      }));
+
       return new Response(JSON.stringify({
         leaderboard: board,
         my_position: myPosition,
@@ -883,6 +922,7 @@ Generate a JSON object with:
         city_source: citySource,
         city_captured_at: cityCapturedAt,
         last_updated_at: lastUpdatedAt,
+        debug_id: _debugId,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
