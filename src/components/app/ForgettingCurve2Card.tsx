@@ -286,7 +286,7 @@ export default function ForgettingCurve2Card() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
               >
-                {data.risk_alert && (
+                {data.risk_alert && !subjectFilter && (
                   <div className="flex items-start gap-2 mb-3 px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20">
                     <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
                     <div className="flex-1">
@@ -295,20 +295,37 @@ export default function ForgettingCurve2Card() {
                     </div>
                   </div>
                 )}
+                {subjectFilter && (
+                  <div className="flex items-center justify-between mb-2 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                    <span className="text-[10px] text-primary font-semibold truncate">
+                      Filter: {subjectFilter} ({filteredTopics.length})
+                    </span>
+                    <button
+                      onClick={() => { setSubjectFilter(null); setExpanded(false); }}
+                      className="text-[10px] text-primary hover:underline shrink-0 ml-2"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  {displayTopics.map(topic => (
-                    <TopicRow key={topic.topic_id} topic={topic} onFix={handleFix} />
-                  ))}
+                  {displayTopics.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground text-center py-4">No topics in this subject.</p>
+                  ) : (
+                    displayTopics.map(topic => (
+                      <TopicRow key={topic.topic_id} topic={topic} onFix={handleFix} />
+                    ))
+                  )}
                 </div>
-                {data.topic_decays.length > 4 && (
+                {filteredTopics.length > 4 && (
                   <button
                     onClick={() => setExpanded(!expanded)}
                     className="w-full flex items-center justify-center gap-1 py-2 mt-2 text-[10px] text-muted-foreground hover:text-primary transition-colors"
                   >
                     {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     {expanded
-                      ? `Show less (${Math.min(data.topic_decays.length, MAX_EXPANDED)} of ${data.topic_decays.length})`
-                      : `Show ${Math.min(data.topic_decays.length, MAX_EXPANDED) - 4} more · ${data.topic_decays.length} total`}
+                      ? `Show less (${Math.min(filteredTopics.length, MAX_EXPANDED)} of ${filteredTopics.length})`
+                      : `Show ${Math.min(filteredTopics.length, MAX_EXPANDED) - 4} more · ${filteredTopics.length} total`}
                   </button>
                 )}
               </motion.div>
@@ -322,29 +339,90 @@ export default function ForgettingCurve2Card() {
                 exit={{ opacity: 0, y: -6 }}
                 className="space-y-2"
               >
-                <p className="text-[10px] text-muted-foreground mb-2">Memory health by subject (lower = riskier).</p>
-                {memoryLandscape.map(row => (
-                  <div key={row.subject} className="px-3 py-2.5 rounded-xl bg-secondary/30 border border-border/30">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-foreground truncate">{row.subject}</span>
-                      <span className={`text-[10px] font-bold ${row.health_score >= 70 ? "text-chart-2" : row.health_score >= 40 ? "text-chart-5" : "text-destructive"}`}>
-                        {row.health_score}/100
-                      </span>
-                    </div>
-                    <div className="flex h-1.5 rounded-full overflow-hidden bg-secondary">
-                      {row.critical > 0 && <div className="bg-destructive" style={{ width: `${(row.critical / row.total) * 100}%` }} />}
-                      {row.high > 0     && <div className="bg-chart-5"     style={{ width: `${(row.high     / row.total) * 100}%` }} />}
-                      {row.medium > 0   && <div className="bg-chart-4"     style={{ width: `${(row.medium   / row.total) * 100}%` }} />}
-                      {row.low > 0      && <div className="bg-chart-2"     style={{ width: `${(row.low      / row.total) * 100}%` }} />}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1.5 text-[9px] text-muted-foreground">
-                      <span>🔴 {row.critical}</span>
-                      <span>🟠 {row.high}</span>
-                      <span>🟡 {row.medium}</span>
-                      <span>🟢 {row.low}</span>
-                    </div>
+                {sortedLandscape.length === 0 ? (
+                  <div className="text-center py-6">
+                    <Layers className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
+                    <p className="text-[10px] text-muted-foreground">No subject data yet. Start a study session to populate the landscape.</p>
                   </div>
-                ))}
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] text-muted-foreground">Tap a subject to filter Topics tab.</p>
+                      <div className="flex items-center gap-1">
+                        {[
+                          { id: "health" as const, label: "Risk" },
+                          { id: "urgent" as const, label: "Urgent" },
+                          { id: "size" as const, label: "Size" },
+                        ].map(o => (
+                          <button
+                            key={o.id}
+                            onClick={() => setLandscapeSort(o.id)}
+                            className={`text-[9px] px-2 py-0.5 rounded-full transition-colors ${
+                              landscapeSort === o.id
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-secondary text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {sortedLandscape.map(row => {
+                      const urgentInSubject = row.critical + row.high;
+                      const healthColor = row.health_score >= 70 ? "text-chart-2" : row.health_score >= 40 ? "text-chart-5" : "text-destructive";
+                      return (
+                        <button
+                          key={row.subject}
+                          onClick={() => {
+                            setSubjectFilter(row.subject);
+                            setTab("overview");
+                            setExpanded(true);
+                          }}
+                          className="w-full text-left px-3 py-2.5 rounded-xl bg-secondary/30 border border-border/30 hover:border-primary/40 hover:bg-secondary/50 transition-all"
+                        >
+                          <div className="flex items-center justify-between mb-1.5 gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                              <span className="text-xs font-medium text-foreground truncate">{row.subject}</span>
+                              <span className="text-[8px] text-muted-foreground shrink-0">· {row.total} topics</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {row.avg_retention_pct !== undefined && (
+                                <span className="text-[9px] text-muted-foreground">{row.avg_retention_pct}% avg</span>
+                              )}
+                              <span className={`text-[10px] font-bold ${healthColor}`}>{row.health_score}/100</span>
+                            </div>
+                          </div>
+                          <div className="flex h-1.5 rounded-full overflow-hidden bg-secondary">
+                            {row.critical > 0 && <div className="bg-destructive" style={{ width: `${(row.critical / row.total) * 100}%` }} />}
+                            {row.high > 0     && <div className="bg-chart-5"     style={{ width: `${(row.high     / row.total) * 100}%` }} />}
+                            {row.medium > 0   && <div className="bg-chart-4"     style={{ width: `${(row.medium   / row.total) * 100}%` }} />}
+                            {row.low > 0      && <div className="bg-chart-2"     style={{ width: `${(row.low      / row.total) * 100}%` }} />}
+                          </div>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <div className="flex items-center gap-2.5 text-[9px] text-muted-foreground">
+                              <span title="Critical (<30%)">🔴 {row.critical}</span>
+                              <span title="High risk (30-50%)">🟠 {row.high}</span>
+                              <span title="Medium (50-70%)">🟡 {row.medium}</span>
+                              <span title="Safe (≥70%)">🟢 {row.low}</span>
+                            </div>
+                            {urgentInSubject > 0 && (
+                              <span className="text-[9px] font-semibold text-destructive flex items-center gap-0.5">
+                                <AlertTriangle className="w-2.5 h-2.5" />
+                                {urgentInSubject} urgent
+                              </span>
+                            )}
+                          </div>
+                          {row.urgent_topics && row.urgent_topics.length > 0 && (
+                            <p className="text-[9px] text-muted-foreground mt-1.5 truncate">
+                              ⚡ {row.urgent_topics.join(" · ")}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
               </motion.div>
             )}
 
