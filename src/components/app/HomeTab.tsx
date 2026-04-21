@@ -183,19 +183,94 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
     return () => clearInterval(interval);
   }, [user?.id, predict]);
 
+  // ── Today's Plan Completion: LIVE computation ──────────────────────────
+  // Computes from today's actual study minutes vs daily goal, blended with
+  // today's mission accuracy (if any). Subscribes to study_logs + mission_sessions
+  // realtime so the ring updates the moment the user studies.
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const computeTodayCompletion = async () => {
+      try {
+        const localStart = new Date();
+        localStart.setHours(0, 0, 0, 0);
+        const localEnd = new Date(localStart);
+        localEnd.setDate(localEnd.getDate() + 1);
+
+        const [profileRes, logsRes, missionRes] = await Promise.all([
+          supabase.from("profiles").select("daily_study_goal_minutes").eq("id", user.id).maybeSingle(),
+          supabase.from("study_logs").select("duration_minutes")
+            .eq("user_id", user.id)
+            .gte("created_at", localStart.toISOString())
+            .lt("created_at", localEnd.toISOString()),
+          supabase.from("mission_sessions").select("status, accuracy_pct")
+            .eq("user_id", user.id)
+            .gte("created_at", localStart.toISOString())
+            .lt("created_at", localEnd.toISOString())
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+        const goal = Math.max(15, profileRes.data?.daily_study_goal_minutes || 60);
+        const minutes = (logsRes.data || []).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
+        const minutesPct = Math.min(100, (minutes / goal) * 100);
+
+        let blended = minutesPct;
+        const m: any = missionRes.data;
+        if (m?.status === "completed" && typeof m.accuracy_pct === "number") {
+          blended = minutesPct * 0.7 + m.accuracy_pct * 0.3;
+        }
+        setLatestCompletionRate(Math.round(blended));
+      } catch {
+        // graceful fallback to historical
+        const { data } = await supabase.from("plan_quality_logs")
+          .select("overall_completion_rate")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (data?.[0]?.overall_completion_rate != null) {
+          setLatestCompletionRate(Math.round(data[0].overall_completion_rate * 100));
+        }
+      }
+    };
+
+    computeTodayCompletion();
+
+    const completionChannel = supabase
+      .channel(`home-completion-${user.id}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "study_logs", filter: `user_id=eq.${user.id}` },
+        () => computeTodayCompletion()
+      )
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "mission_sessions", filter: `user_id=eq.${user.id}` },
+        () => computeTodayCompletion()
+      )
+      .subscribe();
+
+    const onVisible = () => { if (document.visibilityState === "visible") computeTodayCompletion(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", computeTodayCompletion);
+    const interval = setInterval(computeTodayCompletion, 60_000);
+
+    // Local-midnight rollover: reset to today
+    const nextMidnight = new Date();
+    nextMidnight.setHours(24, 0, 1, 0);
+    const midnightTimer = setTimeout(computeTodayCompletion, Math.max(1000, nextMidnight.getTime() - Date.now()));
+
+    return () => {
+      supabase.removeChannel(completionChannel);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", computeTodayCompletion);
+      clearInterval(interval);
+      clearTimeout(midnightTimer);
+    };
+  }, [user?.id]);
+
   // User-dependent fetches — re-run when user becomes available or changes
   useEffect(() => {
     if (!user?.id) return;
-    supabase.from("plan_quality_logs")
-      .select("overall_completion_rate")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        if (data?.[0]?.overall_completion_rate != null) {
-          setLatestCompletionRate(data[0].overall_completion_rate * 100);
-        }
-      });
 
     // Reset stale values immediately when user changes to prevent showing previous user's name
     setAvatarUrl(null);
