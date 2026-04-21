@@ -621,6 +621,26 @@ const UserProfilePage = () => {
         </motion.div>
       </div>
 
+      {/* Async validation spinner — shown while we probe size/dimensions */}
+      <AnimatePresence>
+        {validating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-background/80 backdrop-blur-sm flex items-center justify-center"
+          >
+            <div className="flex flex-col items-center gap-3 px-6 py-5 rounded-2xl bg-card border border-border shadow-2xl">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <div className="text-center">
+                <p className="text-sm font-bold text-foreground">Checking image…</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Validating size and dimensions</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AvatarCropDialog
         open={!!cropSrc && !previewBlob}
         imageSrc={cropSrc || ""}
