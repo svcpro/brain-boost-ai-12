@@ -245,41 +245,26 @@ const UserProfilePage = () => {
         >
           <div className="flex items-start gap-5">
             {/* Avatar */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                className="block w-20 h-20 rounded-2xl overflow-hidden ring-2 ring-primary/20 bg-secondary flex items-center justify-center disabled:opacity-50"
-              >
+            <div className="relative w-20 h-20 shrink-0">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden ring-2 ring-primary/20 bg-secondary flex items-center justify-center">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-xl font-bold text-muted-foreground">{initials}</span>
                 )}
-              </button>
-              {/* Always-visible camera badge */}
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                aria-label="Change profile photo"
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg ring-2 ring-background hover:scale-105 active:scale-95 transition-transform disabled:opacity-50"
-              >
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg ring-2 ring-background pointer-events-none">
                 {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-              </button>
+              </div>
               <input
                 ref={fileRef}
                 type="file"
                 accept="image/*"
-                className="hidden"
+                disabled={uploading}
+                aria-label="Change profile photo"
+                className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                 onChange={e => {
-                  const f = e.target.files?.[0];
-                  if (f) {
-                    const reader = new FileReader();
-                    reader.onload = () => setCropSrc(reader.result as string);
-                    reader.readAsDataURL(f);
-                  }
+                  openAvatarCropper(e.target.files?.[0]);
                   e.target.value = "";
                 }}
               />
