@@ -745,21 +745,46 @@ Generate a JSON object with:
       }));
 
       let myPosition = board.find(b => b.is_me)?.position || null;
+      // Fallback: rank computed against the SAME category + scope filters used above.
+      // Only return a position if the user has at least one COMPLETED test that
+      // matches the active filters — never inflate a rank from an unfinished test
+      // or from a different category/scope.
       if (!myPosition && (user_id || anon_session_id)) {
         const idCol = user_id ? "user_id" : "anon_session_id";
         const idVal = user_id || anon_session_id;
-        const { data: mine } = await admin.from("myrank_tests")
+        let mineQ = admin.from("myrank_tests")
           .select("percentile")
           .eq(idCol, idVal)
           .not("completed_at", "is", null)
+          .not("percentile", "is", null);
+        if (category && category !== "ALL") {
+          if (category === "IQ") mineQ = mineQ.eq("category", "IQ");
+          else mineQ = mineQ.or(`category.eq.${category},category.ilike.${category} %`);
+        }
+        if (scope === "city" && resolvedCity) mineQ = mineQ.eq("city", resolvedCity);
+        if (scope === "weekly") {
+          const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          mineQ = mineQ.gte("completed_at", weekAgo);
+        }
+        const { data: mine } = await mineQ
           .order("percentile", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (mine?.percentile) {
-          const { count } = await admin.from("myrank_tests")
+        if (mine?.percentile != null) {
+          let countQ = admin.from("myrank_tests")
             .select("*", { count: "exact", head: true })
             .gt("percentile", mine.percentile)
             .not("completed_at", "is", null);
+          if (category && category !== "ALL") {
+            if (category === "IQ") countQ = countQ.eq("category", "IQ");
+            else countQ = countQ.or(`category.eq.${category},category.ilike.${category} %`);
+          }
+          if (scope === "city" && resolvedCity) countQ = countQ.eq("city", resolvedCity);
+          if (scope === "weekly") {
+            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            countQ = countQ.gte("completed_at", weekAgo);
+          }
+          const { count } = await countQ;
           myPosition = (count || 0) + 1;
         }
       }
