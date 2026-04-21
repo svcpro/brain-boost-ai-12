@@ -658,7 +658,10 @@ Generate a JSON object with:
     }
 
     if (action === "leaderboard") {
-      const { category, scope, city: clientCity, user_id, anon_session_id } = body;
+      const { category, scope, city: clientCity, user_id } = body;
+      // SECURITY: Once authenticated, NEVER match by anon_session_id — browsers
+      // share localStorage across logins, causing rank/name leakage between users.
+      const anon_session_id = user_id ? null : body.anon_session_id;
       // scope: "india" (default) | "city" | "weekly"
 
       // ─── Auto-derive user's city for transparency ───
