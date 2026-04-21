@@ -67,28 +67,79 @@ const MyRankLeaderboard = () => {
   const [cityCapturedAt, setCityCapturedAt] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [autoDetecting, setAutoDetecting] = useState(false);
+
+  // Cached IP-detected city (per browser session) — avoids re-hitting ipapi
+  const getCachedDetectedCity = () => {
+    try {
+      const raw = localStorage.getItem("myrank_detected_city");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // 24h cache
+      if (Date.now() - parsed.t > 24 * 60 * 60 * 1000) return null;
+      return parsed.city as string;
+    } catch { return null; }
+  };
+
+  const detectAndPersistCity = async (): Promise<string | null> => {
+    let detected = getCachedDetectedCity();
+    if (!detected) {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        if (!res.ok) return null;
+        const data = await res.json();
+        detected = (data.city || "").toString().slice(0, 60) || null;
+        if (detected) {
+          localStorage.setItem("myrank_detected_city", JSON.stringify({ city: detected, t: Date.now() }));
+          // Persist to profile if logged in & profile city empty
+          if (user?.id) {
+            const { data: prof } = await supabase.from("profiles").select("city").eq("id", user.id).maybeSingle();
+            if (!prof?.city) {
+              await supabase.from("profiles").update({ city: detected, country: data.country_name || null }).eq("id", user.id);
+            }
+          }
+        }
+      } catch { return null; }
+    }
+    return detected;
+  };
 
   useEffect(() => {
-    const anonId = localStorage.getItem("myrank_anon_id");
-    setLoading(true);
-    supabase.functions.invoke("myrank-engine", {
-      body: {
-        action: "leaderboard",
-        category,
-        scope,
-        user_id: user?.id || null,
-        anon_session_id: anonId,
-      },
-    }).then(({ data }) => {
+    let cancelled = false;
+    const run = async () => {
+      const anonId = localStorage.getItem("myrank_anon_id");
+      setLoading(true);
+
+      // For city scope, pre-detect to guarantee we have a value
+      let cityOverride: string | null = null;
+      if (scope === "city") {
+        setAutoDetecting(true);
+        cityOverride = await detectAndPersistCity();
+        setAutoDetecting(false);
+      }
+
+      const { data } = await supabase.functions.invoke("myrank-engine", {
+        body: {
+          action: "leaderboard",
+          category,
+          scope,
+          user_id: user?.id || null,
+          anon_session_id: anonId,
+          city: cityOverride || undefined,
+        },
+      });
+      if (cancelled) return;
       const d = data as any;
       setRows(d?.leaderboard || []);
       setMyPos(d?.my_position || null);
-      setMyCity(d?.my_city || null);
-      setCitySource(d?.city_source || null);
+      setMyCity(d?.my_city || cityOverride || null);
+      setCitySource(d?.city_source || (cityOverride ? "explicit" : null));
       setCityCapturedAt(d?.city_captured_at || null);
       setLastUpdatedAt(d?.last_updated_at || null);
       setLoading(false);
-    });
+    };
+    run();
+    return () => { cancelled = true; };
   }, [category, scope, user?.id]);
 
   const top3 = rows.slice(0, 3);
