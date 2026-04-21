@@ -63,9 +63,12 @@ const ProgressTab = ({ onUpgrade }: { onUpgrade?: () => void }) => {
               <Lock className="w-7 h-7" style={{ color: "#FFD700" }} />
             </motion.div>
 
+            <div className="px-3 py-1 rounded-full mb-2" style={{ background: "linear-gradient(90deg,#FFD70022,#FF850022)", border: "1px solid #FFD70040" }}>
+              <span className="text-[10px] font-bold tracking-widest" style={{ color: "#FFD700" }}>PREMIUM ONLY · ₹499/mo</span>
+            </div>
             <h2 className="text-xl font-bold text-foreground mb-1">Exam Practice is Premium</h2>
             <p className="text-xs text-muted-foreground mb-5 max-w-xs leading-relaxed">
-              Unlimited SureShot drills, Confidence Practice and AI mock interviews are part of <span className="font-semibold text-foreground">ACRY Premium</span>.
+              Your <span className="font-semibold text-foreground">Starter plan</span> doesn't include Exam Practice. Upgrade to <span className="font-semibold text-foreground">ACRY Premium</span> to unlock SureShot drills and Confidence Practice.
             </p>
 
             <ul className="w-full space-y-2 mb-5 text-left">
@@ -94,12 +97,12 @@ const ProgressTab = ({ onUpgrade }: { onUpgrade?: () => void }) => {
               }}
             >
               <Crown className="w-4 h-4" />
-              <span>Upgrade to ACRY Premium</span>
+              <span>Upgrade to Premium · ₹499/mo</span>
               <Sparkles className="w-4 h-4" />
             </motion.button>
 
             <p className="text-[10px] text-muted-foreground/60 mt-3">
-              Starts at ₹499/mo · cancel anytime
+              Save 17% on yearly · cancel anytime
             </p>
           </div>
         </motion.div>
