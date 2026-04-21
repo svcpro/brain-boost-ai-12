@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User, Mail, Lock, Camera, Save, Loader2, Eye, EyeOff,
-  CheckCircle2, ArrowLeft, Shield, Clock, Calendar, Trash2, KeyRound, MapPin, Globe
+  CheckCircle2, ArrowLeft, Shield, Clock, Calendar, Trash2, KeyRound, MapPin, Globe, Locate
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ const UserProfilePage = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   // Password change
@@ -55,6 +56,39 @@ const UserProfilePage = () => {
   }, [user]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  // Auto-detect city/country from IP geolocation (free, no key required)
+  const detectLocation = useCallback(async (silent = false) => {
+    setDetectingLocation(true);
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      if (!res.ok) throw new Error("geo lookup failed");
+      const data = await res.json();
+      const detectedCity = (data.city || "").toString().slice(0, 60);
+      const detectedCountry = (data.country_name || "").toString().slice(0, 60);
+      if (detectedCity) setCity(detectedCity);
+      if (detectedCountry) setCountry(detectedCountry);
+      if (!silent) {
+        toast({
+          title: "📍 Location detected",
+          description: detectedCity ? `${detectedCity}${detectedCountry ? `, ${detectedCountry}` : ""}` : "Saved",
+        });
+      }
+    } catch {
+      if (!silent) toast({ title: "Couldn't detect location", description: "Please enter it manually.", variant: "destructive" });
+    } finally {
+      setDetectingLocation(false);
+    }
+  }, [toast]);
+
+  // Auto-detect once on mount if both fields are empty (after profile loads)
+  useEffect(() => {
+    if (!loading && !city && !country) {
+      detectLocation(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
 
   const saveProfile = async () => {
     if (!user) return;
@@ -276,9 +310,19 @@ const UserProfilePage = () => {
                   />
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground -mt-1">
-                Used to rank you in the <span className="text-primary font-semibold">My City</span> leaderboard scope.
-              </p>
+              <div className="flex items-center justify-between -mt-1">
+                <p className="text-[10px] text-muted-foreground">
+                  Used to rank you in the <span className="text-primary font-semibold">My City</span> leaderboard.
+                </p>
+                <button
+                  onClick={() => detectLocation(false)}
+                  disabled={detectingLocation}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                >
+                  {detectingLocation ? <Loader2 className="w-3 h-3 animate-spin" /> : <Locate className="w-3 h-3" />}
+                  {detectingLocation ? "Detecting..." : "Auto-detect"}
+                </button>
+              </div>
 
               {avatarUrl && (
                 <button onClick={removeAvatar} disabled={uploading} className="flex items-center gap-1 text-[11px] text-destructive hover:text-destructive/80 transition-colors">
