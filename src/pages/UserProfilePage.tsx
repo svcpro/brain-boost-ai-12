@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
+import AvatarPreviewDialog from "@/components/profile/AvatarPreviewDialog";
 
 const UserProfilePage = () => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ const UserProfilePage = () => {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
 
   // Password change
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -597,9 +599,28 @@ const UserProfilePage = () => {
         open={!!cropSrc}
         imageSrc={cropSrc || ""}
         onCancel={() => setCropSrc(null)}
-        onConfirm={async blob => {
-          await uploadAvatar(blob, "jpg");
+        onConfirm={blob => {
+          // Hand off to the preview step instead of uploading immediately
+          setPreviewBlob(blob);
           setCropSrc(null);
+        }}
+      />
+
+      <AvatarPreviewDialog
+        open={!!previewBlob}
+        blob={previewBlob}
+        uploading={uploading}
+        onCancel={() => setPreviewBlob(null)}
+        onRecrop={() => {
+          // Go back to the cropper with the original source
+          setPreviewBlob(null);
+          // cropSrc may have been cleared; re-open it if we still have it
+          // Otherwise the user can pick a new file.
+        }}
+        onConfirm={async () => {
+          if (!previewBlob) return;
+          await uploadAvatar(previewBlob, "jpg");
+          setPreviewBlob(null);
         }}
       />
     </div>
