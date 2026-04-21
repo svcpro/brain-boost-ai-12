@@ -52,6 +52,42 @@ const DailyGoalTracker = () => {
     load();
   }, [load]);
 
+  // Live updates: refresh when new study_logs are added for this user
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`daily-goal-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "study_logs",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => load()
+      )
+      .subscribe();
+
+    // Also refresh when user comes back to the tab
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", load);
+
+    // Safety net: refresh every 60s while mounted
+    const interval = setInterval(load, 60_000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", load);
+      clearInterval(interval);
+    };
+  }, [user?.id, load]);
+
   const saveGoal = async (minutes: number) => {
     if (!user) return;
     setGoalMinutes(minutes);
