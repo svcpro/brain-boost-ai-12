@@ -115,16 +115,75 @@ const UserProfilePage = () => {
     setSaving(false);
   };
 
+  // Avatar upload limits
+  const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MB raw upload (cropped output is much smaller)
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const MIN_DIMENSION = 200;   // need enough resolution for a clear avatar
+  const MAX_DIMENSION = 8000;  // reject absurdly huge images that crash decoders
+
   const openAvatarCropper = useCallback((file?: File) => {
     if (!file) return;
+
+    // 1. MIME type
     if (!file.type.startsWith("image/")) {
-      toast({ title: "Please select an image", variant: "destructive" });
+      toast({ title: "Unsupported file", description: "Please choose an image (JPG, PNG, WebP, or GIF).", variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setCropSrc(reader.result as string);
-    reader.onerror = () => toast({ title: "Couldn't open image", variant: "destructive" });
-    reader.readAsDataURL(file);
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({ title: "Unsupported image format", description: "Use JPG, PNG, WebP, or GIF.", variant: "destructive" });
+      return;
+    }
+
+    // 2. File size
+    if (file.size > MAX_FILE_BYTES) {
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      toast({
+        title: "Image too large",
+        description: `That photo is ${mb} MB. Please choose one under 8 MB.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size < 1024) {
+      toast({ title: "Image looks broken", description: "File is too small or empty.", variant: "destructive" });
+      return;
+    }
+
+    // 3. Dimensions — load into <img> to read width/height before opening cropper
+    const objectUrl = URL.createObjectURL(file);
+    const probe = new Image();
+    probe.onload = () => {
+      const { naturalWidth: w, naturalHeight: h } = probe;
+      URL.revokeObjectURL(objectUrl);
+
+      if (w < MIN_DIMENSION || h < MIN_DIMENSION) {
+        toast({
+          title: "Image too small",
+          description: `Minimum ${MIN_DIMENSION}×${MIN_DIMENSION}px. Yours is ${w}×${h}px.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (w > MAX_DIMENSION || h > MAX_DIMENSION) {
+        toast({
+          title: "Image dimensions too large",
+          description: `Max ${MAX_DIMENSION}×${MAX_DIMENSION}px. Yours is ${w}×${h}px — try resizing first.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Passed all checks → open cropper
+      const reader = new FileReader();
+      reader.onload = () => setCropSrc(reader.result as string);
+      reader.onerror = () => toast({ title: "Couldn't read image", variant: "destructive" });
+      reader.readAsDataURL(file);
+    };
+    probe.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      toast({ title: "Invalid image", description: "We couldn't decode this file. Try another image.", variant: "destructive" });
+    };
+    probe.src = objectUrl;
   }, [toast]);
 
   const uploadAvatar = async (file: Blob, ext = "jpg") => {
