@@ -29,6 +29,7 @@ import StreakMilestoneCelebration from "./StreakMilestoneCelebration";
 import ExplainButton from "./ExplainButton";
 import TodaysMission from "./TodaysMission";
 import ColorProgressChart from "./ColorProgressChart";
+import ProfessionalProgressRing from "./ProfessionalProgressRing";
 import QuickMicroActions from "./QuickMicroActions";
 import PlanGateWrapper from "./PlanGateWrapper";
 import SafePassPopup from "./SafePassPopup";
@@ -793,13 +794,11 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         />
       </SectionErrorBoundary>
 
-      {/* ═══ Color-coded Today's Mission Progress ═══ */}
-      <ColorProgressChart
+      {/* ═══ Professional 5-Tier Color Progress Ring ═══ */}
+      <ProfessionalProgressRing
         value={latestCompletionRate}
         label="Today's Plan Completion"
-        sublabel="Color shifts as you progress through your daily plan"
-        thresholds="tier4"
-        style="bar"
+        sublabel="Ring color shifts across 5 performance tiers"
       />
 
       {/* ═══ Forgetting Curve 2.0 ═══ */}
