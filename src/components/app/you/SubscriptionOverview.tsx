@@ -39,7 +39,9 @@ const SubscriptionOverview = ({ currentPlan, onManagePlan }: SubscriptionOvervie
       });
   }, [user, currentPlan]);
 
-  const isPremium = currentPlan === "premium" || currentPlan === "pro" || currentPlan === "ultra";
+  const isPremium = currentPlan === "premium";
+  const isStarter = currentPlan === "starter";
+  const planName = isPremium ? "ACRY Premium" : isStarter ? "ACRY Starter" : "ACRY";
 
   return (
     <motion.div
