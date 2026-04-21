@@ -404,10 +404,15 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                             <span className="relative z-10">2 MO FREE</span>
                             <motion.span
                               className="absolute inset-0 pointer-events-none"
-                              style={{ background: "linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.7) 50%, transparent 65%)" }}
-                              initial={{ x: "-120%" }}
-                              animate={{ x: "120%" }}
-                              transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1, ease: "easeInOut" }}
+                              style={{ background: "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.85) 50%, transparent 70%)" }}
+                              animate={{ x: ["-120%", "120%"] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                            />
+                            <motion.span
+                              className="absolute inset-0 pointer-events-none rounded-full"
+                              style={{ boxShadow: "0 0 12px rgba(0,255,148,0.7)" }}
+                              animate={{ opacity: [0.4, 1, 0.4] }}
+                              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
                             />
                           </div>
                         </div>
