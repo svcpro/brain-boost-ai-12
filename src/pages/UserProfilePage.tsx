@@ -57,6 +57,39 @@ const UserProfilePage = () => {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+  // Auto-detect city/country from IP geolocation (free, no key required)
+  const detectLocation = useCallback(async (silent = false) => {
+    setDetectingLocation(true);
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      if (!res.ok) throw new Error("geo lookup failed");
+      const data = await res.json();
+      const detectedCity = (data.city || "").toString().slice(0, 60);
+      const detectedCountry = (data.country_name || "").toString().slice(0, 60);
+      if (detectedCity) setCity(detectedCity);
+      if (detectedCountry) setCountry(detectedCountry);
+      if (!silent) {
+        toast({
+          title: "📍 Location detected",
+          description: detectedCity ? `${detectedCity}${detectedCountry ? `, ${detectedCountry}` : ""}` : "Saved",
+        });
+      }
+    } catch {
+      if (!silent) toast({ title: "Couldn't detect location", description: "Please enter it manually.", variant: "destructive" });
+    } finally {
+      setDetectingLocation(false);
+    }
+  }, [toast]);
+
+  // Auto-detect once on mount if both fields are empty (after profile loads)
+  useEffect(() => {
+    if (!loading && !city && !country) {
+      detectLocation(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+
   const saveProfile = async () => {
     if (!user) return;
     setSaving(true);
