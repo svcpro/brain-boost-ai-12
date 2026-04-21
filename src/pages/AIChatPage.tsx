@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import ColorProgressChart from "@/components/app/ColorProgressChart";
 
 interface Message {
   id: string;
@@ -641,6 +642,19 @@ const AIChatPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Color-coded chat engagement progress (matches Home & You tabs) */}
+      {!loadingHistory && messages.length > 0 && (
+        <div className="px-4 pt-3 shrink-0">
+          <ColorProgressChart
+            value={Math.min(100, Math.round((messages.length / 30) * 100))}
+            label="Chat Engagement"
+            sublabel={`${messages.length} messages • color shifts as you engage more`}
+            thresholds="tier4"
+            style="bar"
+          />
+        </div>
+      )}
 
       {/* Messages */}
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
