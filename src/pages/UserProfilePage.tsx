@@ -532,6 +532,16 @@ const UserProfilePage = () => {
           </AnimatePresence>
         </motion.div>
       </div>
+
+      <AvatarCropDialog
+        open={!!cropSrc}
+        imageSrc={cropSrc || ""}
+        onCancel={() => setCropSrc(null)}
+        onConfirm={async blob => {
+          await uploadAvatar(blob, "jpg");
+          setCropSrc(null);
+        }}
+      />
     </div>
   );
 };
