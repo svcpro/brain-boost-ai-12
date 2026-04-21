@@ -199,7 +199,60 @@ const MyRankLeaderboard = () => {
           })}
         </motion.div>
 
-        {/* My position pinned card — always visible when ranked outside top 3 */}
+        {/* My City transparency banner */}
+        <AnimatePresence>
+          {scope === "city" && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="relative p-3 rounded-2xl bg-gradient-to-r from-accent/10 via-primary/5 to-accent/10 border border-accent/30 backdrop-blur-md overflow-hidden"
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  {myCity ? (
+                    <>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-bold text-foreground">{myCity}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-accent/20 text-accent font-semibold">
+                          {citySource === "explicit" ? "Profile" : "Auto-detected"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Info className="w-2.5 h-2.5" />
+                        {citySource === "explicit"
+                          ? "Set from your profile city."
+                          : "Detected from your last test attempt's IP geolocation."}
+                      </p>
+                      {cityCapturedAt && citySource === "last_test" && (
+                        <p className="text-[10px] text-muted-foreground/80">
+                          Location captured {formatRelative(cityCapturedAt)}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm font-bold text-foreground">City unknown</span>
+                      <p className="text-[10px] text-muted-foreground">
+                        Take a test to auto-detect your city, or update your profile to set it manually.
+                      </p>
+                    </>
+                  )}
+                  {lastUpdatedAt && (
+                    <p className="text-[10px] text-muted-foreground/80 flex items-center gap-1 pt-0.5">
+                      <Clock className="w-2.5 h-2.5" />
+                      Leaderboard updated {formatRelative(lastUpdatedAt)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {(() => {
             const meRow = rows.find(r => r.is_me);
