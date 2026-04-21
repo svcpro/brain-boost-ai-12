@@ -738,6 +738,17 @@ Generate a JSON object with:
             city: t.city,
             is_me: false,
           }));
+          console.log(JSON.stringify({
+            tag: "myrank.leaderboard.no_completed_tests",
+            debug_id: _debugId,
+            user_id: user_id || null,
+            anon_session_id,
+            category: category || "ALL",
+            scope: scope || "india",
+            my_completed_count: myCompletedCount || 0,
+            board_size: safeBoard.length,
+            my_position: null,
+          }));
           return new Response(JSON.stringify({
             leaderboard: safeBoard,
             my_position: null,
@@ -746,6 +757,7 @@ Generate a JSON object with:
             city_captured_at: null,
             last_updated_at: safeBoard.length ? (pub as any)[0].completed_at : new Date().toISOString(),
             no_completed_tests: true,
+            debug_id: _debugId,
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
