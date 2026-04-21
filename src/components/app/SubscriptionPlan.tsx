@@ -82,6 +82,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
   const savingsFor = (p: PlanRow) => p.price > 0
     ? Math.round(((p.price * 12 - p.yearly_price) / (p.price * 12)) * 100)
     : 0;
+  const absSavingsFor = (p: PlanRow) => Math.max(0, p.price * 12 - p.yearly_price);
 
   const canStartTrial = (p: PlanRow | undefined) =>
     !!p && !forcePaymentOnly && !hasUsedTrial && p.trial_days > 0;
