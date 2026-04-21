@@ -62,6 +62,10 @@ const MyRankLeaderboard = () => {
   const [scope, setScope] = useState<"india" | "weekly" | "city">("india");
   const [rows, setRows] = useState<Row[]>([]);
   const [myPos, setMyPos] = useState<number | null>(null);
+  const [myCity, setMyCity] = useState<string | null>(null);
+  const [citySource, setCitySource] = useState<"explicit" | "last_test" | null>(null);
+  const [cityCapturedAt, setCityCapturedAt] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -76,8 +80,13 @@ const MyRankLeaderboard = () => {
         anon_session_id: anonId,
       },
     }).then(({ data }) => {
-      setRows((data as any)?.leaderboard || []);
-      setMyPos((data as any)?.my_position || null);
+      const d = data as any;
+      setRows(d?.leaderboard || []);
+      setMyPos(d?.my_position || null);
+      setMyCity(d?.my_city || null);
+      setCitySource(d?.city_source || null);
+      setCityCapturedAt(d?.city_captured_at || null);
+      setLastUpdatedAt(d?.last_updated_at || null);
       setLoading(false);
     });
   }, [category, scope, user?.id]);
