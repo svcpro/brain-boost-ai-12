@@ -280,6 +280,7 @@ const UserProfilePage = () => {
                 Used to rank you in the <span className="text-primary font-semibold">My City</span> leaderboard scope.
               </p>
 
+              {avatarUrl && (
                 <button onClick={removeAvatar} disabled={uploading} className="flex items-center gap-1 text-[11px] text-destructive hover:text-destructive/80 transition-colors">
                   <Trash2 className="w-3 h-3" />
                   Remove avatar
