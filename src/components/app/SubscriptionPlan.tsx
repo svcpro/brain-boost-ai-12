@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Check, Loader2, Clock, Shield, Sparkles, X, Zap } from "lucide-react";
+import { Crown, Check, Loader2, Clock, Shield, Sparkles, X, Zap, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
