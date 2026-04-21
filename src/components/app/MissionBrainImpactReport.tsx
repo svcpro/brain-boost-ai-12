@@ -84,33 +84,7 @@ export default function MissionBrainImpactReport({
         </div>
       </motion.div>
 
-      {/* Rank Impact */}
-      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
-        className="p-4 rounded-2xl bg-card border border-border/50">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-lg bg-warning/8 flex items-center justify-center">
-            <Trophy className="w-3.5 h-3.5 text-warning" />
-          </div>
-          <span className="text-xs font-bold text-foreground">Rank Projection</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="text-center">
-            <p className="text-xl font-bold text-muted-foreground">#{rankBefore.toLocaleString()}</p>
-            <p className="text-[9px] text-muted-foreground font-medium">Before</p>
-          </div>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/8 border border-emerald-500/10">
-            <TrendingUp className={`w-4 h-4 ${rankChange > 0 ? "text-emerald-500" : "text-muted-foreground"}`} />
-            <span className={`text-xs font-bold ${rankChange > 0 ? "text-emerald-500" : "text-muted-foreground"}`}>
-              {rankChange > 0 ? `↑ ${rankChange}` : "—"}
-            </span>
-          </motion.div>
-          <div className="text-center">
-            <p className="text-xl font-bold text-primary">#{rankAfter.toLocaleString()}</p>
-            <p className="text-[9px] text-muted-foreground font-medium">After</p>
-          </div>
-        </div>
-      </motion.div>
+      {/* Rank Projection — hidden per product decision */}
 
       {/* Performance Breakdown */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
