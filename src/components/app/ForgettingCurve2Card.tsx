@@ -184,7 +184,8 @@ export default function ForgettingCurve2Card() {
   const memoryLandscape = data.memory_landscape ?? [];
   const factorCount = data.factor_count ?? 12;
 
-  const displayTopics = expanded ? data.topic_decays.slice(0, 12) : data.topic_decays.slice(0, 4);
+  const MAX_EXPANDED = 50;
+  const displayTopics = expanded ? data.topic_decays.slice(0, MAX_EXPANDED) : data.topic_decays.slice(0, 4);
   const simTopic = data.topic_decays.find(t => t.topic_id === simTopicId);
 
   return (
