@@ -293,7 +293,9 @@ export default function ForgettingCurve2Card() {
                     className="w-full flex items-center justify-center gap-1 py-2 mt-2 text-[10px] text-muted-foreground hover:text-primary transition-colors"
                   >
                     {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    {expanded ? "Show less" : `Show ${Math.min(data.topic_decays.length, 12) - 4} more`}
+                    {expanded
+                      ? `Show less (${Math.min(data.topic_decays.length, MAX_EXPANDED)} of ${data.topic_decays.length})`
+                      : `Show ${Math.min(data.topic_decays.length, MAX_EXPANDED) - 4} more · ${data.topic_decays.length} total`}
                   </button>
                 )}
               </motion.div>
