@@ -115,19 +115,18 @@ const UserProfilePage = () => {
     setSaving(false);
   };
 
-  const uploadAvatar = async (file: File) => {
+  const uploadAvatar = async (file: Blob, ext = "jpg") => {
     if (!user) return;
     if (file.size > 2 * 1024 * 1024) {
       toast({ title: "File too large", description: "Max 2MB allowed", variant: "destructive" });
       return;
     }
     setUploading(true);
-    const ext = file.name.split(".").pop();
     const path = `${user.id}/avatar.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { upsert: true });
+      .upload(path, file, { upsert: true, contentType: file.type || "image/jpeg" });
 
     if (uploadError) {
       toast({ title: "Upload failed", variant: "destructive" });
