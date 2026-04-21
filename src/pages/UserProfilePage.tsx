@@ -26,6 +26,7 @@ const UserProfilePage = () => {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropMeta, setCropMeta] = useState<{ width: number; height: number; bytes: number; resized: boolean } | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [validating, setValidating] = useState(false);
 
