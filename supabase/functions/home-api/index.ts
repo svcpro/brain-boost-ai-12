@@ -389,7 +389,7 @@ Deno.serve(async (req) => {
               description: `Memory at ${Math.round(t.memory_strength ?? 0)}% — needs urgent review`,
               type: "review", priority: riskLevel, topic_id: t.id,
               topic_name: t.name, subject_name: sName,
-              estimated_minutes: 15, brain_improvement_pct: brainPct,
+              estimated_minutes: 15, estimatedMinutes: 15, brain_improvement_pct: brainPct, brainImprovementPct: brainPct,
               reasoning: `${t.name} memory is critically low at ${Math.round(t.memory_strength ?? 0)}%. Reviewing now will prevent further decay.`,
             },
             source: "risk_topic",
