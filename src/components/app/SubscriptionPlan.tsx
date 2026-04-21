@@ -433,7 +433,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           <p className="text-[10px] text-muted-foreground mb-3 leading-snug">{p.description}</p>
                         )}
 
-                        <div className="flex items-baseline gap-1 mb-3">
+                        <div className="flex items-baseline gap-1 mb-1">
                           <span className="text-xs text-muted-foreground/60">₹</span>
                           <motion.span
                             key={`${p.plan_key}-${billingCycle}`}
@@ -450,6 +450,22 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                             </span>
                           )}
                         </div>
+
+                        {billingCycle === "yearly" && p.yearly_price > 0 && (
+                          <div className="flex items-center gap-2 mb-3 text-[10px]">
+                            <span className="text-muted-foreground/70">
+                              ≈ <span className="font-semibold text-foreground/80">₹{Math.round(p.yearly_price / 12)}/mo</span> billed yearly
+                            </span>
+                            <span className="text-muted-foreground/40 line-through tabular-nums">
+                              ₹{p.price * 12}
+                            </span>
+                          </div>
+                        )}
+                        {billingCycle === "monthly" && (
+                          <div className="mb-3 text-[10px] text-muted-foreground/60">
+                            or <span className="font-semibold text-foreground/80">₹{p.yearly_price}/yr</span> · save ₹{p.price * 12 - p.yearly_price}
+                          </div>
+                        )}
 
                         {features.length > 0 && (
                           <ul className="space-y-1 mb-3">
