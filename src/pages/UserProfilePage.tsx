@@ -24,6 +24,7 @@ const UserProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   // Password change
   const [showPasswordSection, setShowPasswordSection] = useState(false);
