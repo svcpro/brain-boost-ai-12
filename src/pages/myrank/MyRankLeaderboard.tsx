@@ -4,7 +4,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Trophy, ArrowLeft, Crown, MapPin, Calendar, Globe, Flame, Sparkles, Zap, TrendingUp } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, MapPin, Calendar, Globe, Flame, Sparkles, Zap, TrendingUp, Info, Clock } from "lucide-react";
+
+const formatRelative = (iso: string | null | undefined): string => {
+  if (!iso) return "just now";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const sec = Math.max(1, Math.floor(diffMs / 1000));
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+};
 
 const CATEGORIES = ["ALL", "UPSC", "SSC", "JEE", "NEET", "IQ"];
 const SCOPES: { key: string; label: string; icon: typeof Globe }[] = [
