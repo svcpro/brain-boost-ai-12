@@ -58,6 +58,7 @@ const BrainTab = () => {
   const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
   const [showAITopicManager, setShowAITopicManager] = useState(false);
   const [showSafePass, setShowSafePass] = useState(false);
+  const [precisionPct, setPrecisionPct] = useState<number | null>(null);
 
   useEffect(() => {
     try {
