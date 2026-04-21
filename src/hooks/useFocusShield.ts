@@ -153,6 +153,11 @@ export function useFocusShield() {
         rapid_switches: rapid,
         late_night_minutes: lateNightMin,
       });
+      // Roll session deltas into baseline so the next flush doesn't double-count them
+      baseline.current = { switches, blurs, distractedSec: totalSeconds, rapid };
+      tabSwitches.current = 0;
+      blurEvents.current = 0;
+      totalDistractedMs.current = 0;
     } catch {}
   }, [user]);
 

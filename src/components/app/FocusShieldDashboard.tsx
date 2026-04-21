@@ -282,18 +282,21 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
     });
   }, [scores]);
 
-  // Session patterns
+  // Session patterns — filter to today only so bars reflect today's distraction profile
   const sessionPatterns = useMemo(() => {
-    const morning = events.filter(e => { const h = new Date(e.created_at).getHours(); return h >= 6 && h < 12; }).length;
-    const afternoon = events.filter(e => { const h = new Date(e.created_at).getHours(); return h >= 12 && h < 18; }).length;
-    const evening = events.filter(e => { const h = new Date(e.created_at).getHours(); return h >= 18 && h < 22; }).length;
-    const night = events.filter(e => { const h = new Date(e.created_at).getHours(); return h >= 22 || h < 6; }).length;
-    const total = Math.max(1, morning + afternoon + evening + night);
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const todays = events.filter(e => (e.created_at || "").slice(0, 10) === todayKey);
+    const morning = todays.filter(e => { const h = new Date(e.created_at).getHours(); return h >= 6 && h < 12; }).length;
+    const afternoon = todays.filter(e => { const h = new Date(e.created_at).getHours(); return h >= 12 && h < 18; }).length;
+    const evening = todays.filter(e => { const h = new Date(e.created_at).getHours(); return h >= 18 && h < 22; }).length;
+    const night = todays.filter(e => { const h = new Date(e.created_at).getHours(); return h >= 22 || h < 6; }).length;
+    const total = morning + afternoon + evening + night;
+    const safeTotal = Math.max(1, total);
     return [
-      { label: "Morning", icon: "🌅", count: morning, pct: Math.round(morning / total * 100), color: "hsl(var(--warning))" },
-      { label: "Afternoon", icon: "☀️", count: afternoon, pct: Math.round(afternoon / total * 100), color: "hsl(var(--primary))" },
-      { label: "Evening", icon: "🌆", count: evening, pct: Math.round(evening / total * 100), color: "hsl(var(--accent))" },
-      { label: "Night", icon: "🌙", count: night, pct: Math.round(night / total * 100), color: "hsl(var(--destructive))" },
+      { label: "Morning", icon: "🌅", count: morning, pct: total === 0 ? 0 : Math.round(morning / safeTotal * 100), color: "hsl(var(--warning))" },
+      { label: "Afternoon", icon: "☀️", count: afternoon, pct: total === 0 ? 0 : Math.round(afternoon / safeTotal * 100), color: "hsl(var(--primary))" },
+      { label: "Evening", icon: "🌆", count: evening, pct: total === 0 ? 0 : Math.round(evening / safeTotal * 100), color: "hsl(var(--accent))" },
+      { label: "Night", icon: "🌙", count: night, pct: total === 0 ? 0 : Math.round(night / safeTotal * 100), color: "hsl(var(--destructive))" },
     ];
   }, [events]);
 
