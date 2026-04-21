@@ -36,6 +36,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
   const [subscription, setSubscription] = useState<any>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string>("starter");
+  const [savingsTipOpen, setSavingsTipOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
