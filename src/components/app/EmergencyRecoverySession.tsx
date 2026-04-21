@@ -338,40 +338,68 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
     setAnswerRevealed(false);
 
     try {
-      const allQuestions: MCQQuestion[] = [];
-      for (const target of targets) {
-        let gotAI = false;
-        try {
-          const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
-            body: {
-              action: "generate_mcq",
-              topic: target.name,
-              subject: target.subject,
-              difficulty: target.memory_strength < 30 ? "easy" : "medium",
-              count: MCQ_PER_TOPIC,
-            },
-          });
-          if (!error && data?.questions?.length > 0) {
-            allQuestions.push(...data.questions.map((q: any) => ({
-              question: q.question || `Question about ${target.name}`,
-              options: q.options?.length >= 2 ? q.options : getFallbackOptions(target.name),
-              explanation: q.explanation || `Review ${target.name} for better retention.`,
-              difficulty: q.difficulty || "medium",
-            })));
-            gotAI = true;
-          }
-        } catch (e) { console.error("AI MCQ fail:", target.name, e); }
-        if (!gotAI) {
-          for (let i = 0; i < MCQ_PER_TOPIC; i++) {
-            allQuestions.push({
-              question: i === 0
-                ? `Which concept is most critical for "${target.name}"?`
-                : `What is a key principle of "${target.name}" in ${target.subject}?`,
-              options: getFallbackOptions(target.name),
-              explanation: `Understanding the core principle of ${target.name} is essential for retention.`,
-              difficulty: "medium",
+      // Fetch MCQs for all crisis topics in parallel for speed
+      const perTopic = await Promise.all(
+        targets.map(async (target) => {
+          try {
+            const { data, error } = await supabase.functions.invoke("ai-brain-agent", {
+              body: {
+                action: "mission_questions",
+                topic_name: target.name,
+                subject_name: target.subject,
+                difficulty: target.memory_strength < 30 ? "easy" : target.memory_strength < 55 ? "medium" : "hard",
+                count: MCQ_PER_TOPIC,
+              },
             });
+            if (error) throw error;
+            const qs: any[] = Array.isArray(data?.questions) ? data.questions : [];
+            const mapped: MCQQuestion[] = qs
+              .filter((q) => q?.question && Array.isArray(q?.options) && q.options.length >= 2)
+              .slice(0, MCQ_PER_TOPIC)
+              .map((q) => {
+                const correctIdx = typeof q.correct_index === "number"
+                  ? Math.max(0, Math.min(q.options.length - 1, q.correct_index))
+                  : 0;
+                const options: MCQOption[] = q.options.map((opt: string, i: number) => ({
+                  text: String(opt),
+                  isCorrect: i === correctIdx,
+                }));
+                return {
+                  question: String(q.question),
+                  options,
+                  explanation: q.explanation || `Review the core concepts of ${target.name} for better retention.`,
+                  difficulty: q.difficulty || "medium",
+                };
+              });
+            return mapped;
+          } catch (e) {
+            console.error("AI MCQ fail:", target.name, e);
+            return [] as MCQQuestion[];
           }
+        })
+      );
+
+      const allQuestions: MCQQuestion[] = perTopic.flat();
+
+      // Only fall back when AI returned absolutely nothing — and make the
+      // fallback actually meaningful (subject-aware) so the user still gets
+      // a usable rescue session instead of generic "Core principle" noise.
+      if (allQuestions.length === 0) {
+        for (const target of targets) {
+          allQuestions.push(
+            {
+              question: `In ${target.subject}, which statement BEST describes "${target.name}"?`,
+              options: getFallbackOptions(target.name, target.subject),
+              explanation: `${target.name} sits at ${target.memory_strength}% memory strength — review the foundational definition first to rebuild recall.`,
+              difficulty: "easy",
+            },
+            {
+              question: `What is the most common exam application of "${target.name}"?`,
+              options: getFallbackOptions(target.name, target.subject),
+              explanation: `Examiners frequently test ${target.name} through applied scenarios. Revisit 1–2 solved problems to lock the pattern.`,
+              difficulty: "medium",
+            },
+          );
         }
       }
       setMcqQuestions(allQuestions);
@@ -382,11 +410,11 @@ const EmergencyRecoverySession = ({ open, onClose, onSessionComplete }: Emergenc
     }
   };
 
-  const getFallbackOptions = (name: string): MCQOption[] => [
-    { text: "Core foundational principle", isCorrect: true },
-    { text: "Secondary application", isCorrect: false },
-    { text: "Unrelated concept", isCorrect: false },
-    { text: "Advanced extension", isCorrect: false },
+  const getFallbackOptions = (name: string, subject: string): MCQOption[] => [
+    { text: `A foundational concept in ${subject} essential to ${name}`, isCorrect: true },
+    { text: `An advanced extension unrelated to the core of ${name}`, isCorrect: false },
+    { text: `A topic from a different subject not linked to ${name}`, isCorrect: false },
+    { text: `A historical footnote with no exam relevance`, isCorrect: false },
   ];
 
   const handleMcqAnswer = (optionIdx: number) => {
