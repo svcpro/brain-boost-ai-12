@@ -318,14 +318,10 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
                 {/* CTA section */}
                 <div className="px-4 pb-4 space-y-2">
                   <motion.button
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleStart}
-                    className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 active:opacity-90 transition-all relative overflow-hidden group"
-                    style={{ boxShadow: "0 4px 24px hsl(var(--primary) / 0.25)" }}
+                    className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 active:opacity-90 transition-opacity"
                   >
-                    {/* Shimmer */}
-                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                    <Zap className="w-4 h-4" />
                     Start Mission
                     <ArrowRight className="w-4 h-4" />
                   </motion.button>
