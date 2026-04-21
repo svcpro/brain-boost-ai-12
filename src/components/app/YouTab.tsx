@@ -35,6 +35,7 @@ import CognitiveProfileCard from "./CognitiveProfileCard";
 import PasswordManagement from "./you/PasswordManagement";
 import ApiKeyCard from "./you/ApiKeyCard";
 import ColorProgressChart from "./ColorProgressChart";
+import ProfessionalProgressRing from "./ProfessionalProgressRing";
 import AITopicManager from "./AITopicManager";
 
 interface YouTabProps {
@@ -272,14 +273,11 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       {/* ═══ Monthly Performance Snapshot ═══ */}
       <MonthlyPerformanceSnapshot />
 
-      {/* ═══ Color-coded Personal Progress (gauge) ═══ */}
-      <ColorProgressChart
+      {/* ═══ Professional 5-Tier Color Progress Ring ═══ */}
+      <ProfessionalProgressRing
         value={personalProgressPct}
         label="Your Overall Progress"
-        sublabel="Color tier reflects your study consistency this month"
-        thresholds="tier5"
-        style="gauge"
-        size={140}
+        sublabel="Ring color shifts across 5 performance tiers"
       />
 
       {/* ═══ Subjects & Topics Manager ═══ */}
