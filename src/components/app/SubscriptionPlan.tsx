@@ -357,76 +357,137 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                   ))}
                 </motion.div>
 
-                {/* Yearly savings banner */}
-                <AnimatePresence>
-                  {billingCycle === "yearly" && plans.length > 0 && (
+                {/* Yearly savings banner — always visible, smoothly updates on toggle */}
+                {plans.length > 0 && (() => {
+                  const totalSave = plans.reduce((sum, p) => sum + Math.max(0, p.price * 12 - p.yearly_price), 0);
+                  const isYearly = billingCycle === "yearly";
+                  return (
                     <motion.div
-                      key="yearly-savings-banner"
-                      initial={{ opacity: 0, y: -8, height: 0 }}
-                      animate={{ opacity: 1, y: 0, height: "auto" }}
-                      exit={{ opacity: 0, y: -8, height: 0 }}
-                      transition={{ type: "spring", damping: 20, stiffness: 280 }}
-                      className="overflow-hidden mb-4"
+                      layout
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ type: "spring", damping: 22, stiffness: 260 }}
+                      className="mb-4"
                     >
-                      <div
-                        className="relative rounded-2xl p-3.5 overflow-hidden"
-                        style={{
-                          background: "linear-gradient(135deg, rgba(0,255,148,0.16), rgba(0,229,255,0.10))",
-                          border: "1px solid rgba(0,255,148,0.40)",
-                          boxShadow: "0 0 24px rgba(0,255,148,0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
+                      <motion.div
+                        layout
+                        animate={{
+                          background: isYearly
+                            ? "linear-gradient(135deg, rgba(0,255,148,0.16), rgba(0,229,255,0.10))"
+                            : "linear-gradient(135deg, rgba(0,255,148,0.06), rgba(0,229,255,0.04))",
+                          borderColor: isYearly ? "rgba(0,255,148,0.40)" : "rgba(0,255,148,0.20)",
+                          boxShadow: isYearly
+                            ? "0 0 24px rgba(0,255,148,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
+                            : "0 0 0px rgba(0,255,148,0), inset 0 1px 0 rgba(255,255,255,0.03)",
                         }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                        className="relative rounded-2xl p-3.5 overflow-hidden border"
                       >
                         <motion.div
                           className="absolute inset-0 pointer-events-none"
                           style={{ background: "linear-gradient(110deg, transparent 30%, rgba(0,255,148,0.20) 50%, transparent 70%)" }}
                           initial={{ x: "-100%" }}
-                          animate={{ x: "100%" }}
-                          transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                          animate={{ x: "100%", opacity: isYearly ? 1 : 0.5 }}
+                          transition={{ x: { duration: 2.4, repeat: Infinity, ease: "linear" }, opacity: { duration: 0.3 } }}
                         />
                         <div className="relative z-10 flex items-center gap-3">
-                          <div
-                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                            style={{
-                              background: "linear-gradient(135deg, rgba(0,255,148,0.28), rgba(0,229,255,0.18))",
-                              border: "1px solid rgba(0,255,148,0.45)",
-                              boxShadow: "0 0 12px rgba(0,255,148,0.35)",
+                          <motion.div
+                            layout
+                            animate={{
+                              background: isYearly
+                                ? "linear-gradient(135deg, rgba(0,255,148,0.28), rgba(0,229,255,0.18))"
+                                : "linear-gradient(135deg, rgba(0,255,148,0.16), rgba(0,229,255,0.10))",
+                              borderColor: isYearly ? "rgba(0,255,148,0.45)" : "rgba(0,255,148,0.25)",
+                              boxShadow: isYearly ? "0 0 12px rgba(0,255,148,0.35)" : "0 0 0 rgba(0,255,148,0)",
+                              rotate: isYearly ? [0, -8, 8, 0] : 0,
                             }}
+                            transition={{ duration: 0.5 }}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border"
                           >
                             <Sparkles className="w-4 h-4" style={{ color: "#00FF94" }} />
-                          </div>
+                          </motion.div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-baseline gap-1.5 flex-wrap">
-                              <span className="text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: "#00FF94", textShadow: "0 0 8px rgba(0,255,148,0.4)" }}>
-                                You save
-                              </span>
-                              <span
+                              <AnimatePresence mode="wait">
+                                <motion.span
+                                  key={isYearly ? "save-y" : "save-m"}
+                                  initial={{ opacity: 0, y: 4 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -4 }}
+                                  transition={{ duration: 0.18 }}
+                                  className="text-[10px] font-bold uppercase tracking-[0.08em]"
+                                  style={{ color: "#00FF94", textShadow: "0 0 8px rgba(0,255,148,0.4)" }}
+                                >
+                                  {isYearly ? "You save" : "Switch to yearly to save"}
+                                </motion.span>
+                              </AnimatePresence>
+                              <motion.span
+                                key={`total-${totalSave}`}
+                                initial={{ opacity: 0, scale: 0.92, y: 4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                transition={{ type: "spring", damping: 18, stiffness: 320 }}
                                 className="text-[15px] font-black tabular-nums leading-none"
                                 style={{ color: "#FFFFFF", textShadow: "0 0 10px rgba(0,255,148,0.5)" }}
                               >
-                                ₹{plans.reduce((sum, p) => sum + Math.max(0, p.price * 12 - p.yearly_price), 0).toLocaleString("en-IN")}
-                              </span>
+                                ₹{totalSave.toLocaleString("en-IN")}
+                              </motion.span>
                               <span className="text-[10px] font-semibold text-white/70">this year</span>
                             </div>
-                            <div className="text-[10px] mt-1 tabular-nums leading-snug text-white/75">
-                              {plans.map((p, i) => (
-                                <span key={p.id}>
-                                  {i > 0 && <span className="text-white/30 mx-1.5">·</span>}
-                                  <span className="font-semibold text-white/85">{p.name}</span>
-                                  <span className="text-white/55">: </span>
-                                  <span className="font-bold" style={{ color: "#00FF94" }}>−₹{(p.price * 12 - p.yearly_price).toLocaleString("en-IN")}</span>
-                                </span>
-                              ))}
-                            </div>
+                            <motion.div
+                              layout
+                              className="text-[10px] mt-1 tabular-nums leading-snug text-white/75"
+                            >
+                              {plans.map((p, i) => {
+                                const ps = Math.max(0, p.price * 12 - p.yearly_price);
+                                return (
+                                  <span key={p.id}>
+                                    {i > 0 && <span className="text-white/30 mx-1.5">·</span>}
+                                    <span className="font-semibold text-white/85">{p.name}</span>
+                                    <span className="text-white/55">: </span>
+                                    <motion.span
+                                      key={`${p.id}-${ps}-${isYearly}`}
+                                      initial={{ opacity: 0, y: 3 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ duration: 0.22, delay: i * 0.04 }}
+                                      className="font-bold inline-block"
+                                      style={{ color: "#00FF94" }}
+                                    >
+                                      −₹{ps.toLocaleString("en-IN")}
+                                    </motion.span>
+                                  </span>
+                                );
+                              })}
+                            </motion.div>
                           </div>
-                          <div
-                            className="relative overflow-hidden text-[9px] font-black px-2.5 py-1.5 rounded-full shrink-0 tracking-wider"
-                            style={{
-                              background: "linear-gradient(135deg, #00FF94, #00E5B0)",
-                              color: "#001A0E",
-                              boxShadow: "0 2px 12px rgba(0,255,148,0.45), inset 0 1px 0 rgba(255,255,255,0.4)",
+                          <motion.button
+                            type="button"
+                            onClick={() => setBillingCycle(isYearly ? "monthly" : "yearly")}
+                            layout
+                            whileTap={{ scale: 0.94 }}
+                            animate={{
+                              background: isYearly
+                                ? "linear-gradient(135deg, #00FF94, #00E5B0)"
+                                : "linear-gradient(135deg, #00FF9466, #00E5B044)",
+                              boxShadow: isYearly
+                                ? "0 2px 12px rgba(0,255,148,0.45), inset 0 1px 0 rgba(255,255,255,0.4)"
+                                : "0 1px 6px rgba(0,255,148,0.2), inset 0 1px 0 rgba(255,255,255,0.15)",
                             }}
+                            transition={{ duration: 0.3 }}
+                            className="relative overflow-hidden text-[9px] font-black px-2.5 py-1.5 rounded-full shrink-0 tracking-wider cursor-pointer"
+                            style={{ color: "#001A0E" }}
                           >
-                            <span className="relative z-10">2 MO FREE</span>
+                            <AnimatePresence mode="wait">
+                              <motion.span
+                                key={isYearly ? "free" : "switch"}
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.18 }}
+                                className="relative z-10 block"
+                              >
+                                {isYearly ? "2 MO FREE" : "GO YEARLY →"}
+                              </motion.span>
+                            </AnimatePresence>
                             <motion.span
                               className="absolute inset-0 pointer-events-none"
                               style={{ background: "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.85) 50%, transparent 70%)" }}
@@ -436,16 +497,15 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                             <motion.span
                               className="absolute inset-0 pointer-events-none rounded-full"
                               style={{ boxShadow: "0 0 12px rgba(0,255,148,0.7)" }}
-                              animate={{ opacity: [0.4, 1, 0.4] }}
+                              animate={{ opacity: isYearly ? [0.4, 1, 0.4] : [0.2, 0.5, 0.2] }}
                               transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
                             />
-                          </div>
+                          </motion.button>
                         </div>
-                      </div>
+                      </motion.div>
                     </motion.div>
-                  )}
-                </AnimatePresence>
-
+                  );
+                })()}
                 {/* Plan cards */}
                 <div className="space-y-3">
                   {plans.map((p, idx) => {
