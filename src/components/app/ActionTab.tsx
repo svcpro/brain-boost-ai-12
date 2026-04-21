@@ -66,26 +66,6 @@ const studyModes = [
     color: "text-destructive",
     bgClass: "bg-destructive/15",
   },
-  {
-    id: "current-affairs",
-    icon: Newspaper,
-    title: "Current Affairs Quiz",
-    desc: "AI-generated questions from latest news events. Stay exam-ready with daily current affairs practice.",
-    duration: "5-10 min",
-    gain: "+CA readiness",
-    color: "text-primary",
-    bgClass: "bg-primary/15",
-  },
-  {
-    id: "intel-practice",
-    icon: Radar,
-    title: "Exam Intel Practice",
-    desc: "AI-predicted high-probability questions. Practice what's most likely to appear in your exam.",
-    duration: "10-20 min",
-    gain: "+Prediction mastery",
-    color: "text-primary",
-    bgClass: "bg-primary/15",
-  },
 ];
 
 interface ActionTabProps {
