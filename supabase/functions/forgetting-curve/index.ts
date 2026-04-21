@@ -297,16 +297,27 @@ async function handleDashboard(body: any, userClient: any, adminClient: any) {
   const safeCount    = topicDecays.filter(t => t.predicted_retention >= 0.7).length;
 
   // Memory landscape heatmap (subject × risk bucket)
-  const heatmap: Record<string, { critical: number; high: number; medium: number; low: number; total: number }> = {};
+  const heatmap: Record<string, {
+    critical: number; high: number; medium: number; low: number; total: number;
+    retention_sum: number; urgent_topics: string[];
+  }> = {};
   for (const t of topicDecays) {
     const k = t.subject_name || "Unsorted";
-    heatmap[k] = heatmap[k] || { critical: 0, high: 0, medium: 0, low: 0, total: 0 };
+    heatmap[k] = heatmap[k] || { critical: 0, high: 0, medium: 0, low: 0, total: 0, retention_sum: 0, urgent_topics: [] };
     heatmap[k][t.risk_level as "critical" | "high" | "medium" | "low"]++;
     heatmap[k].total++;
+    heatmap[k].retention_sum += t.predicted_retention;
+    if (t.predicted_retention < 0.5 && heatmap[k].urgent_topics.length < 3) {
+      heatmap[k].urgent_topics.push(t.topic_name);
+    }
   }
-  const memoryLandscape = Object.entries(heatmap).map(([subject, buckets]) => ({
-    subject, ...buckets,
-    health_score: Math.round(((buckets.low * 100 + buckets.medium * 60 + buckets.high * 30) / Math.max(buckets.total, 1))),
+  const memoryLandscape = Object.entries(heatmap).map(([subject, b]) => ({
+    subject,
+    critical: b.critical, high: b.high, medium: b.medium, low: b.low, total: b.total,
+    avg_retention_pct: Math.round((b.retention_sum / Math.max(b.total, 1)) * 100),
+    urgent_topics: b.urgent_topics,
+    // Weighted health: low=100, medium=70, high=35, critical=0
+    health_score: Math.round(((b.low * 100 + b.medium * 70 + b.high * 35) / Math.max(b.total, 1))),
   })).sort((a, b) => a.health_score - b.health_score);
 
   // Autonomous interventions — fire-and-forget for newly critical topics
