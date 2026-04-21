@@ -120,15 +120,29 @@ export default function AdvancedMissionWizard({
     if (!user) return;
     setLoading(true);
     try {
-      const isSynthetic = missionId.startsWith("risk-") || missionId.startsWith("weak-") || missionId.startsWith("review-") || missionId.startsWith("practice-") || missionId === "onboard-start";
+      // ─── Unified Today's Mission API: action=questions ───
       const { data, error } = await supabase.functions.invoke("home-api", {
-        body: { route: "mission-questions", mission_id: isSynthetic ? undefined : missionId, topic_name: topicName, subject_name: subjectName, difficulty: diff, count: stepType === "apply" ? 3 : 4 },
+        body: {
+          route: "todays-mission-api",
+          action: "questions",
+          mission_id: missionId,
+          topic_name: topicName,
+          subject_name: subjectName,
+          difficulty: diff,
+          count: stepType === "apply" ? 3 : 4,
+        },
       });
       if (error) throw error;
-      if (data?.questions?.length) { setQuestions(data.questions); setCurrentQ(0); setSelectedAnswer(null); setShowFeedback(false); }
-      else { setQuestions(generateFallbackQuestions(diff)); setCurrentQ(0); }
-    } catch { setQuestions(generateFallbackQuestions(diff)); setCurrentQ(0); }
-    finally {
+      if (data?.questions?.length) {
+        setQuestions(data.questions); setCurrentQ(0); setSelectedAnswer(null); setShowFeedback(false);
+      } else {
+        console.warn("[Mission] No questions from API, using fallback:", data?.error);
+        setQuestions(generateFallbackQuestions(diff)); setCurrentQ(0);
+      }
+    } catch (e) {
+      console.warn("[Mission] questions fetch failed, using fallback:", e);
+      setQuestions(generateFallbackQuestions(diff)); setCurrentQ(0);
+    } finally {
       setLoading(false);
       // Start the timer ONLY after questions are loaded — never during loading
       if (startTimerOnLoad) setTimerActive(true);
@@ -155,9 +169,21 @@ export default function AdvancedMissionWizard({
     setWizardStep("questions");
     setMissionStep(0);
 
-    const isReal = !missionId.startsWith("risk-") && !missionId.startsWith("weak-") && !missionId.startsWith("review-") && !missionId.startsWith("practice-") && missionId !== "onboard-start";
-    if (isReal) { try { await supabase.functions.invoke("home-api", { body: { route: "mission-start", mission_id: missionId } }); } catch {} }
+    // ─── Unified Today's Mission API: action=start (works for both real + synthetic) ───
+    try {
+      const { data: startData, error: startErr } = await supabase.functions.invoke("home-api", {
+        body: { route: "todays-mission-api", action: "start", mission_id: missionId },
+      });
+      if (startErr) {
+        console.warn("[Mission] start failed:", startErr.message);
+      } else if (startData?.already_started) {
+        toast({ title: "▶️ Resumed", description: "Continuing your mission" });
+      }
+    } catch (e) {
+      console.warn("[Mission] start invocation error:", e);
+    }
 
+    // ─── Persist local mission_sessions row for analytics & resume ───
     try {
       if (user) {
         const { data } = await supabase.from("mission_sessions").insert({
@@ -167,7 +193,9 @@ export default function AdvancedMissionWizard({
         }).select("id").single();
         sessionIdRef.current = data?.id || null;
       }
-    } catch {}
+    } catch (e) {
+      console.warn("[Mission] session insert failed:", e);
+    }
 
     // If prefetch already finished, start the timer immediately.
     // Otherwise fetchQuestions will start it once questions land.
@@ -260,8 +288,29 @@ export default function AdvancedMissionWizard({
           memory_before: memoryBefore, memory_after: Math.min(100, memoryBefore + brainBoost), status: "completed", current_step: MISSION_STEPS.length,
         }).eq("id", sessionIdRef.current);
       }
-      const isReal = !missionId.startsWith("risk-") && !missionId.startsWith("weak-") && !missionId.startsWith("review-") && !missionId.startsWith("practice-") && missionId !== "onboard-start";
-      if (isReal) { await supabase.functions.invoke("home-api", { body: { route: "mission-complete", mission_id: missionId } }); }
+      // ─── Unified Today's Mission API: action=complete ───
+      try {
+        const { data: completeData, error: completeErr } = await supabase.functions.invoke("home-api", {
+          body: {
+            route: "todays-mission-api",
+            action: "complete",
+            mission_id: missionId,
+            score: sessionData.score,
+            accuracy: sessionData.accuracy,
+            time_taken_seconds: sessionData.timeUsedSec,
+            questions_attempted: sessionData.totalQ,
+            questions_correct: sessionData.correctCount,
+          },
+        });
+        if (completeErr) {
+          console.warn("[Mission] complete failed:", completeErr.message);
+        } else if (completeData?.brain_impact) {
+          // Merge server-side brain impact into local sessionResults so the impact report has authoritative data
+          setSessionResults((prev: any) => ({ ...prev, brain_impact: completeData.brain_impact, reward: completeData.reward }));
+        }
+      } catch (e) {
+        console.warn("[Mission] complete invocation error:", e);
+      }
       if (topicId && brainBoost > 0) {
         const { data: topic } = await supabase.from("topics").select("id, memory_strength").eq("id", topicId).maybeSingle();
         if (topic) await supabase.from("topics").update({ memory_strength: Math.min(100, Number(topic.memory_strength) + brainBoost), last_revision_date: new Date().toISOString() }).eq("id", topic.id);

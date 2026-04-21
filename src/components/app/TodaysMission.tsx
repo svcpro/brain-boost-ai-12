@@ -101,15 +101,26 @@ export default function TodaysMission({ hasTopics, onStartMission }: TodaysMissi
     setLoading(true);
     setError(false);
     try {
+      // ─── Unified Today's Mission API: action=fetch ───
       const { data, error: fnError } = await supabase.functions.invoke("home-api", {
-        body: { route: "todays-mission" },
+        body: { route: "todays-mission-api", action: "fetch" },
       });
       if (fnError) throw fnError;
       if (data?.mission) {
-        setMission(normalizeMission(data.mission, safeStr(data.source, "api")));
+        setMission(normalizeMission(data.mission, safeStr(data.source, "unified")));
         setCompleted(false);
         return;
       }
+      // ─── Fallback: legacy todays-mission route ───
+      const { data: legacy, error: legacyErr } = await supabase.functions.invoke("home-api", {
+        body: { route: "todays-mission" },
+      });
+      if (!legacyErr && legacy?.mission) {
+        setMission(normalizeMission(legacy.mission, safeStr(legacy.source, "legacy")));
+        setCompleted(false);
+        return;
+      }
+      // ─── Last resort: dashboard payload ───
       const { data: dashData, error: dashErr } = await supabase.functions.invoke("home-api", {
         body: { route: "dashboard" },
       });
