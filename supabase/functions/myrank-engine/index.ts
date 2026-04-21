@@ -663,9 +663,19 @@ Generate a JSON object with:
       // anon_session_id — browsers share localStorage across logins, causing
       // rank/name leakage between users. Strip it from the request entirely.
       const anon_session_id = user_id ? null : (body.anon_session_id || null);
-      if (user_id && body.anon_session_id) {
-        console.log("[myrank-engine] Ignoring anon_session_id for authenticated user", user_id);
-      }
+      const _debugId = `lb_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+      console.log(JSON.stringify({
+        tag: "myrank.leaderboard.request",
+        debug_id: _debugId,
+        user_id: user_id || null,
+        raw_anon_session_id: body.anon_session_id || null,
+        used_anon_session_id: anon_session_id,
+        anon_stripped: !!(user_id && body.anon_session_id),
+        category: category || "ALL",
+        scope: scope || "india",
+        client_city: clientCity || null,
+      }));
+
 
       // SAFE DEFAULT: If the caller has NO completed tests for this category/scope,
       // never surface a phantom rank. Return the public board with my_position=null
