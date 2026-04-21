@@ -499,6 +499,42 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           </ul>
                         )}
 
+                        {/* Explicit access note — clarifies what each plan unlocks */}
+                        <div
+                          className="mb-3 rounded-lg p-2.5 flex items-start gap-2"
+                          style={{
+                            background: isPremiumTier ? "rgba(255,215,0,0.06)" : "rgba(0,229,255,0.05)",
+                            border: isPremiumTier ? "1px solid rgba(255,215,0,0.18)" : "1px solid rgba(0,229,255,0.15)",
+                          }}
+                        >
+                          {isPremiumTier ? (
+                            <Crown className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "#FFD700" }} />
+                          ) : (
+                            <Shield className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "#00E5FF" }} />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            {isPremiumTier ? (
+                              <>
+                                <p className="text-[10px] font-bold leading-tight" style={{ color: "#FFD700" }}>
+                                  Full access · everything unlocked
+                                </p>
+                                <p className="text-[9px] text-muted-foreground mt-0.5 leading-snug">
+                                  Includes <span className="text-foreground/85 font-semibold">Exam Practice + SureShot</span>, AI Mentor, all study modes &amp; priority support.
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-[10px] font-bold leading-tight" style={{ color: "#00E5FF" }}>
+                                  Core access · most features included
+                                </p>
+                                <p className="text-[9px] text-muted-foreground mt-0.5 leading-snug">
+                                  All study tools &amp; AI modes — <span className="font-semibold" style={{ color: "#FFD700" }}>Exam Practice &amp; SureShot are Premium-only</span>.
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
                         <motion.button
                           onClick={() => handleSubscribe(p)}
                           disabled={loading || isPaid}
