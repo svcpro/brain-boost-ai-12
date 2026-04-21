@@ -739,18 +739,35 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
 
   const saveProfile = async () => {
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
-      display_name: editForm.display_name || null,
-      exam_type: editForm.exam_type || null,
-      daily_study_goal_minutes: editForm.daily_study_goal_minutes,
-      weekly_focus_goal_minutes: editForm.weekly_focus_goal_minutes,
-    }).eq("id", user.id);
+    // Only send fields that actually changed vs the loaded user. Prevents
+    // silently overwriting display_name / exam_type with stale form state.
+    const patch: Record<string, any> = {};
+    const trimmedName = (editForm.display_name || "").trim();
+    if (trimmedName !== (user.display_name || "").trim()) {
+      patch.display_name = trimmedName || null;
+    }
+    if ((editForm.exam_type || "") !== (user.exam_type || "")) {
+      patch.exam_type = editForm.exam_type || null;
+    }
+    if (editForm.daily_study_goal_minutes !== user.daily_study_goal_minutes) {
+      patch.daily_study_goal_minutes = editForm.daily_study_goal_minutes;
+    }
+    if (editForm.weekly_focus_goal_minutes !== user.weekly_focus_goal_minutes) {
+      patch.weekly_focus_goal_minutes = editForm.weekly_focus_goal_minutes;
+    }
+    if (Object.keys(patch).length === 0) {
+      setSaving(false);
+      setEditing(false);
+      toast({ title: "No changes to save" });
+      return;
+    }
+    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
     setSaving(false);
     if (error) {
       toast({ title: "Failed to update profile", variant: "destructive" });
       return;
     }
-    await logAudit("profile_updated", { changes: editForm });
+    await logAudit("profile_updated", { changes: patch });
     toast({ title: "Profile updated" });
     setEditing(false);
   };
