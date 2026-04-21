@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { authenticateRequest, handleCors, jsonResponse, errorResponse, corsHeaders, securityHeaders } from "../_shared/auth.ts";
 
@@ -14,7 +13,7 @@ import { authenticateRequest, handleCors, jsonResponse, errorResponse, corsHeade
  * - dashboard: Admin analytics for model performance
  */
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
 

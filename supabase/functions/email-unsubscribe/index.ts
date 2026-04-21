@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const LABELS: Record<string, string> = {
@@ -8,7 +7,7 @@ const LABELS: Record<string, string> = {
   expiry: "subscription expiry emails",
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const url = new URL(req.url);
   const userId = url.searchParams.get("uid");
   const type = url.searchParams.get("type");

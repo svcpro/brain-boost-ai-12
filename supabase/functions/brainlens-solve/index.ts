@@ -1,10 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authenticateRequest, handleCors, jsonResponse, errorResponse } from "../_shared/auth.ts";
 import { rateLimitMiddleware } from "../_shared/rateLimit.ts";
 import { callAI, getAIText } from "../_shared/aiClient.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
 
