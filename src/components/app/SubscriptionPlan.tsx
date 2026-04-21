@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Check, Loader2, Clock, Shield, Sparkles, X, Zap } from "lucide-react";
+import { Crown, Check, Loader2, Clock, Shield, Sparkles, X, Zap, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
   const [subscription, setSubscription] = useState<any>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string>("starter");
+  const [savingsTipOpen, setSavingsTipOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -408,19 +409,71 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           </motion.div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-baseline gap-1.5 flex-wrap">
-                              <AnimatePresence mode="wait">
-                                <motion.span
-                                  key={isYearly ? "save-y" : "save-m"}
-                                  initial={{ opacity: 0, y: 4 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -4 }}
-                                  transition={{ duration: 0.18 }}
-                                  className="text-[10px] font-bold uppercase tracking-[0.08em]"
-                                  style={{ color: "#00FF94", textShadow: "0 0 8px rgba(0,255,148,0.4)" }}
+                              <span className="inline-flex items-center gap-1 relative">
+                                <AnimatePresence mode="wait">
+                                  <motion.span
+                                    key={isYearly ? "save-y" : "save-m"}
+                                    initial={{ opacity: 0, y: 4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -4 }}
+                                    transition={{ duration: 0.18 }}
+                                    className="text-[10px] font-bold uppercase tracking-[0.08em]"
+                                    style={{ color: "#00FF94", textShadow: "0 0 8px rgba(0,255,148,0.4)" }}
+                                  >
+                                    {isYearly ? "You save" : "Switch to yearly to save"}
+                                  </motion.span>
+                                </AnimatePresence>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setSavingsTipOpen(v => !v); }}
+                                  onMouseEnter={() => setSavingsTipOpen(true)}
+                                  onMouseLeave={() => setSavingsTipOpen(false)}
+                                  aria-label="How savings are calculated"
+                                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-white/10 transition-colors"
                                 >
-                                  {isYearly ? "You save" : "Switch to yearly to save"}
-                                </motion.span>
-                              </AnimatePresence>
+                                  <Info className="w-3 h-3" style={{ color: "rgba(0,255,148,0.85)" }} />
+                                </button>
+                                <AnimatePresence>
+                                  {savingsTipOpen && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                                      exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                                      transition={{ duration: 0.15 }}
+                                      className="absolute top-full left-0 mt-2 z-50 w-[260px] p-3 rounded-xl text-[10px] leading-relaxed normal-case tracking-normal font-medium"
+                                      style={{
+                                        background: "linear-gradient(135deg, rgba(8,16,12,0.98), rgba(4,10,8,0.98))",
+                                        border: "1px solid rgba(0,255,148,0.35)",
+                                        boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 16px rgba(0,255,148,0.18)",
+                                        color: "rgba(255,255,255,0.92)",
+                                      }}
+                                    >
+                                      <div className="font-bold mb-1.5 text-[10px] uppercase tracking-wider" style={{ color: "#00FF94" }}>
+                                        How savings are calculated
+                                      </div>
+                                      <div className="mb-1.5 text-white/80">
+                                        <span className="font-semibold text-white">Formula:</span> (Monthly × 12) − Yearly Price
+                                      </div>
+                                      <div className="space-y-1 pt-1.5 border-t border-white/10">
+                                        {plans.map((p) => {
+                                          const ps = Math.max(0, p.price * 12 - p.yearly_price);
+                                          return (
+                                            <div key={p.id} className="flex items-center justify-between gap-2 tabular-nums">
+                                              <span className="text-white/75">
+                                                <span className="font-semibold text-white/90">{p.name}:</span> ₹{p.price}×12 − ₹{p.yearly_price.toLocaleString("en-IN")}
+                                              </span>
+                                              <span className="font-bold" style={{ color: "#00FF94" }}>= ₹{ps.toLocaleString("en-IN")}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                      <div className="mt-1.5 pt-1.5 border-t border-white/10 text-white/60 text-[9px]">
+                                        Total = sum of both plans' yearly savings.
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </span>
                               <motion.span
                                 key={`total-${totalSave}`}
                                 initial={{ opacity: 0, scale: 0.92, y: 4 }}
