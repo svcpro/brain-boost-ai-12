@@ -49,6 +49,12 @@ const getInitials = (name: string) =>
     .join("")
     .toUpperCase();
 
+// SECURITY: Only render the real profile name on the row that the backend
+// flagged as is_me. Every other row gets a generic, non-identifying label so
+// a user can never accidentally see another user's name attached to a rank.
+const displayNameFor = (row: { is_me: boolean; name: string; position: number }) =>
+  row.is_me ? (row.name || "You") : `Rank #${row.position}`;
+
 const MyRankLeaderboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -487,19 +493,21 @@ const MyRankLeaderboard = () => {
                       <div className="relative w-7 text-center shrink-0">
                         <span className="text-sm font-bold text-muted-foreground tabular-nums">#{r.position}</span>
                       </div>
-                      {/* Avatar */}
+                      {/* Avatar — only show profile picture for the matched is_me row.
+                          For everyone else, render anonymous initials so the photo
+                          can never be associated with the wrong identity. */}
                       <div className="relative shrink-0">
                         <div className={`w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-primary/30 to-accent/20 border ${r.is_me ? "border-primary/60 ring-2 ring-primary/30" : "border-border/60"} flex items-center justify-center`}>
-                          {r.avatar_url ? (
-                            <img src={r.avatar_url} alt={r.name} className="w-full h-full object-cover" loading="lazy" />
+                          {r.is_me && r.avatar_url ? (
+                            <img src={r.avatar_url} alt={displayNameFor(r)} className="w-full h-full object-cover" loading="lazy" />
                           ) : (
-                            <span className="text-[10px] font-bold text-primary">{getInitials(r.name)}</span>
+                            <span className="text-[10px] font-bold text-primary">{getInitials(displayNameFor(r))}</span>
                           )}
                         </div>
                       </div>
                       <div className="relative flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate flex items-center gap-1.5">
-                          {r.name}
+                          {displayNameFor(r)}
                           {r.is_me && (
                             <span className="text-[9px] bg-gradient-to-r from-primary to-accent text-primary-foreground px-1.5 py-0.5 rounded-md font-bold shadow shadow-primary/30">
                               YOU
@@ -576,10 +584,10 @@ const PodiumCard = ({ row, place, height, gradient, medal, delay, isFirst }: Pod
         )}
         <div className={`relative w-14 h-14 rounded-full bg-gradient-to-br ${gradient} p-0.5 shadow-xl ${isFirst ? "shadow-warning/50" : ""}`}>
           <div className="w-full h-full rounded-full bg-card flex items-center justify-center overflow-hidden">
-            {row.avatar_url ? (
-              <img src={row.avatar_url} alt={row.name} className="w-full h-full object-cover" loading="lazy" />
+            {row.is_me && row.avatar_url ? (
+              <img src={row.avatar_url} alt={displayNameFor(row)} className="w-full h-full object-cover" loading="lazy" />
             ) : (
-              <span className="text-sm font-extrabold text-foreground">{getInitials(row.name)}</span>
+              <span className="text-sm font-extrabold text-foreground">{getInitials(displayNameFor(row))}</span>
             )}
           </div>
           {/* Medal overlay */}
@@ -596,7 +604,7 @@ const PodiumCard = ({ row, place, height, gradient, medal, delay, isFirst }: Pod
 
       {/* Name + percentile */}
       <div className="text-center w-full px-1">
-        <div className="text-[11px] font-bold truncate">{row.name}</div>
+        <div className="text-[11px] font-bold truncate">{displayNameFor(row)}</div>
         <div className={`text-sm font-extrabold bg-gradient-to-r ${gradient} bg-clip-text text-transparent tabular-nums`}>
           {row.percentile}%
         </div>
