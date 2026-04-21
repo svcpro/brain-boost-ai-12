@@ -341,13 +341,13 @@ const UserProfilePage = () => {
                 )}
               </div>
               <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg ring-2 ring-background pointer-events-none">
-                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                {uploading || validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
               </div>
               <input
                 ref={fileRef}
                 type="file"
                 accept="image/*"
-                disabled={uploading}
+                disabled={uploading || validating}
                 aria-label="Change profile photo"
                 className="absolute -inset-2 z-10 cursor-pointer opacity-0 disabled:cursor-not-allowed"
                 onChange={e => {
