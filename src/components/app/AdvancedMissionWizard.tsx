@@ -223,12 +223,28 @@ export default function AdvancedMissionWizard({
     const urgMult = urgency === "critical" ? 1.3 : urgency === "high" ? 1.15 : 1;
     const totalXP = Math.round((baseXP + speedBonus) * diffMult * urgMult);
     const brainBoost = Math.round(brainImprovementPct * (correctCount / totalQ));
+    // Badges — earned only on real performance, never as participation trophies
     const badges: string[] = [];
-    if (accuracy === 100) badges.push("perfect_score");
-    if (speedBonus > 20) badges.push("speed_demon");
+    if (totalQ >= 4 && accuracy === 100) badges.push("perfect_score");
+    // Speed Demon: must be fast AND mostly correct
+    if (speedBonus >= 20 && accuracy >= 70) badges.push("speed_demon");
+    // Hard Mode Hero: stayed on hard with strong accuracy
     if (difficulty === "hard" && accuracy >= 75) badges.push("hard_mode_hero");
-    if (difficultyChanges >= 2) badges.push("adaptive_warrior");
-    if (results.length >= 12) badges.push("endurance_master");
+    // Adaptive Warrior: AI raised difficulty (not just dropped it) AND user kept up
+    if (difficultyChanges >= 2 && difficulty !== "easy" && accuracy >= 70) badges.push("adaptive_warrior");
+    // Endurance Master: long session AND solid accuracy
+    if (results.length >= 12 && accuracy >= 70) badges.push("endurance_master");
+    // Comeback Kid: started rough, finished strong
+    if (results.length >= 6) {
+      const firstHalf = results.slice(0, Math.floor(results.length / 2));
+      const lastHalf = results.slice(Math.floor(results.length / 2));
+      const firstAcc = firstHalf.filter(Boolean).length / Math.max(firstHalf.length, 1);
+      const lastAcc = lastHalf.filter(Boolean).length / Math.max(lastHalf.length, 1);
+      if (firstAcc < 0.5 && lastAcc >= 0.75) badges.push("comeback_kid");
+    }
+    // Sharp Shooter: high accuracy on a focused short session
+    if (results.length >= 4 && results.length <= 8 && accuracy >= 90) badges.push("sharp_shooter");
+
     const score = Math.round(accuracy * 10 + speedBonus * 2 + (badges.length * 50));
 
     const sessionData = { timeUsedSec, correctCount, totalQ, accuracy, speedBonus, totalXP, brainBoost, badges, score, difficulty, difficultyChanges };
