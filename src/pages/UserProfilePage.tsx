@@ -16,6 +16,8 @@ const UserProfilePage = () => {
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState("");
+  const [country, setCountry] = useState("");
+  const [city, setCity] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,12 +41,14 @@ const UserProfilePage = () => {
     if (!user) return;
     const { data } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url")
+      .select("display_name, avatar_url, country, city")
       .eq("id", user.id)
       .single();
     if (data) {
       setDisplayName(data.display_name || "");
       setAvatarUrl(data.avatar_url);
+      setCountry((data as any).country || "");
+      setCity((data as any).city || "");
     }
     setForgotEmail(user.email || "");
     setLoading(false);
@@ -57,7 +61,12 @@ const UserProfilePage = () => {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: displayName.trim(), updated_at: new Date().toISOString() })
+      .update({
+        display_name: displayName.trim(),
+        country: country.trim() || null,
+        city: city.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", user.id);
     if (error) {
       toast({ title: "Failed to save profile", variant: "destructive" });
