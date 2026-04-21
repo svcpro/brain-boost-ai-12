@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -38,7 +37,7 @@ const TRIGGER_TEMPLATES = [
   { key: "promo_reengagement", label: "Re-engagement Promo", channels: ["email", "push", "voice"], context: "Win back churned/inactive users with special incentive", vars: ["name", "inactive_days", "memory_drop_pct", "comeback_offer", "discount_code", "friends_active"] },
 ];
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

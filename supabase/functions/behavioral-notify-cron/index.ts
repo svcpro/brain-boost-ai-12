@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -11,7 +10,7 @@ const corsHeaders = {
  * Scheduled job: Scans all active users for churn risk, sends motivational
  * interventions, bundles daily summaries, and triggers rank war pushes.
  */
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

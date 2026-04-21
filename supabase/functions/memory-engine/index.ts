@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authenticateRequest, handleCors, corsHeaders } from "../_shared/auth.ts";
 
 // Ebbinghaus forgetting curve: R = e^(-t/S) where R=retention, t=time, S=stability
@@ -11,7 +10,7 @@ function hoursUntilThreshold(stability: number, threshold: number): number {
   return -stability * Math.log(threshold);
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsResp = handleCors(req);
   if (corsResp) return corsResp;
 
