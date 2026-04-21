@@ -337,7 +337,7 @@ Deno.serve(async (req) => {
               type: bm.mission_type || "review", priority: bm.priority || "medium",
               topic_id: bm.target_topic_id || "",
               topic_name: info.topic_name, subject_name: info.subject_name,
-              estimated_minutes: estMin, brain_improvement_pct: bm.reward_value || 5,
+              estimated_minutes: estMin, estimatedMinutes: estMin, brain_improvement_pct: bm.reward_value || 5, brainImprovementPct: bm.reward_value || 5,
               reasoning: bm.reasoning || "Personalized by your AI brain agent.",
             },
             source: "brain_mission",
