@@ -116,6 +116,13 @@ export function useStudyLogger() {
         toast({ title: "Saved offline 📴", description: "Your session will sync when you're back online." });
         return true;
       }
+      // Stale session: user no longer exists in auth (e.g., account removed). Force re-auth.
+      const msg = String(e?.message || "");
+      if (msg.includes("subjects_user_id_fkey") || msg.includes("topics_user_id_fkey") || msg.includes("study_logs_user_id_fkey") || msg.includes("violates foreign key constraint")) {
+        toast({ title: "Session expired", description: "Please sign in again to continue.", variant: "destructive" });
+        try { await supabase.auth.signOut(); } catch {}
+        return false;
+      }
       toast({ title: "Error", description: e.message, variant: "destructive" });
       return false;
     }
