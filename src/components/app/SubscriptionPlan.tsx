@@ -404,10 +404,15 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                             <span className="relative z-10">2 MO FREE</span>
                             <motion.span
                               className="absolute inset-0 pointer-events-none"
-                              style={{ background: "linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.7) 50%, transparent 65%)" }}
-                              initial={{ x: "-120%" }}
-                              animate={{ x: "120%" }}
-                              transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1, ease: "easeInOut" }}
+                              style={{ background: "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.85) 50%, transparent 70%)" }}
+                              animate={{ x: ["-120%", "120%"] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                            />
+                            <motion.span
+                              className="absolute inset-0 pointer-events-none rounded-full"
+                              style={{ boxShadow: "0 0 12px rgba(0,255,148,0.7)" }}
+                              animate={{ opacity: [0.4, 1, 0.4] }}
+                              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
                             />
                           </div>
                         </div>
@@ -470,8 +475,17 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           </motion.span>
                           <span className="text-[11px] text-muted-foreground/60">/{billingCycle === "yearly" ? "yr" : "mo"}</span>
                           {billingCycle === "yearly" && savings > 0 && (
-                            <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#00FF9420", color: "#00FF94" }}>
-                              SAVE {savings}%
+                            <span
+                              className="ml-2 relative overflow-hidden text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "#00FF9420", color: "#00FF94" }}
+                            >
+                              <span className="relative z-10">SAVE {savings}%</span>
+                              <motion.span
+                                className="absolute inset-0 pointer-events-none"
+                                style={{ background: "linear-gradient(110deg, transparent 30%, rgba(0,255,148,0.45) 50%, transparent 70%)" }}
+                                animate={{ x: ["-120%", "120%"] }}
+                                transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
+                              />
                             </span>
                           )}
                         </div>
