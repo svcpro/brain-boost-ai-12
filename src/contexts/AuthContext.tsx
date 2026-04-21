@@ -176,6 +176,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (event === "SIGNED_IN" && newSession?.user) {
+          // SECURITY: Clear any anonymous session identifiers from this device
+          // immediately after sign-in. Browsers share localStorage across logins,
+          // so a stale anon_session_id from a previous user could leak into the
+          // new user's leaderboard / referral / handle requests.
+          try {
+            localStorage.removeItem("myrank_anon_id");
+            localStorage.removeItem("myrank_detected_city");
+          } catch {
+            /* localStorage may be unavailable in some contexts — safe to ignore */
+          }
+
           updateAuthState(newSession);
           // If we were waiting for this after an OAuth INITIAL_SESSION(null), unlock now
           if (!initializedRef.current) {
