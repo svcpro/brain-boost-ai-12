@@ -137,6 +137,7 @@ const MyRankLeaderboard = () => {
       setCitySource(d?.city_source || (cityOverride ? "explicit" : null));
       setCityCapturedAt(d?.city_captured_at || null);
       setLastUpdatedAt(d?.last_updated_at || null);
+      setNoCompletedTests(!!d?.no_completed_tests);
       setLoading(false);
     };
     run();
