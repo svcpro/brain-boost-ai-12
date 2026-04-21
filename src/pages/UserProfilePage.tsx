@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User, Mail, Lock, Camera, Save, Loader2, Eye, EyeOff,
-  CheckCircle2, ArrowLeft, Shield, Clock, Calendar, Trash2, KeyRound, MapPin, Globe
+  CheckCircle2, ArrowLeft, Shield, Clock, Calendar, Trash2, KeyRound, MapPin, Globe, Locate
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ const UserProfilePage = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   // Password change
