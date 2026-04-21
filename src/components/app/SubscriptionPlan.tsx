@@ -449,6 +449,15 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           )}
                         </div>
 
+                        {billingCycle === "yearly" && absSavingsFor(p) > 0 && (
+                          <div className="-mt-2 mb-3 flex items-center gap-1.5 text-[10px]">
+                            <span className="text-muted-foreground/60 line-through tabular-nums">₹{(p.price * 12).toLocaleString("en-IN")}/yr</span>
+                            <span className="font-bold tabular-nums" style={{ color: "#00FF94" }}>
+                              You save ₹{absSavingsFor(p).toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                        )}
+
                         {features.length > 0 && (
                           <ul className="space-y-1 mb-3">
                             {features.slice(0, 5).map((f) => (
