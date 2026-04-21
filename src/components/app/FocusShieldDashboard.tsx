@@ -655,28 +655,42 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                   </div>
 
                   {/* Session Patterns */}
-                  <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
-                        <Clock className="w-3.5 h-3.5 text-accent" />
-                      </div>
-                      <p className="text-[11px] font-bold text-foreground">Distraction by Time of Day</p>
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {sessionPatterns.map((sp, i) => (
-                        <motion.div key={sp.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.06 }}
-                          className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-secondary/20 border border-border/15">
-                          <span className="text-sm">{sp.icon}</span>
-                          <div className="w-full h-1.5 rounded-full bg-muted/20 overflow-hidden">
-                            <motion.div initial={{ width: 0 }} animate={{ width: `${sp.pct}%` }} transition={{ delay: 0.3 + i * 0.1, duration: 0.8 }}
-                              className="h-full rounded-full" style={{ background: sp.color }} />
+                  {(() => {
+                    const totalEvents = sessionPatterns.reduce((s, p) => s + p.count, 0);
+                    return (
+                      <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
+                            <Clock className="w-3.5 h-3.5 text-accent" />
                           </div>
-                          <span className="text-[8px] font-bold text-foreground">{sp.pct}%</span>
-                          <span className="text-[7px] text-muted-foreground">{sp.label}</span>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
+                          <div className="flex-1">
+                            <p className="text-[11px] font-bold text-foreground">When Distractions Happened Today</p>
+                            <p className="text-[8px] text-muted-foreground">
+                              {totalEvents === 0
+                                ? "No distractions tracked today yet"
+                                : `Share of ${totalEvents} distraction${totalEvents === 1 ? "" : "s"} across the day`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 mt-3">
+                          {sessionPatterns.map((sp, i) => (
+                            <motion.div key={sp.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.06 }}
+                              className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-secondary/20 border border-border/15">
+                              <span className="text-sm">{sp.icon}</span>
+                              <div className="w-full h-1.5 rounded-full bg-muted/20 overflow-hidden">
+                                <motion.div initial={{ width: 0 }} animate={{ width: `${sp.pct}%` }} transition={{ delay: 0.3 + i * 0.1, duration: 0.8 }}
+                                  className="h-full rounded-full" style={{ background: sp.color }} />
+                              </div>
+                              <span className="text-[8px] font-bold text-foreground">
+                                {totalEvents === 0 ? "—" : `${sp.count} (${sp.pct}%)`}
+                              </span>
+                              <span className="text-[7px] text-muted-foreground">{sp.label}</span>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </motion.div>
               )}
 
