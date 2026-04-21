@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Trophy, ArrowLeft, Crown, MapPin, Calendar, Globe, Flame, Sparkles, Zap, TrendingUp, Info, Clock } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, MapPin, Calendar, Globe, Flame, Sparkles, Zap, TrendingUp, Info, Clock, ChevronRight } from "lucide-react";
 
 const formatRelative = (iso: string | null | undefined): string => {
   if (!iso) return "just now";
@@ -68,6 +68,7 @@ const MyRankLeaderboard = () => {
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoDetecting, setAutoDetecting] = useState(false);
+  const [noCompletedTests, setNoCompletedTests] = useState(false);
 
   // Cached IP-detected city (per browser session) — avoids re-hitting ipapi
   const getCachedDetectedCity = () => {
@@ -136,6 +137,7 @@ const MyRankLeaderboard = () => {
       setCitySource(d?.city_source || (cityOverride ? "explicit" : null));
       setCityCapturedAt(d?.city_captured_at || null);
       setLastUpdatedAt(d?.last_updated_at || null);
+      setNoCompletedTests(!!d?.no_completed_tests);
       setLoading(false);
     };
     run();
@@ -306,8 +308,29 @@ const MyRankLeaderboard = () => {
           )}
         </AnimatePresence>
 
+        {/* Empty-state CTA: user has 0 completed tests for this category/scope.
+            Hide the pinned rank/name card and prompt them to take the test. */}
+        {!loading && noCompletedTests && (
+          <motion.button
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => navigate(`/myrank/test?category=${category}`)}
+            className="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-accent/10 to-primary/15 border border-primary/40 backdrop-blur-md flex items-center gap-3"
+          >
+            <Trophy className="w-6 h-6 text-warning shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold">Get your India rank</div>
+              <div className="text-[11px] text-muted-foreground">
+                Take a 60-second AI test in {category === "ALL" ? "any category" : category} to appear on the leaderboard.
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-primary shrink-0" />
+          </motion.button>
+        )}
+
         <AnimatePresence>
           {(() => {
+            if (noCompletedTests) return null;
             const meRow = rows.find(r => r.is_me);
             const showPinned = meRow && meRow.position > 3;
             if (!showPinned && !(myPos && myPos > 100)) return null;
