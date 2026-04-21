@@ -86,11 +86,21 @@ const DailyGoalTracker = () => {
     // Safety net: refresh every 60s while mounted
     const interval = setInterval(load, 60_000);
 
+    // Local midnight rollover — reset & reload exactly when the local day flips
+    const nextMidnight = new Date();
+    nextMidnight.setHours(24, 0, 1, 0); // 00:00:01 next local day
+    const msUntilMidnight = Math.max(1000, nextMidnight.getTime() - Date.now());
+    const midnightTimer = setTimeout(() => {
+      goalVoiceFiredRef.current = false; // allow tomorrow's celebration
+      load();
+    }, msUntilMidnight);
+
     return () => {
       supabase.removeChannel(channel);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", load);
       clearInterval(interval);
+      clearTimeout(midnightTimer);
     };
   }, [user?.id, load]);
 
