@@ -515,22 +515,65 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           )}
                         </div>
 
-                        {billingCycle === "yearly" && p.yearly_price > 0 && (
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-3 text-[10px]">
-                            <span className="font-semibold text-foreground/85 tabular-nums">
-                              ₹{Math.round(p.yearly_price / 12).toLocaleString("en-IN")}/mo
-                            </span>
-                            <span className="text-muted-foreground/60">billed yearly</span>
-                            <span className="text-muted-foreground/40 line-through tabular-nums">
-                              ₹{(p.price * 12).toLocaleString("en-IN")}/yr
-                            </span>
-                          </div>
-                        )}
-                        {billingCycle === "monthly" && p.yearly_price > 0 && (
-                          <div className="mb-3 text-[10px] text-muted-foreground/60">
-                            or <span className="font-semibold text-foreground/80 tabular-nums">₹{Math.round(p.yearly_price / 12).toLocaleString("en-IN")}/mo</span> billed yearly · save ₹{(p.price * 12 - p.yearly_price).toLocaleString("en-IN")}
-                          </div>
-                        )}
+                        {/* Monthly vs Yearly comparison row — always visible */}
+                        {p.yearly_price > 0 && p.price > 0 && (() => {
+                          const monthlyEq = Math.round(p.yearly_price / 12);
+                          const absSave = p.price * 12 - p.yearly_price;
+                          const isYearly = billingCycle === "yearly";
+                          const accent = isPremiumTier ? "#FFD700" : "#00E5FF";
+                          return (
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              {/* Monthly cell */}
+                              <button
+                                type="button"
+                                onClick={() => setBillingCycle("monthly")}
+                                className="text-left rounded-lg p-2 transition-all"
+                                style={{
+                                  background: !isYearly ? `${accent}14` : "rgba(255,255,255,0.025)",
+                                  border: !isYearly ? `1px solid ${accent}55` : "1px solid rgba(255,255,255,0.05)",
+                                }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: !isYearly ? accent : "rgba(255,255,255,0.45)" }}>Monthly</span>
+                                  {!isYearly && <Check className="w-2.5 h-2.5" style={{ color: accent }} />}
+                                </div>
+                                <div className="mt-0.5 text-[12px] font-bold tabular-nums text-foreground">
+                                  ₹{p.price.toLocaleString("en-IN")}<span className="text-[9px] font-normal text-muted-foreground/70">/mo</span>
+                                </div>
+                                <div className="text-[8.5px] text-muted-foreground/60 tabular-nums">
+                                  ₹{(p.price * 12).toLocaleString("en-IN")}/yr total
+                                </div>
+                              </button>
+
+                              {/* Yearly cell */}
+                              <button
+                                type="button"
+                                onClick={() => setBillingCycle("yearly")}
+                                className="relative text-left rounded-lg p-2 transition-all overflow-hidden"
+                                style={{
+                                  background: isYearly ? "rgba(0,255,148,0.10)" : "rgba(0,255,148,0.04)",
+                                  border: isYearly ? "1px solid rgba(0,255,148,0.5)" : "1px solid rgba(0,255,148,0.18)",
+                                }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "#00FF94" }}>Yearly</span>
+                                  {isYearly ? (
+                                    <Check className="w-2.5 h-2.5" style={{ color: "#00FF94" }} />
+                                  ) : (
+                                    <span className="text-[8px] font-black px-1 py-0 rounded" style={{ background: "#00FF9433", color: "#00FF94" }}>−₹{absSave.toLocaleString("en-IN")}</span>
+                                  )}
+                                </div>
+                                <div className="mt-0.5 text-[12px] font-bold tabular-nums text-foreground">
+                                  ₹{monthlyEq.toLocaleString("en-IN")}<span className="text-[9px] font-normal text-muted-foreground/70">/mo</span>
+                                </div>
+                                <div className="text-[8.5px] tabular-nums flex items-center gap-1">
+                                  <span className="text-muted-foreground/40 line-through">₹{(p.price * 12).toLocaleString("en-IN")}</span>
+                                  <span className="font-bold" style={{ color: "#00FF94" }}>₹{p.yearly_price.toLocaleString("en-IN")}/yr</span>
+                                </div>
+                              </button>
+                            </div>
+                          );
+                        })()}
 
                         {features.length > 0 && (
                           <ul className="space-y-1 mb-3">
