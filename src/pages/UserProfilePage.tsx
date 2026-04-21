@@ -27,6 +27,7 @@ const UserProfilePage = () => {
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [validating, setValidating] = useState(false);
 
   // Password change
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -123,10 +124,35 @@ const UserProfilePage = () => {
   const MIN_DIMENSION = 200;   // need enough resolution for a clear avatar
   const MAX_DIMENSION = 8000;  // reject absurdly huge images that crash decoders
 
-  const openAvatarCropper = useCallback((file?: File) => {
+  // Async helpers — promise-based so we can `await` and drive a spinner
+  const probeImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
+    new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const { naturalWidth: width, naturalHeight: height } = img;
+        URL.revokeObjectURL(objectUrl);
+        resolve({ width, height });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("decode_failed"));
+      };
+      img.src = objectUrl;
+    });
+
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("read_failed"));
+      reader.readAsDataURL(file);
+    });
+
+  const openAvatarCropper = useCallback(async (file?: File) => {
     if (!file) return;
 
-    // 1. MIME type
+    // 1. MIME type — instant, no spinner needed
     if (!file.type.startsWith("image/")) {
       toast({ title: "Unsupported file", description: "Please choose an image (JPG, PNG, WebP, or GIF).", variant: "destructive" });
       return;
@@ -136,7 +162,7 @@ const UserProfilePage = () => {
       return;
     }
 
-    // 2. File size
+    // 2. File size — also instant
     if (file.size > MAX_FILE_BYTES) {
       const mb = (file.size / (1024 * 1024)).toFixed(1);
       toast({
@@ -151,12 +177,10 @@ const UserProfilePage = () => {
       return;
     }
 
-    // 3. Dimensions — load into <img> to read width/height before opening cropper
-    const objectUrl = URL.createObjectURL(file);
-    const probe = new Image();
-    probe.onload = () => {
-      const { naturalWidth: w, naturalHeight: h } = probe;
-      URL.revokeObjectURL(objectUrl);
+    // 3. Dimensions + decode — async, can take a beat for big files. Show spinner.
+    setValidating(true);
+    try {
+      const { width: w, height: h } = await probeImageDimensions(file);
 
       if (w < MIN_DIMENSION || h < MIN_DIMENSION) {
         toast({
@@ -175,17 +199,19 @@ const UserProfilePage = () => {
         return;
       }
 
-      // Passed all checks → open cropper
-      const reader = new FileReader();
-      reader.onload = () => setCropSrc(reader.result as string);
-      reader.onerror = () => toast({ title: "Couldn't read image", variant: "destructive" });
-      reader.readAsDataURL(file);
-    };
-    probe.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      toast({ title: "Invalid image", description: "We couldn't decode this file. Try another image.", variant: "destructive" });
-    };
-    probe.src = objectUrl;
+      // Passed all checks → read into data URL and open cropper
+      const dataUrl = await readFileAsDataUrl(file);
+      setCropSrc(dataUrl);
+    } catch (err) {
+      const reason = (err as Error)?.message;
+      toast({
+        title: reason === "read_failed" ? "Couldn't read image" : "Invalid image",
+        description: "We couldn't decode this file. Try another image.",
+        variant: "destructive",
+      });
+    } finally {
+      setValidating(false);
+    }
   }, [toast]);
 
   const uploadAvatar = async (file: Blob, ext = "jpg") => {
