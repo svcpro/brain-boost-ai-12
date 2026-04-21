@@ -8842,6 +8842,7 @@ export type Database = {
           price: number
           razorpay_plan_id: string | null
           sort_order: number
+          tier_level: number
           trial_days: number | null
           updated_at: string
           yearly_price: number | null
@@ -8860,6 +8861,7 @@ export type Database = {
           price?: number
           razorpay_plan_id?: string | null
           sort_order?: number
+          tier_level?: number
           trial_days?: number | null
           updated_at?: string
           yearly_price?: number | null
@@ -8878,6 +8880,7 @@ export type Database = {
           price?: number
           razorpay_plan_id?: string | null
           sort_order?: number
+          tier_level?: number
           trial_days?: number | null
           updated_at?: string
           yearly_price?: number | null

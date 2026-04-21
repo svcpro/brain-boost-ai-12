@@ -96,6 +96,9 @@ export const usePlanGating = () => {
       planKey = planData?.plan_key || "none";
     }
 
+    // Normalise legacy keys
+    if (planKey === "pro" || planKey === "ultra") planKey = "premium";
+
     setCurrentPlan(planKey);
     setSubscription(data);
   }, [user]);
@@ -108,20 +111,23 @@ export const usePlanGating = () => {
     Promise.all([fetchGates(), fetchPlan()]).then(() => setLoading(false));
   }, [fetchGates, fetchPlan]);
 
+  // Features only Premium (tier 2) can access
+  const PREMIUM_ONLY_FEATURES = new Set(["exam_practice"]);
+
   const canAccess = useCallback((featureKey: string) => {
-    // Premium plan (or legacy pro/ultra) gets access to everything
-    if (currentPlan === "premium" || currentPlan === "ultra" || currentPlan === "pro") {
-      return true;
+    // Premium = full access
+    if (currentPlan === "premium") return true;
+    // Starter = full access EXCEPT premium-only features
+    if (currentPlan === "starter") {
+      return !PREMIUM_ONLY_FEATURES.has(featureKey);
     }
-    // No plan = no access (no free tier)
-    if (currentPlan === "none") {
-      return false;
-    }
+    // No plan / expired = no access
     return false;
   }, [currentPlan]);
 
-  const getRequiredPlan = useCallback((_featureKey: string): string | null => {
-    return "premium";
+  const getRequiredPlan = useCallback((featureKey: string): string | null => {
+    if (PREMIUM_ONLY_FEATURES.has(featureKey)) return "premium";
+    return "starter";
   }, []);
 
   const isTrialActive = subscription?.is_trial && subscription?.status === "active" && subscription?.trial_end_date && new Date(subscription.trial_end_date) > new Date();

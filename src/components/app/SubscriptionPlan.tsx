@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Check, Loader2, Clock, Shield, Sparkles, X } from "lucide-react";
+import { Crown, Check, Loader2, Clock, Shield, Sparkles, X, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,25 +13,39 @@ interface SubscriptionPlanProps {
   forcePaymentOnly?: boolean;
 }
 
+interface PlanRow {
+  id: string;
+  plan_key: string;
+  name: string;
+  description: string | null;
+  price: number;
+  yearly_price: number;
+  trial_days: number;
+  tier_level: number;
+  features: any;
+}
+
 const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forcePaymentOnly = false }: SubscriptionPlanProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState<any>(null);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PlanRow[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string>("starter");
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from("subscription_plans")
-        .select("*")
-        .eq("plan_key", "premium")
+        .select("id, plan_key, name, description, price, yearly_price, trial_days, tier_level, features")
         .eq("is_active", true)
-        .maybeSingle();
-      setPlan(data);
+        .in("plan_key", ["starter", "premium"])
+        .order("tier_level");
+      setPlans((data as PlanRow[]) || []);
       setPlansLoading(false);
     })();
   }, []);
@@ -59,11 +73,18 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
     })();
   }, [user]);
 
-  const monthlyPrice = plan?.price || 149;
-  const yearlyPrice = plan?.yearly_price || 1499;
-  const price = billingCycle === "yearly" ? yearlyPrice : monthlyPrice;
-  const savings = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100);
-  const canStartTrial = !forcePaymentOnly && !hasUsedTrial && plan?.trial_days > 0;
+  const selectedPlan = useMemo(
+    () => plans.find(p => p.plan_key === selectedKey) || plans[0],
+    [plans, selectedKey]
+  );
+
+  const priceFor = (p: PlanRow) => billingCycle === "yearly" ? p.yearly_price : p.price;
+  const savingsFor = (p: PlanRow) => p.price > 0
+    ? Math.round(((p.price * 12 - p.yearly_price) / (p.price * 12)) * 100)
+    : 0;
+
+  const canStartTrial = (p: PlanRow | undefined) =>
+    !!p && !forcePaymentOnly && !hasUsedTrial && p.trial_days > 0;
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -76,15 +97,25 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
     });
   };
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (plan: PlanRow) => {
     if (!user || !plan) return;
-    if (canStartTrial) {
+    setSelectedKey(plan.plan_key);
+    const price = priceFor(plan);
+
+    // Trial path (only Starter has trial_days > 0)
+    if (canStartTrial(plan)) {
       setLoading(true);
+      setLoadingKey(plan.plan_key);
       try {
         const trialEnd = new Date();
         trialEnd.setDate(trialEnd.getDate() + plan.trial_days);
+        // Cancel any prior active subs
+        await supabase.from("user_subscriptions")
+          .update({ status: "superseded" } as any)
+          .eq("user_id", user.id)
+          .eq("status", "active");
         const { error } = await supabase.from("user_subscriptions").insert({
-          user_id: user.id, plan_id: "premium", billing_cycle: billingCycle, status: "active",
+          user_id: user.id, plan_id: plan.id, billing_cycle: billingCycle, status: "active",
           is_trial: true, trial_start_date: new Date().toISOString(), trial_end_date: trialEnd.toISOString(),
           expires_at: trialEnd.toISOString(), amount: 0, currency: "INR",
         } as any);
@@ -96,16 +127,18 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
         toast({ title: "Error", description: err.message, variant: "destructive" });
       } finally {
         setLoading(false);
+        setLoadingKey(null);
       }
       return;
     }
 
     setLoading(true);
+    setLoadingKey(plan.plan_key);
     try {
       const loaded = await loadRazorpayScript();
       if (!loaded) throw new Error("Failed to load payment SDK");
       const { data, error } = await supabase.functions.invoke("razorpay-order", {
-        body: { action: "create_order", plan_id: "premium", amount: price, billing_cycle: billingCycle },
+        body: { action: "create_order", plan_id: plan.id, amount: price, billing_cycle: billingCycle },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message);
       const { order, key_id } = data;
@@ -114,13 +147,13 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
         amount: order.amount,
         currency: order.currency,
         name: "ACRY – AI Second Brain",
-        description: `ACRY Premium ${billingCycle === "yearly" ? "Yearly" : "Monthly"} Subscription`,
+        description: `${plan.name} ${billingCycle === "yearly" ? "Yearly" : "Monthly"} Subscription`,
         order_id: order.id,
         handler: async (response: any) => {
           const { data: verifyData, error: verifyError } = await supabase.functions.invoke("razorpay-order", {
             body: {
               action: "verify_payment",
-              plan_id: "premium",
+              plan_id: plan.id,
               amount: price,
               billing_cycle: billingCycle,
               order_id: response.razorpay_order_id,
@@ -132,16 +165,16 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
             toast({ title: "Verification failed", description: verifyData?.error || verifyError?.message, variant: "destructive" });
             return;
           }
-          toast({ title: "Welcome to ACRY Premium! 🎉", description: "All features are now unlocked." });
+          toast({ title: `Welcome to ${plan.name}! 🎉`, description: "All features are now unlocked." });
           import("@/lib/eventBus").then(({ emitEvent }) =>
-            emitEvent("subscription_activated", { plan: "ACRY Premium", amount: price, billing_cycle: billingCycle }, { title: "Subscription Activated!", body: "Welcome to ACRY Premium!" })
+            emitEvent("subscription_activated", { plan: plan.name, amount: price, billing_cycle: billingCycle }, { title: "Subscription Activated!", body: `Welcome to ${plan.name}!` })
           );
           onPlanChanged?.();
           onClose();
         },
         prefill: { email: user.email },
         theme: { color: "#14b8a6" },
-        modal: { ondismiss: () => setLoading(false) },
+        modal: { ondismiss: () => { setLoading(false); setLoadingKey(null); } },
       };
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
@@ -149,6 +182,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
       toast({ title: "Payment Error", description: err.message || "Something went wrong", variant: "destructive" });
     } finally {
       setLoading(false);
+      setLoadingKey(null);
     }
   };
 
@@ -171,8 +205,11 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
   const isTrialActive = subscription?.is_trial && subscription?.status === "active" && subscription?.trial_end_date && new Date(subscription.trial_end_date) > new Date();
   const trialDaysLeft = isTrialActive ? Math.ceil((new Date(subscription.trial_end_date).getTime() - Date.now()) / 86400000) : 0;
   const isPaid = subscription?.status === "active" && !subscription?.is_trial;
-  const isExpired = subscription?.status === "expired" || subscription?.status === "cancelled" ||
-    (subscription?.is_trial && subscription?.trial_end_date && new Date(subscription.trial_end_date) < new Date());
+
+  const featureList = (p: PlanRow): string[] => {
+    if (Array.isArray(p.features)) return p.features as string[];
+    return [];
+  };
 
   return (
     <AnimatePresence>
@@ -190,7 +227,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
         />
 
         <motion.div
-          className="relative w-full sm:max-w-[380px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden"
+          className="relative w-full sm:max-w-[420px] max-h-[92vh] overflow-y-auto rounded-t-[28px] sm:rounded-[28px]"
           style={{
             background: "linear-gradient(180deg, hsl(230 40% 10%) 0%, hsl(230 50% 6%) 100%)",
             border: "1px solid hsl(0 0% 100% / 0.06)",
@@ -203,7 +240,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
           onClick={(e) => e.stopPropagation()}
         >
           <motion.div
-            className="absolute top-0 left-0 right-0 h-[2px]"
+            className="sticky top-0 left-0 right-0 h-[2px] z-30"
             style={{ background: "linear-gradient(90deg, #00E5FF, #7C4DFF, #FFD700)" }}
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
@@ -223,7 +260,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
             <X className="w-3.5 h-3.5 text-muted-foreground" />
           </motion.button>
 
-          <div className="relative z-10 px-6 pt-4 pb-6 sm:pt-6">
+          <div className="relative z-10 px-5 pt-4 pb-6 sm:pt-6">
             <motion.div
               className="flex flex-col items-center mb-4"
               initial={{ opacity: 0, y: 15 }}
@@ -240,7 +277,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
               </motion.div>
               <h2 className="text-lg font-bold">
                 <span style={{ background: "linear-gradient(135deg, #FFD700, #FF8500)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                  ACRY Premium
+                  Choose Your Plan
                 </span>
               </h2>
               <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mt-0.5">
@@ -262,15 +299,8 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
                 <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#00E5FF" }} />
                 <span className="text-[11px] font-semibold" style={{ color: "#00E5FF" }}>
-                  Premium Active{subscription.expires_at && ` · Renews ${format(new Date(subscription.expires_at), "MMM d, yyyy")}`}
+                  Active{subscription.expires_at && ` · Renews ${format(new Date(subscription.expires_at), "MMM d, yyyy")}`}
                 </span>
-              </motion.div>
-            )}
-            {isExpired && (
-              <motion.div className="p-3 rounded-xl mb-3 text-center" style={{ background: "#FF445510", border: "1px solid #FF445520" }}
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
-                <p className="text-sm font-bold text-foreground">Your Trial Has Ended</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Subscribe to unlock all features.</p>
               </motion.div>
             )}
 
@@ -278,6 +308,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
               <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
             ) : (
               <>
+                {/* Billing toggle */}
                 <motion.div
                   className="flex items-center justify-center gap-1 p-1 rounded-full mx-auto w-fit mb-4"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
@@ -301,9 +332,9 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                       )}
                       <span className="relative z-10 flex items-center gap-1">
                         {cycle === "monthly" ? "Monthly" : "Yearly"}
-                        {cycle === "yearly" && savings > 0 && (
+                        {cycle === "yearly" && (
                           <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "#00FF9420", color: "#00FF94" }}>
-                            -{savings}%
+                            2 mo free
                           </span>
                         )}
                       </span>
@@ -311,76 +342,107 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                   ))}
                 </motion.div>
 
-                <motion.div className="text-center mb-5" key={billingCycle}
-                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: "spring", damping: 15 }}
-                >
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-base text-muted-foreground/60 font-medium">₹</span>
-                    <motion.span
-                      className="text-5xl font-black tabular-nums"
-                      style={{ background: "linear-gradient(180deg, #fff, #ffffff80)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
-                      key={price}
-                      initial={{ y: 15, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ type: "spring", damping: 15 }}
-                    >
-                      {price}
-                    </motion.span>
-                    <span className="text-sm text-muted-foreground/50 font-medium">/{billingCycle === "yearly" ? "yr" : "mo"}</span>
-                  </div>
-                  {billingCycle === "yearly" && (
-                    <motion.p className="text-[10px] mt-1 font-medium" style={{ color: "#00FF94" }}
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                      ₹{Math.round(yearlyPrice / 12)}/mo · Save {savings}%
-                    </motion.p>
-                  )}
-                </motion.div>
-
-                {!isPaid && (
-                  <motion.div className="relative" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
-                    <motion.button
-                      onClick={handleSubscribe}
-                      disabled={loading}
-                      className="relative w-full py-4 rounded-2xl text-sm font-bold tracking-wide disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden"
-                      style={{
-                        background: "linear-gradient(135deg, #00E5FF, #7C4DFF)",
-                        color: "#0B0F1A",
-                        boxShadow: "0 0 30px #00E5FF20, 0 0 60px #7C4DFF10",
-                      }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                      animate={{
-                        boxShadow: [
-                          "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
-                          "0 0 35px #00E5FF25, 0 0 70px #7C4DFF15",
-                          "0 0 20px #00E5FF15, 0 0 40px #7C4DFF08",
-                        ],
-                      }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                    >
+                {/* Plan cards */}
+                <div className="space-y-3">
+                  {plans.map((p, idx) => {
+                    const price = priceFor(p);
+                    const savings = savingsFor(p);
+                    const isPremiumTier = p.tier_level >= 2;
+                    const trialAvail = canStartTrial(p);
+                    const isThisLoading = loadingKey === p.plan_key && loading;
+                    const features = featureList(p);
+                    return (
                       <motion.div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%)" }}
-                        animate={{ x: ["-100%", "200%"] }}
-                        transition={{ duration: 2.5, delay: 1.5, repeat: Infinity, repeatDelay: 3 }}
-                      />
-                      {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      <span className="relative z-10">
-                        {loading
-                          ? "Processing..."
-                          : canStartTrial
-                            ? "Start 15-Day Free Trial"
-                            : `Upgrade Now · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
-                      </span>
-                      {!loading && <Sparkles className="w-4 h-4 relative z-10" />}
-                    </motion.button>
-                  </motion.div>
-                )}
+                        key={p.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.35 + idx * 0.08 }}
+                        className="relative rounded-2xl p-4 overflow-hidden"
+                        style={{
+                          background: isPremiumTier
+                            ? "linear-gradient(135deg, rgba(255,215,0,0.08), rgba(124,77,255,0.06))"
+                            : "rgba(255,255,255,0.03)",
+                          border: isPremiumTier
+                            ? "1px solid rgba(255,215,0,0.25)"
+                            : "1px solid rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        {isPremiumTier && (
+                          <div className="absolute top-3 right-3 text-[8px] font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: "linear-gradient(135deg,#FFD700,#FF8500)", color: "#0B0F1A" }}>
+                            BEST VALUE
+                          </div>
+                        )}
 
-                <motion.p className="text-center text-[9px] text-muted-foreground/40 flex items-center justify-center gap-1.5 mt-3"
+                        <div className="flex items-center gap-2 mb-1">
+                          {isPremiumTier
+                            ? <Crown className="w-4 h-4" style={{ color: "#FFD700" }} />
+                            : <Zap className="w-4 h-4" style={{ color: "#00E5FF" }} />}
+                          <h3 className="text-sm font-bold text-foreground">{p.name}</h3>
+                        </div>
+                        {p.description && (
+                          <p className="text-[10px] text-muted-foreground mb-3 leading-snug">{p.description}</p>
+                        )}
+
+                        <div className="flex items-baseline gap-1 mb-3">
+                          <span className="text-xs text-muted-foreground/60">₹</span>
+                          <motion.span
+                            key={`${p.plan_key}-${billingCycle}`}
+                            initial={{ y: 8, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            className="text-3xl font-black tabular-nums text-foreground"
+                          >
+                            {price}
+                          </motion.span>
+                          <span className="text-[11px] text-muted-foreground/60">/{billingCycle === "yearly" ? "yr" : "mo"}</span>
+                          {billingCycle === "yearly" && savings > 0 && (
+                            <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#00FF9420", color: "#00FF94" }}>
+                              SAVE {savings}%
+                            </span>
+                          )}
+                        </div>
+
+                        {features.length > 0 && (
+                          <ul className="space-y-1 mb-3">
+                            {features.slice(0, 5).map((f) => (
+                              <li key={f} className="flex items-start gap-1.5 text-[11px] text-foreground/85">
+                                <Check className="w-3 h-3 shrink-0 mt-0.5" style={{ color: isPremiumTier ? "#FFD700" : "#00E5FF" }} />
+                                <span>{f}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        <motion.button
+                          onClick={() => handleSubscribe(p)}
+                          disabled={loading || isPaid}
+                          className="relative w-full py-3 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden"
+                          style={{
+                            background: isPremiumTier
+                              ? "linear-gradient(135deg, #FFD700, #FF8500)"
+                              : "linear-gradient(135deg, #00E5FF, #7C4DFF)",
+                            color: "#0B0F1A",
+                          }}
+                          whileTap={{ scale: 0.97 }}
+                        >
+                          {isThisLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          <span>
+                            {isThisLoading
+                              ? "Processing..."
+                              : trialAvail
+                                ? `Start ${p.trial_days}-Day Free Trial`
+                                : `Get ${p.name} · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
+                          </span>
+                          {!isThisLoading && <Sparkles className="w-3.5 h-3.5" />}
+                        </motion.button>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                <motion.p className="text-center text-[9px] text-muted-foreground/40 flex items-center justify-center gap-1.5 mt-4"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>
-                  <Shield className="w-3 h-3" /> Secure payment · Cancel anytime · Instant access
+                  <Shield className="w-3 h-3" /> Secure Razorpay payment · Cancel anytime · Instant access
                 </motion.p>
               </>
             )}

@@ -39,7 +39,9 @@ const SubscriptionOverview = ({ currentPlan, onManagePlan }: SubscriptionOvervie
       });
   }, [user, currentPlan]);
 
-  const isPremium = currentPlan === "premium" || currentPlan === "pro" || currentPlan === "ultra";
+  const isPremium = currentPlan === "premium";
+  const isStarter = currentPlan === "starter";
+  const planName = isPremium ? "ACRY Premium" : isStarter ? "ACRY Starter" : "ACRY";
 
   return (
     <motion.div
@@ -56,7 +58,7 @@ const SubscriptionOverview = ({ currentPlan, onManagePlan }: SubscriptionOvervie
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-foreground">ACRY Premium</h3>
+                <h3 className="text-base font-bold text-foreground">{planName}</h3>
                 {isActive && !isTrial && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-success/20 text-success border border-success/30 uppercase tracking-wider">
                     Active
@@ -79,16 +81,23 @@ const SubscriptionOverview = ({ currentPlan, onManagePlan }: SubscriptionOvervie
           </div>
 
           {/* Reinforcement message */}
-          {isPremium && (
+          {(isPremium || isStarter) && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10 mb-3">
               <Zap className="w-4 h-4 text-primary shrink-0" />
-              <p className="text-xs text-foreground/80 font-medium">You have full AI access unlocked.</p>
+              <p className="text-xs text-foreground/80 font-medium">
+                {isPremium
+                  ? "You have full AI + Exam Practice access unlocked."
+                  : "You're on Starter — upgrade to Premium to unlock Exam Practice."}
+              </p>
             </div>
           )}
 
           {/* Feature summary */}
           <div className="grid grid-cols-2 gap-1.5">
-            {["AI Second Brain", "Focus Study Mode", "Neural Memory Map", "AI Strategy", "Voice Notifications", "Unlimited Usage"].map(f => (
+            {(isPremium
+              ? ["AI Second Brain", "Focus Study Mode", "Neural Memory Map", "AI Strategy", "Exam Practice", "Unlimited Usage"]
+              : ["AI Second Brain", "Focus Study Mode", "Neural Memory Map", "AI Strategy", "Voice Notifications", "Unlimited Usage"]
+            ).map(f => (
               <div key={f} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <Check className="w-3 h-3 text-success shrink-0" />
                 {f}

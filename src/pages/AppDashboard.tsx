@@ -322,7 +322,7 @@ const AppDashboard = () => {
               <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
                 currentPlan === "none" ? "bg-destructive/15 text-destructive" : "neural-gradient neural-border text-primary"
               }`}>
-                {currentPlan === "ultra" ? "Ultra" : currentPlan === "pro" ? "Pro" : currentPlan === "premium" ? "Premium" : currentPlan === "none" ? "No Plan" : "Free"}
+                {currentPlan === "premium" ? "Premium" : currentPlan === "starter" ? "Starter" : currentPlan === "none" ? "No Plan" : "Free"}
               </div>
             </div>
           </header>
