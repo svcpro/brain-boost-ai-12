@@ -343,6 +343,52 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                   ))}
                 </motion.div>
 
+                {/* Yearly savings banner — absolute ₹ savings per plan */}
+                {billingCycle === "yearly" && plans.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ type: "spring", damping: 18, stiffness: 240 }}
+                    className="relative mb-4 rounded-2xl p-3 overflow-hidden"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(0,255,148,0.12), rgba(0,229,255,0.08))",
+                      border: "1px solid rgba(0,255,148,0.3)",
+                    }}
+                  >
+                    {/* Shimmer */}
+                    <motion.div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)" }}
+                      animate={{ x: ["-100%", "100%"] }}
+                      transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1.5, ease: "easeInOut" }}
+                    />
+                    <div className="relative flex items-center gap-2.5">
+                      <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                        style={{ background: "linear-gradient(135deg, #00FF94, #00E5FF)" }}>
+                        <Sparkles className="w-4 h-4" style={{ color: "#0B0F1A" }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold mb-0.5" style={{ color: "#00FF94" }}>
+                          You save with yearly billing
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-foreground/85">
+                          {plans.map((p) => {
+                            const abs = absSavingsFor(p);
+                            if (abs <= 0) return null;
+                            return (
+                              <span key={p.id} className="flex items-center gap-1 tabular-nums">
+                                <span className="opacity-60">{p.name}:</span>
+                                <span className="font-bold" style={{ color: "#00FF94" }}>−₹{abs.toLocaleString("en-IN")}/yr</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 {/* Plan cards */}
                 <div className="space-y-3">
                   {plans.map((p, idx) => {
