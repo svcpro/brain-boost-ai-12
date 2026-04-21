@@ -333,8 +333,18 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                       <span className="relative z-10 flex items-center gap-1">
                         {cycle === "monthly" ? "Monthly" : "Yearly"}
                         {cycle === "yearly" && (
-                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "#00FF9420", color: "#00FF94" }}>
-                            2 mo free
+                          <span
+                            className="relative overflow-hidden text-[8px] px-1.5 py-0.5 rounded-full font-bold"
+                            style={{ background: "#00FF9420", color: "#00FF94" }}
+                          >
+                            <span className="relative z-10">2 MO FREE</span>
+                            <motion.span
+                              className="absolute inset-0 pointer-events-none"
+                              style={{ background: "linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%)" }}
+                              initial={{ x: "-120%" }}
+                              animate={{ x: "120%" }}
+                              transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.2, ease: "easeInOut" }}
+                            />
                           </span>
                         )}
                       </span>
