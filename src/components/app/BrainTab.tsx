@@ -22,6 +22,7 @@ import CompetitiveIntelDashboard from "./CompetitiveIntelDashboard";
 
 // v7.0 Precision Intelligence
 import PrecisionIntelligenceCard from "./PrecisionIntelligenceCard";
+import ColorProgressChart from "./ColorProgressChart";
 import RankPredictionV2Card from "./RankPredictionV2Card";
 import DecayForecastV2Card from "./DecayForecastV2Card";
 
@@ -57,6 +58,7 @@ const BrainTab = () => {
   const [reviewSession, setReviewSession] = useState<{ subject: string; topic: string } | null>(null);
   const [showAITopicManager, setShowAITopicManager] = useState(false);
   const [showSafePass, setShowSafePass] = useState(false);
+  const [precisionPct, setPrecisionPct] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -149,7 +151,16 @@ const BrainTab = () => {
       />
 
       {/* ═══ v7.0: AI Precision Intelligence ═══ */}
-      <PrecisionIntelligenceCard />
+      <PrecisionIntelligenceCard onComputeComplete={(s) => setPrecisionPct(Math.round((s?.unified_precision_score || 0) * 100))} />
+
+      {/* ═══ Color-coded Mastery Score ═══ */}
+      <ColorProgressChart
+        value={precisionPct ?? Math.round(overallHealth)}
+        label="Mastery Score"
+        sublabel="Ring color reflects your precision tier"
+        thresholds="tier5"
+        style="ring"
+      />
 
       {/* ═══ SECTION 2: Interactive Memory Map ═══ */}
       <InteractiveMemoryMap

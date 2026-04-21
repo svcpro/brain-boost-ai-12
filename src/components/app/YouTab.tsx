@@ -34,6 +34,7 @@ import AIPersonalizationControlCenter from "./you/AIPersonalizationControlCenter
 import CognitiveProfileCard from "./CognitiveProfileCard";
 import PasswordManagement from "./you/PasswordManagement";
 import ApiKeyCard from "./you/ApiKeyCard";
+import ColorProgressChart from "./ColorProgressChart";
 import AITopicManager from "./AITopicManager";
 
 interface YouTabProps {
@@ -70,6 +71,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
   const [currentPlan, setCurrentPlan] = useState("free");
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [showTopicManager, setShowTopicManager] = useState(false);
+  const personalProgressPct = useMemo(() => {
+    const streak = streakData?.currentStreak || 0;
+    return Math.min(100, Math.round((streak / 30) * 100));
+  }, [streakData?.currentStreak]);
 
   const LEVEL_THRESHOLDS = useMemo(() => [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000], []);
 
@@ -266,6 +271,16 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
       {/* ═══ Monthly Performance Snapshot ═══ */}
       <MonthlyPerformanceSnapshot />
+
+      {/* ═══ Color-coded Personal Progress (gauge) ═══ */}
+      <ColorProgressChart
+        value={personalProgressPct}
+        label="Your Overall Progress"
+        sublabel="Color tier reflects your study consistency this month"
+        thresholds="tier5"
+        style="gauge"
+        size={140}
+      />
 
       {/* ═══ Subjects & Topics Manager ═══ */}
       <motion.button

@@ -28,6 +28,7 @@ import { useStudyStreak } from "@/hooks/useStudyStreak";
 import StreakMilestoneCelebration from "./StreakMilestoneCelebration";
 import ExplainButton from "./ExplainButton";
 import TodaysMission from "./TodaysMission";
+import ColorProgressChart from "./ColorProgressChart";
 import QuickMicroActions from "./QuickMicroActions";
 import PlanGateWrapper from "./PlanGateWrapper";
 import SafePassPopup from "./SafePassPopup";
@@ -791,6 +792,15 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
           }}
         />
       </SectionErrorBoundary>
+
+      {/* ═══ Color-coded Today's Mission Progress ═══ */}
+      <ColorProgressChart
+        value={latestCompletionRate}
+        label="Today's Plan Completion"
+        sublabel="Color shifts as you progress through your daily plan"
+        thresholds="tier4"
+        style="bar"
+      />
 
       {/* ═══ Forgetting Curve 2.0 ═══ */}
       {hasTopics && (
