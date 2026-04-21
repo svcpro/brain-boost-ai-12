@@ -253,10 +253,13 @@ const UserProfilePage = () => {
           title: "📐 Resized for you",
           description: `Scaled ${w}×${h} → ${nw}×${nh} so cropping stays smooth.`,
         });
+        // Show the user the *original* dimensions/size — not the resized version.
+        setCropMeta({ width: w, height: h, bytes: file.size, resized: true });
         setCropSrc(dataUrl);
       } else {
         // Small enough — read original directly to preserve fidelity
         const dataUrl = await readFileAsDataUrl(file);
+        setCropMeta({ width: w, height: h, bytes: file.size, resized: false });
         setCropSrc(dataUrl);
       }
     } catch (err) {
