@@ -251,7 +251,35 @@ const UserProfilePage = () => {
                 </div>
               </div>
 
-              {avatarUrl && (
+              {/* Country & City — used for the My City leaderboard */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <Globe className="w-3 h-3" /> Country
+                  </label>
+                  <input
+                    value={country}
+                    onChange={e => setCountry(e.target.value.slice(0, 60))}
+                    placeholder="e.g. India"
+                    className="w-full mt-1 px-3 py-2.5 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> City
+                  </label>
+                  <input
+                    value={city}
+                    onChange={e => setCity(e.target.value.slice(0, 60))}
+                    placeholder="e.g. Mumbai"
+                    className="w-full mt-1 px-3 py-2.5 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none transition-colors"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground -mt-1">
+                Used to rank you in the <span className="text-primary font-semibold">My City</span> leaderboard scope.
+              </p>
+
                 <button onClick={removeAvatar} disabled={uploading} className="flex items-center gap-1 text-[11px] text-destructive hover:text-destructive/80 transition-colors">
                   <Trash2 className="w-3 h-3" />
                   Remove avatar
