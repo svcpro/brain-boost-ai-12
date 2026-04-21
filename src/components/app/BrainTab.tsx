@@ -149,7 +149,16 @@ const BrainTab = () => {
       />
 
       {/* ═══ v7.0: AI Precision Intelligence ═══ */}
-      <PrecisionIntelligenceCard />
+      <PrecisionIntelligenceCard onComputeComplete={(s) => setPrecisionPct(Math.round((s?.unified_precision_score || 0) * 100))} />
+
+      {/* ═══ Color-coded Mastery Score ═══ */}
+      <ColorProgressChart
+        value={precisionPct ?? Math.round(overallHealth)}
+        label="Mastery Score"
+        sublabel="Ring color reflects your precision tier"
+        thresholds="tier5"
+        style="ring"
+      />
 
       {/* ═══ SECTION 2: Interactive Memory Map ═══ */}
       <InteractiveMemoryMap

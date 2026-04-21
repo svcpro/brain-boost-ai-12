@@ -792,6 +792,15 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         />
       </SectionErrorBoundary>
 
+      {/* ═══ Color-coded Today's Mission Progress ═══ */}
+      <ColorProgressChart
+        value={latestCompletionRate}
+        label="Today's Plan Completion"
+        sublabel="Color shifts as you progress through your daily plan"
+        thresholds="tier4"
+        style="bar"
+      />
+
       {/* ═══ Forgetting Curve 2.0 ═══ */}
       {hasTopics && (
         <Suspense fallback={null}>
