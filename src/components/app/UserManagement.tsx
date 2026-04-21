@@ -586,12 +586,25 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
   const { user: adminUser } = useAuth();
   const { hasAnyRole } = useAdminRole();
   const [editing, setEditing] = useState(false);
+  // Re-key form to the currently viewed user. Without this, opening a second
+  // user re-uses the first user's stale display_name and silently overwrites
+  // it on the next save (root cause of users being renamed to whoever was
+  // viewed previously, e.g. "Harpreet").
   const [editForm, setEditForm] = useState({
     display_name: user.display_name || "",
     exam_type: user.exam_type || "",
     daily_study_goal_minutes: user.daily_study_goal_minutes,
     weekly_focus_goal_minutes: user.weekly_focus_goal_minutes,
   });
+  useEffect(() => {
+    setEditForm({
+      display_name: user.display_name || "",
+      exam_type: user.exam_type || "",
+      daily_study_goal_minutes: user.daily_study_goal_minutes,
+      weekly_focus_goal_minutes: user.weekly_focus_goal_minutes,
+    });
+    setEditing(false);
+  }, [user.id, user.display_name, user.exam_type, user.daily_study_goal_minutes, user.weekly_focus_goal_minutes]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -726,18 +739,35 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
 
   const saveProfile = async () => {
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
-      display_name: editForm.display_name || null,
-      exam_type: editForm.exam_type || null,
-      daily_study_goal_minutes: editForm.daily_study_goal_minutes,
-      weekly_focus_goal_minutes: editForm.weekly_focus_goal_minutes,
-    }).eq("id", user.id);
+    // Only send fields that actually changed vs the loaded user. Prevents
+    // silently overwriting display_name / exam_type with stale form state.
+    const patch: Record<string, any> = {};
+    const trimmedName = (editForm.display_name || "").trim();
+    if (trimmedName !== (user.display_name || "").trim()) {
+      patch.display_name = trimmedName || null;
+    }
+    if ((editForm.exam_type || "") !== (user.exam_type || "")) {
+      patch.exam_type = editForm.exam_type || null;
+    }
+    if (editForm.daily_study_goal_minutes !== user.daily_study_goal_minutes) {
+      patch.daily_study_goal_minutes = editForm.daily_study_goal_minutes;
+    }
+    if (editForm.weekly_focus_goal_minutes !== user.weekly_focus_goal_minutes) {
+      patch.weekly_focus_goal_minutes = editForm.weekly_focus_goal_minutes;
+    }
+    if (Object.keys(patch).length === 0) {
+      setSaving(false);
+      setEditing(false);
+      toast({ title: "No changes to save" });
+      return;
+    }
+    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
     setSaving(false);
     if (error) {
       toast({ title: "Failed to update profile", variant: "destructive" });
       return;
     }
-    await logAudit("profile_updated", { changes: editForm });
+    await logAudit("profile_updated", { changes: patch });
     toast({ title: "Profile updated" });
     setEditing(false);
   };
