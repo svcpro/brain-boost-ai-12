@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Crown, ChevronRight, Zap, Flame } from "lucide-react";
 import { usePlanGatingContext } from "@/hooks/usePlanGating";
 import SubscriptionPlan from "@/components/app/SubscriptionPlan";
+import { supabase } from "@/integrations/supabase/client";
 
 /* SureShot palette: Deep Red → Neon Orange → Electric Pink */
 const SS = {
@@ -17,6 +18,36 @@ const TrialBanner = () => {
   const { isTrialActive, trialDaysLeft, currentPlan, subscription, refetch } = usePlanGatingContext();
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [planLabel, setPlanLabel] = useState<string>("");
+
+  // Resolve actual plan name from DB so banner shows "Starter Trial" vs "Premium Trial"
+  useEffect(() => {
+    let cancelled = false;
+    const planId = subscription?.plan_id;
+    if (!planId) { setPlanLabel(""); return; }
+
+    // If plan_id is a UUID, look up the name; otherwise treat the value as a key
+    const isUuid = typeof planId === "string" && planId.length > 20 && planId.includes("-");
+    if (!isUuid) {
+      const key = String(planId).toLowerCase();
+      setPlanLabel(key === "premium" ? "Premium" : key === "starter" ? "Starter" : key.charAt(0).toUpperCase() + key.slice(1));
+      return;
+    }
+    supabase
+      .from("subscription_plans")
+      .select("name, plan_key")
+      .eq("id", planId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        // Prefer plan_key for short label
+        const key = (data.plan_key || "").toLowerCase();
+        if (key === "premium") setPlanLabel("Premium");
+        else if (key === "starter") setPlanLabel("Starter");
+        else setPlanLabel((data.name || "").replace(/^ACRY\s+/i, "").trim() || "Trial");
+      });
+    return () => { cancelled = true; };
+  }, [subscription?.plan_id]);
 
   const isTrialExpired =
     subscription?.is_trial &&
@@ -29,6 +60,7 @@ const TrialBanner = () => {
   const elapsed = totalDays - trialDaysLeft;
   const progress = isTrialExpired ? 100 : Math.min(100, (elapsed / totalDays) * 100);
   const isUrgent = trialDaysLeft <= 3;
+  const trialTitle = planLabel ? `${planLabel} Trial` : "Free Trial";
 
   return (
     <>
@@ -107,7 +139,7 @@ const TrialBanner = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <p className="text-[11px] font-bold text-foreground truncate">
-                {isTrialExpired ? "Trial ended" : "Premium Trial"}
+                {isTrialExpired ? "Trial ended" : trialTitle}
               </p>
               {!isTrialExpired && (
                 <motion.span
