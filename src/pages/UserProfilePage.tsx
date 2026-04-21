@@ -259,7 +259,11 @@ const UserProfilePage = () => {
                 className="hidden"
                 onChange={e => {
                   const f = e.target.files?.[0];
-                  if (f) uploadAvatar(f);
+                  if (f) {
+                    const reader = new FileReader();
+                    reader.onload = () => setCropSrc(reader.result as string);
+                    reader.readAsDataURL(f);
+                  }
                   e.target.value = "";
                 }}
               />
