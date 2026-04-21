@@ -8,7 +8,21 @@ interface Props {
   open: boolean;
   onCancel: () => void;
   onConfirm: (croppedBlob: Blob) => Promise<void> | void;
+  /** Original image width in pixels (before any client-side resize). */
+  sourceWidth?: number;
+  /** Original image height in pixels (before any client-side resize). */
+  sourceHeight?: number;
+  /** Original file size in bytes (before any client-side resize). */
+  sourceBytes?: number;
+  /** True if the source was downscaled before being passed in. */
+  resized?: boolean;
 }
+
+const formatBytes = (n: number) => {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
@@ -60,7 +74,7 @@ const getCroppedBlob = async (
   });
 };
 
-const AvatarCropDialog = ({ imageSrc, open, onCancel, onConfirm }: Props) => {
+const AvatarCropDialog = ({ imageSrc, open, onCancel, onConfirm, sourceWidth, sourceHeight, sourceBytes, resized }: Props) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -101,18 +115,42 @@ const AvatarCropDialog = ({ imageSrc, open, onCancel, onConfirm }: Props) => {
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">Crop Photo</h3>
-                <p className="text-[10px] text-muted-foreground">Drag to reposition · Pinch to zoom</p>
+            <div className="px-5 py-3.5 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-foreground">Crop Photo</h3>
+                  <p className="text-[10px] text-muted-foreground">Drag to reposition · Pinch to zoom</p>
+                </div>
+                <button
+                  onClick={onCancel}
+                  disabled={saving}
+                  className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50 shrink-0"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
               </div>
-              <button
-                onClick={onCancel}
-                disabled={saving}
-                className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
-              >
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
+
+              {/* Detected source metadata */}
+              {(sourceWidth || sourceBytes) && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {sourceWidth && sourceHeight && (
+                    <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-semibold text-foreground tabular-nums">
+                      {sourceWidth} × {sourceHeight} px
+                    </span>
+                  )}
+                  {sourceBytes !== undefined && (
+                    <span className="px-2 py-0.5 rounded-full bg-secondary text-[10px] font-semibold text-foreground tabular-nums">
+                      {formatBytes(sourceBytes)}
+                    </span>
+                  )}
+                  {resized && (
+                    <span className="px-2 py-0.5 rounded-full bg-primary/15 text-[10px] font-semibold text-primary uppercase tracking-wider">
+                      Auto-resized
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Crop area */}

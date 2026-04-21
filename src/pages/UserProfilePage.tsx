@@ -26,6 +26,7 @@ const UserProfilePage = () => {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropMeta, setCropMeta] = useState<{ width: number; height: number; bytes: number; resized: boolean } | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [validating, setValidating] = useState(false);
 
@@ -252,10 +253,13 @@ const UserProfilePage = () => {
           title: "📐 Resized for you",
           description: `Scaled ${w}×${h} → ${nw}×${nh} so cropping stays smooth.`,
         });
+        // Show the user the *original* dimensions/size — not the resized version.
+        setCropMeta({ width: w, height: h, bytes: file.size, resized: true });
         setCropSrc(dataUrl);
       } else {
         // Small enough — read original directly to preserve fidelity
         const dataUrl = await readFileAsDataUrl(file);
+        setCropMeta({ width: w, height: h, bytes: file.size, resized: false });
         setCropSrc(dataUrl);
       }
     } catch (err) {
@@ -702,7 +706,11 @@ const UserProfilePage = () => {
       <AvatarCropDialog
         open={!!cropSrc && !previewBlob}
         imageSrc={cropSrc || ""}
-        onCancel={() => { setCropSrc(null); setPreviewBlob(null); }}
+        sourceWidth={cropMeta?.width}
+        sourceHeight={cropMeta?.height}
+        sourceBytes={cropMeta?.bytes}
+        resized={cropMeta?.resized}
+        onCancel={() => { setCropSrc(null); setCropMeta(null); setPreviewBlob(null); }}
         onConfirm={blob => {
           // Hand off to the preview step instead of uploading immediately.
           // Keep cropSrc so the user can jump back into the cropper via "Re-crop".
@@ -714,13 +722,14 @@ const UserProfilePage = () => {
         open={!!previewBlob}
         blob={previewBlob}
         uploading={uploading}
-        onCancel={() => { setPreviewBlob(null); setCropSrc(null); }}
+        onCancel={() => { setPreviewBlob(null); setCropSrc(null); setCropMeta(null); }}
         onRecrop={() => setPreviewBlob(null)}
         onConfirm={async () => {
           if (!previewBlob) return;
           await uploadAvatar(previewBlob, "jpg");
           setPreviewBlob(null);
           setCropSrc(null);
+          setCropMeta(null);
         }}
       />
     </div>
