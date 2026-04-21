@@ -116,7 +116,7 @@ export default function AdvancedMissionWizard({
     finishQuestions();
   };
 
-  const fetchQuestions = useCallback(async (diff: "easy" | "medium" | "hard", stepType: string) => {
+  const fetchQuestions = useCallback(async (diff: "easy" | "medium" | "hard", stepType: string, startTimerOnLoad = false) => {
     if (!user) return;
     setLoading(true);
     try {
@@ -128,7 +128,11 @@ export default function AdvancedMissionWizard({
       if (data?.questions?.length) { setQuestions(data.questions); setCurrentQ(0); setSelectedAnswer(null); setShowFeedback(false); }
       else { setQuestions(generateFallbackQuestions(diff)); setCurrentQ(0); }
     } catch { setQuestions(generateFallbackQuestions(diff)); setCurrentQ(0); }
-    finally { setLoading(false); }
+    finally {
+      setLoading(false);
+      // Start the timer ONLY after questions are loaded — never during loading
+      if (startTimerOnLoad) setTimerActive(true);
+    }
   }, [user, missionId, topicName, subjectName]);
 
   const generateFallbackQuestions = (diff: "easy" | "medium" | "hard"): MissionQuestion[] => [
@@ -137,9 +141,17 @@ export default function AdvancedMissionWizard({
     { question: `Which statement about ${topicName || "this topic"} is correct?`, options: ["Statement 1", "Statement 2", "Statement 3", "Statement 4"], correct_index: 2, explanation: "Accuracy in recall is crucial for exam performance.", difficulty: diff },
   ];
 
+  // 🚀 ULTRA-FAST: Prefetch first batch of questions in the background as soon
+  // as the briefing screen mounts — so when user taps Start, they're already cached.
+  const prefetchedRef = useRef(false);
+  useEffect(() => {
+    if (prefetchedRef.current || !user || wizardStep !== "briefing") return;
+    prefetchedRef.current = true;
+    fetchQuestions(difficulty, MISSION_STEPS[0].key, false);
+  }, [user, wizardStep, fetchQuestions, difficulty]);
+
   const handleStartMission = async () => {
     triggerHaptic(30);
-    setTimerActive(true);
     setWizardStep("questions");
     setMissionStep(0);
 
@@ -157,7 +169,13 @@ export default function AdvancedMissionWizard({
       }
     } catch {}
 
-    fetchQuestions(difficulty, MISSION_STEPS[0].key);
+    // If prefetch already finished, start the timer immediately.
+    // Otherwise fetchQuestions will start it once questions land.
+    if (questions.length > 0 && !loading) {
+      setTimerActive(true);
+    } else {
+      fetchQuestions(difficulty, MISSION_STEPS[0].key, true);
+    }
   };
 
   const handleAnswer = (index: number) => {
