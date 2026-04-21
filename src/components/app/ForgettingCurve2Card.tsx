@@ -593,8 +593,16 @@ function Metric({ icon, label, value, colorClass }: { icon: React.ReactNode; lab
 }
 
 function TopicRow({ topic, onFix }: { topic: TopicDecay; onFix: (t: TopicDecay) => void }) {
-  const retPct = topic.predicted_retention_pct;
-  const dropPerDay = Math.round(topic.decay_velocity_24h * 100);
+  const retPct = Math.max(0, Math.min(100, Math.round(topic.predicted_retention_pct)));
+  // Decay velocity = projected retention loss over next 24h (0..1)
+  // Clamp to physical range and convert to percentage points (pp)
+  const rawVelocity = Math.max(0, Math.min(1, Number(topic.decay_velocity_24h) || 0));
+  const dropPp = Math.round(rawVelocity * 100);
+  // Only surface decay-rate warning when:
+  //   • there's a meaningful drop (>2pp), AND
+  //   • topic isn't already freshly reviewed (retention < 90%)
+  // This avoids the confusing "100% retention with −35%/24h" right after a Fix.
+  const showDrop = dropPp > 2 && retPct < 90;
   return (
     <motion.div
       whileTap={{ scale: 0.97 }}
@@ -614,10 +622,16 @@ function TopicRow({ topic, onFix }: { topic: TopicDecay; onFix: (t: TopicDecay) 
           </div>
           <span className={`text-[9px] font-medium ${RISK_COLOR[topic.risk_level]} w-8 text-right`}>{retPct}%</span>
         </div>
-        {dropPerDay > 0 && (
+        {showDrop && (
           <div className="flex items-center gap-1 mt-0.5">
             <TrendingDown className="w-2.5 h-2.5 text-destructive" />
-            <span className="text-[9px] text-destructive">−{dropPerDay}% / 24h</span>
+            <span className="text-[9px] text-destructive">−{dropPp}pp / 24h</span>
+          </div>
+        )}
+        {!showDrop && retPct >= 90 && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <Sparkles className="w-2.5 h-2.5 text-chart-2" />
+            <span className="text-[9px] text-chart-2">Freshly reviewed · stable</span>
           </div>
         )}
       </div>
