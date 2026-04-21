@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import SubscriptionAnalytics from "@/components/app/SubscriptionAnalytics";
+import SubscriptionMigrationWidget from "@/components/admin/SubscriptionMigrationWidget";
 import ApiManagement from "@/components/app/ApiManagement";
 import UserManagement from "@/components/app/UserManagement";
 import AdminNotificationCenter from "@/components/app/AdminNotificationCenter";
@@ -1284,13 +1285,14 @@ const KnowledgeSection = () => {
 // ─── Subscriptions & Plans ───
 const SubscriptionsSection = () => {
   const { toast } = useToast();
-  const [tab, setTab] = useState<"plans" | "payments" | "analytics" | "webhooks" | "gateway">("plans");
+  const [tab, setTab] = useState<"migration" | "plans" | "payments" | "analytics" | "webhooks" | "gateway">("migration");
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-foreground">Subscription Management</h2>
       <div className="flex gap-2 flex-wrap">
         {([
+          { key: "migration" as const, label: "Migration Health" },
           { key: "plans" as const, label: "Plan Management" },
           { key: "payments" as const, label: "Payment History" },
           { key: "analytics" as const, label: "Analytics" },
@@ -1302,7 +1304,7 @@ const SubscriptionsSection = () => {
           </button>
         ))}
       </div>
-      {tab === "plans" ? <PlanManagement toast={toast} /> : tab === "payments" ? <PaymentManagement /> : tab === "analytics" ? <SubscriptionAnalytics /> : tab === "webhooks" ? <WebhookEvents /> : <GatewayConfig />}
+      {tab === "migration" ? <SubscriptionMigrationWidget /> : tab === "plans" ? <PlanManagement toast={toast} /> : tab === "payments" ? <PaymentManagement /> : tab === "analytics" ? <SubscriptionAnalytics /> : tab === "webhooks" ? <WebhookEvents /> : <GatewayConfig />}
     </div>
   );
 };
