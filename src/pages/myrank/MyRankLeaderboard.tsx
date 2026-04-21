@@ -493,19 +493,21 @@ const MyRankLeaderboard = () => {
                       <div className="relative w-7 text-center shrink-0">
                         <span className="text-sm font-bold text-muted-foreground tabular-nums">#{r.position}</span>
                       </div>
-                      {/* Avatar */}
+                      {/* Avatar — only show profile picture for the matched is_me row.
+                          For everyone else, render anonymous initials so the photo
+                          can never be associated with the wrong identity. */}
                       <div className="relative shrink-0">
                         <div className={`w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-primary/30 to-accent/20 border ${r.is_me ? "border-primary/60 ring-2 ring-primary/30" : "border-border/60"} flex items-center justify-center`}>
-                          {r.avatar_url ? (
-                            <img src={r.avatar_url} alt={r.name} className="w-full h-full object-cover" loading="lazy" />
+                          {r.is_me && r.avatar_url ? (
+                            <img src={r.avatar_url} alt={displayNameFor(r)} className="w-full h-full object-cover" loading="lazy" />
                           ) : (
-                            <span className="text-[10px] font-bold text-primary">{getInitials(r.name)}</span>
+                            <span className="text-[10px] font-bold text-primary">{getInitials(displayNameFor(r))}</span>
                           )}
                         </div>
                       </div>
                       <div className="relative flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate flex items-center gap-1.5">
-                          {r.name}
+                          {displayNameFor(r)}
                           {r.is_me && (
                             <span className="text-[9px] bg-gradient-to-r from-primary to-accent text-primary-foreground px-1.5 py-0.5 rounded-md font-bold shadow shadow-primary/30">
                               YOU
