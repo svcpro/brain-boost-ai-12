@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User, Mail, Lock, Camera, Save, Loader2, Eye, EyeOff,
-  CheckCircle2, ArrowLeft, Shield, Clock, Calendar, Trash2, KeyRound
+  CheckCircle2, ArrowLeft, Shield, Clock, Calendar, Trash2, KeyRound, MapPin, Globe
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,8 @@ const UserProfilePage = () => {
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState("");
+  const [country, setCountry] = useState("");
+  const [city, setCity] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,12 +41,14 @@ const UserProfilePage = () => {
     if (!user) return;
     const { data } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url")
+      .select("display_name, avatar_url, country, city")
       .eq("id", user.id)
       .single();
     if (data) {
       setDisplayName(data.display_name || "");
       setAvatarUrl(data.avatar_url);
+      setCountry((data as any).country || "");
+      setCity((data as any).city || "");
     }
     setForgotEmail(user.email || "");
     setLoading(false);
@@ -57,7 +61,12 @@ const UserProfilePage = () => {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: displayName.trim(), updated_at: new Date().toISOString() })
+      .update({
+        display_name: displayName.trim(),
+        country: country.trim() || null,
+        city: city.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", user.id);
     if (error) {
       toast({ title: "Failed to save profile", variant: "destructive" });
@@ -241,6 +250,35 @@ const UserProfilePage = () => {
                   <span className="text-sm text-foreground truncate">{email}</span>
                 </div>
               </div>
+
+              {/* Country & City — used for the My City leaderboard */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <Globe className="w-3 h-3" /> Country
+                  </label>
+                  <input
+                    value={country}
+                    onChange={e => setCountry(e.target.value.slice(0, 60))}
+                    placeholder="e.g. India"
+                    className="w-full mt-1 px-3 py-2.5 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> City
+                  </label>
+                  <input
+                    value={city}
+                    onChange={e => setCity(e.target.value.slice(0, 60))}
+                    placeholder="e.g. Mumbai"
+                    className="w-full mt-1 px-3 py-2.5 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary outline-none transition-colors"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground -mt-1">
+                Used to rank you in the <span className="text-primary font-semibold">My City</span> leaderboard scope.
+              </p>
 
               {avatarUrl && (
                 <button onClick={removeAvatar} disabled={uploading} className="flex items-center gap-1 text-[11px] text-destructive hover:text-destructive/80 transition-colors">

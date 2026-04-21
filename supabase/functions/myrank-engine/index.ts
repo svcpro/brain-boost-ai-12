@@ -662,10 +662,21 @@ Generate a JSON object with:
       // scope: "india" (default) | "city" | "weekly"
 
       // ─── Auto-derive user's city for transparency ───
-      // Source priority: 1) explicit clientCity 2) latest myrank_tests.city for this user
+      // Source priority: 1) explicit clientCity 2) profiles.city 3) latest myrank_tests.city
       let resolvedCity: string | null = clientCity || null;
-      let citySource: "explicit" | "last_test" | null = clientCity ? "explicit" : null;
+      let citySource: "explicit" | "profile" | "last_test" | null = clientCity ? "explicit" : null;
       let cityCapturedAt: string | null = null;
+      if (!resolvedCity && user_id) {
+        const { data: prof } = await admin.from("profiles")
+          .select("city, updated_at")
+          .eq("id", user_id)
+          .maybeSingle();
+        if (prof?.city) {
+          resolvedCity = prof.city;
+          citySource = "profile";
+          cityCapturedAt = prof.updated_at;
+        }
+      }
       if (!resolvedCity && (user_id || anon_session_id)) {
         const idCol = user_id ? "user_id" : "anon_session_id";
         const idVal = user_id || anon_session_id;

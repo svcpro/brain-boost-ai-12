@@ -7181,6 +7181,8 @@ export type Database = {
           avatar_url: string | null
           ban_reason: string | null
           banned_at: string | null
+          city: string | null
+          country: string | null
           created_at: string
           daily_study_goal_minutes: number
           display_name: string | null
@@ -7214,6 +7216,8 @@ export type Database = {
           avatar_url?: string | null
           ban_reason?: string | null
           banned_at?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           daily_study_goal_minutes?: number
           display_name?: string | null
@@ -7247,6 +7251,8 @@ export type Database = {
           avatar_url?: string | null
           ban_reason?: string | null
           banned_at?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           daily_study_goal_minutes?: number
           display_name?: string | null
