@@ -228,7 +228,7 @@ export default function ForgettingCurve2Card() {
           {/* Headline metrics */}
           <div className="grid grid-cols-4 gap-2 mt-3">
             <Metric icon={<Target className="w-3 h-3" />} label="Retention" value={`${data.overall_retention_pct}%`} colorClass={RISK_COLOR[overallRisk]} />
-            <Metric icon={<AlertTriangle className="w-3 h-3" />} label="Urgent" value={data.urgent_count} colorClass="text-destructive" />
+            <Metric icon={<AlertTriangle className="w-3 h-3" />} label="Urgent" value={`${data.urgent_count}/${data.total_topics}`} colorClass="text-destructive" />
             <Metric icon={<Clock className="w-3 h-3" />} label="Best hr" value={`${userContext.best_study_hour}:00`} colorClass="text-chart-2" />
             <Metric icon={<Cpu className="w-3 h-3" />} label="Load 24h" value={`${userContext.recent_load_minutes_24h}m`} colorClass="text-chart-5" />
           </div>
