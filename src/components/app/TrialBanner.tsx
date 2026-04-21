@@ -139,7 +139,7 @@ const TrialBanner = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <p className="text-[11px] font-bold text-foreground truncate">
-                {isTrialExpired ? "Trial ended" : "Premium Trial"}
+                {isTrialExpired ? "Trial ended" : trialTitle}
               </p>
               {!isTrialExpired && (
                 <motion.span
