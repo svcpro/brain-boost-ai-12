@@ -115,6 +115,18 @@ const UserProfilePage = () => {
     setSaving(false);
   };
 
+  const openAvatarCropper = useCallback((file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.onerror = () => toast({ title: "Couldn't open image", variant: "destructive" });
+    reader.readAsDataURL(file);
+  }, [toast]);
+
   const uploadAvatar = async (file: Blob, ext = "jpg") => {
     if (!user) return;
     if (file.size > 2 * 1024 * 1024) {
