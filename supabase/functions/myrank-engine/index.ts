@@ -659,9 +659,88 @@ Generate a JSON object with:
 
     if (action === "leaderboard") {
       const { category, scope, city: clientCity, user_id } = body;
-      // SECURITY: Once authenticated, NEVER match by anon_session_id — browsers
-      // share localStorage across logins, causing rank/name leakage between users.
-      const anon_session_id = user_id ? null : body.anon_session_id;
+      // SECURITY (defense-in-depth): Once authenticated, NEVER trust or match by
+      // anon_session_id — browsers share localStorage across logins, causing
+      // rank/name leakage between users. Strip it from the request entirely.
+      const anon_session_id = user_id ? null : (body.anon_session_id || null);
+      if (user_id && body.anon_session_id) {
+        console.log("[myrank-engine] Ignoring anon_session_id for authenticated user", user_id);
+      }
+
+      // SAFE DEFAULT: If the caller has NO completed tests for this category/scope,
+      // never surface a phantom rank. Return the public board with my_position=null
+      // and is_me=false on every row so the UI shows the "Take a test" CTA.
+      const hasIdentity = !!(user_id || anon_session_id);
+      if (hasIdentity) {
+        const idCol = user_id ? "user_id" : "anon_session_id";
+        const idVal = user_id || anon_session_id;
+        let completedQ = admin.from("myrank_tests")
+          .select("id", { count: "exact", head: true })
+          .eq(idCol, idVal)
+          .not("completed_at", "is", null);
+        if (category && category !== "ALL") {
+          if (category === "IQ") completedQ = completedQ.eq("category", "IQ");
+          else completedQ = completedQ.or(`category.eq.${category},category.ilike.${category} %`);
+        }
+        if (scope === "weekly") {
+          const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          completedQ = completedQ.gte("completed_at", weekAgo);
+        }
+        const { count: myCompletedCount } = await completedQ;
+        if (!myCompletedCount || myCompletedCount === 0) {
+          let pubQ = admin.from("myrank_tests")
+            .select("id, user_id, category, score, percentile, rank, ai_tag, city, completed_at")
+            .not("completed_at", "is", null)
+            .order("percentile", { ascending: false })
+            .order("completed_at", { ascending: false })
+            .limit(100);
+          if (category && category !== "ALL") {
+            if (category === "IQ") pubQ = pubQ.eq("category", "IQ");
+            else pubQ = pubQ.or(`category.eq.${category},category.ilike.${category} %`);
+          }
+          if (scope === "weekly") {
+            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            pubQ = pubQ.gte("completed_at", weekAgo);
+          }
+          const { data: pub } = await pubQ;
+          const pubUserIds = (pub || []).map(t => t.user_id).filter(Boolean) as string[];
+          const pubNameMap: Record<string, string> = {};
+          const pubAvatarMap: Record<string, string> = {};
+          if (pubUserIds.length) {
+            const { data: profiles } = await admin
+              .from("profiles")
+              .select("id, display_name, avatar_url")
+              .in("id", pubUserIds);
+            (profiles || []).forEach(p => {
+              if (p.display_name) pubNameMap[p.id] = p.display_name;
+              if (p.avatar_url) pubAvatarMap[p.id] = p.avatar_url;
+            });
+          }
+          const safeBoard = (pub || []).map((t, i) => ({
+            position: i + 1,
+            name: t.user_id ? (pubNameMap[t.user_id] || "Anonymous Star") : "Anonymous Star",
+            avatar_url: t.user_id ? (pubAvatarMap[t.user_id] || null) : null,
+            category: t.category,
+            score: t.score,
+            percentile: t.percentile,
+            rank: t.rank,
+            ai_tag: t.ai_tag,
+            city: t.city,
+            is_me: false,
+          }));
+          return new Response(JSON.stringify({
+            leaderboard: safeBoard,
+            my_position: null,
+            my_city: null,
+            city_source: null,
+            city_captured_at: null,
+            last_updated_at: safeBoard.length ? (pub as any)[0].completed_at : new Date().toISOString(),
+            no_completed_tests: true,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
       // scope: "india" (default) | "city" | "weekly"
 
       // ─── Auto-derive user's city for transparency ───
