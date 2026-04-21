@@ -684,13 +684,21 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                   {/* Donut + Summary */}
                   <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-4">
                     <div className="flex items-center gap-4">
-                      <DonutChart segments={categoryBreakdown.map(c => ({ percentage: c.percentage, color: c.accent }))} />
+                      {eventTypeBreakdown.length > 0 ? (
+                        <DonutChart segments={eventTypeBreakdown.map(c => ({ percentage: c.percentage, color: c.accent }))} />
+                      ) : (
+                        <div className="w-24 h-24 rounded-full border-2 border-dashed border-border/40 flex items-center justify-center">
+                          <ScanEye className="w-6 h-6 text-muted-foreground/40" />
+                        </div>
+                      )}
                       <div className="flex-1 space-y-1.5">
-                        <p className="text-[11px] font-bold text-foreground">Source Distribution</p>
-                        {categoryBreakdown.slice(0, 3).map((cat, i) => (
+                        <p className="text-[11px] font-bold text-foreground">Event Distribution</p>
+                        {eventTypeBreakdown.length === 0 ? (
+                          <p className="text-[9px] text-muted-foreground">No in-app events tracked yet. Open a focus session to start measuring.</p>
+                        ) : eventTypeBreakdown.slice(0, 4).map((cat) => (
                           <div key={cat.id} className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full" style={{ background: cat.accent }} />
-                            <span className="text-[9px] text-muted-foreground flex-1">{cat.label}</span>
+                            <span className="text-[9px] text-muted-foreground flex-1 truncate">{cat.label}</span>
                             <span className="text-[9px] font-bold text-foreground">{cat.percentage}%</span>
                           </div>
                         ))}
@@ -698,23 +706,23 @@ export default function FocusShieldDashboard({ onClose }: FocusShieldDashboardPr
                     </div>
                   </div>
 
-                  {/* Category Cards */}
+                  {/* Event-type Cards */}
                   <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm overflow-hidden">
                     <div className="px-4 pt-4 pb-2 flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
                         <Smartphone className="w-3.5 h-3.5 text-accent" />
                       </div>
                       <div>
-                        <p className="text-[11px] font-bold text-foreground">Distraction Sources</p>
-                        <p className="text-[8px] text-muted-foreground">{events.length} total events tracked</p>
+                        <p className="text-[11px] font-bold text-foreground">Tracked Distraction Signals</p>
+                        <p className="text-[8px] text-muted-foreground">{events.length} in-app events · external apps not tracked in browser</p>
                       </div>
                     </div>
 
-                    {events.length === 0 ? (
+                    {eventTypeBreakdown.length === 0 ? (
                       <p className="text-[10px] text-muted-foreground text-center py-10 px-4">Keep studying to see breakdown</p>
                     ) : (
                       <div className="px-4 pb-4 space-y-2">
-                        {categoryBreakdown.map((cat, i) => (
+                        {eventTypeBreakdown.map((cat, i) => (
                           <motion.div key={cat.id} initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.06 * i }}
                             className="rounded-xl border border-border/20 bg-secondary/15 p-3 relative overflow-hidden">
                             {/* Subtle gradient background */}
