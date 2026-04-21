@@ -385,15 +385,25 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                             <Sparkles className="w-4 h-4" style={{ color: "#00FF94" }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-[11px] font-bold text-foreground leading-tight">
-                              You save up to ₹{Math.max(...plans.map(p => p.price * 12 - p.yearly_price))} this year
+                            <div className="text-[11px] font-bold text-foreground leading-tight tabular-nums">
+                              Total yearly savings: <span style={{ color: "#00FF94" }}>₹{plans.reduce((sum, p) => sum + Math.max(0, p.price * 12 - p.yearly_price), 0).toLocaleString("en-IN")}</span>
                             </div>
-                            <div className="text-[9px] text-muted-foreground mt-0.5">
-                              {plans.map(p => `${p.name}: ₹${p.price * 12 - p.yearly_price} off`).join(" · ")}
+                            <div className="text-[9px] text-muted-foreground mt-0.5 tabular-nums">
+                              {plans.map(p => `${p.name}: −₹${(p.price * 12 - p.yearly_price).toLocaleString("en-IN")}`).join(" · ")}
                             </div>
                           </div>
-                          <div className="text-[9px] font-bold px-2 py-1 rounded-full shrink-0" style={{ background: "#00FF94", color: "#0B0F1A" }}>
-                            2 MO FREE
+                          <div
+                            className="relative overflow-hidden text-[9px] font-bold px-2 py-1 rounded-full shrink-0"
+                            style={{ background: "#00FF94", color: "#0B0F1A" }}
+                          >
+                            <span className="relative z-10">2 MO FREE</span>
+                            <motion.span
+                              className="absolute inset-0 pointer-events-none"
+                              style={{ background: "linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.7) 50%, transparent 65%)" }}
+                              initial={{ x: "-120%" }}
+                              animate={{ x: "120%" }}
+                              transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1, ease: "easeInOut" }}
+                            />
                           </div>
                         </div>
                       </div>
