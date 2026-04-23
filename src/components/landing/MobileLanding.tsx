@@ -406,7 +406,7 @@ const MobileLanding = () => {
         </Link>
 
         <div className="mt-2.5 flex items-center justify-center gap-2 text-[9px] uppercase tracking-wider" style={{ color: "#ffffff45" }}>
-          <span className="flex items-center gap-1"><Shield className="w-2.5 h-2.5" /> Free forever</span>
+          <span className="flex items-center gap-1"><Shield className="w-2.5 h-2.5" /> 14 Days Trial</span>
           <span className="w-1 h-1 rounded-full bg-white/15" />
           <span>No card</span>
           <span className="w-1 h-1 rounded-full bg-white/15" />
