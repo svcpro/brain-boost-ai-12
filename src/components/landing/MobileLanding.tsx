@@ -263,10 +263,9 @@ const MobileLanding = () => {
       <motion.header
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="relative z-40 shrink-0 flex items-center justify-between px-5 pt-3 pb-2"
+        className="relative z-40 shrink-0 flex items-center justify-end px-5 pt-3 pb-2"
         style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 12px)" }}
       >
-        <ACRYLogo variant="navbar" animate={false} />
         <LiveTicker />
       </motion.header>
 
