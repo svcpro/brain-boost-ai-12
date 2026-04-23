@@ -355,16 +355,6 @@ const HeroSection = () => {
             <span className="relative z-10">Start Free — It's Instant</span>
             <div className="absolute inset-0 glow-primary-strong opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
           </Link>
-          <button className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl glass neural-border font-medium text-foreground hover:bg-secondary/50 transition-all duration-300 group">
-            <motion.div
-              animate={{ scale: [1, 1.15, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors"
-            >
-              <Play className="w-3.5 h-3.5 text-primary ml-0.5" />
-            </motion.div>
-            Watch Demo
-          </button>
         </motion.div>
 
         {/* Live stats */}
