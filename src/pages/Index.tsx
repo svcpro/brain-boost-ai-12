@@ -2,10 +2,12 @@ import { useEffect, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import NeuralBackground from "@/components/landing/NeuralBackground";
 import HeroSection from "@/components/landing/HeroSection";
 import Footer from "@/components/landing/Footer";
 import ACRYLogo from "@/components/landing/ACRYLogo";
+import MobileLanding from "@/components/landing/MobileLanding";
 import { Link } from "react-router-dom";
 import { Rocket } from "lucide-react";
 
