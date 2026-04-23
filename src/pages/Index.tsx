@@ -62,6 +62,12 @@ const Index = () => {
     }
   }, [user, loading, navigate]);
 
+  // Mobile devices: render full mobile-app-style landing with splash screen.
+  // Desktop: keep the existing rich landing page intact.
+  if (isMobile && !user) {
+    return <MobileLanding />;
+  }
+
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden">
       <NeuralBackground />
