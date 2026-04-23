@@ -259,18 +259,21 @@ const MobileLanding = () => {
         />
       </div>
 
-      {/* ─── HEADER ─── */}
-      <motion.header
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="relative z-40 shrink-0 flex items-center justify-end px-5 pt-3 pb-2"
+      {/* ─── HERO (centered, no scroll) ─── */}
+      <main
+        className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 min-h-0"
         style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 12px)" }}
       >
-        <LiveTicker />
-      </motion.header>
+        {/* Live ticker above brain ring */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="mb-4"
+        >
+          <LiveTicker />
+        </motion.div>
 
-      {/* ─── HERO (centered, no scroll) ─── */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 min-h-0">
         {/* Brain ring */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
