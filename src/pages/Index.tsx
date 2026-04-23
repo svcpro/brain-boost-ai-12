@@ -27,6 +27,7 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const isMobile = useIsMobile();
 
   // Capture memorable referral handle (?ref=rahul123) on root domain
   useEffect(() => {
