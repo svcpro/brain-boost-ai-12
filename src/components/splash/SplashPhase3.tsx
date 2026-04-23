@@ -164,7 +164,7 @@ const SplashPhase3 = ({ onComplete }: SplashPhase3Props) => {
           }}
           transition={{ duration: 2.5, repeat: Infinity }}
         >
-          Get Started →
+          Enter ACRY →
         </motion.button>
       </motion.div>
     </motion.div>
