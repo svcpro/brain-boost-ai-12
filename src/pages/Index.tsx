@@ -2,10 +2,12 @@ import { useEffect, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import NeuralBackground from "@/components/landing/NeuralBackground";
 import HeroSection from "@/components/landing/HeroSection";
 import Footer from "@/components/landing/Footer";
 import ACRYLogo from "@/components/landing/ACRYLogo";
+import MobileLanding from "@/components/landing/MobileLanding";
 import { Link } from "react-router-dom";
 import { Rocket } from "lucide-react";
 
@@ -25,6 +27,7 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const isMobile = useIsMobile();
 
   // Capture memorable referral handle (?ref=rahul123) on root domain
   useEffect(() => {
@@ -58,6 +61,12 @@ const Index = () => {
         });
     }
   }, [user, loading, navigate]);
+
+  // Mobile devices: render full mobile-app-style landing with splash screen.
+  // Desktop: keep the existing rich landing page intact.
+  if (isMobile && !user) {
+    return <MobileLanding />;
+  }
 
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden">
