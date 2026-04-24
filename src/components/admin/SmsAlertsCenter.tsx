@@ -386,15 +386,24 @@ function Templates() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <h3 className="text-base font-bold text-foreground">SMS Templates</h3>
-          <p className="text-xs text-muted-foreground">{list.length} templates · DLT-ready</p>
+          <p className="text-xs text-muted-foreground">
+            {list.length} templates · {list.filter((t) => t.dlt_template_id).length} with DLT · {list.filter((t) => !t.dlt_template_id).length} missing
+          </p>
         </div>
-        <Button size="sm" onClick={() => setEdit({ category: "engagement", is_active: true, body_template: "" })}>
-          <Plus className="w-3.5 h-3.5 mr-1.5" /> New
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)} className="bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20">
+            <Zap className="w-3.5 h-3.5 mr-1.5" /> Bulk DLT Editor
+          </Button>
+          <Button size="sm" onClick={() => setEdit({ category: "engagement", is_active: true, body_template: "" })}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> New
+          </Button>
+        </div>
       </div>
+
+      <BulkDltEditor open={bulkOpen} onClose={() => setBulkOpen(false)} list={list} onSaved={load} />
 
       {loading && <Loader2 className="w-5 h-5 animate-spin mx-auto" />}
 
