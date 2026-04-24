@@ -81,7 +81,7 @@ Concise questions (1 line max). No markdown.`;
 
     const startTime = Date.now();
     const questionText = content || "";
-    const systemPrompt = buildALISPrompt(profileRes.data, memoryRes.data, recentQueriesRes.data);
+    const systemPrompt = buildALISPrompt(profileRes.data, memoryRes.data, (recentQueriesRes.data as any[]) || []);
 
     const messages: any[] = [{ role: "system", content: systemPrompt }];
     if (image_base64) {
