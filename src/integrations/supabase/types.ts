@@ -10984,7 +10984,13 @@ export type Database = {
         | "failed"
         | "skipped"
         | "opted_out"
-      notification_channel: "push" | "whatsapp" | "email" | "voice" | "in_app"
+      notification_channel:
+        | "push"
+        | "whatsapp"
+        | "email"
+        | "voice"
+        | "in_app"
+        | "sms"
       notification_priority: "critical" | "high" | "medium" | "low"
     }
     CompositeTypes: {
@@ -11129,7 +11135,14 @@ export const Constants = {
         "skipped",
         "opted_out",
       ],
-      notification_channel: ["push", "whatsapp", "email", "voice", "in_app"],
+      notification_channel: [
+        "push",
+        "whatsapp",
+        "email",
+        "voice",
+        "in_app",
+        "sms",
+      ],
       notification_priority: ["critical", "high", "medium", "low"],
     },
   },
