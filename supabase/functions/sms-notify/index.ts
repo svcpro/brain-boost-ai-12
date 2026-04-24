@@ -135,10 +135,11 @@ async function dispatchSms(
       .from("sms_templates").select("*").eq("name", params.template_name).maybeSingle();
     if (!tpl) return { ok: false, status: "template_missing", reason: `Template ${params.template_name} not found` };
     if (!tpl.is_active) return { ok: false, status: "template_disabled", reason: "Template inactive" };
-    // Auto-inject {{link}} from template's target_url if caller didn't provide one
+    // Auto-inject both {{link}} / ##url## from template target_url if caller didn't provide them
     const mergedVars: Record<string, unknown> = { ...(params.variables || {}) };
-    if (tpl.target_url && (mergedVars.link == null || mergedVars.link === "")) {
-      mergedVars.link = tpl.target_url;
+    if (tpl.target_url) {
+      if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
+      if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
     }
     body = renderTemplate(tpl.body_template, mergedVars);
     category = tpl.category || category;
