@@ -26,10 +26,20 @@ function normalizeMobile(raw: unknown): string | null {
 }
 
 function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
-  return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => {
-    const v = vars?.[k];
-    return v == null ? "" : String(v);
-  });
+  const normalizedVars: Record<string, string> = {};
+  for (const [key, value] of Object.entries(vars || {})) {
+    const stringValue = value == null ? "" : String(value);
+    normalizedVars[key] = stringValue;
+    normalizedVars[key.toLowerCase()] = stringValue;
+  }
+
+  if (normalizedVars.link && !normalizedVars.url) normalizedVars.url = normalizedVars.link;
+  if (normalizedVars.url && !normalizedVars.link) normalizedVars.link = normalizedVars.url;
+
+  return tpl
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => normalizedVars[k] ?? normalizedVars[k.toLowerCase()] ?? "")
+    .replace(/##\s*(\w+)\s*##/g, (_m, k) => normalizedVars[k] ?? normalizedVars[k.toLowerCase()] ?? "")
+    .replace(/\{#\s*(\w+)\s*#\}/g, (_m, k) => normalizedVars[k] ?? normalizedVars[k.toLowerCase()] ?? "");
 }
 
 async function sendViaMsg91(
@@ -46,21 +56,21 @@ async function sendViaMsg91(
   const key = Deno.env.get("MSG91_AUTH_KEY");
   if (!key) return { ok: false, error: "MSG91_AUTH_KEY not configured" };
 
-  // Use MSG91 Flow API (transactional) — falls back to legacy sendsms if no DLT
+  // Use MSG91 Flow API when a template/flow id is configured — falls back to legacy sendsms otherwise
   const useFlow = !!cfg.dlt_template_id;
 
   if (useFlow) {
-    // MSG91 Flow API requires variables as named fields on the recipient object
-    // (matching the variable names registered in the DLT template / Flow).
-    // Both lowercase and UPPERCASE/VAR1..N are included for maximum compatibility.
     const recipient: Record<string, unknown> = { mobiles: mobile };
-    const vars = cfg.variables || {};
+    const vars = { ...(cfg.variables || {}) };
+    if (vars.link != null && vars.url == null) vars.url = vars.link;
+    if (vars.url != null && vars.link == null) vars.link = vars.url;
+
     let idx = 1;
     for (const [k, v] of Object.entries(vars)) {
       const val = v == null ? "" : String(v);
-      recipient[k] = val;                  // e.g. "link", "otp", "name"
-      recipient[k.toUpperCase()] = val;    // e.g. "LINK", "OTP", "NAME"
-      recipient[`VAR${idx}`] = val;        // positional fallback
+      recipient[k] = val;
+      recipient[k.toUpperCase()] = val;
+      recipient[`VAR${idx}`] = val;
       recipient[`var${idx}`] = val;
       idx++;
     }
@@ -69,7 +79,9 @@ async function sendViaMsg91(
       method: "POST",
       headers: { authkey: key, "Content-Type": "application/json", accept: "application/json" },
       body: JSON.stringify({
-        template_id: cfg.dlt_template_id,
+        flow_id: cfg.dlt_template_id,
+        sender: cfg.sender_id,
+        route: cfg.route,
         short_url: "0",
         recipients: [recipient],
       }),
