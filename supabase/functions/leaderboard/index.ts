@@ -114,7 +114,7 @@ async function fetchLeaderboardData(supabaseAdmin: any, currentUserId: string | 
     const userTotalMinutes = new Map<string, number>();
 
     for (const uid of filteredUserIds) {
-      const userLogs = (allLogs || []).filter(l => l.user_id === uid);
+      const userLogs = ((allLogs as any[]) || []).filter((l: any) => l.user_id === uid);
       const profile = profileMap.get(uid);
       const dailyGoal = profile?.daily_study_goal_minutes || 60;
 
