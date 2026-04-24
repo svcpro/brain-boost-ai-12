@@ -56,13 +56,10 @@ async function sendViaMsg91(
   const key = Deno.env.get("MSG91_AUTH_KEY");
   if (!key) return { ok: false, error: "MSG91_AUTH_KEY not configured" };
 
-  // Use MSG91 Flow API (transactional) — falls back to legacy sendsms if no DLT
+  // Use MSG91 Flow API when a template/flow id is configured — falls back to legacy sendsms otherwise
   const useFlow = !!cfg.dlt_template_id;
 
   if (useFlow) {
-    // MSG91 Flow API requires variables as named fields on the recipient object
-    // (matching the variable names registered in the DLT template / Flow).
-    // Both lowercase and UPPERCASE/VAR1..N are included for maximum compatibility.
     const recipient: Record<string, unknown> = { mobiles: mobile };
     const vars = { ...(cfg.variables || {}) };
     if (vars.link != null && vars.url == null) vars.url = vars.link;
@@ -82,7 +79,9 @@ async function sendViaMsg91(
       method: "POST",
       headers: { authkey: key, "Content-Type": "application/json", accept: "application/json" },
       body: JSON.stringify({
-        template_id: cfg.dlt_template_id,
+        flow_id: cfg.dlt_template_id,
+        sender: cfg.sender_id,
+        route: cfg.route,
         short_url: "0",
         recipients: [recipient],
       }),
