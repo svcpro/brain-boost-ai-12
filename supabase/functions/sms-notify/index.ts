@@ -201,6 +201,9 @@ async function dispatchSms(
     status: result.ok ? "sent" : "failed",
     reason: result.error,
     message_id: logRow?.id,
+    msg91_request_id: result.request_id,
+    dlt_missing: !dltId,
+    warning: !dltId ? "No DLT template ID configured — Indian carriers may silently drop this message even though MSG91 accepted it. Add DLT IDs in Bulk DLT Editor." : undefined,
   };
 }
 
