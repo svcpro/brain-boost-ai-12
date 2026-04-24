@@ -284,6 +284,8 @@ async function dispatchToChannel(
           return await sendVoice(supabaseUrl, serviceKey, userId, title, body, data);
         case "whatsapp":
           return await sendWhatsApp(supabaseUrl, serviceKey, userId, title, body, data);
+        case "sms":
+          return await sendSms(supabaseUrl, serviceKey, userId, title, body, data);
         case "in_app":
           // Store in-app notification directly
           await supabase.from("notifications").insert({
