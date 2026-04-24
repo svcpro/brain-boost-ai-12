@@ -171,7 +171,7 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
   const [filter, setFilter] = useState<"all" | "missing">("missing");
   const [testPhone, setTestPhone] = useState<string>(() => localStorage.getItem("sms_test_phone") || "");
   const [testing, setTesting] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string; warning?: string; request_id?: string; message_id?: string }>>({});
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string; warning?: string; request_id?: string; message_id?: string; deliveryChecked?: boolean; delivered?: boolean }>>({});
   const [checking, setChecking] = useState<string | null>(null);
 
   const sendTest = async (t: any) => {
@@ -202,7 +202,9 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
       });
       if (error) throw error;
       const ok = !!data?.ok;
-      const msg = data?.reason || data?.status || (ok ? "Sent to gateway ✓" : "Failed");
+      const msg = ok
+        ? (data?.dlt_missing ? "Accepted by gateway · DLT missing" : "Accepted by gateway · check delivery")
+        : (data?.reason || data?.status || "Failed");
       setTestResult((p) => ({ ...p, [t.id]: {
         ok, msg,
         warning: data?.warning,
@@ -210,8 +212,8 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
         message_id: data?.message_id,
       }}));
       toast({
-        title: ok ? (data?.dlt_missing ? "⚠️ Sent but DLT missing" : "✅ Test SMS sent") : "❌ Test failed",
-        description: data?.warning || `${t.display_name}: ${msg}`,
+        title: ok ? (data?.dlt_missing ? "⚠️ Gateway accepted, but DLT missing" : "✅ Gateway accepted request") : "❌ Test failed",
+        description: data?.warning || `${t.display_name}: ${ok ? "Now use Check Delivery to confirm handset delivery." : msg}`,
         variant: ok && !data?.dlt_missing ? "default" : "destructive",
       });
     } catch (e: any) {
@@ -237,6 +239,15 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
       if (error) throw error;
       const status = data?.status || "unknown";
       const isDelivered = String(status).toLowerCase().includes("deliver");
+      setTestResult((p) => ({
+        ...p,
+        [t.id]: {
+          ...(p[t.id] || { ok: true, msg: status }),
+          deliveryChecked: true,
+          delivered: isDelivered,
+          msg: isDelivered ? `Delivered · ${status}` : `Not delivered · ${status}`,
+        },
+      }));
       toast({
         title: `📡 Carrier: ${status}`,
         description: isDelivered
@@ -421,7 +432,7 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
                         {r.body_template.length}/160 · {Math.ceil(r.body_template.length / 160)} segment(s)
                       </div>
                       {testResult[t.id] && (
-                        <Badge className={`text-[10px] ${testResult[t.id].ok ? "bg-emerald-500/15 text-emerald-400" : "bg-destructive/15 text-destructive"}`}>
+                        <Badge className={`text-[10px] ${testResult[t.id].deliveryChecked ? (testResult[t.id].delivered ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400") : (testResult[t.id].ok ? "bg-cyan-500/15 text-cyan-400" : "bg-destructive/15 text-destructive")}`}>
                           {testResult[t.id].ok ? "✓" : "✗"} {testResult[t.id].msg}
                         </Badge>
                       )}
