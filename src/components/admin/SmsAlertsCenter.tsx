@@ -980,7 +980,7 @@ function SettingsPanel() {
               <Input type="number" value={cfg.monthly_limit_per_user} onChange={(e) => setCfg({ ...cfg, monthly_limit_per_user: parseInt(e.target.value) || 60 })} /></div>
             <div><Label className="text-xs">Sender ID</Label>
               <Input value={cfg.sender_id} onChange={(e) => setCfg({ ...cfg, sender_id: e.target.value })} /></div>
-            <div><Label className="text-xs">Default DLT Template ID</Label>
+            <div><Label className="text-xs">Default MSG91 Flow ID</Label>
               <Input value={cfg.default_dlt_template_id || ""} onChange={(e) => setCfg({ ...cfg, default_dlt_template_id: e.target.value })} /></div>
             <div><Label className="text-xs">Route</Label>
               <Input value={cfg.default_route} onChange={(e) => setCfg({ ...cfg, default_route: e.target.value })} /></div>
