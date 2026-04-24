@@ -94,7 +94,7 @@ async function fetchLeaderboardData(supabaseAdmin: any, currentUserId: string | 
       .in("id", userIds);
 
     // Filter to only opted-in users (but always include current user)
-    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+    const profileMap = new Map<string, any>(((profiles as any[]) || []).map((p: any) => [p.id, p]));
     const filteredUserIds = userIds.filter(uid =>
       uid === currentUserId || profileMap.get(uid)?.opt_in_leaderboard === true
     );
