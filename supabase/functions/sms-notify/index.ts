@@ -132,6 +132,7 @@ async function dispatchSms(
   let category = params.category || "engagement";
   let dltId: string | null = cfg.default_dlt_template_id || null;
   let senderId = cfg.sender_id;
+  let mergedVars: Record<string, unknown> = { ...(params.variables || {}) };
 
   if (params.template_name) {
     const { data: tpl } = await sb
@@ -139,7 +140,6 @@ async function dispatchSms(
     if (!tpl) return { ok: false, status: "template_missing", reason: `Template ${params.template_name} not found` };
     if (!tpl.is_active) return { ok: false, status: "template_disabled", reason: "Template inactive" };
     // Auto-inject {{link}} from template's target_url if caller didn't provide one
-    const mergedVars: Record<string, unknown> = { ...(params.variables || {}) };
     if (tpl.target_url && (mergedVars.link == null || mergedVars.link === "")) {
       mergedVars.link = tpl.target_url;
     }
@@ -199,6 +199,7 @@ async function dispatchSms(
     route: cfg.default_route,
     country: cfg.default_country,
     dlt_template_id: dltId,
+    variables: mergedVars,
   });
 
   // Log
