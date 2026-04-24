@@ -241,7 +241,7 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
         title: `📡 Carrier: ${status}`,
         description: isDelivered
           ? "✅ Confirmed delivered to handset"
-          : "⚠️ Not delivered. Likely cause: DLT template ID missing or body doesn't match approved DLT template.",
+          : "⚠️ Not delivered. Likely cause: MSG91 Flow ID mismatch, sender mismatch, or body doesn't match the approved MSG91/DLT template.",
         variant: isDelivered ? "default" : "destructive",
       });
     } catch (e: any) {
@@ -363,11 +363,11 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <div>
-                      <Label className="text-[10px]">DLT Template ID *</Label>
+                      <Label className="text-[10px]">MSG91 Flow ID *</Label>
                       <Input
                         value={r.dlt_template_id}
                         onChange={(e) => setRows({ ...rows, [t.id]: { ...r, dlt_template_id: e.target.value } })}
-                        placeholder="1707161234567890123"
+                        placeholder="Enter MSG91 Flow ID"
                         className="h-8 text-xs font-mono"
                       />
                     </div>
@@ -435,7 +435,7 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
 
         <DialogFooter className="border-t border-border/40 pt-3">
           <div className="text-[10px] text-muted-foreground mr-auto">
-            💡 Get DLT IDs from MSG91 → Manage Templates. Body must match approved DLT text exactly.
+            💡 Enter the MSG91 Flow ID here. Map your approved DLT Template ID inside that MSG91 Flow, and keep the body text exactly matched.
           </div>
           <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
@@ -611,7 +611,7 @@ function Templates() {
                 <div className="text-[10px] text-muted-foreground mt-1">{(edit.body_template || "").length}/160 chars · {Math.ceil((edit.body_template || "").length / 160)} segment(s)</div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-xs">DLT Template ID</Label>
+                <div><Label className="text-xs">MSG91 Flow ID</Label>
                   <Input value={edit.dlt_template_id || ""} onChange={(e) => setEdit({ ...edit, dlt_template_id: e.target.value })} /></div>
                 <div><Label className="text-xs">Sender ID</Label>
                   <Input value={edit.sender_id || ""} onChange={(e) => setEdit({ ...edit, sender_id: e.target.value })} placeholder="ACRYAI" /></div>
@@ -980,7 +980,7 @@ function SettingsPanel() {
               <Input type="number" value={cfg.monthly_limit_per_user} onChange={(e) => setCfg({ ...cfg, monthly_limit_per_user: parseInt(e.target.value) || 60 })} /></div>
             <div><Label className="text-xs">Sender ID</Label>
               <Input value={cfg.sender_id} onChange={(e) => setCfg({ ...cfg, sender_id: e.target.value })} /></div>
-            <div><Label className="text-xs">Default DLT Template ID</Label>
+            <div><Label className="text-xs">Default MSG91 Flow ID</Label>
               <Input value={cfg.default_dlt_template_id || ""} onChange={(e) => setCfg({ ...cfg, default_dlt_template_id: e.target.value })} /></div>
             <div><Label className="text-xs">Route</Label>
               <Input value={cfg.default_route} onChange={(e) => setCfg({ ...cfg, default_route: e.target.value })} /></div>
