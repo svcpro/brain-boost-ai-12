@@ -58,13 +58,13 @@ Deno.serve(async (req) => {
       supabase.from("subjects").select("id, name").eq("user_id", userId).is("deleted_at", null),
     ]);
 
-    const topics = topicsRes.data || [];
-    const logs = logsRes.data || [];
-    const profile = profileRes.data;
-    const features = featuresRes.data;
-    const exams = examsRes.data || [];
-    const ranks = rankRes.data || [];
-    const subjects = burnoutRes.data || [];
+    const topics: any[] = (topicsRes.data as any[]) || [];
+    const logs: any[] = (logsRes.data as any[]) || [];
+    const profile: any = profileRes.data as any;
+    const features: any = featuresRes.data as any;
+    const exams: any[] = (examsRes.data as any[]) || [];
+    const ranks: any[] = (rankRes.data as any[]) || [];
+    const subjects: any[] = (burnoutRes.data as any[]) || [];
 
     const subjectMap = new Map(subjects.map((s: any) => [s.id, s.name]));
 

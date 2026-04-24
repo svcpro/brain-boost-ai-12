@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
 
-    const perf = questionPerf || [];
-    const exams = examResults || [];
+    const perf: any[] = (questionPerf as any[]) || [];
+    const exams: any[] = (examResults as any[]) || [];
 
     // === ADAPTIVE DIFFICULTY ALGORITHM ===
 
