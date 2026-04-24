@@ -241,7 +241,7 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
         title: `📡 Carrier: ${status}`,
         description: isDelivered
           ? "✅ Confirmed delivered to handset"
-          : "⚠️ Not delivered. Likely cause: DLT template ID missing or body doesn't match approved DLT template.",
+          : "⚠️ Not delivered. Likely cause: MSG91 Flow ID mismatch, sender mismatch, or body doesn't match the approved MSG91/DLT template.",
         variant: isDelivered ? "default" : "destructive",
       });
     } catch (e: any) {
