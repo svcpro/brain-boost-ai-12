@@ -26,10 +26,20 @@ function normalizeMobile(raw: unknown): string | null {
 }
 
 function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
-  return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => {
-    const v = vars?.[k];
-    return v == null ? "" : String(v);
-  });
+  const normalizedVars: Record<string, string> = {};
+  for (const [key, value] of Object.entries(vars || {})) {
+    const stringValue = value == null ? "" : String(value);
+    normalizedVars[key] = stringValue;
+    normalizedVars[key.toLowerCase()] = stringValue;
+  }
+
+  if (normalizedVars.link && !normalizedVars.url) normalizedVars.url = normalizedVars.link;
+  if (normalizedVars.url && !normalizedVars.link) normalizedVars.link = normalizedVars.url;
+
+  return tpl
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => normalizedVars[k] ?? normalizedVars[k.toLowerCase()] ?? "")
+    .replace(/##\s*(\w+)\s*##/g, (_m, k) => normalizedVars[k] ?? normalizedVars[k.toLowerCase()] ?? "")
+    .replace(/\{#\s*(\w+)\s*#\}/g, (_m, k) => normalizedVars[k] ?? normalizedVars[k.toLowerCase()] ?? "");
 }
 
 async function sendViaMsg91(
