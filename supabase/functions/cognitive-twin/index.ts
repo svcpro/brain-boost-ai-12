@@ -12,10 +12,8 @@ Deno.serve(async (req) => {
 
   try {
     const { userId, supabase } = await authenticateRequest(req);
-    const user = { id: userId };
 
     const { action, params } = await req.json();
-    const userId = user.id;
 
     if (action === "compute") {
       return new Response(JSON.stringify(await computeTwin(supabase, userId)), {

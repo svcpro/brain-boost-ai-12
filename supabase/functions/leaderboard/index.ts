@@ -39,12 +39,15 @@ Deno.serve(async (req) => {
     }
 
     // Cache leaderboard data for 30 seconds (hot endpoint)
-    const leaderboardData = await edgeCache.getOrFetch("leaderboard_full", 30, async () => {
-      return await fetchLeaderboardData(supabaseAdmin);
+    const leaderboardData: any = await edgeCache.getOrFetch("leaderboard_full", 30, async () => {
+      return await fetchLeaderboardData(supabaseAdmin, currentUserId);
     });
 
+    // If fetchLeaderboardData returned a Response (early return), pass through
+    if (leaderboardData instanceof Response) return leaderboardData;
+
     // Personalize with current user highlight (not cached)
-    const leaderboard = leaderboardData.map((e: any) => ({
+    const leaderboard = (leaderboardData as any[]).map((e: any) => ({
       ...e,
       is_current_user: e.user_id === currentUserId,
       display_name: e.user_id === currentUserId ? e.full_display_name : e.display_name,
@@ -62,7 +65,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchLeaderboardData(supabaseAdmin: any) {
+async function fetchLeaderboardData(supabaseAdmin: any, currentUserId: string | null = null): Promise<any> {
     // Get latest rank prediction per user
     const { data: rankData } = await supabaseAdmin
       .from("rank_predictions")
@@ -91,7 +94,7 @@ async function fetchLeaderboardData(supabaseAdmin: any) {
       .in("id", userIds);
 
     // Filter to only opted-in users (but always include current user)
-    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+    const profileMap = new Map<string, any>(((profiles as any[]) || []).map((p: any) => [p.id, p]));
     const filteredUserIds = userIds.filter(uid =>
       uid === currentUserId || profileMap.get(uid)?.opt_in_leaderboard === true
     );
@@ -111,7 +114,7 @@ async function fetchLeaderboardData(supabaseAdmin: any) {
     const userTotalMinutes = new Map<string, number>();
 
     for (const uid of filteredUserIds) {
-      const userLogs = (allLogs || []).filter(l => l.user_id === uid);
+      const userLogs = ((allLogs as any[]) || []).filter((l: any) => l.user_id === uid);
       const profile = profileMap.get(uid);
       const dailyGoal = profile?.daily_study_goal_minutes || 60;
 

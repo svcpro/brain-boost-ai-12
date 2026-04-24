@@ -78,8 +78,8 @@ async function generateMissions(supabase: any, userId: string) {
 
   const twin = twinRes.data;
   const features = featuresRes.data;
-  const topics = topicsRes.data || [];
-  const logs = logsRes.data || [];
+  const topics: any[] = (topicsRes.data as any[]) || [];
+  const logs: any[] = (logsRes.data as any[]) || [];
   const embedding = embeddingRes.data;
   const topicModels = (twin?.topic_models as any[]) || [];
 

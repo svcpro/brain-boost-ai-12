@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
       .gte("created_at", threeDaysAgo.toISOString())
       .order("created_at", { ascending: false });
 
-    const logs = recentLogs || [];
+    const logs: any[] = (recentLogs as any[]) || [];
 
     // === BURNOUT DETECTION HEURISTICS ===
 

@@ -76,10 +76,10 @@ Deno.serve(async (req) => {
       .gte("created_at", thirtyDaysAgo.toISOString());
 
     const recentAvgDuration = (recentLogs || []).length > 0
-      ? (recentLogs || []).reduce((s, l) => s + (l.duration_minutes || 0), 0) / recentLogs!.length
+      ? ((recentLogs as any[]) || []).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0) / recentLogs!.length
       : 0;
     const olderAvgDuration = (olderLogs || []).length > 0
-      ? (olderLogs || []).reduce((s, l) => s + (l.duration_minutes || 0), 0) / olderLogs!.length
+      ? ((olderLogs as any[]) || []).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0) / olderLogs!.length
       : 0;
 
     const durationDrift = olderAvgDuration > 0
