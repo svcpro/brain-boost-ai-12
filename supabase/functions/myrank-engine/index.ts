@@ -12,6 +12,35 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+// Fire-and-forget SMS via the central sms-notify edge function. Never blocks the
+// response: a failed SMS must not break a MyRank action.
+async function fireSms(
+  template_name: string,
+  user_id: string | null | undefined,
+  variables: Record<string, unknown>,
+) {
+  if (!user_id) return; // Anonymous test-takers cannot receive SMS
+  try {
+    fetch(`${SUPABASE_URL}/functions/v1/sms-notify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        apikey: SERVICE_KEY,
+      },
+      body: JSON.stringify({
+        action: "send",
+        user_id,
+        template_name,
+        variables,
+        source: "myrank-engine",
+      }),
+    }).catch((e) => console.warn(`[myrank] sms ${template_name} failed:`, e?.message));
+  } catch (e) {
+    console.warn(`[myrank] sms ${template_name} dispatch error:`, (e as Error).message);
+  }
+}
+
 const CATEGORY_PROMPTS: Record<string, string> = {
   // Featured
   IQ: "Classic IQ test — pattern recognition, logical reasoning, numerical sequences, spatial reasoning",
@@ -343,9 +372,23 @@ Deno.serve(async (req) => {
 
           // Increment signup_count only on first signup conversion
           if (h && user_id) {
+            const newCount = (h.signup_count || 0) + 1;
             await admin.from("myrank_handles").update({
-              signup_count: (h.signup_count || 0) + 1,
+              signup_count: newCount,
             }).eq("id", h.id);
+
+            // SMS the referrer that someone joined via their MyRank invite
+            if (h.user_id) {
+              const { data: friendProf } = await admin.from("profiles")
+                .select("display_name").eq("id", user_id).maybeSingle();
+              const { data: refProf } = await admin.from("profiles")
+                .select("display_name").eq("id", h.user_id).maybeSingle();
+              fireSms("myrank_referral_signup", h.user_id, {
+                name: refProf?.display_name || "Friend",
+                friend: friendProf?.display_name || "A new aspirant",
+                count: newCount,
+              });
+            }
           }
         }
       }
@@ -403,6 +446,31 @@ Deno.serve(async (req) => {
         }).eq("id", 1);
       });
 
+      // ── SMS triggers (fire-and-forget) ───────────────────────────
+      // Resolve display name once for personalization
+      let displayName = "Friend";
+      if (test.user_id) {
+        const { data: prof } = await admin.from("profiles")
+          .select("display_name").eq("id", test.user_id).maybeSingle();
+        displayName = prof?.display_name || "Friend";
+      }
+      // Always fire test-completed SMS
+      fireSms("myrank_test_completed", test.user_id, {
+        name: displayName,
+        exam: test.category,
+        rank: rank.toLocaleString("en-IN"),
+        percentile: percentile.toFixed(1),
+      });
+      // Top-rank achievement (top 10 percentile)
+      if (percentile >= 90) {
+        fireSms("myrank_top_rank_achieved", test.user_id, {
+          name: displayName,
+          exam: test.category,
+          percentile: (100 - percentile).toFixed(1),
+          rank: rank.toLocaleString("en-IN"),
+        });
+      }
+
       // Mark referral as completed_test (highest tier)
       if (test.referred_by_code) {
         let q = admin.from("myrank_referrals").update({ status: "completed_test" })
@@ -413,6 +481,18 @@ Deno.serve(async (req) => {
           q = q.eq("referred_anon_id", test.anon_session_id);
         }
         await q;
+
+        // SMS the referrer that their invitee completed a test
+        const { data: handle } = await admin.from("myrank_handles")
+          .select("user_id").eq("handle", test.referred_by_code).maybeSingle();
+        if (handle?.user_id) {
+          const { data: refProf } = await admin.from("profiles")
+            .select("display_name").eq("id", handle.user_id).maybeSingle();
+          fireSms("myrank_referral_test_completed", handle.user_id, {
+            name: refProf?.display_name || "Friend",
+            friend: displayName,
+          });
+        }
       }
 
       return new Response(JSON.stringify({
