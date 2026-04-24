@@ -432,6 +432,31 @@ Deno.serve(async (req) => {
         }).eq("id", 1);
       });
 
+      // ── SMS triggers (fire-and-forget) ───────────────────────────
+      // Resolve display name once for personalization
+      let displayName = "Friend";
+      if (test.user_id) {
+        const { data: prof } = await admin.from("profiles")
+          .select("display_name").eq("id", test.user_id).maybeSingle();
+        displayName = prof?.display_name || "Friend";
+      }
+      // Always fire test-completed SMS
+      fireSms("myrank_test_completed", test.user_id, {
+        name: displayName,
+        exam: test.category,
+        rank: rank.toLocaleString("en-IN"),
+        percentile: percentile.toFixed(1),
+      });
+      // Top-rank achievement (top 10 percentile)
+      if (percentile >= 90) {
+        fireSms("myrank_top_rank_achieved", test.user_id, {
+          name: displayName,
+          exam: test.category,
+          percentile: (100 - percentile).toFixed(1),
+          rank: rank.toLocaleString("en-IN"),
+        });
+      }
+
       // Mark referral as completed_test (highest tier)
       if (test.referred_by_code) {
         let q = admin.from("myrank_referrals").update({ status: "completed_test" })
