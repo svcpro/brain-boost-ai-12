@@ -60,10 +60,14 @@ async function sendViaMsg91(
   const useFlow = !!cfg.dlt_template_id;
 
   if (useFlow) {
-    const recipient: Record<string, unknown> = { mobiles: mobile };
+    const recipient: Record<string, unknown> = {
+      mobiles: mobile,
+      message,
+    };
     const vars = { ...(cfg.variables || {}) };
     if (vars.link != null && vars.url == null) vars.url = vars.link;
     if (vars.url != null && vars.link == null) vars.link = vars.url;
+    if (vars.message == null) vars.message = message;
 
     let idx = 1;
     for (const [k, v] of Object.entries(vars)) {
@@ -80,6 +84,7 @@ async function sendViaMsg91(
       headers: { authkey: key, "Content-Type": "application/json", accept: "application/json" },
       body: JSON.stringify({
         flow_id: cfg.dlt_template_id,
+        template_id: cfg.dlt_template_id,
         sender: cfg.sender_id,
         route: cfg.route,
         short_url: "0",
