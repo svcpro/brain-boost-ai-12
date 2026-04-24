@@ -201,6 +201,9 @@ async function dispatchSms(
     status: result.ok ? "sent" : "failed",
     reason: result.error,
     message_id: logRow?.id,
+    msg91_request_id: result.request_id,
+    dlt_missing: !dltId,
+    warning: !dltId ? "No DLT template ID configured — Indian carriers may silently drop this message even though MSG91 accepted it. Add DLT IDs in Bulk DLT Editor." : undefined,
   };
 }
 
@@ -230,6 +233,35 @@ Deno.serve(async (req) => {
       const { data: rem } = await sb.rpc("sms_quota_remaining", { p_user_id: body.user_id });
       const { data: q } = await sb.from("sms_quota").select("*").eq("user_id", body.user_id).maybeSingle();
       return json({ remaining: rem ?? 0, used: q?.count ?? 0, limit: q?.monthly_limit ?? 60, last_sent_at: q?.last_sent_at });
+    }
+
+    if (action === "delivery_status") {
+      // Query MSG91 for actual delivery status using request_id
+      const key = Deno.env.get("MSG91_AUTH_KEY");
+      if (!key) return json({ error: "MSG91_AUTH_KEY not configured" }, 500);
+      const reqId = body.request_id || body.msg91_request_id;
+      if (!reqId) return json({ error: "request_id required" }, 400);
+      try {
+        const res = await fetch(`https://control.msg91.com/api/v5/report/logs/p/sms?requestId=${reqId}`, {
+          method: "GET",
+          headers: { authkey: key, accept: "application/json" },
+        });
+        const data = await res.json().catch(() => ({}));
+        // Update local log if delivery info present
+        const reportData = data?.data?.[0] || data?.[0] || data;
+        const dlrStatus = reportData?.status || reportData?.deliveryStatus;
+        if (dlrStatus && body.message_id) {
+          await sb.from("sms_messages").update({
+            status: String(dlrStatus).toLowerCase().includes("deliver") ? "delivered" :
+                    String(dlrStatus).toLowerCase().includes("fail") || String(dlrStatus).toLowerCase().includes("reject") ? "failed" : "sent",
+            error_message: reportData?.description || reportData?.failureReason || null,
+            delivered_at: String(dlrStatus).toLowerCase().includes("deliver") ? new Date().toISOString() : null,
+          }).eq("id", body.message_id);
+        }
+        return json({ ok: true, raw: data, status: dlrStatus });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "Failed to fetch DLR" }, 500);
+      }
     }
 
     if (action === "retry") {
