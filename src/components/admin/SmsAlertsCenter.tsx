@@ -394,6 +394,18 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
                       >
                         {testing === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Send className="w-3.5 h-3.5 mr-1" /> Test</>}
                       </Button>
+                      {testResult[t.id]?.request_id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20 px-2"
+                          onClick={() => checkDelivery(t)}
+                          disabled={checking === t.id}
+                          title="Query carrier delivery status (DLR)"
+                        >
+                          {checking === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "📡"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div>
