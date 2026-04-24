@@ -6492,6 +6492,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["notification_priority"]
           retry_count: number
           smart_silence_enabled: boolean
+          sms_template_name: string | null
           total_delivered: number
           total_failed: number
           total_triggered: number
@@ -6521,6 +6522,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["notification_priority"]
           retry_count?: number
           smart_silence_enabled?: boolean
+          sms_template_name?: string | null
           total_delivered?: number
           total_failed?: number
           total_triggered?: number
@@ -6550,6 +6552,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["notification_priority"]
           retry_count?: number
           smart_silence_enabled?: boolean
+          sms_template_name?: string | null
           total_delivered?: number
           total_failed?: number
           total_triggered?: number
@@ -10984,7 +10987,13 @@ export type Database = {
         | "failed"
         | "skipped"
         | "opted_out"
-      notification_channel: "push" | "whatsapp" | "email" | "voice" | "in_app"
+      notification_channel:
+        | "push"
+        | "whatsapp"
+        | "email"
+        | "voice"
+        | "in_app"
+        | "sms"
       notification_priority: "critical" | "high" | "medium" | "low"
     }
     CompositeTypes: {
@@ -11129,7 +11138,14 @@ export const Constants = {
         "skipped",
         "opted_out",
       ],
-      notification_channel: ["push", "whatsapp", "email", "voice", "in_app"],
+      notification_channel: [
+        "push",
+        "whatsapp",
+        "email",
+        "voice",
+        "in_app",
+        "sms",
+      ],
       notification_priority: ["critical", "high", "medium", "low"],
     },
   },
