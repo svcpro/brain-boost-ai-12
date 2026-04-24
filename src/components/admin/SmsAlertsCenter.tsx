@@ -171,7 +171,8 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
   const [filter, setFilter] = useState<"all" | "missing">("missing");
   const [testPhone, setTestPhone] = useState<string>(() => localStorage.getItem("sms_test_phone") || "");
   const [testing, setTesting] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string; warning?: string; request_id?: string; message_id?: string }>>({});
+  const [checking, setChecking] = useState<string | null>(null);
 
   const sendTest = async (t: any) => {
     if (!testPhone || testPhone.replace(/\D/g, "").length < 10) {
@@ -186,6 +187,9 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
         name: "Test User", title: "ACRY Test", body: "Test message",
         link: t.target_url || "https://acry.ai", otp: "123456",
         rank: "42", percentile: "95", streak: "7", days: "30", topic: "Sample Topic",
+        device: "Chrome", time: "12:00 PM", code: "654321", friend: "Rahul",
+        exam: "NEET UG", positions: "5", points: "12", count: "3",
+        stability: "78", hours: "2",
       };
       const { data, error } = await supabase.functions.invoke("sms-notify", {
         body: {
@@ -198,12 +202,17 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
       });
       if (error) throw error;
       const ok = !!data?.ok;
-      const msg = data?.reason || data?.status || (ok ? "Sent ✓" : "Failed");
-      setTestResult((p) => ({ ...p, [t.id]: { ok, msg } }));
+      const msg = data?.reason || data?.status || (ok ? "Sent to gateway ✓" : "Failed");
+      setTestResult((p) => ({ ...p, [t.id]: {
+        ok, msg,
+        warning: data?.warning,
+        request_id: data?.msg91_request_id,
+        message_id: data?.message_id,
+      }}));
       toast({
-        title: ok ? "✅ Test SMS sent" : "❌ Test failed",
-        description: `${t.display_name}: ${msg}`,
-        variant: ok ? "default" : "destructive",
+        title: ok ? (data?.dlt_missing ? "⚠️ Sent but DLT missing" : "✅ Test SMS sent") : "❌ Test failed",
+        description: data?.warning || `${t.display_name}: ${msg}`,
+        variant: ok && !data?.dlt_missing ? "default" : "destructive",
       });
     } catch (e: any) {
       const msg = e?.message || "Network error";
@@ -211,6 +220,34 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
       toast({ title: "Test failed", description: msg, variant: "destructive" });
     } finally {
       setTesting(null);
+    }
+  };
+
+  const checkDelivery = async (t: any) => {
+    const r = testResult[t.id];
+    if (!r?.request_id) {
+      toast({ title: "No request ID", description: "Send test first", variant: "destructive" });
+      return;
+    }
+    setChecking(t.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("sms-notify", {
+        body: { action: "delivery_status", request_id: r.request_id, message_id: r.message_id },
+      });
+      if (error) throw error;
+      const status = data?.status || "unknown";
+      const isDelivered = String(status).toLowerCase().includes("deliver");
+      toast({
+        title: `📡 Carrier: ${status}`,
+        description: isDelivered
+          ? "✅ Confirmed delivered to handset"
+          : "⚠️ Not delivered. Likely cause: DLT template ID missing or body doesn't match approved DLT template.",
+        variant: isDelivered ? "default" : "destructive",
+      });
+    } catch (e: any) {
+      toast({ title: "Check failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setChecking(null);
     }
   };
 
