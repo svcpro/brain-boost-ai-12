@@ -236,13 +236,18 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
       });
       if (error) throw error;
       const status = data?.status || "unknown";
-      const isDelivered = String(status).toLowerCase().includes("deliver");
+      const hasCarrierRecord = Array.isArray(data?.raw?.data) ? data.raw.data.length > 0 : true;
+      const normalizedStatus = String(status).toLowerCase();
+      const isDelivered = normalizedStatus.includes("deliver");
+      const isPending = !hasCarrierRecord || status === "unknown";
       toast({
         title: `📡 Carrier: ${status}`,
         description: isDelivered
           ? "✅ Confirmed delivered to handset"
-          : "⚠️ Not delivered. Likely cause: MSG91 Flow ID mismatch, sender mismatch, or body doesn't match the approved MSG91/DLT template.",
-        variant: isDelivered ? "default" : "destructive",
+          : isPending
+            ? "⏳ MSG91 has accepted the message, but carrier status is not available yet. Wait 1–2 minutes and check again."
+            : "⚠️ Not delivered. Likely cause: MSG91 Flow ID mismatch, sender mismatch, or body doesn't match the approved MSG91/DLT template.",
+        variant: isDelivered ? "default" : isPending ? "default" : "destructive",
       });
     } catch (e: any) {
       toast({ title: "Check failed", description: e?.message, variant: "destructive" });
