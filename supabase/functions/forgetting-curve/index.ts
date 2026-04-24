@@ -585,7 +585,7 @@ async function handleAINarrative(body: any, userClient: any, adminClient: any) {
 - Best study hour: ${userCtx.bestStudyHour}:00
 - Late-night sessions (last 30): ${userCtx.lateNightSessions}
 - Cognitive load last 24h: ${userCtx.recentLoadMinutes} min
-- Top 5 weakest topics: ${top5Worst.map(t => `${t.name} (${t.retention}%, ${t.risk})`).join(", ")}
+- Top 5 weakest topics: ${top5Worst.map((t: any) => `${t.name} (${t.retention}%, ${t.risk})`).join(", ")}
 
 End with EXACTLY 3 concrete next-step actions, each ≤ 8 words, prefixed with "→".`;
 
