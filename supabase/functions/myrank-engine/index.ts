@@ -372,9 +372,23 @@ Deno.serve(async (req) => {
 
           // Increment signup_count only on first signup conversion
           if (h && user_id) {
+            const newCount = (h.signup_count || 0) + 1;
             await admin.from("myrank_handles").update({
-              signup_count: (h.signup_count || 0) + 1,
+              signup_count: newCount,
             }).eq("id", h.id);
+
+            // SMS the referrer that someone joined via their MyRank invite
+            if (h.user_id) {
+              const { data: friendProf } = await admin.from("profiles")
+                .select("display_name").eq("id", user_id).maybeSingle();
+              const { data: refProf } = await admin.from("profiles")
+                .select("display_name").eq("id", h.user_id).maybeSingle();
+              fireSms("myrank_referral_signup", h.user_id, {
+                name: refProf?.display_name || "Friend",
+                friend: friendProf?.display_name || "A new aspirant",
+                count: newCount,
+              });
+            }
           }
         }
       }
