@@ -26,10 +26,19 @@ function normalizeMobile(raw: unknown): string | null {
 }
 
 function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
-  return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => {
-    const v = vars?.[k];
-    return v == null ? "" : String(v);
-  });
+  return tpl
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => {
+      const v = vars?.[k];
+      return v == null ? "" : String(v);
+    })
+    .replace(/##\s*([a-zA-Z0-9_]+)\s*##/g, (_m, k) => {
+      const v = vars?.[k];
+      return v == null ? "" : String(v);
+    });
+}
+
+function hasUnresolvedPlaceholders(text: string): boolean {
+  return /\{\{\s*\w+\s*\}\}|##\s*[a-zA-Z0-9_]+\s*##/.test(text);
 }
 
 async function sendViaMsg91(
@@ -91,7 +100,16 @@ async function dispatchSms(
     priority?: string;
     source?: string;
   }
-): Promise<{ ok: boolean; status: string; reason?: string; message_id?: string; fallback?: boolean }> {
+): Promise<{
+  ok: boolean;
+  status: string;
+  reason?: string;
+  message_id?: string;
+  fallback?: boolean;
+  msg91_request_id?: string;
+  dlt_missing?: boolean;
+  warning?: string;
+}> {
   // Load config
   const { data: cfg } = await sb.from("sms_config").select("*").limit(1).maybeSingle();
   if (!cfg) return { ok: false, status: "config_missing", reason: "sms_config row not found" };
@@ -128,6 +146,14 @@ async function dispatchSms(
     senderId = tpl.sender_id || senderId;
   }
   if (!body) return { ok: false, status: "empty_body", reason: "No template or body provided" };
+  if (hasUnresolvedPlaceholders(body)) {
+    return {
+      ok: false,
+      status: "template_unresolved",
+      reason: "Template still contains unresolved variables. Update the template body or provide matching variables before sending.",
+      warning: "Unresolved placeholders detected. This can cause DLT mismatch and silent delivery failure.",
+    };
+  }
 
   // Category gate
   const allowed: string[] = cfg.allowed_categories || [];
@@ -188,7 +214,7 @@ async function dispatchSms(
     msg91_request_id: result.request_id || null,
     error_message: result.error || null,
     source: params.source || "manual",
-    delivered_at: result.ok ? new Date().toISOString() : null,
+    delivered_at: null,
   }).select("id").maybeSingle();
 
   // Quota increment on success
