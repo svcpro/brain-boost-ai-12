@@ -12,6 +12,35 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+// Fire-and-forget SMS via the central sms-notify edge function. Never blocks the
+// response: a failed SMS must not break a MyRank action.
+async function fireSms(
+  template_name: string,
+  user_id: string | null | undefined,
+  variables: Record<string, unknown>,
+) {
+  if (!user_id) return; // Anonymous test-takers cannot receive SMS
+  try {
+    fetch(`${SUPABASE_URL}/functions/v1/sms-notify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        apikey: SERVICE_KEY,
+      },
+      body: JSON.stringify({
+        action: "send",
+        user_id,
+        template_name,
+        variables,
+        source: "myrank-engine",
+      }),
+    }).catch((e) => console.warn(`[myrank] sms ${template_name} failed:`, e?.message));
+  } catch (e) {
+    console.warn(`[myrank] sms ${template_name} dispatch error:`, (e as Error).message);
+  }
+}
+
 const CATEGORY_PROMPTS: Record<string, string> = {
   // Featured
   IQ: "Classic IQ test — pattern recognition, logical reasoning, numerical sequences, spatial reasoning",
