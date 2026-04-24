@@ -611,7 +611,7 @@ function Templates() {
                 <div className="text-[10px] text-muted-foreground mt-1">{(edit.body_template || "").length}/160 chars · {Math.ceil((edit.body_template || "").length / 160)} segment(s)</div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-xs">DLT Template ID</Label>
+                <div><Label className="text-xs">MSG91 Flow ID</Label>
                   <Input value={edit.dlt_template_id || ""} onChange={(e) => setEdit({ ...edit, dlt_template_id: e.target.value })} /></div>
                 <div><Label className="text-xs">Sender ID</Label>
                   <Input value={edit.sender_id || ""} onChange={(e) => setEdit({ ...edit, sender_id: e.target.value })} placeholder="ACRYAI" /></div>
