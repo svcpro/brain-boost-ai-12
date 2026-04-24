@@ -363,11 +363,11 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <div>
-                      <Label className="text-[10px]">DLT Template ID *</Label>
+                      <Label className="text-[10px]">MSG91 Flow ID *</Label>
                       <Input
                         value={r.dlt_template_id}
                         onChange={(e) => setRows({ ...rows, [t.id]: { ...r, dlt_template_id: e.target.value } })}
-                        placeholder="1707161234567890123"
+                        placeholder="Enter MSG91 Flow ID"
                         className="h-8 text-xs font-mono"
                       />
                     </div>
