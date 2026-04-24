@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchLeaderboardData(supabaseAdmin: any) {
+async function fetchLeaderboardData(supabaseAdmin: any, currentUserId: string | null = null): Promise<any> {
     // Get latest rank prediction per user
     const { data: rankData } = await supabaseAdmin
       .from("rank_predictions")
