@@ -39,12 +39,15 @@ Deno.serve(async (req) => {
     }
 
     // Cache leaderboard data for 30 seconds (hot endpoint)
-    const leaderboardData = await edgeCache.getOrFetch("leaderboard_full", 30, async () => {
-      return await fetchLeaderboardData(supabaseAdmin);
+    const leaderboardData: any = await edgeCache.getOrFetch("leaderboard_full", 30, async () => {
+      return await fetchLeaderboardData(supabaseAdmin, currentUserId);
     });
 
+    // If fetchLeaderboardData returned a Response (early return), pass through
+    if (leaderboardData instanceof Response) return leaderboardData;
+
     // Personalize with current user highlight (not cached)
-    const leaderboard = leaderboardData.map((e: any) => ({
+    const leaderboard = (leaderboardData as any[]).map((e: any) => ({
       ...e,
       is_current_user: e.user_id === currentUserId,
       display_name: e.user_id === currentUserId ? e.full_display_name : e.display_name,
