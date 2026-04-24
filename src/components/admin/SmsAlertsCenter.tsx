@@ -162,11 +162,175 @@ function LiveFeed() {
   );
 }
 
+// ─── Bulk DLT Editor ───
+function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClose: () => void; list: any[]; onSaved: () => void }) {
+  const { toast } = useToast();
+  const [rows, setRows] = useState<Record<string, { dlt_template_id: string; body_template: string; sender_id: string }>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
+  const [filter, setFilter] = useState<"all" | "missing">("missing");
+
+  useEffect(() => {
+    if (!open) return;
+    const init: Record<string, any> = {};
+    list.forEach((t) => {
+      init[t.id] = {
+        dlt_template_id: t.dlt_template_id || "",
+        body_template: t.body_template || "",
+        sender_id: t.sender_id || "",
+      };
+    });
+    setRows(init);
+  }, [open, list]);
+
+  const filtered = useMemo(() => {
+    if (filter === "missing") return list.filter((t) => !t.dlt_template_id);
+    return list;
+  }, [list, filter]);
+
+  const saveOne = async (id: string) => {
+    setSaving(id);
+    const r = rows[id];
+    const { error } = await supabase
+      .from("sms_templates")
+      .update({
+        dlt_template_id: r.dlt_template_id.trim() || null,
+        body_template: r.body_template,
+        sender_id: r.sender_id.trim() || null,
+      })
+      .eq("id", id);
+    setSaving(null);
+    if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    else { toast({ title: "Saved" }); onSaved(); }
+  };
+
+  const saveAll = async () => {
+    setSavingAll(true);
+    let ok = 0, fail = 0;
+    for (const t of filtered) {
+      const r = rows[t.id];
+      if (!r) continue;
+      const { error } = await supabase
+        .from("sms_templates")
+        .update({
+          dlt_template_id: r.dlt_template_id.trim() || null,
+          body_template: r.body_template,
+          sender_id: r.sender_id.trim() || null,
+        })
+        .eq("id", t.id);
+      if (error) fail++; else ok++;
+    }
+    setSavingAll(false);
+    toast({ title: `Saved ${ok}/${ok + fail}`, description: fail ? `${fail} failed` : "All updated" });
+    onSaved();
+  };
+
+  const missingCount = list.filter((t) => !t.dlt_template_id).length;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" /> Bulk DLT Manager
+            <Badge variant="outline" className="text-[10px]">{missingCount} missing DLT</Badge>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-border/40">
+          <div className="flex gap-1">
+            <Button size="sm" variant={filter === "missing" ? "default" : "outline"} onClick={() => setFilter("missing")}>
+              Missing DLT ({missingCount})
+            </Button>
+            <Button size="sm" variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>
+              All ({list.length})
+            </Button>
+          </div>
+          <Button size="sm" onClick={saveAll} disabled={savingAll || filtered.length === 0}>
+            {savingAll ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />}
+            Save All ({filtered.length})
+          </Button>
+        </div>
+
+        <div className="flex-1 overflow-auto space-y-3 py-2">
+          {filtered.length === 0 && (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              {filter === "missing" ? "🎉 All templates have DLT IDs!" : "No templates."}
+            </div>
+          )}
+          {filtered.map((t) => {
+            const r = rows[t.id] || { dlt_template_id: "", body_template: "", sender_id: "" };
+            return (
+              <Card key={t.id} className="border-border/40">
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="capitalize text-[10px]">{t.category}</Badge>
+                    <span className="text-sm font-semibold text-foreground">{t.display_name}</span>
+                    <code className="text-[10px] bg-secondary px-1.5 py-0.5 rounded">{t.name}</code>
+                    {!t.dlt_template_id && (
+                      <Badge className="bg-amber-500/15 text-amber-400 text-[10px]">⚠ No DLT</Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-[10px]">DLT Template ID *</Label>
+                      <Input
+                        value={r.dlt_template_id}
+                        onChange={(e) => setRows({ ...rows, [t.id]: { ...r, dlt_template_id: e.target.value } })}
+                        placeholder="1707161234567890123"
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Sender ID</Label>
+                      <Input
+                        value={r.sender_id}
+                        onChange={(e) => setRows({ ...rows, [t.id]: { ...r, sender_id: e.target.value } })}
+                        placeholder="ACRYAI"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button size="sm" className="w-full h-8" onClick={() => saveOne(t.id)} disabled={saving === t.id}>
+                        {saving === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Save Row</>}
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">Message Body (must match DLT-approved template)</Label>
+                    <Textarea
+                      rows={2}
+                      value={r.body_template}
+                      onChange={(e) => setRows({ ...rows, [t.id]: { ...r, body_template: e.target.value } })}
+                      className="text-xs font-mono"
+                    />
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {r.body_template.length}/160 · {Math.ceil(r.body_template.length / 160)} segment(s)
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        <DialogFooter className="border-t border-border/40 pt-3">
+          <div className="text-[10px] text-muted-foreground mr-auto">
+            💡 Get DLT IDs from MSG91 → Manage Templates. Body must match approved DLT text exactly.
+          </div>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Templates ───
 function Templates() {
   const { toast } = useToast();
   const [list, setList] = useState<any[]>([]);
   const [edit, setEdit] = useState<any | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -222,15 +386,24 @@ function Templates() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <h3 className="text-base font-bold text-foreground">SMS Templates</h3>
-          <p className="text-xs text-muted-foreground">{list.length} templates · DLT-ready</p>
+          <p className="text-xs text-muted-foreground">
+            {list.length} templates · {list.filter((t) => t.dlt_template_id).length} with DLT · {list.filter((t) => !t.dlt_template_id).length} missing
+          </p>
         </div>
-        <Button size="sm" onClick={() => setEdit({ category: "engagement", is_active: true, body_template: "" })}>
-          <Plus className="w-3.5 h-3.5 mr-1.5" /> New
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)} className="bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20">
+            <Zap className="w-3.5 h-3.5 mr-1.5" /> Bulk DLT Editor
+          </Button>
+          <Button size="sm" onClick={() => setEdit({ category: "engagement", is_active: true, body_template: "" })}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> New
+          </Button>
+        </div>
       </div>
+
+      <BulkDltEditor open={bulkOpen} onClose={() => setBulkOpen(false)} list={list} onSaved={load} />
 
       {loading && <Loader2 className="w-5 h-5 animate-spin mx-auto" />}
 
