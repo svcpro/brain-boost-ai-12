@@ -64,13 +64,16 @@ async function sendViaMsg91(
     // (matching the variable names registered in the DLT template / Flow).
     // Both lowercase and UPPERCASE/VAR1..N are included for maximum compatibility.
     const recipient: Record<string, unknown> = { mobiles: mobile };
-    const vars = cfg.variables || {};
+    const vars = { ...(cfg.variables || {}) };
+    if (vars.link != null && vars.url == null) vars.url = vars.link;
+    if (vars.url != null && vars.link == null) vars.link = vars.url;
+
     let idx = 1;
     for (const [k, v] of Object.entries(vars)) {
       const val = v == null ? "" : String(v);
-      recipient[k] = val;                  // e.g. "link", "otp", "name"
-      recipient[k.toUpperCase()] = val;    // e.g. "LINK", "OTP", "NAME"
-      recipient[`VAR${idx}`] = val;        // positional fallback
+      recipient[k] = val;
+      recipient[k.toUpperCase()] = val;
+      recipient[`VAR${idx}`] = val;
       recipient[`var${idx}`] = val;
       idx++;
     }
