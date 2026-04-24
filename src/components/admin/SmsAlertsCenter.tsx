@@ -281,7 +281,7 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center justify-between gap-2 pb-2 border-b border-border/40">
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-border/40 flex-wrap">
           <div className="flex gap-1">
             <Button size="sm" variant={filter === "missing" ? "default" : "outline"} onClick={() => setFilter("missing")}>
               Missing DLT ({missingCount})
@@ -289,6 +289,15 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
             <Button size="sm" variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>
               All ({list.length})
             </Button>
+          </div>
+          <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-md">
+            <Label className="text-[10px] whitespace-nowrap">Test Phone:</Label>
+            <Input
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              placeholder="9876543210"
+              className="h-8 text-xs font-mono"
+            />
           </div>
           <Button size="sm" onClick={saveAll} disabled={savingAll || filtered.length === 0}>
             {savingAll ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />}
