@@ -35,7 +35,13 @@ function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
 async function sendViaMsg91(
   mobile: string,
   message: string,
-  cfg: { sender_id: string; route: string; country: string; dlt_template_id?: string | null }
+  cfg: {
+    sender_id: string;
+    route: string;
+    country: string;
+    dlt_template_id?: string | null;
+    variables?: Record<string, unknown>;
+  }
 ): Promise<{ ok: boolean; request_id?: string; error?: string; raw?: any }> {
   const key = Deno.env.get("MSG91_AUTH_KEY");
   if (!key) return { ok: false, error: "MSG91_AUTH_KEY not configured" };
@@ -44,13 +50,28 @@ async function sendViaMsg91(
   const useFlow = !!cfg.dlt_template_id;
 
   if (useFlow) {
+    // MSG91 Flow API requires variables as named fields on the recipient object
+    // (matching the variable names registered in the DLT template / Flow).
+    // Both lowercase and UPPERCASE/VAR1..N are included for maximum compatibility.
+    const recipient: Record<string, unknown> = { mobiles: mobile };
+    const vars = cfg.variables || {};
+    let idx = 1;
+    for (const [k, v] of Object.entries(vars)) {
+      const val = v == null ? "" : String(v);
+      recipient[k] = val;                  // e.g. "link", "otp", "name"
+      recipient[k.toUpperCase()] = val;    // e.g. "LINK", "OTP", "NAME"
+      recipient[`VAR${idx}`] = val;        // positional fallback
+      recipient[`var${idx}`] = val;
+      idx++;
+    }
+
     const res = await fetch("https://control.msg91.com/api/v5/flow/", {
       method: "POST",
       headers: { authkey: key, "Content-Type": "application/json", accept: "application/json" },
       body: JSON.stringify({
         template_id: cfg.dlt_template_id,
         short_url: "0",
-        recipients: [{ mobiles: mobile, message }],
+        recipients: [recipient],
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -111,6 +132,7 @@ async function dispatchSms(
   let category = params.category || "engagement";
   let dltId: string | null = cfg.default_dlt_template_id || null;
   let senderId = cfg.sender_id;
+  let mergedVars: Record<string, unknown> = { ...(params.variables || {}) };
 
   if (params.template_name) {
     const { data: tpl } = await sb
@@ -118,7 +140,6 @@ async function dispatchSms(
     if (!tpl) return { ok: false, status: "template_missing", reason: `Template ${params.template_name} not found` };
     if (!tpl.is_active) return { ok: false, status: "template_disabled", reason: "Template inactive" };
     // Auto-inject {{link}} from template's target_url if caller didn't provide one
-    const mergedVars: Record<string, unknown> = { ...(params.variables || {}) };
     if (tpl.target_url && (mergedVars.link == null || mergedVars.link === "")) {
       mergedVars.link = tpl.target_url;
     }
@@ -178,6 +199,7 @@ async function dispatchSms(
     route: cfg.default_route,
     country: cfg.default_country,
     dlt_template_id: dltId,
+    variables: mergedVars,
   });
 
   // Log
