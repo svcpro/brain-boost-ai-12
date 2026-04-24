@@ -169,6 +169,50 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
   const [saving, setSaving] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [filter, setFilter] = useState<"all" | "missing">("missing");
+  const [testPhone, setTestPhone] = useState<string>(() => localStorage.getItem("sms_test_phone") || "");
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
+
+  const sendTest = async (t: any) => {
+    if (!testPhone || testPhone.replace(/\D/g, "").length < 10) {
+      toast({ title: "Enter test phone first", description: "10-digit Indian mobile or with country code", variant: "destructive" });
+      return;
+    }
+    localStorage.setItem("sms_test_phone", testPhone);
+    setTesting(t.id);
+    setTestResult((p) => ({ ...p, [t.id]: { ok: false, msg: "Sending..." } }));
+    try {
+      const sampleVars: Record<string, string> = {
+        name: "Test User", title: "ACRY Test", body: "Test message",
+        link: t.target_url || "https://acry.ai", otp: "123456",
+        rank: "42", percentile: "95", streak: "7", days: "30", topic: "Sample Topic",
+      };
+      const { data, error } = await supabase.functions.invoke("sms-notify", {
+        body: {
+          action: "send",
+          mobile: testPhone,
+          template_name: t.name,
+          variables: sampleVars,
+          source: "admin_test",
+        },
+      });
+      if (error) throw error;
+      const ok = !!data?.ok;
+      const msg = data?.reason || data?.status || (ok ? "Sent ✓" : "Failed");
+      setTestResult((p) => ({ ...p, [t.id]: { ok, msg } }));
+      toast({
+        title: ok ? "✅ Test SMS sent" : "❌ Test failed",
+        description: `${t.display_name}: ${msg}`,
+        variant: ok ? "default" : "destructive",
+      });
+    } catch (e: any) {
+      const msg = e?.message || "Network error";
+      setTestResult((p) => ({ ...p, [t.id]: { ok: false, msg } }));
+      toast({ title: "Test failed", description: msg, variant: "destructive" });
+    } finally {
+      setTesting(null);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
