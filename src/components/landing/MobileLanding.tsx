@@ -209,23 +209,7 @@ const ParticleField = () => {
 
 // ─── Main mobile landing ─────────────────────────────────
 const MobileLanding = () => {
-  const [showSplash, setShowSplash] = useState(false);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const seen = sessionStorage.getItem(SPLASH_KEY);
-    if (!seen) setShowSplash(true);
-    else setReady(true);
-  }, []);
-
-  const handleSplashComplete = () => {
-    sessionStorage.setItem(SPLASH_KEY, "1");
-    setShowSplash(false);
-    setReady(true);
-  };
-
-  if (showSplash) return <SplashScreen onComplete={handleSplashComplete} />;
-  if (!ready) return null;
+  // Splash intro disabled — landing page renders immediately on mobile.
 
   const features = [
     { icon: Brain, color: "#00E5FF" },
