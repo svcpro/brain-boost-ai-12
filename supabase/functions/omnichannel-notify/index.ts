@@ -372,7 +372,40 @@ async function sendWhatsApp(
   return { success: !!result.ok, retryCount: 0, error: result.error || result.blocked };
 }
 
-// ─── Call Intelligent Engine ───
+async function sendSms(
+  url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
+) {
+  // Resolve SMS template name from rule mapping or explicit override in data
+  const templateName = data.sms_template || data.sms_template_name || null;
+  if (!templateName) {
+    return { success: false, retryCount: 0, error: "no_sms_template_for_event" };
+  }
+  // Build template variables: prefer explicit sms_variables, else fall back to data + title/body
+  const variables = data.sms_variables || {
+    name: data.name || title,
+    title,
+    body,
+    ...data,
+  };
+  const category = data.sms_category 
+    || (data.original_event_type?.startsWith("auth_") || data.priority === "critical" ? "critical" : "engagement");
+  const res = await fetch(`${url}/functions/v1/sms-notify`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", apikey: key },
+    body: JSON.stringify({
+      action: "send",
+      user_id: userId,
+      template_name: templateName,
+      variables,
+      category,
+      priority: data.priority || "medium",
+      source: "omnichannel",
+    }),
+  });
+  const result = await res.json().catch(() => ({}));
+  return { success: !!result.ok, retryCount: 0, error: result.error || result.reason };
+}
+
 
 async function callEngine(url: string, key: string, body: Record<string, any>) {
   const res = await fetch(`${url}/functions/v1/intelligent-notify-engine`, {
