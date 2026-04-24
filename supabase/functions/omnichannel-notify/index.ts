@@ -157,7 +157,11 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       // 3. Dispatch to each channel — inject original event_type for channel routing
-      const dispatchData = { ...data, original_event_type: event_type };
+      const dispatchData = { 
+        ...data, 
+        original_event_type: event_type,
+        sms_template_name: rule.sms_template_name || null,
+      };
       for (const channel of channels) {
         const deliveryResult = await dispatchToChannel(
           supabase,
