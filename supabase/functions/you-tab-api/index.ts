@@ -1184,7 +1184,7 @@ async function handleCancelSubscription(userId: string, body: any) {
     target_type: "subscription",
     target_id: sub.id,
     details: { reason, cancelled_by: "user" },
-  }).then(() => {}).catch(() => {});
+  }).then(() => {}, () => {});
 
   return ok({
     success: true,

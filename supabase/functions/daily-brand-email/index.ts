@@ -315,7 +315,7 @@ Deno.serve(async (req) => {
           metadata: { streak: streakDays, due_topics: dueTopics.length, memory: memoryStrength },
         });
         // Track Resend usage
-        adminClient.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}).catch(() => {});
+        adminClient.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}, () => {});
       } else {
         const errText = await res.text();
         console.error(`Daily email failed for ${user.email}:`, errText);

@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
         throw new Error('Razorpay order creation failed');
       }
 
-      adminClient.rpc("increment_api_usage", { p_service_name: "razorpay" }).then(() => {}).catch(() => {});
+      adminClient.rpc("increment_api_usage", { p_service_name: "razorpay" }).then(() => {}, () => {});
 
       return new Response(JSON.stringify({ order: orderData, key_id: RAZORPAY_KEY_ID }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

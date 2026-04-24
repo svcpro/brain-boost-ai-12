@@ -288,7 +288,7 @@ ${cognitiveContext}
         latency_ms: Date.now() - startTime,
         status: "error",
         error_message: `HTTP ${aiResp.status}`,
-      }).then(() => {}).catch(() => {});
+      }).then(() => {}, () => {});
 
       if (aiResp.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited. Please try again in a moment." }), {
@@ -317,17 +317,17 @@ ${cognitiveContext}
       latency_ms: latencyMs,
       estimated_cost: costPerReq,
       status: "success",
-    }).then(() => {}).catch(() => {});
+    }).then(() => {}, () => {});
 
     // Update cost tracking
     if (userLimit) {
       adminClient.from("user_chat_limits").update({
         estimated_cost: Number(userLimit.estimated_cost || 0) + costPerReq,
-      }).eq("id", userLimit.id).then(() => {}).catch(() => {});
+      }).eq("id", userLimit.id).then(() => {}, () => {});
     }
 
     // Track API usage
-    adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}).catch(() => {});
+    adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}, () => {});
 
     return new Response(aiResp.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },

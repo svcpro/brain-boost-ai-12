@@ -204,7 +204,7 @@ async function handleActivate(body: any, userClient: any, adminClient: any) {
       total_boost: totalBoost,
       protected_topics: protectedTopics.map(t => ({ name: t.topic_name, boost: t.boost })),
     },
-  }).then(() => {}).catch(() => {});
+  }).then(() => {}, () => {});
 
   // Calculate overall shield stats
   const totalTopics = topics.length;

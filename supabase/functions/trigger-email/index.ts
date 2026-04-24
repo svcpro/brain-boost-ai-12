@@ -537,7 +537,7 @@ Deno.serve(async (req) => {
         });
 
         // Track usage
-        adminClient.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}).catch(() => {});
+        adminClient.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}, () => {});
 
         if (!res.ok) console.error(`Email send failed for ${trigger_key}:`, errorMsg);
       }

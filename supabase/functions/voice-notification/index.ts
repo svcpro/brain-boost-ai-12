@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
     // Track Lovable AI usage (fire-and-forget)
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
     const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}).catch(() => {});
+    adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}, () => {});
 
     // Step 2: Convert text to speech using ElevenLabs
     const allowedVoices = ["EXAVITQu4vr4xnSDxMaL", "Xb7hH8MSUJpSbSDYk0k2", "nPczCjzI2devNBz1zQrb", "onwK4e9ZLuTAKqWW03F9"];
@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     }
 
     // Track ElevenLabs usage (fire-and-forget)
-    adminClient.rpc("increment_api_usage", { p_service_name: "elevenlabs" }).then(() => {}).catch(() => {});
+    adminClient.rpc("increment_api_usage", { p_service_name: "elevenlabs" }).then(() => {}, () => {});
 
     const audioBuffer = await ttsResponse.arrayBuffer();
 
