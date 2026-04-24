@@ -435,7 +435,7 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
 
         <DialogFooter className="border-t border-border/40 pt-3">
           <div className="text-[10px] text-muted-foreground mr-auto">
-            💡 Get DLT IDs from MSG91 → Manage Templates. Body must match approved DLT text exactly.
+            💡 Enter the MSG91 Flow ID here. Map your approved DLT Template ID inside that MSG91 Flow, and keep the body text exactly matched.
           </div>
           <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
