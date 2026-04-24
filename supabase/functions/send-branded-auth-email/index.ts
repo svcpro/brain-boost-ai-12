@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
     }
 
     // Track usage
-    supabase.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}).catch(() => {});
+    supabase.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}, () => {});
 
     console.log(`Branded ${type} email sent to ${email}`);
     return new Response(JSON.stringify({ success: true, type }), {

@@ -107,7 +107,7 @@ Fatigue: ${features?.fatigue_indicator ?? "N/A"}%`;
 
         const aiData = await aiResp.json();
         // Track Lovable AI usage (fire-and-forget)
-        supabase.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}).catch(() => {});
+        supabase.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}, () => {});
         const briefingText = aiData.choices?.[0]?.message?.content || "";
 
         if (!briefingText) continue;

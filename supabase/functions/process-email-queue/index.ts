@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
           });
 
           // Track Resend usage
-          adminClient.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}).catch(() => {});
+          adminClient.rpc("increment_api_usage", { p_service_name: "resend" }).then(() => {}, () => {});
           sent++;
         } else {
           const errText = await res.text();

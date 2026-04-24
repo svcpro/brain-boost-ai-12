@@ -353,7 +353,7 @@ async function handleComplete(body: any, userClient: any, adminClient: any) {
       new_strength: newStrength,
       time_taken_seconds: time_taken_seconds || 180,
     },
-  }).then(() => {}).catch(() => {});
+  }).then(() => {}, () => {});
 
   // ─── Build result message ───
   const resultMessage =
