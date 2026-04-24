@@ -343,9 +343,19 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
                         className="h-8 text-xs"
                       />
                     </div>
-                    <div className="flex items-end">
-                      <Button size="sm" className="w-full h-8" onClick={() => saveOne(t.id)} disabled={saving === t.id}>
-                        {saving === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Save Row</>}
+                    <div className="flex items-end gap-1">
+                      <Button size="sm" className="flex-1 h-8" onClick={() => saveOne(t.id)} disabled={saving === t.id}>
+                        {saving === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Save</>}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-8 bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20"
+                        onClick={() => sendTest(t)}
+                        disabled={testing === t.id || !testPhone}
+                        title={!testPhone ? "Enter test phone above" : `Send test to ${testPhone}`}
+                      >
+                        {testing === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Send className="w-3.5 h-3.5 mr-1" /> Test</>}
                       </Button>
                     </div>
                   </div>
@@ -357,8 +367,15 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
                       onChange={(e) => setRows({ ...rows, [t.id]: { ...r, body_template: e.target.value } })}
                       className="text-xs font-mono"
                     />
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {r.body_template.length}/160 · {Math.ceil(r.body_template.length / 160)} segment(s)
+                    <div className="flex items-center justify-between mt-0.5 gap-2">
+                      <div className="text-[10px] text-muted-foreground">
+                        {r.body_template.length}/160 · {Math.ceil(r.body_template.length / 160)} segment(s)
+                      </div>
+                      {testResult[t.id] && (
+                        <Badge className={`text-[10px] ${testResult[t.id].ok ? "bg-emerald-500/15 text-emerald-400" : "bg-destructive/15 text-destructive"}`}>
+                          {testResult[t.id].ok ? "✓" : "✗"} {testResult[t.id].msg}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardContent>
