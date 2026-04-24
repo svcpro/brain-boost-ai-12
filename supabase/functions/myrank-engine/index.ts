@@ -481,6 +481,18 @@ Deno.serve(async (req) => {
           q = q.eq("referred_anon_id", test.anon_session_id);
         }
         await q;
+
+        // SMS the referrer that their invitee completed a test
+        const { data: handle } = await admin.from("myrank_handles")
+          .select("user_id").eq("handle", test.referred_by_code).maybeSingle();
+        if (handle?.user_id) {
+          const { data: refProf } = await admin.from("profiles")
+            .select("display_name").eq("id", handle.user_id).maybeSingle();
+          fireSms("myrank_referral_test_completed", handle.user_id, {
+            name: refProf?.display_name || "Friend",
+            friend: displayName,
+          });
+        }
       }
 
       return new Response(JSON.stringify({
