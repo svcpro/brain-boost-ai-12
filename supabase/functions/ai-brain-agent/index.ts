@@ -113,7 +113,7 @@ ${ranks.length > 0 ? `Current rank: ${ranks[0].predicted_rank} (${ranks[0].perce
 
     // Helper: track API usage after successful AI calls
     const adminTracker = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const trackAI = () => adminTracker.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).then(() => {}).catch(() => {});
+    const trackAI = () => { try { (adminTracker.rpc("increment_api_usage", { p_service_name: "lovable_ai" }) as any).then(() => {}, () => {}); } catch {} };
 
     // Helper: make AI call with fallback (Gemini direct → Lovable gateway)
     async function callAI(requestBody: any): Promise<Response> {
