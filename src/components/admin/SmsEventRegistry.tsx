@@ -223,6 +223,17 @@ export default function SmsEventRegistry() {
     setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, is_enabled: !row.is_enabled } : r)));
   }
 
+  async function toggleBypass(row: EventRow) {
+    const next = !row.bypass_quota;
+    const { error } = await supabase
+      .from("sms_event_registry")
+      .update({ bypass_quota: next })
+      .eq("id", row.id);
+    if (error) return toast({ title: "Failed", description: error.message, variant: "destructive" });
+    setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, bypass_quota: next } : r)));
+    toast({ title: next ? "Quota bypass enabled" : "Quota bypass disabled", description: row.display_name });
+  }
+
   async function saveEdit() {
     if (!editing) return;
     const { error } = await supabase
