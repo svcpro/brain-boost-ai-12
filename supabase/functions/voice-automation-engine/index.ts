@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       });
 
       // Track usage
-      adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }).catch(() => {});
+      (adminClient.rpc("increment_api_usage", { p_service_name: "lovable_ai" }) as any).then(() => {}, () => {});
 
       return new Response(JSON.stringify({
         success: true,

@@ -1296,7 +1296,8 @@ Deno.serve(async (req) => {
       }
 
       const examLabel = normalizeExamType(examType || examId) || examType || examId;
-      let { subjects: subjectNames, source } = resolveQuickPresetSubjects(examType, examId, examCategory);
+      let { subjects: subjectNames, source: presetSource } = resolveQuickPresetSubjects(examType, examId, examCategory);
+      let source: "preset" | "generic" | "none" | "ai" = presetSource;
       let usedAI = false;
       let subjectPayload: Array<{ name: string; topics: string[] }> = [];
 

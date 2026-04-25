@@ -55,9 +55,9 @@ Deno.serve(async (req) => {
       .eq("id", user.id)
       .maybeSingle();
 
-    const subjectMap = new Map((subjects || []).map(s => [s.id, s.name]));
+    const subjectMap = new Map(((subjects || []) as any[]).map((s: any) => [s.id, s.name]));
 
-    const topicSummaries = (topics || []).map(t => ({
+    const topicSummaries = ((topics || []) as any[]).map((t: any) => ({
       name: t.name,
       subject: subjectMap.get(t.subject_id) || "Unknown",
       memoryStrength: Math.round(t.memory_strength * 100) / 100,
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       predictedDrop: t.next_predicted_drop_date || null,
     }));
 
-    const totalMinutes14d = (recentLogs || []).reduce((s, l) => s + (l.duration_minutes || 0), 0);
+    const totalMinutes14d = ((recentLogs || []) as any[]).reduce((s: number, l: any) => s + (l.duration_minutes || 0), 0);
     const daysToExam = profile?.exam_date
       ? Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       : null;
@@ -78,10 +78,10 @@ STUDENT DATA:
 - Study volume (last 14 days): ${totalMinutes14d} minutes across ${(recentLogs || []).length} sessions
 
 TOPICS (sorted by weakest first):
-${topicSummaries.slice(0, 15).map(t => `- ${t.name} (${t.subject}): strength=${t.memoryStrength}, last revised=${t.lastRevised}, predicted drop=${t.predictedDrop || "unknown"}`).join("\n")}
+${topicSummaries.slice(0, 15).map((t: any) => `- ${t.name} (${t.subject}): strength=${t.memoryStrength}, last revised=${t.lastRevised}, predicted drop=${t.predictedDrop || "unknown"}`).join("\n")}
 
 WEAK QUESTIONS (wrong 2+ times):
-${(weakQs || []).slice(0, 5).map(q => `- "${q.question_text.slice(0, 60)}..." wrong ${q.times_wrong}/${q.times_seen}, last seen ${q.last_seen_at}`).join("\n") || "None"}
+${((weakQs || []) as any[]).slice(0, 5).map((q: any) => `- "${q.question_text.slice(0, 60)}..." wrong ${q.times_wrong}/${q.times_seen}, last seen ${q.last_seen_at}`).join("\n") || "None"}
 
 Respond with a JSON array. Each insight object must have:
 - "type": one of "urgent", "optimization", "encouragement", "schedule"

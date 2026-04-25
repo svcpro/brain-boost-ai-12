@@ -71,8 +71,8 @@ Deno.serve(async (req) => {
 
     // Dimension 6: Optimal time alignment (how well study times match optimal hour)
     const optimalHour = twin?.optimal_study_hour ?? 9;
-    const hourDiffs = logs.map(l => Math.abs(new Date(l.created_at).getHours() - optimalHour));
-    const avgHourDiff = hourDiffs.length > 0 ? hourDiffs.reduce((a, b) => a + b, 0) / hourDiffs.length : 6;
+    const hourDiffs = (logs as any[]).map((l: any) => Math.abs(new Date(l.created_at).getHours() - optimalHour));
+    const avgHourDiff = hourDiffs.length > 0 ? hourDiffs.reduce((a: number, b: number) => a + b, 0) / hourDiffs.length : 6;
     const d6 = 1 - norm(avgHourDiff, 0, 12);
 
     // Dimension 7: Focus duration capacity
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
 
     // Dimension 10: Exam performance
     const avgExam = exams.length > 0
-      ? exams.reduce((s, e) => s + (e.score / Math.max(1, e.total_questions)), 0) / exams.length
+      ? (exams as any[]).reduce((s: number, e: any) => s + (e.score / Math.max(1, e.total_questions)), 0) / exams.length
       : 0;
     const d10 = avgExam;
 

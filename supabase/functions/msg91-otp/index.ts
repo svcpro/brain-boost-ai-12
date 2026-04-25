@@ -449,9 +449,10 @@ async function handleSendSMS(authKey: string, templateId: string, mobile: string
   const otp = generateOTP4();
   const adminClient = getAdminClient();
 
-  const { data, ok } = await msg91SendOTP(authKey, templateId, mobile, otp);
-  if (!(data.type === "success" || ok)) {
-    return json({ error: data.message || "Failed to send OTP", details: data }, 400);
+  const { data: rawData, ok } = await msg91SendOTP(authKey, templateId, mobile, otp);
+  const data: any = rawData;
+  if (!(data?.type === "success" || ok)) {
+    return json({ error: data?.message || "Failed to send OTP", details: data }, 400);
   }
 
   // Store SMS OTP in database for admin visibility and verification
@@ -552,20 +553,21 @@ async function handleVerify(authKey: string, mobile: string, otp: string | undef
 
 async function handleResendSMS(authKey: string, templateId: string, mobile: string) {
   // First try MSG91 resend
-  const { data } = await msg91ResendOTP(authKey, mobile, "text");
+  const { data: rawData } = await msg91ResendOTP(authKey, mobile, "text");
+  const data: any = rawData;
   
-  if (data.type === "success") {
+  if (data?.type === "success") {
     return json({ success: true, message: "OTP resent via SMS", channel: "sms" });
   }
   
   // If MSG91 says "already verified" or similar error, send a fresh OTP
-  const msg = (data.message || "").toLowerCase();
+  const msg = (data?.message || "").toLowerCase();
   if (msg.includes("already verified") || msg.includes("no pending otp") || msg.includes("expired")) {
-    console.log("[MSG91] Resend failed, sending fresh OTP:", data.message);
+    console.log("[MSG91] Resend failed, sending fresh OTP:", data?.message);
     return await handleSendSMS(authKey, templateId, mobile);
   }
 
-  return json({ success: false, message: data.message || "Failed to resend", channel: "sms" });
+  return json({ success: false, message: data?.message || "Failed to resend", channel: "sms" });
 }
 
 async function handleResendWhatsApp(authKey: string, mobile: string) {

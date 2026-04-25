@@ -135,8 +135,9 @@ Deno.serve(async (req) => {
       const { data, error } = await supabase.auth.admin.generateLink({
         type: "signup",
         email,
+        password: crypto.randomUUID(),
         options: { redirectTo: finalRedirect },
-      });
+      } as any);
       if (error) throw error;
       // The generated action_link points to Supabase auth endpoint — keep it as-is
       // because Supabase needs to verify the token, then it redirects to our brand URL

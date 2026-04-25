@@ -173,7 +173,7 @@ async function sendDirect(supabase: any, title: string, body: string, targetUser
       .from("push_subscriptions")
       .select("user_id")
       .limit(10000);
-    userIds = [...new Set((subs || []).map((s: any) => s.user_id))];
+    userIds = [...new Set(((subs || []) as any[]).map((s: any) => String(s.user_id)))];
   }
 
   let totalSent = 0;
