@@ -26,7 +26,7 @@ type EventRow = {
   is_enabled: boolean;
 };
 
-type Template = { name: string; display_name: string; dlt_template_id: string | null };
+type Template = { name: string; display_name: string; dlt_template_id: string | null; is_active?: boolean };
 
 const CATEGORY_COLORS: Record<string, string> = {
   critical: "bg-red-500/15 text-red-400 border-red-500/30",
@@ -53,7 +53,7 @@ export default function SmsEventRegistry() {
     setLoading(true);
     const [{ data: ev }, { data: tpl }] = await Promise.all([
       supabase.from("sms_event_registry").select("*").order("category").order("event_key"),
-      supabase.from("sms_templates").select("name,display_name,dlt_template_id").eq("is_active", true).order("display_name"),
+      supabase.from("sms_templates").select("name,display_name,dlt_template_id,is_active").order("display_name"),
     ]);
     setRows((ev as any) || []);
     setTemplates((tpl as any) || []);
@@ -248,14 +248,22 @@ export default function SmsEventRegistry() {
               <div>
                 <Label className="text-xs">DLT Template (Flow ID source)</Label>
                 <Select
-                  value={editing.template_name || ""}
+                  value={editing.template_name ?? undefined}
                   onValueChange={(v) => setEditing({ ...editing, template_name: v })}
                 >
                   <SelectTrigger><SelectValue placeholder="Pick a template…" /></SelectTrigger>
                   <SelectContent>
+                    {/* Fallback: if saved template isn't in list (deleted/renamed), still show it */}
+                    {editing.template_name && !templates.some((t) => t.name === editing.template_name) && (
+                      <SelectItem value={editing.template_name}>
+                        {editing.template_name} <span className="text-amber-400">(missing)</span>
+                      </SelectItem>
+                    )}
                     {templates.map((t) => (
                       <SelectItem key={t.name} value={t.name}>
-                        {t.display_name} {t.dlt_template_id ? `(${t.dlt_template_id.slice(0, 8)}…)` : "⚠️ no Flow ID"}
+                        {t.display_name}
+                        {t.dlt_template_id ? ` (${t.dlt_template_id.slice(0, 8)}…)` : " ⚠️ no Flow ID"}
+                        {t.is_active === false ? " · inactive" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
