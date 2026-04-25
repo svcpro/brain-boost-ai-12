@@ -217,7 +217,27 @@ export default function SmsEventRegistry() {
                   </div>
                 </div>
                 <Switch checked={row.is_enabled} onCheckedChange={() => toggleEnabled(row)} />
-                <Button variant="ghost" size="icon" onClick={() => setEditing({ ...row, variable_map: row.variable_map || {} })}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    // Auto-suggest a template when none is mapped yet:
+                    // 1) exact name match, 2) starts-with event_key, 3) contains event_key,
+                    // 4) first template with a Flow ID, 5) first template available.
+                    let suggested = row.template_name;
+                    if (!suggested && templates.length) {
+                      const ek = row.event_key.toLowerCase();
+                      suggested =
+                        templates.find((t) => t.name?.toLowerCase() === ek)?.name ||
+                        templates.find((t) => t.name?.toLowerCase().startsWith(ek))?.name ||
+                        templates.find((t) => t.name?.toLowerCase().includes(ek))?.name ||
+                        templates.find((t) => !!t.dlt_template_id)?.name ||
+                        templates[0]?.name ||
+                        null;
+                    }
+                    setEditing({ ...row, template_name: suggested, variable_map: row.variable_map || {} });
+                  }}
+                >
                   <Edit3 className="h-3.5 w-3.5" />
                 </Button>
                 <Button
