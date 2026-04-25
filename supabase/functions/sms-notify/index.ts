@@ -139,6 +139,7 @@ async function dispatchSms(
   let category = params.category || "engagement";
   let dltId: string | null = cfg.default_dlt_template_id || null;
   let senderId = cfg.sender_id;
+  let resolvedVariables: Record<string, unknown> = { ...(params.variables || {}) };
 
   if (params.template_name) {
     const { data: tpl } = await sb
@@ -151,6 +152,7 @@ async function dispatchSms(
       if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
       if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
     }
+    resolvedVariables = mergedVars;
     body = renderTemplate(tpl.body_template, mergedVars);
     category = tpl.category || category;
     dltId = tpl.dlt_template_id || dltId;
@@ -215,12 +217,12 @@ async function dispatchSms(
     route: cfg.default_route,
     country: cfg.default_country,
     dlt_template_id: dltId,
-  });
+  }, resolvedVariables);
 
   // Log
   const { data: logRow } = await sb.from("sms_messages").insert({
     user_id, to_number: mobile, message_body: body, template_name: params.template_name,
-    template_params: params.variables || {}, category, priority: params.priority || "medium",
+    template_params: resolvedVariables, category, priority: params.priority || "medium",
     status: result.ok ? "sent" : "failed",
     msg91_request_id: result.request_id || null,
     error_message: result.error || null,
