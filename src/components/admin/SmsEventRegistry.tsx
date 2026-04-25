@@ -326,7 +326,18 @@ export default function SmsEventRegistry() {
           {editing && (
             <div className="space-y-3">
               <div>
-                <Label className="text-xs">DLT Template (Flow ID source)</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs">DLT Template (Flow ID source)</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] text-violet-400 hover:text-violet-300"
+                    onClick={() => setCreatingTpl(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> New template
+                  </Button>
+                </div>
                 <Select
                   value={editing.template_name ?? undefined}
                   onValueChange={(v) => setEditing({ ...editing, template_name: v })}
@@ -349,7 +360,7 @@ export default function SmsEventRegistry() {
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  The Flow ID lives on the template itself (Templates tab). Add it there once and it applies everywhere.
+                  Don't see your DLT-approved template? Click <b>New template</b> to add it with its Flow ID right here.
                 </p>
               </div>
 
