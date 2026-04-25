@@ -405,29 +405,21 @@ export default function SmsEventRegistry() {
                   variant="ghost"
                   size="icon"
                   onClick={() => {
-                    // Auto-suggest a template when none is mapped yet, OR when the saved
-                    // template no longer exists in the templates list.
-                    // Priority: 1) exact name match, 2) starts-with event_key,
-                    // 3) contains event_key, 4) any token of event_key matches,
-                    // 5) first template with a Flow ID, 6) first template available.
+                    // Auto-suggest a template when none is mapped yet, OR when the
+                    // saved template no longer exists in the templates list.
+                    // Uses semantic scoring (token overlap + synonyms + category
+                    // hints) and refuses to suggest anything irrelevant.
                     const existsInList =
                       !!row.template_name &&
                       templates.some((t) => t.name === row.template_name);
-                    let suggested = existsInList ? row.template_name : null;
+                    let suggested: string | null = existsInList ? row.template_name : null;
 
                     if (!suggested && templates.length) {
-                      const ek = (row.event_key || "").toLowerCase();
-                      const tokens = ek.split(/[_\-\s]+/).filter(Boolean);
-                      suggested =
-                        templates.find((t) => t.name?.toLowerCase() === ek)?.name ||
-                        templates.find((t) => t.name?.toLowerCase().startsWith(ek))?.name ||
-                        templates.find((t) => t.name?.toLowerCase().includes(ek))?.name ||
-                        templates.find((t) =>
-                          tokens.some((tok) => tok.length > 2 && t.name?.toLowerCase().includes(tok))
-                        )?.name ||
-                        templates.find((t) => !!t.dlt_template_id)?.name ||
-                        templates[0]?.name ||
-                        null;
+                      const best = pickBestTemplate(
+                        { event_key: row.event_key, display_name: row.display_name, category: row.category },
+                        templates,
+                      );
+                      suggested = best?.name ?? null;
                     }
                     setEditing({ ...row, template_name: suggested, variable_map: row.variable_map || {} });
                   }}
