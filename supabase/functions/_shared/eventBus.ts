@@ -27,14 +27,29 @@ export async function emitServerEvent(
       body.user_id = userId;
     }
 
-    await fetch(`${SUPABASE_URL}/functions/v1/omnichannel-notify`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    await Promise.allSettled([
+      fetch(`${SUPABASE_URL}/functions/v1/omnichannel-notify`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }),
+      fetch(`${SUPABASE_URL}/functions/v1/sms-event-engine`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event_type: eventType,
+          ...(Array.isArray(userId) ? { user_ids: userId } : { user_id: userId }),
+          data,
+          source: options.source || "system",
+        }),
+      }),
+    ]);
   } catch (e) {
     console.warn(`Event dispatch (${eventType}) failed:`, e);
   }
