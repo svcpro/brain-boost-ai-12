@@ -69,6 +69,49 @@ function mapVariables(
   return out;
 }
 
+function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>, userName: string): unknown {
+  const lower = key.toLowerCase();
+  const aliases: Record<string, string[]> = {
+    url: ["url", "link", "target_url"],
+    link: ["link", "url", "target_url"],
+    name: ["name", "display_name", "user_name"],
+    otp: ["otp", "code"],
+    code: ["code", "otp"],
+    time: ["time", "scheduled_time"],
+  };
+  for (const alias of aliases[lower] || [key, lower]) {
+    const value = vars[alias];
+    if (value != null && value !== "") return value;
+  }
+  const defaults: Record<string, unknown> = {
+    name: userName || "User",
+    link: "https://acry.ai",
+    url: "https://acry.ai",
+    app: "ACRY",
+    exam: "your exam",
+    topic: "today's focus topic",
+    days: 1,
+    hours: 2,
+    time: new Date().toISOString().slice(11, 16),
+    device: "your device",
+    stability: 80,
+    strength: 50,
+    rank: 100,
+    positions: 1,
+    points: 10,
+    questions: 25,
+    accuracy: 75,
+    friend: "a friend",
+    count: 5,
+    prob: 70,
+    amount: 149,
+    expiry: "your renewal date",
+    milestone: "a new milestone",
+    reward: "a reward",
+  };
+  return defaults[lower] ?? "ACRY";
+}
+
 async function processOne(input: { event_type: string; user_id: string; data: Record<string, unknown>; override_mobile?: string; source?: string }) {
   const { event_type, user_id, data, override_mobile, source } = input;
 
