@@ -1,0 +1,1 @@
+UPDATE public.sms_templates SET variables = '["url"]'::jsonb WHERE name='auth_account_locked';
