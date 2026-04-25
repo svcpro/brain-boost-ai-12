@@ -13,16 +13,27 @@ export async function emitEvent(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.functions.invoke("omnichannel-notify", {
-      body: {
-        event_type: eventType,
-        user_id: user.id,
-        source: options.source || "web",
-        data,
-        title: options.title,
-        body: options.body,
-      },
-    });
+    // Fire omnichannel + SMS engine in parallel (non-blocking)
+    await Promise.allSettled([
+      supabase.functions.invoke("omnichannel-notify", {
+        body: {
+          event_type: eventType,
+          user_id: user.id,
+          source: options.source || "web",
+          data,
+          title: options.title,
+          body: options.body,
+        },
+      }),
+      supabase.functions.invoke("sms-event-engine", {
+        body: {
+          event_type: eventType,
+          user_id: user.id,
+          data,
+          source: options.source || "web",
+        },
+      }),
+    ]);
   } catch {
     // Non-blocking – never crash the UI for notification failures
   }
@@ -102,16 +113,26 @@ export async function emitAdminEvent(
   options: { title?: string; body?: string } = {}
 ): Promise<void> {
   try {
-    await supabase.functions.invoke("omnichannel-notify", {
-      body: {
-        event_type: eventType,
-        user_ids: userIds,
-        source: "admin",
-        data,
-        title: options.title,
-        body: options.body,
-      },
-    });
+    await Promise.allSettled([
+      supabase.functions.invoke("omnichannel-notify", {
+        body: {
+          event_type: eventType,
+          user_ids: userIds,
+          source: "admin",
+          data,
+          title: options.title,
+          body: options.body,
+        },
+      }),
+      supabase.functions.invoke("sms-event-engine", {
+        body: {
+          event_type: eventType,
+          user_ids: userIds,
+          data,
+          source: "admin",
+        },
+      }),
+    ]);
   } catch {
     // Non-blocking
   }
