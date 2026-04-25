@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     console.error("STQ Engine error:", e);
-    return json({ error: e.message }, 500);
+    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });
 
@@ -827,7 +827,7 @@ async function detectPatterns(supabase: any, { exam_type }: any) {
     topicByYear[q.year].add(q.topic);
   }
 
-  const allTopics = [...new Set(questions.map((q: any) => q.topic))];
+  const allTopics: string[] = [...new Set(questions.map((q: any) => String(q.topic)))];
   const rotatingTopics = allTopics.filter(t => {
     const appearsIn = Object.entries(topicByYear).filter(([_, topics]) => topics.has(t));
     return appearsIn.length > 0 && appearsIn.length < years.length * 0.5;

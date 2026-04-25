@@ -79,12 +79,14 @@ Deno.serve(async (req) => {
     switch (eventType) {
       case 'payment.captured': {
         const orderId = entity.order_id;
+        let sub: any = null;
         if (orderId) {
-          const { data: sub } = await adminClient
+          const res = await adminClient
             .from('user_subscriptions')
             .select('*')
             .eq('razorpay_order_id', orderId)
             .maybeSingle();
+          sub = res.data;
 
           if (sub) {
             await adminClient.from('user_subscriptions').update({
@@ -107,12 +109,14 @@ Deno.serve(async (req) => {
 
       case 'payment.failed': {
         const orderId = entity.order_id;
+        let sub: any = null;
         if (orderId) {
-          const { data: sub } = await adminClient
+          const res = await adminClient
             .from('user_subscriptions')
             .select('*')
             .eq('razorpay_order_id', orderId)
             .maybeSingle();
+          sub = res.data;
 
           if (sub) {
             await adminClient.from('user_subscriptions').update({
