@@ -827,7 +827,7 @@ async function detectPatterns(supabase: any, { exam_type }: any) {
     topicByYear[q.year].add(q.topic);
   }
 
-  const allTopics: string[] = [...new Set(questions.map((q: any) => String(q.topic)))];
+  const allTopics: string[] = Array.from(new Set(questions.map((q: any) => String(q.topic))));
   const rotatingTopics = allTopics.filter(t => {
     const appearsIn = Object.entries(topicByYear).filter(([_, topics]) => topics.has(t));
     return appearsIn.length > 0 && appearsIn.length < years.length * 0.5;
