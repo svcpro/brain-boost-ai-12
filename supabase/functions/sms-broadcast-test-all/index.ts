@@ -27,42 +27,45 @@ function sampleDataFor(eventKey: string, displayName: string): Record<string, un
     url: "https://acry.ai",
     time: new Date().toISOString().slice(11, 16),
   };
+  // NOTE: keys MUST match the placeholders inside each template's body_template,
+  // because the engine resolves variables by exact key name (after the
+  // identity variable_map). Missing keys cause MSG91/DLT to drop the message.
   const map: Record<string, Record<string, unknown>> = {
-    badge_earned: { ...base, badge: "Champion", count: 5 },
-    milestone_unlocked: { ...base, milestone: "Level 5" },
+    // Auth
+    account_locked: { ...base },
+    login_detected: { ...base, device: "Chrome / Windows" },
+    mobile_verified: { ...base },
+
+    // Action
+    emergency_revision: { ...base, topic: "Physics" },
+    study_reminder: { ...base, topic: "Algebra" },
+
+    // Home
+    daily_brief_generated: { ...base, stability: 82 },
     comeback_user: { ...base, days: 3 },
     streak_risk: { ...base, days: 7, hours: 3 },
     final_streak_save: { ...base, days: 7 },
-    emergency_revision: { ...base, topic: "Physics" },
-    daily_brief_generated: { ...base, count: 12 },
-    study_reminder: { ...base, time: "20:00" },
-    leaderboard_climb: { ...base, rank: 14, change: 5 },
-    weak_topic_detected: { ...base, topic: "Algebra", score: 42 },
-    weekly_summary_ready: { ...base, count: 47, accuracy: 78 },
-    sure_shot_ready: { ...base, count: 25 },
-    login_detected: { ...base, device: "Chrome / Windows", city: "Mumbai" },
-    account_locked: { ...base },
-    suspicious_activity: { ...base, device: "Unknown" },
-    password_changed: { ...base },
+
+    // MyRank
+    friend_joined: { ...base, friend: "Rahul", exam: "NEET UG" },
+    leaderboard_climb: { ...base, exam: "NEET UG", positions: 5, rank: 14 },
+    rank_drop: { ...base, points: 42 },
+    weekly_summary_ready: { ...base, questions: 47, accuracy: 78, rank: 124 },
+
+    // Practice
     exam_today: { ...base, exam: "NEET UG" },
     exam_countdown: { ...base, exam: "NEET UG", days: 30 },
-    mock_test_due: { ...base, test: "Full Mock 12" },
-    rank_drop: { ...base, rank: 248, change: -42 },
-    friend_joined: { ...base, friend: "Rahul" },
-    payment_failed: { ...base, amount: "₹149", reason: "Card declined" },
-    payment_success: { ...base, amount: "₹149", plan: "Premium" },
-    invoice_generated: { ...base, amount: "₹149", invoice: "INV-2026-001" },
-    refund_processed: { ...base, amount: "₹149" },
-    subscription_expiring: { ...base, days: 3, plan: "Premium" },
-    plan_downgraded: { ...base, plan: "Starter" },
-    plan_upgraded: { ...base, plan: "Premium" },
+    mock_test_due: { ...base, exam: "NEET UG", time: "20:00" },
+    weak_topic_detected: { ...base, topic: "Algebra", strength: 42 },
+
+    // You / Billing
+    invoice_generated: { ...base, amount: 149 },
+    milestone_unlocked: { ...base, milestone: "Level 5" },
+    payment_failed: { ...base, amount: 149 },
+    payment_success: { ...base, amount: 149, expiry: "25 May 2026" },
+    referral_reward: { ...base, friend: "Rahul", reward: "₹50 cashback" },
+    subscription_expiring: { ...base, days: 3 },
     trial_ending: { ...base, days: 2 },
-    referral_reward: { ...base, amount: "₹50", friend: "Rahul" },
-    email_verified: { ...base },
-    mobile_verified: { ...base },
-    user_signup: { ...base },
-    test_completed: { ...base, score: 84 },
-    feature_announcement: { ...base, feature: "BrainLens" },
   };
   return map[eventKey] ?? { ...base, event: displayName };
 }
