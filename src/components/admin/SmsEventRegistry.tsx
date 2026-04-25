@@ -411,7 +411,16 @@ export default function SmsEventRegistry() {
                     cap {row.daily_cap_per_user}/day · {row.priority}
                   </div>
                 </div>
-                <Switch checked={row.is_enabled} onCheckedChange={() => toggleEnabled(row)} />
+                <div className="flex items-center gap-2 px-2 py-1 rounded-md border border-border/50 bg-background/40">
+                  <Switch
+                    checked={row.bypass_quota}
+                    onCheckedChange={() => toggleBypass(row)}
+                    aria-label="Bypass 60/mo quota"
+                  />
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                    Bypass 60/mo
+                  </span>
+                </div>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -436,14 +445,6 @@ export default function SmsEventRegistry() {
                   }}
                 >
                   <Edit3 className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={!row.template_name || testing === row.event_key}
-                  onClick={() => setTestEvent(row)}
-                >
-                  <Send className="h-3.5 w-3.5" />
                 </Button>
               </div>
             ))}
