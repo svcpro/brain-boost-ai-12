@@ -21,6 +21,7 @@ import {
   Sparkles, Copy, Power, ChevronRight, Smartphone, Hash
 } from "lucide-react";
 import { format, subDays, isAfter } from "date-fns";
+import SmsEventRegistry from "./SmsEventRegistry";
 
 // ─── Types ───
 type SmsLog = {
