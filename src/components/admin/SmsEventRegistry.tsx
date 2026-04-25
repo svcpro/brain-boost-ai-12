@@ -386,9 +386,21 @@ export default function SmsEventRegistry() {
               <Zap className="h-4 w-4 text-violet-400" />
               Event Auto-Trigger Registry
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={broadcastTestAll}
+                disabled={broadcasting || loading}
+                className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white text-xs"
+              >
+                <Send className={`h-3.5 w-3.5 mr-1.5 ${broadcasting ? "animate-pulse" : ""}`} />
+                {broadcasting ? "Broadcasting…" : "Test all on all users"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
