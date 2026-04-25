@@ -52,7 +52,22 @@ function buildMsg91FlowVariables(vars: Record<string, unknown>, placeholderKeys:
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(vars || {})) {
     if (!/^[a-zA-Z0-9_]+$/.test(key) || value == null || value === "") continue;
-    out[key] = String(value);
+    const text = String(value);
+    out[key] = text;
+    out[key.toLowerCase()] ??= text;
+    out[key.toUpperCase()] ??= text;
+  }
+  const urlValue = vars.url ?? vars.link;
+  if (urlValue != null && urlValue !== "") {
+    const text = String(urlValue);
+    out.url ??= text;
+    out.URL ??= text;
+    out.Url ??= text;
+    out.link ??= text;
+    out.LINK ??= text;
+    out.Link ??= text;
+    out.link_url ??= text;
+    out.LINK_URL ??= text;
   }
   const orderedValues = placeholderKeys
     .map((key) => vars?.[key])
