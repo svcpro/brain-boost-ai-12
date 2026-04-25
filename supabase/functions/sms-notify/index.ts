@@ -127,7 +127,7 @@ async function sendViaMsg91(
     if (!res.ok || data?.type === "error") {
       return { ok: false, error: data?.message || `HTTP ${res.status}`, raw: data };
     }
-    return { ok: true, request_id: data?.request_id || data?.message || null, raw: { ...data, recipient } };
+    return { ok: true, request_id: data?.request_id || data?.message || null, raw: { ...data, request_payload: { flow_id: cfg.dlt_template_id, sender: cfg.sender_id, route: cfg.route, short_url: "0", unicode: 0, recipients: [recipient] } } };
   }
 
   // Legacy v2 sendsms fallback
