@@ -37,12 +37,39 @@ function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
     });
 }
 
-function buildMsg91FlowVariables(vars: Record<string, unknown>): Record<string, string> {
+function extractPlaceholderKeys(tpl: string): string[] {
+  const keys: string[] = [];
+  const re = /\{\{\s*(\w+)\s*\}\}|##\s*([a-zA-Z0-9_]+)\s*##/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(tpl || "")) !== null) {
+    const key = m[1] || m[2];
+    if (key && !keys.includes(key)) keys.push(key);
+  }
+  return keys;
+}
+
+function buildMsg91FlowVariables(vars: Record<string, unknown>, placeholderKeys: string[] = []): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(vars || {})) {
     if (!/^[a-zA-Z0-9_]+$/.test(key) || value == null || value === "") continue;
     out[key] = String(value);
   }
+  const orderedValues = placeholderKeys
+    .map((key) => vars?.[key])
+    .filter((value) => value != null && value !== "")
+    .map(String);
+  orderedValues.forEach((value, index) => {
+    const n = index + 1;
+    out[`var${n}`] ??= value;
+    out[`VAR${n}`] ??= value;
+    out[`value${n}`] ??= value;
+    out[String(n)] ??= value;
+    if (index === 0) {
+      out.var ??= value;
+      out.VAR ??= value;
+      out.value ??= value;
+    }
+  });
   return out;
 }
 
@@ -54,7 +81,8 @@ async function sendViaMsg91(
   mobile: string,
   message: string,
   cfg: { sender_id: string; route: string; country: string; dlt_template_id?: string | null },
-  variables: Record<string, unknown> = {}
+  variables: Record<string, unknown> = {},
+  placeholderKeys: string[] = []
 ): Promise<{ ok: boolean; request_id?: string; error?: string; raw?: any }> {
   const key = Deno.env.get("MSG91_AUTH_KEY");
   if (!key) return { ok: false, error: "MSG91_AUTH_KEY not configured" };
@@ -69,7 +97,7 @@ async function sendViaMsg91(
       body: JSON.stringify({
         template_id: cfg.dlt_template_id,
         short_url: "0",
-        recipients: [{ mobiles: mobile, message, ...buildMsg91FlowVariables(variables) }],
+        recipients: [{ mobiles: mobile, message, ...buildMsg91FlowVariables(variables, placeholderKeys) }],
       }),
     });
     const data = await res.json().catch(() => ({}));
