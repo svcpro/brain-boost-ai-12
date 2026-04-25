@@ -933,6 +933,9 @@ const SmsCommandCenter = () => {
           <TabsTrigger value="templates" className="gap-2 data-[state=active]:bg-violet-500/15">
             <Copy className="h-4 w-4" /> Templates
           </TabsTrigger>
+          <TabsTrigger value="events" className="gap-2 data-[state=active]:bg-fuchsia-500/15">
+            <Zap className="h-4 w-4" /> Auto Events
+          </TabsTrigger>
           <TabsTrigger value="test" className="gap-2 data-[state=active]:bg-blue-500/15">
             <TestTube className="h-4 w-4" /> Test SMS
           </TabsTrigger>
@@ -943,6 +946,7 @@ const SmsCommandCenter = () => {
         <TabsContent value="config"><Msg91Config /></TabsContent>
         <TabsContent value="logs"><SmsLogs /></TabsContent>
         <TabsContent value="templates"><SmsTemplates /></TabsContent>
+        <TabsContent value="events"><SmsEventRegistry /></TabsContent>
         <TabsContent value="test"><SmsTestSender /></TabsContent>
       </Tabs>
     </div>
