@@ -260,8 +260,8 @@ async function dispatchSms(
       if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
     }
     placeholderKeys = extractPlaceholderKeys(tpl.body_template);
-    resolvedVariables = mergedVars;
-    body = renderTemplate(tpl.body_template, mergedVars);
+    resolvedVariables = completeTemplateVariables(mergedVars, placeholderKeys, String(mergedVars.name || "User"));
+    body = renderTemplate(tpl.body_template, resolvedVariables);
     category = tpl.category || category;
     dltId = tpl.dlt_template_id || dltId;
     senderId = tpl.sender_id || senderId;
