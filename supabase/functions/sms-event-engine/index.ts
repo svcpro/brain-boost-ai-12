@@ -244,7 +244,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
       }
       // 3) positional fallback (var1/var2/... or nth non-special value)
       const positional = rawVariables[`var${i + 1}`] ?? allValues[i]?.[1];
-      aligned[slot] = positional ?? "";
+      aligned[slot] = positional ?? fallbackValueForPlaceholder(slot, { ...data, ...rawVariables }, userName);
     });
     // pass-through helpers used by sms-notify auto-mapping
     if (rawVariables.name && !aligned.name) aligned.name = rawVariables.name;
