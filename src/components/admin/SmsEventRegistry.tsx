@@ -248,14 +248,22 @@ export default function SmsEventRegistry() {
               <div>
                 <Label className="text-xs">DLT Template (Flow ID source)</Label>
                 <Select
-                  value={editing.template_name || ""}
+                  value={editing.template_name ?? undefined}
                   onValueChange={(v) => setEditing({ ...editing, template_name: v })}
                 >
                   <SelectTrigger><SelectValue placeholder="Pick a template…" /></SelectTrigger>
                   <SelectContent>
+                    {/* Fallback: if saved template isn't in list (deleted/renamed), still show it */}
+                    {editing.template_name && !templates.some((t) => t.name === editing.template_name) && (
+                      <SelectItem value={editing.template_name}>
+                        {editing.template_name} <span className="text-amber-400">(missing)</span>
+                      </SelectItem>
+                    )}
                     {templates.map((t) => (
                       <SelectItem key={t.name} value={t.name}>
-                        {t.display_name} {t.dlt_template_id ? `(${t.dlt_template_id.slice(0, 8)}…)` : "⚠️ no Flow ID"}
+                        {t.display_name}
+                        {t.dlt_template_id ? ` (${t.dlt_template_id.slice(0, 8)}…)` : " ⚠️ no Flow ID"}
+                        {t.is_active === false ? " · inactive" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
