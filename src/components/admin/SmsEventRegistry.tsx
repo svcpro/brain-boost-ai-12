@@ -359,6 +359,41 @@ export default function SmsEventRegistry() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Mismatch warning: template variable count vs event variable_map */}
+                {(() => {
+                  const t = templates.find((x) => x.name === editing.template_name);
+                  if (!t) return null;
+                  const tplVars = (t.variables || []) as string[];
+                  const evVars = Object.keys(editing.variable_map || {});
+                  if (!tplVars.length && evVars.length) {
+                    return (
+                      <p className="text-[11px] mt-1 text-amber-400">
+                        ⚠️ This template has no declared variables but your event sends {evVars.length}. MSG91/DLT may reject the request.
+                      </p>
+                    );
+                  }
+                  if (tplVars.length !== evVars.length) {
+                    return (
+                      <p className="text-[11px] mt-1 text-amber-400">
+                        ⚠️ Variable mismatch — template expects {tplVars.length} ({tplVars.join(", ")}), event sends {evVars.length}. Engine will auto-align, but content may be wrong.
+                      </p>
+                    );
+                  }
+                  if (!t.dlt_template_id) {
+                    return (
+                      <p className="text-[11px] mt-1 text-red-400">
+                        ⚠️ This template has no Flow ID / DLT Template ID — SMS will fail. Add it via Templates tab or "+ New template".
+                      </p>
+                    );
+                  }
+                  return (
+                    <p className="text-[11px] mt-1 text-emerald-400">
+                      ✓ Template ready. Flow ID: <code>{t.dlt_template_id.slice(0, 12)}…</code>
+                    </p>
+                  );
+                })()}
+
                 <p className="text-[10px] text-muted-foreground mt-1">
                   Don't see your DLT-approved template? Click <b>New template</b> to add it with its Flow ID right here.
                 </p>
