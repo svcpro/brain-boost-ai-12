@@ -8295,6 +8295,114 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_event_audit: {
+        Row: {
+          created_at: string
+          event_key: string
+          id: string
+          outcome: string
+          payload: Json | null
+          reason: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_key: string
+          id?: string
+          outcome: string
+          payload?: Json | null
+          reason?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_key?: string
+          id?: string
+          outcome?: string
+          payload?: Json | null
+          reason?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sms_event_dedupe: {
+        Row: {
+          daily_count: number
+          day_key: string
+          event_key: string
+          id: string
+          last_fired_at: string
+          user_id: string
+        }
+        Insert: {
+          daily_count?: number
+          day_key?: string
+          event_key: string
+          id?: string
+          last_fired_at?: string
+          user_id: string
+        }
+        Update: {
+          daily_count?: number
+          day_key?: string
+          event_key?: string
+          id?: string
+          last_fired_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sms_event_registry: {
+        Row: {
+          bypass_quota: boolean
+          category: string
+          created_at: string
+          daily_cap_per_user: number
+          description: string | null
+          display_name: string
+          event_key: string
+          fallback_channels: string[]
+          id: string
+          is_enabled: boolean
+          priority: string
+          template_name: string | null
+          updated_at: string
+          variable_map: Json
+        }
+        Insert: {
+          bypass_quota?: boolean
+          category?: string
+          created_at?: string
+          daily_cap_per_user?: number
+          description?: string | null
+          display_name: string
+          event_key: string
+          fallback_channels?: string[]
+          id?: string
+          is_enabled?: boolean
+          priority?: string
+          template_name?: string | null
+          updated_at?: string
+          variable_map?: Json
+        }
+        Update: {
+          bypass_quota?: boolean
+          category?: string
+          created_at?: string
+          daily_cap_per_user?: number
+          description?: string | null
+          display_name?: string
+          event_key?: string
+          fallback_channels?: string[]
+          id?: string
+          is_enabled?: boolean
+          priority?: string
+          template_name?: string | null
+          updated_at?: string
+          variable_map?: Json
+        }
+        Relationships: []
+      }
       sms_messages: {
         Row: {
           category: string | null
