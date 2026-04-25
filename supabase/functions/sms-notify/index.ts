@@ -37,6 +37,15 @@ function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
     });
 }
 
+function buildMsg91FlowVariables(vars: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(vars || {})) {
+    if (!/^[a-zA-Z0-9_]+$/.test(key) || value == null || value === "") continue;
+    out[key] = String(value);
+  }
+  return out;
+}
+
 function hasUnresolvedPlaceholders(text: string): boolean {
   return /\{\{\s*\w+\s*\}\}|##\s*[a-zA-Z0-9_]+\s*##/.test(text);
 }
@@ -44,7 +53,8 @@ function hasUnresolvedPlaceholders(text: string): boolean {
 async function sendViaMsg91(
   mobile: string,
   message: string,
-  cfg: { sender_id: string; route: string; country: string; dlt_template_id?: string | null }
+  cfg: { sender_id: string; route: string; country: string; dlt_template_id?: string | null },
+  variables: Record<string, unknown> = {}
 ): Promise<{ ok: boolean; request_id?: string; error?: string; raw?: any }> {
   const key = Deno.env.get("MSG91_AUTH_KEY");
   if (!key) return { ok: false, error: "MSG91_AUTH_KEY not configured" };
@@ -59,7 +69,7 @@ async function sendViaMsg91(
       body: JSON.stringify({
         template_id: cfg.dlt_template_id,
         short_url: "0",
-        recipients: [{ mobiles: mobile, message }],
+        recipients: [{ mobiles: mobile, message, ...buildMsg91FlowVariables(variables) }],
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -129,6 +139,7 @@ async function dispatchSms(
   let category = params.category || "engagement";
   let dltId: string | null = cfg.default_dlt_template_id || null;
   let senderId = cfg.sender_id;
+  let resolvedVariables: Record<string, unknown> = { ...(params.variables || {}) };
 
   if (params.template_name) {
     const { data: tpl } = await sb
@@ -141,6 +152,7 @@ async function dispatchSms(
       if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
       if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
     }
+    resolvedVariables = mergedVars;
     body = renderTemplate(tpl.body_template, mergedVars);
     category = tpl.category || category;
     dltId = tpl.dlt_template_id || dltId;
@@ -205,12 +217,12 @@ async function dispatchSms(
     route: cfg.default_route,
     country: cfg.default_country,
     dlt_template_id: dltId,
-  });
+  }, resolvedVariables);
 
   // Log
   const { data: logRow } = await sb.from("sms_messages").insert({
     user_id, to_number: mobile, message_body: body, template_name: params.template_name,
-    template_params: params.variables || {}, category, priority: params.priority || "medium",
+    template_params: resolvedVariables, category, priority: params.priority || "medium",
     status: result.ok ? "sent" : "failed",
     msg91_request_id: result.request_id || null,
     error_message: result.error || null,
