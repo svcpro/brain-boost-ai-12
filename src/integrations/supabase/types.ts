@@ -8244,6 +8244,54 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_broadcast_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          failed: number
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          results: Json
+          sent: number
+          skipped: number
+          started_at: string
+          status: string
+          total_pairs: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          results?: Json
+          sent?: number
+          skipped?: number
+          started_at?: string
+          status?: string
+          total_pairs?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          results?: Json
+          sent?: number
+          skipped?: number
+          started_at?: string
+          status?: string
+          total_pairs?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sms_config: {
         Row: {
           allowed_categories: string[]

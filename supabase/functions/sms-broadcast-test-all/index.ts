@@ -150,70 +150,136 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fan out: per user, cap at maxPerUser events
-    const engineUrl = `${SUPABASE_URL}/functions/v1/sms-event-engine`;
-    const results: Array<Record<string, unknown>> = [];
-    let sent = 0;
-    let failed = 0;
-    let skipped = 0;
+    // Create a job row up-front so the UI can poll progress
+    const { data: job, error: jobErr } = await sb
+      .from("sms_broadcast_jobs")
+      .insert({
+        created_by: userData.user.id,
+        status: "running",
+        total_pairs: totalPairs,
+      })
+      .select("id")
+      .single();
+    if (jobErr || !job) throw jobErr || new Error("failed_to_create_job");
+    const jobId = job.id as string;
 
-    for (const user of users || []) {
-      const userEvents = (events || []).slice(0, maxPerUser);
-      for (const ev of userEvents) {
-        try {
-          const r = await fetch(engineUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${SERVICE_KEY}`,
-              apikey: ANON_KEY,
-            },
-            body: JSON.stringify({
-              event_type: ev.event_key,
-              user_id: user.id,
-              data: sampleDataFor(ev.event_key, ev.display_name),
-              source: "broadcast_test_all",
+    // Background fan-out — runs after we already returned 202
+    const engineUrl = `${SUPABASE_URL}/functions/v1/sms-event-engine`;
+    const work = (async () => {
+      const results: Array<Record<string, unknown>> = [];
+      let sent = 0, failed = 0, skipped = 0, processed = 0;
+      const FLUSH_EVERY = 10;
+
+      const flush = async (final = false) => {
+        await sb
+          .from("sms_broadcast_jobs")
+          .update({
+            sent,
+            failed,
+            skipped,
+            results,
+            status: final ? "complete" : "running",
+            finished_at: final ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", jobId);
+      };
+
+      try {
+        for (const user of users || []) {
+          const userEvents = (events || []).slice(0, maxPerUser);
+          // Send this user's events in parallel for speed; engine handles rate limits
+          const settled = await Promise.allSettled(
+            userEvents.map(async (ev) => {
+              const r = await fetch(engineUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${SERVICE_KEY}`,
+                  apikey: ANON_KEY,
+                },
+                body: JSON.stringify({
+                  event_type: ev.event_key,
+                  user_id: user.id,
+                  data: sampleDataFor(ev.event_key, ev.display_name),
+                  source: "broadcast_test_all",
+                }),
+              });
+              const json = await r.json().catch(() => ({}));
+              return { r, json, ev };
             }),
-          });
-          const json = await r.json().catch(() => ({}));
-          const ok = r.ok && (json as any)?.ok !== false;
-          if (ok) sent++;
-          else if ((json as any)?.outcome === "skipped") skipped++;
-          else failed++;
-          results.push({
-            user_id: user.id,
-            phone: user.phone,
-            event_key: ev.event_key,
-            status: r.status,
-            outcome: (json as any)?.outcome ?? (ok ? "sent" : "failed"),
-            reason: (json as any)?.reason ?? null,
-          });
-        } catch (e) {
-          failed++;
-          results.push({
-            user_id: user.id,
-            phone: user.phone,
-            event_key: ev.event_key,
-            status: 0,
-            outcome: "exception",
-            reason: String((e as Error)?.message || e),
-          });
+          );
+
+          for (let i = 0; i < settled.length; i++) {
+            const ev = userEvents[i];
+            const s = settled[i];
+            if (s.status === "fulfilled") {
+              const { r, json } = s.value;
+              const ok = r.ok && (json as any)?.ok !== false;
+              if (ok) sent++;
+              else if ((json as any)?.outcome === "skipped") skipped++;
+              else failed++;
+              results.push({
+                user_id: user.id,
+                phone: user.phone,
+                event_key: ev.event_key,
+                status: r.status,
+                outcome: (json as any)?.outcome ?? (ok ? "sent" : "failed"),
+                reason: (json as any)?.reason ?? null,
+              });
+            } else {
+              failed++;
+              results.push({
+                user_id: user.id,
+                phone: user.phone,
+                event_key: ev.event_key,
+                status: 0,
+                outcome: "exception",
+                reason: String(s.reason?.message || s.reason),
+              });
+            }
+            processed++;
+          }
+
+          if (processed % FLUSH_EVERY < userEvents.length) await flush(false);
         }
+        await flush(true);
+        console.log(`[broadcast-test] job ${jobId} complete sent=${sent} failed=${failed} skipped=${skipped}`);
+      } catch (e) {
+        console.error(`[broadcast-test] job ${jobId} crashed`, e);
+        await sb
+          .from("sms_broadcast_jobs")
+          .update({
+            status: "error",
+            last_error: String((e as Error)?.message || e),
+            sent, failed, skipped, results,
+            finished_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", jobId);
       }
+    })();
+
+    // @ts-ignore - EdgeRuntime is provided by the Supabase runtime
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(work);
+    } else {
+      // Fallback (shouldn't be hit on Supabase) — fire and forget
+      work.catch((e) => console.error("[broadcast-test] bg error", e));
     }
 
     return new Response(
       JSON.stringify({
         ok: true,
+        accepted: true,
+        job_id: jobId,
         events: events?.length || 0,
         users: users?.length || 0,
         total_pairs: totalPairs,
-        sent,
-        failed,
-        skipped,
-        results,
+        message: "Broadcast started in background. Poll sms_broadcast_jobs for progress.",
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error("[broadcast-test] error", e);
