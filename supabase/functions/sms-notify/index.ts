@@ -377,8 +377,10 @@ Deno.serve(async (req) => {
         if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
         if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
       }
-      const rendered = renderTemplate(tpl.body_template, mergedVars);
-      return json({ rendered, length: rendered.length, segments: Math.ceil(rendered.length / 160) });
+      const placeholderKeys = extractPlaceholderKeys(tpl.body_template);
+      const resolvedVariables = completeTemplateVariables(mergedVars, placeholderKeys, String(mergedVars.name || "User"));
+      const rendered = renderTemplate(tpl.body_template, resolvedVariables);
+      return json({ rendered, variables: resolvedVariables, length: rendered.length, segments: Math.ceil(rendered.length / 160) });
     }
 
     if (action === "quota") {
