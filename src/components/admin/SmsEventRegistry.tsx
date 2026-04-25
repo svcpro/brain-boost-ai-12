@@ -177,6 +177,7 @@ export default function SmsEventRegistry() {
     }
   }
 
+  const stats = useMemo(() => {
     const total = rows.length;
     const mapped = rows.filter((r) => r.template_name).length;
     const enabled = rows.filter((r) => r.is_enabled && r.template_name).length;
