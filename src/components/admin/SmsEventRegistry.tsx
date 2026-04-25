@@ -137,7 +137,46 @@ export default function SmsEventRegistry() {
     }
   }
 
-  const stats = useMemo(() => {
+  async function createTemplate() {
+    const name = newTpl.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    if (!name) return toast({ title: "Name required", variant: "destructive" });
+    if (!newTpl.display_name.trim()) return toast({ title: "Display name required", variant: "destructive" });
+    if (!newTpl.dlt_template_id.trim()) return toast({ title: "DLT Template ID required", variant: "destructive" });
+    if (!newTpl.body_template.trim()) return toast({ title: "Message body required", variant: "destructive" });
+
+    setSavingTpl(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("sms_templates").insert({
+        name,
+        display_name: newTpl.display_name.trim(),
+        dlt_template_id: newTpl.dlt_template_id.trim(),
+        sender_id: newTpl.sender_id.trim() || null,
+        category: newTpl.category,
+        body_template: newTpl.body_template.trim(),
+        is_active: true,
+        created_by: user?.id ?? null,
+      });
+      if (error) throw error;
+
+      toast({ title: "✅ Template added", description: name });
+
+      const { data: tpl } = await supabase
+        .from("sms_templates")
+        .select("name,display_name,dlt_template_id,is_active")
+        .order("display_name");
+      setTemplates((tpl as any) || []);
+      if (editing) setEditing({ ...editing, template_name: name });
+
+      setNewTpl({ name: "", display_name: "", dlt_template_id: "", sender_id: "", category: "engagement", body_template: "" });
+      setCreatingTpl(false);
+    } catch (e: any) {
+      toast({ title: "Failed to add template", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingTpl(false);
+    }
+  }
+
     const total = rows.length;
     const mapped = rows.filter((r) => r.template_name).length;
     const enabled = rows.filter((r) => r.is_enabled && r.template_name).length;
