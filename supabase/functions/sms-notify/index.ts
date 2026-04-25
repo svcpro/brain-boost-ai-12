@@ -48,6 +48,61 @@ function extractPlaceholderKeys(tpl: string): string[] {
   return keys;
 }
 
+function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>, fallbackName = "User"): unknown {
+  const lower = key.toLowerCase();
+  const aliases: Record<string, string[]> = {
+    url: ["url", "link", "target_url"],
+    link: ["link", "url", "target_url"],
+    name: ["name", "display_name", "user_name"],
+    otp: ["otp", "code"],
+    code: ["code", "otp"],
+    time: ["time", "scheduled_time"],
+  };
+  for (const alias of aliases[lower] || [key, lower]) {
+    const value = vars[alias];
+    if (value != null && value !== "") return value;
+  }
+  const defaults: Record<string, unknown> = {
+    name: fallbackName || "User",
+    link: "https://acry.ai",
+    url: "https://acry.ai",
+    app: "ACRY",
+    exam: "your exam",
+    topic: "today's focus topic",
+    days: 1,
+    hours: 2,
+    time: new Date().toISOString().slice(11, 16),
+    device: "your device",
+    stability: 80,
+    strength: 50,
+    rank: 100,
+    positions: 1,
+    points: 10,
+    questions: 25,
+    accuracy: 75,
+    friend: "a friend",
+    count: 5,
+    prob: 70,
+    amount: 149,
+    expiry: "your renewal date",
+    milestone: "a new milestone",
+    reward: "a reward",
+  };
+  return defaults[lower] ?? "ACRY";
+}
+
+function completeTemplateVariables(vars: Record<string, unknown>, placeholderKeys: string[], fallbackName = "User"): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(vars || {}) };
+  if (out.link == null && out.url != null) out.link = out.url;
+  if (out.url == null && out.link != null) out.url = out.link;
+  for (const key of placeholderKeys) {
+    if (out[key] == null || out[key] === "") out[key] = fallbackValueForPlaceholder(key, out, fallbackName);
+  }
+  if (out.link == null && out.url != null) out.link = out.url;
+  if (out.url == null && out.link != null) out.url = out.link;
+  return out;
+}
+
 function buildMsg91FlowVariables(vars: Record<string, unknown>, placeholderKeys: string[] = []): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(vars || {})) {
