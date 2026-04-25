@@ -294,8 +294,6 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
       },
       { onConflict: "user_id,event_key" },
     );
-    // Also bump count if same day
-    await sb.rpc("noop", {}).catch(() => {}); // placeholder
   }
 
   const ok = result?.ok !== false && res.ok;
