@@ -105,24 +105,13 @@ function completeTemplateVariables(vars: Record<string, unknown>, placeholderKey
 
 function buildMsg91FlowVariables(vars: Record<string, unknown>, placeholderKeys: string[] = []): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(vars || {})) {
+  const sourceKeys = placeholderKeys.length ? placeholderKeys : Object.keys(vars || {});
+  for (const key of sourceKeys) {
+    const value = vars?.[key] ?? (key === "link" ? vars?.url : key === "url" ? vars?.link : undefined);
     if (!/^[a-zA-Z0-9_]+$/.test(key) || value == null || value === "") continue;
-    const text = String(value);
-    out[key] = text;
-    out[key.toLowerCase()] ??= text;
-    out[key.toUpperCase()] ??= text;
-  }
-  const urlValue = vars.url ?? vars.link;
-  if (urlValue != null && urlValue !== "") {
-    const text = String(urlValue);
-    out.url ??= text;
-    out.URL ??= text;
-    out.Url ??= text;
-    out.link ??= text;
-    out.LINK ??= text;
-    out.Link ??= text;
-    out.link_url ??= text;
-    out.LINK_URL ??= text;
+    // MSG91 Flow variables must match the variables configured on the Flow.
+    // Sending broad aliases/extra fields can be accepted by the API but fail at DLT delivery.
+    out[key] = String(value);
   }
   const orderedValues = placeholderKeys
     .map((key) => vars?.[key])
@@ -132,13 +121,6 @@ function buildMsg91FlowVariables(vars: Record<string, unknown>, placeholderKeys:
     const n = index + 1;
     out[`var${n}`] ??= value;
     out[`VAR${n}`] ??= value;
-    out[`value${n}`] ??= value;
-    out[String(n)] ??= value;
-    if (index === 0) {
-      out.var ??= value;
-      out.VAR ??= value;
-      out.value ??= value;
-    }
   });
   return out;
 }
