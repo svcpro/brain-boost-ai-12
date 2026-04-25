@@ -163,7 +163,7 @@ export default function SmsEventRegistry() {
 
       const { data: tpl } = await supabase
         .from("sms_templates")
-        .select("name,display_name,dlt_template_id,is_active")
+        .select("name,display_name,dlt_template_id,is_active,variables,body_template")
         .order("display_name");
       setTemplates((tpl as any) || []);
       if (editing) setEditing({ ...editing, template_name: name });
