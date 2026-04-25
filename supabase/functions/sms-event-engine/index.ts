@@ -139,8 +139,44 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
     return { ok: false, status: "no_mobile" };
   }
 
-  // 4. Map variables
-  const variables = mapVariables(data || {}, (ev.variable_map as any) || {}, userName);
+  // 4. Map variables (raw, based on event registry's variable_map)
+  const rawVariables = mapVariables(data || {}, (ev.variable_map as any) || {}, userName);
+
+  // 4b. Auto-align to the template's registered variable list.
+  // MSG91 / DLT will silently reject (or fail to deliver) when extra variables
+  // are sent or when names don't match the template's registered slots.
+  const { data: tpl } = await sb
+    .from("sms_templates")
+    .select("name, variables, dlt_template_id, body_template")
+    .eq("name", ev.template_name)
+    .maybeSingle();
+
+  let alignedVariables: Record<string, unknown> = rawVariables;
+  let alignmentNote: string | null = null;
+
+  if (tpl?.variables && Array.isArray(tpl.variables) && tpl.variables.length > 0) {
+    const aligned: Record<string, unknown> = {};
+    const allValues = Object.entries(rawVariables).filter(([k]) => k !== "link" && k !== "url" && k !== "name");
+    (tpl.variables as string[]).forEach((slot, i) => {
+      // 1) try exact key match
+      if (rawVariables[slot] !== undefined) {
+        aligned[slot] = rawVariables[slot];
+      } else {
+        // 2) fall back to positional value from rawVariables (var1/var2/...)
+        const positional = rawVariables[`var${i + 1}`] ?? allValues[i]?.[1];
+        aligned[slot] = positional ?? "";
+      }
+    });
+    // pass-through name/link/url for sms-notify auto-mapping
+    if (rawVariables.name) aligned.name = rawVariables.name;
+    if (rawVariables.link) aligned.link = rawVariables.link;
+    if (rawVariables.url) aligned.url = rawVariables.url;
+
+    alignedVariables = aligned;
+    alignmentNote = `aligned_to_template_vars:${(tpl.variables as string[]).join(",")}`;
+  } else if (tpl) {
+    alignmentNote = "template_has_no_variables_declared";
+  }
 
   // 5. Invoke sms-notify
   const res = await fetch(`${SUPABASE_URL}/functions/v1/sms-notify`, {
@@ -154,7 +190,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
       user_id,
       mobile,
       template_name: ev.template_name,
-      variables,
+      variables: alignedVariables,
       category: ev.category,
       priority: ev.priority,
       source: source || `event:${event_type}`,
@@ -181,9 +217,21 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
   }
 
   const ok = result?.ok !== false && res.ok;
-  await audit(user_id, event_type, ok ? "sent" : "failed", ok ? "delivered" : (result?.reason || result?.error || `http_${res.status}`), { result });
+  await audit(
+    user_id,
+    event_type,
+    ok ? "sent" : "failed",
+    ok ? "delivered" : (result?.reason || result?.error || `http_${res.status}`),
+    {
+      result,
+      template_name: ev.template_name,
+      variables_sent: alignedVariables,
+      template_vars: tpl?.variables ?? null,
+      alignment_note: alignmentNote,
+    },
+  );
 
-  return { ok, status: result?.status || (ok ? "sent" : "failed"), result };
+  return { ok, status: result?.status || (ok ? "sent" : "failed"), result, alignment_note: alignmentNote };
 }
 
 Deno.serve(async (req) => {
