@@ -63,7 +63,7 @@ export default function SmsEventRegistry() {
     setLoading(true);
     const [{ data: ev }, { data: tpl }] = await Promise.all([
       supabase.from("sms_event_registry").select("*").order("category").order("event_key"),
-      supabase.from("sms_templates").select("name,display_name,dlt_template_id,is_active").order("display_name"),
+      supabase.from("sms_templates").select("name,display_name,dlt_template_id,is_active,variables,body_template").order("display_name"),
     ]);
     setRows((ev as any) || []);
     setTemplates((tpl as any) || []);
