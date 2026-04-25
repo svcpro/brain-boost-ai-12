@@ -113,16 +113,26 @@ export async function emitAdminEvent(
   options: { title?: string; body?: string } = {}
 ): Promise<void> {
   try {
-    await supabase.functions.invoke("omnichannel-notify", {
-      body: {
-        event_type: eventType,
-        user_ids: userIds,
-        source: "admin",
-        data,
-        title: options.title,
-        body: options.body,
-      },
-    });
+    await Promise.allSettled([
+      supabase.functions.invoke("omnichannel-notify", {
+        body: {
+          event_type: eventType,
+          user_ids: userIds,
+          source: "admin",
+          data,
+          title: options.title,
+          body: options.body,
+        },
+      }),
+      supabase.functions.invoke("sms-event-engine", {
+        body: {
+          event_type: eventType,
+          user_ids: userIds,
+          data,
+          source: "admin",
+        },
+      }),
+    ]);
   } catch {
     // Non-blocking
   }
