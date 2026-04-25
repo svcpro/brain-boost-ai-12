@@ -168,6 +168,7 @@ async function dispatchSms(
   let dltId: string | null = cfg.default_dlt_template_id || null;
   let senderId = cfg.sender_id;
   let resolvedVariables: Record<string, unknown> = { ...(params.variables || {}) };
+  let placeholderKeys: string[] = [];
 
   if (params.template_name) {
     const { data: tpl } = await sb
@@ -180,6 +181,7 @@ async function dispatchSms(
       if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
       if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
     }
+    placeholderKeys = extractPlaceholderKeys(tpl.body_template);
     resolvedVariables = mergedVars;
     body = renderTemplate(tpl.body_template, mergedVars);
     category = tpl.category || category;
@@ -245,7 +247,7 @@ async function dispatchSms(
     route: cfg.default_route,
     country: cfg.default_country,
     dlt_template_id: dltId,
-  }, resolvedVariables);
+  }, resolvedVariables, placeholderKeys);
 
   // Log
   const { data: logRow } = await sb.from("sms_messages").insert({
