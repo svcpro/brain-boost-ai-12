@@ -26,7 +26,7 @@ type EventRow = {
   is_enabled: boolean;
 };
 
-type Template = { name: string; display_name: string; dlt_template_id: string | null };
+type Template = { name: string; display_name: string; dlt_template_id: string | null; is_active?: boolean };
 
 const CATEGORY_COLORS: Record<string, string> = {
   critical: "bg-red-500/15 text-red-400 border-red-500/30",
