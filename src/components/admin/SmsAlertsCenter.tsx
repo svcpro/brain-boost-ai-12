@@ -183,14 +183,34 @@ function BulkDltEditor({ open, onClose, list, onSaved }: { open: boolean; onClos
     setTesting(t.id);
     setTestResult((p) => ({ ...p, [t.id]: { ok: false, msg: "Sending..." } }));
     try {
-      const sampleVars: Record<string, string> = {
+      // Default sample for every known placeholder used across all templates
+      const defaultSamples: Record<string, string> = {
         name: "Test User", title: "ACRY Test", body: "Test message",
-        link: t.target_url || "https://acry.ai", otp: "123456",
-        rank: "42", percentile: "95", streak: "7", days: "30", topic: "Sample Topic",
-        device: "Chrome", time: "12:00 PM", code: "654321", friend: "Rahul",
-        exam: "NEET UG", positions: "5", points: "12", count: "3",
-        stability: "78", hours: "2",
+        link: t.target_url || "https://acry.ai",
+        url: t.target_url || "https://acry.ai",
+        otp: "123456", code: "654321",
+        rank: "42", percentile: "95", positions: "5", points: "12",
+        streak: "7", days: "30", hours: "2",
+        topic: "Sample Topic", strength: "65", stability: "78",
+        device: "Chrome on Android", time: "12:00 PM",
+        friend: "Rahul", exam: "NEET UG",
+        count: "3", questions: "120", accuracy: "82",
+        prob: "75", milestone: "100 Day Streak",
+        amount: "149", reward: "7 Premium Days", expiry: "30 Nov 2025",
       };
+
+      // Auto-extract any extra placeholders from the actual template body and fill them
+      const sampleVars: Record<string, string> = { ...defaultSamples };
+      const tplBody: string = String(t.body_template || "");
+      const placeholderRegex = /\{\{\s*(\w+)\s*\}\}|##\s*(\w+)\s*##/g;
+      let m: RegExpExecArray | null;
+      while ((m = placeholderRegex.exec(tplBody)) !== null) {
+        const key = m[1] || m[2];
+        if (key && (sampleVars[key] == null || sampleVars[key] === "")) {
+          sampleVars[key] = `[${key}]`;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("sms-notify", {
         body: {
           action: "send",
