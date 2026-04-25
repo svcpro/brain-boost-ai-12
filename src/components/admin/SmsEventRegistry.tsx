@@ -48,6 +48,16 @@ export default function SmsEventRegistry() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testMobile, setTestMobile] = useState("");
   const [testEvent, setTestEvent] = useState<EventRow | null>(null);
+  const [creatingTpl, setCreatingTpl] = useState(false);
+  const [newTpl, setNewTpl] = useState({
+    name: "",
+    display_name: "",
+    dlt_template_id: "",
+    sender_id: "",
+    category: "engagement",
+    body_template: "",
+  });
+  const [savingTpl, setSavingTpl] = useState(false);
 
   async function load() {
     setLoading(true);
