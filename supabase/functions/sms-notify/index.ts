@@ -309,7 +309,12 @@ Deno.serve(async (req) => {
       const { data: tpl } = await sb.from("sms_templates").select("*")
         .eq("name", body.template_name).maybeSingle();
       if (!tpl) return json({ error: "Template not found" }, 404);
-      const rendered = renderTemplate(tpl.body_template, body.variables || {});
+      const mergedVars: Record<string, unknown> = { ...(body.variables || {}) };
+      if (tpl.target_url) {
+        if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
+        if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
+      }
+      const rendered = renderTemplate(tpl.body_template, mergedVars);
       return json({ rendered, length: rendered.length, segments: Math.ceil(rendered.length / 160) });
     }
 
