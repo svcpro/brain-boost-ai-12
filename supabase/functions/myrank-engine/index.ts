@@ -438,10 +438,10 @@ Deno.serve(async (req) => {
       }).eq("id", test_id);
 
       // Bump global stats
-      await admin.rpc("increment_myrank_stats", {}).then(() => {}).catch(async () => {
+      await (admin.rpc("increment_myrank_stats", {}) as any).then(() => {}, async () => {
         const { data: s } = await admin.from("myrank_stats").select("total_tests").eq("id", 1).single();
         await admin.from("myrank_stats").update({
-          total_tests: (s?.total_tests || 0) + 1,
+          total_tests: ((s as any)?.total_tests || 0) + 1,
           updated_at: new Date().toISOString(),
         }).eq("id", 1);
       });
