@@ -37,6 +37,140 @@ const CATEGORY_COLORS: Record<string, string> = {
   engagement: "bg-violet-500/15 text-violet-400 border-violet-500/30",
 };
 
+// ---------- Auto-select scoring ----------
+// Synonyms map common event tokens → words that appear in template names/bodies.
+const SYNONYMS: Record<string, string[]> = {
+  badge: ["milestone", "achievement", "reward", "unlocked"],
+  earned: ["unlocked", "achieved", "won", "reward"],
+  milestone: ["badge", "achievement", "unlocked"],
+  comeback: ["inactivity", "return", "comeback"],
+  comeback_user: ["inactivity", "return"],
+  rank: ["leaderboard", "myrank"],
+  drop: ["risk", "drop"],
+  climb: ["leaderboard", "climb", "top"],
+  streak: ["streak"],
+  risk: ["risk", "drop", "save"],
+  exam: ["exam", "countdown", "d_day", "mock"],
+  countdown: ["exam", "days"],
+  mock: ["mock", "test", "practice"],
+  test: ["mock", "test", "practice", "completed"],
+  weak: ["weak", "topic"],
+  topic: ["weak", "topic", "revision"],
+  revision: ["revision", "ai"],
+  daily: ["daily", "mission", "briefing"],
+  brief: ["briefing", "daily"],
+  briefing: ["briefing", "daily"],
+  study: ["mission", "focus", "revision"],
+  reminder: ["mission", "due", "reminder"],
+  emergency: ["emergency", "rescue"],
+  rescue: ["emergency", "rescue"],
+  feature: ["feature", "announcement", "launch"],
+  announcement: ["feature", "launch"],
+  friend: ["friend", "referral", "joined"],
+  joined: ["referral", "signup", "joined"],
+  referral: ["referral", "reward", "friend"],
+  reward: ["reward", "referral", "milestone"],
+  leaderboard: ["leaderboard", "myrank", "rank"],
+  weekly: ["weekly", "recap"],
+  summary: ["recap", "weekly"],
+  recap: ["weekly", "recap"],
+  payment: ["payment"],
+  failed: ["failed"],
+  success: ["success"],
+  refund: ["refund"],
+  invoice: ["invoice"],
+  otp: ["otp", "verification"],
+  login: ["login", "alert", "otp"],
+  account: ["account", "security", "locked"],
+  locked: ["locked", "account"],
+  password: ["password", "reset"],
+  security: ["security", "alert", "locked"],
+  trial: ["trial", "ending"],
+  subscription: ["subscription", "expiring"],
+  expiring: ["expiring", "subscription"],
+  current: ["current", "affairs"],
+  affairs: ["current", "affairs"],
+  sureshot: ["sureshot", "predicted"],
+};
+
+const STOP_TOKENS = new Set(["the", "and", "a", "an", "of", "to", "is", "in", "on", "at", "user", "alert"]);
+
+const tokenize = (s: string): string[] =>
+  (s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter((t) => t && t.length > 1 && !STOP_TOKENS.has(t));
+
+const expandTokens = (tokens: string[]): Set<string> => {
+  const out = new Set<string>();
+  tokens.forEach((t) => {
+    out.add(t);
+    (SYNONYMS[t] || []).forEach((s) => out.add(s));
+  });
+  return out;
+};
+
+/**
+ * Score how well a template fits an event. Higher = better.
+ * Returns 0 when there's no real overlap (caller can choose to leave unmapped).
+ */
+function scoreTemplate(
+  ev: { event_key: string; display_name?: string | null; category?: string | null },
+  tpl: Template,
+): number {
+  const evTokens = expandTokens([
+    ...tokenize(ev.event_key),
+    ...tokenize(ev.display_name || ""),
+  ]);
+  const tplCorpus = `${tpl.name || ""} ${tpl.display_name || ""} ${tpl.body_template || ""}`;
+  const tplTokens = new Set(tokenize(tplCorpus));
+
+  // Exact name match wins big
+  if (tpl.name?.toLowerCase() === ev.event_key.toLowerCase()) return 1000;
+
+  let score = 0;
+  evTokens.forEach((t) => {
+    if (tplTokens.has(t)) score += 10;
+  });
+
+  // Category hint (e.g. payment events should prefer "you_payment_*")
+  const cat = (ev.category || "").toLowerCase();
+  if (cat && tpl.name?.toLowerCase().includes(cat)) score += 6;
+  if (cat === "payment" && /payment|invoice|refund/.test(tpl.name || "")) score += 8;
+  if (cat === "otp" && /otp|verification/.test(tpl.name || "")) score += 8;
+  if (cat === "security" && /security|locked|login/.test(tpl.name || "")) score += 8;
+  if (cat === "engagement" && /^(home_|action_|practice_|myrank_|you_)/.test(tpl.name || "")) score += 2;
+
+  // Strong bonus for DLT-approved (deliverable) templates — but never enough on its own.
+  if (tpl.dlt_template_id) score += 3;
+
+  // Prefer active templates
+  if (tpl.is_active === false) score -= 20;
+
+  return score;
+}
+
+function pickBestTemplate(
+  ev: { event_key: string; display_name?: string | null; category?: string | null },
+  templates: Template[],
+): Template | null {
+  if (!templates.length) return null;
+  let best: Template | null = null;
+  let bestScore = 0;
+  for (const t of templates) {
+    const s = scoreTemplate(ev, t);
+    if (s > bestScore) {
+      bestScore = s;
+      best = t;
+    }
+  }
+  // Require a meaningful overlap (≥ 2 token hits worth of score) to avoid
+  // suggesting a clearly-irrelevant template just because it has a Flow ID.
+  return bestScore >= 13 ? best : null;
+}
+
+
 export default function SmsEventRegistry() {
   const { toast } = useToast();
   const [rows, setRows] = useState<EventRow[]>([]);
