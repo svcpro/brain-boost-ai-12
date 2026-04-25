@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Zap, Edit3, Send, RefreshCw, Filter } from "lucide-react";
+import { Zap, Edit3, Send, RefreshCw, Filter, Plus } from "lucide-react";
 
 type EventRow = {
   id: string;
