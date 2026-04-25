@@ -8508,6 +8508,111 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_orchestration_config: {
+        Row: {
+          ai_model: string
+          dry_run: boolean
+          enabled: boolean
+          id: string
+          lookback_hours: number
+          max_per_user_per_day: number
+          max_users_per_run: number
+          notes: string | null
+          quiet_hours_end: number
+          quiet_hours_start: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ai_model?: string
+          dry_run?: boolean
+          enabled?: boolean
+          id?: string
+          lookback_hours?: number
+          max_per_user_per_day?: number
+          max_users_per_run?: number
+          notes?: string | null
+          quiet_hours_end?: number
+          quiet_hours_start?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ai_model?: string
+          dry_run?: boolean
+          enabled?: boolean
+          id?: string
+          lookback_hours?: number
+          max_per_user_per_day?: number
+          max_users_per_run?: number
+          notes?: string | null
+          quiet_hours_end?: number
+          quiet_hours_start?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      sms_orchestration_log: {
+        Row: {
+          ai_calls: number
+          decisions: Json
+          decisions_made: number
+          dry_run: boolean
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          model: string | null
+          sms_failed: number
+          sms_sent: number
+          sms_skipped: number
+          started_at: string
+          status: string
+          triggered_by: string
+          triggered_by_user: string | null
+          users_scanned: number
+        }
+        Insert: {
+          ai_calls?: number
+          decisions?: Json
+          decisions_made?: number
+          dry_run?: boolean
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          model?: string | null
+          sms_failed?: number
+          sms_sent?: number
+          sms_skipped?: number
+          started_at?: string
+          status?: string
+          triggered_by?: string
+          triggered_by_user?: string | null
+          users_scanned?: number
+        }
+        Update: {
+          ai_calls?: number
+          decisions?: Json
+          decisions_made?: number
+          dry_run?: boolean
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          model?: string | null
+          sms_failed?: number
+          sms_sent?: number
+          sms_skipped?: number
+          started_at?: string
+          status?: string
+          triggered_by?: string
+          triggered_by_user?: string | null
+          users_scanned?: number
+        }
+        Relationships: []
+      }
       sms_quota: {
         Row: {
           count: number
