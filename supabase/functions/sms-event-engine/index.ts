@@ -225,11 +225,27 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
 
   if (expectedSlots.length > 0) {
     const aligned: Record<string, unknown> = {};
+    // Known semantic slot names — never use positional fallback for these,
+    // always go straight to the typed default. Prevents "stability = Test User".
+    const SEMANTIC_SLOTS = new Set([
+      "name", "link", "url", "otp", "code", "time", "app",
+      "stability", "strength", "rank", "positions", "points",
+      "questions", "accuracy", "prob", "amount", "count",
+      "days", "hours", "exam", "topic", "device", "friend",
+      "expiry", "milestone", "reward",
+    ]);
     const rawEntries = Object.entries(rawVariables);
-    const allValues = rawEntries.filter(([k]) => !["name", "link", "url"].includes(k));
+    // Exclude special keys AND the var1/varN positional aliases AND empty strings
+    // from the positional pool — otherwise `name` leaks into numeric slots.
+    const allValues = rawEntries.filter(
+      ([k, v]) =>
+        !["name", "link", "url"].includes(k) &&
+        !/^var\d+$/i.test(k) &&
+        v !== "" && v != null,
+    );
     expectedSlots.forEach((slot, i) => {
-      // 1) exact key match
-      if (rawVariables[slot] !== undefined && rawVariables[slot] !== "") {
+      // 1) exact key match (non-empty)
+      if (rawVariables[slot] !== undefined && rawVariables[slot] !== "" && rawVariables[slot] !== null) {
         aligned[slot] = rawVariables[slot];
         return;
       }
@@ -242,8 +258,13 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
         aligned[slot] = rawVariables.url;
         return;
       }
-      // 3) positional fallback (var1/var2/... or nth non-special value)
-      const positional = rawVariables[`var${i + 1}`] ?? allValues[i]?.[1];
+      // 3) For known semantic slots, skip positional guessing and use typed default.
+      if (SEMANTIC_SLOTS.has(slot.toLowerCase())) {
+        aligned[slot] = fallbackValueForPlaceholder(slot, { ...data, ...rawVariables }, userName);
+        return;
+      }
+      // 4) Positional fallback for unknown custom slots only
+      const positional = allValues[i]?.[1];
       aligned[slot] = positional ?? fallbackValueForPlaceholder(slot, { ...data, ...rawVariables }, userName);
     });
     // pass-through helpers used by sms-notify auto-mapping
