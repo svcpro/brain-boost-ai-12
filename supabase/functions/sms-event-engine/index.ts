@@ -217,9 +217,21 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
   }
 
   const ok = result?.ok !== false && res.ok;
-  await audit(user_id, event_type, ok ? "sent" : "failed", ok ? "delivered" : (result?.reason || result?.error || `http_${res.status}`), { result });
+  await audit(
+    user_id,
+    event_type,
+    ok ? "sent" : "failed",
+    ok ? "delivered" : (result?.reason || result?.error || `http_${res.status}`),
+    {
+      result,
+      template_name: ev.template_name,
+      variables_sent: alignedVariables,
+      template_vars: tpl?.variables ?? null,
+      alignment_note: alignmentNote,
+    },
+  );
 
-  return { ok, status: result?.status || (ok ? "sent" : "failed"), result };
+  return { ok, status: result?.status || (ok ? "sent" : "failed"), result, alignment_note: alignmentNote };
 }
 
 Deno.serve(async (req) => {
