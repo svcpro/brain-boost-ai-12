@@ -192,6 +192,31 @@ export default function SmsEventRegistry() {
     body_template: "",
   });
   const [savingTpl, setSavingTpl] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
+
+  async function broadcastTestAll() {
+    if (broadcasting) return;
+    const enabled = rows.filter((r) => r.is_enabled && r.template_name).length;
+    const ok = window.confirm(
+      `This will fire ${enabled} enabled SMS events to EVERY phone-verified user. Real SMS will be sent via MSG91. Continue?`,
+    );
+    if (!ok) return;
+    setBroadcasting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sms-broadcast-test-all", {
+        body: { dry_run: false },
+      });
+      if (error) throw error;
+      toast({
+        title: "Broadcast complete",
+        description: `Sent ${(data as any)?.sent ?? 0} · Failed ${(data as any)?.failed ?? 0} · Skipped ${(data as any)?.skipped ?? 0} (of ${(data as any)?.total_pairs ?? 0})`,
+      });
+    } catch (e: any) {
+      toast({ title: "Broadcast failed", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setBroadcasting(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -361,9 +386,21 @@ export default function SmsEventRegistry() {
               <Zap className="h-4 w-4 text-violet-400" />
               Event Auto-Trigger Registry
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={broadcastTestAll}
+                disabled={broadcasting || loading}
+                className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white text-xs"
+              >
+                <Send className={`h-3.5 w-3.5 mr-1.5 ${broadcasting ? "animate-pulse" : ""}`} />
+                {broadcasting ? "Broadcasting…" : "Test all on all users"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
