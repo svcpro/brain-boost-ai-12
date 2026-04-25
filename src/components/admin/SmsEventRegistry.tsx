@@ -192,6 +192,31 @@ export default function SmsEventRegistry() {
     body_template: "",
   });
   const [savingTpl, setSavingTpl] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
+
+  async function broadcastTestAll() {
+    if (broadcasting) return;
+    const enabled = rows.filter((r) => r.is_enabled && r.template_name).length;
+    const ok = window.confirm(
+      `This will fire ${enabled} enabled SMS events to EVERY phone-verified user. Real SMS will be sent via MSG91. Continue?`,
+    );
+    if (!ok) return;
+    setBroadcasting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sms-broadcast-test-all", {
+        body: { dry_run: false },
+      });
+      if (error) throw error;
+      toast({
+        title: "Broadcast complete",
+        description: `Sent ${(data as any)?.sent ?? 0} · Failed ${(data as any)?.failed ?? 0} · Skipped ${(data as any)?.skipped ?? 0} (of ${(data as any)?.total_pairs ?? 0})`,
+      });
+    } catch (e: any) {
+      toast({ title: "Broadcast failed", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setBroadcasting(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
