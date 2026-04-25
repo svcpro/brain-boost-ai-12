@@ -49,13 +49,16 @@ function sampleDataFor(eventKey: string, displayName: string): Record<string, un
     // MyRank
     friend_joined: { ...base, friend: "Rahul", exam: "NEET UG" },
     leaderboard_climb: { ...base, exam: "NEET UG", positions: 5, rank: 14 },
+    rank_war_invite: { ...base, exam: "NEET UG", time: "20:00" },
     rank_drop: { ...base, points: 42 },
     weekly_summary_ready: { ...base, questions: 47, accuracy: 78, rank: 124 },
 
     // Practice
+    current_affairs_alert: { ...base, count: 5, exam: "NEET UG", prob: 72 },
     exam_today: { ...base, exam: "NEET UG" },
     exam_countdown: { ...base, exam: "NEET UG", days: 30 },
     mock_test_due: { ...base, exam: "NEET UG", time: "20:00" },
+    sureshot_ready: { ...base, exam: "NEET UG", count: 25 },
     weak_topic_detected: { ...base, topic: "Algebra", strength: 42 },
 
     // You / Billing

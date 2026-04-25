@@ -55,6 +55,10 @@ function sampleDataFor(eventKey: string, profile: any): Record<string, unknown> 
       return { ...base, topic: "today's focus topic" };
     case "weak_topic_detected":
       return { ...base, topic: "Algebra", strength: 42 };
+    case "current_affairs_alert":
+      return { ...base, count: 5, prob: 72 };
+    case "sureshot_ready":
+      return { ...base, count: 25 };
     case "streak_risk":
       return { ...base, days: 7, hours: 3 };
     case "final_streak_save":
@@ -67,6 +71,8 @@ function sampleDataFor(eventKey: string, profile: any): Record<string, unknown> 
       return { ...base };
     case "leaderboard_climb":
       return { ...base, positions: 5, rank: 14 };
+    case "rank_war_invite":
+      return { ...base, time: "20:00" };
     case "rank_drop":
       return { ...base, points: 42 };
     case "weekly_summary_ready":
