@@ -154,28 +154,67 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
   let alignedVariables: Record<string, unknown> = rawVariables;
   let alignmentNote: string | null = null;
 
-  if (tpl?.variables && Array.isArray(tpl.variables) && tpl.variables.length > 0) {
-    const aligned: Record<string, unknown> = {};
-    const allValues = Object.entries(rawVariables).filter(([k]) => k !== "link" && k !== "url" && k !== "name");
-    (tpl.variables as string[]).forEach((slot, i) => {
-      // 1) try exact key match
-      if (rawVariables[slot] !== undefined) {
-        aligned[slot] = rawVariables[slot];
-      } else {
-        // 2) fall back to positional value from rawVariables (var1/var2/...)
-        const positional = rawVariables[`var${i + 1}`] ?? allValues[i]?.[1];
-        aligned[slot] = positional ?? "";
+  // Source of truth: extract actual placeholders from the template body
+  // (##key## DLT-style and {{key}} mustache-style). MSG91/DLT silently drop
+  // messages when placeholders aren't substituted, so we MUST send keys that
+  // exist in the body — not just the registered `variables` array.
+  const bodyPlaceholders: string[] = [];
+  if (tpl?.body_template) {
+    const seen = new Set<string>();
+    const re = /##([a-zA-Z0-9_]+)##|\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(tpl.body_template as string)) !== null) {
+      const key = m[1] || m[2];
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        bodyPlaceholders.push(key);
       }
+    }
+  }
+
+  // Prefer body placeholders; fall back to declared variables list.
+  const expectedSlots: string[] =
+    bodyPlaceholders.length > 0
+      ? bodyPlaceholders
+      : Array.isArray(tpl?.variables)
+        ? (tpl!.variables as string[])
+        : [];
+
+  if (expectedSlots.length > 0) {
+    const aligned: Record<string, unknown> = {};
+    const rawEntries = Object.entries(rawVariables);
+    const allValues = rawEntries.filter(([k]) => !["name", "link", "url"].includes(k));
+    expectedSlots.forEach((slot, i) => {
+      // 1) exact key match
+      if (rawVariables[slot] !== undefined && rawVariables[slot] !== "") {
+        aligned[slot] = rawVariables[slot];
+        return;
+      }
+      // 2) common alias (link <-> url)
+      if (slot === "url" && rawVariables.link) {
+        aligned[slot] = rawVariables.link;
+        return;
+      }
+      if (slot === "link" && rawVariables.url) {
+        aligned[slot] = rawVariables.url;
+        return;
+      }
+      // 3) positional fallback (var1/var2/... or nth non-special value)
+      const positional = rawVariables[`var${i + 1}`] ?? allValues[i]?.[1];
+      aligned[slot] = positional ?? "";
     });
-    // pass-through name/link/url for sms-notify auto-mapping
-    if (rawVariables.name) aligned.name = rawVariables.name;
-    if (rawVariables.link) aligned.link = rawVariables.link;
-    if (rawVariables.url) aligned.url = rawVariables.url;
+    // pass-through helpers used by sms-notify auto-mapping
+    if (rawVariables.name && !aligned.name) aligned.name = rawVariables.name;
+    if (rawVariables.link && !aligned.link) aligned.link = rawVariables.link;
+    if (rawVariables.url && !aligned.url) aligned.url = rawVariables.url;
 
     alignedVariables = aligned;
-    alignmentNote = `aligned_to_template_vars:${(tpl.variables as string[]).join(",")}`;
+    alignmentNote =
+      bodyPlaceholders.length > 0
+        ? `aligned_to_body_placeholders:${bodyPlaceholders.join(",")}`
+        : `aligned_to_template_vars:${expectedSlots.join(",")}`;
   } else if (tpl) {
-    alignmentNote = "template_has_no_variables_declared";
+    alignmentNote = "template_has_no_placeholders";
   }
 
   // 5. Invoke sms-notify
