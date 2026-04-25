@@ -508,6 +508,15 @@ export default function SmsEventRegistry() {
                 >
                   <Edit3 className="h-3.5 w-3.5" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title={row.template_name ? "Send test SMS" : "Map a template first"}
+                  disabled={!row.template_name || testing === row.event_key}
+                  onClick={() => setTestEvent(row)}
+                >
+                  <Send className={`h-3.5 w-3.5 ${testing === row.event_key ? "animate-pulse text-violet-400" : ""}`} />
+                </Button>
               </div>
             ))}
             {!filtered.length && (
