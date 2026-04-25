@@ -106,20 +106,28 @@ async function sendViaMsg91(
   const useFlow = !!cfg.dlt_template_id;
 
   if (useFlow) {
+    const recipient = {
+      mobiles: mobile,
+      ...buildMsg91FlowVariables(variables, placeholderKeys),
+    };
+
     const res = await fetch("https://control.msg91.com/api/v5/flow/", {
       method: "POST",
       headers: { authkey: key, "Content-Type": "application/json", accept: "application/json" },
       body: JSON.stringify({
-        template_id: cfg.dlt_template_id,
+        flow_id: cfg.dlt_template_id,
+        sender: cfg.sender_id,
+        route: cfg.route,
+        unicode: 0,
         short_url: "0",
-        recipients: [{ mobiles: mobile, message, ...buildMsg91FlowVariables(variables, placeholderKeys) }],
+        recipients: [recipient],
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data?.type === "error") {
       return { ok: false, error: data?.message || `HTTP ${res.status}`, raw: data };
     }
-    return { ok: true, request_id: data?.request_id || data?.message || null, raw: data };
+    return { ok: true, request_id: data?.request_id || data?.message || null, raw: { ...data, recipient } };
   }
 
   // Legacy v2 sendsms fallback
