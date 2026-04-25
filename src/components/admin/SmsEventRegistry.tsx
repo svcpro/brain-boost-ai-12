@@ -207,16 +207,41 @@ export default function SmsEventRegistry() {
         body: { dry_run: false },
       });
       if (error) throw error;
+      const jobId = (data as any)?.job_id as string | undefined;
+      const total = (data as any)?.total_pairs ?? 0;
       toast({
-        title: "Broadcast complete",
-        description: `Sent ${(data as any)?.sent ?? 0} · Failed ${(data as any)?.failed ?? 0} · Skipped ${(data as any)?.skipped ?? 0} (of ${(data as any)?.total_pairs ?? 0})`,
+        title: "Broadcast started",
+        description: `${total} SMS queued in background. Tracking job ${jobId?.slice(0, 8)}…`,
       });
+      if (!jobId) return;
+
+      // Poll job progress every 3s until complete or 10 min cap
+      const start = Date.now();
+      const MAX_MS = 10 * 60 * 1000;
+      while (Date.now() - start < MAX_MS) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const { data: job } = await supabase
+          .from("sms_broadcast_jobs")
+          .select("status, sent, failed, skipped, total_pairs, last_error")
+          .eq("id", jobId)
+          .maybeSingle();
+        if (!job) continue;
+        if (job.status === "complete" || job.status === "error") {
+          toast({
+            title: job.status === "complete" ? "Broadcast complete" : "Broadcast finished with errors",
+            description: `Sent ${job.sent} · Failed ${job.failed} · Skipped ${job.skipped} (of ${job.total_pairs})${job.last_error ? ` — ${job.last_error}` : ""}`,
+            variant: job.status === "error" ? "destructive" : undefined,
+          });
+          break;
+        }
+      }
     } catch (e: any) {
       toast({ title: "Broadcast failed", description: e?.message || String(e), variant: "destructive" });
     } finally {
       setBroadcasting(false);
     }
   }
+
 
   async function load() {
     setLoading(true);
