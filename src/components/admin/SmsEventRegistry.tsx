@@ -399,6 +399,62 @@ export default function SmsEventRegistry() {
                 </p>
               </div>
 
+              {/* Live template preview */}
+              {(() => {
+                const t = templates.find((x) => x.name === editing.template_name);
+                if (!t?.body_template) return null;
+
+                const sample: Record<string, string> = {
+                  name: "Santosh", badge: "Memory Master", amount: "₹149", rank: "42",
+                  days: "3", topic: "Physics", link: "https://acry.ai", url: "https://acry.ai",
+                  otp: "482913", time: "10:24", app: "ACRY", exam: "NEET UG", streak: "7",
+                  score: "82%", feature: "Brain Missions", reward: "₹50", test: "Mock 12",
+                  milestone: "Level 5", friend: "Aman",
+                  summary: "Today: 3 sessions, 2 weak topics fixed",
+                };
+
+                const map = (editing.variable_map || {}) as Record<string, string>;
+                const resolveToken = (token: string): string => {
+                  if (sample[token] !== undefined) return sample[token];
+                  if (map[token]) return sample[map[token]] ?? `{${map[token]}}`;
+                  const m = token.match(/^var(\d+)$/);
+                  if (m) {
+                    const idx = parseInt(m[1]) - 1;
+                    const slots = Object.keys(map);
+                    const key = map[slots[idx]] ?? slots[idx];
+                    if (key && sample[key] !== undefined) return sample[key];
+                  }
+                  return `{${token}}`;
+                };
+
+                const rendered = (t.body_template as string)
+                  .replace(/##([a-zA-Z0-9_]+)##/g, (_, k) => resolveToken(k))
+                  .replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, k) => resolveToken(k));
+
+                const length = rendered.length;
+                const segments = Math.max(1, Math.ceil(length / 160));
+
+                return (
+                  <div>
+                    <Label className="text-xs flex items-center justify-between mb-1">
+                      <span>Live preview (sample data)</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">
+                        {length} chars · {segments} SMS
+                      </span>
+                    </Label>
+                    <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 text-xs whitespace-pre-wrap leading-relaxed font-mono">
+                      {rendered}
+                    </div>
+                    {t.dlt_template_id && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Sent via Flow ID <code>{t.dlt_template_id}</code>
+                        {t.variables?.length ? <> · template vars: <code>{(t.variables as string[]).join(", ")}</code></> : null}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Category</Label>
