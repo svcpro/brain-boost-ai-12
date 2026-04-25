@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Zap, Edit3, Send, RefreshCw, Filter } from "lucide-react";
+import { Zap, Edit3, Send, RefreshCw, Filter, Plus } from "lucide-react";
 
 type EventRow = {
   id: string;
@@ -48,6 +48,16 @@ export default function SmsEventRegistry() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testMobile, setTestMobile] = useState("");
   const [testEvent, setTestEvent] = useState<EventRow | null>(null);
+  const [creatingTpl, setCreatingTpl] = useState(false);
+  const [newTpl, setNewTpl] = useState({
+    name: "",
+    display_name: "",
+    dlt_template_id: "",
+    sender_id: "",
+    category: "engagement",
+    body_template: "",
+  });
+  const [savingTpl, setSavingTpl] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -124,6 +134,46 @@ export default function SmsEventRegistry() {
       setTesting(null);
       setTestEvent(null);
       setTestMobile("");
+    }
+  }
+
+  async function createTemplate() {
+    const name = newTpl.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    if (!name) return toast({ title: "Name required", variant: "destructive" });
+    if (!newTpl.display_name.trim()) return toast({ title: "Display name required", variant: "destructive" });
+    if (!newTpl.dlt_template_id.trim()) return toast({ title: "DLT Template ID required", variant: "destructive" });
+    if (!newTpl.body_template.trim()) return toast({ title: "Message body required", variant: "destructive" });
+
+    setSavingTpl(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("sms_templates").insert({
+        name,
+        display_name: newTpl.display_name.trim(),
+        dlt_template_id: newTpl.dlt_template_id.trim(),
+        sender_id: newTpl.sender_id.trim() || null,
+        category: newTpl.category,
+        body_template: newTpl.body_template.trim(),
+        is_active: true,
+        created_by: user?.id ?? null,
+      });
+      if (error) throw error;
+
+      toast({ title: "✅ Template added", description: name });
+
+      const { data: tpl } = await supabase
+        .from("sms_templates")
+        .select("name,display_name,dlt_template_id,is_active")
+        .order("display_name");
+      setTemplates((tpl as any) || []);
+      if (editing) setEditing({ ...editing, template_name: name });
+
+      setNewTpl({ name: "", display_name: "", dlt_template_id: "", sender_id: "", category: "engagement", body_template: "" });
+      setCreatingTpl(false);
+    } catch (e: any) {
+      toast({ title: "Failed to add template", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingTpl(false);
     }
   }
 
@@ -276,7 +326,18 @@ export default function SmsEventRegistry() {
           {editing && (
             <div className="space-y-3">
               <div>
-                <Label className="text-xs">DLT Template (Flow ID source)</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs">DLT Template (Flow ID source)</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] text-violet-400 hover:text-violet-300"
+                    onClick={() => setCreatingTpl(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> New template
+                  </Button>
+                </div>
                 <Select
                   value={editing.template_name ?? undefined}
                   onValueChange={(v) => setEditing({ ...editing, template_name: v })}
@@ -299,7 +360,7 @@ export default function SmsEventRegistry() {
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  The Flow ID lives on the template itself (Templates tab). Add it there once and it applies everywhere.
+                  Don't see your DLT-approved template? Click <b>New template</b> to add it with its Flow ID right here.
                 </p>
               </div>
 
@@ -398,6 +459,87 @@ export default function SmsEventRegistry() {
             <Button variant="outline" onClick={() => setTestEvent(null)}>Cancel</Button>
             <Button onClick={runTest} disabled={!testMobile || testing === testEvent?.event_key}>
               {testing === testEvent?.event_key ? "Sending…" : "Send test"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create new DLT template dialog */}
+      <Dialog open={creatingTpl} onOpenChange={(o) => !savingTpl && setCreatingTpl(o)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add DLT-Approved Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Internal name *</Label>
+                <Input
+                  placeholder="payment_success"
+                  value={newTpl.name}
+                  onChange={(e) => setNewTpl({ ...newTpl, name: e.target.value })}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">lowercase, underscores only</p>
+              </div>
+              <div>
+                <Label className="text-xs">Display name *</Label>
+                <Input
+                  placeholder="Payment Success"
+                  value={newTpl.display_name}
+                  onChange={(e) => setNewTpl({ ...newTpl, display_name: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">DLT Template ID / Flow ID *</Label>
+                <Input
+                  placeholder="65f1c8a4d6e2…"
+                  value={newTpl.dlt_template_id}
+                  onChange={(e) => setNewTpl({ ...newTpl, dlt_template_id: e.target.value })}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">From your MSG91 Flow dashboard</p>
+              </div>
+              <div>
+                <Label className="text-xs">Sender ID (optional)</Label>
+                <Input
+                  placeholder="ACRYAI"
+                  value={newTpl.sender_id}
+                  onChange={(e) => setNewTpl({ ...newTpl, sender_id: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Category</Label>
+              <Select value={newTpl.category} onValueChange={(v) => setNewTpl({ ...newTpl, category: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["critical","security","payment","otp","transactional","engagement"].map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs">Message body (DLT-approved text) *</Label>
+              <Textarea
+                rows={4}
+                placeholder="Hi {{var1}}, your payment of {{var2}} was successful. — ACRY"
+                value={newTpl.body_template}
+                onChange={(e) => setNewTpl({ ...newTpl, body_template: e.target.value })}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Use <code>{`{{var1}}`}</code>, <code>{`{{var2}}`}</code>, <code>{`{{var3}}`}</code> as placeholders matching your Flow variables.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreatingTpl(false)} disabled={savingTpl}>Cancel</Button>
+            <Button onClick={createTemplate} disabled={savingTpl}>
+              {savingTpl ? "Saving…" : "Add Template"}
             </Button>
           </DialogFooter>
         </DialogContent>
