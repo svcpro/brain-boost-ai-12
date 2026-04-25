@@ -463,6 +463,87 @@ export default function SmsEventRegistry() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create new DLT template dialog */}
+      <Dialog open={creatingTpl} onOpenChange={(o) => !savingTpl && setCreatingTpl(o)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add DLT-Approved Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Internal name *</Label>
+                <Input
+                  placeholder="payment_success"
+                  value={newTpl.name}
+                  onChange={(e) => setNewTpl({ ...newTpl, name: e.target.value })}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">lowercase, underscores only</p>
+              </div>
+              <div>
+                <Label className="text-xs">Display name *</Label>
+                <Input
+                  placeholder="Payment Success"
+                  value={newTpl.display_name}
+                  onChange={(e) => setNewTpl({ ...newTpl, display_name: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">DLT Template ID / Flow ID *</Label>
+                <Input
+                  placeholder="65f1c8a4d6e2…"
+                  value={newTpl.dlt_template_id}
+                  onChange={(e) => setNewTpl({ ...newTpl, dlt_template_id: e.target.value })}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">From your MSG91 Flow dashboard</p>
+              </div>
+              <div>
+                <Label className="text-xs">Sender ID (optional)</Label>
+                <Input
+                  placeholder="ACRYAI"
+                  value={newTpl.sender_id}
+                  onChange={(e) => setNewTpl({ ...newTpl, sender_id: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Category</Label>
+              <Select value={newTpl.category} onValueChange={(v) => setNewTpl({ ...newTpl, category: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["critical","security","payment","otp","transactional","engagement"].map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs">Message body (DLT-approved text) *</Label>
+              <Textarea
+                rows={4}
+                placeholder="Hi {{var1}}, your payment of {{var2}} was successful. — ACRY"
+                value={newTpl.body_template}
+                onChange={(e) => setNewTpl({ ...newTpl, body_template: e.target.value })}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Use <code>{`{{var1}}`}</code>, <code>{`{{var2}}`}</code>, <code>{`{{var3}}`}</code> as placeholders matching your Flow variables.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreatingTpl(false)} disabled={savingTpl}>Cancel</Button>
+            <Button onClick={createTemplate} disabled={savingTpl}>
+              {savingTpl ? "Saving…" : "Add Template"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
