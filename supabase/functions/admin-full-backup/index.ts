@@ -125,7 +125,8 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const format: "json" | "ndjson" = body.format === "ndjson" ? "ndjson" : "json";
+    const format: "json" | "ndjson" | "csv" =
+      body.format === "ndjson" ? "ndjson" : body.format === "csv" ? "csv" : "json";
     const mode: "full" | "incremental" = body.mode === "incremental" ? "incremental" : "full";
 
     // Always discover the live table list so backups stay accurate as the schema evolves.
