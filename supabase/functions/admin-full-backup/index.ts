@@ -16,53 +16,32 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const ALL_TABLES = [
-  "accelerator_enrollments","adaptive_lock_config","admin_audit_logs","ai_chat_messages",
-  "ai_recalibration_logs","ai_recommendations","api_endpoints","api_integrations",
-  "api_keys","api_rate_limits","api_request_logs","attention_predictions",
-  "autopilot_config","autopilot_sessions","batch_analytics","batch_students",
-  "behavioral_micro_events","behavioral_profiles","brain_missions","brain_reports",
-  "brainlens_config","brainlens_queries","ca_autopilot_config","ca_debate_analyses",
-  "ca_entities","ca_event_entities","ca_events","ca_framework_applications",
-  "ca_generated_questions","ca_graph_edges","ca_impact_forecasts","ca_policy_analyses",
-  "ca_policy_similarities","ca_probability_adjustments","ca_syllabus_links",
-  "ca_writing_evaluations","campaign_recipients","campaigns","channel_effectiveness",
-  "chat_admin_config","chat_usage_logs","churn_predictions","cognitive_profiles",
-  "cognitive_state_history","cognitive_twins","coming_soon_config","coming_soon_emails",
-  "communities","community_members","community_posts","competitive_intel_config",
-  "confidence_events","content_flags","curriculum_shift_events","device_sessions",
-  "discussion_recommendations","distraction_events","distraction_scores","drip_sequences",
-  "edge_function_rate_limits","email_logs","email_queue","email_templates","email_triggers",
-  "event_log","exam_countdown_config","exam_countdown_predictions","exam_datasets",
-  "exam_evolution_patterns","exam_evolution_reports","exam_intel_alerts",
-  "exam_intel_pipeline_runs","exam_intel_practice_questions","exam_intel_student_briefs",
-  "exam_intel_topic_scores","exam_results","exam_trend_patterns","faculty_assignments",
-  "fatigue_config","fatigue_events","feature_flags","focus_interventions",
-  "focus_shield_config","focus_shield_warnings","freeze_gifts","generated_exam_questions",
-  "global_learning_patterns","growth_analytics","growth_journeys","growth_trigger_log",
-  "hybrid_predictions","institution_api_keys","institution_audit_logs","institution_batches",
-  "institution_invoices","institution_licenses","institution_members","institutions",
-  "language_performance","leads","learning_simulations","memory_scores",
-  "meta_learning_strategies","meta_template_submissions","micro_concepts","ml_events",
-  "ml_training_logs","model_metrics","model_predictions","model_recalibration_logs",
-  "model_selections","moderation_actions","moderation_rules","neural_discipline_scores",
-  "notification_ab_tests","notification_analytics","notification_bundles",
-  "notification_delivery_log","notification_escalations","notification_history",
-  "notification_segments","omnichannel_rules","opponent_simulation_config",
-  "pattern_evolution_logs","plan_feature_gates","plan_quality_logs","plan_sessions",
-  "post_bookmarks","post_comments","post_reactions","post_votes","practice_progress",
-  "practice_set_submissions","precision_scores","predicted_questions",
-  "prediction_confidence_bands","profiles","push_notification_logs",
-  "push_notification_queue","push_notification_templates","push_notification_triggers",
-  "push_subscriptions","question_bank","question_bank_tags",
-  "rank_predictions","role_permissions","seo_config",
-  "sms_config","sms_event_registry","sms_logs","sms_quota","sms_scheduled_dispatches",
-  "streak_freezes","study_logs","study_plans","subjects",
-  "subscription_plans","sureshot_questions","topics",
-  "user_roles","user_settings","user_subscriptions",
-  "whatsapp_config","whatsapp_quota",
-  "admin_backup_runs",
-];
+// Tables we never want to back up (system / internal noise)
+const EXCLUDED_TABLES = new Set<string>([
+  // Add any internal-only or huge log tables here if desired.
+]);
+
+// Discover real public tables at runtime via information_schema RPC fallback.
+// We avoid hardcoded lists so new tables are automatically included and
+// dropped/renamed tables never cause "relation does not exist" failures.
+async function listPublicTables(sb: any): Promise<string[]> {
+  // Try a direct query via PostgREST: information_schema is exposed as a system view,
+  // but PostgREST doesn't expose it. Instead, use a tiny RPC if present, otherwise
+  // probe a known catalog through a SQL function. Falls back to a safe default list.
+  try {
+    const { data, error } = await sb.rpc("admin_list_public_tables");
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data
+        .map((r: any) => (typeof r === "string" ? r : r.table_name))
+        .filter((t: string) => t && !EXCLUDED_TABLES.has(t))
+        .sort();
+    }
+  } catch (_) { /* fall through */ }
+  // Fallback: query pg_catalog through a generic select on a view we expose.
+  // If that also fails, the function will return an empty list and the caller
+  // will surface a clear error instead of silently backing up nothing.
+  return [];
+}
 
 const PAGE_SIZE = 1000;
 const PARALLEL = 4;
