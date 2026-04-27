@@ -1,225 +1,376 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Database, Download, Loader2, CheckCircle2, HardDrive, FileJson, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Database, Download, Loader2, CheckCircle2, HardDrive, FileJson, AlertTriangle,
+  Sparkles, Clock, RefreshCw, FileText, ListChecks, Trash2, Filter, Zap,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
-// All public tables in the database
-const ALL_TABLES = [
-  "accelerator_enrollments", "adaptive_lock_config", "admin_audit_logs", "ai_chat_messages",
-  "ai_recalibration_logs", "ai_recommendations", "api_endpoints", "api_integrations",
-  "api_keys", "api_rate_limits", "api_request_logs", "attention_predictions",
-  "autopilot_config", "autopilot_sessions", "batch_analytics", "batch_students",
-  "behavioral_micro_events", "behavioral_profiles", "brain_missions", "brain_reports",
-  "brainlens_config", "brainlens_queries", "ca_autopilot_config", "ca_debate_analyses",
-  "ca_entities", "ca_event_entities", "ca_events", "ca_framework_applications",
-  "ca_generated_questions", "ca_graph_edges", "ca_impact_forecasts", "ca_policy_analyses",
-  "ca_policy_similarities", "ca_probability_adjustments", "ca_syllabus_links",
-  "ca_writing_evaluations", "campaign_recipients", "campaigns", "channel_effectiveness",
-  "chat_admin_config", "chat_usage_logs", "churn_predictions", "cognitive_profiles",
-  "cognitive_state_history", "cognitive_twins", "coming_soon_config", "coming_soon_emails",
-  "communities", "community_members", "community_posts", "competitive_intel_config",
-  "confidence_events", "content_flags", "curriculum_shift_events", "device_sessions",
-  "discussion_recommendations", "distraction_events", "distraction_scores", "drip_sequences",
-  "edge_function_rate_limits", "email_logs", "email_queue", "email_templates", "email_triggers",
-  "event_log", "exam_countdown_config", "exam_countdown_predictions", "exam_datasets",
-  "exam_evolution_patterns", "exam_evolution_reports", "exam_intel_alerts",
-  "exam_intel_pipeline_runs", "exam_intel_practice_questions", "exam_intel_student_briefs",
-  "exam_intel_topic_scores", "exam_results", "exam_trend_patterns", "faculty_assignments",
-  "fatigue_config", "fatigue_events", "feature_flags", "focus_interventions",
-  "focus_shield_config", "focus_shield_warnings", "freeze_gifts", "generated_exam_questions",
-  "global_learning_patterns", "growth_analytics", "growth_journeys", "growth_trigger_log",
-  "hybrid_predictions", "institution_api_keys", "institution_audit_logs", "institution_batches",
-  "institution_invoices", "institution_licenses", "institution_members", "institutions",
-  "language_performance", "leads", "learning_simulations", "memory_scores",
-  "meta_learning_strategies", "meta_template_submissions", "micro_concepts", "ml_events",
-  "ml_training_logs", "model_metrics", "model_predictions", "model_recalibration_logs",
-  "model_selections", "moderation_actions", "moderation_rules", "neural_discipline_scores",
-  "notification_ab_tests", "notification_analytics", "notification_bundles",
-  "notification_delivery_log", "notification_escalations", "notification_history",
-  "notification_segments", "omnichannel_rules", "opponent_simulation_config",
-  "pattern_evolution_logs", "plan_feature_gates", "plan_quality_logs", "plan_sessions",
-  "post_bookmarks", "post_comments", "post_reactions", "post_votes", "practice_progress",
-  "practice_set_submissions", "precision_scores", "predicted_questions",
-  "prediction_confidence_bands", "profiles", "push_notification_logs",
-  "push_notification_queue", "push_notification_templates", "push_notification_triggers",
-  "push_subscriptions", "question_bank", "question_bank_tags",
-  "rank_predictions", "role_permissions", "seo_config",
-  "streak_freezes", "study_logs", "study_plans", "subjects",
-  "subscription_plans", "sureshot_questions", "topics",
-  "user_roles", "user_settings", "user_subscriptions",
-] as const;
+type RunStatus = "queued" | "running" | "completed" | "failed";
+type Run = {
+  id: string;
+  status: RunStatus;
+  format: string;
+  scope: string;
+  total_tables: number;
+  completed_tables: number;
+  failed_tables: string[] | null;
+  total_rows: number;
+  size_bytes: number;
+  download_url: string | null;
+  storage_path: string | null;
+  duration_ms: number | null;
+  started_at: string;
+  finished_at: string | null;
+  expires_at: string | null;
+};
 
-type BackupStatus = "idle" | "fetching" | "packaging" | "done" | "error";
+const fmtBytes = (n: number) => {
+  if (!n) return "0 B";
+  const u = ["B", "KB", "MB", "GB"];
+  let i = 0; let v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${u[i]}`;
+};
+
+const fmtMs = (ms: number | null) => {
+  if (!ms) return "—";
+  if (ms < 1000) return `${ms}ms`;
+  const s = Math.round(ms / 100) / 10;
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+};
 
 export default function AdminBackup() {
   const { toast } = useToast();
-  const [status, setStatus] = useState<BackupStatus>("idle");
-  const [progress, setProgress] = useState({ current: 0, total: ALL_TABLES.length, currentTable: "" });
-  const [lastBackup, setLastBackup] = useState<string | null>(null);
-  const [errorTables, setErrorTables] = useState<string[]>([]);
+  const [tables, setTables] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState("");
+  const [exportFormat, setExportFormat] = useState<"json" | "ndjson">("json");
+  const [running, setRunning] = useState(false);
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [latest, setLatest] = useState<Run | null>(null);
 
-  const downloadFullBackup = async () => {
-    setStatus("fetching");
-    setErrorTables([]);
-    const backup: Record<string, any> = {};
-    const errors: string[] = [];
-
-    for (let i = 0; i < ALL_TABLES.length; i++) {
-      const table = ALL_TABLES[i];
-      setProgress({ current: i + 1, total: ALL_TABLES.length, currentTable: table });
-
-      try {
-        // Fetch in pages of 1000 to handle large tables
-        let allRows: any[] = [];
-        let page = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await (supabase.from(table as any).select("*") as any)
-            .range(page * 1000, (page + 1) * 1000 - 1);
-          if (error) throw error;
-          if (data && data.length > 0) {
-            allRows = [...allRows, ...data];
-            hasMore = data.length === 1000;
-            page++;
-          } else {
-            hasMore = false;
-          }
-        }
-
-        backup[table] = { count: allRows.length, data: allRows };
-      } catch (e: any) {
-        errors.push(table);
-        backup[table] = { count: 0, data: [], error: e.message };
+  // Load table list and history
+  const loadAll = async () => {
+    try {
+      const { data: tbls } = await supabase.functions.invoke("admin-full-backup", {
+        body: { action: "list_tables" },
+      });
+      if (tbls?.tables) {
+        setTables(tbls.tables);
+        setSelected(new Set(tbls.tables));
       }
-    }
+    } catch (e) { console.error(e); }
 
-    setStatus("packaging");
-    setErrorTables(errors);
-
-    const now = new Date();
-    const fullBackup = {
-      _meta: {
-        exportedAt: now.toISOString(),
-        version: "2.0",
-        type: "full_database_backup",
-        totalTables: ALL_TABLES.length,
-        successfulTables: ALL_TABLES.length - errors.length,
-        failedTables: errors,
-      },
-      tables: backup,
-    };
-
-    const blob = new Blob([JSON.stringify(fullBackup, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `acry-full-backup-${format(now, "yyyy-MM-dd-HHmm")}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    setStatus("done");
-    setLastBackup(format(now, "yyyy-MM-dd HH:mm"));
-    toast({
-      title: "✅ Full Backup Downloaded",
-      description: `${ALL_TABLES.length - errors.length}/${ALL_TABLES.length} tables exported successfully.`,
-    });
+    const { data } = await supabase.from("admin_backup_runs")
+      .select("*").order("created_at", { ascending: false }).limit(20);
+    if (data) setRuns(data as Run[]);
   };
 
-  const progressPct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+  useEffect(() => { loadAll(); }, []);
+
+  // Realtime progress for the active run
+  useEffect(() => {
+    if (!latest?.id || latest.status === "completed" || latest.status === "failed") return;
+    const ch = supabase
+      .channel(`backup-${latest.id}`)
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "admin_backup_runs", filter: `id=eq.${latest.id}` },
+        (payload) => setLatest(payload.new as Run))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [latest?.id, latest?.status]);
+
+  const startBackup = async () => {
+    if (running) return;
+    setRunning(true);
+    setLatest({
+      id: "pending", status: "running", format: exportFormat,
+      scope: selected.size === tables.length ? "full" : "partial",
+      total_tables: selected.size, completed_tables: 0, failed_tables: [],
+      total_rows: 0, size_bytes: 0, download_url: null, storage_path: null,
+      duration_ms: null, started_at: new Date().toISOString(), finished_at: null, expires_at: null,
+    });
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-full-backup", {
+        body: {
+          action: "start",
+          format: exportFormat,
+          tables: selected.size === tables.length ? null : Array.from(selected),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "✅ Backup ready",
+        description: `${data.completed_tables}/${data.total_tables} tables · ${fmtBytes(data.size_bytes)} · ${fmtMs(data.duration_ms)}`,
+      });
+      // Auto-download
+      if (data.download_url) {
+        const a = document.createElement("a");
+        a.href = data.download_url;
+        a.download = `acry-backup-${Date.now()}.${exportFormat}`;
+        a.click();
+      }
+      await loadAll();
+      // Re-select latest from refreshed list
+      const { data: fresh } = await supabase.from("admin_backup_runs").select("*").eq("id", data.run_id).maybeSingle();
+      if (fresh) setLatest(fresh as Run);
+    } catch (e: any) {
+      toast({ title: "Backup failed", description: e.message, variant: "destructive" });
+      setLatest(null);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const downloadRun = async (run: Run) => {
+    if (run.download_url) {
+      window.open(run.download_url, "_blank");
+      return;
+    }
+    if (!run.storage_path) return;
+    const { data } = await supabase.storage.from("admin-backups")
+      .createSignedUrl(run.storage_path, 60 * 60);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+  };
+
+  const deleteRun = async (run: Run) => {
+    if (run.storage_path) {
+      await supabase.storage.from("admin-backups").remove([run.storage_path]);
+    }
+    await supabase.from("admin_backup_runs").delete().eq("id", run.id);
+    setRuns((r) => r.filter((x) => x.id !== run.id));
+    toast({ title: "Backup deleted" });
+  };
+
+  const toggleAll = (checked: boolean) =>
+    setSelected(new Set(checked ? tables : []));
+
+  const toggle = (t: string) => {
+    const next = new Set(selected);
+    next.has(t) ? next.delete(t) : next.add(t);
+    setSelected(next);
+  };
+
+  const filtered = tables.filter((t) => t.toLowerCase().includes(filter.toLowerCase()));
+  const progressPct = latest && latest.total_tables
+    ? Math.round((latest.completed_tables / latest.total_tables) * 100)
+    : 0;
 
   return (
     <div className="space-y-5 mt-4">
-      {/* Header */}
-      <div className="glass rounded-2xl neural-border p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 rounded-xl bg-primary/10">
+      {/* Hero */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-2xl neural-border p-6 relative overflow-hidden">
+        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="flex items-center gap-3 mb-5 relative">
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 neural-border">
             <HardDrive className="w-6 h-6 text-primary" />
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-foreground">Full System Backup</h3>
-            <p className="text-xs text-muted-foreground">Download complete database as a single JSON file</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-foreground">Full System Backup</h3>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-primary/15 text-primary">v3.0</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Server-side · Bypasses RLS · Parallel · Auto-download</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          <div className="bg-secondary/30 rounded-xl p-3 text-center">
-            <Database className="w-4 h-4 text-primary mx-auto mb-1" />
-            <p className="text-lg font-bold text-foreground">{ALL_TABLES.length}</p>
-            <p className="text-[10px] text-muted-foreground">Total Tables</p>
-          </div>
-          <div className="bg-secondary/30 rounded-xl p-3 text-center">
-            <FileJson className="w-4 h-4 text-accent mx-auto mb-1" />
-            <p className="text-lg font-bold text-foreground">JSON</p>
-            <p className="text-[10px] text-muted-foreground">Export Format</p>
-          </div>
-          <div className="bg-secondary/30 rounded-xl p-3 text-center">
-            <Download className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-            <p className="text-lg font-bold text-foreground">{lastBackup ? "✓" : "—"}</p>
-            <p className="text-[10px] text-muted-foreground">{lastBackup || "No backup yet"}</p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-5">
+          {[
+            { icon: Database, label: "Tables", value: tables.length, color: "text-primary" },
+            { icon: ListChecks, label: "Selected", value: selected.size, color: "text-accent" },
+            { icon: Zap, label: "Parallelism", value: "4×", color: "text-warning" },
+            { icon: Clock, label: "URL valid", value: "24h", color: "text-emerald-400" },
+          ].map((s) => (
+            <div key={s.label} className="bg-secondary/30 rounded-xl p-3 text-center neural-border">
+              <s.icon className={`w-3.5 h-3.5 mx-auto mb-1 ${s.color}`} />
+              <p className="text-base font-bold text-foreground">{s.value}</p>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wide">{s.label}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Progress bar */}
-        {(status === "fetching" || status === "packaging") && (
-          <div className="mb-4 space-y-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="truncate max-w-[60%]">
-                {status === "packaging" ? "Packaging backup..." : `Fetching: ${progress.currentTable}`}
-              </span>
-              <span>{progressPct}%</span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-secondary/50 overflow-hidden">
-              <motion.div
-                className="h-full bg-primary rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPct}%` }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
-          </div>
-        )}
+        {/* Format selector */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { id: "json", label: "JSON", desc: "Single file · pretty" },
+            { id: "ndjson", label: "NDJSON", desc: "Streamable · scale-ready" },
+          ].map((f) => (
+            <button key={f.id} onClick={() => setExportFormat(f.id as any)}
+              className={`flex-1 p-3 rounded-xl neural-border transition-all text-left ${
+                exportFormat === f.id ? "bg-primary/15 ring-1 ring-primary/40" : "bg-secondary/20 hover:bg-secondary/40"
+              }`}>
+              <div className="flex items-center gap-2 mb-0.5">
+                <FileJson className={`w-3.5 h-3.5 ${exportFormat === f.id ? "text-primary" : "text-muted-foreground"}`} />
+                <span className="text-xs font-bold text-foreground">{f.label}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{f.desc}</p>
+            </button>
+          ))}
+        </div>
 
-        {/* Download button */}
-        <button
-          onClick={downloadFullBackup}
-          disabled={status === "fetching" || status === "packaging"}
-          className="w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-primary/10 hover:bg-primary/20 neural-border transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {status === "fetching" || status === "packaging" ? (
-            <Loader2 className="w-5 h-5 text-primary animate-spin" />
-          ) : status === "done" ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-          ) : (
-            <Download className="w-5 h-5 text-primary" />
+        {/* Live progress */}
+        <AnimatePresence>
+          {latest && (latest.status === "running" || latest.status === "queued") && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }} className="mb-4 space-y-2 overflow-hidden">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                  Exporting {latest.completed_tables}/{latest.total_tables} tables
+                  {latest.total_rows > 0 && <span className="text-foreground">· {latest.total_rows.toLocaleString()} rows</span>}
+                </span>
+                <span className="text-primary font-bold">{progressPct}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-secondary/50 overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
+                  initial={{ width: 0 }} animate={{ width: `${progressPct}%` }}
+                  transition={{ duration: 0.4 }}
+                />
+              </div>
+            </motion.div>
           )}
-          <span className="text-sm font-semibold text-foreground">
-            {status === "fetching"
-              ? `Exporting... (${progress.current}/${progress.total})`
-              : status === "packaging"
-              ? "Packaging backup..."
-              : status === "done"
-              ? "Download Again"
-              : "Download Complete Database Backup"}
-          </span>
+        </AnimatePresence>
+
+        {/* Action button */}
+        <button onClick={startBackup} disabled={running || selected.size === 0}
+          className="w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-gradient-to-r from-primary to-accent neural-border transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-primary/20">
+          {running ? (
+            <>
+              <Loader2 className="w-5 h-5 text-primary-foreground animate-spin" />
+              <span className="text-sm font-bold text-primary-foreground">Generating backup...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
+              <span className="text-sm font-bold text-primary-foreground">
+                Generate {selected.size === tables.length ? "Full" : `${selected.size}-table`} Backup
+              </span>
+            </>
+          )}
         </button>
 
-        {/* Error tables */}
-        {errorTables.length > 0 && (
-          <div className="mt-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
-              <span className="text-xs font-medium text-destructive">{errorTables.length} tables had access errors (RLS restricted)</span>
+        {latest?.status === "completed" && (
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground truncate">
+                  {latest.completed_tables}/{latest.total_tables} tables · {latest.total_rows.toLocaleString()} rows · {fmtBytes(latest.size_bytes)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Generated in {fmtMs(latest.duration_ms)}</p>
+              </div>
             </div>
-            <p className="text-[10px] text-muted-foreground">{errorTables.join(", ")}</p>
+            <button onClick={() => downloadRun(latest)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-semibold flex items-center gap-1">
+              <Download className="w-3 h-3" /> Re-download
+            </button>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* Table picker */}
+      <div className="glass rounded-2xl neural-border p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-primary" />
+            <h4 className="text-sm font-bold text-foreground">Tables</h4>
+            <span className="text-[10px] text-muted-foreground">({selected.size}/{tables.length})</span>
+          </div>
+          <div className="flex gap-1.5">
+            <button onClick={() => toggleAll(true)}
+              className="px-2.5 py-1 rounded-lg bg-secondary/40 hover:bg-secondary/60 text-[10px] font-medium text-foreground">
+              All
+            </button>
+            <button onClick={() => toggleAll(false)}
+              className="px-2.5 py-1 rounded-lg bg-secondary/40 hover:bg-secondary/60 text-[10px] font-medium text-foreground">
+              None
+            </button>
+          </div>
+        </div>
+        <input value={filter} onChange={(e) => setFilter(e.target.value)}
+          placeholder="Search tables..."
+          className="w-full mb-3 px-3 py-2 rounded-lg bg-secondary/30 neural-border text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/40" />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto pr-1">
+          {filtered.map((t) => {
+            const on = selected.has(t);
+            return (
+              <button key={t} onClick={() => toggle(t)}
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] text-left truncate transition-all ${
+                  on ? "bg-primary/15 text-foreground ring-1 ring-primary/30" : "bg-secondary/20 text-muted-foreground hover:bg-secondary/40"
+                }`}>
+                {on ? "✓ " : ""}{t}
+              </button>
+            );
+          })}
+          {filtered.length === 0 && <p className="text-[10px] text-muted-foreground col-span-full text-center py-4">No matches</p>}
+        </div>
+      </div>
+
+      {/* History */}
+      <div className="glass rounded-2xl neural-border p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-accent" />
+            <h4 className="text-sm font-bold text-foreground">Backup History</h4>
+            <span className="text-[10px] text-muted-foreground">(last 20 · auto-expire 7d)</span>
+          </div>
+          <button onClick={loadAll} className="p-1.5 rounded-lg bg-secondary/40 hover:bg-secondary/60">
+            <RefreshCw className="w-3 h-3 text-foreground" />
+          </button>
+        </div>
+
+        {runs.length === 0 ? (
+          <div className="text-center py-8">
+            <FileText className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground">No backups yet — generate your first one above.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {runs.map((r) => {
+              const failedCount = r.failed_tables?.length || 0;
+              return (
+                <div key={r.id} className="p-3 rounded-xl bg-secondary/20 neural-border flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    r.status === "completed" ? "bg-emerald-500/15"
+                    : r.status === "failed" ? "bg-destructive/15"
+                    : "bg-warning/15"
+                  }`}>
+                    {r.status === "completed" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      : r.status === "failed" ? <AlertTriangle className="w-4 h-4 text-destructive" />
+                      : <Loader2 className="w-4 h-4 text-warning animate-spin" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-foreground truncate">
+                      {format(new Date(r.started_at), "MMM dd, HH:mm:ss")} · {r.format.toUpperCase()} · {r.scope}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {r.completed_tables}/{r.total_tables} tables · {r.total_rows.toLocaleString()} rows · {fmtBytes(r.size_bytes)} · {fmtMs(r.duration_ms)}
+                      {failedCount > 0 && <span className="text-destructive"> · {failedCount} failed</span>}
+                    </p>
+                  </div>
+                  {r.status === "completed" && (
+                    <button onClick={() => downloadRun(r)}
+                      className="p-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary">
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button onClick={() => deleteRun(r)}
+                    className="p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
-
-        <p className="text-[10px] text-muted-foreground text-center mt-3">
-          Backup includes all {ALL_TABLES.length} public tables. Large tables are fetched in pages of 1000 rows.
-        </p>
       </div>
     </div>
   );

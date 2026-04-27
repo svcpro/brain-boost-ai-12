@@ -170,6 +170,72 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_backup_runs: {
+        Row: {
+          completed_tables: number | null
+          created_at: string
+          download_url: string | null
+          duration_ms: number | null
+          error_message: string | null
+          expires_at: string | null
+          failed_tables: string[] | null
+          finished_at: string | null
+          format: string
+          id: string
+          scope: string
+          selected_tables: string[] | null
+          size_bytes: number | null
+          started_at: string
+          status: string
+          storage_path: string | null
+          total_rows: number | null
+          total_tables: number | null
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_tables?: number | null
+          created_at?: string
+          download_url?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          expires_at?: string | null
+          failed_tables?: string[] | null
+          finished_at?: string | null
+          format?: string
+          id?: string
+          scope?: string
+          selected_tables?: string[] | null
+          size_bytes?: number | null
+          started_at?: string
+          status?: string
+          storage_path?: string | null
+          total_rows?: number | null
+          total_tables?: number | null
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_tables?: number | null
+          created_at?: string
+          download_url?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          expires_at?: string | null
+          failed_tables?: string[] | null
+          finished_at?: string | null
+          format?: string
+          id?: string
+          scope?: string
+          selected_tables?: string[] | null
+          size_bytes?: number | null
+          started_at?: string
+          status?: string
+          storage_path?: string | null
+          total_rows?: number | null
+          total_tables?: number | null
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       ai_chat_messages: {
         Row: {
           bookmarked: boolean
