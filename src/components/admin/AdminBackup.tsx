@@ -97,6 +97,8 @@ export default function AdminBackup() {
     setLatest({
       id: "pending", status: "running", format: exportFormat,
       scope: selected.size === tables.length ? "full" : "partial",
+      mode, since_timestamp: mode === "incremental" ? lastRun?.finished_at ?? null : null,
+      skipped_tables: [],
       total_tables: selected.size, completed_tables: 0, failed_tables: [],
       total_rows: 0, size_bytes: 0, download_url: null, storage_path: null,
       duration_ms: null, started_at: new Date().toISOString(), finished_at: null, expires_at: null,
@@ -106,21 +108,24 @@ export default function AdminBackup() {
         body: {
           action: "start",
           format: exportFormat,
+          mode,
           tables: selected.size === tables.length ? null : Array.from(selected),
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      const skippedNote = data.skipped_tables?.length ? ` · ${data.skipped_tables.length} unchanged` : "";
       toast({
-        title: "✅ Backup ready",
-        description: `${data.completed_tables}/${data.total_tables} tables · ${fmtBytes(data.size_bytes)} · ${fmtMs(data.duration_ms)}`,
+        title: mode === "incremental" ? "⚡ Incremental backup ready" : "✅ Full backup ready",
+        description: `${data.completed_tables}/${data.total_tables} tables · ${data.total_rows.toLocaleString()} rows · ${fmtBytes(data.size_bytes)} · ${fmtMs(data.duration_ms)}${skippedNote}`,
       });
       // Auto-download
       if (data.download_url) {
         const a = document.createElement("a");
         a.href = data.download_url;
-        a.download = `acry-backup-${Date.now()}.${exportFormat}`;
+        const prefix = mode === "incremental" ? "acry-incr" : "acry-backup";
+        a.download = `${prefix}-${Date.now()}.${exportFormat}`;
         a.click();
       }
       await loadAll();
