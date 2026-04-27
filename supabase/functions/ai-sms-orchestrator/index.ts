@@ -251,9 +251,8 @@ async function askAi(
 // ---------- Dispatch ----------
 
 async function dispatchEvent(userId: string, profile: any, eventKey: string, sendAtMin: number) {
-  // For "now" picks (≤2 minutes), call sms-event-engine immediately.
-  // For future picks, queue into sms_scheduled_sends if it exists.
-  if (sendAtMin <= 2) {
+  // Anything within the next 3 minutes is "now" — fire immediately.
+  if (sendAtMin <= 3) {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/sms-event-engine`, {
       method: "POST",
       headers: {
@@ -271,9 +270,9 @@ async function dispatchEvent(userId: string, profile: any, eventKey: string, sen
     return { dispatched: "now", ok: !!out?.ok, status: out?.status || res.status };
   }
 
-  // Schedule for later
+  // Otherwise queue for the per-user scheduled drainer to send at the right minute (IST aware).
   const scheduledFor = new Date(Date.now() + sendAtMin * 60 * 1000).toISOString();
-  const { error } = await sb.from("sms_scheduled_sends").insert({
+  const { error } = await sb.from("sms_scheduled_dispatches").insert({
     user_id: userId,
     event_key: eventKey,
     scheduled_for: scheduledFor,
@@ -282,7 +281,7 @@ async function dispatchEvent(userId: string, profile: any, eventKey: string, sen
     status: "pending",
   });
   if (error) {
-    // Fallback: send immediately if scheduling table is missing or insert fails
+    // Fallback: send immediately if scheduling insert fails for any reason
     const res = await fetch(`${SUPABASE_URL}/functions/v1/sms-event-engine`, {
       method: "POST",
       headers: {
