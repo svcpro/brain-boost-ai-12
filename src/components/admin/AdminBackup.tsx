@@ -51,7 +51,7 @@ export default function AdminBackup() {
   const [tables, setTables] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
-  const [exportFormat, setExportFormat] = useState<"json" | "ndjson">("json");
+  const [exportFormat, setExportFormat] = useState<"json" | "ndjson" | "csv">("json");
   const [mode, setMode] = useState<"full" | "incremental">("full");
   const [lastRun, setLastRun] = useState<{ finished_at: string; mode: string } | null>(null);
   const [running, setRunning] = useState(false);
