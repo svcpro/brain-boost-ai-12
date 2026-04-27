@@ -107,9 +107,16 @@ function sampleDataFor(eventKey: string, profile: any): Record<string, unknown> 
 
 async function gatherUserSignals(userId: string, lookbackHours: number) {
   const since = new Date(Date.now() - lookbackHours * 3600 * 1000).toISOString();
-  const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
+  // "Today" is evaluated in IST so the daily cap aligns with India calendar day.
+  const istNow = nowIST();
+  const istMidnight = new Date(Date.UTC(
+    istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate(), 0, 0, 0,
+  ));
+  // Convert IST midnight back to actual UTC instant.
+  const todayStartUtc = new Date(istMidnight.getTime() - IST_OFFSET_MS);
+  const todayEndUtc = new Date(todayStartUtc.getTime() + 24 * 3600 * 1000);
 
-  const [{ data: recentSms }, { data: recentAudit }, { data: todaySent }] = await Promise.all([
+  const [{ data: recentSms }, { data: recentAudit }, { data: todaySent }, { data: todayScheduled }] = await Promise.all([
     sb.from("sms_messages")
       .select("template_name, status, created_at")
       .eq("user_id", userId)
@@ -125,7 +132,14 @@ async function gatherUserSignals(userId: string, lookbackHours: number) {
     sb.from("sms_messages")
       .select("id", { count: "exact", head: false })
       .eq("user_id", userId)
-      .gte("created_at", todayStart.toISOString()),
+      .gte("created_at", todayStartUtc.toISOString())
+      .lt("created_at", todayEndUtc.toISOString()),
+    sb.from("sms_scheduled_dispatches")
+      .select("id, scheduled_for", { count: "exact", head: false })
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .gte("scheduled_for", todayStartUtc.toISOString())
+      .lt("scheduled_for", todayEndUtc.toISOString()),
   ]);
 
   return {
@@ -141,6 +155,7 @@ async function gatherUserSignals(userId: string, lookbackHours: number) {
       at: r.created_at,
     })),
     sent_today: (todaySent || []).length,
+    scheduled_today: (todayScheduled || []).length,
   };
 }
 
