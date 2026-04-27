@@ -107,9 +107,16 @@ function sampleDataFor(eventKey: string, profile: any): Record<string, unknown> 
 
 async function gatherUserSignals(userId: string, lookbackHours: number) {
   const since = new Date(Date.now() - lookbackHours * 3600 * 1000).toISOString();
-  const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
+  // "Today" is evaluated in IST so the daily cap aligns with India calendar day.
+  const istNow = nowIST();
+  const istMidnight = new Date(Date.UTC(
+    istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate(), 0, 0, 0,
+  ));
+  // Convert IST midnight back to actual UTC instant.
+  const todayStartUtc = new Date(istMidnight.getTime() - IST_OFFSET_MS);
+  const todayEndUtc = new Date(todayStartUtc.getTime() + 24 * 3600 * 1000);
 
-  const [{ data: recentSms }, { data: recentAudit }, { data: todaySent }] = await Promise.all([
+  const [{ data: recentSms }, { data: recentAudit }, { data: todaySent }, { data: todayScheduled }] = await Promise.all([
     sb.from("sms_messages")
       .select("template_name, status, created_at")
       .eq("user_id", userId)
@@ -125,7 +132,14 @@ async function gatherUserSignals(userId: string, lookbackHours: number) {
     sb.from("sms_messages")
       .select("id", { count: "exact", head: false })
       .eq("user_id", userId)
-      .gte("created_at", todayStart.toISOString()),
+      .gte("created_at", todayStartUtc.toISOString())
+      .lt("created_at", todayEndUtc.toISOString()),
+    sb.from("sms_scheduled_dispatches")
+      .select("id, scheduled_for", { count: "exact", head: false })
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .gte("scheduled_for", todayStartUtc.toISOString())
+      .lt("scheduled_for", todayEndUtc.toISOString()),
   ]);
 
   return {
@@ -141,6 +155,7 @@ async function gatherUserSignals(userId: string, lookbackHours: number) {
       at: r.created_at,
     })),
     sent_today: (todaySent || []).length,
+    scheduled_today: (todayScheduled || []).length,
   };
 }
 
@@ -163,10 +178,12 @@ async function askAi(
   const system =
     "You are an SMS engagement strategist for a study app serving users in INDIA (timezone: Asia/Kolkata, UTC+5:30). " +
     `Current time in India is ${istTimeHHMM()} IST (hour ${istHourNow}). ` +
-    "Pick the BEST events to send to ONE user RIGHT NOW. " +
+    "Pick the BEST events to send to ONE user across the rest of TODAY. " +
     "Maximize engagement and avoid annoyance. Never recommend events the user already received in the last 24h. " +
-    "Only schedule sends during India waking hours (08:00-22:00 IST). " +
-    "Spread send times across the next 12 hours (use minutes 0-720, but never push a send into 22:00-08:00 IST). " +
+    "Schedule sends ONLY during India waking hours (08:00–22:00 IST). " +
+    "If you pick multiple events, SPREAD them across the day with at least 90 minutes between each send " +
+    "(prefer one in the morning 09:00–12:00 IST, one in the afternoon 13:00–17:00 IST, one in the evening 18:00–21:00 IST). " +
+    "Use minutes 0–720 from now, but never push a send into the 22:00–08:00 IST quiet window. " +
     "Return STRICT JSON via the tool call. If no event is appropriate, return an empty picks array.";
 
   const userPayload = {
@@ -251,9 +268,8 @@ async function askAi(
 // ---------- Dispatch ----------
 
 async function dispatchEvent(userId: string, profile: any, eventKey: string, sendAtMin: number) {
-  // For "now" picks (≤2 minutes), call sms-event-engine immediately.
-  // For future picks, queue into sms_scheduled_sends if it exists.
-  if (sendAtMin <= 2) {
+  // Anything within the next 3 minutes is "now" — fire immediately.
+  if (sendAtMin <= 3) {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/sms-event-engine`, {
       method: "POST",
       headers: {
@@ -271,9 +287,9 @@ async function dispatchEvent(userId: string, profile: any, eventKey: string, sen
     return { dispatched: "now", ok: !!out?.ok, status: out?.status || res.status };
   }
 
-  // Schedule for later
+  // Otherwise queue for the per-user scheduled drainer to send at the right minute (IST aware).
   const scheduledFor = new Date(Date.now() + sendAtMin * 60 * 1000).toISOString();
-  const { error } = await sb.from("sms_scheduled_sends").insert({
+  const { error } = await sb.from("sms_scheduled_dispatches").insert({
     user_id: userId,
     event_key: eventKey,
     scheduled_for: scheduledFor,
@@ -282,7 +298,7 @@ async function dispatchEvent(userId: string, profile: any, eventKey: string, sen
     status: "pending",
   });
   if (error) {
-    // Fallback: send immediately if scheduling table is missing or insert fails
+    // Fallback: send immediately if scheduling insert fails for any reason
     const res = await fetch(`${SUPABASE_URL}/functions/v1/sms-event-engine`, {
       method: "POST",
       headers: {
@@ -374,7 +390,8 @@ async function runOrchestration(triggeredBy: string, triggeredByUser: string | n
     await Promise.all(batch.map(async (u) => {
       try {
         const signals = await gatherUserSignals(u.id, cfg.lookback_hours);
-        const remainingToday = Math.max(0, cfg.max_per_user_per_day - (signals.sent_today || 0));
+        const usedToday = (signals.sent_today || 0) + (signals.scheduled_today || 0);
+        const remainingToday = Math.max(0, cfg.max_per_user_per_day - usedToday);
         if (remainingToday <= 0) {
           decisionsLog.push({ user_id: u.id, skipped: "daily_cap" });
           smsSkipped += 1;
