@@ -77,6 +77,136 @@ async function detectTimestampColumn(sb: any, table: string): Promise<string | n
   return null;
 }
 
+// ---- CSV + minimal store-only ZIP helpers ----
+function csvEscape(v: any): string {
+  if (v === null || v === undefined) return "";
+  let s: string;
+  if (typeof v === "object") {
+    try { s = JSON.stringify(v); } catch { s = String(v); }
+  } else {
+    s = String(v);
+  }
+  // Quote if contains special chars
+  if (/[",\r\n]/.test(s)) {
+    s = '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function rowsToCsv(rows: any[]): string {
+  if (!rows || rows.length === 0) return "";
+  // Union of all keys (some rows may have nulls / missing keys)
+  const keySet = new Set<string>();
+  for (const r of rows) {
+    if (r && typeof r === "object") {
+      for (const k of Object.keys(r)) keySet.add(k);
+    }
+  }
+  const keys = Array.from(keySet);
+  const lines: string[] = [];
+  lines.push(keys.map(csvEscape).join(","));
+  for (const r of rows) {
+    lines.push(keys.map((k) => csvEscape(r?.[k])).join(","));
+  }
+  return lines.join("\r\n") + "\r\n";
+}
+
+// CRC32 (used by ZIP)
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf: Uint8Array): number {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+// Build a store-only ZIP archive from {name, data} entries
+function buildZip(entries: { name: string; data: Uint8Array }[]): Uint8Array {
+  const enc = new TextEncoder();
+  const chunks: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let offset = 0;
+  const dosTime = 0, dosDate = 0x21; // 1980-01-01
+
+  for (const e of entries) {
+    const nameBytes = enc.encode(e.name);
+    const crc = crc32(e.data);
+    const size = e.data.length;
+
+    // Local file header
+    const lfh = new Uint8Array(30 + nameBytes.length);
+    const dv = new DataView(lfh.buffer);
+    dv.setUint32(0, 0x04034b50, true);
+    dv.setUint16(4, 20, true);            // version
+    dv.setUint16(6, 0, true);             // flags
+    dv.setUint16(8, 0, true);             // method = store
+    dv.setUint16(10, dosTime, true);
+    dv.setUint16(12, dosDate, true);
+    dv.setUint32(14, crc, true);
+    dv.setUint32(18, size, true);
+    dv.setUint32(22, size, true);
+    dv.setUint16(26, nameBytes.length, true);
+    dv.setUint16(28, 0, true);
+    lfh.set(nameBytes, 30);
+    chunks.push(lfh);
+    chunks.push(e.data);
+
+    // Central directory header
+    const cdh = new Uint8Array(46 + nameBytes.length);
+    const cdv = new DataView(cdh.buffer);
+    cdv.setUint32(0, 0x02014b50, true);
+    cdv.setUint16(4, 20, true);
+    cdv.setUint16(6, 20, true);
+    cdv.setUint16(8, 0, true);
+    cdv.setUint16(10, 0, true);
+    cdv.setUint16(12, dosTime, true);
+    cdv.setUint16(14, dosDate, true);
+    cdv.setUint32(16, crc, true);
+    cdv.setUint32(20, size, true);
+    cdv.setUint32(24, size, true);
+    cdv.setUint16(28, nameBytes.length, true);
+    cdv.setUint16(30, 0, true);
+    cdv.setUint16(32, 0, true);
+    cdv.setUint16(34, 0, true);
+    cdv.setUint16(36, 0, true);
+    cdv.setUint32(38, 0, true);
+    cdv.setUint32(42, offset, true);
+    cdh.set(nameBytes, 46);
+    central.push(cdh);
+
+    offset += lfh.length + e.data.length;
+  }
+
+  const centralSize = central.reduce((s, c) => s + c.length, 0);
+  const centralOffset = offset;
+  for (const c of central) { chunks.push(c); offset += c.length; }
+
+  const eocd = new Uint8Array(22);
+  const edv = new DataView(eocd.buffer);
+  edv.setUint32(0, 0x06054b50, true);
+  edv.setUint16(4, 0, true);
+  edv.setUint16(6, 0, true);
+  edv.setUint16(8, entries.length, true);
+  edv.setUint16(10, entries.length, true);
+  edv.setUint32(12, centralSize, true);
+  edv.setUint32(16, centralOffset, true);
+  edv.setUint16(20, 0, true);
+  chunks.push(eocd);
+
+  const total = chunks.reduce((s, c) => s + c.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
