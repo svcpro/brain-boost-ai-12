@@ -324,7 +324,7 @@ async function runOrchestration(triggeredBy: string, triggeredByUser: string | n
   if (runErr || !runRow) throw new Error(`log_insert_failed: ${runErr?.message}`);
 
   // Quiet hours guard
-  if (inQuietHours(hourOfDayUTC(), cfg.quiet_hours_start, cfg.quiet_hours_end)) {
+  if (inQuietHours(hourOfDayIST(), cfg.quiet_hours_start, cfg.quiet_hours_end)) {
     await sb.from("sms_orchestration_log").update({
       status: "skipped_quiet_hours",
       finished_at: nowIso(),
