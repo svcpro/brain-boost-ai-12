@@ -390,7 +390,8 @@ async function runOrchestration(triggeredBy: string, triggeredByUser: string | n
     await Promise.all(batch.map(async (u) => {
       try {
         const signals = await gatherUserSignals(u.id, cfg.lookback_hours);
-        const remainingToday = Math.max(0, cfg.max_per_user_per_day - (signals.sent_today || 0));
+        const usedToday = (signals.sent_today || 0) + (signals.scheduled_today || 0);
+        const remainingToday = Math.max(0, cfg.max_per_user_per_day - usedToday);
         if (remainingToday <= 0) {
           decisionsLog.push({ user_id: u.id, skipped: "daily_cap" });
           smsSkipped += 1;
