@@ -129,6 +129,34 @@ function hasUnresolvedPlaceholders(text: string): boolean {
   return /\{\{\s*\w+\s*\}\}|##\s*[a-zA-Z0-9_]+\s*##/.test(text);
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function buildSmsIdempotencyKey(params: {
+  mobile: string;
+  body: string;
+  template_name?: string | null;
+  category?: string | null;
+  idempotency_key?: unknown;
+}): Promise<string> {
+  const provided = typeof params.idempotency_key === "string" ? params.idempotency_key.trim() : "";
+  if (provided && /^[a-zA-Z0-9:_-]{8,160}$/.test(provided)) return provided;
+  // Two-minute window prevents accidental double-click / concurrent duplicate sends
+  // while still allowing a deliberate later message with identical content.
+  const bucket = Math.floor(Date.now() / (2 * 60 * 1000));
+  const digest = await sha256Hex([
+    "sms-notify-v1",
+    params.mobile,
+    params.template_name || "custom",
+    params.category || "uncategorized",
+    params.body,
+    String(bucket),
+  ].join("|"));
+  return `sms:${digest}`;
+}
+
 async function sendViaMsg91(
   mobile: string,
   message: string,
@@ -197,6 +225,7 @@ async function dispatchSms(
     category?: string;
     priority?: string;
     source?: string;
+    idempotency_key?: string;
   }
 ): Promise<{
   ok: boolean;
@@ -258,10 +287,52 @@ async function dispatchSms(
     };
   }
 
+  const idempotencyKey = await buildSmsIdempotencyKey({
+    mobile,
+    body,
+    template_name: params.template_name,
+    category,
+    idempotency_key: params.idempotency_key,
+  });
+
   // Category gate
   const allowed: string[] = cfg.allowed_categories || [];
   if (allowed.length && !allowed.includes(category)) {
     return { ok: false, status: "category_blocked", reason: `Category ${category} not allowed` };
+  }
+
+  // Create the log row before calling MSG91. The unique idempotency key acts as
+  // a send lock, so parallel requests/double clicks cannot produce multiple SMS.
+  const { data: logRow, error: lockErr } = await sb.from("sms_messages").insert({
+    user_id,
+    to_number: mobile,
+    message_body: body,
+    template_name: params.template_name,
+    template_params: resolvedVariables,
+    category,
+    priority: params.priority || "medium",
+    status: "processing",
+    source: params.source || "manual",
+    delivered_at: null,
+    idempotency_key: idempotencyKey,
+  }).select("id,status,msg91_request_id").maybeSingle();
+
+  if (lockErr) {
+    if (lockErr.code === "23505") {
+      const { data: existing } = await sb
+        .from("sms_messages")
+        .select("id,status,msg91_request_id")
+        .eq("idempotency_key", idempotencyKey)
+        .maybeSingle();
+      return {
+        ok: true,
+        status: "duplicate_suppressed",
+        reason: "Duplicate SMS request suppressed",
+        message_id: existing?.id,
+        msg91_request_id: existing?.msg91_request_id,
+      };
+    }
+    return { ok: false, status: "lock_failed", reason: lockErr.message || "Could not reserve SMS send" };
   }
 
   // Quota check (criticals bypass)
@@ -269,13 +340,10 @@ async function dispatchSms(
   if (user_id && !isCritical) {
     const { data: rem } = await sb.rpc("sms_quota_remaining", { p_user_id: user_id });
     if (typeof rem === "number" && rem <= 0) {
-      // Log blocked
-      await sb.from("sms_messages").insert({
-        user_id, to_number: mobile, message_body: body, template_name: params.template_name,
-        template_params: params.variables || {}, category, priority: params.priority || "medium",
+      await sb.from("sms_messages").update({
         status: "blocked_quota", source: params.source || "manual",
         error_code: "QUOTA_EXCEEDED", error_message: "Monthly SMS quota exceeded",
-      });
+      }).eq("id", logRow?.id);
 
       // Auto-fallback
       if (cfg.auto_fallback_on_quota_exceeded && (cfg.fallback_channels || []).length) {
@@ -309,16 +377,12 @@ async function dispatchSms(
     dlt_template_id: dltId,
   }, resolvedVariables, placeholderKeys);
 
-  // Log
-  const { data: logRow } = await sb.from("sms_messages").insert({
-    user_id, to_number: mobile, message_body: body, template_name: params.template_name,
-    template_params: resolvedVariables, category, priority: params.priority || "medium",
+  // Update the reserved log row with the provider result.
+  await sb.from("sms_messages").update({
     status: result.ok ? "sent" : "failed",
     msg91_request_id: result.request_id || null,
     error_message: result.error || null,
-    source: params.source || "manual",
-    delivered_at: null,
-  }).select("id").maybeSingle();
+  }).eq("id", logRow?.id);
 
   // Quota increment on success
   if (result.ok && user_id && !isCritical) {

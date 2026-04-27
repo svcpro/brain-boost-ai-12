@@ -8460,6 +8460,7 @@ export type Database = {
           error_message: string | null
           fallback_sent: boolean | null
           id: string
+          idempotency_key: string | null
           message_body: string
           msg91_request_id: string | null
           priority: string | null
@@ -8478,6 +8479,7 @@ export type Database = {
           error_message?: string | null
           fallback_sent?: boolean | null
           id?: string
+          idempotency_key?: string | null
           message_body: string
           msg91_request_id?: string | null
           priority?: string | null
@@ -8496,6 +8498,7 @@ export type Database = {
           error_message?: string | null
           fallback_sent?: boolean | null
           id?: string
+          idempotency_key?: string | null
           message_body?: string
           msg91_request_id?: string | null
           priority?: string | null

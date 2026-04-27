@@ -256,6 +256,19 @@ async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, 
   return error;
 }
 
+async function hasRecentPendingOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, channel: string, seconds = 60) {
+  const since = new Date(Date.now() - seconds * 1000).toISOString();
+  const { data } = await adminClient
+    .from("whatsapp_otps")
+    .select("id")
+    .eq("mobile", mobile)
+    .eq("channel", channel)
+    .eq("verified", false)
+    .gte("created_at", since)
+    .maybeSingle();
+  return Boolean(data?.id);
+}
+
 async function sendWhatsAppTemplate(authKey: string, mobile: string, otp: string) {
   const payload = {
     integrated_number: "918796032562",
@@ -461,6 +474,10 @@ async function handleSendSMS(authKey: string, templateId: string, mobile: string
   const otp = generateOTP4();
   const adminClient = getAdminClient();
 
+  if (await hasRecentPendingOTP(adminClient, mobile, "sms")) {
+    return json({ success: true, message: "OTP already sent via SMS", channel: "sms", duplicate_suppressed: true });
+  }
+
   const { data: rawData, ok } = await msg91SendOTP(authKey, templateId, mobile, otp);
   const data: any = rawData;
   if (!(data?.type === "success" || ok)) {
@@ -480,6 +497,10 @@ async function handleSendSMS(authKey: string, templateId: string, mobile: string
 async function handleSendWhatsApp(authKey: string, mobile: string) {
   const otp = generateOTP4();
   const adminClient = getAdminClient();
+
+  if (await hasRecentPendingOTP(adminClient, mobile, "whatsapp")) {
+    return json({ success: true, message: "OTP already sent via WhatsApp", channel: "whatsapp", duplicate_suppressed: true });
+  }
 
   const storeErr = await storeWhatsAppOTP(adminClient, mobile, otp);
   if (storeErr) {
