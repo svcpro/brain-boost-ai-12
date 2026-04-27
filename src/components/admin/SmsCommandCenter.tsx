@@ -18,11 +18,13 @@ import {
   TrendingUp, ArrowUpRight, Play, Trash2, Plus, Search,
   FileText, Filter, LayoutDashboard, TestTube, Settings,
   Gauge, Activity, Target, Users, Phone, Shield, Key,
-  Sparkles, Copy, Power, ChevronRight, Smartphone, Hash
+  Sparkles, Copy, Power, ChevronRight, Smartphone, Hash,
+  Calendar
 } from "lucide-react";
 import { format, subDays, isAfter } from "date-fns";
 import SmsEventRegistry from "./SmsEventRegistry";
 import SmsAiOrchestrator from "./SmsAiOrchestrator";
+import SmsScheduledQueue from "./SmsScheduledQueue";
 
 // ─── Types ───
 type SmsLog = {
