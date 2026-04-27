@@ -109,7 +109,8 @@ Deno.serve(async (req) => {
     const action = body.action || "start";
 
     if (action === "list_tables") {
-      return new Response(JSON.stringify({ tables: ALL_TABLES }),
+      const tables = await listPublicTables(sb);
+      return new Response(JSON.stringify({ tables }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -126,9 +127,16 @@ Deno.serve(async (req) => {
 
     const format: "json" | "ndjson" = body.format === "ndjson" ? "ndjson" : "json";
     const mode: "full" | "incremental" = body.mode === "incremental" ? "incremental" : "full";
+
+    // Always discover the live table list so backups stay accurate as the schema evolves.
+    const liveTables = await listPublicTables(sb);
+    if (liveTables.length === 0) {
+      return new Response(JSON.stringify({ error: "no_tables_discovered. Ensure admin_list_public_tables() exists and is granted." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const requested: string[] = Array.isArray(body.tables) && body.tables.length
-      ? body.tables.filter((t: string) => ALL_TABLES.includes(t))
-      : ALL_TABLES;
+      ? body.tables.filter((t: string) => liveTables.includes(t))
+      : liveTables;
 
     // Resolve incremental cutoff: explicit `since` or last completed run
     let sinceIso: string | null = null;
