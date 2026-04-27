@@ -56,7 +56,7 @@ function sampleDataFor(eventKey: string, profile: any): Record<string, unknown> 
     name: profile?.display_name || "User",
     link: "https://acry.ai",
     url: "https://acry.ai",
-    time: new Date().toISOString().slice(11, 16),
+    time: istTimeHHMM(),
     exam: profile?.exam_type || "your exam",
   };
   // Defaults that align with template placeholders — engine will only use what each template needs.
