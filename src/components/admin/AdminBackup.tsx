@@ -307,9 +307,9 @@ export default function AdminBackup() {
             </>
           ) : (
             <>
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
+              {mode === "incremental" ? <FastForward className="w-5 h-5 text-primary-foreground" /> : <Sparkles className="w-5 h-5 text-primary-foreground" />}
               <span className="text-sm font-bold text-primary-foreground">
-                Generate {selected.size === tables.length ? "Full" : `${selected.size}-table`} Backup
+                {mode === "incremental" ? "Generate Incremental" : "Generate Full"} {selected.size === tables.length ? "" : `(${selected.size} tables)`}
               </span>
             </>
           )}
