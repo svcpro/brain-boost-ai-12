@@ -125,7 +125,8 @@ export default function AdminBackup() {
         const a = document.createElement("a");
         a.href = data.download_url;
         const prefix = mode === "incremental" ? "acry-incr" : "acry-backup";
-        a.download = `${prefix}-${Date.now()}.${exportFormat}`;
+        const fileExt = exportFormat === "csv" ? "zip" : exportFormat;
+        a.download = `${prefix}-${Date.now()}.${fileExt}`;
         a.click();
       }
       await loadAll();
