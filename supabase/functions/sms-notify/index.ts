@@ -377,16 +377,12 @@ async function dispatchSms(
     dlt_template_id: dltId,
   }, resolvedVariables, placeholderKeys);
 
-  // Log
-  const { data: logRow } = await sb.from("sms_messages").insert({
-    user_id, to_number: mobile, message_body: body, template_name: params.template_name,
-    template_params: resolvedVariables, category, priority: params.priority || "medium",
+  // Update the reserved log row with the provider result.
+  await sb.from("sms_messages").update({
     status: result.ok ? "sent" : "failed",
     msg91_request_id: result.request_id || null,
     error_message: result.error || null,
-    source: params.source || "manual",
-    delivered_at: null,
-  }).select("id").maybeSingle();
+  }).eq("id", logRow?.id);
 
   // Quota increment on success
   if (result.ok && user_id && !isCritical) {
