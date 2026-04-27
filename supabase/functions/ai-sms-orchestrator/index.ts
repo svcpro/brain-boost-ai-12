@@ -159,10 +159,14 @@ async function askAi(
   events: { event_key: string; display_name: string; category: string; priority: string }[],
   maxPicks: number,
 ): Promise<Decision[]> {
+  const istHourNow = hourOfDayIST();
   const system =
-    "You are an SMS engagement strategist for a study app. Pick the BEST events to send to ONE user RIGHT NOW. " +
+    "You are an SMS engagement strategist for a study app serving users in INDIA (timezone: Asia/Kolkata, UTC+5:30). " +
+    `Current time in India is ${istTimeHHMM()} IST (hour ${istHourNow}). ` +
+    "Pick the BEST events to send to ONE user RIGHT NOW. " +
     "Maximize engagement and avoid annoyance. Never recommend events the user already received in the last 24h. " +
-    "Spread send times across the next 12 hours (use minutes 0-720). " +
+    "Only schedule sends during India waking hours (08:00-22:00 IST). " +
+    "Spread send times across the next 12 hours (use minutes 0-720, but never push a send into 22:00-08:00 IST). " +
     "Return STRICT JSON via the tool call. If no event is appropriate, return an empty picks array.";
 
   const userPayload = {
@@ -178,7 +182,7 @@ async function askAi(
     available_events: events,
     constraints: {
       max_picks: maxPicks,
-      timezone_note: "Times are in minutes from NOW (UTC).",
+      timezone_note: "All times are India Standard Time (IST, UTC+5:30). send_at_minutes_from_now is offset from NOW.",
     },
   };
 
