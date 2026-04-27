@@ -256,17 +256,20 @@ export default function AdminBackup() {
         )}
 
         {/* Format selector */}
-        <div className="flex gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           {[
             { id: "json", label: "JSON", desc: "Single file · pretty" },
             { id: "ndjson", label: "NDJSON", desc: "Streamable · scale-ready" },
+            { id: "csv", label: "CSV (.zip)", desc: "1 CSV per table · Excel-ready" },
           ].map((f) => (
             <button key={f.id} onClick={() => setExportFormat(f.id as any)}
-              className={`flex-1 p-3 rounded-xl neural-border transition-all text-left ${
+              className={`p-3 rounded-xl neural-border transition-all text-left ${
                 exportFormat === f.id ? "bg-primary/15 ring-1 ring-primary/40" : "bg-secondary/20 hover:bg-secondary/40"
               }`}>
               <div className="flex items-center gap-2 mb-0.5">
-                <FileJson className={`w-3.5 h-3.5 ${exportFormat === f.id ? "text-primary" : "text-muted-foreground"}`} />
+                {f.id === "csv"
+                  ? <FileText className={`w-3.5 h-3.5 ${exportFormat === f.id ? "text-primary" : "text-muted-foreground"}`} />
+                  : <FileJson className={`w-3.5 h-3.5 ${exportFormat === f.id ? "text-primary" : "text-muted-foreground"}`} />}
                 <span className="text-xs font-bold text-foreground">{f.label}</span>
               </div>
               <p className="text-[10px] text-muted-foreground">{f.desc}</p>
