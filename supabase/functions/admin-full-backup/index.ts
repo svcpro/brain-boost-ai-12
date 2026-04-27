@@ -369,6 +369,33 @@ Deno.serve(async (req) => {
       for (const c of chunks) { blob.set(c, off); off += c.length; }
       ext = "ndjson";
       contentType = "application/x-ndjson";
+    } else if (format === "csv") {
+      // One CSV per table, packaged as a ZIP archive (store-only).
+      const enc = new TextEncoder();
+      const entries: { name: string; data: Uint8Array }[] = [];
+      // Add a manifest with metadata + per-table summary
+      const manifest = {
+        ...metaCommon,
+        format: "csv",
+        type: mode === "incremental" ? "incremental_backup" : "full_database_backup",
+        tables: Object.fromEntries(
+          requested.map((t) => [t, {
+            count: results[t]?.count ?? 0,
+            error: results[t]?.error ?? null,
+            sinceCol: results[t]?.sinceCol ?? null,
+          }])
+        ),
+      };
+      entries.push({ name: "_manifest.json", data: enc.encode(JSON.stringify(manifest, null, 2)) });
+      for (const t of requested) {
+        const r = results[t];
+        const csv = rowsToCsv(r?.data ?? []);
+        // Always include a CSV file (header-only if empty) for completeness
+        entries.push({ name: `${t}.csv`, data: enc.encode(csv) });
+      }
+      blob = buildZip(entries);
+      ext = "zip";
+      contentType = "application/zip";
     } else {
       const payload = {
         _meta: { ...metaCommon, format: "json", type: mode === "incremental" ? "incremental_backup" : "full_database_backup" },
