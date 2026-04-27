@@ -182,9 +182,12 @@ export type Database = {
           finished_at: string | null
           format: string
           id: string
+          mode: string
           scope: string
           selected_tables: string[] | null
+          since_timestamp: string | null
           size_bytes: number | null
+          skipped_tables: string[] | null
           started_at: string
           status: string
           storage_path: string | null
@@ -203,9 +206,12 @@ export type Database = {
           finished_at?: string | null
           format?: string
           id?: string
+          mode?: string
           scope?: string
           selected_tables?: string[] | null
+          since_timestamp?: string | null
           size_bytes?: number | null
+          skipped_tables?: string[] | null
           started_at?: string
           status?: string
           storage_path?: string | null
@@ -224,9 +230,12 @@ export type Database = {
           finished_at?: string | null
           format?: string
           id?: string
+          mode?: string
           scope?: string
           selected_tables?: string[] | null
+          since_timestamp?: string | null
           size_bytes?: number | null
+          skipped_tables?: string[] | null
           started_at?: string
           status?: string
           storage_path?: string | null

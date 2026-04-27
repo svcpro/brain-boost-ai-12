@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Database, Download, Loader2, CheckCircle2, HardDrive, FileJson, AlertTriangle,
   Sparkles, Clock, RefreshCw, FileText, ListChecks, Trash2, Filter, Zap,
+  Layers, GitBranch, FastForward,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 type RunStatus = "queued" | "running" | "completed" | "failed";
 type Run = {
@@ -14,6 +15,9 @@ type Run = {
   status: RunStatus;
   format: string;
   scope: string;
+  mode?: string | null;
+  since_timestamp?: string | null;
+  skipped_tables?: string[] | null;
   total_tables: number;
   completed_tables: number;
   failed_tables: string[] | null;
@@ -48,6 +52,8 @@ export default function AdminBackup() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
   const [exportFormat, setExportFormat] = useState<"json" | "ndjson">("json");
+  const [mode, setMode] = useState<"full" | "incremental">("full");
+  const [lastRun, setLastRun] = useState<{ finished_at: string; mode: string } | null>(null);
   const [running, setRunning] = useState(false);
   const [runs, setRuns] = useState<Run[]>([]);
   const [latest, setLatest] = useState<Run | null>(null);
@@ -55,13 +61,15 @@ export default function AdminBackup() {
   // Load table list and history
   const loadAll = async () => {
     try {
-      const { data: tbls } = await supabase.functions.invoke("admin-full-backup", {
-        body: { action: "list_tables" },
-      });
+      const [{ data: tbls }, { data: lr }] = await Promise.all([
+        supabase.functions.invoke("admin-full-backup", { body: { action: "list_tables" } }),
+        supabase.functions.invoke("admin-full-backup", { body: { action: "last_run" } }),
+      ]);
       if (tbls?.tables) {
         setTables(tbls.tables);
         setSelected(new Set(tbls.tables));
       }
+      if (lr?.last) setLastRun(lr.last);
     } catch (e) { console.error(e); }
 
     const { data } = await supabase.from("admin_backup_runs")
@@ -89,6 +97,8 @@ export default function AdminBackup() {
     setLatest({
       id: "pending", status: "running", format: exportFormat,
       scope: selected.size === tables.length ? "full" : "partial",
+      mode, since_timestamp: mode === "incremental" ? lastRun?.finished_at ?? null : null,
+      skipped_tables: [],
       total_tables: selected.size, completed_tables: 0, failed_tables: [],
       total_rows: 0, size_bytes: 0, download_url: null, storage_path: null,
       duration_ms: null, started_at: new Date().toISOString(), finished_at: null, expires_at: null,
@@ -98,21 +108,24 @@ export default function AdminBackup() {
         body: {
           action: "start",
           format: exportFormat,
+          mode,
           tables: selected.size === tables.length ? null : Array.from(selected),
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      const skippedNote = data.skipped_tables?.length ? ` · ${data.skipped_tables.length} unchanged` : "";
       toast({
-        title: "✅ Backup ready",
-        description: `${data.completed_tables}/${data.total_tables} tables · ${fmtBytes(data.size_bytes)} · ${fmtMs(data.duration_ms)}`,
+        title: mode === "incremental" ? "⚡ Incremental backup ready" : "✅ Full backup ready",
+        description: `${data.completed_tables}/${data.total_tables} tables · ${data.total_rows.toLocaleString()} rows · ${fmtBytes(data.size_bytes)} · ${fmtMs(data.duration_ms)}${skippedNote}`,
       });
       // Auto-download
       if (data.download_url) {
         const a = document.createElement("a");
         a.href = data.download_url;
-        a.download = `acry-backup-${Date.now()}.${exportFormat}`;
+        const prefix = mode === "incremental" ? "acry-incr" : "acry-backup";
+        a.download = `${prefix}-${Date.now()}.${exportFormat}`;
         a.click();
       }
       await loadAll();
@@ -195,6 +208,52 @@ export default function AdminBackup() {
           ))}
         </div>
 
+        {/* Mode selector: Full vs Incremental */}
+        <div className="flex gap-2 mb-3">
+          {[
+            { id: "full", label: "Full Backup", desc: "Every row · safest baseline", icon: Layers },
+            {
+              id: "incremental",
+              label: "Incremental",
+              desc: lastRun?.finished_at
+                ? `Since ${formatDistanceToNow(new Date(lastRun.finished_at), { addSuffix: true })}`
+                : "First run will baseline · then deltas only",
+              icon: FastForward,
+            },
+          ].map((m) => {
+            const Icon = m.icon;
+            const on = mode === m.id;
+            return (
+              <button key={m.id} onClick={() => setMode(m.id as any)}
+                className={`flex-1 p-3 rounded-xl neural-border transition-all text-left ${
+                  on ? "bg-accent/15 ring-1 ring-accent/40" : "bg-secondary/20 hover:bg-secondary/40"
+                }`}>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <Icon className={`w-3.5 h-3.5 ${on ? "text-accent" : "text-muted-foreground"}`} />
+                  <span className="text-xs font-bold text-foreground">{m.label}</span>
+                  {m.id === "incremental" && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent/20 text-accent">FAST</span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">{m.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Incremental cutoff hint */}
+        {mode === "incremental" && (
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent/5 border border-accent/20 flex items-start gap-2">
+            <GitBranch className="w-3.5 h-3.5 text-accent mt-0.5 flex-shrink-0" />
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Exports only rows where <code className="text-accent">updated_at</code> / <code className="text-accent">created_at</code> is newer than the last completed backup
+              {lastRun?.finished_at && <> ({format(new Date(lastRun.finished_at), "MMM dd, HH:mm:ss")}).</>}
+              {!lastRun?.finished_at && <> — no prior run found, so the first incremental will export everything as a baseline.</>}
+              <br/>Tables without a timestamp column are exported in full (safe-default).
+            </p>
+          </div>
+        )}
+
         {/* Format selector */}
         <div className="flex gap-2 mb-4">
           {[
@@ -248,9 +307,9 @@ export default function AdminBackup() {
             </>
           ) : (
             <>
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
+              {mode === "incremental" ? <FastForward className="w-5 h-5 text-primary-foreground" /> : <Sparkles className="w-5 h-5 text-primary-foreground" />}
               <span className="text-sm font-bold text-primary-foreground">
-                Generate {selected.size === tables.length ? "Full" : `${selected.size}-table`} Backup
+                {mode === "incremental" ? "Generate Incremental" : "Generate Full"} {selected.size === tables.length ? "" : `(${selected.size} tables)`}
               </span>
             </>
           )}
@@ -348,11 +407,17 @@ export default function AdminBackup() {
                       : <Loader2 className="w-4 h-4 text-warning animate-spin" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate">
+                    <p className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
                       {format(new Date(r.started_at), "MMM dd, HH:mm:ss")} · {r.format.toUpperCase()} · {r.scope}
+                      {r.mode === "incremental" && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent/20 text-accent flex items-center gap-0.5">
+                          <FastForward className="w-2.5 h-2.5" />INCR
+                        </span>
+                      )}
                     </p>
                     <p className="text-[10px] text-muted-foreground truncate">
                       {r.completed_tables}/{r.total_tables} tables · {r.total_rows.toLocaleString()} rows · {fmtBytes(r.size_bytes)} · {fmtMs(r.duration_ms)}
+                      {(r.skipped_tables?.length || 0) > 0 && <span className="text-accent"> · {r.skipped_tables!.length} unchanged</span>}
                       {failedCount > 0 && <span className="text-destructive"> · {failedCount} failed</span>}
                     </p>
                   </div>
