@@ -24,15 +24,26 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function hourOfDayUTC(d = new Date()) {
-  return d.getUTCHours();
+// India Standard Time (UTC+5:30) — all SMS scheduling/quiet-hours are evaluated in IST
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+function nowIST(d: Date = new Date()): Date {
+  return new Date(d.getTime() + IST_OFFSET_MS);
 }
 
-function inQuietHours(hourUtc: number, start: number, end: number) {
-  // start/end are admin-set (0-23). Treat range as wrap-around (e.g. 22 -> 8).
+function hourOfDayIST(d: Date = new Date()): number {
+  return nowIST(d).getUTCHours();
+}
+
+function istTimeHHMM(d: Date = new Date()): string {
+  return nowIST(d).toISOString().slice(11, 16);
+}
+
+function inQuietHours(hourIst: number, start: number, end: number) {
+  // start/end are admin-set (0-23) in IST. Treat range as wrap-around (e.g. 22 -> 8).
   if (start === end) return false;
-  if (start < end) return hourUtc >= start && hourUtc < end;
-  return hourUtc >= start || hourUtc < end;
+  if (start < end) return hourIst >= start && hourIst < end;
+  return hourIst >= start || hourIst < end;
 }
 
 async function isAdmin(userId: string): Promise<boolean> {
@@ -45,7 +56,7 @@ function sampleDataFor(eventKey: string, profile: any): Record<string, unknown> 
     name: profile?.display_name || "User",
     link: "https://acry.ai",
     url: "https://acry.ai",
-    time: new Date().toISOString().slice(11, 16),
+    time: istTimeHHMM(),
     exam: profile?.exam_type || "your exam",
   };
   // Defaults that align with template placeholders — engine will only use what each template needs.
@@ -148,10 +159,14 @@ async function askAi(
   events: { event_key: string; display_name: string; category: string; priority: string }[],
   maxPicks: number,
 ): Promise<Decision[]> {
+  const istHourNow = hourOfDayIST();
   const system =
-    "You are an SMS engagement strategist for a study app. Pick the BEST events to send to ONE user RIGHT NOW. " +
+    "You are an SMS engagement strategist for a study app serving users in INDIA (timezone: Asia/Kolkata, UTC+5:30). " +
+    `Current time in India is ${istTimeHHMM()} IST (hour ${istHourNow}). ` +
+    "Pick the BEST events to send to ONE user RIGHT NOW. " +
     "Maximize engagement and avoid annoyance. Never recommend events the user already received in the last 24h. " +
-    "Spread send times across the next 12 hours (use minutes 0-720). " +
+    "Only schedule sends during India waking hours (08:00-22:00 IST). " +
+    "Spread send times across the next 12 hours (use minutes 0-720, but never push a send into 22:00-08:00 IST). " +
     "Return STRICT JSON via the tool call. If no event is appropriate, return an empty picks array.";
 
   const userPayload = {
@@ -167,7 +182,7 @@ async function askAi(
     available_events: events,
     constraints: {
       max_picks: maxPicks,
-      timezone_note: "Times are in minutes from NOW (UTC).",
+      timezone_note: "All times are India Standard Time (IST, UTC+5:30). send_at_minutes_from_now is offset from NOW.",
     },
   };
 
@@ -313,7 +328,7 @@ async function runOrchestration(triggeredBy: string, triggeredByUser: string | n
   if (runErr || !runRow) throw new Error(`log_insert_failed: ${runErr?.message}`);
 
   // Quiet hours guard
-  if (inQuietHours(hourOfDayUTC(), cfg.quiet_hours_start, cfg.quiet_hours_end)) {
+  if (inQuietHours(hourOfDayIST(), cfg.quiet_hours_start, cfg.quiet_hours_end)) {
     await sb.from("sms_orchestration_log").update({
       status: "skipped_quiet_hours",
       finished_at: nowIso(),

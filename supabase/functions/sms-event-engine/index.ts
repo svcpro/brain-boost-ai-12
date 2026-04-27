@@ -57,7 +57,7 @@ function mapVariables(
     } else if (key === "link") {
       out[slot] = data.link ?? data.url ?? "https://acry.ai";
     } else if (key === "time") {
-      out[slot] = data.time ?? new Date().toISOString().slice(11, 16);
+      out[slot] = data.time ?? new Date(Date.now() + (5 * 60 + 30) * 60 * 1000).toISOString().slice(11, 16);
     } else {
       out[slot] = (data as any)[key] ?? "";
     }
@@ -92,7 +92,7 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
     topic: "today's focus topic",
     days: 1,
     hours: 2,
-    time: new Date().toISOString().slice(11, 16),
+    time: new Date(Date.now() + (5 * 60 + 30) * 60 * 1000).toISOString().slice(11, 16),
     device: "your device",
     stability: 80,
     strength: 50,
