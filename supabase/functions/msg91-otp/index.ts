@@ -152,12 +152,24 @@ async function msg91SendOTP(authKey: string, templateId: string, mobile: string,
   url.searchParams.set("otp_length", "4");
   url.searchParams.set("realTimeResponse", "1");
 
+  // MSG91 OTP DLT templates commonly use ##OTP## as the approved variable.
+  // Passing only the query `otp` can be accepted by the API while the carrier
+  // later rejects the SMS as a missing template variable. Send every safe alias
+  // MSG91 templates/flows may reference so the approved placeholder is filled.
+  const variablePayload = {
+    OTP: customOtp,
+    otp: customOtp,
+    VAR1: customOtp,
+    var1: customOtp,
+  };
+
   const resp = await fetch(url.toString(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       authkey: authKey,
     },
+    body: JSON.stringify(variablePayload),
   });
   const rawText = await resp.text();
   let data: unknown;
