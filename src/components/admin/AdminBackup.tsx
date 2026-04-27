@@ -61,13 +61,15 @@ export default function AdminBackup() {
   // Load table list and history
   const loadAll = async () => {
     try {
-      const { data: tbls } = await supabase.functions.invoke("admin-full-backup", {
-        body: { action: "list_tables" },
-      });
+      const [{ data: tbls }, { data: lr }] = await Promise.all([
+        supabase.functions.invoke("admin-full-backup", { body: { action: "list_tables" } }),
+        supabase.functions.invoke("admin-full-backup", { body: { action: "last_run" } }),
+      ]);
       if (tbls?.tables) {
         setTables(tbls.tables);
         setSelected(new Set(tbls.tables));
       }
+      if (lr?.last) setLastRun(lr.last);
     } catch (e) { console.error(e); }
 
     const { data } = await supabase.from("admin_backup_runs")
