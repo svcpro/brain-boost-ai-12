@@ -372,6 +372,54 @@ async function sendWhatsApp(
   return { success: !!result.ok, retryCount: 0, error: result.error || result.blocked };
 }
 
+function buildSmsVariablesFromNotification(data: Record<string, any>): Record<string, any> {
+  // Map omnichannel notification payload to DLT template slot names.
+  // Notification payloads carry `exam_type`, `exam_date`, `display_name`, `title` etc.
+  // DLT templates expect `exam`, `days`, `name`, `topic`, `link`, `time`, etc.
+  const out: Record<string, any> = {};
+
+  // name: only use real names — never the notification title (e.g. "Exam Target Set!")
+  const nameCandidate = data.name || data.display_name || data.user_name || data.first_name;
+  if (nameCandidate) out.name = String(nameCandidate);
+
+  // exam: explicit exam name (canonical)
+  const examCandidate = data.exam || data.exam_type || data.exam_name;
+  if (examCandidate) out.exam = String(examCandidate);
+
+  // topic / subject
+  const topicCandidate = data.topic || data.subject || data.topic_name;
+  if (topicCandidate) out.topic = String(topicCandidate);
+
+  // link / url
+  const linkCandidate = data.link || data.url || data.target_url || data.deep_link;
+  if (linkCandidate) {
+    out.link = String(linkCandidate);
+    out.url = String(linkCandidate);
+  }
+
+  // days: derive from exam_date or expires_at if not explicit
+  if (data.days != null) {
+    out.days = data.days;
+  } else if (data.exam_date) {
+    const target = new Date(String(data.exam_date)).getTime();
+    if (!isNaN(target)) {
+      const diffDays = Math.max(0, Math.ceil((target - Date.now()) / 86400000));
+      out.days = diffDays;
+    }
+  }
+
+  // Pass-through known DLT slots if explicitly provided
+  for (const slot of [
+    "time", "device", "stability", "strength", "rank", "positions",
+    "points", "questions", "accuracy", "friend", "count", "prob",
+    "amount", "expiry", "milestone", "reward", "hours", "otp", "code", "app",
+  ]) {
+    if (data[slot] != null && data[slot] !== "") out[slot] = data[slot];
+  }
+
+  return out;
+}
+
 async function sendSms(
   url: string, key: string, userId: string, title: string, body: string, data: Record<string, any>
 ) {
@@ -380,13 +428,9 @@ async function sendSms(
   if (!templateName) {
     return { success: false, retryCount: 0, error: "no_sms_template_for_event" };
   }
-  // Build template variables: prefer explicit sms_variables, else fall back to data + title/body
-  const variables = data.sms_variables || {
-    name: data.name || title,
-    title,
-    body,
-    ...data,
-  };
+  // Prefer explicit sms_variables. Otherwise derive a clean DLT-aligned set
+  // from notification payload (NEVER fall back to title/body — those pollute slots).
+  const variables = data.sms_variables || buildSmsVariablesFromNotification(data);
   const category = data.sms_category 
     || (data.original_event_type?.startsWith("auth_") || data.priority === "critical" ? "critical" : "engagement");
   const res = await fetch(`${url}/functions/v1/sms-notify`, {
