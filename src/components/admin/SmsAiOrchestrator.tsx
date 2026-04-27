@@ -213,7 +213,7 @@ const SmsAiOrchestrator = () => {
             />
           </div>
           <div className="space-y-1">
-            <Label>Quiet hours (UTC)</Label>
+            <Label>Quiet hours (IST)</Label>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
@@ -233,7 +233,9 @@ const SmsAiOrchestrator = () => {
                 onBlur={() => updateConfig({ quiet_hours_end: config.quiet_hours_end })}
               />
             </div>
-            <p className="text-xs text-muted-foreground">No sends during these hours</p>
+            <p className="text-xs text-muted-foreground">
+              No SMS will be sent during these India Standard Time hours (e.g. 22 → 8 means silent 10pm–8am IST)
+            </p>
           </div>
           <div className="space-y-1">
             <Label>AI model</Label>
