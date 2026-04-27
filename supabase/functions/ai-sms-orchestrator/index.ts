@@ -163,10 +163,12 @@ async function askAi(
   const system =
     "You are an SMS engagement strategist for a study app serving users in INDIA (timezone: Asia/Kolkata, UTC+5:30). " +
     `Current time in India is ${istTimeHHMM()} IST (hour ${istHourNow}). ` +
-    "Pick the BEST events to send to ONE user RIGHT NOW. " +
+    "Pick the BEST events to send to ONE user across the rest of TODAY. " +
     "Maximize engagement and avoid annoyance. Never recommend events the user already received in the last 24h. " +
-    "Only schedule sends during India waking hours (08:00-22:00 IST). " +
-    "Spread send times across the next 12 hours (use minutes 0-720, but never push a send into 22:00-08:00 IST). " +
+    "Schedule sends ONLY during India waking hours (08:00–22:00 IST). " +
+    "If you pick multiple events, SPREAD them across the day with at least 90 minutes between each send " +
+    "(prefer one in the morning 09:00–12:00 IST, one in the afternoon 13:00–17:00 IST, one in the evening 18:00–21:00 IST). " +
+    "Use minutes 0–720 from now, but never push a send into the 22:00–08:00 IST quiet window. " +
     "Return STRICT JSON via the tool call. If no event is appropriate, return an empty picks array.";
 
   const userPayload = {
