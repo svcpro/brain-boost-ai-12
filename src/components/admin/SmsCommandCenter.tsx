@@ -942,6 +942,9 @@ const SmsCommandCenter = () => {
           <TabsTrigger value="ai" className="gap-2 data-[state=active]:bg-violet-500/15">
             <Sparkles className="h-4 w-4" /> AI Orchestrator
           </TabsTrigger>
+          <TabsTrigger value="scheduled" className="gap-2 data-[state=active]:bg-violet-500/15">
+            <Calendar className="h-4 w-4" /> Scheduled Queue
+          </TabsTrigger>
           <TabsTrigger value="test" className="gap-2 data-[state=active]:bg-blue-500/15">
             <TestTube className="h-4 w-4" /> Test SMS
           </TabsTrigger>
@@ -954,6 +957,7 @@ const SmsCommandCenter = () => {
         <TabsContent value="templates"><SmsTemplates /></TabsContent>
         <TabsContent value="events"><SmsEventRegistry /></TabsContent>
         <TabsContent value="ai"><SmsAiOrchestrator /></TabsContent>
+        <TabsContent value="scheduled"><SmsScheduledQueue /></TabsContent>
         <TabsContent value="test"><SmsTestSender /></TabsContent>
       </Tabs>
     </div>
