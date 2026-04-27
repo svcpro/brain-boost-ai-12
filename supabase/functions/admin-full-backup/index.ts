@@ -387,6 +387,34 @@ Deno.serve(async (req) => {
         ),
       };
       entries.push({ name: "_manifest.json", data: enc.encode(JSON.stringify(manifest, null, 2)) });
+      // README explaining the file format (Windows shows CSV as "XLS Worksheet" when Excel is the default app)
+      const readme = [
+        "ACRY Database Backup — CSV Format",
+        "===================================",
+        "",
+        "All data files in this archive are TRUE CSV files (.csv extension).",
+        "",
+        "Why does Windows show them as 'XLS Worksheet'?",
+        "  Windows displays the *default application* in the Type column.",
+        "  Because Excel is set as the default app for .csv on your PC,",
+        "  Windows labels them 'XLS Worksheet' — but the file extension",
+        "  is genuinely .csv (plain comma-separated text).",
+        "",
+        "To verify:",
+        "  1. Enable: View → Show → File name extensions in File Explorer",
+        "  2. Or right-click any file → Properties → 'Type of file: CSV File (.csv)'",
+        "  3. Or open with Notepad — you'll see plain comma-separated text",
+        "",
+        "Encoding: UTF-8 with BOM (renders ₹, emoji, accents correctly in Excel)",
+        "Delimiter: Comma (,)",
+        "Line ending: CRLF (\\r\\n)",
+        "Quoting: Fields with commas/quotes/newlines are wrapped in double quotes",
+        "",
+        `Generated: ${new Date().toISOString()}`,
+        `Mode: ${mode}`,
+        `Tables: ${requested.length}`,
+      ].join("\r\n");
+      entries.push({ name: "README.txt", data: enc.encode(readme) });
       // UTF-8 BOM so Excel/Google Sheets render Unicode characters (₹, emoji, accents) correctly
       const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
       for (const t of requested) {
