@@ -387,11 +387,17 @@ Deno.serve(async (req) => {
         ),
       };
       entries.push({ name: "_manifest.json", data: enc.encode(JSON.stringify(manifest, null, 2)) });
+      // UTF-8 BOM so Excel/Google Sheets render Unicode characters (₹, emoji, accents) correctly
+      const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
       for (const t of requested) {
         const r = results[t];
         const csv = rowsToCsv(r?.data ?? []);
+        const csvBytes = enc.encode(csv);
+        const withBom = new Uint8Array(BOM.length + csvBytes.length);
+        withBom.set(BOM, 0);
+        withBom.set(csvBytes, BOM.length);
         // Always include a CSV file (header-only if empty) for completeness
-        entries.push({ name: `${t}.csv`, data: enc.encode(csv) });
+        entries.push({ name: `${t}.csv`, data: withBom });
       }
       blob = buildZip(entries);
       ext = "zip";
