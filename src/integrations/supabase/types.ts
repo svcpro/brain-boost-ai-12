@@ -11332,6 +11332,12 @@ export type Database = {
     }
     Functions: {
       accept_freeze_gift: { Args: { gift_id: string }; Returns: undefined }
+      admin_list_public_tables: {
+        Args: never
+        Returns: {
+          table_name: string
+        }[]
+      }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       generate_acry_api_key: { Args: never; Returns: string }
       has_permission: {

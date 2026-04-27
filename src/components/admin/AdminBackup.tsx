@@ -79,9 +79,9 @@ export default function AdminBackup() {
 
   useEffect(() => { loadAll(); }, []);
 
-  // Realtime progress for the active run
+  // Realtime progress for the active run (only after we have a real DB id)
   useEffect(() => {
-    if (!latest?.id || latest.status === "completed" || latest.status === "failed") return;
+    if (!latest?.id || latest.id === "pending" || latest.status === "completed" || latest.status === "failed") return;
     const ch = supabase
       .channel(`backup-${latest.id}`)
       .on("postgres_changes",
