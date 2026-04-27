@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Database, Download, Loader2, CheckCircle2, HardDrive, FileJson, AlertTriangle,
   Sparkles, Clock, RefreshCw, FileText, ListChecks, Trash2, Filter, Zap,
+  Layers, GitBranch, FastForward,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 type RunStatus = "queued" | "running" | "completed" | "failed";
 type Run = {
@@ -14,6 +15,9 @@ type Run = {
   status: RunStatus;
   format: string;
   scope: string;
+  mode?: string | null;
+  since_timestamp?: string | null;
+  skipped_tables?: string[] | null;
   total_tables: number;
   completed_tables: number;
   failed_tables: string[] | null;
