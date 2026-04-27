@@ -24,15 +24,26 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function hourOfDayUTC(d = new Date()) {
-  return d.getUTCHours();
+// India Standard Time (UTC+5:30) — all SMS scheduling/quiet-hours are evaluated in IST
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+function nowIST(d: Date = new Date()): Date {
+  return new Date(d.getTime() + IST_OFFSET_MS);
 }
 
-function inQuietHours(hourUtc: number, start: number, end: number) {
-  // start/end are admin-set (0-23). Treat range as wrap-around (e.g. 22 -> 8).
+function hourOfDayIST(d: Date = new Date()): number {
+  return nowIST(d).getUTCHours();
+}
+
+function istTimeHHMM(d: Date = new Date()): string {
+  return nowIST(d).toISOString().slice(11, 16);
+}
+
+function inQuietHours(hourIst: number, start: number, end: number) {
+  // start/end are admin-set (0-23) in IST. Treat range as wrap-around (e.g. 22 -> 8).
   if (start === end) return false;
-  if (start < end) return hourUtc >= start && hourUtc < end;
-  return hourUtc >= start || hourUtc < end;
+  if (start < end) return hourIst >= start && hourIst < end;
+  return hourIst >= start || hourIst < end;
 }
 
 async function isAdmin(userId: string): Promise<boolean> {
