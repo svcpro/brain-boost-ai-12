@@ -407,11 +407,17 @@ export default function AdminBackup() {
                       : <Loader2 className="w-4 h-4 text-warning animate-spin" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate">
+                    <p className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
                       {format(new Date(r.started_at), "MMM dd, HH:mm:ss")} · {r.format.toUpperCase()} · {r.scope}
+                      {r.mode === "incremental" && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent/20 text-accent flex items-center gap-0.5">
+                          <FastForward className="w-2.5 h-2.5" />INCR
+                        </span>
+                      )}
                     </p>
                     <p className="text-[10px] text-muted-foreground truncate">
                       {r.completed_tables}/{r.total_tables} tables · {r.total_rows.toLocaleString()} rows · {fmtBytes(r.size_bytes)} · {fmtMs(r.duration_ms)}
+                      {(r.skipped_tables?.length || 0) > 0 && <span className="text-accent"> · {r.skipped_tables!.length} unchanged</span>}
                       {failedCount > 0 && <span className="text-destructive"> · {failedCount} failed</span>}
                     </p>
                   </div>
