@@ -208,6 +208,52 @@ export default function AdminBackup() {
           ))}
         </div>
 
+        {/* Mode selector: Full vs Incremental */}
+        <div className="flex gap-2 mb-3">
+          {[
+            { id: "full", label: "Full Backup", desc: "Every row · safest baseline", icon: Layers },
+            {
+              id: "incremental",
+              label: "Incremental",
+              desc: lastRun?.finished_at
+                ? `Since ${formatDistanceToNow(new Date(lastRun.finished_at), { addSuffix: true })}`
+                : "First run will baseline · then deltas only",
+              icon: FastForward,
+            },
+          ].map((m) => {
+            const Icon = m.icon;
+            const on = mode === m.id;
+            return (
+              <button key={m.id} onClick={() => setMode(m.id as any)}
+                className={`flex-1 p-3 rounded-xl neural-border transition-all text-left ${
+                  on ? "bg-accent/15 ring-1 ring-accent/40" : "bg-secondary/20 hover:bg-secondary/40"
+                }`}>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <Icon className={`w-3.5 h-3.5 ${on ? "text-accent" : "text-muted-foreground"}`} />
+                  <span className="text-xs font-bold text-foreground">{m.label}</span>
+                  {m.id === "incremental" && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent/20 text-accent">FAST</span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">{m.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Incremental cutoff hint */}
+        {mode === "incremental" && (
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent/5 border border-accent/20 flex items-start gap-2">
+            <GitBranch className="w-3.5 h-3.5 text-accent mt-0.5 flex-shrink-0" />
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Exports only rows where <code className="text-accent">updated_at</code> / <code className="text-accent">created_at</code> is newer than the last completed backup
+              {lastRun?.finished_at && <> ({format(new Date(lastRun.finished_at), "MMM dd, HH:mm:ss")}).</>}
+              {!lastRun?.finished_at && <> — no prior run found, so the first incremental will export everything as a baseline.</>}
+              <br/>Tables without a timestamp column are exported in full (safe-default).
+            </p>
+          </div>
+        )}
+
         {/* Format selector */}
         <div className="flex gap-2 mb-4">
           {[
