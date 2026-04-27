@@ -162,8 +162,8 @@ Deno.serve(async (req) => {
       format,
       mode,
       since_timestamp: sinceIso,
-      scope: requested.length === ALL_TABLES.length ? "full" : "partial",
-      selected_tables: requested.length === ALL_TABLES.length ? null : requested,
+      scope: requested.length === liveTables.length ? "full" : "partial",
+      selected_tables: requested.length === liveTables.length ? null : requested,
       total_tables: requested.length,
     }).select().single();
     if (runErr) throw runErr;
