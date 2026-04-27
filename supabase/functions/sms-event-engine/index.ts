@@ -57,7 +57,7 @@ function mapVariables(
     } else if (key === "link") {
       out[slot] = data.link ?? data.url ?? "https://acry.ai";
     } else if (key === "time") {
-      out[slot] = data.time ?? new Date().toISOString().slice(11, 16);
+      out[slot] = data.time ?? new Date(Date.now() + (5 * 60 + 30) * 60 * 1000).toISOString().slice(11, 16);
     } else {
       out[slot] = (data as any)[key] ?? "";
     }
