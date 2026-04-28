@@ -217,6 +217,23 @@ export default function TrafficMonitor() {
     return () => clearInterval(id);
   }, [autoRefresh, fetchTraffic]);
 
+  // Periodic snapshot logger — once every 5 minutes
+  useEffect(() => {
+    if (!snapshot) return;
+    const bucket = Math.floor(Date.now() / (5 * 60 * 1000));
+    const key = `acry_snap_logged_${bucket}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    logIncident({
+      event_type: "snapshot",
+      severity: "info",
+      title: `Snapshot · ${snapshot.activeUsers} users · ${snapshot.requestsPerMin} rpm`,
+      description: `DB ${snapshot.dbLatencyMs}ms · errors ${snapshot.errorRate}%`,
+      current_tier: currentTier.key,
+      snapshot: snapshot as any,
+    });
+  }, [snapshot, currentTier]);
+
   // ─── Alert evaluation ────────────────────────────────────────
   useEffect(() => {
     if (!snapshot) return;
