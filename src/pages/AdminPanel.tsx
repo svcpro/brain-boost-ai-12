@@ -34,8 +34,9 @@ import PlanGatingManagement from "@/components/app/PlanGatingManagement";
 import PermissionManagement from "@/components/admin/PermissionManagement";
 import AICommandCenter from "@/components/admin/AICommandCenter";
 import SystemMonitor from "@/components/admin/SystemMonitor";
-import TrafficMonitor from "@/components/admin/TrafficMonitor";
-import IncidentTimeline from "@/components/admin/IncidentTimeline";
+import { lazy, Suspense } from "react";
+const TrafficMonitor = lazy(() => import("@/components/admin/TrafficMonitor"));
+const IncidentTimeline = lazy(() => import("@/components/admin/IncidentTimeline"));
 import AdminProfile from "@/components/admin/AdminProfile";
 import ChatManagement from "@/components/admin/ChatManagement";
 import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
@@ -594,8 +595,16 @@ const AdminPanel = () => {
               {section === "institutions" && <InstitutionManagement />}
               {section === "teacher_mode" && <TeacherModeAdmin />}
               {section === "monitoring" && <SystemMonitor />}
-              {section === "traffic" && <TrafficMonitor />}
-              {section === "incidents" && <IncidentTimeline />}
+              {section === "traffic" && (
+                <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading Traffic Monitor…</div>}>
+                  <TrafficMonitor />
+                </Suspense>
+              )}
+              {section === "incidents" && (
+                <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading Incident Timeline…</div>}>
+                  <IncidentTimeline />
+                </Suspense>
+              )}
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}
               {section === "settings" && <SettingsSection toast={toast} />}
