@@ -80,6 +80,14 @@ const PageFallback = () => (
 const GlobalErrorCatcher = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const handler = (e: PromiseRejectionEvent) => {
+      const message = e.reason instanceof Error ? e.reason.message : String(e.reason || "");
+      if (message.includes("Failed to fetch dynamically imported module")) {
+        const key = "acry_dynamic_import_recovery_v1";
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, "1");
+          window.location.replace(`${window.location.pathname}?_cache_bust=${Date.now()}`);
+        }
+      }
       console.error("[Unhandled Rejection]", e.reason);
       e.preventDefault();
     };
