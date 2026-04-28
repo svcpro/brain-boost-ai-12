@@ -811,8 +811,13 @@ const AuthPage = () => {
                     <button onClick={resetOtp} className="text-[10px] hover:underline" style={{ color: "#ffffff35" }}>
                       ← Change number
                     </button>
-                    <button onClick={handleResend} disabled={loading} className="text-[10px] hover:underline disabled:opacity-40" style={{ color: `${accentColor}80` }}>
-                      Resend code
+                    <button
+                      onClick={handleResend}
+                      disabled={loading || resendCooldown > 0}
+                      className="text-[10px] hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                      style={{ color: `${accentColor}80` }}
+                    >
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
                     </button>
                   </div>
                 </>
