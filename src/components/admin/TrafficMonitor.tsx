@@ -385,7 +385,20 @@ export default function TrafficMonitor() {
                   className="px-3 py-1.5 rounded-lg bg-warning/20 hover:bg-warning/30 text-warning text-xs font-bold border border-warning/40 transition-all">
                   Open Cloud → Advanced Settings ↗
                 </a>
-                <button onClick={() => setTier(recommendedTier.key)}
+                <button onClick={() => {
+                    const oldTier = currentTier;
+                    setTier(recommendedTier.key);
+                    logIncident({
+                      event_type: "upgrade",
+                      severity: "info",
+                      title: `Instance upgraded: ${oldTier.label} → ${recommendedTier.label}`,
+                      description: `Cost change: ${oldTier.monthlyCost} → ${recommendedTier.monthlyCost}`,
+                      current_tier: oldTier.key,
+                      recommended_tier: recommendedTier.key,
+                      snapshot: snapshot as any,
+                    });
+                    toast.success(`Marked as ${recommendedTier.label}`);
+                  }}
                   className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-primary/10 text-foreground text-xs font-medium border border-border transition-all">
                   Mark as upgraded
                 </button>
