@@ -104,17 +104,22 @@ const AnimatedWhatsAppIcon = ({ active }: { active: boolean }) => (
   </motion.div>
 );
 
-/* ─── Progress Bar (on submit) ─── */
+/* ─── Spinner Loader (on submit) ─── */
 const OtpProgressBar = ({ color }: { color: string }) => (
-  <motion.div className="w-full h-1 rounded-full overflow-hidden mt-3" style={{ background: "#ffffff08" }}>
+  <div className="flex items-center justify-center mt-3">
     <motion.div
-      className="h-full rounded-full"
-      style={{ background: `linear-gradient(90deg, ${color}, ${color}80)` }}
-      initial={{ width: "0%" }}
-      animate={{ width: ["0%", "30%", "60%", "85%", "95%"] }}
-      transition={{ duration: 3, times: [0, 0.2, 0.5, 0.8, 1], ease: "easeOut" }}
+      className="rounded-full"
+      style={{
+        width: 22,
+        height: 22,
+        border: `2px solid ${color}25`,
+        borderTopColor: color,
+        boxShadow: `0 0 12px ${color}40`,
+      }}
+      animate={{ rotate: 360 }}
+      transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
     />
-  </motion.div>
+  </div>
 );
 
 /* ─── Floating Particle ─── */
