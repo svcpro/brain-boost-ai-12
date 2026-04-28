@@ -313,6 +313,7 @@ const AuthPage = () => {
 
   /* ═══ Resend ═══ */
   const handleResend = async () => {
+    if (resendCooldown > 0 || loading) return;
     setLoading(true);
     try {
       const action = authMethod === "whatsapp" ? "resend_whatsapp" : "resend";
@@ -320,6 +321,7 @@ const AuthPage = () => {
         body: { action, mobile: fullMobile },
       });
       if (error) throw error;
+      setResendCooldown(30);
       toast({ title: "OTP Resent", description: data?.message || `Check your ${authMethod === "whatsapp" ? "WhatsApp" : "phone"}` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
