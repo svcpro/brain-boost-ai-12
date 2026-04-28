@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import InstitutionLayout from "@/components/InstitutionLayout";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,13 +12,30 @@ import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
+const retryLazy = (
+  factory: () => Promise<{ default: ComponentType<any> }>,
+  cacheKey: string,
+) => lazy(async () => {
+  try {
+    return await factory();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("Failed to fetch dynamically imported module") && !sessionStorage.getItem(cacheKey)) {
+      sessionStorage.setItem(cacheKey, "1");
+      window.location.replace(`${window.location.pathname}?_cache_bust=${Date.now()}`);
+      return new Promise<{ default: ComponentType<any> }>(() => {});
+    }
+    throw error;
+  }
+});
+
 // Lazy load all pages
 const Index = lazy(() => import("./pages/Index"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 const AppDashboard = lazy(() => import("./pages/AppDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const AdminPanel = retryLazy(() => import("./pages/AdminPanel"), "acry_admin_panel_import_retry_v1");
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const UserProfilePage = lazy(() => import("./pages/UserProfilePage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
@@ -63,6 +80,14 @@ const PageFallback = () => (
 const GlobalErrorCatcher = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const handler = (e: PromiseRejectionEvent) => {
+      const message = e.reason instanceof Error ? e.reason.message : String(e.reason || "");
+      if (message.includes("Failed to fetch dynamically imported module")) {
+        const key = "acry_dynamic_import_recovery_v1";
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, "1");
+          window.location.replace(`${window.location.pathname}?_cache_bust=${Date.now()}`);
+        }
+      }
       console.error("[Unhandled Rejection]", e.reason);
       e.preventDefault();
     };

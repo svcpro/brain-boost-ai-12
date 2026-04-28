@@ -3,12 +3,14 @@ import App from "./App.tsx";
 import "./index.css";
 
 // ─── Cache version: bump to force stale SW cache purge ───
-const CACHE_VERSION = "v6";
+const CACHE_VERSION = "v7-admin-import-recovery";
 const CACHE_VERSION_KEY = "acry_cache_version";
 
 const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
 if (storedVersion !== CACHE_VERSION) {
   localStorage.setItem(CACHE_VERSION_KEY, CACHE_VERSION);
+  sessionStorage.removeItem("acry_admin_panel_import_retry_v1");
+  sessionStorage.removeItem("acry_dynamic_import_recovery_v1");
   // Purge all caches so stale index.html / old JS chunks are removed
   if ("caches" in window) {
     caches.keys().then(names => {
