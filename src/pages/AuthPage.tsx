@@ -176,6 +176,7 @@ const AuthPage = () => {
   const [otpCode, setOtpCode] = useState(["", "", "", ""]);
   const [inputFocused, setInputFocused] = useState(false);
   const [verifySuccess, setVerifySuccess] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -204,6 +205,12 @@ const AuthPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Resend cooldown countdown (seconds)
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => (s <= 1 ? 0 : s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
 
   const accentColor = authMethod === "whatsapp" ? "#25D366" : "#00E5FF";
   const fullMobile = `${countryCode}${mobile.replace(/\D/g, "")}`;
@@ -222,6 +229,7 @@ const AuthPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setOtpSent(true);
+      setResendCooldown(30);
       toast({ title: "OTP Sent!", description: `Code sent to WhatsApp +${fullMobile}` });
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (error: any) {
@@ -245,6 +253,7 @@ const AuthPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setOtpSent(true);
+      setResendCooldown(30);
       toast({ title: "OTP Sent!", description: `Code sent to +${fullMobile}` });
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (error: any) {
@@ -304,6 +313,7 @@ const AuthPage = () => {
 
   /* ═══ Resend ═══ */
   const handleResend = async () => {
+    if (resendCooldown > 0 || loading) return;
     setLoading(true);
     try {
       const action = authMethod === "whatsapp" ? "resend_whatsapp" : "resend";
@@ -311,6 +321,7 @@ const AuthPage = () => {
         body: { action, mobile: fullMobile },
       });
       if (error) throw error;
+      setResendCooldown(30);
       toast({ title: "OTP Resent", description: data?.message || `Check your ${authMethod === "whatsapp" ? "WhatsApp" : "phone"}` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -800,8 +811,13 @@ const AuthPage = () => {
                     <button onClick={resetOtp} className="text-[10px] hover:underline" style={{ color: "#ffffff35" }}>
                       ← Change number
                     </button>
-                    <button onClick={handleResend} disabled={loading} className="text-[10px] hover:underline disabled:opacity-40" style={{ color: `${accentColor}80` }}>
-                      Resend code
+                    <button
+                      onClick={handleResend}
+                      disabled={loading || resendCooldown > 0}
+                      className="text-[10px] hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                      style={{ color: `${accentColor}80` }}
+                    >
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
                     </button>
                   </div>
                 </>
