@@ -4719,6 +4719,60 @@ export type Database = {
         }
         Relationships: []
       }
+      incident_history: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_tier: string | null
+          description: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          metric_name: string | null
+          metric_value: number | null
+          recommended_tier: string | null
+          resolved_at: string | null
+          severity: string
+          snapshot: Json | null
+          threshold_value: number | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_tier?: string | null
+          description?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          metric_name?: string | null
+          metric_value?: number | null
+          recommended_tier?: string | null
+          resolved_at?: string | null
+          severity?: string
+          snapshot?: Json | null
+          threshold_value?: number | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_tier?: string | null
+          description?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          metric_name?: string | null
+          metric_value?: number | null
+          recommended_tier?: string | null
+          resolved_at?: string | null
+          severity?: string
+          snapshot?: Json | null
+          threshold_value?: number | null
+          title?: string
+        }
+        Relationships: []
+      }
       institution_api_keys: {
         Row: {
           created_at: string
