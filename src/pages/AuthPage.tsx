@@ -205,6 +205,12 @@ const AuthPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Resend cooldown countdown (seconds)
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => (s <= 1 ? 0 : s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
 
   const accentColor = authMethod === "whatsapp" ? "#25D366" : "#00E5FF";
   const fullMobile = `${countryCode}${mobile.replace(/\D/g, "")}`;
