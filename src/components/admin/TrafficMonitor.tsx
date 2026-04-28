@@ -235,7 +235,31 @@ export default function TrafficMonitor() {
     });
     setActiveAlerts(triggered);
 
-    // Browser notification + toast for newly-triggered critical alerts
+    // Log every triggered alert (deduped 5-min) + browser/toast for critical
+    triggered.forEach(t => {
+      let value = 0;
+      switch (t.metric) {
+        case "activeUsers":    value = (snapshot.activeUsers / currentTier.maxConcurrentUsers) * 100; break;
+        case "requestsPerMin": value = (snapshot.requestsPerMin / currentTier.maxRpm) * 100; break;
+        case "dbLatencyMs":    value = snapshot.dbLatencyMs; break;
+        case "errorRate":      value = snapshot.errorRate; break;
+        case "edgeInvocations":value = snapshot.edgeInvocations; break;
+      }
+      logIncident({
+        event_type: "alert",
+        severity: t.severity,
+        title: t.label,
+        description: `${t.metric} = ${value.toFixed(1)} (threshold ${t.threshold})`,
+        metric_name: t.metric,
+        metric_value: Math.round(value * 100) / 100,
+        threshold_value: t.threshold,
+        current_tier: currentTier.key,
+        recommended_tier: recommendedTier.key,
+        snapshot: snapshot as any,
+      }, `alert_${t.key}`);
+    });
+
+    // Critical alerts → toast + browser push
     triggered.filter(t => t.severity === "critical").forEach(t => {
       const seenKey = `acry_alert_seen_${t.key}_${new Date().getMinutes()}`;
       if (!sessionStorage.getItem(seenKey)) {
@@ -246,7 +270,20 @@ export default function TrafficMonitor() {
         }
       }
     });
-  }, [snapshot, rules, currentTier, notify]);
+
+    // Log scaling recommendation (deduped per tier transition)
+    if (recommendedTier.key !== currentTier.key) {
+      logIncident({
+        event_type: "recommendation",
+        severity: "warning",
+        title: `Upgrade recommended: ${currentTier.label} → ${recommendedTier.label}`,
+        description: `Traffic approaching ${currentTier.label} limits. Recommended: ${recommendedTier.label} (${recommendedTier.monthlyCost}).`,
+        current_tier: currentTier.key,
+        recommended_tier: recommendedTier.key,
+        snapshot: snapshot as any,
+      }, `rec_${currentTier.key}_to_${recommendedTier.key}`);
+    }
+  }, [snapshot, rules, currentTier, recommendedTier, notify]);
 
   const requestNotify = async () => {
     if (!("Notification" in window)) { toast.error("Notifications not supported"); return; }
