@@ -120,7 +120,7 @@ export default function TrafficMonitor() {
       let activeUsers = 0;
       try {
         const { count } = await supabase
-          .from("study_sessions")
+          .from("study_sessions" as any)
           .select("user_id", { count: "exact", head: true })
           .gte("created_at", since5m);
         activeUsers = count || 0;
