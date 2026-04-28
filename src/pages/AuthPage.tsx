@@ -229,6 +229,7 @@ const AuthPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setOtpSent(true);
+      setResendCooldown(30);
       toast({ title: "OTP Sent!", description: `Code sent to WhatsApp +${fullMobile}` });
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (error: any) {
