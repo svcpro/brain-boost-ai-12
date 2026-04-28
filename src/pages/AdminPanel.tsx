@@ -595,8 +595,16 @@ const AdminPanel = () => {
               {section === "institutions" && <InstitutionManagement />}
               {section === "teacher_mode" && <TeacherModeAdmin />}
               {section === "monitoring" && <SystemMonitor />}
-              {section === "traffic" && <TrafficMonitor />}
-              {section === "incidents" && <IncidentTimeline />}
+              {section === "traffic" && (
+                <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading Traffic Monitor…</div>}>
+                  <TrafficMonitor />
+                </Suspense>
+              )}
+              {section === "incidents" && (
+                <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading Incident Timeline…</div>}>
+                  <IncidentTimeline />
+                </Suspense>
+              )}
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}
               {section === "settings" && <SettingsSection toast={toast} />}
