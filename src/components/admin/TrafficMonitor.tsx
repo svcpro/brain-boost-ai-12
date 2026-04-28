@@ -9,6 +9,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { toast } from "sonner";
+import { logIncident } from "@/lib/incidentLogger";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -216,6 +217,23 @@ export default function TrafficMonitor() {
     return () => clearInterval(id);
   }, [autoRefresh, fetchTraffic]);
 
+  // Periodic snapshot logger — once every 5 minutes
+  useEffect(() => {
+    if (!snapshot) return;
+    const bucket = Math.floor(Date.now() / (5 * 60 * 1000));
+    const key = `acry_snap_logged_${bucket}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    logIncident({
+      event_type: "snapshot",
+      severity: "info",
+      title: `Snapshot · ${snapshot.activeUsers} users · ${snapshot.requestsPerMin} rpm`,
+      description: `DB ${snapshot.dbLatencyMs}ms · errors ${snapshot.errorRate}%`,
+      current_tier: currentTier.key,
+      snapshot: snapshot as any,
+    });
+  }, [snapshot, currentTier]);
+
   // ─── Alert evaluation ────────────────────────────────────────
   useEffect(() => {
     if (!snapshot) return;
@@ -234,7 +252,31 @@ export default function TrafficMonitor() {
     });
     setActiveAlerts(triggered);
 
-    // Browser notification + toast for newly-triggered critical alerts
+    // Log every triggered alert (deduped 5-min) + browser/toast for critical
+    triggered.forEach(t => {
+      let value = 0;
+      switch (t.metric) {
+        case "activeUsers":    value = (snapshot.activeUsers / currentTier.maxConcurrentUsers) * 100; break;
+        case "requestsPerMin": value = (snapshot.requestsPerMin / currentTier.maxRpm) * 100; break;
+        case "dbLatencyMs":    value = snapshot.dbLatencyMs; break;
+        case "errorRate":      value = snapshot.errorRate; break;
+        case "edgeInvocations":value = snapshot.edgeInvocations; break;
+      }
+      logIncident({
+        event_type: "alert",
+        severity: t.severity,
+        title: t.label,
+        description: `${t.metric} = ${value.toFixed(1)} (threshold ${t.threshold})`,
+        metric_name: t.metric,
+        metric_value: Math.round(value * 100) / 100,
+        threshold_value: t.threshold,
+        current_tier: currentTier.key,
+        recommended_tier: recommendedTier.key,
+        snapshot: snapshot as any,
+      }, `alert_${t.key}`);
+    });
+
+    // Critical alerts → toast + browser push
     triggered.filter(t => t.severity === "critical").forEach(t => {
       const seenKey = `acry_alert_seen_${t.key}_${new Date().getMinutes()}`;
       if (!sessionStorage.getItem(seenKey)) {
@@ -245,7 +287,20 @@ export default function TrafficMonitor() {
         }
       }
     });
-  }, [snapshot, rules, currentTier, notify]);
+
+    // Log scaling recommendation (deduped per tier transition)
+    if (recommendedTier.key !== currentTier.key) {
+      logIncident({
+        event_type: "recommendation",
+        severity: "warning",
+        title: `Upgrade recommended: ${currentTier.label} → ${recommendedTier.label}`,
+        description: `Traffic approaching ${currentTier.label} limits. Recommended: ${recommendedTier.label} (${recommendedTier.monthlyCost}).`,
+        current_tier: currentTier.key,
+        recommended_tier: recommendedTier.key,
+        snapshot: snapshot as any,
+      }, `rec_${currentTier.key}_to_${recommendedTier.key}`);
+    }
+  }, [snapshot, rules, currentTier, recommendedTier, notify]);
 
   const requestNotify = async () => {
     if (!("Notification" in window)) { toast.error("Notifications not supported"); return; }
@@ -347,7 +402,20 @@ export default function TrafficMonitor() {
                   className="px-3 py-1.5 rounded-lg bg-warning/20 hover:bg-warning/30 text-warning text-xs font-bold border border-warning/40 transition-all">
                   Open Cloud → Advanced Settings ↗
                 </a>
-                <button onClick={() => setTier(recommendedTier.key)}
+                <button onClick={() => {
+                    const oldTier = currentTier;
+                    setTier(recommendedTier.key);
+                    logIncident({
+                      event_type: "upgrade",
+                      severity: "info",
+                      title: `Instance upgraded: ${oldTier.label} → ${recommendedTier.label}`,
+                      description: `Cost change: ${oldTier.monthlyCost} → ${recommendedTier.monthlyCost}`,
+                      current_tier: oldTier.key,
+                      recommended_tier: recommendedTier.key,
+                      snapshot: snapshot as any,
+                    });
+                    toast.success(`Marked as ${recommendedTier.label}`);
+                  }}
                   className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-primary/10 text-foreground text-xs font-medium border border-border transition-all">
                   Mark as upgraded
                 </button>

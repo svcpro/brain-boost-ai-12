@@ -35,6 +35,7 @@ import PermissionManagement from "@/components/admin/PermissionManagement";
 import AICommandCenter from "@/components/admin/AICommandCenter";
 import SystemMonitor from "@/components/admin/SystemMonitor";
 import TrafficMonitor from "@/components/admin/TrafficMonitor";
+import IncidentTimeline from "@/components/admin/IncidentTimeline";
 import AdminProfile from "@/components/admin/AdminProfile";
 import ChatManagement from "@/components/admin/ChatManagement";
 import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
@@ -66,7 +67,7 @@ import SmsAlertsCenter from "@/components/admin/SmsAlertsCenter";
 import WhatsAppCommandCenter from "@/components/admin/WhatsAppCommandCenter";
 import ReferralHandlesAdmin from "@/components/admin/ReferralHandlesAdmin";
 import { Link as LinkIcon } from "lucide-react";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "incidents" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -180,6 +181,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "seo", label: "SEO Manager", icon: SearchIcon, roles: ["super_admin", "admin"] },
       { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
       { key: "traffic", label: "Traffic Monitor", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "LIVE", badgeColor: "bg-emerald-500/20 text-emerald-400" },
+      { key: "incidents", label: "Incident History", icon: Clock, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
       { key: "coming_soon", label: "Coming Soon", icon: Rocket, roles: ["super_admin", "admin"], badge: "🚀" },
     ],
   },
@@ -593,6 +595,7 @@ const AdminPanel = () => {
               {section === "teacher_mode" && <TeacherModeAdmin />}
               {section === "monitoring" && <SystemMonitor />}
               {section === "traffic" && <TrafficMonitor />}
+              {section === "incidents" && <IncidentTimeline />}
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}
               {section === "settings" && <SettingsSection toast={toast} />}
