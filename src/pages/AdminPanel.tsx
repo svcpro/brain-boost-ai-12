@@ -181,6 +181,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "seo", label: "SEO Manager", icon: SearchIcon, roles: ["super_admin", "admin"] },
       { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
       { key: "traffic", label: "Traffic Monitor", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "LIVE", badgeColor: "bg-emerald-500/20 text-emerald-400" },
+      { key: "incidents", label: "Incident History", icon: Clock, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
       { key: "coming_soon", label: "Coming Soon", icon: Rocket, roles: ["super_admin", "admin"], badge: "🚀" },
     ],
   },
