@@ -176,6 +176,7 @@ const AuthPage = () => {
   const [otpCode, setOtpCode] = useState(["", "", "", ""]);
   const [inputFocused, setInputFocused] = useState(false);
   const [verifySuccess, setVerifySuccess] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
