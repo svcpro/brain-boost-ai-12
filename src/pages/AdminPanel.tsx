@@ -595,6 +595,7 @@ const AdminPanel = () => {
               {section === "teacher_mode" && <TeacherModeAdmin />}
               {section === "monitoring" && <SystemMonitor />}
               {section === "traffic" && <TrafficMonitor />}
+              {section === "incidents" && <IncidentTimeline />}
               {section === "admins" && <AdminsSection isSuperAdmin={isSuperAdmin} refetchRoles={refetchRoles} toast={toast} />}
               {section === "audit" && <AuditSection />}
               {section === "settings" && <SettingsSection toast={toast} />}
