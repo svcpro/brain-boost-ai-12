@@ -34,6 +34,7 @@ import PlanGatingManagement from "@/components/app/PlanGatingManagement";
 import PermissionManagement from "@/components/admin/PermissionManagement";
 import AICommandCenter from "@/components/admin/AICommandCenter";
 import SystemMonitor from "@/components/admin/SystemMonitor";
+import TrafficMonitor from "@/components/admin/TrafficMonitor";
 import AdminProfile from "@/components/admin/AdminProfile";
 import ChatManagement from "@/components/admin/ChatManagement";
 import ThirdPartyServices from "@/components/admin/ThirdPartyServices";
