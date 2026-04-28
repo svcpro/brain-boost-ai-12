@@ -10833,7 +10833,8 @@ export type Database = {
           expires_at: string
           id: string
           mobile: string
-          otp: string
+          otp: string | null
+          otp_hash: string | null
           verified: boolean
         }
         Insert: {
@@ -10842,7 +10843,8 @@ export type Database = {
           expires_at?: string
           id?: string
           mobile: string
-          otp: string
+          otp?: string | null
+          otp_hash?: string | null
           verified?: boolean
         }
         Update: {
@@ -10851,7 +10853,8 @@ export type Database = {
           expires_at?: string
           id?: string
           mobile?: string
-          otp?: string
+          otp?: string | null
+          otp_hash?: string | null
           verified?: boolean
         }
         Relationships: []
@@ -11413,6 +11416,10 @@ export type Database = {
       reset_monthly_api_usage: { Args: never; Returns: undefined }
       sms_quota_increment: { Args: { p_user_id: string }; Returns: number }
       sms_quota_remaining: { Args: { p_user_id: string }; Returns: number }
+      verify_whatsapp_otp: {
+        Args: { p_mobile: string; p_otp: string }
+        Returns: boolean
+      }
       whatsapp_quota_increment: { Args: { p_user_id: string }; Returns: number }
       whatsapp_quota_remaining: { Args: { p_user_id: string }; Returns: number }
     }
