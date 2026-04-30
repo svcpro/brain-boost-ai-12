@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { firePush } from "@/lib/firePush";
 
 interface ReminderPrefs {
   enabled: boolean;
@@ -79,16 +80,9 @@ export const useStudyReminder = () => {
       });
     }
 
-    // Push notification (background/other devices)
+    // Fire registered study_reminder trigger (cooldown + AI personalisation respected)
     if (user) {
-      supabase.functions.invoke("send-push-notification", {
-        body: {
-          recipient_id: user.id,
-          title: "📚 Time to study!",
-          body: "You haven't studied yet today. Keep your streak alive!",
-          data: { type: "study_reminder" },
-        },
-      }).catch((err) => console.warn("Study reminder push failed:", err));
+      firePush("study_reminder", user.id);
     }
   }, [user]);
 

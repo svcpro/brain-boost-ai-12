@@ -7,9 +7,9 @@ import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { useVoice } from "@/pages/AppDashboard";
 import { getVoiceSettings } from "@/hooks/useVoiceNotification";
 import { getCache, setCache } from "@/lib/offlineCache";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPushNotifPrefs } from "./NotificationPreferencesPanel";
+import { firePush } from "@/lib/firePush";
 import confetti from "canvas-confetti";
 
 const STREAK_MILESTONES = [3, 7, 14, 30];
@@ -71,12 +71,12 @@ const StreakTracker = () => {
     };
     fire();
 
-    // Send push notification for streak milestone
+    // Fire registered streak_milestone trigger (cooldowns + AI personalisation handled centrally)
     if (user && MILESTONE_NOTIF[streak.currentStreak] && getPushNotifPrefs().streakMilestones) {
-      const notif = MILESTONE_NOTIF[streak.currentStreak];
-      supabase.functions.invoke("send-push-notification", {
-        body: { recipient_id: user.id, title: notif.title, body: notif.body, data: { type: "streak_milestone", streak: streak.currentStreak } },
-      }).catch((err) => console.warn("Streak push failed:", err));
+      firePush("streak_milestone", user.id, {
+        streak: streak.currentStreak,
+        score: streak.currentStreak >= 30 ? 1 : streak.currentStreak >= 14 ? 5 : 10,
+      });
     }
 
     // Auto-dismiss after 5s
