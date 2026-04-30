@@ -109,12 +109,33 @@ export function getOneSignalLastError(): string | null {
 export async function setOneSignalUser(userId: string): Promise<void> {
   const ok = await initOneSignal();
   if (!ok || !window.OneSignal) return;
+
+  // Wait for User namespace to be ready (SDK initializes it asynchronously)
+  for (let i = 0; i < 25; i++) {
+    if (window.OneSignal?.User && typeof window.OneSignal.login === "function") break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  if (!window.OneSignal?.User) {
+    console.warn("[OneSignal] User namespace not ready, skipping login");
+    return;
+  }
+
+  // Skip if already logged in as this user
   try {
-    // v16: login() sets the external_id (alias). This is what
-    // include_aliases.external_id targets in the REST API.
+    const currentExternalId = window.OneSignal.User?.externalId;
+    if (currentExternalId === userId) return;
+  } catch { /* ignore */ }
+
+  try {
     await window.OneSignal.login(userId);
   } catch (e) {
-    console.warn("[OneSignal] login error", e);
+    // SDK internal error — try the lower-level addAlias as a fallback
+    console.warn("[OneSignal] login error, trying addAlias", e);
+    try {
+      window.OneSignal.User?.addAlias?.("external_id", userId);
+    } catch (e2) {
+      console.warn("[OneSignal] addAlias also failed", e2);
+    }
   }
 }
 

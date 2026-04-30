@@ -134,7 +134,7 @@ const PushNotificationManagement = () => {
       return toast({ title: "Push setup incomplete", description: getOneSignalLastError() || "OneSignal could not initialize for this domain.", variant: "destructive" });
     }
 
-    await setOneSignalUser(user.id);
+    // Permission first — without it, no player ID is created
     const granted = typeof Notification !== "undefined" && Notification.permission === "granted"
       ? true
       : await requestPushPermission();
@@ -149,8 +149,19 @@ const PushNotificationManagement = () => {
     }
     await registerPlayerWithBackend(sub.playerId);
 
+    // Link external_id AFTER subscription exists — non-fatal if it fails
+    setOneSignalUser(user.id).catch(() => { /* non-blocking */ });
+
+    // Target by player_id directly — most reliable path, doesn't depend on alias linking
     const { data, error } = await supabase.functions.invoke("onesignal-dispatch", {
-      body: { action: "send_to_user", user_id: user.id, title: "🧪 Test Notification", body: "Your OneSignal command center is live!", deep_link: "/app" },
+      body: {
+        action: "send_to_user",
+        user_id: user.id,
+        player_ids: [sub.playerId],
+        title: "🧪 Test Notification",
+        body: "Your OneSignal command center is live!",
+        deep_link: "/app",
+      },
     });
     const result = data as any;
     if (error || result?.error || !result?.id) {

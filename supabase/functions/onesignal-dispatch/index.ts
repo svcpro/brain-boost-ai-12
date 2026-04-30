@@ -241,14 +241,20 @@ Deno.serve(async (req) => {
     }
 
     if (action === "send_to_user") {
-      const { user_id, title, body: txt, data = {}, deep_link } = body;
+      const { user_id, title, body: txt, data = {}, deep_link, player_ids: clientPlayerIds } = body;
       if (!user_id || !title || !txt) return json({ error: "user_id, title, body required" }, 400);
-      const { data: players } = await supabase
-        .from("onesignal_players")
-        .select("player_id")
-        .eq("user_id", user_id)
-        .eq("is_subscribed", true);
-      const playerIds = (players || []).map((p: any) => p.player_id).filter(Boolean);
+
+      // Prefer client-provided player_ids (avoids DB-write race), fall back to lookup
+      let playerIds: string[] = Array.isArray(clientPlayerIds) ? clientPlayerIds.filter(Boolean) : [];
+      if (!playerIds.length) {
+        const { data: players } = await supabase
+          .from("onesignal_players")
+          .select("player_id")
+          .eq("user_id", user_id)
+          .eq("is_subscribed", true);
+        playerIds = (players || []).map((p: any) => p.player_id).filter(Boolean);
+      }
+
       if (!playerIds.length) {
         await supabase.from("push_deliveries").insert({
           user_id, title, body: txt, status: "no_recipients", error: "no_registered_devices",
