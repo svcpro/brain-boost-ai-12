@@ -300,7 +300,7 @@ const PushNotificationManagement = () => {
                 value={aiIntent}
                 onChange={e => setAiIntent(e.target.value)}
                 rows={2}
-                placeholder='e.g. "remind everyone about today\'s mock test" — or leave blank to let AI auto-pick'
+                placeholder={`e.g. "remind everyone about today's mock test" — or leave blank to let AI auto-pick`}
               />
             </div>
 
