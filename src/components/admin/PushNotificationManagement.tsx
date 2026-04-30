@@ -118,7 +118,14 @@ const PushNotificationManagement = () => {
     const { data, error } = await supabase.functions.invoke("onesignal-dispatch", {
       body: { action: "send_to_user", user_id: user.id, title: "🧪 Test Notification", body: "Your OneSignal command center is live!", deep_link: "/app" },
     });
-    if (error || (data as any)?.error) return toast({ title: "Test failed", description: error?.message || (data as any)?.error, variant: "destructive" });
+    const result = data as any;
+    if (error || result?.error || !result?.id) {
+      return toast({
+        title: "Test not sent",
+        description: error?.message || result?.error || "No registered browser device found. Enable Web Push for this OneSignal app/domain first, then allow notifications.",
+        variant: "destructive",
+      });
+    }
     toast({ title: "✅ Test sent", description: "Check your device." });
   };
 
