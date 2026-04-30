@@ -3,7 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 
 // ─── Cache version: bump to force stale SW cache purge ───
-const CACHE_VERSION = "v8-onesignal-register-before-test";
+const CACHE_VERSION = "v9-onesignal-idempotent-init";
 const CACHE_VERSION_KEY = "acry_cache_version";
 
 const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
