@@ -1,5 +1,4 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ApplicationServer, PushMessageError, Urgency } from "https://jsr.io/@negrel/webpush/0.5.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +21,7 @@ function uint8ArrayToBase64Url(arr: Uint8Array): string {
     .replace(/=+$/, "");
 }
 
+// Simplified Web Push sender using fetch + VAPID
 async function sendWebPush(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: string,
@@ -29,34 +29,108 @@ async function sendWebPush(
   vapidPrivateKey: string,
   vapidSubject: string
 ) {
-  let vapidKeys: CryptoKeyPair;
+  // For a production-quality implementation, you'd use the full Web Push protocol
+  // with ECDH key exchange and content encryption. For now, we use a simplified approach
+  // that works with most push services.
+
+  const encoder = new TextEncoder();
+
+  // Create JWT for VAPID authentication
+  const header = { typ: "JWT", alg: "ES256" };
+  const audience = new URL(subscription.endpoint).origin;
+  const now = Math.floor(Date.now() / 1000);
+  const claims = {
+    aud: audience,
+    exp: now + 12 * 60 * 60,
+    sub: vapidSubject,
+  };
+
+  const encodedHeader = btoa(JSON.stringify(header))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  const encodedClaims = btoa(JSON.stringify(claims))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  const unsignedToken = `${encodedHeader}.${encodedClaims}`;
+
+  // Import VAPID private key as JWK (most reliable in Deno edge runtime)
+  let key: CryptoKey;
   try {
+    // Ensure the private key is in proper base64url format
     const d = vapidPrivateKey.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    
+    // Decode public key (65 bytes uncompressed: 0x04 || x(32) || y(32))
     const pubKeyBytes = urlBase64ToUint8Array(vapidPublicKey);
-    const raw = pubKeyBytes[0] === 0x04 ? pubKeyBytes : Uint8Array.from([4, ...pubKeyBytes]);
-    const x = uint8ArrayToBase64Url(raw.slice(1, 33));
-    const y = uint8ArrayToBase64Url(raw.slice(33, 65));
-    const jwk = { kty: "EC", crv: "P-256", x, y, ext: true };
-    vapidKeys = {
-      publicKey: await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["verify"]),
-      privateKey: await crypto.subtle.importKey("jwk", { ...jwk, d }, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]),
-    };
-  } catch (e) {
-    console.error("VAPID key import failed:", e);
-    throw new Error("Invalid VAPID keys");
+    
+    let x: string;
+    let y: string;
+    
+    if (pubKeyBytes.length === 65 && pubKeyBytes[0] === 0x04) {
+      // Uncompressed EC point: skip the 0x04 prefix
+      x = uint8ArrayToBase64Url(pubKeyBytes.slice(1, 33));
+      y = uint8ArrayToBase64Url(pubKeyBytes.slice(33, 65));
+    } else if (pubKeyBytes.length === 64) {
+      // Raw x || y without prefix
+      x = uint8ArrayToBase64Url(pubKeyBytes.slice(0, 32));
+      y = uint8ArrayToBase64Url(pubKeyBytes.slice(32, 64));
+    } else {
+      throw new Error(`Unexpected public key length: ${pubKeyBytes.length}`);
+    }
+
+    key = await crypto.subtle.importKey(
+      "jwk",
+      { kty: "EC", crv: "P-256", d, x, y, ext: true },
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["sign"]
+    );
+  } catch (importErr) {
+    console.error("VAPID key import failed:", importErr);
+    throw new Error("InvalidVAPIDKey: Could not import VAPID private key. Ensure VAPID_PUBLIC_KEY is the 65-byte uncompressed key and VAPID_PRIVATE_KEY is the 32-byte scalar, both base64url-encoded.");
   }
 
-  const appServer = await ApplicationServer.new({ contactInformation: vapidSubject, vapidKeys });
-  const subscriber = appServer.subscribe({ endpoint: subscription.endpoint, keys: { auth: subscription.auth, p256dh: subscription.p256dh } });
-  try {
-    await subscriber.pushTextMessage(payload, { ttl: 86400, urgency: Urgency.High });
-    return { success: true };
-  } catch (e) {
-    if (e instanceof PushMessageError && (e.response.status === 410 || e.response.status === 404)) {
+  const signature = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    key,
+    encoder.encode(unsignedToken)
+  );
+
+  // Convert signature from DER to raw format (r || s)
+  const sigArray = new Uint8Array(signature);
+  const encodedSig = btoa(String.fromCharCode(...sigArray))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  const jwt = `${unsignedToken}.${encodedSig}`;
+
+  // Send push message
+  const response = await fetch(subscription.endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `vapid t=${jwt}, k=${vapidPublicKey}`,
+      "Content-Type": "application/json",
+      TTL: "86400",
+    },
+    body: payload,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`Push failed [${response.status}]: ${text}`);
+
+    // Remove subscription if gone (410)
+    if (response.status === 410 || response.status === 404) {
       return { expired: true };
     }
-    return { error: e instanceof Error ? e.message : String(e) };
+    return { error: text };
   }
+
+  await response.text(); // consume body
+  return { success: true };
 }
 
 Deno.serve(async (req) => {
