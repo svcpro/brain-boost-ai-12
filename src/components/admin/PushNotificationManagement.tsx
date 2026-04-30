@@ -10,15 +10,6 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Send, Calendar, Users, Settings, Activity, FileText, Layers, Zap, Search } from "lucide-react";
-import {
-  getOneSignalLastError,
-  getOneSignalSubscription,
-  initOneSignal,
-  optInPush,
-  registerPlayerWithBackend,
-  requestPushPermission,
-  setOneSignalUser,
-} from "@/lib/onesignal";
 
 type Catalog = { id: string; event_key: string; category: string; display_name: string; description: string; priority: string };
 type Rule = { id: string; event_key: string; enabled: boolean; respect_quiet_hours: boolean; throttle_per_user_per_day: number; cooldown_minutes: number; escalate_to_email: boolean; ab_test_enabled: boolean };
@@ -124,37 +115,10 @@ const PushNotificationManagement = () => {
   const sendTest = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const initialized = await initOneSignal();
-    if (!initialized) {
-      return toast({ title: "Push setup incomplete", description: getOneSignalLastError() || "OneSignal could not initialize for this domain.", variant: "destructive" });
-    }
-
-    await setOneSignalUser(user.id);
-    const granted = typeof Notification !== "undefined" && Notification.permission === "granted"
-      ? true
-      : await requestPushPermission();
-    if (!granted) {
-      return toast({ title: "Notifications blocked", description: "Allow notifications in this browser, then try Send Test again.", variant: "destructive" });
-    }
-
-    await optInPush();
-    const sub = await getOneSignalSubscription();
-    if (!sub.playerId) {
-      return toast({ title: "Device not registered", description: getOneSignalLastError() || "OneSignal did not return a browser subscription ID yet. Try again after a few seconds.", variant: "destructive" });
-    }
-    await registerPlayerWithBackend(sub.playerId);
-
     const { data, error } = await supabase.functions.invoke("onesignal-dispatch", {
       body: { action: "send_to_user", user_id: user.id, title: "🧪 Test Notification", body: "Your OneSignal command center is live!", deep_link: "/app" },
     });
-    const result = data as any;
-    if (error || result?.error || !result?.id) {
-      return toast({
-        title: "Test not sent",
-        description: error?.message || result?.error || "No registered browser device found. Enable Web Push for this OneSignal app/domain first, then allow notifications.",
-        variant: "destructive",
-      });
-    }
+    if (error || (data as any)?.error) return toast({ title: "Test failed", description: error?.message || (data as any)?.error, variant: "destructive" });
     toast({ title: "✅ Test sent", description: "Check your device." });
   };
 
