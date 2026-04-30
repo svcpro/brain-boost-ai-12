@@ -16,6 +16,7 @@ import {
   initOneSignal,
   optInPush,
   registerPlayerWithBackend,
+  registerNativePushSubscription,
   requestPushPermission,
   setOneSignalUser,
 } from "@/lib/onesignal";
@@ -129,9 +130,28 @@ const PushNotificationManagement = () => {
   const sendTest = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    const nativeSub = await registerNativePushSubscription();
+    if (nativeSub.subscribed) {
+      const { data, error } = await supabase.functions.invoke("send-push-notification", {
+        body: {
+          recipient_id: user.id,
+          title: "🧪 Test Notification",
+          body: "Your push command center is live!",
+          data: { type: "admin_test", url: "/app" },
+        },
+      });
+      const result = data as any;
+      if (!error && result?.sent > 0) {
+        toast({ title: "✅ Test sent", description: "Check your device." });
+        setTimeout(loadAll, 800);
+        return;
+      }
+    }
+
     const initialized = await initOneSignal();
     if (!initialized) {
-      return toast({ title: "Push setup incomplete", description: getOneSignalLastError() || "OneSignal could not initialize for this domain.", variant: "destructive" });
+      return toast({ title: "Push setup incomplete", description: nativeSub.error || getOneSignalLastError() || "Push could not initialize for this browser.", variant: "destructive" });
     }
 
     // Permission first — without it, no player ID is created
