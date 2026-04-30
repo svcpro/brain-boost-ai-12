@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { firePushServer } from "../_shared/firePush.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +23,7 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
     const { data: users } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, last_active_at, exam_date, display_name")
       .gte("last_active_at", cutoff)
       .limit(500);
 
