@@ -282,32 +282,80 @@ const PushNotificationManagement = () => {
           <TemplatesEditor catalog={catalog} templates={templates} onChange={loadAll} />
         </TabsContent>
 
-        {/* BROADCAST */}
+        {/* BROADCAST — AI AUTOMATED */}
         <TabsContent value="broadcast" className="space-y-3 mt-4">
           <div className="glass rounded-xl p-4 neural-border space-y-3">
-            <div>
-              <Label className="text-xs">Title</Label>
-              <Input value={bTitle} onChange={e => setBTitle(e.target.value)} placeholder="🎯 Daily Drill Ready!" />
+            <div className="flex items-center gap-2 pb-1">
+              <Zap className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-semibold">AI Announcement Composer</h3>
+              <Badge className="bg-cyan-500/15 text-cyan-300 text-[10px]">FULLY AUTOMATED</Badge>
             </div>
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              No manual writing. AI crafts the perfect title, body & deep link, then broadcasts to every subscribed user.
+            </p>
+
             <div>
-              <Label className="text-xs">Body</Label>
-              <Textarea value={bBody} onChange={e => setBBody(e.target.value)} rows={3} placeholder="Tap to begin your 3-min Quick Fix Quiz." />
+              <Label className="text-xs">Intent (optional)</Label>
+              <Textarea
+                value={aiIntent}
+                onChange={e => setAiIntent(e.target.value)}
+                rows={2}
+                placeholder='e.g. "remind everyone about today\'s mock test" — or leave blank to let AI auto-pick'
+              />
             </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs">Deep link</Label>
-                <Input value={bDeep} onChange={e => setBDeep(e.target.value)} placeholder="/app" />
+                <Label className="text-xs">Tone</Label>
+                <select
+                  value={aiTone}
+                  onChange={e => setAiTone(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="motivating">🔥 Motivating</option>
+                  <option value="urgent">⚡ Urgent</option>
+                  <option value="celebratory">🎉 Celebratory</option>
+                  <option value="friendly">💬 Friendly</option>
+                  <option value="exam-focused">📚 Exam-Focused</option>
+                </select>
               </div>
               <div>
                 <Label className="text-xs">Schedule (optional)</Label>
-                <Input type="datetime-local" value={bSchedule} onChange={e => setBSchedule(e.target.value)} />
+                <Input type="datetime-local" value={aiSchedule} onChange={e => setAiSchedule(e.target.value)} />
               </div>
             </div>
-            <Button onClick={sendBroadcast} disabled={bSending} className="w-full">
-              <Send className="w-4 h-4 mr-2" />
-              {bSending ? "Sending…" : bSchedule ? "Schedule Broadcast" : "Send Broadcast Now"}
-            </Button>
-            <p className="text-[10px] text-muted-foreground">Goes to all subscribed users. Scheduled broadcasts fire via the cron every 15 min.</p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => runAIAnnouncement("preview")}
+                disabled={aiBusy !== "idle"}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                {aiBusy === "preview" ? "Drafting…" : "AI Draft Preview"}
+              </Button>
+              <Button
+                onClick={() => runAIAnnouncement("send")}
+                disabled={aiBusy !== "idle"}
+                className="bg-gradient-to-r from-cyan-500 to-purple-500"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {aiBusy === "send" ? "Sending…" : aiSchedule ? "AI Generate & Schedule" : "AI Generate & Send"}
+              </Button>
+            </div>
+
+            {aiPreview && (
+              <div className="rounded-lg bg-background/60 border border-cyan-500/20 p-3 space-y-1">
+                <div className="text-[10px] text-cyan-400 uppercase tracking-wide">Last AI Draft</div>
+                <div className="text-sm font-semibold">{aiPreview.title}</div>
+                <div className="text-xs text-muted-foreground">{aiPreview.body}</div>
+                <div className="text-[10px] text-muted-foreground">→ {aiPreview.deep_link}</div>
+              </div>
+            )}
+
+            <p className="text-[10px] text-muted-foreground">
+              Goes to all subscribed users. Scheduled announcements fire via cron every 15 min.
+            </p>
           </div>
         </TabsContent>
 
