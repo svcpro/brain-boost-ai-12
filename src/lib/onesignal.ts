@@ -12,6 +12,10 @@ declare global {
 let initPromise: Promise<boolean> | null = null;
 let lastInitError: string | null = null;
 
+function isAlreadyInitializedError(error: unknown): boolean {
+  return errorMessage(error).toLowerCase().includes("sdk already initialized");
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
@@ -74,12 +78,21 @@ export function initOneSignal(): Promise<boolean> {
             });
             resolve();
           } catch (e) {
+            if (isAlreadyInitializedError(e)) {
+              resolve();
+              return;
+            }
             reject(e);
           }
         });
       });
+      lastInitError = null;
       return true;
     } catch (e) {
+      if (isAlreadyInitializedError(e)) {
+        lastInitError = null;
+        return true;
+      }
       lastInitError = errorMessage(e);
       initPromise = null;
       console.warn("[OneSignal] failed to init", e);
