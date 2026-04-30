@@ -33,7 +33,7 @@ interface SendOptions {
   data?: Record<string, unknown>;
 }
 
-async function pushToOneSignal(opts: SendOptions): Promise<{ id?: string; error?: string; raw?: unknown }> {
+async function pushToOneSignal(opts: SendOptions): Promise<{ id?: string; recipients?: number; error?: string; raw?: unknown }> {
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
     return { error: "OneSignal not configured" };
   }
@@ -74,7 +74,7 @@ async function pushToOneSignal(opts: SendOptions): Promise<{ id?: string; error?
     let parsed: any = {};
     try { parsed = JSON.parse(txt); } catch { /* keep raw */ }
     if (!res.ok) return { error: parsed?.errors?.join?.(", ") || txt, raw: parsed };
-    return { id: parsed.id, raw: parsed };
+    return { id: parsed.id, recipients: parsed.recipients ?? 0, raw: parsed };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }
@@ -243,15 +243,28 @@ Deno.serve(async (req) => {
     if (action === "send_to_user") {
       const { user_id, title, body: txt, data = {}, deep_link } = body;
       if (!user_id || !title || !txt) return json({ error: "user_id, title, body required" }, 400);
-      const send = await pushToOneSignal({ user_ids: [user_id], title, body: txt, deep_link, data });
+      const { data: players } = await supabase
+        .from("onesignal_players")
+        .select("player_id")
+        .eq("user_id", user_id)
+        .eq("is_subscribed", true);
+      const playerIds = (players || []).map((p: any) => p.player_id).filter(Boolean);
+      if (!playerIds.length) {
+        await supabase.from("push_deliveries").insert({
+          user_id, title, body: txt, status: "no_recipients", error: "no_registered_devices",
+          payload: { data, player_count: 0 },
+        });
+        return json({ ok: false, error: "no_registered_devices" });
+      }
+      const send = await pushToOneSignal({ player_ids: playerIds, title, body: txt, deep_link, data });
       await supabase.from("push_deliveries").insert({
         user_id, title, body: txt,
         onesignal_notification_id: send.id,
-        status: send.error ? "failed" : "sent",
-        error: send.error,
+        status: send.error ? "failed" : (send.recipients ? "sent" : "no_recipients"),
+        error: send.error || (!send.recipients ? "onesignal_zero_recipients" : null),
         sent_at: send.error ? null : new Date().toISOString(),
       });
-      return json({ ok: !send.error, id: send.id, error: send.error });
+      return json({ ok: !send.error && !!send.recipients, id: send.id, recipients: send.recipients, error: send.error || (!send.recipients ? "onesignal_zero_recipients" : null) });
     }
 
     return json({ error: "unknown action" }, 400);

@@ -4,7 +4,7 @@ import { useOneSignal } from "@/hooks/useOneSignal";
 import { useToast } from "@/hooks/use-toast";
 
 const PushNotificationToggle = () => {
-  const { subscribed, supported, enable, disable } = useOneSignal();
+  const { subscribed, supported, error, enable, disable } = useOneSignal();
   const { toast } = useToast();
 
   if (!supported) return null;
@@ -36,7 +36,7 @@ const PushNotificationToggle = () => {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground">Push Notifications</p>
           <p className="text-[10px] text-muted-foreground">
-            {subscribed ? "Smart alerts active across all moments" : "Get notified for streaks, missions, exams & more"}
+            {error ? error : subscribed ? "Smart alerts active across all moments" : "Get notified for streaks, missions, exams & more"}
           </p>
         </div>
         <button
