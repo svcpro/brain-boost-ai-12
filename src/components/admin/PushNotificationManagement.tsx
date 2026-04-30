@@ -10,6 +10,15 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Send, Calendar, Users, Settings, Activity, FileText, Layers, Zap, Search } from "lucide-react";
+import {
+  getOneSignalLastError,
+  getOneSignalSubscription,
+  initOneSignal,
+  optInPush,
+  registerPlayerWithBackend,
+  requestPushPermission,
+  setOneSignalUser,
+} from "@/lib/onesignal";
 
 type Catalog = { id: string; event_key: string; category: string; display_name: string; description: string; priority: string };
 type Rule = { id: string; event_key: string; enabled: boolean; respect_quiet_hours: boolean; throttle_per_user_per_day: number; cooldown_minutes: number; escalate_to_email: boolean; ab_test_enabled: boolean };
@@ -37,12 +46,12 @@ const PushNotificationManagement = () => {
   const [search, setSearch] = useState("");
   const [stats, setStats] = useState({ sent: 0, delivered: 0, clicked: 0, failed: 0, suppressed: 0 });
 
-  // Broadcast form
-  const [bTitle, setBTitle] = useState("");
-  const [bBody, setBBody] = useState("");
-  const [bDeep, setBDeep] = useState("");
-  const [bSchedule, setBSchedule] = useState("");
-  const [bSending, setBSending] = useState(false);
+  // AI Announcement form
+  const [aiIntent, setAiIntent] = useState("");
+  const [aiTone, setAiTone] = useState("motivating");
+  const [aiSchedule, setAiSchedule] = useState("");
+  const [aiPreview, setAiPreview] = useState<{ title: string; body: string; deep_link: string } | null>(null);
+  const [aiBusy, setAiBusy] = useState<"idle" | "preview" | "send">("idle");
 
   const loadAll = async () => {
     setLoading(true);
@@ -84,41 +93,84 @@ const PushNotificationManagement = () => {
     toast({ title: "Saved" });
   };
 
-  const sendBroadcast = async () => {
-    if (!bTitle.trim() || !bBody.trim()) return toast({ title: "Title & body required", variant: "destructive" });
-    setBSending(true);
+  const runAIAnnouncement = async (mode: "preview" | "send") => {
+    setAiBusy(mode);
     try {
-      if (bSchedule) {
-        const { error } = await supabase.from("push_campaigns" as any).insert({
-          name: bTitle, title: bTitle, body: bBody, deep_link: bDeep || null,
-          status: "scheduled", scheduled_at: new Date(bSchedule).toISOString(),
-        });
-        if (error) throw error;
-        toast({ title: "📅 Scheduled", description: "Will fire automatically." });
+      const { data, error } = await supabase.functions.invoke("ai-announcement", {
+        body: {
+          intent: aiIntent || undefined,
+          tone: aiTone,
+          send: mode === "send" && !aiSchedule,
+          scheduled_at: aiSchedule ? new Date(aiSchedule).toISOString() : null,
+        },
+      });
+      if (error) throw error;
+      const r = data as any;
+      if (r?.error) throw new Error(r.error);
+      setAiPreview({ title: r.title, body: r.body, deep_link: r.deep_link });
+      if (r.scheduled) {
+        toast({ title: "📅 Scheduled", description: `${r.title}` });
+        setAiIntent(""); setAiSchedule("");
+        loadAll();
+      } else if (r.sent) {
+        toast({ title: "🚀 Announcement sent", description: r.title });
+        setAiIntent("");
+        loadAll();
       } else {
-        const { data, error } = await supabase.functions.invoke("onesignal-dispatch", {
-          body: { action: "send_broadcast", title: bTitle, body: bBody, deep_link: bDeep || undefined },
-        });
-        if (error) throw error;
-        if ((data as any)?.error) throw new Error((data as any).error);
-        toast({ title: "🚀 Broadcast sent", description: `OneSignal id: ${(data as any)?.id ?? "ok"}` });
+        toast({ title: "🤖 AI draft ready", description: "Review below, then send." });
       }
-      setBTitle(""); setBBody(""); setBDeep(""); setBSchedule("");
-      loadAll();
     } catch (e: any) {
-      toast({ title: "Send failed", description: e.message, variant: "destructive" });
+      toast({ title: "AI announcement failed", description: e.message, variant: "destructive" });
     } finally {
-      setBSending(false);
+      setAiBusy("idle");
     }
   };
 
   const sendTest = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    const initialized = await initOneSignal();
+    if (!initialized) {
+      return toast({ title: "Push setup incomplete", description: getOneSignalLastError() || "OneSignal could not initialize for this domain.", variant: "destructive" });
+    }
+
+    // Permission first — without it, no player ID is created
+    const granted = typeof Notification !== "undefined" && Notification.permission === "granted"
+      ? true
+      : await requestPushPermission();
+    if (!granted) {
+      return toast({ title: "Notifications blocked", description: "Allow notifications in this browser, then try Send Test again.", variant: "destructive" });
+    }
+
+    await optInPush();
+    const sub = await getOneSignalSubscription();
+    if (!sub.playerId) {
+      return toast({ title: "Device not registered", description: getOneSignalLastError() || "OneSignal did not return a browser subscription ID yet. Try again after a few seconds.", variant: "destructive" });
+    }
+    await registerPlayerWithBackend(sub.playerId);
+
+    // Link external_id AFTER subscription exists — non-fatal if it fails
+    setOneSignalUser(user.id).catch(() => { /* non-blocking */ });
+
+    // Target by player_id directly — most reliable path, doesn't depend on alias linking
     const { data, error } = await supabase.functions.invoke("onesignal-dispatch", {
-      body: { action: "send_to_user", user_id: user.id, title: "🧪 Test Notification", body: "Your OneSignal command center is live!", deep_link: "/app" },
+      body: {
+        action: "send_to_user",
+        user_id: user.id,
+        player_ids: [sub.playerId],
+        title: "🧪 Test Notification",
+        body: "Your OneSignal command center is live!",
+        deep_link: "/app",
+      },
     });
-    if (error || (data as any)?.error) return toast({ title: "Test failed", description: error?.message || (data as any)?.error, variant: "destructive" });
+    const result = data as any;
+    if (error || result?.error || !result?.id) {
+      return toast({
+        title: "Test not sent",
+        description: error?.message || result?.error || "No registered browser device found. Enable Web Push for this OneSignal app/domain first, then allow notifications.",
+        variant: "destructive",
+      });
+    }
     toast({ title: "✅ Test sent", description: "Check your device." });
   };
 
@@ -241,32 +293,80 @@ const PushNotificationManagement = () => {
           <TemplatesEditor catalog={catalog} templates={templates} onChange={loadAll} />
         </TabsContent>
 
-        {/* BROADCAST */}
+        {/* BROADCAST — AI AUTOMATED */}
         <TabsContent value="broadcast" className="space-y-3 mt-4">
           <div className="glass rounded-xl p-4 neural-border space-y-3">
-            <div>
-              <Label className="text-xs">Title</Label>
-              <Input value={bTitle} onChange={e => setBTitle(e.target.value)} placeholder="🎯 Daily Drill Ready!" />
+            <div className="flex items-center gap-2 pb-1">
+              <Zap className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-semibold">AI Announcement Composer</h3>
+              <Badge className="bg-cyan-500/15 text-cyan-300 text-[10px]">FULLY AUTOMATED</Badge>
             </div>
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              No manual writing. AI crafts the perfect title, body & deep link, then broadcasts to every subscribed user.
+            </p>
+
             <div>
-              <Label className="text-xs">Body</Label>
-              <Textarea value={bBody} onChange={e => setBBody(e.target.value)} rows={3} placeholder="Tap to begin your 3-min Quick Fix Quiz." />
+              <Label className="text-xs">Intent (optional)</Label>
+              <Textarea
+                value={aiIntent}
+                onChange={e => setAiIntent(e.target.value)}
+                rows={2}
+                placeholder={`e.g. "remind everyone about today's mock test" — or leave blank to let AI auto-pick`}
+              />
             </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs">Deep link</Label>
-                <Input value={bDeep} onChange={e => setBDeep(e.target.value)} placeholder="/app" />
+                <Label className="text-xs">Tone</Label>
+                <select
+                  value={aiTone}
+                  onChange={e => setAiTone(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="motivating">🔥 Motivating</option>
+                  <option value="urgent">⚡ Urgent</option>
+                  <option value="celebratory">🎉 Celebratory</option>
+                  <option value="friendly">💬 Friendly</option>
+                  <option value="exam-focused">📚 Exam-Focused</option>
+                </select>
               </div>
               <div>
                 <Label className="text-xs">Schedule (optional)</Label>
-                <Input type="datetime-local" value={bSchedule} onChange={e => setBSchedule(e.target.value)} />
+                <Input type="datetime-local" value={aiSchedule} onChange={e => setAiSchedule(e.target.value)} />
               </div>
             </div>
-            <Button onClick={sendBroadcast} disabled={bSending} className="w-full">
-              <Send className="w-4 h-4 mr-2" />
-              {bSending ? "Sending…" : bSchedule ? "Schedule Broadcast" : "Send Broadcast Now"}
-            </Button>
-            <p className="text-[10px] text-muted-foreground">Goes to all subscribed users. Scheduled broadcasts fire via the cron every 15 min.</p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => runAIAnnouncement("preview")}
+                disabled={aiBusy !== "idle"}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                {aiBusy === "preview" ? "Drafting…" : "AI Draft Preview"}
+              </Button>
+              <Button
+                onClick={() => runAIAnnouncement("send")}
+                disabled={aiBusy !== "idle"}
+                className="bg-gradient-to-r from-cyan-500 to-purple-500"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {aiBusy === "send" ? "Sending…" : aiSchedule ? "AI Generate & Schedule" : "AI Generate & Send"}
+              </Button>
+            </div>
+
+            {aiPreview && (
+              <div className="rounded-lg bg-background/60 border border-cyan-500/20 p-3 space-y-1">
+                <div className="text-[10px] text-cyan-400 uppercase tracking-wide">Last AI Draft</div>
+                <div className="text-sm font-semibold">{aiPreview.title}</div>
+                <div className="text-xs text-muted-foreground">{aiPreview.body}</div>
+                <div className="text-[10px] text-muted-foreground">→ {aiPreview.deep_link}</div>
+              </div>
+            )}
+
+            <p className="text-[10px] text-muted-foreground">
+              Goes to all subscribed users. Scheduled announcements fire via cron every 15 min.
+            </p>
           </div>
         </TabsContent>
 

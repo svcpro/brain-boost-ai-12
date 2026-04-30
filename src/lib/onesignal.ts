@@ -10,11 +10,19 @@ declare global {
 }
 
 let initPromise: Promise<boolean> | null = null;
+let lastInitError: string | null = null;
+
+function isAlreadyInitializedError(error: unknown): boolean {
+  return errorMessage(error).toLowerCase().includes("sdk already initialized");
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try { return JSON.stringify(error); } catch { return "Unknown OneSignal error"; }
+}
 
 async function fetchAppId(): Promise<string | null> {
-  // Cache first
-  const cached = localStorage.getItem("onesignal_app_id");
-  if (cached) return cached;
   try {
     const { data } = await supabase.functions.invoke("onesignal-dispatch", {
       body: { action: "get_app_config" },
@@ -24,7 +32,7 @@ async function fetchAppId(): Promise<string | null> {
       return data.app_id;
     }
   } catch { /* ignore */ }
-  return null;
+  return localStorage.getItem("onesignal_app_id");
 }
 
 function loadScript(): Promise<void> {
@@ -51,11 +59,15 @@ export function initOneSignal(): Promise<boolean> {
   if (initPromise) return initPromise;
   initPromise = (async () => {
     try {
+      lastInitError = null;
       const appId = await fetchAppId();
-      if (!appId) return false;
+      if (!appId) {
+        lastInitError = "OneSignal App ID missing";
+        return false;
+      }
       await loadScript();
       window.OneSignalDeferred = window.OneSignalDeferred || [];
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         window.OneSignalDeferred!.push(async (OneSignal: any) => {
           try {
             await OneSignal.init({
@@ -64,14 +76,25 @@ export function initOneSignal(): Promise<boolean> {
               serviceWorkerParam: { scope: "/onesignal/" },
               serviceWorkerPath: "OneSignalSDKWorker.js",
             });
+            resolve();
           } catch (e) {
-            console.warn("[OneSignal] init error", e);
+            if (isAlreadyInitializedError(e)) {
+              resolve();
+              return;
+            }
+            reject(e);
           }
-          resolve();
         });
       });
+      lastInitError = null;
       return true;
     } catch (e) {
+      if (isAlreadyInitializedError(e)) {
+        lastInitError = null;
+        return true;
+      }
+      lastInitError = errorMessage(e);
+      initPromise = null;
       console.warn("[OneSignal] failed to init", e);
       return false;
     }
@@ -79,13 +102,40 @@ export function initOneSignal(): Promise<boolean> {
   return initPromise;
 }
 
+export function getOneSignalLastError(): string | null {
+  return lastInitError;
+}
+
 export async function setOneSignalUser(userId: string): Promise<void> {
   const ok = await initOneSignal();
   if (!ok || !window.OneSignal) return;
+
+  // Wait for User namespace to be ready (SDK initializes it asynchronously)
+  for (let i = 0; i < 25; i++) {
+    if (window.OneSignal?.User && typeof window.OneSignal.login === "function") break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  if (!window.OneSignal?.User) {
+    console.warn("[OneSignal] User namespace not ready, skipping login");
+    return;
+  }
+
+  // Skip if already logged in as this user
+  try {
+    const currentExternalId = window.OneSignal.User?.externalId;
+    if (currentExternalId === userId) return;
+  } catch { /* ignore */ }
+
   try {
     await window.OneSignal.login(userId);
   } catch (e) {
-    console.warn("[OneSignal] login error", e);
+    // SDK internal error — try the lower-level addAlias as a fallback
+    console.warn("[OneSignal] login error, trying addAlias", e);
+    try {
+      window.OneSignal.User?.addAlias?.("external_id", userId);
+    } catch (e2) {
+      console.warn("[OneSignal] addAlias also failed", e2);
+    }
   }
 }
 
@@ -106,10 +156,34 @@ export async function getOneSignalSubscription(): Promise<{ subscribed: boolean;
   if (!ok || !window.OneSignal) return { subscribed: false };
   try {
     const optedIn = window.OneSignal.User?.PushSubscription?.optedIn;
-    const id = window.OneSignal.User?.PushSubscription?.id;
+    let id = window.OneSignal.User?.PushSubscription?.id;
+    // ID is async after first opt-in. Poll up to 5s.
+    if (optedIn && !id) {
+      for (let i = 0; i < 25; i++) {
+        await new Promise(r => setTimeout(r, 200));
+        id = window.OneSignal.User?.PushSubscription?.id;
+        if (id) break;
+      }
+    }
     return { subscribed: !!optedIn, playerId: id };
   } catch {
     return { subscribed: false };
+  }
+}
+
+/** Subscribe to subscription changes. Auto-registers playerId with backend. */
+export function onSubscriptionChange(handler: (sub: { subscribed: boolean; playerId?: string }) => void): () => void {
+  if (!window.OneSignal?.User?.PushSubscription?.addEventListener) return () => {};
+  const fn = (event: any) => {
+    handler({ subscribed: !!event?.current?.optedIn, playerId: event?.current?.id });
+  };
+  try {
+    window.OneSignal.User.PushSubscription.addEventListener("change", fn);
+    return () => {
+      try { window.OneSignal.User.PushSubscription.removeEventListener("change", fn); } catch { /* */ }
+    };
+  } catch {
+    return () => {};
   }
 }
 
