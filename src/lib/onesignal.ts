@@ -263,11 +263,24 @@ export async function registerNativePushSubscription(): Promise<{ subscribed: bo
     const auth = json.keys?.auth;
     if (!endpoint || !p256dh || !auth) return { subscribed: false, error: "Invalid browser subscription" };
 
-    const { error } = await (supabase as any).from("push_subscriptions").upsert(
-      { user_id: user.id, endpoint, p256dh, auth },
-      { onConflict: "user_id,endpoint" }
-    );
-    if (error) return { subscribed: false, error: error.message };
+    const { data: existing, error: lookupError } = await (supabase as any)
+      .from("push_subscriptions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("endpoint", endpoint)
+      .maybeSingle();
+    if (lookupError) return { subscribed: false, error: lookupError.message };
+
+    const write = existing?.id
+      ? await (supabase as any)
+          .from("push_subscriptions")
+          .update({ p256dh, auth })
+          .eq("id", existing.id)
+          .eq("user_id", user.id)
+      : await (supabase as any)
+          .from("push_subscriptions")
+          .insert({ user_id: user.id, endpoint, p256dh, auth });
+    if (write.error) return { subscribed: false, error: write.error.message };
     return { subscribed: true, endpoint };
   } catch (e) {
     return { subscribed: false, error: errorMessage(e) };
