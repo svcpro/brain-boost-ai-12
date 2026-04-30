@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { enqueue } from "@/lib/offlineQueue";
 import { trackMLEvent } from "@/lib/mlEventTracker";
+import { firePush } from "@/lib/firePush";
 
 export function useStudyLogger() {
   const { user } = useAuth();
