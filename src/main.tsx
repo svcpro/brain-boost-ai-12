@@ -3,7 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 
 // ─── Cache version: bump to force stale SW cache purge ───
-const CACHE_VERSION = "v10-native-push-fallback";
+const CACHE_VERSION = "v11-push-subscription-register-fix";
 const CACHE_VERSION_KEY = "acry_cache_version";
 
 const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
