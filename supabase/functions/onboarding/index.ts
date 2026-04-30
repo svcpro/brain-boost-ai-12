@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { callAI, getAIToolArgs } from "../_shared/aiClient.ts";
+import { firePushServer } from "../_shared/firePush.ts";
 
 // Helper: fetch the full subject list (with topic counts) for a user.
 // Used to ensure every mutating endpoint returns a non-empty subjects list
@@ -682,6 +683,7 @@ Deno.serve(async (req) => {
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await adminClient.from("profiles").update({ display_name: displayName }).eq("id", userId);
+      firePushServer("profile_setup", userId, { user_name: displayName });
       return json({ success: true, next_step: 2 });
     }
 
@@ -694,6 +696,7 @@ Deno.serve(async (req) => {
 
       const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await adminClient.from("profiles").update({ exam_type: examType }).eq("id", userId);
+      firePushServer("exam_setup", userId, { exam_type: examType });
 
       // Return suggested subjects
       const subjects = getSuggestedSubjectsForExam(examType);
@@ -1600,6 +1603,10 @@ Deno.serve(async (req) => {
           }
         }
       }
+
+      // Fire user_signup welcome trigger now that onboarding completed
+      const displayName = (updates.display_name as string) || "Student";
+      firePushServer("user_signup", userId, { user_name: displayName });
 
       return json({ success: true, redirect_to: "/app", profile_updated: true, subjects_created: subjectsCreated, topics_created: topicsCreated });
     }

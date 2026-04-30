@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { emitServerEvent } from "../_shared/eventBus.ts";
+import { firePushServer } from "../_shared/firePush.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -103,6 +104,9 @@ Deno.serve(async (req) => {
             amount: entity.amount ? Math.round(entity.amount / 100) : 0,
             payment_id: entity.id,
           }, { title: "Payment Successful!", body: "Your payment has been confirmed." });
+          firePushServer("payment_successful", sub.user_id, {
+            amount: entity.amount ? Math.round(entity.amount / 100) : 0,
+          });
         }
         break;
       }
@@ -140,6 +144,7 @@ Deno.serve(async (req) => {
           emitServerEvent("payment_failure", sub.user_id, {
             order_id: orderId,
           }, { title: "Payment Failed", body: "Your payment could not be processed. Please retry." });
+          firePushServer("payment_failed", sub.user_id, { order_id: orderId });
         }
         break;
       }
@@ -215,6 +220,7 @@ Deno.serve(async (req) => {
               expires_at: expiresAt.toISOString(),
             });
           }
+          firePushServer("subscription_activated", userId, {});
         }
         logEntry.processed = true;
         break;

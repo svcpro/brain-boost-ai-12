@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { enqueue } from "@/lib/offlineQueue";
 import { trackMLEvent } from "@/lib/mlEventTracker";
+import { firePush } from "@/lib/firePush";
 
 export function useStudyLogger() {
   const { user } = useAuth();
@@ -98,6 +99,14 @@ export function useStudyLogger() {
       if (logErr) throw logErr;
 
       toast({ title: "Brain Updated!", description: "Your study session has been logged." });
+
+      // Fire study_session_complete push trigger (cooldown handled centrally)
+      firePush("study_session_complete", user.id, {
+        topic_name: topicName,
+        subject: subjectName,
+        score: durationMinutes,
+        confidence_level: confidenceLevel,
+      });
 
       // Track ML event (non-blocking)
       trackMLEvent(user.id, "study_session", "study", {

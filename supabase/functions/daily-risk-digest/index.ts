@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-
+import { firePushServer } from "../_shared/firePush.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -173,27 +173,12 @@ Keep it under 5 lines total. Be specific with topic names and durations.`,
           type: "risk_digest",
         });
 
-        // Also send push notification if user has subscriptions
-        const { data: pushSubs } = await supabase
-          .from("push_subscriptions")
-          .select("id")
-          .eq("user_id", userId)
-          .limit(1);
-
-        if (pushSubs && pushSubs.length > 0) {
-          const shortBody = `${atRisk.length} topic${atRisk.length > 1 ? "s" : ""} at risk. Top: ${topPriority[0]?.name} (${topPriority[0]?.strength}%). Tap to see your study plan.`;
-          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              recipient_id: userId,
-              title: `🔴 ${atRisk.length} topic${atRisk.length > 1 ? "s" : ""} at risk`,
-              body: shortBody,
-              data: { type: "risk_digest" },
-            }),
+        // Fire memory_forget_risk trigger via push-automation-engine (handles cooldown, AI, analytics)
+        if (topPriority[0]) {
+          firePushServer("memory_forget_risk", userId, {
+            topic_name: topPriority[0].name,
+            score: topPriority[0].strength,
+            count: atRisk.length,
           });
         }
 
