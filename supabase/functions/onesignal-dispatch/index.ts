@@ -47,10 +47,19 @@ async function pushToOneSignal(opts: SendOptions): Promise<{ id?: string; error?
     url: opts.deep_link,
     data: opts.data || {},
   };
-  if (opts.player_ids?.length) payload.include_player_ids = opts.player_ids;
-  else if (opts.user_ids?.length) payload.include_external_user_ids = opts.user_ids;
-  else if (opts.segments?.length) payload.included_segments = opts.segments;
-  else payload.included_segments = ["Subscribed Users"];
+  if (opts.player_ids?.length) {
+    payload.include_subscription_ids = opts.player_ids;
+    payload.include_player_ids = opts.player_ids; // legacy fallback
+  } else if (opts.user_ids?.length) {
+    // Modern v16 SDK uses aliases. Also send legacy field for backward compat.
+    payload.include_aliases = { external_id: opts.user_ids };
+    payload.include_external_user_ids = opts.user_ids;
+    payload.target_channel = "push";
+  } else if (opts.segments?.length) {
+    payload.included_segments = opts.segments;
+  } else {
+    payload.included_segments = ["Subscribed Users"];
+  }
 
   try {
     const res = await fetch("https://onesignal.com/api/v1/notifications", {
@@ -173,20 +182,35 @@ Deno.serve(async (req) => {
           results.push({ user_id: uid, suppressed: allowed.reason });
           continue;
         }
-        const send = await pushToOneSignal({
-          user_ids: [uid],
-          title, body: bodyTxt,
-          icon_url: tmpl?.icon_url, image_url: tmpl?.image_url,
-          deep_link: tmpl?.deep_link, data: { ...(tmpl?.data || {}), ...data, event_key },
-        });
+        // Pull subscribed player_ids for this user (most reliable targeting)
+        const { data: players } = await supabase
+          .from("onesignal_players")
+          .select("player_id")
+          .eq("user_id", uid)
+          .eq("is_subscribed", true);
+        const playerIds = (players || []).map((p: any) => p.player_id).filter(Boolean);
+
+        const send = playerIds.length
+          ? await pushToOneSignal({
+              player_ids: playerIds,
+              title, body: bodyTxt,
+              icon_url: tmpl?.icon_url, image_url: tmpl?.image_url,
+              deep_link: tmpl?.deep_link, data: { ...(tmpl?.data || {}), ...data, event_key },
+            })
+          : await pushToOneSignal({
+              user_ids: [uid],
+              title, body: bodyTxt,
+              icon_url: tmpl?.icon_url, image_url: tmpl?.image_url,
+              deep_link: tmpl?.deep_link, data: { ...(tmpl?.data || {}), ...data, event_key },
+            });
         await supabase.from("push_deliveries").insert({
           user_id: uid, event_key, template_id: tmpl?.id, variant: tmpl?.variant,
           title, body: bodyTxt,
           onesignal_notification_id: send.id,
-          status: send.error ? "failed" : "sent",
-          error: send.error,
+          status: send.error ? "failed" : (send.id ? "sent" : "no_recipients"),
+          error: send.error || (!send.id && !playerIds.length ? "no_registered_devices" : null),
           sent_at: send.error ? null : new Date().toISOString(),
-          payload: { data },
+          payload: { data, player_count: playerIds.length },
         });
         results.push({ user_id: uid, ok: !send.error, id: send.id, error: send.error });
       }

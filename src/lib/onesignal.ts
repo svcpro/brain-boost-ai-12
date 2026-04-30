@@ -83,6 +83,8 @@ export async function setOneSignalUser(userId: string): Promise<void> {
   const ok = await initOneSignal();
   if (!ok || !window.OneSignal) return;
   try {
+    // v16: login() sets the external_id (alias). This is what
+    // include_aliases.external_id targets in the REST API.
     await window.OneSignal.login(userId);
   } catch (e) {
     console.warn("[OneSignal] login error", e);
@@ -106,10 +108,34 @@ export async function getOneSignalSubscription(): Promise<{ subscribed: boolean;
   if (!ok || !window.OneSignal) return { subscribed: false };
   try {
     const optedIn = window.OneSignal.User?.PushSubscription?.optedIn;
-    const id = window.OneSignal.User?.PushSubscription?.id;
+    let id = window.OneSignal.User?.PushSubscription?.id;
+    // ID is async after first opt-in. Poll up to 5s.
+    if (optedIn && !id) {
+      for (let i = 0; i < 25; i++) {
+        await new Promise(r => setTimeout(r, 200));
+        id = window.OneSignal.User?.PushSubscription?.id;
+        if (id) break;
+      }
+    }
     return { subscribed: !!optedIn, playerId: id };
   } catch {
     return { subscribed: false };
+  }
+}
+
+/** Subscribe to subscription changes. Auto-registers playerId with backend. */
+export function onSubscriptionChange(handler: (sub: { subscribed: boolean; playerId?: string }) => void): () => void {
+  if (!window.OneSignal?.User?.PushSubscription?.addEventListener) return () => {};
+  const fn = (event: any) => {
+    handler({ subscribed: !!event?.current?.optedIn, playerId: event?.current?.id });
+  };
+  try {
+    window.OneSignal.User.PushSubscription.addEventListener("change", fn);
+    return () => {
+      try { window.OneSignal.User.PushSubscription.removeEventListener("change", fn); } catch { /* */ }
+    };
+  } catch {
+    return () => {};
   }
 }
 
