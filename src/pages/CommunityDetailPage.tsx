@@ -214,6 +214,9 @@ const CommunityDetailPage = ({ inlineSlug, onBack }: CommunityDetailPageProps = 
       const res = await supabase.functions.invoke("ai-community-answer", { body: { post_id: postId, title: postTitle, content: postContent } });
       if (res.error) throw new Error(res.error.message);
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, ai_answer: res.data?.answer, ai_answered_at: new Date().toISOString() } : p));
+      // Notify post owner that AI answered
+      const post = posts.find(p => p.id === postId);
+      if (post?.user_id) firePush("ai_answer_posted", post.user_id, { post_id: postId });
       toast({ title: "AI answered! ✨" });
     } catch { toast({ title: "AI couldn't answer right now", variant: "destructive" }); }
   };
