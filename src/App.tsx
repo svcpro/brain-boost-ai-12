@@ -59,7 +59,6 @@ const MyRankLeaderboard = lazy(() => import("./pages/myrank/MyRankLeaderboard"))
 // Lazy load heavy components
 const PWAInstallBanner = lazy(() => import("@/components/app/PWAInstallBanner"));
 const OfflineBanner = lazy(() => import("@/components/app/OfflineBanner"));
-const OneSignalBootstrap = lazy(() => import("@/components/app/OneSignalBootstrap"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -182,7 +181,6 @@ const App = () => (
           <Suspense fallback={null}>
             <PWAInstallBanner />
             <OfflineBanner />
-            <OneSignalBootstrap />
           </Suspense>
         </AuthProvider>
       </BrowserRouter>

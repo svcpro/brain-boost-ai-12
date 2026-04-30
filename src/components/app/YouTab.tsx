@@ -34,8 +34,6 @@ import AIPersonalizationControlCenter from "./you/AIPersonalizationControlCenter
 import CognitiveProfileCard from "./CognitiveProfileCard";
 import PasswordManagement from "./you/PasswordManagement";
 import ApiKeyCard from "./you/ApiKeyCard";
-import PushNotificationToggle from "./PushNotificationToggle";
-import PushPreferencesPanel from "./PushPreferencesPanel";
 import ColorProgressChart from "./ColorProgressChart";
 import ProfessionalProgressRing from "./ProfessionalProgressRing";
 import AITopicManager from "./AITopicManager";
@@ -261,10 +259,6 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
 
       {/* ═══ SECTION 4: Subscription Overview (moved above Exam Intelligence) ═══ */}
       <SubscriptionOverview currentPlan={currentPlan} onManagePlan={() => setShowSubscription(true)} />
-
-      {/* ═══ Push Notification Center ═══ */}
-      <PushNotificationToggle />
-      <PushPreferencesPanel />
 
       {/* ═══ SECTION 2: Learning Identity Summary ═══ */}
       <LearningIdentitySummary />
