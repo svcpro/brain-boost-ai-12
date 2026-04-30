@@ -8,6 +8,7 @@ import {
   requestPushPermission,
   optInPush,
   registerPlayerWithBackend,
+  onSubscriptionChange,
 } from "@/lib/onesignal";
 
 const PROMPT_KEY = "acry_push_prompt_shown_v1";
@@ -18,6 +19,7 @@ const OneSignalBootstrap = () => {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
     (async () => {
       const ok = await initOneSignal();
@@ -25,27 +27,30 @@ const OneSignalBootstrap = () => {
 
       await setOneSignalUser(user.id);
 
-      // Ensure prefs row exists & enabled by default for every user (idempotent).
+      // Idempotent prefs row.
       supabase
         .from("push_user_prefs")
         .upsert({ user_id: user.id, master_enabled: true }, { onConflict: "user_id", ignoreDuplicates: true })
         .then(() => {});
 
-      // If already subscribed, just register the player and exit.
+      // Listen for any subscription change → auto-register player_id with backend.
+      unsubscribe = onSubscriptionChange(async (s) => {
+        if (s.subscribed && s.playerId) {
+          await registerPlayerWithBackend(s.playerId);
+        }
+      });
+
+      // Existing subscription check.
       const sub = await getOneSignalSubscription();
       if (sub.subscribed && sub.playerId) {
         registerPlayerWithBackend(sub.playerId);
         return;
       }
 
-      // Browsers require a user gesture for the prompt on most platforms; OneSignal
-      // handles native prompt. We trigger it once per device. If the browser blocks
-      // (no gesture / denied), it silently fails — user can still enable from You tab.
+      // Auto-prompt once per device.
       if (typeof Notification !== "undefined" && Notification.permission === "default") {
         if (localStorage.getItem(PROMPT_KEY)) return;
         localStorage.setItem(PROMPT_KEY, "1");
-
-        // Delay slightly so app is interactive before prompting.
         setTimeout(async () => {
           const granted = await requestPushPermission();
           if (!granted) return;
@@ -54,7 +59,6 @@ const OneSignalBootstrap = () => {
           if (s.playerId) registerPlayerWithBackend(s.playerId);
         }, 4000);
       } else if (Notification.permission === "granted") {
-        // Permission already granted but not opted-in — opt them in.
         await optInPush();
         const s = await getOneSignalSubscription();
         if (s.playerId) registerPlayerWithBackend(s.playerId);
@@ -63,6 +67,7 @@ const OneSignalBootstrap = () => {
 
     return () => {
       cancelled = true;
+      unsubscribe?.();
     };
   }, [user]);
 
