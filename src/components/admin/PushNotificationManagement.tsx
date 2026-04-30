@@ -93,31 +93,36 @@ const PushNotificationManagement = () => {
     toast({ title: "Saved" });
   };
 
-  const sendBroadcast = async () => {
-    if (!bTitle.trim() || !bBody.trim()) return toast({ title: "Title & body required", variant: "destructive" });
-    setBSending(true);
+  const runAIAnnouncement = async (mode: "preview" | "send") => {
+    setAiBusy(mode);
     try {
-      if (bSchedule) {
-        const { error } = await supabase.from("push_campaigns" as any).insert({
-          name: bTitle, title: bTitle, body: bBody, deep_link: bDeep || null,
-          status: "scheduled", scheduled_at: new Date(bSchedule).toISOString(),
-        });
-        if (error) throw error;
-        toast({ title: "📅 Scheduled", description: "Will fire automatically." });
+      const { data, error } = await supabase.functions.invoke("ai-announcement", {
+        body: {
+          intent: aiIntent || undefined,
+          tone: aiTone,
+          send: mode === "send" && !aiSchedule,
+          scheduled_at: aiSchedule ? new Date(aiSchedule).toISOString() : null,
+        },
+      });
+      if (error) throw error;
+      const r = data as any;
+      if (r?.error) throw new Error(r.error);
+      setAiPreview({ title: r.title, body: r.body, deep_link: r.deep_link });
+      if (r.scheduled) {
+        toast({ title: "📅 Scheduled", description: `${r.title}` });
+        setAiIntent(""); setAiSchedule("");
+        loadAll();
+      } else if (r.sent) {
+        toast({ title: "🚀 Announcement sent", description: r.title });
+        setAiIntent("");
+        loadAll();
       } else {
-        const { data, error } = await supabase.functions.invoke("onesignal-dispatch", {
-          body: { action: "send_broadcast", title: bTitle, body: bBody, deep_link: bDeep || undefined },
-        });
-        if (error) throw error;
-        if ((data as any)?.error) throw new Error((data as any).error);
-        toast({ title: "🚀 Broadcast sent", description: `OneSignal id: ${(data as any)?.id ?? "ok"}` });
+        toast({ title: "🤖 AI draft ready", description: "Review below, then send." });
       }
-      setBTitle(""); setBBody(""); setBDeep(""); setBSchedule("");
-      loadAll();
     } catch (e: any) {
-      toast({ title: "Send failed", description: e.message, variant: "destructive" });
+      toast({ title: "AI announcement failed", description: e.message, variant: "destructive" });
     } finally {
-      setBSending(false);
+      setAiBusy("idle");
     }
   };
 
