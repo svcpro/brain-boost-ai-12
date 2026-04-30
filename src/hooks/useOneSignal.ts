@@ -9,6 +9,9 @@ import {
   optInPush,
   optOutPush,
   registerPlayerWithBackend,
+  registerNativePushSubscription,
+  getNativePushSubscriptionStatus,
+  unsubscribeNativePush,
 } from "@/lib/onesignal";
 
 export const useOneSignal = () => {
@@ -30,9 +33,10 @@ export const useOneSignal = () => {
       }
       setError(null);
       if (user) await setOneSignalUser(user.id);
+      const nativeSubscribed = await getNativePushSubscriptionStatus();
       const sub = await getOneSignalSubscription();
       if (cancelled) return;
-      setSubscribed(sub.subscribed);
+      setSubscribed(nativeSubscribed || sub.subscribed);
       setPlayerId(sub.playerId);
       if (sub.subscribed && sub.playerId && user) {
         registerPlayerWithBackend(sub.playerId);
@@ -43,9 +47,16 @@ export const useOneSignal = () => {
   }, [user]);
 
   const enable = useCallback(async () => {
+    const nativeSub = await registerNativePushSubscription();
+    if (nativeSub.subscribed) {
+      setError(null);
+      setSubscribed(true);
+      return true;
+    }
+
     const granted = await requestPushPermission();
     if (!granted) {
-      setError(getOneSignalLastError());
+      setError(nativeSub.error || getOneSignalLastError());
       return false;
     }
     await optInPush();
@@ -57,6 +68,7 @@ export const useOneSignal = () => {
   }, [user]);
 
   const disable = useCallback(async () => {
+    await unsubscribeNativePush();
     await optOutPush();
     setSubscribed(false);
   }, []);
