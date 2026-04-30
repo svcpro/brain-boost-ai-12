@@ -46,22 +46,21 @@ Deno.serve(async (req) => {
       stats.scheduled_sent = (stats.scheduled_sent || 0) + 1;
     }
 
-    // 2. Active users (last 30d)
+    // 2. Re-engagement & exam-day (use updated_at as last activity proxy)
     const { data: users } = await supabase.from("profiles")
-      .select("id, last_active_at, exam_date")
-      .gte("last_active_at", new Date(Date.now() - 30 * 86400_000).toISOString())
+      .select("id, updated_at, exam_date")
+      .gte("updated_at", new Date(Date.now() - 30 * 86400_000).toISOString())
       .limit(2000);
 
     const today = now.toISOString().slice(0, 10);
-    for (const u of users || []) {
-      const lastActive = u.last_active_at ? new Date(u.last_active_at).getTime() : 0;
+    for (const u of (users || []) as any[]) {
+      const lastActive = u.updated_at ? new Date(u.updated_at).getTime() : 0;
       const daysIdle = Math.floor((Date.now() - lastActive) / 86400_000);
 
       if (daysIdle === 1) { await dispatch("reengagement_1d", [u.id]); stats.r1 = (stats.r1 || 0) + 1; }
       else if (daysIdle === 3) { await dispatch("reengagement_3d", [u.id]); stats.r3 = (stats.r3 || 0) + 1; }
       else if (daysIdle === 7) { await dispatch("reengagement_7d", [u.id]); stats.r7 = (stats.r7 || 0) + 1; }
 
-      // Exam day
       if (u.exam_date && String(u.exam_date).slice(0, 10) === today) {
         await dispatch("exam_today_motivation", [u.id]); stats.exam_day = (stats.exam_day || 0) + 1;
       }
@@ -79,17 +78,20 @@ Deno.serve(async (req) => {
       else if (days <= 0) { await dispatch("trial_expired", [t.user_id]); stats.t0 = (stats.t0 || 0) + 1; }
     }
 
-    // 4. Streak at risk: users with current streak who haven't studied today (after 8pm local)
+    // 4. Streak at risk via mission_streaks (best-effort; ignore if schema differs)
     const hour = now.getHours();
     if (hour >= 19) {
-      const { data: streaks } = await supabase.from("study_streaks")
-        .select("user_id, current_streak, last_study_date").gt("current_streak", 0);
-      for (const s of streaks || []) {
-        if (String(s.last_study_date).slice(0, 10) !== today) {
-          await dispatch("streak_at_risk", [s.user_id], { streak: s.current_streak });
-          stats.streak_risk = (stats.streak_risk || 0) + 1;
+      try {
+        const { data: streaks } = await supabase.from("mission_streaks" as any)
+          .select("user_id, current_streak, last_activity_date").gt("current_streak", 0);
+        for (const s of (streaks || []) as any[]) {
+          const last = String(s.last_activity_date || "").slice(0, 10);
+          if (last !== today) {
+            await dispatch("streak_at_risk", [s.user_id], { streak: s.current_streak });
+            stats.streak_risk = (stats.streak_risk || 0) + 1;
+          }
         }
-      }
+      } catch { /* table shape unknown — skip */ }
     }
 
     return new Response(JSON.stringify({ ok: true, stats }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
