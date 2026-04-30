@@ -5,7 +5,6 @@ import {
   initOneSignal,
   setOneSignalUser,
   getOneSignalSubscription,
-  getOneSignalLastError,
   requestPushPermission,
   optInPush,
   registerPlayerWithBackend,
@@ -24,11 +23,7 @@ const OneSignalBootstrap = () => {
 
     (async () => {
       const ok = await initOneSignal();
-      if (!ok || cancelled) {
-        const reason = getOneSignalLastError();
-        if (reason) console.warn("[OneSignal] bootstrap skipped:", reason);
-        return;
-      }
+      if (!ok || cancelled) return;
 
       await setOneSignalUser(user.id);
 
