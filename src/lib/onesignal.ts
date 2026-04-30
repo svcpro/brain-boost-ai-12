@@ -10,11 +10,15 @@ declare global {
 }
 
 let initPromise: Promise<boolean> | null = null;
+let lastInitError: string | null = null;
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try { return JSON.stringify(error); } catch { return "Unknown OneSignal error"; }
+}
 
 async function fetchAppId(): Promise<string | null> {
-  // Cache first
-  const cached = localStorage.getItem("onesignal_app_id");
-  if (cached) return cached;
   try {
     const { data } = await supabase.functions.invoke("onesignal-dispatch", {
       body: { action: "get_app_config" },
@@ -24,7 +28,7 @@ async function fetchAppId(): Promise<string | null> {
       return data.app_id;
     }
   } catch { /* ignore */ }
-  return null;
+  return localStorage.getItem("onesignal_app_id");
 }
 
 function loadScript(): Promise<void> {
@@ -51,11 +55,15 @@ export function initOneSignal(): Promise<boolean> {
   if (initPromise) return initPromise;
   initPromise = (async () => {
     try {
+      lastInitError = null;
       const appId = await fetchAppId();
-      if (!appId) return false;
+      if (!appId) {
+        lastInitError = "OneSignal App ID missing";
+        return false;
+      }
       await loadScript();
       window.OneSignalDeferred = window.OneSignalDeferred || [];
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         window.OneSignalDeferred!.push(async (OneSignal: any) => {
           try {
             await OneSignal.init({
@@ -64,19 +72,25 @@ export function initOneSignal(): Promise<boolean> {
               serviceWorkerParam: { scope: "/onesignal/" },
               serviceWorkerPath: "OneSignalSDKWorker.js",
             });
+            resolve();
           } catch (e) {
-            console.warn("[OneSignal] init error", e);
+            reject(e);
           }
-          resolve();
         });
       });
       return true;
     } catch (e) {
+      lastInitError = errorMessage(e);
+      initPromise = null;
       console.warn("[OneSignal] failed to init", e);
       return false;
     }
   })();
   return initPromise;
+}
+
+export function getOneSignalLastError(): string | null {
+  return lastInitError;
 }
 
 export async function setOneSignalUser(userId: string): Promise<void> {
