@@ -46,12 +46,12 @@ const PushNotificationManagement = () => {
   const [search, setSearch] = useState("");
   const [stats, setStats] = useState({ sent: 0, delivered: 0, clicked: 0, failed: 0, suppressed: 0 });
 
-  // Broadcast form
-  const [bTitle, setBTitle] = useState("");
-  const [bBody, setBBody] = useState("");
-  const [bDeep, setBDeep] = useState("");
-  const [bSchedule, setBSchedule] = useState("");
-  const [bSending, setBSending] = useState(false);
+  // AI Announcement form
+  const [aiIntent, setAiIntent] = useState("");
+  const [aiTone, setAiTone] = useState("motivating");
+  const [aiSchedule, setAiSchedule] = useState("");
+  const [aiPreview, setAiPreview] = useState<{ title: string; body: string; deep_link: string } | null>(null);
+  const [aiBusy, setAiBusy] = useState<"idle" | "preview" | "send">("idle");
 
   const loadAll = async () => {
     setLoading(true);
