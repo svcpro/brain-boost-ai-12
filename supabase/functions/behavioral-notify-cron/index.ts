@@ -45,6 +45,32 @@ Deno.serve(async (req) => {
 
     for (const user of users) {
       const userId = user.id;
+      const lastActiveAt = (user as any).last_active_at as string | null;
+      const examDate = (user as any).exam_date as string | null;
+      const displayName = (user as any).display_name as string | null;
+
+      // 0a. Inactivity push (cooldowns handled centrally by trigger registry)
+      try {
+        if (lastActiveAt) {
+          const hoursSince = (Date.now() - new Date(lastActiveAt).getTime()) / 3600000;
+          if (hoursSince >= 24 && hoursSince < 72) {
+            firePushServer("inactive_hours", userId, { user_name: displayName || "Student" });
+          } else if (hoursSince >= 72) {
+            firePushServer("inactive_days", userId, { user_name: displayName || "Student", days: Math.floor(hoursSince / 24) });
+          }
+        }
+      } catch { /* non-blocking */ }
+
+      // 0b. Exam countdown (within 30 days)
+      try {
+        if (examDate) {
+          const days = Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000);
+          if (days > 0 && days <= 30) {
+            firePushServer("exam_countdown", userId, { days, user_name: displayName || "Student" });
+            if (days <= 14) firePushServer("exam_approaching", userId, { days, exam_type: "your exam" });
+          }
+        }
+      } catch { /* non-blocking */ }
 
       // 1. Churn prediction
       try {
