@@ -14,6 +14,7 @@ import {
   ChevronUp, Wand2, Activity, Target
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { firePush } from "@/lib/firePush";
 
 const POST_TYPES = [
   { value: "question", label: "❓ Question", color: "bg-accent/10 text-accent" },
@@ -182,6 +183,22 @@ const CommunityDetailPage = ({ inlineSlug, onBack }: CommunityDetailPageProps = 
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     await supabase.from("community_posts").update({ comment_count: (posts.find(p => p.id === postId)?.comment_count || 0) + 1 }).eq("id", postId);
+
+    // Notify the recipient (post owner for top-level comments, parent comment author for replies)
+    try {
+      const post = posts.find(p => p.id === postId);
+      const senderName = (user.user_metadata as Record<string, unknown>)?.display_name as string | undefined;
+      if (parentId) {
+        const { data: parent } = await supabase
+          .from("post_comments").select("user_id").eq("id", parentId).maybeSingle();
+        if (parent?.user_id && parent.user_id !== user.id) {
+          firePush("community_reply", parent.user_id, { user_name: senderName || "Someone", post_id: postId });
+        }
+      } else if (post?.user_id && post.user_id !== user.id) {
+        firePush("community_comment", post.user_id, { user_name: senderName || "Someone", post_id: postId });
+      }
+    } catch { /* ignore */ }
+
     // Emit comment event (non-blocking)
     import("@/lib/eventBus").then(({ emitEvent }) => emitEvent("community_reply", { post_id: postId }, { title: "New Comment" }));
     setCommentText(prev => ({ ...prev, [postId]: "" }));
