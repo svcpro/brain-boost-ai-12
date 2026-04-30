@@ -83,6 +83,8 @@ export async function setOneSignalUser(userId: string): Promise<void> {
   const ok = await initOneSignal();
   if (!ok || !window.OneSignal) return;
   try {
+    // v16: login() sets the external_id (alias). This is what
+    // include_aliases.external_id targets in the REST API.
     await window.OneSignal.login(userId);
   } catch (e) {
     console.warn("[OneSignal] login error", e);
