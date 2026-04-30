@@ -151,7 +151,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "chat", label: "Chat System", icon: MessageSquare, roles: ["super_admin", "admin", "ai_admin"] },
       { key: "email", label: "Email System", icon: Mail, roles: ["super_admin", "admin"] },
-      { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] },
+      // { key: "push", label: "Push Notifications", icon: Smartphone, roles: ["super_admin", "admin"] }, // hidden
       { key: "voice", label: "Voice Notifications", icon: Volume2, roles: ["super_admin", "admin"] },
       { key: "sms", label: "SMS Command Center", icon: Smartphone, roles: ["super_admin", "admin", "api_admin"], badge: "NEW", badgeColor: "bg-blue-500/20 text-blue-400" },
       { key: "sms_alerts", label: "SMS Alerts Center", icon: Smartphone, roles: ["super_admin", "admin", "api_admin"], badge: "ULTRA", badgeColor: "bg-emerald-500/20 text-emerald-400" },
