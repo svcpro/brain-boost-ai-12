@@ -10,6 +10,7 @@ import {
   optInPush,
   registerPlayerWithBackend,
   onSubscriptionChange,
+  registerNativePushSubscription,
 } from "@/lib/onesignal";
 
 const PROMPT_KEY = "acry_push_prompt_shown_v1";
@@ -23,6 +24,10 @@ const OneSignalBootstrap = () => {
     let unsubscribe: (() => void) | undefined;
 
     (async () => {
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        registerNativePushSubscription();
+      }
+
       const ok = await initOneSignal();
       if (!ok || cancelled) {
         const reason = getOneSignalLastError();
@@ -59,6 +64,7 @@ const OneSignalBootstrap = () => {
         setTimeout(async () => {
           const granted = await requestPushPermission();
           if (!granted) return;
+          await registerNativePushSubscription();
           await optInPush();
           const s = await getOneSignalSubscription();
           if (s.playerId) registerPlayerWithBackend(s.playerId);
