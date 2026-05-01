@@ -378,16 +378,19 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
   const handleShare = async () => {
     const progressText = pct !== null ? ` | ${pct}% plan completed` : "";
     const text = `📚 ${label} until my ${examType || "exam"}${progressText}! ${getDailyQuote()}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ text });
+    try {
+      const ok = await nativeShare(
+        { url: "https://acry.ai/", text, title: `${days}-Day Countdown · ACRY AI` },
+        { og: { variant: "default", exam: examType || undefined }, campaign: "exam_countdown" }
+      );
+      if (ok) {
         toast.success("Shared successfully!");
-      } catch (e: any) {
-        if (e.name !== "AbortError") toast.error("Sharing failed");
+        return;
       }
-    } else {
       await navigator.clipboard.writeText(text);
       toast.success("Copied to clipboard!");
+    } catch (e: any) {
+      if (e.name !== "AbortError") toast.error("Sharing failed");
     }
   };
 
