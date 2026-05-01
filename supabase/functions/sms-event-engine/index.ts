@@ -19,6 +19,56 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
 });
 
 const DEDUPE_WINDOW_MS = 60 * 1000; // 1 minute
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+function istTimeHHMM(d: Date = new Date()): string {
+  return new Date(d.getTime() + IST_OFFSET_MS).toISOString().slice(11, 16);
+}
+
+function hasValue(value: unknown): boolean {
+  return value != null && value !== "";
+}
+
+function isGenericAcryUrl(value: unknown): boolean {
+  if (!hasValue(value)) return true;
+  try {
+    const u = new URL(String(value));
+    const host = u.hostname.replace(/^www\./, "");
+    return host === "acry.ai" && (u.pathname === "" || u.pathname === "/") && !u.search && !u.hash;
+  } catch {
+    return false;
+  }
+}
+
+function addSemanticVariableAliases(vars: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(vars || {}) };
+  const first = (keys: string[]) => keys.map((k) => out[k]).find(hasValue);
+
+  const link = first(["link", "url", "target_url"]);
+  if (hasValue(link)) {
+    out.link ??= link;
+    out.url ??= link;
+    out.target_url ??= link;
+  }
+
+  const days = first(["days", "day_count", "dayCount", "day"]);
+  if (hasValue(days)) {
+    out.days ??= days;
+    out.day_count ??= days;
+    out.dayCount ??= days;
+    out.day ??= days;
+  }
+
+  const time = first(["time", "scheduled_time", "send_time", "start_time"]);
+  if (hasValue(time)) {
+    out.time ??= time;
+    out.scheduled_time ??= time;
+    out.send_time ??= time;
+    out.start_time ??= time;
+  }
+
+  return out;
+}
 
 type EventInput = {
   event_type: string;
@@ -56,8 +106,12 @@ function mapVariables(
       out[slot] = data.app ?? "ACRY";
     } else if (key === "link") {
       out[slot] = data.link ?? data.url ?? "https://acry.ai";
+    } else if (key === "url") {
+      out[slot] = data.url ?? data.link ?? "https://acry.ai";
+    } else if (["days", "day_count", "day"].includes(key)) {
+      out[slot] = data.days ?? data.day_count ?? data.dayCount ?? data.day ?? 1;
     } else if (key === "time") {
-      out[slot] = data.time ?? new Date(Date.now() + (5 * 60 + 30) * 60 * 1000).toISOString().slice(11, 16);
+      out[slot] = data.time ?? data.scheduled_time ?? data.send_time ?? data.start_time ?? istTimeHHMM();
     } else {
       out[slot] = (data as any)[key] ?? "";
     }
@@ -66,7 +120,7 @@ function mapVariables(
   if (data.link) out.link = data.link;
   if (data.url) out.url = data.url;
   if (data.name && !out.var1) out.var1 = data.name;
-  return out;
+  return addSemanticVariableAliases(out);
 }
 
 function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>, userName: string): unknown {
