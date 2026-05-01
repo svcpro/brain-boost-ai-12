@@ -2,6 +2,8 @@ import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Download, Share2, Trophy, Brain, Flame, Star, Zap, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface MissionShareCardProps {
   missionTitle: string;
