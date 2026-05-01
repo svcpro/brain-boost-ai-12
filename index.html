@@ -69,16 +69,45 @@
       "@graph": [
         {
           "@type": "Organization",
+          "@id": "https://acry.ai/#organization",
           "name": "ACRY AI",
+          "alternateName": ["ACRY", "Acry AI"],
           "url": "https://acry.ai",
-          "logo": "https://acry.ai/favicon.png",
-          "sameAs": ["https://twitter.com/acaborns"]
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://acry.ai/favicon.png",
+            "width": 512,
+            "height": 512
+          },
+          "image": "https://acry.ai/og-image.jpg",
+          "description": "India's #1 AI Second Brain for exam prep. Predicts what you'll forget and builds your perfect study plan.",
+          "foundingDate": "2024",
+          "areaServed": "IN",
+          "sameAs": [
+            "https://twitter.com/acaborns",
+            "https://x.com/acaborns",
+            "https://www.instagram.com/acry.ai",
+            "https://www.linkedin.com/company/acry-ai",
+            "https://www.youtube.com/@acryai"
+          ]
         },
         {
           "@type": "WebSite",
+          "@id": "https://acry.ai/#website",
           "name": "ACRY AI",
+          "alternateName": "ACRY",
           "url": "https://acry.ai",
-          "description": "India's #1 AI Second Brain for exam prep. Predicts what you'll forget and builds your perfect study plan."
+          "description": "India's #1 AI Second Brain for exam prep. Predicts what you'll forget and builds your perfect study plan.",
+          "inLanguage": "en-IN",
+          "publisher": { "@id": "https://acry.ai/#organization" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://acry.ai/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
         }
       ]
     }
