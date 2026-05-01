@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isValidMissionId } from "../_shared/missionId.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -2208,8 +2209,7 @@ final result = await api.post('/home-api/mission-complete', body: {"mission_id":
           }
 
           // Real mission — only attempt lookup for proper UUIDs
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(missionId);
-          const { data: m } = isUuid ? await adminClient.from("brain_missions")
+          const { data: m } = isValidMissionId(missionId) ? await adminClient.from("brain_missions")
             .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at")
             .eq("id", missionId).eq("user_id", userId).maybeSingle() : { data: null };
           if (!m) {
@@ -2334,8 +2334,7 @@ final result = await api.post('/home-api/mission-complete', body: {"mission_id":
             return json({ success: true, mission_id: missionId, is_synthetic: true, current_value: progressValue, target_value: 1, target_reached: progressValue >= 1, progress_pct: Math.min(100, progressValue * 100), message: "Progress tracked" });
           }
 
-          const isUuidP = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(missionId);
-          const { data: mp } = isUuidP ? await adminClient.from("brain_missions")
+          const { data: mp } = isValidMissionId(missionId) ? await adminClient.from("brain_missions")
             .select("id, title, status, target_value, current_value, mission_type")
             .eq("id", missionId).eq("user_id", userId).maybeSingle() : { data: null };
           if (!mp) {
@@ -2399,8 +2398,7 @@ final result = await api.post('/home-api/mission-complete', body: {"mission_id":
           }
 
           // Real mission
-          const isUuidC = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(missionId);
-          const { data: m } = isUuidC ? await adminClient.from("brain_missions")
+          const { data: m } = isValidMissionId(missionId) ? await adminClient.from("brain_missions")
             .select("id, title, mission_type, reward_value, reward_type, status, target_value, current_value, target_topic_id")
             .eq("id", missionId).eq("user_id", userId).maybeSingle() : { data: null };
           if (!m) {
