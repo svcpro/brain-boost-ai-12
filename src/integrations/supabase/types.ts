@@ -11765,19 +11765,7 @@ export type Database = {
       }
     }
     Views: {
-      trial_reminder_targets: {
-        Row: {
-          days_left: number | null
-          display_name: string | null
-          email: string | null
-          phase: string | null
-          phone: string | null
-          trial_end_date: string | null
-          trial_start_date: string | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       accept_freeze_gift: { Args: { gift_id: string }; Returns: undefined }
