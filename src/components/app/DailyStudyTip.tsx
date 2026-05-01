@@ -42,6 +42,7 @@ const DailyStudyTip = () => {
   const [tip, setTip] = useState<typeof tips[0] | null>(null);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const og = useShareIdentity();
 
   useEffect(() => {
     const now = new Date();
