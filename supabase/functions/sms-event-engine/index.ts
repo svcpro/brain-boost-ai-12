@@ -287,15 +287,22 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
         ? (tpl!.variables as string[])
         : [];
 
+  if (tpl?.target_url) {
+    for (const key of ["link", "url", "target_url"]) {
+      if (!hasValue(rawVariables[key]) || isGenericAcryUrl(rawVariables[key])) rawVariables[key] = tpl.target_url;
+    }
+    rawVariables = addSemanticVariableAliases(rawVariables);
+  }
+
   if (expectedSlots.length > 0) {
     const aligned: Record<string, unknown> = {};
     // Known semantic slot names — never use positional fallback for these,
     // always go straight to the typed default. Prevents "stability = Test User".
     const SEMANTIC_SLOTS = new Set([
-      "name", "link", "url", "otp", "code", "time", "app",
+      "name", "link", "url", "target_url", "otp", "code", "time", "scheduled_time", "send_time", "start_time", "app",
       "stability", "strength", "rank", "positions", "points",
       "questions", "accuracy", "prob", "amount", "count",
-      "days", "hours", "exam", "topic", "device", "friend",
+      "days", "day", "day_count", "daycount", "hours", "exam", "topic", "device", "friend",
       "expiry", "milestone", "reward",
     ]);
     const rawEntries = Object.entries(rawVariables);
@@ -303,7 +310,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
     // from the positional pool — otherwise `name` leaks into numeric slots.
     const allValues = rawEntries.filter(
       ([k, v]) =>
-        !["name", "link", "url"].includes(k) &&
+        !["name", "link", "url", "target_url", "days", "day", "day_count", "dayCount", "time", "scheduled_time", "send_time", "start_time"].includes(k) &&
         !/^var\d+$/i.test(k) &&
         v !== "" && v != null,
     );
@@ -322,6 +329,14 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
         aligned[slot] = rawVariables.url;
         return;
       }
+      if (["days", "day_count", "day"].includes(slot) && (rawVariables.days || rawVariables.day_count || rawVariables.dayCount || rawVariables.day)) {
+        aligned[slot] = rawVariables.days ?? rawVariables.day_count ?? rawVariables.dayCount ?? rawVariables.day;
+        return;
+      }
+      if (["time", "scheduled_time", "send_time", "start_time"].includes(slot) && (rawVariables.time || rawVariables.scheduled_time || rawVariables.send_time || rawVariables.start_time)) {
+        aligned[slot] = rawVariables.time ?? rawVariables.scheduled_time ?? rawVariables.send_time ?? rawVariables.start_time;
+        return;
+      }
       // 3) For known semantic slots, skip positional guessing and use typed default.
       if (SEMANTIC_SLOTS.has(slot.toLowerCase())) {
         aligned[slot] = fallbackValueForPlaceholder(slot, { ...data, ...rawVariables }, userName);
@@ -335,8 +350,11 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
     if (rawVariables.name && !aligned.name) aligned.name = rawVariables.name;
     if (rawVariables.link && !aligned.link) aligned.link = rawVariables.link;
     if (rawVariables.url && !aligned.url) aligned.url = rawVariables.url;
+    if (rawVariables.days && !aligned.days) aligned.days = rawVariables.days;
+    if (rawVariables.day_count && !aligned.day_count) aligned.day_count = rawVariables.day_count;
+    if (rawVariables.time && !aligned.time) aligned.time = rawVariables.time;
 
-    alignedVariables = aligned;
+    alignedVariables = addSemanticVariableAliases(aligned);
     alignmentNote =
       bodyPlaceholders.length > 0
         ? `aligned_to_body_placeholders:${bodyPlaceholders.join(",")}`
