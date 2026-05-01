@@ -34,6 +34,7 @@ import QuickMicroActions from "./QuickMicroActions";
 import PlanGateWrapper from "./PlanGateWrapper";
 import SafePassPopup from "./SafePassPopup";
 import TrialBanner from "./TrialBanner";
+import RenewalUrgencyCard from "./RenewalUrgencyCard";
 import NeuralBootLoader from "./NeuralBootLoader";
 const AutopilotWidget = lazy(() => import("./AutopilotWidget"));
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -853,8 +854,11 @@ const HomeTab = ({ onNavigateToEmergency, onRecommendationsSeen, onOpenVoiceSett
         </motion.div>
       )}
 
-      {/* Trial Banner */}
+      {/* Trial Banner (slim status row) */}
       <TrialBanner />
+
+      {/* Renewal Urgency Card — appears when trial expired or ≤2 days left */}
+      <RenewalUrgencyCard />
 
       {/* ══════════════════════════════════════════════════════════════
            SECTION 2: TODAY'S MISSION — Single Clear Action
