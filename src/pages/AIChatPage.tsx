@@ -10,6 +10,7 @@ import {
   Smile, Reply, MoreHorizontal, CheckCheck, Eye
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { buildShareUrl } from "@/lib/share";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
