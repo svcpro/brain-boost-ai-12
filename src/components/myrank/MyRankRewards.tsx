@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
-import { buildShareUrl } from "@/lib/share";
+import { buildShareLanderUrl } from "@/lib/share";
 import {
   Gift, Lock, Check, Crown, Sparkles, Loader2, Target,
   Calendar, X, Copy, Share2,
