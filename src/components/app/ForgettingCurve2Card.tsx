@@ -223,7 +223,7 @@ export default function ForgettingCurve2Card() {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-bold text-foreground">Forgetting Curve 2.0</h3>
+                  <h3 className="text-sm font-bold text-foreground">Smart Revision System</h3>
                   <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-bold">NEURAL</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground">{factorCount}-Factor Decay · DSR + Circadian + Interference</p>
