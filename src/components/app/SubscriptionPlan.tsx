@@ -39,12 +39,11 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
 
   useEffect(() => {
     (async () => {
-      // Ultra-simple: only show Premium plan (one plan, full power)
       const { data } = await supabase
         .from("subscription_plans")
         .select("id, plan_key, name, description, price, yearly_price, trial_days, tier_level, features")
         .eq("is_active", true)
-        .eq("plan_key", "premium")
+        .in("plan_key", ["starter", "premium"])
         .order("tier_level");
       setPlans((data as PlanRow[]) || []);
       setPlansLoading(false);
