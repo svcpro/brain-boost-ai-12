@@ -398,12 +398,18 @@ const MyRankResult = () => {
     }
 
     let target = "";
+    const ogPersonalization = {
+      variant: "myrank" as const,
+      name: userName,
+      rank: result.rank,
+      exam: result.category,
+    };
     switch (channel) {
       case "telegram": {
         const absoluteUrl = /^https?:\/\//i.test(shareUrl)
           ? shareUrl
           : `https://${(shareUrl || "acry.ai").replace(/^\/+/, "")}`;
-        const taggedTg = buildShareUrl(absoluteUrl, "telegram", { campaign: "myrank_result" });
+        const taggedTg = buildShareLanderUrl(absoluteUrl, ogPersonalization, "telegram", { campaign: "myrank_result" });
         const textWithoutUrl = currentMessage
           .replace(shareUrl, "")
           .replace(/\n{3,}/g, "\n\n")
@@ -421,7 +427,7 @@ const MyRankResult = () => {
         break;
       case "whatsapp":
       default: {
-        const taggedWa = buildShareUrl(shareUrl, "whatsapp", { campaign: "myrank_result" });
+        const taggedWa = buildShareLanderUrl(shareUrl, ogPersonalization, "whatsapp", { campaign: "myrank_result" });
         const taggedCaption = currentMessage.replace(shareUrl, taggedWa);
         target = `https://wa.me/?text=${encodeURIComponent(taggedCaption)}`;
         break;
