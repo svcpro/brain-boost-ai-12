@@ -254,7 +254,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
   // are sent or when names don't match the template's registered slots.
   const { data: tpl } = await sb
     .from("sms_templates")
-    .select("name, variables, dlt_template_id, body_template")
+    .select("name, variables, dlt_template_id, body_template, target_url")
     .eq("name", ev.template_name)
     .maybeSingle();
 
