@@ -35,16 +35,16 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
   const [plansLoading, setPlansLoading] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
-  const [selectedKey, setSelectedKey] = useState<string>("starter");
-  const [savingsTipOpen, setSavingsTipOpen] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string>("premium");
 
   useEffect(() => {
     (async () => {
+      // Ultra-simple: only show Premium plan (one plan, full power)
       const { data } = await supabase
         .from("subscription_plans")
         .select("id, plan_key, name, description, price, yearly_price, trial_days, tier_level, features")
         .eq("is_active", true)
-        .in("plan_key", ["starter", "premium"])
+        .eq("plan_key", "premium")
         .order("tier_level");
       setPlans((data as PlanRow[]) || []);
       setPlansLoading(false);
