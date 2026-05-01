@@ -2,6 +2,8 @@ import { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Quote, Share2, RefreshCw, Heart, ChevronDown, ChevronUp, Flame, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 type QuoteMood = "struggling" | "steady" | "thriving";
 
