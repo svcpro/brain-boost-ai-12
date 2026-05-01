@@ -39,12 +39,11 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
 
   useEffect(() => {
     (async () => {
-      // Ultra-simple: only show Premium plan (one plan, full power)
       const { data } = await supabase
         .from("subscription_plans")
         .select("id, plan_key, name, description, price, yearly_price, trial_days, tier_level, features")
         .eq("is_active", true)
-        .eq("plan_key", "premium")
+        .in("plan_key", ["starter", "premium"])
         .order("tier_level");
       setPlans((data as PlanRow[]) || []);
       setPlansLoading(false);
@@ -358,7 +357,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                   ))}
                 </motion.div>
 
-                {/* Single Premium plan card — ultra-simple */}
+                {/* Plan cards — both Starter and Premium, ultra-simple */}
                 <div className="space-y-3">
                   {plans.map((p, idx) => {
                     const price = priceFor(p);
@@ -369,6 +368,8 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                     const trialAvail = canStartTrial(p);
                     const isThisLoading = loadingKey === p.plan_key && loading;
                     const features = featureList(p);
+                    const isPremiumTier = p.tier_level >= 2;
+                    const accent = isPremiumTier ? "#FFD700" : "#00E5FF";
                     return (
                       <motion.div
                         key={p.id}
@@ -377,13 +378,24 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                         transition={{ delay: 0.35 + idx * 0.08 }}
                         className="relative rounded-2xl p-5 overflow-hidden"
                         style={{
-                          background: "linear-gradient(135deg, rgba(255,215,0,0.08), rgba(124,77,255,0.06))",
-                          border: "1px solid rgba(255,215,0,0.25)",
+                          background: isPremiumTier
+                            ? "linear-gradient(135deg, rgba(255,215,0,0.08), rgba(124,77,255,0.06))"
+                            : "rgba(255,255,255,0.03)",
+                          border: isPremiumTier
+                            ? "1px solid rgba(255,215,0,0.25)"
+                            : "1px solid rgba(0,229,255,0.20)",
                         }}
                       >
+                        {isPremiumTier && (
+                          <div className="absolute top-3 right-3 text-[8px] font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: "linear-gradient(135deg,#FFD700,#FF8500)", color: "#0B0F1A" }}>
+                            BEST VALUE
+                          </div>
+                        )}
+
                         {/* Header */}
                         <div className="flex items-center gap-2 mb-1">
-                          <Crown className="w-4 h-4" style={{ color: "#FFD700" }} />
+                          <Crown className="w-4 h-4" style={{ color: accent }} />
                           <h3 className="text-sm font-bold text-foreground">{p.name}</h3>
                         </div>
                         {p.description && (
@@ -414,7 +426,7 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           <ul className="space-y-1.5 mb-4">
                             {features.slice(0, 6).map((f) => (
                               <li key={f} className="flex items-start gap-2 text-[11px] text-foreground/85">
-                                <Check className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "#FFD700" }} />
+                                <Check className="w-3 h-3 shrink-0 mt-0.5" style={{ color: accent }} />
                                 <span>{f}</span>
                               </li>
                             ))}
@@ -427,7 +439,9 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           disabled={loading || isPaid}
                           className="relative w-full py-3 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden"
                           style={{
-                            background: "linear-gradient(135deg, #FFD700, #FF8500)",
+                            background: isPremiumTier
+                              ? "linear-gradient(135deg, #FFD700, #FF8500)"
+                              : "linear-gradient(135deg, #00E5FF, #7C4DFF)",
                             color: "#0B0F1A",
                           }}
                           whileTap={{ scale: 0.97 }}
