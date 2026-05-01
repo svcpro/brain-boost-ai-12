@@ -4,7 +4,10 @@
 // Variants: "myrank" | "sureshot" | "default"
 // Cached aggressively at the CDN edge.
 
-import { corsHeaders } from "@supabase/supabase-js/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 import { Resvg, initWasm } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
 
 let wasmReady: Promise<void> | null = null;

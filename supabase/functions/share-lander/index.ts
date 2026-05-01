@@ -5,7 +5,10 @@
 // All query params forwarded to og-image render + used to craft personalized
 // title/description for crawlers (WhatsApp, X, LinkedIn, Facebook, Telegram).
 
-import { corsHeaders } from "@supabase/supabase-js/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 const SITE = "https://acry.ai";
 const PROJECT_REF = Deno.env.get("SUPABASE_URL")?.match(/https?:\/\/([^.]+)\./)?.[1] ?? "yvxrsujwgmzdjzsjyqfb";
