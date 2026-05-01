@@ -111,10 +111,10 @@ function mapVariables(
       out[slot] = data.link ?? data.url ?? "https://acry.ai";
     } else if (key === "url") {
       out[slot] = data.url ?? data.link ?? "https://acry.ai";
-    } else if (["days", "day_count", "day"].includes(key)) {
-      out[slot] = data.days ?? data.day_count ?? data.dayCount ?? data.day ?? 1;
+    } else if (["days", "day_count", "daycount", "day"].includes(key)) {
+      out[slot] = data.days ?? data.day_count ?? data.dayCount ?? data.daycount ?? data.day ?? 1;
     } else if (key === "time") {
-      out[slot] = data.time ?? data.scheduled_time ?? data.send_time ?? data.start_time ?? istTimeHHMM();
+      out[slot] = data.time ?? data.scheduled_time ?? data.send_time ?? data.start_time ?? data.sendTime ?? data.startTime ?? istTimeHHMM();
     } else {
       out[slot] = (data as any)[key] ?? "";
     }
