@@ -7,6 +7,8 @@ import confetti from "canvas-confetti";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCache, setCache } from "@/lib/offlineCache";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface WeekStats {
   totalMinutes: number;
