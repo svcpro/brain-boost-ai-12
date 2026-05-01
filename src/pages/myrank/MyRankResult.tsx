@@ -7,7 +7,7 @@ import {
   ListOrdered, Target, Flame, TrendingUp, ChevronRight, Copy, Check,
   Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff, Wand2, Home, ArrowLeft,
 } from "lucide-react";
-import { buildShareUrl } from "@/lib/share";
+import { buildShareUrl, buildShareLanderUrl } from "@/lib/share";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
 import { shareBadgeOneClick, openSharePlaceholder, redirectToChannel, buildChannelShareUrl, renderBadgeBlob } from "@/lib/shareBadge";
