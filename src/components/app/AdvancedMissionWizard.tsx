@@ -175,18 +175,22 @@ export default function AdvancedMissionWizard({
     setWizardStep("questions");
     setMissionStep(0);
 
-    // ─── Unified Today's Mission API: action=start (works for both real + synthetic) ───
-    try {
-      const { data: startData, error: startErr } = await supabase.functions.invoke("home-api", {
-        body: { route: "todays-mission-api", action: "start", mission_id: missionId },
-      });
-      if (startErr) {
-        console.warn("[Mission] start failed:", startErr.message);
-      } else if (startData?.already_started) {
-        toast({ title: "▶️ Resumed", description: "Continuing your mission" });
+    // ─── Unified Today's Mission API: action=start (only for real UUID-backed missions) ───
+    if (isValidMissionId(missionId)) {
+      try {
+        const { data: startData, error: startErr } = await supabase.functions.invoke("home-api", {
+          body: { route: "todays-mission-api", action: "start", mission_id: missionId },
+        });
+        if (startErr) {
+          console.warn("[Mission] start failed:", startErr.message);
+        } else if (startData?.already_started) {
+          toast({ title: "▶️ Resumed", description: "Continuing your mission" });
+        }
+      } catch (e) {
+        console.warn("[Mission] start invocation error:", e);
       }
-    } catch (e) {
-      console.warn("[Mission] start invocation error:", e);
+    } else {
+      console.info("[Mission] skipping start API for synthetic mission_id:", missionId);
     }
 
     // ─── Persist local mission_sessions row for analytics & resume ───
