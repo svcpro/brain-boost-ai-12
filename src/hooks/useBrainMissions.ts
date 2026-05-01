@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isValidMissionId } from "@/lib/missionId";
 
 export interface BrainMission {
   id: string;
@@ -62,11 +63,16 @@ export function useBrainMissions() {
 
   const complete = useCallback(async (missionId: string) => {
     if (!session) return;
+    // Optimistically remove regardless — keeps UI responsive for synthetic IDs too.
+    setMissions(prev => prev.filter(m => m.id !== missionId));
+    if (!isValidMissionId(missionId)) {
+      console.info("[BrainMissions] skipping complete API for synthetic mission_id:", missionId);
+      return;
+    }
     try {
       await supabase.functions.invoke("brain-missions", {
         body: { action: "complete", mission_id: missionId },
       });
-      setMissions(prev => prev.filter(m => m.id !== missionId));
     } catch (e: any) {
       setError(e.message);
     }
