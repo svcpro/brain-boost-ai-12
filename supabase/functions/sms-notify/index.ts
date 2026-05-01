@@ -330,12 +330,9 @@ async function dispatchSms(
       .from("sms_templates").select("*").eq("name", params.template_name).maybeSingle();
     if (!tpl) return { ok: false, status: "template_missing", reason: `Template ${params.template_name} not found` };
     if (!tpl.is_active) return { ok: false, status: "template_disabled", reason: "Template inactive" };
-    // Auto-inject both {{link}} / ##url## from template target_url if caller didn't provide them
-    const mergedVars: Record<string, unknown> = { ...(params.variables || {}) };
-    if (tpl.target_url) {
-      if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
-      if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
-    }
+    // Auto-inject URL aliases from template target_url. Generic https://acry.ai
+    // is treated as missing so event/orchestrator defaults don't override deep-links.
+    const mergedVars = applyTemplateTargetUrl(params.variables || {}, tpl.target_url);
     placeholderKeys = extractPlaceholderKeys(tpl.body_template);
     resolvedVariables = completeTemplateVariables(mergedVars, placeholderKeys, String(mergedVars.name || "User"));
     body = renderTemplate(tpl.body_template, resolvedVariables);
@@ -484,11 +481,7 @@ Deno.serve(async (req) => {
       const { data: tpl } = await sb.from("sms_templates").select("*")
         .eq("name", body.template_name).maybeSingle();
       if (!tpl) return json({ error: "Template not found" }, 404);
-      const mergedVars: Record<string, unknown> = { ...(body.variables || {}) };
-      if (tpl.target_url) {
-        if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
-        if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
-      }
+      const mergedVars = applyTemplateTargetUrl(body.variables || {}, tpl.target_url);
       const placeholderKeys = extractPlaceholderKeys(tpl.body_template);
       const resolvedVariables = completeTemplateVariables(mergedVars, placeholderKeys, String(mergedVars.name || "User"));
       const rendered = renderTemplate(tpl.body_template, resolvedVariables);
