@@ -90,6 +90,7 @@ export interface DailyQuoteProps {
 
 const DailyQuote = ({ currentStreak = 0, completionRate = 50 }: DailyQuoteProps) => {
   const { toast } = useToast();
+  const og = useShareIdentity();
 
   const mood = getMood(currentStreak, completionRate);
   const moodMeta = getMoodMeta(mood);
