@@ -60,7 +60,8 @@ const TrialBanner = () => {
   const elapsed = totalDays - trialDaysLeft;
   const progress = isTrialExpired ? 100 : Math.min(100, (elapsed / totalDays) * 100);
   const isUrgent = trialDaysLeft <= 3;
-  const trialTitle = planLabel ? `${planLabel} Trial` : "Free Trial";
+  // Hide plan name (e.g. "Starter") in the banner — show generic trial label only
+  const trialTitle = planLabel === "Premium" ? "Premium Trial" : "Free Trial";
 
   return (
     <>
