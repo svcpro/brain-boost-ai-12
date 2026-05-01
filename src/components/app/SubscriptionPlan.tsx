@@ -370,6 +370,10 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                     const features = featureList(p);
                     const isPremiumTier = p.tier_level >= 2;
                     const accent = isPremiumTier ? "#FFD700" : "#00E5FF";
+                    // Resolve current plan_key (subscription.plan_id may be a UUID)
+                    const currentPlanMatches = plans.find(pp => pp.id === subscription?.plan_id)?.plan_key === p.plan_key
+                      || subscription?.plan_id === p.plan_key;
+                    const isCurrentPlan = (isPaid || isTrialActive) && currentPlanMatches;
                     return (
                       <motion.div
                         key={p.id}
