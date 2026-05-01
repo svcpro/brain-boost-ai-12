@@ -55,8 +55,11 @@ export default function MissionShareCard({
   };
 
   const handleNativeShare = async () => {
-    if (navigator.share) { try { await navigator.share({ title: "ACRY Mission Complete!", text: shareText }); } catch {} }
-    else handleCopyText();
+    const ok = await nativeShare(
+      { url: "https://acry.ai/", title: "ACRY Mission Complete!", text: shareText },
+      { og: { ...og, streak: streakDays }, campaign: "mission_complete" }
+    );
+    if (!ok) handleCopyText();
   };
 
   return (
