@@ -240,21 +240,7 @@ function openChannelUrl(
   preOpenedWindow?: Window | null,
 ) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const encoded = encodeURIComponent(caption);
-  let target = "";
-  switch (channel) {
-    case "whatsapp":
-    case "native":
-    default:
-      target = `https://wa.me/?text=${encoded}`;
-      break;
-    case "telegram":
-      target = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encoded}`;
-      break;
-    case "instagram":
-      target = "https://www.instagram.com/";
-      break;
-  }
+  const target = buildChannelShareUrl(channel, caption, url);
   // Mobile: same-tab deep-link (works inside user gesture).
   if (isMobile) {
     window.location.href = target;
@@ -281,16 +267,24 @@ export function buildChannelShareUrl(
   caption: string,
   url: string,
 ): string {
-  const encoded = encodeURIComponent(caption);
+  // Auto-tag the shared URL with platform UTM params for attribution.
+  // We import lazily to avoid circular deps.
+  const { buildShareUrl } = require("./share") as typeof import("./share");
+  const platform =
+    channel === "telegram" ? "telegram" :
+    channel === "instagram" ? "instagram" :
+    "whatsapp";
+  const tagged = buildShareUrl(url, platform, { campaign: "myrank_badge" });
+  const encodedCaption = encodeURIComponent(caption.replace(url, tagged));
   switch (channel) {
     case "telegram":
-      return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encoded}`;
+      return `https://t.me/share/url?url=${encodeURIComponent(tagged)}&text=${encodedCaption}`;
     case "instagram":
       return "https://www.instagram.com/direct/inbox/";
     case "whatsapp":
     case "native":
     default:
-      return `https://wa.me/?text=${encoded}`;
+      return `https://wa.me/?text=${encodedCaption}`;
   }
 }
 
