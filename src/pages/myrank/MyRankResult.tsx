@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-import { buildShareUrl } from "@/lib/share";
   Trophy, Share2, RefreshCw, Lock, Crown, Sparkles, Users, Gift, Loader2,
   ListOrdered, Target, Flame, TrendingUp, ChevronRight, Copy, Check,
   Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff, Wand2, Home, ArrowLeft,
 } from "lucide-react";
+import { buildShareUrl } from "@/lib/share";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
 import { shareBadgeOneClick, openSharePlaceholder, redirectToChannel, buildChannelShareUrl, renderBadgeBlob } from "@/lib/shareBadge";
