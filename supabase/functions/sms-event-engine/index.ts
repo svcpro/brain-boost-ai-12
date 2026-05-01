@@ -19,6 +19,59 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
 });
 
 const DEDUPE_WINDOW_MS = 60 * 1000; // 1 minute
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+function istTimeHHMM(d: Date = new Date()): string {
+  return new Date(d.getTime() + IST_OFFSET_MS).toISOString().slice(11, 16);
+}
+
+function hasValue(value: unknown): boolean {
+  return value != null && value !== "";
+}
+
+function isGenericAcryUrl(value: unknown): boolean {
+  if (!hasValue(value)) return true;
+  try {
+    const u = new URL(String(value));
+    const host = u.hostname.replace(/^www\./, "");
+    return host === "acry.ai" && (u.pathname === "" || u.pathname === "/") && !u.search && !u.hash;
+  } catch {
+    return false;
+  }
+}
+
+function addSemanticVariableAliases(vars: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(vars || {}) };
+  const first = (keys: string[]) => keys.map((k) => out[k]).find(hasValue);
+
+  const link = first(["link", "url", "target_url"]);
+  if (hasValue(link)) {
+    out.link ??= link;
+    out.url ??= link;
+    out.target_url ??= link;
+  }
+
+  const days = first(["days", "day_count", "dayCount", "day"]);
+  if (hasValue(days)) {
+    out.days ??= days;
+    out.day_count ??= days;
+    out.dayCount ??= days;
+    out.daycount ??= days;
+    out.day ??= days;
+  }
+
+  const time = first(["time", "scheduled_time", "send_time", "start_time", "sendTime", "startTime"]);
+  if (hasValue(time)) {
+    out.time ??= time;
+    out.scheduled_time ??= time;
+    out.send_time ??= time;
+    out.start_time ??= time;
+    out.sendTime ??= time;
+    out.startTime ??= time;
+  }
+
+  return out;
+}
 
 type EventInput = {
   event_type: string;
@@ -56,8 +109,12 @@ function mapVariables(
       out[slot] = data.app ?? "ACRY";
     } else if (key === "link") {
       out[slot] = data.link ?? data.url ?? "https://acry.ai";
+    } else if (key === "url") {
+      out[slot] = data.url ?? data.link ?? "https://acry.ai";
+    } else if (["days", "day_count", "daycount", "day"].includes(key)) {
+      out[slot] = data.days ?? data.day_count ?? data.dayCount ?? data.daycount ?? data.day ?? 1;
     } else if (key === "time") {
-      out[slot] = data.time ?? new Date(Date.now() + (5 * 60 + 30) * 60 * 1000).toISOString().slice(11, 16);
+      out[slot] = data.time ?? data.scheduled_time ?? data.send_time ?? data.start_time ?? data.sendTime ?? data.startTime ?? istTimeHHMM();
     } else {
       out[slot] = (data as any)[key] ?? "";
     }
@@ -66,7 +123,7 @@ function mapVariables(
   if (data.link) out.link = data.link;
   if (data.url) out.url = data.url;
   if (data.name && !out.var1) out.var1 = data.name;
-  return out;
+  return addSemanticVariableAliases(out);
 }
 
 function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>, userName: string): unknown {
@@ -74,10 +131,18 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
   const aliases: Record<string, string[]> = {
     url: ["url", "link", "target_url"],
     link: ["link", "url", "target_url"],
+    target_url: ["target_url", "url", "link"],
     name: ["name", "display_name", "user_name"],
     otp: ["otp", "code"],
     code: ["code", "otp"],
-    time: ["time", "scheduled_time"],
+    days: ["days", "day_count", "dayCount", "day"],
+    day_count: ["day_count", "days", "dayCount", "day"],
+    daycount: ["dayCount", "day_count", "days", "day"],
+    day: ["day", "days", "day_count", "dayCount"],
+    time: ["time", "scheduled_time", "send_time", "start_time"],
+    scheduled_time: ["scheduled_time", "time", "send_time", "start_time"],
+    sendtime: ["sendTime", "send_time", "time", "scheduled_time"],
+    starttime: ["startTime", "start_time", "time", "scheduled_time"],
   };
   for (const alias of aliases[lower] || [key, lower]) {
     const value = vars[alias];
@@ -87,12 +152,20 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
     name: userName || "User",
     link: "https://acry.ai",
     url: "https://acry.ai",
+    target_url: "https://acry.ai",
     app: "ACRY",
     exam: "your exam",
     topic: "today's focus topic",
     days: 1,
+    day: 1,
+    day_count: 1,
+    daycount: 1,
     hours: 2,
-    time: new Date(Date.now() + (5 * 60 + 30) * 60 * 1000).toISOString().slice(11, 16),
+    time: istTimeHHMM(),
+    scheduled_time: istTimeHHMM(),
+    send_time: istTimeHHMM(),
+    sendtime: istTimeHHMM(),
+    starttime: istTimeHHMM(),
     device: "your device",
     stability: 80,
     strength: 50,
@@ -183,14 +256,14 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
   }
 
   // 4. Map variables (raw, based on event registry's variable_map)
-  const rawVariables = mapVariables(data || {}, (ev.variable_map as any) || {}, userName);
+  let rawVariables = mapVariables(data || {}, (ev.variable_map as any) || {}, userName);
 
   // 4b. Auto-align to the template's registered variable list.
   // MSG91 / DLT will silently reject (or fail to deliver) when extra variables
   // are sent or when names don't match the template's registered slots.
   const { data: tpl } = await sb
     .from("sms_templates")
-    .select("name, variables, dlt_template_id, body_template")
+    .select("name, variables, dlt_template_id, body_template, target_url")
     .eq("name", ev.template_name)
     .maybeSingle();
 
@@ -223,15 +296,22 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
         ? (tpl!.variables as string[])
         : [];
 
+  if (tpl?.target_url) {
+    for (const key of ["link", "url", "target_url"]) {
+      if (!hasValue(rawVariables[key]) || isGenericAcryUrl(rawVariables[key])) rawVariables[key] = tpl.target_url;
+    }
+    rawVariables = addSemanticVariableAliases(rawVariables);
+  }
+
   if (expectedSlots.length > 0) {
     const aligned: Record<string, unknown> = {};
     // Known semantic slot names — never use positional fallback for these,
     // always go straight to the typed default. Prevents "stability = Test User".
     const SEMANTIC_SLOTS = new Set([
-      "name", "link", "url", "otp", "code", "time", "app",
+      "name", "link", "url", "target_url", "otp", "code", "time", "scheduled_time", "send_time", "start_time", "app",
       "stability", "strength", "rank", "positions", "points",
       "questions", "accuracy", "prob", "amount", "count",
-      "days", "hours", "exam", "topic", "device", "friend",
+      "days", "day", "day_count", "daycount", "hours", "exam", "topic", "device", "friend",
       "expiry", "milestone", "reward",
     ]);
     const rawEntries = Object.entries(rawVariables);
@@ -239,7 +319,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
     // from the positional pool — otherwise `name` leaks into numeric slots.
     const allValues = rawEntries.filter(
       ([k, v]) =>
-        !["name", "link", "url"].includes(k) &&
+        !["name", "link", "url", "target_url", "days", "day", "day_count", "dayCount", "time", "scheduled_time", "send_time", "start_time"].includes(k) &&
         !/^var\d+$/i.test(k) &&
         v !== "" && v != null,
     );
@@ -258,6 +338,14 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
         aligned[slot] = rawVariables.url;
         return;
       }
+      if (["days", "day_count", "day"].includes(slot) && [rawVariables.days, rawVariables.day_count, rawVariables.dayCount, rawVariables.day].some(hasValue)) {
+        aligned[slot] = rawVariables.days ?? rawVariables.day_count ?? rawVariables.dayCount ?? rawVariables.day;
+        return;
+      }
+      if (["time", "scheduled_time", "send_time", "start_time"].includes(slot) && [rawVariables.time, rawVariables.scheduled_time, rawVariables.send_time, rawVariables.start_time].some(hasValue)) {
+        aligned[slot] = rawVariables.time ?? rawVariables.scheduled_time ?? rawVariables.send_time ?? rawVariables.start_time;
+        return;
+      }
       // 3) For known semantic slots, skip positional guessing and use typed default.
       if (SEMANTIC_SLOTS.has(slot.toLowerCase())) {
         aligned[slot] = fallbackValueForPlaceholder(slot, { ...data, ...rawVariables }, userName);
@@ -268,11 +356,14 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
       aligned[slot] = positional ?? fallbackValueForPlaceholder(slot, { ...data, ...rawVariables }, userName);
     });
     // pass-through helpers used by sms-notify auto-mapping
-    if (rawVariables.name && !aligned.name) aligned.name = rawVariables.name;
-    if (rawVariables.link && !aligned.link) aligned.link = rawVariables.link;
-    if (rawVariables.url && !aligned.url) aligned.url = rawVariables.url;
+    if (hasValue(rawVariables.name) && !hasValue(aligned.name)) aligned.name = rawVariables.name;
+    if (hasValue(rawVariables.link) && !hasValue(aligned.link)) aligned.link = rawVariables.link;
+    if (hasValue(rawVariables.url) && !hasValue(aligned.url)) aligned.url = rawVariables.url;
+    if (hasValue(rawVariables.days) && !hasValue(aligned.days)) aligned.days = rawVariables.days;
+    if (hasValue(rawVariables.day_count) && !hasValue(aligned.day_count)) aligned.day_count = rawVariables.day_count;
+    if (hasValue(rawVariables.time) && !hasValue(aligned.time)) aligned.time = rawVariables.time;
 
-    alignedVariables = aligned;
+    alignedVariables = addSemanticVariableAliases(aligned);
     alignmentNote =
       bodyPlaceholders.length > 0
         ? `aligned_to_body_placeholders:${bodyPlaceholders.join(",")}`

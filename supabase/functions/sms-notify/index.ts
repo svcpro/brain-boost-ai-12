@@ -37,6 +37,66 @@ function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
     });
 }
 
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+function istTimeHHMM(d: Date = new Date()): string {
+  return new Date(d.getTime() + IST_OFFSET_MS).toISOString().slice(11, 16);
+}
+
+function hasValue(value: unknown): boolean {
+  return value != null && value !== "";
+}
+
+function isGenericAcryUrl(value: unknown): boolean {
+  if (!hasValue(value)) return true;
+  try {
+    const u = new URL(String(value));
+    const host = u.hostname.replace(/^www\./, "");
+    return host === "acry.ai" && (u.pathname === "" || u.pathname === "/") && !u.search && !u.hash;
+  } catch {
+    return false;
+  }
+}
+
+function addSemanticVariableAliases(vars: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(vars || {}) };
+  const first = (keys: string[]) => keys.map((k) => out[k]).find(hasValue);
+
+  const link = first(["link", "url", "target_url"]);
+  if (hasValue(link)) {
+    out.link ??= link;
+    out.url ??= link;
+    out.target_url ??= link;
+  }
+
+  const days = first(["days", "day_count", "dayCount", "day"]);
+  if (hasValue(days)) {
+    out.days ??= days;
+    out.day_count ??= days;
+    out.dayCount ??= days;
+    out.day ??= days;
+  }
+
+  const time = first(["time", "scheduled_time", "send_time", "start_time"]);
+  if (hasValue(time)) {
+    out.time ??= time;
+    out.scheduled_time ??= time;
+    out.send_time ??= time;
+    out.start_time ??= time;
+  }
+
+  return out;
+}
+
+function applyTemplateTargetUrl(vars: Record<string, unknown>, targetUrl?: string | null): Record<string, unknown> {
+  const out = addSemanticVariableAliases(vars);
+  if (!targetUrl) return out;
+  for (const key of ["link", "url", "target_url"]) {
+    if (!hasValue(out[key]) || isGenericAcryUrl(out[key])) out[key] = targetUrl;
+  }
+  return out;
+}
+
 function extractPlaceholderKeys(tpl: string): string[] {
   const keys: string[] = [];
   const re = /\{\{\s*(\w+)\s*\}\}|##\s*([a-zA-Z0-9_]+)\s*##/g;
@@ -53,10 +113,18 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
   const aliases: Record<string, string[]> = {
     url: ["url", "link", "target_url"],
     link: ["link", "url", "target_url"],
+    target_url: ["target_url", "url", "link"],
     name: ["name", "display_name", "user_name"],
     otp: ["otp", "code"],
     code: ["code", "otp"],
-    time: ["time", "scheduled_time"],
+    days: ["days", "day_count", "dayCount", "day"],
+    day_count: ["day_count", "days", "dayCount", "day"],
+    daycount: ["dayCount", "day_count", "days", "day"],
+    day: ["day", "days", "day_count", "dayCount"],
+    time: ["time", "scheduled_time", "send_time", "start_time"],
+    scheduled_time: ["scheduled_time", "time", "send_time", "start_time"],
+    sendtime: ["sendTime", "send_time", "time", "scheduled_time"],
+    starttime: ["startTime", "start_time", "time", "scheduled_time"],
   };
   for (const alias of aliases[lower] || [key, lower]) {
     const value = vars[alias];
@@ -66,12 +134,20 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
     name: fallbackName || "User",
     link: "https://acry.ai",
     url: "https://acry.ai",
+    target_url: "https://acry.ai",
     app: "ACRY",
     exam: "your exam",
     topic: "today's focus topic",
     days: 1,
+    day: 1,
+    day_count: 1,
+    daycount: 1,
     hours: 2,
-    time: new Date(Date.now() + (5 * 60 + 30) * 60 * 1000).toISOString().slice(11, 16),
+    time: istTimeHHMM(),
+    scheduled_time: istTimeHHMM(),
+    send_time: istTimeHHMM(),
+    sendtime: istTimeHHMM(),
+    starttime: istTimeHHMM(),
     device: "your device",
     stability: 80,
     strength: 50,
@@ -92,22 +168,18 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
 }
 
 function completeTemplateVariables(vars: Record<string, unknown>, placeholderKeys: string[], fallbackName = "User"): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...(vars || {}) };
-  if (out.link == null && out.url != null) out.link = out.url;
-  if (out.url == null && out.link != null) out.url = out.link;
+  const out: Record<string, unknown> = addSemanticVariableAliases(vars || {});
   for (const key of placeholderKeys) {
     if (out[key] == null || out[key] === "") out[key] = fallbackValueForPlaceholder(key, out, fallbackName);
   }
-  if (out.link == null && out.url != null) out.link = out.url;
-  if (out.url == null && out.link != null) out.url = out.link;
-  return out;
+  return addSemanticVariableAliases(out);
 }
 
 function buildMsg91FlowVariables(vars: Record<string, unknown>, placeholderKeys: string[] = []): Record<string, string> {
   const out: Record<string, string> = {};
   const sourceKeys = placeholderKeys.length ? placeholderKeys : Object.keys(vars || {});
   for (const key of sourceKeys) {
-    const value = vars?.[key] ?? (key === "link" ? vars?.url : key === "url" ? vars?.link : undefined);
+    const value = vars?.[key];
     if (!/^[a-zA-Z0-9_]+$/.test(key) || value == null || value === "") continue;
     // MSG91 Flow variables must match the variables configured on the Flow.
     // Sending broad aliases/extra fields can be accepted by the API but fail at DLT delivery.
@@ -264,12 +336,9 @@ async function dispatchSms(
       .from("sms_templates").select("*").eq("name", params.template_name).maybeSingle();
     if (!tpl) return { ok: false, status: "template_missing", reason: `Template ${params.template_name} not found` };
     if (!tpl.is_active) return { ok: false, status: "template_disabled", reason: "Template inactive" };
-    // Auto-inject both {{link}} / ##url## from template target_url if caller didn't provide them
-    const mergedVars: Record<string, unknown> = { ...(params.variables || {}) };
-    if (tpl.target_url) {
-      if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
-      if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
-    }
+    // Auto-inject URL aliases from template target_url. Generic https://acry.ai
+    // is treated as missing so event/orchestrator defaults don't override deep-links.
+    const mergedVars = applyTemplateTargetUrl(params.variables || {}, tpl.target_url);
     placeholderKeys = extractPlaceholderKeys(tpl.body_template);
     resolvedVariables = completeTemplateVariables(mergedVars, placeholderKeys, String(mergedVars.name || "User"));
     body = renderTemplate(tpl.body_template, resolvedVariables);
@@ -418,11 +487,7 @@ Deno.serve(async (req) => {
       const { data: tpl } = await sb.from("sms_templates").select("*")
         .eq("name", body.template_name).maybeSingle();
       if (!tpl) return json({ error: "Template not found" }, 404);
-      const mergedVars: Record<string, unknown> = { ...(body.variables || {}) };
-      if (tpl.target_url) {
-        if (mergedVars.link == null || mergedVars.link === "") mergedVars.link = tpl.target_url;
-        if (mergedVars.url == null || mergedVars.url === "") mergedVars.url = tpl.target_url;
-      }
+      const mergedVars = applyTemplateTargetUrl(body.variables || {}, tpl.target_url);
       const placeholderKeys = extractPlaceholderKeys(tpl.body_template);
       const resolvedVariables = completeTemplateVariables(mergedVars, placeholderKeys, String(mergedVars.name || "User"));
       const rendered = renderTemplate(tpl.body_template, resolvedVariables);
