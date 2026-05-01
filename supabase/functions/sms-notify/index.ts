@@ -162,22 +162,18 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
 }
 
 function completeTemplateVariables(vars: Record<string, unknown>, placeholderKeys: string[], fallbackName = "User"): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...(vars || {}) };
-  if (out.link == null && out.url != null) out.link = out.url;
-  if (out.url == null && out.link != null) out.url = out.link;
+  const out: Record<string, unknown> = addSemanticVariableAliases(vars || {});
   for (const key of placeholderKeys) {
     if (out[key] == null || out[key] === "") out[key] = fallbackValueForPlaceholder(key, out, fallbackName);
   }
-  if (out.link == null && out.url != null) out.link = out.url;
-  if (out.url == null && out.link != null) out.url = out.link;
-  return out;
+  return addSemanticVariableAliases(out);
 }
 
 function buildMsg91FlowVariables(vars: Record<string, unknown>, placeholderKeys: string[] = []): Record<string, string> {
   const out: Record<string, string> = {};
   const sourceKeys = placeholderKeys.length ? placeholderKeys : Object.keys(vars || {});
   for (const key of sourceKeys) {
-    const value = vars?.[key] ?? (key === "link" ? vars?.url : key === "url" ? vars?.link : undefined);
+    const value = vars?.[key];
     if (!/^[a-zA-Z0-9_]+$/.test(key) || value == null || value === "") continue;
     // MSG91 Flow variables must match the variables configured on the Flow.
     // Sending broad aliases/extra fields can be accepted by the API but fail at DLT delivery.
