@@ -226,11 +226,14 @@ const QuoteBanner = ({ quote, streak }: { quote: string; streak: number }) => {
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await navigator.share({ text: shareText });
+      await nativeShare(
+        { url: "https://acry.ai/", text: shareText, title: "Weekly Brain Digest · ACRY AI" },
+        { og: { variant: "default", streak }, campaign: "weekly_digest_quote" }
+      );
     } catch (err: any) {
       if (err?.name !== "AbortError") toast.error("Failed to share");
     }
-  }, [shareText]);
+  }, [shareText, streak]);
 
   return (
     <motion.div
