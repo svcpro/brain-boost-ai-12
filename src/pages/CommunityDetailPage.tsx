@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { firePush } from "@/lib/firePush";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 const POST_TYPES = [
   { value: "question", label: "❓ Question", color: "bg-accent/10 text-accent" },
@@ -41,6 +43,7 @@ const CommunityDetailPage = ({ inlineSlug, onBack }: CommunityDetailPageProps = 
   const isInline = !!inlineSlug;
   const { user } = useAuth();
   const { toast } = useToast();
+  const og = useShareIdentity();
   const navigate = useNavigate();
   const [community, setCommunity] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -243,9 +246,11 @@ const CommunityDetailPage = ({ inlineSlug, onBack }: CommunityDetailPageProps = 
   const sharePost = async (post: any) => {
     const url = `${window.location.origin}/community/${slug}#${post.id}`;
     try {
-      if (navigator.share) {
-        await navigator.share({ title: post.title, text: post.ai_summary || post.content.slice(0, 100), url });
-      } else {
+      const ok = await nativeShare(
+        { url, title: post.title, text: post.ai_summary || post.content.slice(0, 100) },
+        { og: { ...og, exam: community?.exam_type || og.exam }, campaign: "community_post_share" }
+      );
+      if (!ok) {
         await navigator.clipboard.writeText(url);
         toast({ title: "Link copied! 📋" });
       }

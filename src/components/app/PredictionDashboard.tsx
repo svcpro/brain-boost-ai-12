@@ -14,6 +14,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, addDays, differenceInDays, isPast } from "date-fns";
 import html2canvas from "html2canvas";
 import { toast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface MemoryForecast {
   id: string;
@@ -49,6 +51,7 @@ interface StrategyItem {
 
 const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
   const { user } = useAuth();
+  const og = useShareIdentity();
   const [rankHistory, setRankHistory] = useState<RankPoint[]>([]);
   const [forecasts, setForecasts] = useState<MemoryForecast[]>([]);
   const [strategies, setStrategies] = useState<StrategyItem[]>([]);
@@ -413,11 +416,15 @@ const PredictionDashboard = ({ onClose }: { onClose: () => void }) => {
         if (!blob) return;
         const file = new File([blob], `prediction-summary-${format(new Date(), "yyyy-MM-dd")}.png`, { type: "image/png" });
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({
-            title: "My Learning Predictions",
-            text: "Check out my AI-powered learning prediction summary!",
-            files: [file],
-          });
+          await nativeShare(
+            {
+              url: "https://acry.ai/",
+              title: "My Learning Predictions",
+              text: "Check out my AI-powered learning prediction summary!",
+              files: [file],
+            },
+            { og, campaign: "prediction_summary" }
+          );
           setExported(true);
           setTimeout(() => setExported(false), 2000);
         } else {

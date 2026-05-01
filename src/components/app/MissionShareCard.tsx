@@ -2,6 +2,8 @@ import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Download, Share2, Trophy, Brain, Flame, Star, Zap, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface MissionShareCardProps {
   missionTitle: string;
@@ -18,6 +20,7 @@ export default function MissionShareCard({
   missionTitle, accuracy, xpEarned, brainBoost, streakDays, score, badges, onClose,
 }: MissionShareCardProps) {
   const { toast } = useToast();
+  const og = useShareIdentity();
   const cardRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -52,8 +55,11 @@ export default function MissionShareCard({
   };
 
   const handleNativeShare = async () => {
-    if (navigator.share) { try { await navigator.share({ title: "ACRY Mission Complete!", text: shareText }); } catch {} }
-    else handleCopyText();
+    const ok = await nativeShare(
+      { url: "https://acry.ai/", title: "ACRY Mission Complete!", text: shareText },
+      { og: { ...og, streak: streakDays }, campaign: "mission_complete" }
+    );
+    if (!ok) handleCopyText();
   };
 
   return (

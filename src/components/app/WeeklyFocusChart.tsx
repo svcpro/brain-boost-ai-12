@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, subDays, startOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface DayData {
   label: string;
@@ -34,6 +36,7 @@ const SUBJECT_COLORS = [
 const WeeklyFocusChart = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const og = useShareIdentity();
   const [days, setDays] = useState<DayData[]>([]);
   const [subjects, setSubjects] = useState<SubjectBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +86,10 @@ const WeeklyFocusChart = () => {
       if (!blob) return;
       const file = new File([blob], "weekly-focus.png", { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: "My Weekly Focus", text: "Check out my weekly focus progress! 🎯", files: [file] });
+        await nativeShare(
+          { url: "https://acry.ai/", title: "My Weekly Focus", text: "Check out my weekly focus progress! 🎯", files: [file] },
+          { og, campaign: "weekly_focus" }
+        );
       } else {
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         toast({ title: "📋 Copied!", description: "Image copied to clipboard." });

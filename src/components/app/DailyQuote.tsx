@@ -2,6 +2,8 @@ import { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Quote, Share2, RefreshCw, Heart, ChevronDown, ChevronUp, Flame, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 type QuoteMood = "struggling" | "steady" | "thriving";
 
@@ -88,6 +90,7 @@ export interface DailyQuoteProps {
 
 const DailyQuote = ({ currentStreak = 0, completionRate = 50 }: DailyQuoteProps) => {
   const { toast } = useToast();
+  const og = useShareIdentity();
 
   const mood = getMood(currentStreak, completionRate);
   const moodMeta = getMoodMeta(mood);
@@ -121,12 +124,11 @@ const DailyQuote = ({ currentStreak = 0, completionRate = 50 }: DailyQuoteProps)
   }, [isFav, quoteKey, toast]);
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: shareText });
-        return;
-      } catch { /* cancelled */ }
-    }
+    const ok = await nativeShare(
+      { url: "https://acry.ai/", text: shareText, title: "Daily Motivation · ACRY AI" },
+      { og, campaign: "daily_quote" }
+    );
+    if (ok) return;
     try {
       await navigator.clipboard.writeText(shareText);
       toast({ title: "Quote copied to clipboard!" });

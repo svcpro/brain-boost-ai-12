@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, startOfDay } from "date-fns";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface WeekBucket {
   label: string;
@@ -18,6 +20,7 @@ interface WeekBucket {
 const ConfidenceTrendChart = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const og = useShareIdentity();
   const [weeks, setWeeks] = useState<WeekBucket[]>([]);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
@@ -59,7 +62,10 @@ const ConfidenceTrendChart = () => {
       if (!blob) return;
       const file = new File([blob], "confidence-trend.png", { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: "My Confidence Trend", text: "Check out my confidence trend! 🛡️", files: [file] });
+        await nativeShare(
+          { url: "https://acry.ai/", title: "My Confidence Trend", text: "Check out my confidence trend! 🛡️", files: [file] },
+          { og, campaign: "confidence_trend" }
+        );
       } else {
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         toast({ title: "📋 Copied!", description: "Image copied to clipboard." });

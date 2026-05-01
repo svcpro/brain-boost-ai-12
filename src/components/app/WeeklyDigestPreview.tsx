@@ -7,6 +7,8 @@ import confetti from "canvas-confetti";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCache, setCache } from "@/lib/offlineCache";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface WeekStats {
   totalMinutes: number;
@@ -224,11 +226,14 @@ const QuoteBanner = ({ quote, streak }: { quote: string; streak: number }) => {
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await navigator.share({ text: shareText });
+      await nativeShare(
+        { url: "https://acry.ai/", text: shareText, title: "Weekly Brain Digest · ACRY AI" },
+        { og: { variant: "default", streak }, campaign: "weekly_digest_quote" }
+      );
     } catch (err: any) {
       if (err?.name !== "AbortError") toast.error("Failed to share");
     }
-  }, [shareText]);
+  }, [shareText, streak]);
 
   return (
     <motion.div
@@ -373,16 +378,19 @@ const ExamCountdown = ({ examDate, examType, planProgress }: { examDate: string;
   const handleShare = async () => {
     const progressText = pct !== null ? ` | ${pct}% plan completed` : "";
     const text = `📚 ${label} until my ${examType || "exam"}${progressText}! ${getDailyQuote()}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ text });
+    try {
+      const ok = await nativeShare(
+        { url: "https://acry.ai/", text, title: `${days}-Day Countdown · ACRY AI` },
+        { og: { variant: "default", exam: examType || undefined }, campaign: "exam_countdown" }
+      );
+      if (ok) {
         toast.success("Shared successfully!");
-      } catch (e: any) {
-        if (e.name !== "AbortError") toast.error("Sharing failed");
+        return;
       }
-    } else {
       await navigator.clipboard.writeText(text);
       toast.success("Copied to clipboard!");
+    } catch (e: any) {
+      if (e.name !== "AbortError") toast.error("Sharing failed");
     }
   };
 
@@ -598,6 +606,7 @@ const MetricCard = ({
 
 const WeeklyDigestPreview = () => {
   const { user } = useAuth();
+  const og = useShareIdentity();
   const [data, setData] = useState<DigestData | null>(() => getCache(CACHE_KEY));
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -613,11 +622,15 @@ const WeeklyDigestPreview = () => {
       const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, "image/png"));
       if (!blob) throw new Error("Failed to generate image");
       if (navigator.share && navigator.canShare?.({ files: [new File([blob], "brain-digest.png", { type: "image/png" })] })) {
-        await navigator.share({
-          title: "My Weekly Brain Digest",
-          text: `Brain Evolution: ${data?.twin?.brain_evolution_score != null ? Math.round(data.twin.brain_evolution_score) : "N/A"}/100`,
-          files: [new File([blob], "brain-digest.png", { type: "image/png" })],
-        });
+        await nativeShare(
+          {
+            url: "https://acry.ai/",
+            title: "My Weekly Brain Digest",
+            text: `Brain Evolution: ${data?.twin?.brain_evolution_score != null ? Math.round(data.twin.brain_evolution_score) : "N/A"}/100`,
+            files: [new File([blob], "brain-digest.png", { type: "image/png" })],
+          },
+          { og, campaign: "weekly_brain_digest" }
+        );
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Lightbulb, Share2, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 const tips = [
   { tip: "Teach what you learned today to an imaginary student — it reveals gaps instantly.", category: "technique" },
@@ -40,6 +42,7 @@ const DailyStudyTip = () => {
   const [tip, setTip] = useState<typeof tips[0] | null>(null);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const og = useShareIdentity();
 
   useEffect(() => {
     const now = new Date();
@@ -51,16 +54,11 @@ const DailyStudyTip = () => {
   const handleShare = async () => {
     if (!tip) return;
     const text = `💡 Study Tip: ${tip.tip}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ text });
-        return;
-      } catch {
-        // User cancelled or share failed — fall through to clipboard
-      }
-    }
-
+    const ok = await nativeShare(
+      { url: "https://acry.ai/", text, title: "Daily Study Tip · ACRY AI" },
+      { og, campaign: "daily_study_tip" }
+    );
+    if (ok) return;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);

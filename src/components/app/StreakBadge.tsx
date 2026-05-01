@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { Download, Share2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface StreakBadgeProps {
   milestone: number;
@@ -63,6 +65,7 @@ const StreakBadge = ({ milestone, onClose }: StreakBadgeProps) => {
   const badgeRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
+  const og = useShareIdentity();
   const theme = BADGE_THEMES[milestone];
 
   if (!theme) return null;
@@ -106,15 +109,16 @@ const StreakBadge = ({ milestone, onClose }: StreakBadgeProps) => {
     if (!blob) return;
 
     if (navigator.share && navigator.canShare?.({ files: [new File([blob], "badge.png", { type: "image/png" })] })) {
-      try {
-        await navigator.share({
+      const ok = await nativeShare(
+        {
+          url: "https://acry.ai/",
+          title: `${milestone}-Day Streak · ACRY AI`,
           text: `🔥 I just hit a ${milestone}-day study streak! #StudyStreak`,
           files: [new File([blob], `streak-${milestone}-badge.png`, { type: "image/png" })],
-        });
-        return;
-      } catch {
-        // cancelled
-      }
+        },
+        { og: { ...og, streak: milestone }, campaign: "streak_milestone" }
+      );
+      if (ok) return;
     }
 
     // Fallback: copy text
