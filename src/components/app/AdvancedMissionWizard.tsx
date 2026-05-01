@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { triggerHaptic } from "@/lib/feedback";
 import { useToast } from "@/hooks/use-toast";
 import { safeNum } from "@/lib/safeRender";
+import { isValidMissionId } from "@/lib/missionId";
 import MissionBrainImpactReport from "./MissionBrainImpactReport";
 import MissionShareCard from "./MissionShareCard";
 
@@ -39,12 +40,6 @@ interface AdvancedMissionWizardProps {
 }
 
 type WizardStep = "briefing" | "questions" | "results" | "impact" | "share";
-
-// Only real DB-backed UUIDs should be sent to mission lifecycle endpoints.
-// Synthetic IDs (e.g. "mission-2026-05-01") cause 404s server-side.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isValidMissionId = (id: unknown): id is string =>
-  typeof id === "string" && UUID_RE.test(id);
 
 const MISSION_STEPS = [
   { key: "read", label: "Read & Recall", icon: Eye, description: "Quick concept refresh", color: "text-violet-500" },
