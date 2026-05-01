@@ -115,6 +115,10 @@ project_id = "yvxrsujwgmzdjzsjyqfb"
     verify_jwt = false
   [functions.on-demand-briefing]
     verify_jwt = false
+  [functions.og-image]
+    verify_jwt = false
+  [functions.share-lander]
+    verify_jwt = false
   [functions.process-email-queue]
     verify_jwt = false
   [functions.purge-trash]

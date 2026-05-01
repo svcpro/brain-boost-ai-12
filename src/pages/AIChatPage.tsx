@@ -10,7 +10,7 @@ import {
   Smile, Reply, MoreHorizontal, CheckCheck, Eye
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { buildShareUrl } from "@/lib/share";
+import { buildShareLanderUrl } from "@/lib/share";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -735,7 +735,12 @@ const AIChatPage = () => {
                   <button onClick={() => {
                     const bookmarked = messages.filter(m => m.bookmarked);
                     const text = bookmarked.map((m, i) => `${i + 1}. [${m.role === "user" ? "You" : "ACRY"}] ${m.content}`).join("\n\n");
-                    const tagged = buildShareUrl("https://acry.ai/chat", "whatsapp", { campaign: "ai_chat_bookmarks" });
+                    const tagged = buildShareLanderUrl(
+                      "https://acry.ai/chat",
+                      { variant: "default" },
+                      "whatsapp",
+                      { campaign: "ai_chat_bookmarks" }
+                    );
                     window.open(`https://wa.me/?text=${encodeURIComponent(`⭐ My ACRY Bookmarks:\n\n${text}\n\n${tagged}`)}`, "_blank");
                   }} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-accent-foreground text-[10px] font-semibold hover:bg-accent/80 transition-colors">
                     <Share2 className="w-3 h-3" /> WhatsApp

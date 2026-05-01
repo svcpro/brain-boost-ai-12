@@ -43,6 +43,83 @@ interface UtmOptions {
   medium?: string;
 }
 
+/** Personalization fields for the dynamic Open Graph image. */
+export interface OgPersonalization {
+  /** Visual variant — controls palette + headline. */
+  variant?: "myrank" | "sureshot" | "default";
+  /** Exam name, e.g. "SSC CGL 2026" */
+  exam?: string;
+  /** User display name */
+  name?: string;
+  /** Predicted rank (digits only) */
+  rank?: number | string;
+  /** Brain Level (digits only) */
+  level?: number | string;
+  /** Day streak count */
+  streak?: number | string;
+}
+
+const SUPABASE_PROJECT_REF =
+  (typeof import.meta !== "undefined" &&
+    (import.meta as any).env?.VITE_SUPABASE_PROJECT_ID) ||
+  "yvxrsujwgmzdjzsjyqfb";
+
+const FUNCTIONS_BASE = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1`;
+
+/**
+ * Build the dynamic OG image URL (1200x630 PNG) for a personalized share card.
+ * Returns a URL safe to drop into <meta property="og:image">.
+ */
+export function buildOgImageUrl(p: OgPersonalization = {}): string {
+  const u = new URL(`${FUNCTIONS_BASE}/og-image`);
+  if (p.variant) u.searchParams.set("variant", p.variant);
+  if (p.exam) u.searchParams.set("exam", String(p.exam));
+  if (p.name) u.searchParams.set("name", String(p.name));
+  if (p.rank != null && p.rank !== "") u.searchParams.set("rank", String(p.rank));
+  if (p.level != null && p.level !== "") u.searchParams.set("level", String(p.level));
+  if (p.streak != null && p.streak !== "") u.searchParams.set("streak", String(p.streak));
+  return u.toString();
+}
+
+/**
+ * Build a public share-lander URL — an HTML page hosted by our edge function
+ * that emits personalized OG meta tags (so WhatsApp/X/LinkedIn previews show
+ * the dynamic image + custom title) and immediately redirects the human visitor
+ * to the real destination URL.
+ *
+ * Use this URL as the *shared link* (not the image itself).
+ */
+export function buildShareLanderUrl(
+  destinationUrl: string,
+  personalization: OgPersonalization = {},
+  platform: SharePlatform = "other",
+  utm: UtmOptions = {}
+): string {
+  // First tag the destination so it preserves attribution after redirect
+  const tagged = buildShareUrl(destinationUrl, platform, utm);
+
+  const u = new URL(`${FUNCTIONS_BASE}/share-lander`);
+  u.searchParams.set("to", tagged);
+  if (personalization.variant) u.searchParams.set("variant", personalization.variant);
+  if (personalization.exam) u.searchParams.set("exam", String(personalization.exam));
+  if (personalization.name) u.searchParams.set("name", String(personalization.name));
+  if (personalization.rank != null && personalization.rank !== "")
+    u.searchParams.set("rank", String(personalization.rank));
+  if (personalization.level != null && personalization.level !== "")
+    u.searchParams.set("level", String(personalization.level));
+  if (personalization.streak != null && personalization.streak !== "")
+    u.searchParams.set("streak", String(personalization.streak));
+
+  // Mirror UTMs onto the lander itself for analytics dashboards that care
+  const src = SOURCE_MAP[platform] ?? "other";
+  const med = utm.medium ?? DEFAULT_MEDIUM[platform] ?? "share_link";
+  if (!u.searchParams.has("utm_source")) u.searchParams.set("utm_source", src);
+  if (!u.searchParams.has("utm_medium")) u.searchParams.set("utm_medium", med);
+  if (utm.campaign) u.searchParams.set("utm_campaign", utm.campaign);
+
+  return u.toString();
+}
+
 const DEFAULT_MEDIUM: Record<SharePlatform, string> = {
   whatsapp: "messaging",
   telegram: "messaging",
@@ -115,9 +192,13 @@ export function shareTo(
   platform: SharePlatform,
   url: string,
   text: string = "",
-  opts: UtmOptions = {}
+  opts: UtmOptions & { og?: OgPersonalization } = {}
 ): void {
-  const tagged = buildShareUrl(url, platform, opts);
+  // If personalization is provided, route through the share-lander so
+  // crawlers see the dynamic OG image + personalized title.
+  const tagged = opts.og
+    ? buildShareLanderUrl(url, opts.og, platform, opts)
+    : buildShareUrl(url, platform, opts);
   const body = text ? `${text} ${tagged}` : tagged;
   let target = "";
 
@@ -160,13 +241,18 @@ export function shareTo(
  * Trigger the native OS share sheet with auto-tagged URL (source=native_share).
  * Falls back to clipboard copy if the Web Share API is unavailable.
  *
+ * If `opts.og` is provided, the shared URL will be a personalized share-lander
+ * that emits dynamic Open Graph meta — every preview shows custom artwork.
+ *
  * Returns true if the native sheet (or fallback) succeeded.
  */
 export async function nativeShare(
   payload: { url: string; text?: string; title?: string; files?: File[] },
-  opts: UtmOptions = {}
+  opts: UtmOptions & { og?: OgPersonalization } = {}
 ): Promise<boolean> {
-  const tagged = buildShareUrl(payload.url, "native", opts);
+  const tagged = opts.og
+    ? buildShareLanderUrl(payload.url, opts.og, "native", opts)
+    : buildShareUrl(payload.url, "native", opts);
   const data: ShareData = {
     url: tagged,
     text: payload.text,
