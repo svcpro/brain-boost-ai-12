@@ -124,12 +124,11 @@ const DailyQuote = ({ currentStreak = 0, completionRate = 50 }: DailyQuoteProps)
   }, [isFav, quoteKey, toast]);
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: shareText });
-        return;
-      } catch { /* cancelled */ }
-    }
+    const ok = await nativeShare(
+      { url: "https://acry.ai/", text: shareText, title: "Daily Motivation · ACRY AI" },
+      { og, campaign: "daily_quote" }
+    );
+    if (ok) return;
     try {
       await navigator.clipboard.writeText(shareText);
       toast({ title: "Quote copied to clipboard!" });
