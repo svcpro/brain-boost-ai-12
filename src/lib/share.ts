@@ -192,9 +192,13 @@ export function shareTo(
   platform: SharePlatform,
   url: string,
   text: string = "",
-  opts: UtmOptions = {}
+  opts: UtmOptions & { og?: OgPersonalization } = {}
 ): void {
-  const tagged = buildShareUrl(url, platform, opts);
+  // If personalization is provided, route through the share-lander so
+  // crawlers see the dynamic OG image + personalized title.
+  const tagged = opts.og
+    ? buildShareLanderUrl(url, opts.og, platform, opts)
+    : buildShareUrl(url, platform, opts);
   const body = text ? `${text} ${tagged}` : tagged;
   let target = "";
 
@@ -237,13 +241,18 @@ export function shareTo(
  * Trigger the native OS share sheet with auto-tagged URL (source=native_share).
  * Falls back to clipboard copy if the Web Share API is unavailable.
  *
+ * If `opts.og` is provided, the shared URL will be a personalized share-lander
+ * that emits dynamic Open Graph meta — every preview shows custom artwork.
+ *
  * Returns true if the native sheet (or fallback) succeeded.
  */
 export async function nativeShare(
   payload: { url: string; text?: string; title?: string; files?: File[] },
-  opts: UtmOptions = {}
+  opts: UtmOptions & { og?: OgPersonalization } = {}
 ): Promise<boolean> {
-  const tagged = buildShareUrl(payload.url, "native", opts);
+  const tagged = opts.og
+    ? buildShareLanderUrl(payload.url, opts.og, "native", opts)
+    : buildShareUrl(payload.url, "native", opts);
   const data: ShareData = {
     url: tagged,
     text: payload.text,
