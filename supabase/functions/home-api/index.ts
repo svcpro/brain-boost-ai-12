@@ -2334,10 +2334,13 @@ final result = await api.post('/home-api/mission-complete', body: {"mission_id":
             return json({ success: true, mission_id: missionId, is_synthetic: true, current_value: progressValue, target_value: 1, target_reached: progressValue >= 1, progress_pct: Math.min(100, progressValue * 100), message: "Progress tracked" });
           }
 
-          const { data: mp } = await adminClient.from("brain_missions")
+          const isUuidP = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(missionId);
+          const { data: mp } = isUuidP ? await adminClient.from("brain_missions")
             .select("id, title, status, target_value, current_value, mission_type")
-            .eq("id", missionId).eq("user_id", userId).maybeSingle();
-          if (!mp) return json({ error: "Mission not found" }, 404);
+            .eq("id", missionId).eq("user_id", userId).maybeSingle() : { data: null };
+          if (!mp) {
+            return json({ success: true, mission_id: missionId, is_synthetic: true, current_value: progressValue, target_value: 1, target_reached: progressValue >= 1, progress_pct: Math.min(100, progressValue * 100), message: "Progress tracked" });
+          }
           if (mp.status === "completed") return json({ error: "Mission already completed" }, 409);
 
           const newVal = progressValue || ((mp.current_value ?? 0) + 1);
