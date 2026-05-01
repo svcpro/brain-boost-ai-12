@@ -14,6 +14,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, addDays, differenceInDays, isPast } from "date-fns";
 import html2canvas from "html2canvas";
 import { toast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface MemoryForecast {
   id: string;
