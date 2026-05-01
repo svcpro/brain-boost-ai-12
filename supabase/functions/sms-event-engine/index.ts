@@ -247,7 +247,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
   }
 
   // 4. Map variables (raw, based on event registry's variable_map)
-  const rawVariables = mapVariables(data || {}, (ev.variable_map as any) || {}, userName);
+  let rawVariables = mapVariables(data || {}, (ev.variable_map as any) || {}, userName);
 
   // 4b. Auto-align to the template's registered variable list.
   // MSG91 / DLT will silently reject (or fail to deliver) when extra variables
