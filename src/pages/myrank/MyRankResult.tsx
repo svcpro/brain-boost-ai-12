@@ -402,13 +402,14 @@ const MyRankResult = () => {
         const absoluteUrl = /^https?:\/\//i.test(shareUrl)
           ? shareUrl
           : `https://${(shareUrl || "acry.ai").replace(/^\/+/, "")}`;
+        const taggedTg = buildShareUrl(absoluteUrl, "telegram", { campaign: "myrank_result" });
         const textWithoutUrl = currentMessage
           .replace(shareUrl, "")
           .replace(/\n{3,}/g, "\n\n")
           .trim();
         target =
           `https://t.me/share/url` +
-          `?url=${encodeURIComponent(absoluteUrl)}` +
+          `?url=${encodeURIComponent(taggedTg)}` +
           `&text=${encodeURIComponent(textWithoutUrl)}`;
         break;
       }
@@ -418,9 +419,12 @@ const MyRankResult = () => {
           : "https://www.instagram.com/direct/inbox/";
         break;
       case "whatsapp":
-      default:
-        target = `https://wa.me/?text=${encoded}`;
+      default: {
+        const taggedWa = buildShareUrl(shareUrl, "whatsapp", { campaign: "myrank_result" });
+        const taggedCaption = currentMessage.replace(shareUrl, taggedWa);
+        target = `https://wa.me/?text=${encodeURIComponent(taggedCaption)}`;
         break;
+      }
     }
 
     if (isMobile) {
