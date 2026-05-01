@@ -118,7 +118,16 @@ const MyRankRewards = () => {
   };
 
   const shareLink = () => {
-    const tagged = buildShareUrl(shareUrl, "whatsapp", { campaign: "myrank_referral" });
+    const userName =
+      (user?.user_metadata as any)?.display_name ||
+      user?.email?.split("@")[0] ||
+      "";
+    const tagged = buildShareLanderUrl(
+      shareUrl,
+      { variant: "default", name: userName },
+      "whatsapp",
+      { campaign: "myrank_referral" }
+    );
     const text = `🚀 Find out where you stand among India's exam toppers — instant AI rank in 60 seconds.\n\n${tagged}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
