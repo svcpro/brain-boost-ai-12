@@ -111,7 +111,7 @@ export default function DecayForecastV2Card() {
                 <Activity className="w-5 h-5 text-chart-3" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-foreground">Smart Revision System</h3>
+                <h3 className="text-sm font-bold text-foreground">Forgetting Curve 2.0</h3>
                 <p className="text-[10px] text-muted-foreground">5-Factor Decay Model</p>
               </div>
             </div>
