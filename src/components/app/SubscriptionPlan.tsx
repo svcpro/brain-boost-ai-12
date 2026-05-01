@@ -440,8 +440,8 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                         {/* CTA */}
                         <motion.button
                           onClick={() => handleSubscribe(p)}
-                          disabled={loading || isPaid}
-                          className="relative w-full py-3 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden"
+                          disabled={loading || isCurrentPlan}
+                          className="relative w-full py-3 rounded-xl text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 overflow-hidden"
                           style={{
                             background: isPremiumTier
                               ? "linear-gradient(135deg, #FFD700, #FF8500)"
@@ -454,11 +454,13 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           <span>
                             {isThisLoading
                               ? "Processing..."
-                              : trialAvail
-                                ? `Start ${p.trial_days}-Day Free Trial`
-                                : `Get ${p.name} · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
+                              : isCurrentPlan
+                                ? "Current Plan"
+                                : trialAvail
+                                  ? `Start ${p.trial_days}-Day Free Trial`
+                                  : `Get ${p.name} · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
                           </span>
-                          {!isThisLoading && <Sparkles className="w-3.5 h-3.5" />}
+                          {!isThisLoading && !isCurrentPlan && <Sparkles className="w-3.5 h-3.5" />}
                         </motion.button>
                       </motion.div>
                     );
