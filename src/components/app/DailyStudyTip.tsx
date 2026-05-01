@@ -54,16 +54,11 @@ const DailyStudyTip = () => {
   const handleShare = async () => {
     if (!tip) return;
     const text = `💡 Study Tip: ${tip.tip}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ text });
-        return;
-      } catch {
-        // User cancelled or share failed — fall through to clipboard
-      }
-    }
-
+    const ok = await nativeShare(
+      { url: "https://acry.ai/", text, title: "Daily Study Tip · ACRY AI" },
+      { og, campaign: "daily_study_tip" }
+    );
+    if (ok) return;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
