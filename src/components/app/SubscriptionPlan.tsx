@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Check, Loader2, Clock, Shield, Sparkles, X, Zap, Info } from "lucide-react";
+import { Crown, Check, Loader2, Clock, Shield, Sparkles, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,16 +35,16 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
   const [plansLoading, setPlansLoading] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
-  const [selectedKey, setSelectedKey] = useState<string>("starter");
-  const [savingsTipOpen, setSavingsTipOpen] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string>("premium");
 
   useEffect(() => {
     (async () => {
+      // Ultra-simple: only show Premium plan (one plan, full power)
       const { data } = await supabase
         .from("subscription_plans")
         .select("id, plan_key, name, description, price, yearly_price, trial_days, tier_level, features")
         .eq("is_active", true)
-        .in("plan_key", ["starter", "premium"])
+        .eq("plan_key", "premium")
         .order("tier_level");
       setPlans((data as PlanRow[]) || []);
       setPlansLoading(false);
@@ -358,213 +358,14 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                   ))}
                 </motion.div>
 
-                {/* Yearly savings banner — always visible, smoothly updates on toggle */}
-                {plans.length > 0 && (() => {
-                  const totalSave = plans.reduce((sum, p) => sum + Math.max(0, p.price * 12 - p.yearly_price), 0);
-                  const isYearly = billingCycle === "yearly";
-                  return (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ type: "spring", damping: 22, stiffness: 260 }}
-                      className="mb-4"
-                    >
-                      <motion.div
-                        layout
-                        animate={{
-                          background: isYearly
-                            ? "linear-gradient(135deg, rgba(0,255,148,0.16), rgba(0,229,255,0.10))"
-                            : "linear-gradient(135deg, rgba(0,255,148,0.06), rgba(0,229,255,0.04))",
-                          borderColor: isYearly ? "rgba(0,255,148,0.40)" : "rgba(0,255,148,0.20)",
-                          boxShadow: isYearly
-                            ? "0 0 24px rgba(0,255,148,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
-                            : "0 0 0px rgba(0,255,148,0), inset 0 1px 0 rgba(255,255,255,0.03)",
-                        }}
-                        transition={{ duration: 0.4, ease: "easeOut" }}
-                        className="relative rounded-2xl p-3.5 overflow-hidden border"
-                      >
-                        <motion.div
-                          className="absolute inset-0 pointer-events-none"
-                          style={{ background: "linear-gradient(110deg, transparent 30%, rgba(0,255,148,0.20) 50%, transparent 70%)" }}
-                          initial={{ x: "-100%" }}
-                          animate={{ x: "100%", opacity: isYearly ? 1 : 0.5 }}
-                          transition={{ x: { duration: 2.4, repeat: Infinity, ease: "linear" }, opacity: { duration: 0.3 } }}
-                        />
-                        <div className="relative z-10 flex items-center gap-3">
-                          <motion.div
-                            layout
-                            animate={{
-                              background: isYearly
-                                ? "linear-gradient(135deg, rgba(0,255,148,0.28), rgba(0,229,255,0.18))"
-                                : "linear-gradient(135deg, rgba(0,255,148,0.16), rgba(0,229,255,0.10))",
-                              borderColor: isYearly ? "rgba(0,255,148,0.45)" : "rgba(0,255,148,0.25)",
-                              boxShadow: isYearly ? "0 0 12px rgba(0,255,148,0.35)" : "0 0 0 rgba(0,255,148,0)",
-                              rotate: isYearly ? [0, -8, 8, 0] : 0,
-                            }}
-                            transition={{ duration: 0.5 }}
-                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border"
-                          >
-                            <Sparkles className="w-4 h-4" style={{ color: "#00FF94" }} />
-                          </motion.div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-1.5 flex-wrap">
-                              <span className="inline-flex items-center gap-1 relative">
-                                <AnimatePresence mode="wait">
-                                  <motion.span
-                                    key={isYearly ? "save-y" : "save-m"}
-                                    initial={{ opacity: 0, y: 4 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -4 }}
-                                    transition={{ duration: 0.18 }}
-                                    className="text-[10px] font-bold uppercase tracking-[0.08em]"
-                                    style={{ color: "#00FF94", textShadow: "0 0 8px rgba(0,255,148,0.4)" }}
-                                  >
-                                    {isYearly ? "You save" : "Switch to yearly to save"}
-                                  </motion.span>
-                                </AnimatePresence>
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setSavingsTipOpen(v => !v); }}
-                                  onMouseEnter={() => setSavingsTipOpen(true)}
-                                  onMouseLeave={() => setSavingsTipOpen(false)}
-                                  aria-label="How savings are calculated"
-                                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-white/10 transition-colors"
-                                >
-                                  <Info className="w-3 h-3" style={{ color: "rgba(0,255,148,0.85)" }} />
-                                </button>
-                                <AnimatePresence>
-                                  {savingsTipOpen && (
-                                    <motion.div
-                                      initial={{ opacity: 0, y: 4, scale: 0.96 }}
-                                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                                      exit={{ opacity: 0, y: 4, scale: 0.96 }}
-                                      transition={{ duration: 0.15 }}
-                                      className="absolute top-full left-0 mt-2 z-50 w-[260px] p-3 rounded-xl text-[10px] leading-relaxed normal-case tracking-normal font-medium"
-                                      style={{
-                                        background: "linear-gradient(135deg, rgba(8,16,12,0.98), rgba(4,10,8,0.98))",
-                                        border: "1px solid rgba(0,255,148,0.35)",
-                                        boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 16px rgba(0,255,148,0.18)",
-                                        color: "rgba(255,255,255,0.92)",
-                                      }}
-                                    >
-                                      <div className="font-bold mb-1.5 text-[10px] uppercase tracking-wider" style={{ color: "#00FF94" }}>
-                                        How savings are calculated
-                                      </div>
-                                      <div className="mb-1.5 text-white/80">
-                                        <span className="font-semibold text-white">Formula:</span> (Monthly × 12) − Yearly Price
-                                      </div>
-                                      <div className="space-y-1 pt-1.5 border-t border-white/10">
-                                        {plans.map((p) => {
-                                          const ps = Math.max(0, p.price * 12 - p.yearly_price);
-                                          return (
-                                            <div key={p.id} className="flex items-center justify-between gap-2 tabular-nums">
-                                              <span className="text-white/75">
-                                                <span className="font-semibold text-white/90">{p.name}:</span> ₹{p.price}×12 − ₹{p.yearly_price.toLocaleString("en-IN")}
-                                              </span>
-                                              <span className="font-bold" style={{ color: "#00FF94" }}>= ₹{ps.toLocaleString("en-IN")}</span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                      <div className="mt-1.5 pt-1.5 border-t border-white/10 text-white/60 text-[9px]">
-                                        Total = sum of both plans' yearly savings.
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </span>
-                              <motion.span
-                                key={`total-${totalSave}`}
-                                initial={{ opacity: 0, scale: 0.92, y: 4 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                transition={{ type: "spring", damping: 18, stiffness: 320 }}
-                                className="text-[15px] font-black tabular-nums leading-none"
-                                style={{ color: "#FFFFFF", textShadow: "0 0 10px rgba(0,255,148,0.5)" }}
-                              >
-                                ₹{totalSave.toLocaleString("en-IN")}
-                              </motion.span>
-                              <span className="text-[10px] font-semibold text-white/70">this year</span>
-                            </div>
-                            <motion.div
-                              layout
-                              className="text-[10px] mt-1 tabular-nums leading-snug text-white/75"
-                            >
-                              {plans.map((p, i) => {
-                                const ps = Math.max(0, p.price * 12 - p.yearly_price);
-                                return (
-                                  <span key={p.id}>
-                                    {i > 0 && <span className="text-white/30 mx-1.5">·</span>}
-                                    <span className="font-semibold text-white/85">{p.name}</span>
-                                    <span className="text-white/55">: </span>
-                                    <motion.span
-                                      key={`${p.id}-${ps}-${isYearly}`}
-                                      initial={{ opacity: 0, y: 3 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      transition={{ duration: 0.22, delay: i * 0.04 }}
-                                      className="font-bold inline-block"
-                                      style={{ color: "#00FF94" }}
-                                    >
-                                      −₹{ps.toLocaleString("en-IN")}
-                                    </motion.span>
-                                  </span>
-                                );
-                              })}
-                            </motion.div>
-                          </div>
-                          <motion.button
-                            type="button"
-                            onClick={() => setBillingCycle(isYearly ? "monthly" : "yearly")}
-                            layout
-                            whileTap={{ scale: 0.94 }}
-                            animate={{
-                              background: isYearly
-                                ? "linear-gradient(135deg, #00FF94, #00E5B0)"
-                                : "linear-gradient(135deg, #00FF9466, #00E5B044)",
-                              boxShadow: isYearly
-                                ? "0 2px 12px rgba(0,255,148,0.45), inset 0 1px 0 rgba(255,255,255,0.4)"
-                                : "0 1px 6px rgba(0,255,148,0.2), inset 0 1px 0 rgba(255,255,255,0.15)",
-                            }}
-                            transition={{ duration: 0.3 }}
-                            className="relative overflow-hidden text-[9px] font-black px-2.5 py-1.5 rounded-full shrink-0 tracking-wider cursor-pointer"
-                            style={{ color: "#001A0E" }}
-                          >
-                            <AnimatePresence mode="wait">
-                              <motion.span
-                                key={isYearly ? "free" : "switch"}
-                                initial={{ opacity: 0, y: 4 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -4 }}
-                                transition={{ duration: 0.18 }}
-                                className="relative z-10 block"
-                              >
-                                {isYearly ? "2 MO FREE" : "GO YEARLY →"}
-                              </motion.span>
-                            </AnimatePresence>
-                            <motion.span
-                              className="absolute inset-0 pointer-events-none"
-                              style={{ background: "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.85) 50%, transparent 70%)" }}
-                              animate={{ x: ["-120%", "120%"] }}
-                              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                            />
-                            <motion.span
-                              className="absolute inset-0 pointer-events-none rounded-full"
-                              style={{ boxShadow: "0 0 12px rgba(0,255,148,0.7)" }}
-                              animate={{ opacity: isYearly ? [0.4, 1, 0.4] : [0.2, 0.5, 0.2] }}
-                              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                            />
-                          </motion.button>
-                        </div>
-                      </motion.div>
-                    </motion.div>
-                  );
-                })()}
-                {/* Plan cards */}
+                {/* Single Premium plan card — ultra-simple */}
                 <div className="space-y-3">
                   {plans.map((p, idx) => {
                     const price = priceFor(p);
                     const savings = savingsFor(p);
-                    const isPremiumTier = p.tier_level >= 2;
+                    const monthlyEq = billingCycle === "yearly" && p.yearly_price > 0
+                      ? Math.round(p.yearly_price / 12)
+                      : p.price;
                     const trialAvail = canStartTrial(p);
                     const isThisLoading = loadingKey === p.plan_key && loading;
                     const features = featureList(p);
@@ -574,175 +375,59 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.35 + idx * 0.08 }}
-                        className="relative rounded-2xl p-4 overflow-hidden"
+                        className="relative rounded-2xl p-5 overflow-hidden"
                         style={{
-                          background: isPremiumTier
-                            ? "linear-gradient(135deg, rgba(255,215,0,0.08), rgba(124,77,255,0.06))"
-                            : "rgba(255,255,255,0.03)",
-                          border: isPremiumTier
-                            ? "1px solid rgba(255,215,0,0.25)"
-                            : "1px solid rgba(255,255,255,0.06)",
+                          background: "linear-gradient(135deg, rgba(255,215,0,0.08), rgba(124,77,255,0.06))",
+                          border: "1px solid rgba(255,215,0,0.25)",
                         }}
                       >
-                        {isPremiumTier && (
-                          <div className="absolute top-3 right-3 text-[8px] font-bold px-2 py-0.5 rounded-full"
-                            style={{ background: "linear-gradient(135deg,#FFD700,#FF8500)", color: "#0B0F1A" }}>
-                            BEST VALUE
-                          </div>
-                        )}
-
+                        {/* Header */}
                         <div className="flex items-center gap-2 mb-1">
-                          {isPremiumTier
-                            ? <Crown className="w-4 h-4" style={{ color: "#FFD700" }} />
-                            : <Zap className="w-4 h-4" style={{ color: "#00E5FF" }} />}
+                          <Crown className="w-4 h-4" style={{ color: "#FFD700" }} />
                           <h3 className="text-sm font-bold text-foreground">{p.name}</h3>
                         </div>
                         {p.description && (
-                          <p className="text-[10px] text-muted-foreground mb-3 leading-snug">{p.description}</p>
+                          <p className="text-[10px] text-muted-foreground mb-4 leading-snug">{p.description}</p>
                         )}
 
+                        {/* Big price */}
                         <div className="flex items-baseline gap-1 mb-1">
-                          <span className="text-xs text-muted-foreground/60">₹</span>
+                          <span className="text-sm text-muted-foreground/60">₹</span>
                           <motion.span
                             key={`${p.plan_key}-${billingCycle}`}
                             initial={{ y: 8, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            className="text-3xl font-black tabular-nums text-foreground"
+                            className="text-4xl font-black tabular-nums text-foreground"
                           >
-                            {price}
+                            {billingCycle === "yearly" ? monthlyEq : price}
                           </motion.span>
-                          <span className="text-[11px] text-muted-foreground/60">/{billingCycle === "yearly" ? "yr" : "mo"}</span>
-                          {billingCycle === "yearly" && savings > 0 && (
-                            <span
-                              className="ml-2 relative overflow-hidden text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                              style={{ background: "#00FF9420", color: "#00FF94" }}
-                            >
-                              <span className="relative z-10">SAVE {savings}%</span>
-                              <motion.span
-                                className="absolute inset-0 pointer-events-none"
-                                style={{ background: "linear-gradient(110deg, transparent 30%, rgba(0,255,148,0.45) 50%, transparent 70%)" }}
-                                animate={{ x: ["-120%", "120%"] }}
-                                transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
-                              />
-                            </span>
-                          )}
+                          <span className="text-xs text-muted-foreground/60">/mo</span>
                         </div>
+                        <p className="text-[10px] text-muted-foreground mb-4">
+                          {billingCycle === "yearly"
+                            ? <>Billed ₹{p.yearly_price.toLocaleString("en-IN")} yearly{savings > 0 && <span className="ml-1 font-bold" style={{ color: "#00FF94" }}>· Save {savings}%</span>}</>
+                            : <>Billed monthly · cancel anytime</>}
+                        </p>
 
-                        {/* Monthly vs Yearly comparison row — always visible */}
-                        {p.yearly_price > 0 && p.price > 0 && (() => {
-                          const monthlyEq = Math.round(p.yearly_price / 12);
-                          const absSave = p.price * 12 - p.yearly_price;
-                          const isYearly = billingCycle === "yearly";
-                          const accent = isPremiumTier ? "#FFD700" : "#00E5FF";
-                          return (
-                            <div className="grid grid-cols-2 gap-2 mb-3">
-                              {/* Monthly cell */}
-                              <button
-                                type="button"
-                                onClick={() => setBillingCycle("monthly")}
-                                className="text-left rounded-lg p-2 transition-all"
-                                style={{
-                                  background: !isYearly ? `${accent}14` : "rgba(255,255,255,0.025)",
-                                  border: !isYearly ? `1px solid ${accent}55` : "1px solid rgba(255,255,255,0.05)",
-                                }}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: !isYearly ? accent : "rgba(255,255,255,0.45)" }}>Monthly</span>
-                                  {!isYearly && <Check className="w-2.5 h-2.5" style={{ color: accent }} />}
-                                </div>
-                                <div className="mt-0.5 text-[12px] font-bold tabular-nums text-foreground">
-                                  ₹{p.price.toLocaleString("en-IN")}<span className="text-[9px] font-normal text-muted-foreground/70">/mo</span>
-                                </div>
-                                <div className="text-[8.5px] text-muted-foreground/60 tabular-nums">
-                                  ₹{(p.price * 12).toLocaleString("en-IN")}/yr total
-                                </div>
-                              </button>
-
-                              {/* Yearly cell */}
-                              <button
-                                type="button"
-                                onClick={() => setBillingCycle("yearly")}
-                                className="relative text-left rounded-lg p-2 transition-all overflow-hidden"
-                                style={{
-                                  background: isYearly ? "rgba(0,255,148,0.10)" : "rgba(0,255,148,0.04)",
-                                  border: isYearly ? "1px solid rgba(0,255,148,0.5)" : "1px solid rgba(0,255,148,0.18)",
-                                }}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "#00FF94" }}>Yearly</span>
-                                  {isYearly ? (
-                                    <Check className="w-2.5 h-2.5" style={{ color: "#00FF94" }} />
-                                  ) : (
-                                    <span className="text-[8px] font-black px-1 py-0 rounded" style={{ background: "#00FF9433", color: "#00FF94" }}>−₹{absSave.toLocaleString("en-IN")}</span>
-                                  )}
-                                </div>
-                                <div className="mt-0.5 text-[12px] font-bold tabular-nums text-foreground">
-                                  ₹{monthlyEq.toLocaleString("en-IN")}<span className="text-[9px] font-normal text-muted-foreground/70">/mo</span>
-                                </div>
-                                <div className="text-[8.5px] tabular-nums flex items-center gap-1">
-                                  <span className="text-muted-foreground/40 line-through">₹{(p.price * 12).toLocaleString("en-IN")}</span>
-                                  <span className="font-bold" style={{ color: "#00FF94" }}>₹{p.yearly_price.toLocaleString("en-IN")}/yr</span>
-                                </div>
-                              </button>
-                            </div>
-                          );
-                        })()}
-
+                        {/* Features */}
                         {features.length > 0 && (
-                          <ul className="space-y-1 mb-3">
-                            {features.slice(0, 5).map((f) => (
-                              <li key={f} className="flex items-start gap-1.5 text-[11px] text-foreground/85">
-                                <Check className="w-3 h-3 shrink-0 mt-0.5" style={{ color: isPremiumTier ? "#FFD700" : "#00E5FF" }} />
+                          <ul className="space-y-1.5 mb-4">
+                            {features.slice(0, 6).map((f) => (
+                              <li key={f} className="flex items-start gap-2 text-[11px] text-foreground/85">
+                                <Check className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "#FFD700" }} />
                                 <span>{f}</span>
                               </li>
                             ))}
                           </ul>
                         )}
 
-                        {/* Explicit access note — clarifies what each plan unlocks */}
-                        <div
-                          className="mb-3 rounded-lg p-2.5 flex items-start gap-2"
-                          style={{
-                            background: isPremiumTier ? "rgba(255,215,0,0.06)" : "rgba(0,229,255,0.05)",
-                            border: isPremiumTier ? "1px solid rgba(255,215,0,0.18)" : "1px solid rgba(0,229,255,0.15)",
-                          }}
-                        >
-                          {isPremiumTier ? (
-                            <Crown className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "#FFD700" }} />
-                          ) : (
-                            <Shield className="w-3 h-3 shrink-0 mt-0.5" style={{ color: "#00E5FF" }} />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            {isPremiumTier ? (
-                              <>
-                                <p className="text-[10px] font-bold leading-tight" style={{ color: "#FFD700" }}>
-                                  Full access · everything unlocked
-                                </p>
-                                <p className="text-[9px] text-muted-foreground mt-0.5 leading-snug">
-                                  Includes <span className="text-foreground/85 font-semibold">Exam Practice + SureShot</span>, AI Mentor, all study modes &amp; priority support.
-                                </p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-[10px] font-bold leading-tight" style={{ color: "#00E5FF" }}>
-                                  Core access · most features included
-                                </p>
-                                <p className="text-[9px] text-muted-foreground mt-0.5 leading-snug">
-                                  All study tools &amp; AI modes — <span className="font-semibold" style={{ color: "#FFD700" }}>Exam Practice &amp; SureShot are Premium-only</span>.
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
+                        {/* CTA */}
                         <motion.button
                           onClick={() => handleSubscribe(p)}
                           disabled={loading || isPaid}
                           className="relative w-full py-3 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden"
                           style={{
-                            background: isPremiumTier
-                              ? "linear-gradient(135deg, #FFD700, #FF8500)"
-                              : "linear-gradient(135deg, #00E5FF, #7C4DFF)",
+                            background: "linear-gradient(135deg, #FFD700, #FF8500)",
                             color: "#0B0F1A",
                           }}
                           whileTap={{ scale: 0.97 }}
