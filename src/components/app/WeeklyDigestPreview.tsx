@@ -622,11 +622,15 @@ const WeeklyDigestPreview = () => {
       const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, "image/png"));
       if (!blob) throw new Error("Failed to generate image");
       if (navigator.share && navigator.canShare?.({ files: [new File([blob], "brain-digest.png", { type: "image/png" })] })) {
-        await navigator.share({
-          title: "My Weekly Brain Digest",
-          text: `Brain Evolution: ${data?.twin?.brain_evolution_score != null ? Math.round(data.twin.brain_evolution_score) : "N/A"}/100`,
-          files: [new File([blob], "brain-digest.png", { type: "image/png" })],
-        });
+        await nativeShare(
+          {
+            url: "https://acry.ai/",
+            title: "My Weekly Brain Digest",
+            text: `Brain Evolution: ${data?.twin?.brain_evolution_score != null ? Math.round(data.twin.brain_evolution_score) : "N/A"}/100`,
+            files: [new File([blob], "brain-digest.png", { type: "image/png" })],
+          },
+          { og, campaign: "weekly_brain_digest" }
+        );
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
