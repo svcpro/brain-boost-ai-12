@@ -253,20 +253,32 @@ export async function nativeShare(
   const tagged = opts.og
     ? buildShareLanderUrl(payload.url, opts.og, "native", opts)
     : buildShareUrl(payload.url, "native", opts);
+  // IMPORTANT: Many native share targets (WhatsApp, Instagram, Telegram on Android/iOS)
+  // silently DROP the `url` field when `files` are present — only the image gets shared.
+  // To guarantee the link always appears in the message, we inline the tagged URL into
+  // the text body whenever files are attached, and also when text is provided alongside.
+  const hasFiles = !!(payload.files && payload.files.length);
+  const baseText = payload.text ?? "";
+  const textWithUrl = baseText
+    ? (baseText.includes(tagged) ? baseText : `${baseText}\n\n${tagged}`)
+    : tagged;
+
   const data: ShareData = {
-    url: tagged,
-    text: payload.text,
+    // When files are present, omit `url` (it would be dropped) and rely on text.
+    // When no files, keep `url` separate so platforms that prefer it (X, LinkedIn) get a clean link.
+    ...(hasFiles ? {} : { url: tagged }),
+    text: hasFiles ? textWithUrl : baseText || undefined,
     title: payload.title,
   };
-  if (payload.files && payload.files.length) {
-    (data as ShareData & { files: File[] }).files = payload.files;
+  if (hasFiles) {
+    (data as ShareData & { files: File[] }).files = payload.files!;
   }
 
   try {
     if (typeof navigator !== "undefined" && navigator.share) {
       // canShare is optional; only check it when files are present
-      if (payload.files && navigator.canShare && !navigator.canShare(data)) {
-        // Strip files and retry
+      if (hasFiles && navigator.canShare && !navigator.canShare(data)) {
+        // Strip files and retry — text already contains the URL so link survives
         delete (data as { files?: File[] }).files;
       }
       await navigator.share(data);
