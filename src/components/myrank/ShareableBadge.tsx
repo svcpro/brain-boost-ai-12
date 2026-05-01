@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Share2, Loader2 } from "lucide-react";
+import { nativeShare } from "@/lib/share";
 
 interface Props {
   rank: number;
@@ -123,12 +124,15 @@ const ShareableBadge = ({ rank, percentile, category, aiTag, userName = "Champio
       const shareUrl = `${window.location.origin}/myrank`;
 
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: "My ACRY Rank",
-          text: `🔥 Rank #${rank.toLocaleString("en-IN")} in ${category} — beat me!`,
-          url: shareUrl,
-        });
+        await nativeShare(
+          {
+            url: shareUrl,
+            files: [file],
+            title: "My ACRY Rank",
+            text: `🔥 Rank #${rank.toLocaleString("en-IN")} in ${category} — beat me!`,
+          },
+          { og: { variant: "myrank", name: userName, rank, exam: category }, campaign: "myrank_badge_share" }
+        );
       } else {
         // Fallback: download
         const url = URL.createObjectURL(blob);

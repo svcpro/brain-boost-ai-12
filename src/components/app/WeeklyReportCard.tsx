@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import html2canvas from "html2canvas";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface ReportData {
   totalMinutes: number;
@@ -26,6 +28,7 @@ interface ReportData {
 
 const WeeklyReportCard = () => {
   const { user } = useAuth();
+  const og = useShareIdentity();
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
@@ -69,11 +72,15 @@ const WeeklyReportCard = () => {
       const file = new File([blob], "acry-weekly-report.png", { type: "image/png" });
 
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: "My ACRY Weekly Report",
-          text: "Check out my study progress this week! 🧠",
-          files: [file],
-        });
+        await nativeShare(
+          {
+            url: "https://acry.ai/",
+            title: "My ACRY Weekly Report",
+            text: "Check out my study progress this week! 🧠",
+            files: [file],
+          },
+          { og, campaign: "weekly_report" }
+        );
       } else {
         // Fallback: copy image to clipboard
         await navigator.clipboard.write([

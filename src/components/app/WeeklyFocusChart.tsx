@@ -36,6 +36,7 @@ const SUBJECT_COLORS = [
 const WeeklyFocusChart = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const og = useShareIdentity();
   const [days, setDays] = useState<DayData[]>([]);
   const [subjects, setSubjects] = useState<SubjectBreakdown[]>([]);
   const [loading, setLoading] = useState(true);

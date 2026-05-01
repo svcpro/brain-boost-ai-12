@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { firePush } from "@/lib/firePush";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 const POST_TYPES = [
   { value: "question", label: "❓ Question", color: "bg-accent/10 text-accent" },
