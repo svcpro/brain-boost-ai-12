@@ -2207,11 +2207,19 @@ final result = await api.post('/home-api/mission-complete', body: {"mission_id":
             });
           }
 
-          // Real mission
-          const { data: m } = await adminClient.from("brain_missions")
+          // Real mission — only attempt lookup for proper UUIDs
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(missionId);
+          const { data: m } = isUuid ? await adminClient.from("brain_missions")
             .select("id, title, description, mission_type, priority, status, target_value, current_value, reward_type, reward_value, target_topic_id, target_metric, expires_at")
-            .eq("id", missionId).eq("user_id", userId).maybeSingle();
-          if (!m) return json({ error: "Mission not found" }, 404);
+            .eq("id", missionId).eq("user_id", userId).maybeSingle() : { data: null };
+          if (!m) {
+            // Soft-success: mission row missing or non-UUID local id — let UI proceed
+            return json({
+              success: true, already_started: false, is_synthetic: true,
+              mission_id: missionId, action_hint: "Start a study session",
+              navigate_to: "/study", message: "Mission started",
+            });
+          }
           if (m.status === "completed") return json({ error: "Mission already completed" }, 409);
           if (m.status === "in_progress") {
             const info = await resolveTopic(m.target_topic_id || "");
