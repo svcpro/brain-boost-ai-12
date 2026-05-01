@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Lightbulb, Share2, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 const tips = [
   { tip: "Teach what you learned today to an imaginary student — it reveals gaps instantly.", category: "technique" },
