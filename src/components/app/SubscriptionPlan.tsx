@@ -370,6 +370,10 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                     const features = featureList(p);
                     const isPremiumTier = p.tier_level >= 2;
                     const accent = isPremiumTier ? "#FFD700" : "#00E5FF";
+                    // Resolve current plan_key (subscription.plan_id may be a UUID)
+                    const currentPlanMatches = plans.find(pp => pp.id === subscription?.plan_id)?.plan_key === p.plan_key
+                      || subscription?.plan_id === p.plan_key;
+                    const isCurrentPlan = (isPaid || isTrialActive) && currentPlanMatches;
                     return (
                       <motion.div
                         key={p.id}
@@ -436,8 +440,8 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                         {/* CTA */}
                         <motion.button
                           onClick={() => handleSubscribe(p)}
-                          disabled={loading || isPaid}
-                          className="relative w-full py-3 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden"
+                          disabled={loading || isCurrentPlan}
+                          className="relative w-full py-3 rounded-xl text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 overflow-hidden"
                           style={{
                             background: isPremiumTier
                               ? "linear-gradient(135deg, #FFD700, #FF8500)"
@@ -450,11 +454,13 @@ const SubscriptionPlan = ({ onClose, currentPlan = "none", onPlanChanged, forceP
                           <span>
                             {isThisLoading
                               ? "Processing..."
-                              : trialAvail
-                                ? `Start ${p.trial_days}-Day Free Trial`
-                                : `Get ${p.name} · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
+                              : isCurrentPlan
+                                ? "Current Plan"
+                                : trialAvail
+                                  ? `Start ${p.trial_days}-Day Free Trial`
+                                  : `Get ${p.name} · ₹${price}/${billingCycle === "yearly" ? "yr" : "mo"}`}
                           </span>
-                          {!isThisLoading && <Sparkles className="w-3.5 h-3.5" />}
+                          {!isThisLoading && !isCurrentPlan && <Sparkles className="w-3.5 h-3.5" />}
                         </motion.button>
                       </motion.div>
                     );
