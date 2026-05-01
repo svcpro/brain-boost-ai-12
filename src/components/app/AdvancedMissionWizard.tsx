@@ -40,6 +40,12 @@ interface AdvancedMissionWizardProps {
 
 type WizardStep = "briefing" | "questions" | "results" | "impact" | "share";
 
+// Only real DB-backed UUIDs should be sent to mission lifecycle endpoints.
+// Synthetic IDs (e.g. "mission-2026-05-01") cause 404s server-side.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isValidMissionId = (id: unknown): id is string =>
+  typeof id === "string" && UUID_RE.test(id);
+
 const MISSION_STEPS = [
   { key: "read", label: "Read & Recall", icon: Eye, description: "Quick concept refresh", color: "text-violet-500" },
   { key: "quiz", label: "Quiz Challenge", icon: Brain, description: "Test your understanding", color: "text-primary" },
