@@ -20,6 +20,7 @@ export default function MissionShareCard({
   missionTitle, accuracy, xpEarned, brainBoost, streakDays, score, badges, onClose,
 }: MissionShareCardProps) {
   const { toast } = useToast();
+  const og = useShareIdentity();
   const cardRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
