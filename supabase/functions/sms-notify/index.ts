@@ -37,6 +37,66 @@ function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
     });
 }
 
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+function istTimeHHMM(d: Date = new Date()): string {
+  return new Date(d.getTime() + IST_OFFSET_MS).toISOString().slice(11, 16);
+}
+
+function hasValue(value: unknown): boolean {
+  return value != null && value !== "";
+}
+
+function isGenericAcryUrl(value: unknown): boolean {
+  if (!hasValue(value)) return true;
+  try {
+    const u = new URL(String(value));
+    const host = u.hostname.replace(/^www\./, "");
+    return host === "acry.ai" && (u.pathname === "" || u.pathname === "/") && !u.search && !u.hash;
+  } catch {
+    return false;
+  }
+}
+
+function addSemanticVariableAliases(vars: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(vars || {}) };
+  const first = (keys: string[]) => keys.map((k) => out[k]).find(hasValue);
+
+  const link = first(["link", "url", "target_url"]);
+  if (hasValue(link)) {
+    out.link ??= link;
+    out.url ??= link;
+    out.target_url ??= link;
+  }
+
+  const days = first(["days", "day_count", "dayCount", "day"]);
+  if (hasValue(days)) {
+    out.days ??= days;
+    out.day_count ??= days;
+    out.dayCount ??= days;
+    out.day ??= days;
+  }
+
+  const time = first(["time", "scheduled_time", "send_time", "start_time"]);
+  if (hasValue(time)) {
+    out.time ??= time;
+    out.scheduled_time ??= time;
+    out.send_time ??= time;
+    out.start_time ??= time;
+  }
+
+  return out;
+}
+
+function applyTemplateTargetUrl(vars: Record<string, unknown>, targetUrl?: string | null): Record<string, unknown> {
+  const out = addSemanticVariableAliases(vars);
+  if (!targetUrl) return out;
+  for (const key of ["link", "url", "target_url"]) {
+    if (!hasValue(out[key]) || isGenericAcryUrl(out[key])) out[key] = targetUrl;
+  }
+  return out;
+}
+
 function extractPlaceholderKeys(tpl: string): string[] {
   const keys: string[] = [];
   const re = /\{\{\s*(\w+)\s*\}\}|##\s*([a-zA-Z0-9_]+)\s*##/g;
@@ -53,10 +113,15 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
   const aliases: Record<string, string[]> = {
     url: ["url", "link", "target_url"],
     link: ["link", "url", "target_url"],
+    target_url: ["target_url", "url", "link"],
     name: ["name", "display_name", "user_name"],
     otp: ["otp", "code"],
     code: ["code", "otp"],
-    time: ["time", "scheduled_time"],
+    days: ["days", "day_count", "dayCount", "day"],
+    day_count: ["day_count", "days", "dayCount", "day"],
+    day: ["day", "days", "day_count", "dayCount"],
+    time: ["time", "scheduled_time", "send_time", "start_time"],
+    scheduled_time: ["scheduled_time", "time", "send_time", "start_time"],
   };
   for (const alias of aliases[lower] || [key, lower]) {
     const value = vars[alias];
@@ -66,12 +131,17 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
     name: fallbackName || "User",
     link: "https://acry.ai",
     url: "https://acry.ai",
+    target_url: "https://acry.ai",
     app: "ACRY",
     exam: "your exam",
     topic: "today's focus topic",
     days: 1,
+    day: 1,
+    day_count: 1,
     hours: 2,
-    time: new Date(Date.now() + (5 * 60 + 30) * 60 * 1000).toISOString().slice(11, 16),
+    time: istTimeHHMM(),
+    scheduled_time: istTimeHHMM(),
+    send_time: istTimeHHMM(),
     device: "your device",
     stability: 80,
     strength: 50,
