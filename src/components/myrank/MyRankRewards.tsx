@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
+import { buildShareUrl } from "@/lib/share";
 import {
   Gift, Lock, Check, Crown, Sparkles, Loader2, Target,
   Calendar, X, Copy, Share2,
@@ -117,7 +118,8 @@ const MyRankRewards = () => {
   };
 
   const shareLink = () => {
-    const text = `🚀 Find out where you stand among India's exam toppers — instant AI rank in 60 seconds.\n\n${shareUrl}`;
+    const tagged = buildShareUrl(shareUrl, "whatsapp", { campaign: "myrank_referral" });
+    const text = `🚀 Find out where you stand among India's exam toppers — instant AI rank in 60 seconds.\n\n${tagged}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 

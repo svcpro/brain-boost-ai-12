@@ -7,6 +7,7 @@ import {
   ListOrdered, Target, Flame, TrendingUp, ChevronRight, Copy, Check,
   Zap, MessageCircle, Instagram, Send, Swords, Eye, EyeOff, Wand2, Home, ArrowLeft,
 } from "lucide-react";
+import { buildShareUrl } from "@/lib/share";
 import ShareableBadge from "@/components/myrank/ShareableBadge";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
 import { shareBadgeOneClick, openSharePlaceholder, redirectToChannel, buildChannelShareUrl, renderBadgeBlob } from "@/lib/shareBadge";
@@ -402,13 +403,14 @@ const MyRankResult = () => {
         const absoluteUrl = /^https?:\/\//i.test(shareUrl)
           ? shareUrl
           : `https://${(shareUrl || "acry.ai").replace(/^\/+/, "")}`;
+        const taggedTg = buildShareUrl(absoluteUrl, "telegram", { campaign: "myrank_result" });
         const textWithoutUrl = currentMessage
           .replace(shareUrl, "")
           .replace(/\n{3,}/g, "\n\n")
           .trim();
         target =
           `https://t.me/share/url` +
-          `?url=${encodeURIComponent(absoluteUrl)}` +
+          `?url=${encodeURIComponent(taggedTg)}` +
           `&text=${encodeURIComponent(textWithoutUrl)}`;
         break;
       }
@@ -418,9 +420,12 @@ const MyRankResult = () => {
           : "https://www.instagram.com/direct/inbox/";
         break;
       case "whatsapp":
-      default:
-        target = `https://wa.me/?text=${encoded}`;
+      default: {
+        const taggedWa = buildShareUrl(shareUrl, "whatsapp", { campaign: "myrank_result" });
+        const taggedCaption = currentMessage.replace(shareUrl, taggedWa);
+        target = `https://wa.me/?text=${encodeURIComponent(taggedCaption)}`;
         break;
+      }
     }
 
     if (isMobile) {
