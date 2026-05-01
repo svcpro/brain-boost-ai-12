@@ -32,6 +32,9 @@ const PlanContextBar = ({ relevantFeatures = [], onUpgrade }: PlanContextBarProp
   // On Premium and nothing locked → don't show anything (zero noise)
   if (isPremium && lockedHere.length === 0) return null;
 
+  // Hide the Starter status bar entirely (per product decision — reduce noise on home/dashboard)
+  if (currentPlan === "starter") return null;
+
   return (
     <AnimatePresence>
       <motion.div
