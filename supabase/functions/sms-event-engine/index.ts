@@ -56,15 +56,18 @@ function addSemanticVariableAliases(vars: Record<string, unknown>): Record<strin
     out.days ??= days;
     out.day_count ??= days;
     out.dayCount ??= days;
+    out.daycount ??= days;
     out.day ??= days;
   }
 
-  const time = first(["time", "scheduled_time", "send_time", "start_time"]);
+  const time = first(["time", "scheduled_time", "send_time", "start_time", "sendTime", "startTime"]);
   if (hasValue(time)) {
     out.time ??= time;
     out.scheduled_time ??= time;
     out.send_time ??= time;
     out.start_time ??= time;
+    out.sendTime ??= time;
+    out.startTime ??= time;
   }
 
   return out;
