@@ -298,28 +298,32 @@ export default function AdvancedMissionWizard({
           memory_before: memoryBefore, memory_after: Math.min(100, memoryBefore + brainBoost), status: "completed", current_step: MISSION_STEPS.length,
         }).eq("id", sessionIdRef.current);
       }
-      // ─── Unified Today's Mission API: action=complete ───
-      try {
-        const { data: completeData, error: completeErr } = await supabase.functions.invoke("home-api", {
-          body: {
-            route: "todays-mission-api",
-            action: "complete",
-            mission_id: missionId,
-            score: sessionData.score,
-            accuracy: sessionData.accuracy,
-            time_taken_seconds: sessionData.timeUsedSec,
-            questions_attempted: sessionData.totalQ,
-            questions_correct: sessionData.correctCount,
-          },
-        });
-        if (completeErr) {
-          console.warn("[Mission] complete failed:", completeErr.message);
-        } else if (completeData?.brain_impact) {
-          // Merge server-side brain impact into local sessionResults so the impact report has authoritative data
-          setSessionResults((prev: any) => ({ ...prev, brain_impact: completeData.brain_impact, reward: completeData.reward }));
+      // ─── Unified Today's Mission API: action=complete (only for real UUID-backed missions) ───
+      if (isValidMissionId(missionId)) {
+        try {
+          const { data: completeData, error: completeErr } = await supabase.functions.invoke("home-api", {
+            body: {
+              route: "todays-mission-api",
+              action: "complete",
+              mission_id: missionId,
+              score: sessionData.score,
+              accuracy: sessionData.accuracy,
+              time_taken_seconds: sessionData.timeUsedSec,
+              questions_attempted: sessionData.totalQ,
+              questions_correct: sessionData.correctCount,
+            },
+          });
+          if (completeErr) {
+            console.warn("[Mission] complete failed:", completeErr.message);
+          } else if (completeData?.brain_impact) {
+            // Merge server-side brain impact into local sessionResults so the impact report has authoritative data
+            setSessionResults((prev: any) => ({ ...prev, brain_impact: completeData.brain_impact, reward: completeData.reward }));
+          }
+        } catch (e) {
+          console.warn("[Mission] complete invocation error:", e);
         }
-      } catch (e) {
-        console.warn("[Mission] complete invocation error:", e);
+      } else {
+        console.info("[Mission] skipping complete API for synthetic mission_id:", missionId);
       }
       if (topicId && brainBoost > 0) {
         const { data: topic } = await supabase.from("topics").select("id, memory_strength").eq("id", topicId).maybeSingle();
