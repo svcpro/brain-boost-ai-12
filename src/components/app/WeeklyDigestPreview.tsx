@@ -606,6 +606,7 @@ const MetricCard = ({
 
 const WeeklyDigestPreview = () => {
   const { user } = useAuth();
+  const og = useShareIdentity();
   const [data, setData] = useState<DigestData | null>(() => getCache(CACHE_KEY));
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
