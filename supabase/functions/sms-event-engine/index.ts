@@ -329,11 +329,11 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
         aligned[slot] = rawVariables.url;
         return;
       }
-      if (["days", "day_count", "day"].includes(slot) && (rawVariables.days || rawVariables.day_count || rawVariables.dayCount || rawVariables.day)) {
+      if (["days", "day_count", "day"].includes(slot) && [rawVariables.days, rawVariables.day_count, rawVariables.dayCount, rawVariables.day].some(hasValue)) {
         aligned[slot] = rawVariables.days ?? rawVariables.day_count ?? rawVariables.dayCount ?? rawVariables.day;
         return;
       }
-      if (["time", "scheduled_time", "send_time", "start_time"].includes(slot) && (rawVariables.time || rawVariables.scheduled_time || rawVariables.send_time || rawVariables.start_time)) {
+      if (["time", "scheduled_time", "send_time", "start_time"].includes(slot) && [rawVariables.time, rawVariables.scheduled_time, rawVariables.send_time, rawVariables.start_time].some(hasValue)) {
         aligned[slot] = rawVariables.time ?? rawVariables.scheduled_time ?? rawVariables.send_time ?? rawVariables.start_time;
         return;
       }
@@ -347,12 +347,12 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
       aligned[slot] = positional ?? fallbackValueForPlaceholder(slot, { ...data, ...rawVariables }, userName);
     });
     // pass-through helpers used by sms-notify auto-mapping
-    if (rawVariables.name && !aligned.name) aligned.name = rawVariables.name;
-    if (rawVariables.link && !aligned.link) aligned.link = rawVariables.link;
-    if (rawVariables.url && !aligned.url) aligned.url = rawVariables.url;
-    if (rawVariables.days && !aligned.days) aligned.days = rawVariables.days;
-    if (rawVariables.day_count && !aligned.day_count) aligned.day_count = rawVariables.day_count;
-    if (rawVariables.time && !aligned.time) aligned.time = rawVariables.time;
+    if (hasValue(rawVariables.name) && !hasValue(aligned.name)) aligned.name = rawVariables.name;
+    if (hasValue(rawVariables.link) && !hasValue(aligned.link)) aligned.link = rawVariables.link;
+    if (hasValue(rawVariables.url) && !hasValue(aligned.url)) aligned.url = rawVariables.url;
+    if (hasValue(rawVariables.days) && !hasValue(aligned.days)) aligned.days = rawVariables.days;
+    if (hasValue(rawVariables.day_count) && !hasValue(aligned.day_count)) aligned.day_count = rawVariables.day_count;
+    if (hasValue(rawVariables.time) && !hasValue(aligned.time)) aligned.time = rawVariables.time;
 
     alignedVariables = addSemanticVariableAliases(aligned);
     alignmentNote =
