@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { Download, Share2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { useToast } from "@/hooks/use-toast";
+import { nativeShare } from "@/lib/share";
+import { useShareIdentity } from "@/hooks/useShareIdentity";
 
 interface StreakBadgeProps {
   milestone: number;
