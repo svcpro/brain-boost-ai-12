@@ -56,7 +56,7 @@ const TrialBanner = () => {
 
   if ((!isTrialActive && !isTrialExpired) || dismissed) return null;
 
-  const totalDays = 15;
+  const totalDays = 7;
   const elapsed = totalDays - trialDaysLeft;
   const progress = isTrialExpired ? 100 : Math.min(100, (elapsed / totalDays) * 100);
   const isUrgent = trialDaysLeft <= 3;
@@ -260,7 +260,7 @@ const TrialBanner = () => {
                   </motion.div>
 
                   {/* Day tick marks */}
-                  {[5, 10].map((day) => (
+                  {[3, 5].map((day) => (
                     <div
                       key={day}
                       className="absolute top-1/2 -translate-y-1/2 w-[1px] h-2.5"
