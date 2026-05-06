@@ -1,3 +1,4 @@
+import { getEmailUsername } from "@/lib/email";
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";

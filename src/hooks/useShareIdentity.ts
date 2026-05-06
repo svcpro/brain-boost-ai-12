@@ -1,3 +1,4 @@
+import { getEmailUsername } from "@/lib/email";
 /**
  * useShareIdentity — single source of truth for per-user OG personalization.
  * Returns the fields needed by `buildShareLanderUrl` / `nativeShare({ og })`:
