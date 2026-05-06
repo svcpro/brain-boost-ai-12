@@ -33,6 +33,7 @@ import AIRecalibration from "./you/AIRecalibration";
 import AIPersonalizationControlCenter from "./you/AIPersonalizationControlCenter";
 import CognitiveProfileCard from "./CognitiveProfileCard";
 import PasswordManagement from "./you/PasswordManagement";
+import EmailUpdateCard from "./you/EmailUpdateCard";
 import ApiKeyCard from "./you/ApiKeyCard";
 import ColorProgressChart from "./ColorProgressChart";
 import ProfessionalProgressRing from "./ProfessionalProgressRing";
@@ -345,6 +346,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
           });
         }} />}
       </AnimatePresence>
+
+      {/* Email Update & Verify */}
+      <EmailUpdateCard />
 
       {/* Password Management — hidden per user request */}
 
