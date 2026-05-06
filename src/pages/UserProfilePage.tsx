@@ -57,7 +57,7 @@ const UserProfilePage = () => {
       setCountry((data as any).country || "");
       setCity((data as any).city || "");
     }
-    setForgotEmail(user.email || "");
+    setForgotEmail(getRealEmail(user.email));
     setLoading(false);
   }, [user]);
 
