@@ -349,7 +349,16 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
       </AnimatePresence>
 
       {/* Email Update & Verify */}
-      <EmailUpdateCard />
+      <div id="email-update-card">
+        <EmailUpdateCard />
+      </div>
+
+      {/* Urgent popup if email missing or unverified */}
+      <EmailUrgentPopup
+        onAction={() => {
+          document.getElementById("email-update-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }}
+      />
 
       {/* Password Management — hidden per user request */}
 
