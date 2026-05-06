@@ -15,9 +15,16 @@ const EmailUpdateCard = () => {
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
 
-  const currentEmail = user?.email || "";
-  // Supabase sets email_confirmed_at when verified
-  const isVerified = !!(user as any)?.email_confirmed_at || !!(user as any)?.confirmed_at;
+  const rawEmail = user?.email || "";
+  // Mobile-OTP signups get a system placeholder like "919876543210@phone.acry.ai".
+  // Treat those as "no real email on file" so the user is prompted to add their own.
+  const isPlaceholder = /@phone\.acry\.ai$/i.test(rawEmail);
+  const currentEmail = isPlaceholder ? "" : rawEmail;
+  // Supabase sets email_confirmed_at when verified — but a placeholder email is never "real verified"
+  const isVerified =
+    !isPlaceholder &&
+    !!currentEmail &&
+    (!!(user as any)?.email_confirmed_at || !!(user as any)?.confirmed_at);
 
   const handleUpdate = async () => {
     const trimmed = newEmail.trim().toLowerCase();
