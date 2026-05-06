@@ -19,8 +19,13 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
 
   if (!user) return null;
 
-  const email = user.email || "";
-  const isVerified = !!(user as any)?.email_confirmed_at || !!(user as any)?.confirmed_at;
+  const rawEmail = user.email || "";
+  const isPlaceholder = /@phone\.acry\.ai$/i.test(rawEmail);
+  const email = isPlaceholder ? "" : rawEmail;
+  const isVerified =
+    !isPlaceholder &&
+    !!email &&
+    (!!(user as any)?.email_confirmed_at || !!(user as any)?.confirmed_at);
   const missing = !email;
   const unverified = !!email && !isVerified;
 
