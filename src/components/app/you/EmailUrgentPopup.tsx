@@ -75,20 +75,29 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
             }}
           />
 
-          <div className="relative p-3.5 flex items-center gap-3">
+          {/* Snooze close button — floating top-right so it doesn't steal width */}
+          <button
+            onClick={handleSnooze}
+            aria-label="Snooze"
+            className="absolute top-1.5 right-1.5 z-10 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="relative p-3 pr-3 flex items-center gap-2.5">
             <motion.div
               animate={{ rotate: [0, -8, 8, -6, 6, 0] }}
               transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 0.6 }}
-              className="w-10 h-10 rounded-xl bg-destructive/20 border border-destructive/40 flex items-center justify-center shrink-0"
+              className="w-9 h-9 rounded-xl bg-destructive/20 border border-destructive/40 flex items-center justify-center shrink-0"
             >
-              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <AlertTriangle className="w-4 h-4 text-destructive" />
             </motion.div>
 
             <button
               onClick={onAction}
-              className="flex-1 min-w-0 text-left"
+              className="flex-1 min-w-0 text-left pr-5"
             >
-              <p className="text-[11px] font-bold uppercase tracking-wider text-destructive flex items-center gap-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">
                 Action needed
               </p>
               <p className="text-sm font-bold text-foreground truncate">{title}</p>
@@ -97,18 +106,10 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
 
             <button
               onClick={onAction}
-              className="shrink-0 px-3 py-2 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold flex items-center gap-1 hover:opacity-90 active:scale-95 transition"
+              className="shrink-0 px-2.5 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold flex items-center gap-0.5 hover:opacity-90 active:scale-95 transition"
             >
               Fix
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={handleSnooze}
-              aria-label="Snooze"
-              className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-            >
-              <X className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3 h-3" />
             </button>
           </div>
         </motion.div>
