@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { getRealEmail, getEmailUsername } from "@/lib/email";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Camera, Loader2, Check, X, Pencil, Sparkles, BookOpen } from "lucide-react";
