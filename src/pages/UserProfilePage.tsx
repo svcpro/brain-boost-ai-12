@@ -358,7 +358,7 @@ const UserProfilePage = () => {
     );
   }
 
-  const email = user?.email || "";
+  const email = getRealEmail(user?.email);
   const provider = user?.app_metadata?.provider || "email";
   const createdAt = user?.created_at ? format(new Date(user.created_at), "MMM d, yyyy") : "—";
   const lastSignIn = user?.last_sign_in_at ? format(new Date(user.last_sign_in_at), "MMM d, yyyy 'at' h:mm a") : "—";
