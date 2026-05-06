@@ -311,7 +311,7 @@ const MyRankResult = () => {
     setTimeout(fetchUnlockStatus, 500);
   };
 
-  const userName = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion";
+  const userName = user?.user_metadata?.display_name || getEmailUsername(user?.email) || "Champion";
 
   const runShare = async (
     channel: "whatsapp" | "instagram" | "telegram" | "native",
@@ -998,7 +998,7 @@ const MyRankResult = () => {
             percentile={result.percentile}
             category={result.category}
             aiTag={result.ai_tag}
-            userName={user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Champion"}
+            userName={user?.user_metadata?.display_name || getEmailUsername(user?.email) || "Champion"}
           />
         </div>
 

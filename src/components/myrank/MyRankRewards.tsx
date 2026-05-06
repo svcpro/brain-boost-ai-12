@@ -120,7 +120,7 @@ const MyRankRewards = () => {
   const shareLink = () => {
     const userName =
       (user?.user_metadata as any)?.display_name ||
-      user?.email?.split("@")[0] ||
+      getEmailUsername(user?.email) ||
       "";
     const tagged = buildShareLanderUrl(
       shareUrl,

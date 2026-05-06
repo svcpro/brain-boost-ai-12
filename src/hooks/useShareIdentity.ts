@@ -16,7 +16,7 @@ export function useShareIdentity(): OgPersonalization {
   const initialName =
     (user?.user_metadata as any)?.display_name ||
     (user?.user_metadata as any)?.full_name ||
-    user?.email?.split("@")[0] ||
+    getEmailUsername(user?.email) ||
     "";
 
   const [identity, setIdentity] = useState<OgPersonalization>({
