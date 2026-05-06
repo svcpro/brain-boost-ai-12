@@ -248,9 +248,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                 </div>
               )}
               <p className="text-xs text-muted-foreground truncate">
-                {user?.email && !/@phone\.acry\.ai$/i.test(user.email)
-                  ? user.email
-                  : "No email added yet"}
+                {getRealEmail(user?.email) || "No email added yet"}
               </p>
             </div>
           </div>
