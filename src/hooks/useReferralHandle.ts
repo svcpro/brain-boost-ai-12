@@ -1,3 +1,4 @@
+import { getEmailUsername } from "@/lib/email";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -96,7 +97,7 @@ export const useReferralHandle = (): HandleData => {
       const nameRaw =
         user?.user_metadata?.display_name ||
         user?.user_metadata?.full_name ||
-        user?.email?.split("@")[0] ||
+        getEmailUsername(user?.email) ||
         "";
       const base = slugify(nameRaw);
 
@@ -149,7 +150,7 @@ export const useReferralHandle = (): HandleData => {
 
     ensureHandle().catch(() => {
       // On any failure, generate a local-only fallback so UI never blocks
-      const fallback = (slugify(user?.email?.split("@")[0] || "ace") + randomSuffix());
+      const fallback = (slugify(getEmailUsername(user?.email) || "ace") + randomSuffix());
       localStorage.setItem("acry_ref_handle", fallback);
       if (!cancelled) {
         setHandle(fallback);

@@ -1,3 +1,4 @@
+import { getEmailUsername } from "@/lib/email";
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -120,7 +121,7 @@ const MyRankRewards = () => {
   const shareLink = () => {
     const userName =
       (user?.user_metadata as any)?.display_name ||
-      user?.email?.split("@")[0] ||
+      getEmailUsername(user?.email) ||
       "";
     const tagged = buildShareLanderUrl(
       shareUrl,

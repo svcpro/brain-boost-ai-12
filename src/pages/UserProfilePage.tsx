@@ -1,3 +1,4 @@
+import { getRealEmail } from "@/lib/email";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -57,7 +58,7 @@ const UserProfilePage = () => {
       setCountry((data as any).country || "");
       setCity((data as any).city || "");
     }
-    setForgotEmail(user.email || "");
+    setForgotEmail(getRealEmail(user.email));
     setLoading(false);
   }, [user]);
 
@@ -358,7 +359,7 @@ const UserProfilePage = () => {
     );
   }
 
-  const email = user?.email || "";
+  const email = getRealEmail(user?.email);
   const provider = user?.app_metadata?.provider || "email";
   const createdAt = user?.created_at ? format(new Date(user.created_at), "MMM d, yyyy") : "—";
   const lastSignIn = user?.last_sign_in_at ? format(new Date(user.last_sign_in_at), "MMM d, yyyy 'at' h:mm a") : "—";

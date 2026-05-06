@@ -1,3 +1,4 @@
+import { getEmailUsername } from "@/lib/email";
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -79,7 +80,7 @@ export function useVoiceNotification() {
           || session.user.user_metadata?.full_name
           || session.user.user_metadata?.name
           || session.user.user_metadata?.display_name
-          || session.user.email?.split("@")[0];
+          || getEmailUsername(session.user.email);
       }
 
       const { data, error } = await supabase.functions.invoke("voice-notification", {

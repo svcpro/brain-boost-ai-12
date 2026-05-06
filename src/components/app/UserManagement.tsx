@@ -836,7 +836,7 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
             <h2 className="text-xl font-bold text-foreground">{user.display_name || "Anonymous"}</h2>
                      {isBanned && <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-destructive/15 text-destructive">BANNED</span>}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">{user.email || "No email"}{(user.phone || user.whatsapp_number) ? ` · ${user.phone || user.whatsapp_number}` : ""}</p>
+                  <p className="text-[10px] text-muted-foreground">{(user.email && !/@(phone|mobile|otp)\.acry\.ai$/i.test(user.email) ? user.email : "No email")}{(user.phone || user.whatsapp_number) ? ` · ${user.phone || user.whatsapp_number}` : ""}</p>
                   <p className="text-[10px] text-muted-foreground font-mono">{user.id}</p>
         </div>
         {!editing ? (
@@ -904,7 +904,7 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { label: "Email", value: user.email || "Not set" },
+              { label: "Email", value: (user.email && !/@(phone|mobile|otp)\.acry\.ai$/i.test(user.email)) ? user.email : "Not set" },
               { label: "Phone", value: user.phone || user.whatsapp_number || "Not set" },
               { label: "Exam Type", value: user.exam_type || "Not set" },
               { label: "Exam Date", value: user.exam_date ? format(new Date(user.exam_date), "MMM d, yyyy") : "Not set" },

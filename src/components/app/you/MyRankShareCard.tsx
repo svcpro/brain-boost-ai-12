@@ -1,3 +1,4 @@
+import { getEmailUsername } from "@/lib/email";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -96,7 +97,7 @@ const MyRankShareCard = () => {
   }, [user?.id]);
 
   const userName = (user?.user_metadata?.display_name as string)
-    || user?.email?.split("@")[0]
+    || getEmailUsername(user?.email)
     || "Champion";
 
   /** Generate AI caption for a specific channel via edge function. */

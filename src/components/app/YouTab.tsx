@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { getRealEmail, getEmailUsername } from "@/lib/email";
 import { useStudyStreak } from "@/hooks/useStudyStreak";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Camera, Loader2, Check, X, Pencil, Sparkles, BookOpen } from "lucide-react";
@@ -237,10 +238,10 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
               ) : (
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-bold text-foreground truncate">
-                    {profileDisplayName || (isMobileSignup ? "Student" : (user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Student"))}
+                    {profileDisplayName || (isMobileSignup ? "Student" : (user?.user_metadata?.display_name || getEmailUsername(user?.email) || "Student"))}
                   </h2>
                   <button
-                    onClick={() => { setEditNameValue(profileDisplayName || (isMobileSignup ? "" : (user?.user_metadata?.display_name || user?.email?.split("@")[0] || ""))); setEditingName(true); }}
+                    onClick={() => { setEditNameValue(profileDisplayName || (isMobileSignup ? "" : (user?.user_metadata?.display_name || getEmailUsername(user?.email) || ""))); setEditingName(true); }}
                     className="p-1 rounded-md hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -248,9 +249,7 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
                 </div>
               )}
               <p className="text-xs text-muted-foreground truncate">
-                {user?.email && !/@phone\.acry\.ai$/i.test(user.email)
-                  ? user.email
-                  : "No email added yet"}
+                {getRealEmail(user?.email) || "No email added yet"}
               </p>
             </div>
           </div>
