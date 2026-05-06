@@ -347,6 +347,9 @@ const YouTab = ({ autoOpenVoiceSettings, onVoiceSettingsOpened, autoOpenSubscrip
         }} />}
       </AnimatePresence>
 
+      {/* Email Update & Verify */}
+      <EmailUpdateCard />
+
       {/* Password Management — hidden per user request */}
 
       {/* Sign Out */}
