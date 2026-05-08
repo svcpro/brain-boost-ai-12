@@ -19,6 +19,7 @@ interface InstMeta {
   referral_code: string;
   primary_color: string | null;
   logo_url: string | null;
+  commission_rate: number | null;
 }
 
 interface SourceStat {
@@ -26,11 +27,23 @@ interface SourceStat {
   count: number;
 }
 
+interface CommissionRow {
+  id: string;
+  source: string | null;
+  gross_amount: number;
+  commission_amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  paid_at: string | null;
+}
+
 export default function InstituteOnboardingTab({ institutionId, institutionName }: Props) {
   const { toast } = useToast();
   const [meta, setMeta] = useState<InstMeta | null>(null);
   const [stats, setStats] = useState<SourceStat[]>([]);
   const [totalJoins, setTotalJoins] = useState(0);
+  const [commissions, setCommissions] = useState<CommissionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [rotating, setRotating] = useState(false);
