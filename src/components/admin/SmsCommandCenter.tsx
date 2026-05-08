@@ -359,7 +359,7 @@ const SmsLogs = () => {
 
       setLogs((data || []).map(o => ({
         ...o,
-        channel: "whatsapp",
+        channel: o.channel === "sms" ? "sms" : "whatsapp",
         status: o.verified ? "verified" : isAfter(new Date(), new Date(o.expires_at)) ? "expired" : "pending",
       })));
     } catch (err) {
