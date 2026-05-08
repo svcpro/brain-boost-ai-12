@@ -56,6 +56,7 @@ const MyRankTest = lazy(() => import("./pages/myrank/MyRankTest"));
 const MyRankResult = lazy(() => import("./pages/myrank/MyRankResult"));
 const MyRankLeaderboard = lazy(() => import("./pages/myrank/MyRankLeaderboard"));
 const InstituteAdminPage = lazy(() => import("./pages/InstituteAdminPage"));
+const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
 
 // Lazy load heavy components
 const PWAInstallBanner = lazy(() => import("@/components/app/PWAInstallBanner"));
