@@ -151,7 +151,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         const w = canvas.width;
-        const badgeSize = Math.round(w * 0.22);
+        const badgeSize = Math.round(w * 0.16);
         const cx = w / 2;
         const cy = w / 2;
         // White rounded square base
