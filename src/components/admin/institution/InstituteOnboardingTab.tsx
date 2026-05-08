@@ -5,10 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import {
   QrCode, Copy, Download, Share2, Link2, RefreshCw, MessageSquare,
   Sparkles, Loader2, CheckCircle2, Users, TrendingUp, IndianRupee,
-  Wallet, Hourglass, BadgeCheck, Percent,
+  Wallet, Hourglass, BadgeCheck, Percent, ChevronRight, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Props {
   institutionId: string;
@@ -64,6 +67,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
   const [stats, setStats] = useState<SourceStat[]>([]);
   const [totalJoins, setTotalJoins] = useState(0);
   const [commissions, setCommissions] = useState<CommissionRow[]>([]);
+  const [drillSource, setDrillSource] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [rotating, setRotating] = useState(false);
@@ -250,7 +254,24 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
     );
   }
 
+  const drillRows = drillSource
+    ? commissions
+        .filter((c) => (c.source || "direct") === drillSource)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    : [];
+  const drillTotals = drillRows.reduce(
+    (acc, c) => {
+      const amt = Number(c.commission_amount || 0);
+      acc.total += amt;
+      if (c.status === "paid") acc.paid += amt;
+      else if (c.status !== "reversed") acc.pending += amt;
+      return acc;
+    },
+    { total: 0, paid: 0, pending: 0 }
+  );
+
   return (
+    <>
     <div className="space-y-5">
       {/* Hero with QR */}
       <div
@@ -470,7 +491,12 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                     ? Math.round((r.earned / commissionStats.totalEarned) * 100)
                     : 0;
                   return (
-                    <div key={r.source}>
+                    <button
+                      key={r.source}
+                      type="button"
+                      onClick={() => setDrillSource(r.source)}
+                      className="w-full text-left rounded-lg p-2 -mx-2 hover:bg-secondary/40 transition-colors"
+                    >
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="font-semibold text-foreground capitalize flex items-center gap-1.5">
                           <SourceDot source={r.source} />
@@ -479,7 +505,10 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                             ({r.conversions}/{r.joins} converted)
                           </span>
                         </span>
-                        <span className="font-bold text-foreground">{fmt(r.earned)}</span>
+                        <span className="font-bold text-foreground flex items-center gap-1">
+                          {fmt(r.earned)}
+                          <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                        </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden flex">
                         {r.earned > 0 && (
@@ -511,7 +540,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                           Pending {fmt(r.pending)}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -588,6 +617,68 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
         </ul>
       </div>
     </div>
+
+    <Dialog open={!!drillSource} onOpenChange={(o) => !o && setDrillSource(null)}>
+      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3">
+          <DialogTitle className="flex items-center gap-2 capitalize text-base">
+            {drillSource && <SourceDot source={drillSource} />}
+            {drillSource} commissions
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="px-5 pb-3 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg bg-secondary/40 p-2">
+            <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Total</div>
+            <div className="text-sm font-bold text-foreground">{fmt(drillTotals.total)}</div>
+          </div>
+          <div className="rounded-lg bg-emerald-500/10 p-2">
+            <div className="text-[9px] uppercase tracking-wide text-emerald-400">Paid</div>
+            <div className="text-sm font-bold text-emerald-400">{fmt(drillTotals.paid)}</div>
+          </div>
+          <div className="rounded-lg bg-amber-500/10 p-2">
+            <div className="text-[9px] uppercase tracking-wide text-amber-400">Pending</div>
+            <div className="text-sm font-bold text-amber-400">{fmt(drillTotals.pending)}</div>
+          </div>
+        </div>
+
+        <div className="max-h-[55vh] overflow-y-auto px-5 pb-5 space-y-1.5">
+          {drillRows.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">No commissions yet for this source.</p>
+          )}
+          {drillRows.map((c) => (
+            <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30 border border-border">
+              <div className="min-w-0">
+                <div className="text-[11px] text-muted-foreground">
+                  {format(new Date(c.created_at), "dd MMM yyyy, HH:mm")}
+                </div>
+                <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                  Gross {fmt(Number(c.gross_amount), c.currency)}
+                  {c.paid_at && ` • Paid ${format(new Date(c.paid_at), "dd MMM")}`}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span
+                  className={cn(
+                    "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
+                    c.status === "paid" && "bg-emerald-500/15 text-emerald-400",
+                    c.status === "pending" && "bg-amber-500/15 text-amber-400",
+                    c.status === "approved" && "bg-primary/15 text-primary",
+                    c.status === "reversed" && "bg-destructive/15 text-destructive",
+                  )}
+                >
+                  {c.status}
+                </span>
+                <span className="text-xs font-bold text-foreground">
+                  {fmt(Number(c.commission_amount), c.currency)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
