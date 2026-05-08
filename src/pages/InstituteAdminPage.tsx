@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Building2, Users, GraduationCap, Layers, Palette, Settings, Globe,
   FileText, CreditCard, Fingerprint, Loader2, IndianRupee, Shield,
-  TrendingUp, AlertTriangle, ChevronRight, LogOut, BookOpen, Crown
+  TrendingUp, AlertTriangle, ChevronRight, LogOut, BookOpen, Crown, QrCode
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
