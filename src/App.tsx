@@ -162,6 +162,7 @@ const App = () => (
               <Route path="/institute/login" element={<InstituteLoginPage />} />
               <Route path="/institute/signup" element={<InstituteSignupPage />} />
               <Route path="/join/:code" element={<InstituteJoinPage />} />
+              <Route path="/i/:code" element={<InstituteJoinPage />} />
               <Route path="/institute" element={
                 <ProtectedRoute>
                   <InstituteAdminPage />
