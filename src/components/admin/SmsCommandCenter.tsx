@@ -62,35 +62,37 @@ const SmsDashboard = () => {
     try {
       const today = new Date().toISOString().split("T")[0];
 
-      // Fetch WhatsApp OTPs from whatsapp_otps table
-      const { data: waOtps, count: waTotal } = await supabase
+      // Fetch all OTPs (SMS + WhatsApp) — both stored in whatsapp_otps with `channel`
+      const { data: otps, count: total } = await supabase
         .from("whatsapp_otps")
-        .select("*", { count: "exact" });
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
-      const waVerified = waOtps?.filter(o => o.verified) || [];
-      const waToday = waOtps?.filter(o => o.created_at?.startsWith(today)) || [];
-      const waTodayVerified = waToday.filter(o => o.verified);
-
-      // We estimate SMS stats from the total minus WhatsApp
-      const totalWa = waTotal || 0;
-      const totalVerifiedWa = waVerified.length;
+      const all = otps || [];
+      const verified = all.filter(o => o.verified);
+      const sms = all.filter(o => o.channel === "sms");
+      const wa = all.filter(o => o.channel === "whatsapp");
+      const todayList = all.filter(o => o.created_at?.startsWith(today));
+      const todayVerified = todayList.filter(o => o.verified);
+      const totalCount = total ?? all.length;
 
       setStats({
-        totalSent: totalWa,
-        smsSent: 0, // SMS doesn't have a log table yet
-        whatsappSent: totalWa,
-        verified: totalVerifiedWa,
+        totalSent: totalCount,
+        smsSent: sms.length,
+        whatsappSent: wa.length,
+        verified: verified.length,
         failed: 0,
-        deliveryRate: totalWa > 0 ? Math.round((totalVerifiedWa / totalWa) * 100) : 0,
-        todaySent: waToday.length,
-        todayVerified: waTodayVerified.length,
+        deliveryRate: totalCount > 0 ? Math.round((verified.length / totalCount) * 100) : 0,
+        todaySent: todayList.length,
+        todayVerified: todayVerified.length,
       });
 
       setRecentLogs(
-        (waOtps || []).slice(0, 10).map(o => ({
+        all.slice(0, 10).map(o => ({
           id: o.id,
           mobile: o.mobile,
-          channel: "whatsapp" as const,
+          channel: (o.channel === "sms" ? "sms" : "whatsapp") as "sms" | "whatsapp",
           status: o.verified ? "verified" : isAfter(new Date(), new Date(o.expires_at)) ? "expired" : "sent",
           created_at: o.created_at,
           verified: o.verified,
