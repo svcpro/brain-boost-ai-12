@@ -406,31 +406,22 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                 </span>
               </div>
 
-              {/* QR with viewfinder corner brackets + scan beam */}
-              <div className="relative rounded-xl overflow-hidden bg-white">
-                <canvas ref={canvasRef} className="block w-full h-auto" />
-                {/* Corner brackets */}
+              {/* QR – kept fully clean for reliable scanning. Brackets sit OUTSIDE the QR. */}
+              <div className="relative bg-white p-3 rounded-xl">
+                {/* Outer viewfinder corner brackets (do NOT overlap QR finder patterns) */}
                 {[
-                  "top-1 left-1 border-t-2 border-l-2 rounded-tl-md",
-                  "top-1 right-1 border-t-2 border-r-2 rounded-tr-md",
-                  "bottom-1 left-1 border-b-2 border-l-2 rounded-bl-md",
-                  "bottom-1 right-1 border-b-2 border-r-2 rounded-br-md",
+                  "top-0 left-0 border-t-2 border-l-2 rounded-tl-md",
+                  "top-0 right-0 border-t-2 border-r-2 rounded-tr-md",
+                  "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-md",
+                  "bottom-0 right-0 border-b-2 border-r-2 rounded-br-md",
                 ].map((c, i) => (
                   <span
                     key={i}
-                    className={cn("absolute w-4 h-4 pointer-events-none", c)}
+                    className={cn("absolute w-3 h-3 pointer-events-none", c)}
                     style={{ borderColor: accent }}
                   />
                 ))}
-                {/* Animated scan beam */}
-                <div
-                  className="absolute left-0 right-0 h-[2px] pointer-events-none opacity-90"
-                  style={{
-                    background: `linear-gradient(90deg, transparent, ${accent}, #00E5FF, transparent)`,
-                    boxShadow: `0 0 12px ${accent}, 0 0 24px #00E5FF99`,
-                    animation: "scan-beam 2.4s ease-in-out infinite",
-                  }}
-                />
+                <canvas ref={canvasRef} className="block" />
               </div>
 
               {/* Footer band */}
@@ -449,15 +440,6 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                 </div>
               </div>
             </div>
-
-            <style>{`
-              @keyframes scan-beam {
-                0% { top: 6%; opacity: 0; }
-                10% { opacity: 1; }
-                90% { opacity: 1; }
-                100% { top: 94%; opacity: 0; }
-              }
-            `}</style>
           </div>
 
           {/* Right column */}
