@@ -21,6 +21,7 @@ const ContractManagement = lazy(() => import("@/components/admin/institution/Con
 const LicenseBilling = lazy(() => import("@/components/admin/institution/LicenseBilling"));
 const InstitutionAuditLog = lazy(() => import("@/components/admin/institution/InstitutionAuditLog"));
 const InstituteMembersTab = lazy(() => import("@/components/admin/institution/InstituteMembersTab"));
+const InstituteStudentsTab = lazy(() => import("@/components/admin/institution/InstituteStudentsTab"));
 
 interface Institution {
   id: string;
@@ -40,10 +41,11 @@ interface Institution {
   license_expires_at: string | null;
 }
 
-type Tab = "overview" | "members" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
+type Tab = "overview" | "students" | "members" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
 
 const TABS: { key: Tab; label: string; icon: any; color: string }[] = [
   { key: "overview", label: "Overview", icon: TrendingUp, color: "text-primary" },
+  { key: "students", label: "Students", icon: GraduationCap, color: "text-emerald-400" },
   { key: "members", label: "Members", icon: Users, color: "text-violet-400" },
   { key: "batches", label: "Batches", icon: Layers, color: "text-primary" },
   { key: "faculty", label: "Faculty", icon: Users, color: "text-blue-400" },
@@ -140,10 +142,16 @@ export default function InstituteAdminPage() {
           <div className="w-16 h-16 rounded-2xl bg-secondary mx-auto flex items-center justify-center">
             <Building2 className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">No Institution Linked</h1>
+          <h1 className="text-xl font-bold text-foreground">No Institute Linked</h1>
           <p className="text-sm text-muted-foreground">
-            Your account is not the admin of any institution. Contact ACRY support to onboard your institute.
+            Your account isn’t linked to any institute yet. Onboard your coaching, school or university in under a minute.
           </p>
+          <button
+            onClick={() => navigate("/institute/signup")}
+            className="w-full py-2.5 rounded-xl bg-primary text-sm font-bold text-primary-foreground hover:opacity-90"
+          >
+            Onboard My Institute
+          </button>
           <button onClick={handleSignOut} className="w-full py-2.5 rounded-xl bg-secondary text-sm font-medium text-foreground hover:bg-secondary/80">
             Sign out
           </button>
@@ -340,6 +348,7 @@ export default function InstituteAdminPage() {
             )}
 
             <Suspense fallback={<Loader />}>
+              {tab === "students" && <InstituteStudentsTab institutionId={institution.id} institutionName={institution.name} />}
               {tab === "members" && <InstituteMembersTab institutionId={institution.id} institutionName={institution.name} />}
               {tab === "batches" && <BatchManagement institutionId={institution.id} institutionName={institution.name} />}
               {tab === "faculty" && <FacultyDashboard institutionId={institution.id} />}
