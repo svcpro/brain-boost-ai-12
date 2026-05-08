@@ -42,21 +42,12 @@ interface Institution {
   license_expires_at: string | null;
 }
 
-type Tab = "overview" | "onboarding" | "students" | "members" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
+type Tab = "overview" | "students" | "earnings";
 
 const TABS: { key: Tab; label: string; icon: any; color: string }[] = [
   { key: "overview", label: "Overview", icon: TrendingUp, color: "text-primary" },
-  { key: "onboarding", label: "QR & Invites", icon: QrCode, color: "text-cyan-400" },
   { key: "students", label: "Students", icon: GraduationCap, color: "text-emerald-400" },
-  { key: "members", label: "Members", icon: Users, color: "text-violet-400" },
-  { key: "batches", label: "Batches", icon: Layers, color: "text-primary" },
-  { key: "faculty", label: "Faculty", icon: Users, color: "text-blue-400" },
-  { key: "branding", label: "Branding", icon: Palette, color: "text-pink-400" },
-  { key: "features", label: "Features", icon: Settings, color: "text-amber-400" },
-  { key: "domains", label: "Domains", icon: Globe, color: "text-emerald-400" },
-  { key: "contracts", label: "Contracts", icon: FileText, color: "text-violet-400" },
-  { key: "billing", label: "Billing", icon: CreditCard, color: "text-success" },
-  { key: "audit", label: "Audit", icon: Fingerprint, color: "text-red-400" },
+  { key: "earnings", label: "Earnings", icon: IndianRupee, color: "text-success" },
 ];
 
 const TYPE_ICON: Record<string, any> = {
