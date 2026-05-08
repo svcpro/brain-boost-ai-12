@@ -86,7 +86,12 @@ export default function FeatureToggles({ institutionId, institutionName }: Props
   };
 
   const toggleFeature = async (feature: Feature) => {
-    await supabase.from("whitelabel_features").update({ is_enabled: !feature.is_enabled }).eq("id", feature.id);
+    if (feature.institution_id !== institutionId) return;
+    await supabase
+      .from("whitelabel_features")
+      .update({ is_enabled: !feature.is_enabled })
+      .eq("id", feature.id)
+      .eq("institution_id", institutionId);
     setFeatures(prev => prev.map(f => f.id === feature.id ? { ...f, is_enabled: !f.is_enabled } : f));
   };
 

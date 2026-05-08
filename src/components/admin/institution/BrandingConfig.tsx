@@ -68,7 +68,7 @@ export default function BrandingConfig({ institutionId, institutionName }: Props
     delete (payload as any).id;
 
     if (branding.id) {
-      const { error } = await supabase.from("whitelabel_branding").update(payload).eq("id", branding.id);
+      const { error } = await supabase.from("whitelabel_branding").update(payload).eq("id", branding.id).eq("institution_id", institutionId);
       if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
       else toast({ title: "Branding saved ✅" });
     } else {

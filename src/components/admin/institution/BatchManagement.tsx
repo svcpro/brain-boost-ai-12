@@ -87,13 +87,21 @@ export default function BatchManagement({ institutionId, institutionName }: Prop
   };
 
   const toggleBatch = async (batch: Batch) => {
-    await supabase.from("institution_batches").update({ is_active: !batch.is_active }).eq("id", batch.id);
+    await supabase
+      .from("institution_batches")
+      .update({ is_active: !batch.is_active })
+      .eq("id", batch.id)
+      .eq("institution_id", institutionId);
     loadBatches();
   };
 
   const deleteBatch = async (batchId: string) => {
     if (!confirm("Delete this batch and all student assignments?")) return;
-    await supabase.from("institution_batches").delete().eq("id", batchId);
+    await supabase
+      .from("institution_batches")
+      .delete()
+      .eq("id", batchId)
+      .eq("institution_id", institutionId);
     if (selectedBatch?.id === batchId) setSelectedBatch(null);
     loadBatches();
   };
@@ -116,6 +124,10 @@ export default function BatchManagement({ institutionId, institutionName }: Prop
 
   const handleCSVUpload = async () => {
     if (!csvFile || !selectedBatch) return;
+    if (selectedBatch.institution_id !== institutionId) {
+      toast({ title: "Scope error", description: "Batch does not belong to this institute", variant: "destructive" });
+      return;
+    }
     setUploading(true);
     try {
       const text = await csvFile.text();
@@ -147,7 +159,12 @@ export default function BatchManagement({ institutionId, institutionName }: Prop
   };
 
   const removeStudent = async (studentId: string) => {
-    await supabase.from("batch_students").delete().eq("id", studentId);
+    if (!selectedBatch || selectedBatch.institution_id !== institutionId) return;
+    await supabase
+      .from("batch_students")
+      .delete()
+      .eq("id", studentId)
+      .eq("batch_id", selectedBatch.id);
     if (selectedBatch) loadStudents(selectedBatch.id);
   };
 
