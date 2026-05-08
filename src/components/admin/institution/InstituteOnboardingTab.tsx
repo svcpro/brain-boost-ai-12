@@ -300,6 +300,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
   return (
     <>
     <div className="space-y-5">
+      {showShare && <>
       {/* Hero with QR */}
       <div
         className="relative overflow-hidden rounded-3xl border border-border p-5"
