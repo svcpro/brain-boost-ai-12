@@ -20,6 +20,7 @@ const DomainManagement = lazy(() => import("@/components/admin/institution/Domai
 const ContractManagement = lazy(() => import("@/components/admin/institution/ContractManagement"));
 const LicenseBilling = lazy(() => import("@/components/admin/institution/LicenseBilling"));
 const InstitutionAuditLog = lazy(() => import("@/components/admin/institution/InstitutionAuditLog"));
+const InstituteMembersTab = lazy(() => import("@/components/admin/institution/InstituteMembersTab"));
 
 interface Institution {
   id: string;
@@ -39,10 +40,11 @@ interface Institution {
   license_expires_at: string | null;
 }
 
-type Tab = "overview" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
+type Tab = "overview" | "members" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
 
 const TABS: { key: Tab; label: string; icon: any; color: string }[] = [
   { key: "overview", label: "Overview", icon: TrendingUp, color: "text-primary" },
+  { key: "members", label: "Members", icon: Users, color: "text-violet-400" },
   { key: "batches", label: "Batches", icon: Layers, color: "text-primary" },
   { key: "faculty", label: "Faculty", icon: Users, color: "text-blue-400" },
   { key: "branding", label: "Branding", icon: Palette, color: "text-pink-400" },
