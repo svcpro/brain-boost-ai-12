@@ -5106,6 +5106,7 @@ export type Database = {
           joined_at: string | null
           metadata: Json | null
           role: string
+          source: string | null
           user_id: string
         }
         Insert: {
@@ -5115,6 +5116,7 @@ export type Database = {
           joined_at?: string | null
           metadata?: Json | null
           role?: string
+          source?: string | null
           user_id: string
         }
         Update: {
@@ -5124,6 +5126,7 @@ export type Database = {
           joined_at?: string | null
           metadata?: Json | null
           role?: string
+          source?: string | null
           user_id?: string
         }
         Relationships: [
@@ -5151,6 +5154,7 @@ export type Database = {
           max_students: number | null
           name: string
           primary_color: string | null
+          referral_code: string
           secondary_color: string | null
           settings: Json | null
           slug: string
@@ -5173,6 +5177,7 @@ export type Database = {
           max_students?: number | null
           name: string
           primary_color?: string | null
+          referral_code: string
           secondary_color?: string | null
           settings?: Json | null
           slug: string
@@ -5195,6 +5200,7 @@ export type Database = {
           max_students?: number | null
           name?: string
           primary_color?: string | null
+          referral_code?: string
           secondary_color?: string | null
           settings?: Json | null
           slug?: string
@@ -11833,6 +11839,7 @@ export type Database = {
         }[]
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      gen_short_referral_code: { Args: never; Returns: string }
       generate_acry_api_key: { Args: never; Returns: string }
       has_permission: {
         Args: { _permission: string; _user_id: string }
@@ -11850,6 +11857,11 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      join_institution_by_referral: {
+        Args: { p_code: string; p_source?: string }
+        Returns: Json
+      }
+      peek_institution_by_referral: { Args: { p_code: string }; Returns: Json }
       peek_institution_invite: { Args: { p_token: string }; Returns: Json }
       reset_monthly_api_usage: { Args: never; Returns: undefined }
       sms_quota_increment: { Args: { p_user_id: string }; Returns: number }
