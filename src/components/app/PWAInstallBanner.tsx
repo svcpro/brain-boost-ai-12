@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, X, Share } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -11,6 +12,7 @@ const DISMISSED_KEY = "pwa-install-dismissed";
 const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000; // Re-show after 24 hours
 
 const PWAInstallBanner = () => {
+  const location = useLocation();
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
   const [hasNativePrompt, setHasNativePrompt] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
@@ -99,7 +101,7 @@ const PWAInstallBanner = () => {
     localStorage.setItem(DISMISSED_KEY, Date.now().toString());
   }, []);
 
-  if (isStandalone) return null;
+  if (isStandalone || location.pathname.startsWith("/institute")) return null;
 
   return (
     <AnimatePresence>
