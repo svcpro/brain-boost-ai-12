@@ -510,10 +510,7 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
               </div>
 
               <div className="p-4 border-t border-border bg-card/60 shrink-0">
-                {/* Actions */}
                 <div className="flex gap-2">
-                {/* Actions */}
-                <div className="flex gap-2 pt-1">
                   <button
                     onClick={() => toggleActive(drill)}
                     disabled={busy === drill.id}
