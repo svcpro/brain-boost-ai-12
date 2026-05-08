@@ -57,6 +57,7 @@ const MyRankResult = lazy(() => import("./pages/myrank/MyRankResult"));
 const MyRankLeaderboard = lazy(() => import("./pages/myrank/MyRankLeaderboard"));
 const InstituteAdminPage = lazy(() => import("./pages/InstituteAdminPage"));
 const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
+const InstituteLoginPage = lazy(() => import("./pages/InstituteLoginPage"));
 
 // Lazy load heavy components
 const PWAInstallBanner = lazy(() => import("@/components/app/PWAInstallBanner"));
@@ -156,6 +157,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/invite/:token" element={<AcceptInvitePage />} />
+              <Route path="/institute/login" element={<InstituteLoginPage />} />
               <Route path="/institute" element={
                 <ProtectedRoute>
                   <InstituteAdminPage />

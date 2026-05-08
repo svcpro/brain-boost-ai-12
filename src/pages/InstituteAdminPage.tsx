@@ -75,7 +75,7 @@ export default function InstituteAdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
 
   useEffect(() => {
-    if (!user) { navigate("/auth"); return; }
+    if (!user) { navigate("/institute/login"); return; }
     loadInstitute();
   }, [user]);
 
@@ -122,7 +122,7 @@ export default function InstituteAdminPage() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/auth");
+    navigate("/institute/login");
   };
 
   if (loading) {
