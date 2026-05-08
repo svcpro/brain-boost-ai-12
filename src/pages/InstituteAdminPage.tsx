@@ -342,6 +342,7 @@ export default function InstituteAdminPage() {
             )}
 
             <Suspense fallback={<Loader />}>
+              {tab === "students" && <InstituteStudentsTab institutionId={institution.id} institutionName={institution.name} />}
               {tab === "members" && <InstituteMembersTab institutionId={institution.id} institutionName={institution.name} />}
               {tab === "batches" && <BatchManagement institutionId={institution.id} institutionName={institution.name} />}
               {tab === "faculty" && <FacultyDashboard institutionId={institution.id} />}
