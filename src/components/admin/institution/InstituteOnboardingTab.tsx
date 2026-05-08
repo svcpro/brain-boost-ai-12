@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -75,7 +75,6 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [rotating, setRotating] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!institutionId) return;
@@ -137,71 +136,26 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
   );
   const accent = meta?.primary_color || "#6366f1";
 
-  // Generate QR with centered brand badge (uses error correction H ~30% tolerance)
+  // Generate a fully clean QR matrix. Branding stays outside the scannable area.
   useEffect(() => {
-    if (!joinUrl || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    QRCode.toCanvas(canvas, joinUrl, {
-      width: 280,
-      margin: 1,
-      color: { dark: "#0B0F1A", light: "#FFFFFF" },
-      errorCorrectionLevel: "H",
-    })
-      .then(() => {
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        const w = canvas.width;
-        const badgeSize = Math.round(w * 0.16);
-        const cx = w / 2;
-        const cy = w / 2;
-        // White rounded square base
-        const r = badgeSize / 2;
-        const x = cx - r;
-        const y = cy - r;
-        const radius = badgeSize * 0.22;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.arcTo(x + badgeSize, y, x + badgeSize, y + badgeSize, radius);
-        ctx.arcTo(x + badgeSize, y + badgeSize, x, y + badgeSize, radius);
-        ctx.arcTo(x, y + badgeSize, x, y, radius);
-        ctx.arcTo(x, y, x + badgeSize, y, radius);
-        ctx.closePath();
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fill();
-        // Gradient brand chip
-        const grad = ctx.createLinearGradient(x, y, x + badgeSize, y + badgeSize);
-        grad.addColorStop(0, accent);
-        grad.addColorStop(0.5, "#7C4DFF");
-        grad.addColorStop(1, "#00E5FF");
-        const inset = badgeSize * 0.08;
-        ctx.beginPath();
-        const ix = x + inset, iy = y + inset, iw = badgeSize - inset * 2;
-        const ir = (badgeSize - inset * 2) * 0.22;
-        ctx.moveTo(ix + ir, iy);
-        ctx.arcTo(ix + iw, iy, ix + iw, iy + iw, ir);
-        ctx.arcTo(ix + iw, iy + iw, ix, iy + iw, ir);
-        ctx.arcTo(ix, iy + iw, ix, iy, ir);
-        ctx.arcTo(ix, iy, ix + iw, iy, ir);
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
-        // ACRY text
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = `900 ${Math.round(badgeSize * 0.32)}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("ACRY", cx, cy);
-        ctx.restore();
-      })
-      .catch(() => {});
+    if (!joinUrl) {
+      setQrDataUrl("");
+      return;
+    }
+    let cancelled = false;
     QRCode.toDataURL(joinUrl, {
-      width: 800,
-      margin: 2,
-      color: { dark: "#0B0F1A", light: "#FFFFFF" },
+      type: "image/png",
+      width: 1024,
+      margin: 4,
+      color: { dark: "#000000", light: "#FFFFFF" },
       errorCorrectionLevel: "H",
-    }).then(setQrDataUrl).catch(() => {});
-  }, [joinUrl, accent]);
+    }).then((url) => {
+      if (!cancelled) setQrDataUrl(url);
+    }).catch(() => {
+      if (!cancelled) setQrDataUrl("");
+    });
+    return () => { cancelled = true; };
+  }, [joinUrl]);
 
   const copy = async (text: string, label: string) => {
     try {
@@ -421,7 +375,18 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                     style={{ borderColor: accent }}
                   />
                 ))}
-                <canvas ref={canvasRef} className="block" />
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt={`ACRY invite QR code for ${institutionName}`}
+                    className="block w-[280px] h-[280px] max-w-full object-contain"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="w-[280px] h-[280px] max-w-full grid place-items-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    Generating QR
+                  </div>
+                )}
               </div>
 
               {/* Footer band */}
