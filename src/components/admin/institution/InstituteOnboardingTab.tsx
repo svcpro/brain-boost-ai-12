@@ -57,10 +57,10 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: inst }, { data: members }] = await Promise.all([
+      const [{ data: inst }, { data: members }, { data: comm }] = await Promise.all([
         supabase
           .from("institutions")
-          .select("referral_code, primary_color, logo_url")
+          .select("referral_code, primary_color, logo_url, commission_rate")
           .eq("id", institutionId)
           .maybeSingle(),
         supabase
@@ -68,6 +68,11 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
           .select("source")
           .eq("institution_id", institutionId)
           .eq("role", "student"),
+        supabase
+          .from("institution_commissions")
+          .select("id, source, gross_amount, commission_amount, currency, status, created_at, paid_at")
+          .eq("institution_id", institutionId)
+          .order("created_at", { ascending: false }),
       ]);
 
       setMeta(inst as any);
@@ -82,6 +87,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
         .sort((a, b) => b.count - a.count);
       setStats(arr);
       setTotalJoins((members || []).length);
+      setCommissions(((comm as any[]) || []) as CommissionRow[]);
     } catch (e: any) {
       toast({ title: "Failed to load", description: e.message, variant: "destructive" });
     } finally {
