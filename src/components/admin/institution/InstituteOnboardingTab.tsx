@@ -120,11 +120,17 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
     }
   };
 
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  // Always use the canonical ACRY brand domain for public invite links
+  const BRAND_HOST = "acry.ai";
+  const BRAND_BASE = `https://${BRAND_HOST}`;
   const referralCode = meta?.referral_code || "";
   const joinUrl = useMemo(
-    () => (referralCode ? `${baseUrl}/join/${referralCode}` : ""),
-    [baseUrl, referralCode],
+    () => (referralCode ? `${BRAND_BASE}/i/${referralCode}` : ""),
+    [referralCode],
+  );
+  const joinUrlDisplay = useMemo(
+    () => (referralCode ? `${BRAND_HOST}/i/${referralCode}` : ""),
+    [referralCode],
   );
   const accent = meta?.primary_color || "#6366f1";
 
