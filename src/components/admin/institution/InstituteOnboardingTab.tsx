@@ -67,6 +67,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
   const [stats, setStats] = useState<SourceStat[]>([]);
   const [totalJoins, setTotalJoins] = useState(0);
   const [commissions, setCommissions] = useState<CommissionRow[]>([]);
+  const [drillSource, setDrillSource] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [rotating, setRotating] = useState(false);
