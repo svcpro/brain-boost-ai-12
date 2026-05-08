@@ -49,8 +49,7 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 80, opacity: 0 }}
         transition={{ type: "spring", stiffness: 220, damping: 22 }}
-        className="fixed left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-[398px] pointer-events-auto"
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
+        className="absolute left-3 right-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] z-[60] pointer-events-auto"
       >
         <motion.div
           animate={{
