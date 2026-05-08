@@ -63,7 +63,9 @@ const CommissionKpi = ({
   </div>
 );
 
-export default function InstituteOnboardingTab({ institutionId, institutionName }: Props) {
+export default function InstituteOnboardingTab({ institutionId, institutionName, view = "all" }: Props) {
+  const showShare = view === "share" || view === "all";
+  const showEarnings = view === "earnings" || view === "all";
   const { toast } = useToast();
   const [meta, setMeta] = useState<InstMeta | null>(null);
   const [stats, setStats] = useState<SourceStat[]>([]);
