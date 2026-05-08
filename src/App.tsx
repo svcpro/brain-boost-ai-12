@@ -174,8 +174,8 @@ const App = () => (
                   <AdminPanel />
                 </AdminProtectedRoute>
               } />
-              {/* Institution path-based routing */}
-              <Route path="/i/:institutionSlug" element={<InstitutionLayout />}>
+              {/* Institution path-based sub-routes (slug-based) */}
+              <Route path="/inst/:institutionSlug" element={<InstitutionLayout />}>
                 <Route index element={<Index />} />
                 <Route path="auth" element={<AuthPage />} />
                 <Route path="app" element={
