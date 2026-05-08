@@ -254,7 +254,24 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
     );
   }
 
+  const drillRows = drillSource
+    ? commissions
+        .filter((c) => (c.source || "direct") === drillSource)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    : [];
+  const drillTotals = drillRows.reduce(
+    (acc, c) => {
+      const amt = Number(c.commission_amount || 0);
+      acc.total += amt;
+      if (c.status === "paid") acc.paid += amt;
+      else if (c.status !== "reversed") acc.pending += amt;
+      return acc;
+    },
+    { total: 0, paid: 0, pending: 0 }
+  );
+
   return (
+    <>
     <div className="space-y-5">
       {/* Hero with QR */}
       <div
