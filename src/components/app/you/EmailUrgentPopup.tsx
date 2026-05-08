@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";

@@ -1,5 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain } from "lucide-react";
+import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 
 interface VoiceNotificationOverlayProps {
   playing: boolean;
@@ -7,9 +9,15 @@ interface VoiceNotificationOverlayProps {
 }
 
 const VoiceNotificationOverlay = ({ playing, subtitle }: VoiceNotificationOverlayProps) => {
-  if (!playing && !subtitle) return null;
+  const [host, setHost] = useState<Element | null>(null);
+  useEffect(() => {
+    setHost(document.querySelector(".app-device-inner"));
+  }, []);
 
-  return (
+  if (!playing && !subtitle) return null;
+  if (!host) return null;
+
+  return createPortal(
     <AnimatePresence>
       {(playing || subtitle) && (
         <motion.div
@@ -84,7 +92,8 @@ const VoiceNotificationOverlay = ({ playing, subtitle }: VoiceNotificationOverla
           )}
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    host
   );
 };
 
