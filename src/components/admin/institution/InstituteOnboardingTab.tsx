@@ -798,6 +798,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
           <li>• Rotate the code when a campaign ends to keep analytics clean.</li>
         </ul>
       </div>
+      </>}
     </div>
 
     <Dialog open={!!drillSource} onOpenChange={(o) => !o && setDrillSource(null)}>
