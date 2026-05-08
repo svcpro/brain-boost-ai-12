@@ -541,22 +541,312 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
       </>}
 
       {showEarnings && <>
-      {/* Source attribution analytics */}
-      <div className="rounded-2xl bg-card border border-border p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" /> Source Attribution
-          </h3>
-          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <Users className="w-3 h-3" /> {totalJoins} total students
-          </span>
-        </div>
+      {/* ═══════════════ ULTRA VAULT HERO ═══════════════ */}
+      <div
+        className="relative overflow-hidden rounded-[28px] border border-border/60 p-5 sm:p-6"
+        style={{
+          background: `
+            radial-gradient(ellipse 100% 80% at 50% 0%, #7C4DFF20 0%, transparent 60%),
+            radial-gradient(ellipse 90% 60% at 100% 100%, #00E5FF18 0%, transparent 55%),
+            radial-gradient(ellipse 80% 60% at 0% 100%, #10B98115 0%, transparent 60%),
+            linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--background)) 100%)
+          `,
+        }}
+      >
+        {/* Mesh grid overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.07] pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+            maskImage: "radial-gradient(ellipse 70% 60% at 50% 30%, black 30%, transparent 80%)",
+          }}
+        />
+        {/* Floating orbs */}
+        <div className="absolute -top-20 -right-16 w-72 h-72 rounded-full blur-3xl pointer-events-none animate-pulse"
+          style={{ background: "#7C4DFF30", animationDuration: "6s" }} />
+        <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full blur-3xl pointer-events-none animate-pulse"
+          style={{ background: "#00E5FF20", animationDuration: "8s" }} />
 
-        {stats.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-2">
-            No students enrolled yet. Share your QR or link to start tracking.
-          </p>
-        ) : (
+        <div className="relative">
+          {/* Header pill */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-2xl blur-md opacity-70" style={{ background: "linear-gradient(135deg, #7C4DFF, #00E5FF)" }} />
+                <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center"
+                  style={{ background: "linear-gradient(135deg, #7C4DFF, #00E5FF)" }}>
+                  <Wallet className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground">ACRY Vault</div>
+                <h3 className="text-base font-black text-foreground leading-tight">Earnings Intelligence</h3>
+              </div>
+            </div>
+            <span
+              className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg flex items-center gap-1 backdrop-blur"
+              style={{ background: "linear-gradient(135deg, #7C4DFF20, #00E5FF20)", color: "#A78BFA", border: "1px solid #7C4DFF50" }}
+            >
+              <Percent className="w-3 h-3" />
+              {Math.round((meta?.commission_rate ?? 0.2) * 100)}%
+            </span>
+          </div>
+
+          {/* HERO RING + TOTAL */}
+          <div className="grid grid-cols-[auto,1fr] gap-5 items-center mb-5">
+            {/* SVG Radial Ring */}
+            <div className="relative w-[124px] h-[124px] shrink-0">
+              <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                <defs>
+                  <linearGradient id="ringPaid" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#10B981" />
+                    <stop offset="100%" stopColor="#34D399" />
+                  </linearGradient>
+                  <linearGradient id="ringPending" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FBBF24" />
+                    <stop offset="100%" stopColor="#F59E0B" />
+                  </linearGradient>
+                </defs>
+                {/* Track */}
+                <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" opacity="0.3" />
+                {/* Pending arc (drawn first, below paid) */}
+                <circle
+                  cx="60" cy="60" r="50" fill="none"
+                  stroke="url(#ringPending)" strokeWidth="10" strokeLinecap="round"
+                  strokeDasharray={`${(commissionStats.pendingPct + commissionStats.paidPct) * 3.14159} 999`}
+                  style={{ transition: "stroke-dasharray 0.8s ease" }}
+                />
+                {/* Paid arc on top */}
+                <circle
+                  cx="60" cy="60" r="50" fill="none"
+                  stroke="url(#ringPaid)" strokeWidth="10" strokeLinecap="round"
+                  strokeDasharray={`${commissionStats.paidPct * 3.14159} 999`}
+                  style={{ transition: "stroke-dasharray 0.8s ease", filter: "drop-shadow(0 0 6px #10B98180)" }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="text-[9px] uppercase tracking-widest font-bold text-muted-foreground">Paid</div>
+                <div className="text-2xl font-black tabular-nums text-emerald-400 leading-none">{commissionStats.paidPct}%</div>
+                <div className="text-[9px] text-amber-400/80 font-bold mt-0.5">+{commissionStats.pendingPct}% pending</div>
+              </div>
+            </div>
+
+            {/* Total + this month */}
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground">Lifetime Earned</div>
+              <div className="text-[40px] leading-none font-black tracking-tight tabular-nums truncate"
+                style={{ background: "linear-gradient(135deg, #ffffff 0%, #A78BFA 50%, #00E5FF 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                {fmt(commissionStats.totalEarned)}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "#00E5FF15", border: "1px solid #00E5FF40" }}>
+                  <CalendarClock className="w-3 h-3 text-cyan-400" />
+                  <span className="text-[10px] font-bold text-cyan-400">This month</span>
+                  <span className="text-[11px] font-extrabold text-cyan-300 tabular-nums">{fmt(commissionStats.thisMonth)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* KPI TRIO — glass tiles */}
+          <div className="grid grid-cols-3 gap-2 mb-5">
+            <div className="relative rounded-2xl p-3 overflow-hidden border border-emerald-500/30"
+              style={{ background: "linear-gradient(135deg, #10B98120, #10B98105)" }}>
+              <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full blur-2xl" style={{ background: "#10B98140" }} />
+              <div className="relative">
+                <BadgeCheck className="w-4 h-4 text-emerald-400 mb-1" />
+                <div className="text-[9px] uppercase tracking-wider font-bold text-emerald-400/80">Paid</div>
+                <div className="text-base font-black text-emerald-400 tabular-nums leading-tight truncate">{fmt(commissionStats.paid)}</div>
+              </div>
+            </div>
+            <div className="relative rounded-2xl p-3 overflow-hidden border border-amber-500/30"
+              style={{ background: "linear-gradient(135deg, #FBBF2420, #FBBF2405)" }}>
+              <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full blur-2xl" style={{ background: "#FBBF2440" }} />
+              <div className="relative">
+                <Hourglass className="w-4 h-4 text-amber-400 mb-1" />
+                <div className="text-[9px] uppercase tracking-wider font-bold text-amber-400/80">Pending</div>
+                <div className="text-base font-black text-amber-400 tabular-nums leading-tight truncate">{fmt(commissionStats.pending)}</div>
+              </div>
+            </div>
+            <div className="relative rounded-2xl p-3 overflow-hidden border border-cyan-500/30"
+              style={{ background: "linear-gradient(135deg, #00E5FF20, #00E5FF05)" }}>
+              <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full blur-2xl" style={{ background: "#00E5FF40" }} />
+              <div className="relative">
+                <Zap className="w-4 h-4 text-cyan-400 mb-1" />
+                <div className="text-[9px] uppercase tracking-wider font-bold text-cyan-400/80">Conv. Rate</div>
+                <div className="text-base font-black text-cyan-400 tabular-nums leading-tight">{commissionStats.conversionRate}%</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Conversion bar */}
+          <div className="rounded-2xl bg-background/40 backdrop-blur border border-border/40 p-3 mb-5">
+            <div className="flex items-center justify-between text-[11px] mb-1.5">
+              <span className="font-bold text-foreground flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-primary" />
+                {commissionStats.conversions} of {totalJoins} students converted
+              </span>
+              <span className="font-black text-emerald-400 tabular-nums">{commissionStats.conversionRate}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-secondary/60 overflow-hidden">
+              <div
+                className="h-full rounded-full relative overflow-hidden"
+                style={{
+                  width: `${commissionStats.conversionRate}%`,
+                  background: "linear-gradient(90deg, #10B981, #00E5FF)",
+                  transition: "width 0.8s ease",
+                }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-[shimmer_2.5s_infinite]" />
+              </div>
+            </div>
+          </div>
+
+          {/* PAYOUT TIMELINE — horizontal scroll cards */}
+          {commissionStats.schedule.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <CalendarClock className="w-3.5 h-3.5 text-amber-400" /> Upcoming Payouts
+                </h4>
+                <span className="text-[9px] text-muted-foreground font-semibold">1st of month</span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x">
+                {commissionStats.schedule.map((b, i) => {
+                  const days = differenceInDays(b.date, new Date());
+                  const isNext = i === 0;
+                  return (
+                    <div
+                      key={b.date.toISOString()}
+                      className={cn(
+                        "shrink-0 w-[140px] rounded-2xl p-3 border snap-start relative overflow-hidden transition-all",
+                        isNext
+                          ? "border-amber-400/60 bg-gradient-to-br from-amber-500/15 to-amber-500/5"
+                          : "border-border/50 bg-background/40"
+                      )}
+                    >
+                      {isNext && (
+                        <div className="absolute -top-4 -right-4 w-12 h-12 rounded-full blur-2xl bg-amber-400/40 animate-pulse" />
+                      )}
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className={cn(
+                            "w-6 h-6 rounded-lg flex items-center justify-center",
+                            isNext ? "bg-amber-400/25" : "bg-secondary"
+                          )}>
+                            {isNext ? <Zap className="w-3 h-3 text-amber-400" /> : <CalendarClock className="w-3 h-3 text-muted-foreground" />}
+                          </div>
+                          {isNext && (
+                            <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/40">
+                              Next
+                            </span>
+                          )}
+                        </div>
+                        <div className={cn("text-[10px] font-bold uppercase tracking-wider", isNext ? "text-amber-400" : "text-muted-foreground")}>
+                          {format(b.date, "dd MMM")}
+                        </div>
+                        <div className={cn("text-base font-black tabular-nums leading-tight", isNext ? "text-amber-400" : "text-foreground")}>
+                          {fmt(b.amount)}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
+                          {b.count} txn · {days > 0 ? `${days}d left` : days === 0 ? "today" : `${Math.abs(days)}d ago`}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* SOURCE BREAKDOWN */}
+          {commissionStats.sourceRows.length > 0 ? (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Revenue by Channel
+                </h4>
+                <span className="text-[9px] text-muted-foreground flex items-center gap-1 font-semibold">
+                  Tap to drill <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {commissionStats.sourceRows.map((r) => {
+                  const pct = commissionStats.totalEarned
+                    ? Math.round((r.earned / commissionStats.totalEarned) * 100)
+                    : 0;
+                  const color = sourceColor(r.source);
+                  return (
+                    <button
+                      key={r.source}
+                      type="button"
+                      onClick={() => setDrillSource(r.source)}
+                      className="w-full text-left rounded-2xl p-3 bg-background/40 border border-border/40 hover:border-primary/40 hover:bg-secondary/30 transition-all group relative overflow-hidden"
+                    >
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-1 rounded-r"
+                        style={{ background: color, boxShadow: `0 0 12px ${color}` }}
+                      />
+                      <div className="flex items-center justify-between text-xs mb-2 pl-2">
+                        <span className="font-bold text-foreground capitalize flex items-center gap-1.5">
+                          <SourceDot source={r.source} />
+                          {r.source}
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            ({r.conversions}/{r.joins})
+                          </span>
+                        </span>
+                        <span className="font-black text-foreground tabular-nums flex items-center gap-1">
+                          {fmt(r.earned)}
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                        </span>
+                      </div>
+                      <div className="pl-2 h-1.5 rounded-full bg-secondary/60 overflow-hidden flex">
+                        {r.earned > 0 && (
+                          <>
+                            <div className="h-full transition-all" style={{ width: `${Math.round((r.paid / r.earned) * pct)}%`, background: "#10B981" }} />
+                            <div className="h-full transition-all" style={{ width: `${Math.round((r.pending / r.earned) * pct)}%`, background: "#FBBF24" }} />
+                          </>
+                        )}
+                      </div>
+                      <div className="pl-2 flex items-center gap-3 mt-1.5 text-[10px]">
+                        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          Paid {fmt(r.paid)}
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                          Pending {fmt(r.pending)}
+                        </span>
+                        <span className="ml-auto text-muted-foreground font-semibold">{pct}%</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center bg-background/30">
+              <Wallet className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground font-semibold">No commissions yet</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-1">Earnings appear automatically when a referred student subscribes.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Source attribution analytics — secondary panel */}
+      {stats.length > 0 && (
+        <div className="rounded-2xl bg-card border border-border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" /> Student Sources
+            </h3>
+            <span className="text-[11px] text-muted-foreground">
+              <span className="font-bold text-foreground">{totalJoins}</span> total
+            </span>
+          </div>
           <div className="space-y-2">
             {stats.map((s) => {
               const pct = totalJoins ? Math.round((s.count / totalJoins) * 100) : 0;
@@ -574,286 +864,15 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                   <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${pct}%`,
-                        background: sourceColor(s.source),
-                      }}
+                      style={{ width: `${pct}%`, background: sourceColor(s.source) }}
                     />
                   </div>
                 </div>
               );
             })}
           </div>
-        )}
-      </div>
-
-      {/* ───── ULTRA-PREMIUM Commission Earnings ───── */}
-      <div
-        className="relative overflow-hidden rounded-3xl border p-5"
-        style={{
-          background: `radial-gradient(ellipse 90% 70% at 100% 0%, #7C4DFF22 0%, hsl(var(--card)) 55%), radial-gradient(ellipse 70% 50% at 0% 100%, #10B98115 0%, transparent 60%)`,
-          borderColor: "hsl(var(--border))",
-        }}
-      >
-        {/* Animated orbs */}
-        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full blur-3xl pointer-events-none animate-pulse"
-          style={{ background: "#7C4DFF22", animationDuration: "5s" }} />
-        <div className="absolute -bottom-20 -left-12 w-56 h-56 rounded-full blur-3xl pointer-events-none animate-pulse"
-          style={{ background: "#10B98118", animationDuration: "7s" }} />
-
-        <div className="relative">
-          {/* Section header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: "#7C4DFF20", border: "1px solid #7C4DFF40" }}>
-                <Wallet className="w-4 h-4 text-purple-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-foreground">Commission Earnings</h3>
-                <p className="text-[10px] text-muted-foreground">Realtime payout intelligence</p>
-              </div>
-            </div>
-            <span
-              className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md flex items-center gap-1"
-              style={{ background: "#7C4DFF20", color: "#A78BFA", border: "1px solid #7C4DFF40" }}
-            >
-              <Percent className="w-3 h-3" />
-              {Math.round((meta?.commission_rate ?? 0.2) * 100)}% rate
-            </span>
-          </div>
-
-          {/* HERO: Paid vs Pending split */}
-          <div className="rounded-2xl border border-border/60 bg-background/40 backdrop-blur p-4 mb-4">
-            <div className="flex items-end justify-between mb-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Total Earned</div>
-                <div className="text-3xl font-black tracking-tight tabular-nums"
-                  style={{ background: "linear-gradient(135deg, #A78BFA, #10B981)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                  {fmt(commissionStats.totalEarned)}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">This Month</div>
-                <div className="text-base font-extrabold text-cyan-400 tabular-nums">{fmt(commissionStats.thisMonth)}</div>
-              </div>
-            </div>
-
-            {/* Dual segmented bar (Paid vs Pending) */}
-            {commissionStats.totalEarned > 0 ? (
-              <>
-                <div className="h-3 rounded-full bg-secondary/60 overflow-hidden flex shadow-inner">
-                  <div
-                    className="h-full transition-all relative overflow-hidden"
-                    style={{
-                      width: `${commissionStats.paidPct}%`,
-                      background: "linear-gradient(90deg, #10B981, #34D399)",
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_2.5s_infinite]" />
-                  </div>
-                  <div
-                    className="h-full transition-all"
-                    style={{
-                      width: `${commissionStats.pendingPct}%`,
-                      background: "linear-gradient(90deg, #FBBF24, #F59E0B)",
-                    }}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <div className="rounded-xl p-2.5 border" style={{ background: "#10B98112", borderColor: "#10B98140" }}>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Paid Out</span>
-                    </div>
-                    <div className="flex items-baseline gap-1.5">
-                      <div className="text-lg font-black text-emerald-400 tabular-nums">{fmt(commissionStats.paid)}</div>
-                      <span className="text-[10px] text-emerald-400/70 font-bold">{commissionStats.paidPct}%</span>
-                    </div>
-                  </div>
-                  <div className="rounded-xl p-2.5 border" style={{ background: "#FBBF2412", borderColor: "#FBBF2440" }}>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Hourglass className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Pending Payout</span>
-                    </div>
-                    <div className="flex items-baseline gap-1.5">
-                      <div className="text-lg font-black text-amber-400 tabular-nums">{fmt(commissionStats.pending)}</div>
-                      <span className="text-[10px] text-amber-400/70 font-bold">{commissionStats.pendingPct}%</span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground py-2 text-center">
-                No conversions yet. Paid commissions will appear here.
-              </p>
-            )}
-
-            {/* Conversion summary */}
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/40 text-[11px]">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Users className="w-3 h-3" />
-                <span>
-                  <span className="font-bold text-foreground">{commissionStats.conversions}</span> of{" "}
-                  <span className="font-bold text-foreground">{totalJoins}</span> students converted
-                </span>
-              </div>
-              <span className="font-bold text-success">{commissionStats.conversionRate}%</span>
-            </div>
-          </div>
-
-          {/* PAYOUT SCHEDULE TIMELINE */}
-          {commissionStats.schedule.length > 0 && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <CalendarClock className="w-3.5 h-3.5 text-amber-400" /> Payout Schedule
-                </h4>
-                <span className="text-[10px] text-muted-foreground">Monthly · 1st of next month</span>
-              </div>
-              <div className="relative">
-                {/* Connector line */}
-                <div className="absolute left-3 top-3 bottom-3 w-px bg-gradient-to-b from-amber-400/40 via-border to-transparent" />
-                <div className="space-y-2">
-                  {commissionStats.schedule.map((b, i) => {
-                    const days = differenceInDays(b.date, new Date());
-                    const isNext = i === 0;
-                    return (
-                      <div key={b.date.toISOString()} className="relative flex items-start gap-3">
-                        {/* Node */}
-                        <div className="relative z-10 shrink-0">
-                          <div className={cn(
-                            "w-6 h-6 rounded-full flex items-center justify-center border-2",
-                            isNext
-                              ? "bg-amber-500/20 border-amber-400 animate-pulse"
-                              : "bg-secondary border-border"
-                          )}>
-                            {isNext ? (
-                              <Zap className="w-3 h-3 text-amber-400" />
-                            ) : (
-                              <CalendarClock className="w-3 h-3 text-muted-foreground" />
-                            )}
-                          </div>
-                        </div>
-                        <div className={cn(
-                          "flex-1 rounded-xl p-2.5 border transition-colors",
-                          isNext
-                            ? "bg-amber-500/10 border-amber-500/40"
-                            : "bg-secondary/30 border-border/50"
-                        )}>
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className={cn(
-                                "text-xs font-bold",
-                                isNext ? "text-amber-400" : "text-foreground"
-                              )}>
-                                {format(b.date, "dd MMM yyyy")}
-                                {isNext && (
-                                  <span className="ml-1.5 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-400/40">
-                                    Next
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground mt-0.5">
-                                {b.count} txn · {days > 0 ? `in ${days}d` : days === 0 ? "today" : `${Math.abs(days)}d ago`}
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className={cn("text-sm font-extrabold tabular-nums", isNext ? "text-amber-400" : "text-foreground")}>
-                                {fmt(b.amount)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Earnings by source (drill-through) */}
-          {commissionStats.sourceRows.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Breakdown by Source
-                </h4>
-                <span className="text-[9px] text-muted-foreground flex items-center gap-1">
-                  Tap to drill <ArrowRight className="w-2.5 h-2.5" />
-                </span>
-              </div>
-              <div className="space-y-1.5">
-                {commissionStats.sourceRows.map((r) => {
-                  const pct = commissionStats.totalEarned
-                    ? Math.round((r.earned / commissionStats.totalEarned) * 100)
-                    : 0;
-                  return (
-                    <button
-                      key={r.source}
-                      type="button"
-                      onClick={() => setDrillSource(r.source)}
-                      className="w-full text-left rounded-xl p-2.5 bg-background/40 border border-border/40 hover:border-primary/40 hover:bg-secondary/30 transition-all group"
-                    >
-                      <div className="flex items-center justify-between text-xs mb-1.5">
-                        <span className="font-bold text-foreground capitalize flex items-center gap-1.5">
-                          <SourceDot source={r.source} />
-                          {r.source}
-                          <span className="text-[10px] text-muted-foreground font-normal">
-                            ({r.conversions}/{r.joins})
-                          </span>
-                        </span>
-                        <span className="font-extrabold text-foreground tabular-nums flex items-center gap-1">
-                          {fmt(r.earned)}
-                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                        </span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden flex">
-                        {r.earned > 0 && (
-                          <>
-                            <div
-                              className="h-full transition-all"
-                              style={{
-                                width: `${Math.round((r.paid / r.earned) * pct)}%`,
-                                background: "#10B981",
-                              }}
-                            />
-                            <div
-                              className="h-full transition-all"
-                              style={{
-                                width: `${Math.round((r.pending / r.earned) * pct)}%`,
-                                background: "#FBBF24",
-                              }}
-                            />
-                          </>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1.5 text-[10px]">
-                        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          Paid {fmt(r.paid)}
-                        </span>
-                        <span className="flex items-center gap-1 text-amber-400 font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                          Pending {fmt(r.pending)}
-                        </span>
-                        <span className="ml-auto text-muted-foreground font-semibold">{pct}%</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {commissions.length === 0 && (
-            <p className="text-xs text-muted-foreground py-2 text-center">
-              No paid conversions yet. Commissions appear here automatically when a referred student subscribes.
-            </p>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Tips */}
       <div
