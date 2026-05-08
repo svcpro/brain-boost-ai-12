@@ -122,7 +122,7 @@ export default function InstituteAdminPage() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/auth");
+    navigate("/institute/login");
   };
 
   if (loading) {
