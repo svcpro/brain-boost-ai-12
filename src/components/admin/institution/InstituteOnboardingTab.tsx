@@ -207,8 +207,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     let totalEarned = 0, pending = 0, paid = 0, thisMonth = 0;
     let conversions = 0;
-    const bySource: Record<string, { count: number; earned: number }> = {};
-    const seenUsers = new Set<string>();
+    const bySource: Record<string, { count: number; earned: number; pending: number; paid: number }> = {};
     commissions.forEach((c) => {
       const amt = Number(c.commission_amount || 0);
       totalEarned += amt;
@@ -217,15 +216,19 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
       if (new Date(c.created_at).getTime() >= monthStart) thisMonth += amt;
       conversions += 1;
       const src = c.source || "direct";
-      if (!bySource[src]) bySource[src] = { count: 0, earned: 0 };
+      if (!bySource[src]) bySource[src] = { count: 0, earned: 0, pending: 0, paid: 0 };
       bySource[src].count += 1;
       bySource[src].earned += amt;
+      if (c.status === "paid") bySource[src].paid += amt;
+      else if (c.status !== "reversed") bySource[src].pending += amt;
     });
     const sourceRows = Object.entries(bySource)
       .map(([source, v]) => ({
         source,
         conversions: v.count,
         earned: v.earned,
+        pending: v.pending,
+        paid: v.paid,
         joins: stats.find((s) => s.source === source)?.count ?? 0,
       }))
       .sort((a, b) => b.earned - a.earned);
