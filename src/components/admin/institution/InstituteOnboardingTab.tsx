@@ -181,6 +181,44 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
     }
   };
 
+  // ───── Commission analytics ─────
+  const commissionStats = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    let totalEarned = 0, pending = 0, paid = 0, thisMonth = 0;
+    let conversions = 0;
+    const bySource: Record<string, { count: number; earned: number }> = {};
+    const seenUsers = new Set<string>();
+    commissions.forEach((c) => {
+      const amt = Number(c.commission_amount || 0);
+      totalEarned += amt;
+      if (c.status === "paid") paid += amt;
+      else if (c.status !== "reversed") pending += amt;
+      if (new Date(c.created_at).getTime() >= monthStart) thisMonth += amt;
+      conversions += 1;
+      const src = c.source || "direct";
+      if (!bySource[src]) bySource[src] = { count: 0, earned: 0 };
+      bySource[src].count += 1;
+      bySource[src].earned += amt;
+    });
+    const sourceRows = Object.entries(bySource)
+      .map(([source, v]) => ({
+        source,
+        conversions: v.count,
+        earned: v.earned,
+        joins: stats.find((s) => s.source === source)?.count ?? 0,
+      }))
+      .sort((a, b) => b.earned - a.earned);
+    return {
+      totalEarned, pending, paid, thisMonth, conversions,
+      sourceRows,
+      conversionRate: totalJoins ? Math.round((conversions / totalJoins) * 100) : 0,
+    };
+  }, [commissions, stats, totalJoins]);
+
+  const fmt = (n: number, currency = "INR") =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(n || 0);
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
