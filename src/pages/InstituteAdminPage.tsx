@@ -413,8 +413,9 @@ export default function InstituteAdminPage() {
             )}
 
             <Suspense fallback={<Loader />}>
+              {tab === "command" && <InstituteOnboardingTab institutionId={institution.id} institutionName={institution.name} view="share" />}
               {tab === "students" && <InstituteStudentsTab institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "earnings" && <InstituteOnboardingTab institutionId={institution.id} institutionName={institution.name} />}
+              {tab === "earnings" && <InstituteOnboardingTab institutionId={institution.id} institutionName={institution.name} view="earnings" />}
             </Suspense>
           </motion.div>
         </AnimatePresence>
