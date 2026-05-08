@@ -41,10 +41,11 @@ interface Institution {
   license_expires_at: string | null;
 }
 
-type Tab = "overview" | "members" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
+type Tab = "overview" | "students" | "members" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
 
 const TABS: { key: Tab; label: string; icon: any; color: string }[] = [
   { key: "overview", label: "Overview", icon: TrendingUp, color: "text-primary" },
+  { key: "students", label: "Students", icon: GraduationCap, color: "text-emerald-400" },
   { key: "members", label: "Members", icon: Users, color: "text-violet-400" },
   { key: "batches", label: "Batches", icon: Layers, color: "text-primary" },
   { key: "faculty", label: "Faculty", icon: Users, color: "text-blue-400" },
