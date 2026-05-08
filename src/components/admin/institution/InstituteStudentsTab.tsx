@@ -28,16 +28,32 @@ interface StudentRow {
   email: string | null;
   phone: string | null;
   avatar_url: string | null;
+  exam_type: string | null;
   plan_id: string | null;
   is_trial: boolean;
   sub_status: string | null;
   sub_amount: number;
-  last_seen_at: string | null;
+  sub_currency: string | null;
+  billing_cycle: string | null;
+  trial_start_date: string | null;
   trial_end_date: string | null;
+  sub_expires_at: string | null;
+  last_seen_at: string | null;
   earned: number;
   paid: number;
   pending: number;
   txns: number;
+  // Engagement (from leads)
+  stage: string | null;
+  lead_score: number;
+  study_hours_7d: number;
+  streak_days: number;
+  exam_count: number;
+  lead_last_active_at: string | null;
+  // Batch
+  batch_name: string | null;
+  batch_year: string | null;
+  roll_number: string | null;
 }
 
 type Filter = "all" | "active" | "revoked" | "paid" | "trial" | "free";
