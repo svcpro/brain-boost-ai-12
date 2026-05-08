@@ -474,7 +474,12 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                     ? Math.round((r.earned / commissionStats.totalEarned) * 100)
                     : 0;
                   return (
-                    <div key={r.source}>
+                    <button
+                      key={r.source}
+                      type="button"
+                      onClick={() => setDrillSource(r.source)}
+                      className="w-full text-left rounded-lg p-2 -mx-2 hover:bg-secondary/40 transition-colors"
+                    >
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="font-semibold text-foreground capitalize flex items-center gap-1.5">
                           <SourceDot source={r.source} />
@@ -483,7 +488,10 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                             ({r.conversions}/{r.joins} converted)
                           </span>
                         </span>
-                        <span className="font-bold text-foreground">{fmt(r.earned)}</span>
+                        <span className="font-bold text-foreground flex items-center gap-1">
+                          {fmt(r.earned)}
+                          <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                        </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden flex">
                         {r.earned > 0 && (
