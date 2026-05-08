@@ -410,18 +410,18 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
         )}
       </div>
 
-      {/* Drill modal */}
+      {/* Drill modal — Complete Profile */}
       <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
+        <DialogContent className="max-w-lg p-0 overflow-hidden max-h-[90vh] flex flex-col">
           {drill && (
             <>
-              <DialogHeader className="p-5 pb-3 border-b border-border bg-gradient-to-br from-card to-secondary/40">
+              <DialogHeader className="p-5 pb-4 border-b border-border bg-gradient-to-br from-primary/10 via-card to-secondary/40 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center overflow-hidden ring-2 ring-border">
+                  <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center overflow-hidden ring-2 ring-primary/30 shrink-0">
                     {drill.avatar_url ? (
                       <img src={drill.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-lg font-extrabold">
+                      <span className="text-xl font-extrabold text-primary">
                         {(drill.display_name || drill.email || "?").slice(0, 1).toUpperCase()}
                       </span>
                     )}
@@ -430,38 +430,73 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
                     <DialogTitle className="text-base font-extrabold truncate text-left">
                       {drill.display_name || "Unnamed Student"}
                     </DialogTitle>
-                    <div className="text-[11px] text-muted-foreground truncate text-left">
-                      {drill.email || drill.phone || "—"}
+                    <div className="text-[11px] text-muted-foreground truncate text-left mt-0.5">
+                      {drill.exam_type ? `🎯 ${drill.exam_type}` : "No exam selected"}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <Pill tone={drill.is_active ? "success" : "destructive"}>
+                        {drill.is_active ? "Active" : "Revoked"}
+                      </Pill>
+                      <Pill tone={planLabel(drill) === "Paid" ? "success" : planLabel(drill) === "Trial" ? "amber" : "muted"}>
+                        {planLabel(drill)}
+                      </Pill>
+                      {drill.stage && <Pill tone="muted">{drill.stage.replace("_", " ")}</Pill>}
                     </div>
                   </div>
                 </div>
               </DialogHeader>
-              <div className="p-5 space-y-4">
-                {/* Status row */}
-                <div className="flex flex-wrap gap-1.5">
-                  <Pill tone={drill.is_active ? "success" : "destructive"}>
-                    {drill.is_active ? "Access Active" : "Access Revoked"}
-                  </Pill>
-                  <Pill tone={planLabel(drill) === "Paid" ? "success" : planLabel(drill) === "Trial" ? "amber" : "muted"}>
-                    {planLabel(drill)}{drill.plan_id ? ` · ${drill.plan_id}` : ""}
-                  </Pill>
-                  {drill.source && <Pill tone="muted">via {drill.source}</Pill>}
-                </div>
 
-                {/* Learning */}
-                <Section icon={GraduationCap} title="Learning">
-                  <Row label="Joined" value={format(new Date(drill.joined_at), "dd MMM yyyy")} />
-                  <Row
-                    label="Last Active"
-                    value={drill.last_seen_at ? formatDistanceToNow(new Date(drill.last_seen_at), { addSuffix: true }) : "Never"}
-                  />
+              <div className="overflow-y-auto p-5 space-y-4">
+                {/* Contact */}
+                <Section icon={Phone} title="Contact">
+                  <Row label="Email" value={drill.email || "—"} />
+                  <Row label="Phone" value={drill.phone ? `+${drill.phone}` : "—"} />
+                  <Row label="User ID" value={drill.user_id.slice(0, 8) + "…"} />
+                </Section>
+
+                {/* Enrollment */}
+                <Section icon={GraduationCap} title="Enrollment">
+                  <Row label="Joined" value={format(new Date(drill.joined_at), "dd MMM yyyy, HH:mm")} />
+                  <Row label="Source" value={drill.source ? drill.source.toUpperCase() : "—"} />
+                  <Row label="Batch" value={drill.batch_name ? `${drill.batch_name}${drill.batch_year ? ` · ${drill.batch_year}` : ""}` : "—"} />
+                  {drill.roll_number && <Row label="Roll No." value={drill.roll_number} />}
+                  <Row label="Target Exam" value={drill.exam_type || "—"} />
+                </Section>
+
+                {/* Engagement */}
+                <Section icon={Activity} title="Engagement (Last 7 Days)">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Stat label="Study Hours" value={drill.study_hours_7d.toFixed(1) + "h"} tone="text-primary" />
+                    <Stat label="Streak" value={`${drill.streak_days}d 🔥`} tone="text-amber-400" />
+                    <Stat label="Exams Taken" value={String(drill.exam_count)} tone="text-foreground" />
+                    <Stat label="Lead Score" value={String(drill.lead_score)} tone="text-emerald-400" />
+                  </div>
+                  <div className="mt-2 text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Last seen {drill.lead_last_active_at
+                      ? formatDistanceToNow(new Date(drill.lead_last_active_at), { addSuffix: true })
+                      : drill.last_seen_at
+                        ? formatDistanceToNow(new Date(drill.last_seen_at), { addSuffix: true })
+                        : "Never"}
+                  </div>
+                </Section>
+
+                {/* Subscription */}
+                <Section icon={Crown} title="Subscription">
+                  <Row label="Plan" value={drill.plan_id || "Free"} />
+                  <Row label="Status" value={drill.sub_status || "—"} />
+                  <Row label="Billing" value={drill.billing_cycle || "—"} />
+                  <Row label="Amount" value={drill.sub_amount > 0 ? `${drill.sub_currency || "INR"} ${drill.sub_amount}` : "Free"} />
                   {drill.is_trial && drill.trial_end_date && (
                     <Row label="Trial Ends" value={format(new Date(drill.trial_end_date), "dd MMM yyyy")} />
+                  )}
+                  {drill.sub_expires_at && (
+                    <Row label="Expires" value={format(new Date(drill.sub_expires_at), "dd MMM yyyy")} />
                   )}
                 </Section>
 
                 {/* Commission */}
-                <Section icon={IndianRupee} title="Commission">
+                <Section icon={IndianRupee} title="Your Commission">
                   <div className="grid grid-cols-3 gap-2">
                     <Stat label="Earned" value={fmtINR(drill.earned)} tone="text-foreground" />
                     <Stat label="Paid" value={fmtINR(drill.paid)} tone="text-emerald-400" />
@@ -472,7 +507,11 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
                     {drill.txns} transaction{drill.txns === 1 ? "" : "s"}
                   </div>
                 </Section>
+              </div>
 
+              <div className="p-4 border-t border-border bg-card/60 shrink-0">
+                {/* Actions */}
+                <div className="flex gap-2">
                 {/* Actions */}
                 <div className="flex gap-2 pt-1">
                   <button
