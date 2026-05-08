@@ -21,6 +21,7 @@ const ContractManagement = lazy(() => import("@/components/admin/institution/Con
 const LicenseBilling = lazy(() => import("@/components/admin/institution/LicenseBilling"));
 const InstitutionAuditLog = lazy(() => import("@/components/admin/institution/InstitutionAuditLog"));
 const InstituteMembersTab = lazy(() => import("@/components/admin/institution/InstituteMembersTab"));
+const InstituteStudentsTab = lazy(() => import("@/components/admin/institution/InstituteStudentsTab"));
 
 interface Institution {
   id: string;
