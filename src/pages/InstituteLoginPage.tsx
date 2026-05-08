@@ -286,6 +286,15 @@ export default function InstituteLoginPage() {
             <p className="text-[11px] text-white/30 text-center mt-4 leading-relaxed">
               Only numbers linked to an institute admin or invited member can sign in here.
             </p>
+            <p className="text-[11px] text-white/50 text-center mt-3">
+              New here?{" "}
+              <button
+                onClick={() => navigate("/institute/signup")}
+                className="text-white/90 hover:text-white underline underline-offset-2 font-semibold"
+              >
+                Onboard your institute
+              </button>
+            </p>
           </>
         ) : (
           <>
