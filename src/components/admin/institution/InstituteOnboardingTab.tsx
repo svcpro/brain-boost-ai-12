@@ -6,9 +6,10 @@ import {
   QrCode, Copy, Download, Share2, Link2, RefreshCw, MessageSquare,
   Sparkles, Loader2, CheckCircle2, Users, TrendingUp, IndianRupee,
   Wallet, Hourglass, BadgeCheck, Percent, ChevronRight, X,
+  CalendarClock, ArrowRight, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, addMonths, startOfMonth, differenceInDays } from "date-fns";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -212,6 +213,8 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
     let totalEarned = 0, pending = 0, paid = 0, thisMonth = 0;
     let conversions = 0;
     const bySource: Record<string, { count: number; earned: number; pending: number; paid: number }> = {};
+    // Payout buckets: group PENDING by next 1st-of-month payout date
+    const buckets: Record<string, { date: Date; amount: number; count: number }> = {};
     commissions.forEach((c) => {
       const amt = Number(c.commission_amount || 0);
       totalEarned += amt;
@@ -223,8 +226,18 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
       if (!bySource[src]) bySource[src] = { count: 0, earned: 0, pending: 0, paid: 0 };
       bySource[src].count += 1;
       bySource[src].earned += amt;
-      if (c.status === "paid") bySource[src].paid += amt;
-      else if (c.status !== "reversed") bySource[src].pending += amt;
+      if (c.status === "paid") {
+        bySource[src].paid += amt;
+      } else if (c.status !== "reversed") {
+        bySource[src].pending += amt;
+        // Schedule: payouts on the 1st of the month AFTER the commission was earned
+        const created = new Date(c.created_at);
+        const payoutDate = startOfMonth(addMonths(created, 1));
+        const key = format(payoutDate, "yyyy-MM");
+        if (!buckets[key]) buckets[key] = { date: payoutDate, amount: 0, count: 0 };
+        buckets[key].amount += amt;
+        buckets[key].count += 1;
+      }
     });
     const sourceRows = Object.entries(bySource)
       .map(([source, v]) => ({
@@ -236,10 +249,15 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
         joins: stats.find((s) => s.source === source)?.count ?? 0,
       }))
       .sort((a, b) => b.earned - a.earned);
+    const schedule = Object.values(buckets)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 4);
     return {
       totalEarned, pending, paid, thisMonth, conversions,
-      sourceRows,
+      sourceRows, schedule,
       conversionRate: totalJoins ? Math.round((conversions / totalJoins) * 100) : 0,
+      paidPct: totalEarned ? Math.round((paid / totalEarned) * 100) : 0,
+      pendingPct: totalEarned ? Math.round((pending / totalEarned) * 100) : 0,
     };
   }, [commissions, stats, totalJoins]);
 
@@ -413,21 +431,33 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
         )}
       </div>
 
-      {/* ───── Commission Analytics ───── */}
+      {/* ───── ULTRA-PREMIUM Commission Earnings ───── */}
       <div
         className="relative overflow-hidden rounded-3xl border p-5"
         style={{
-          background: `radial-gradient(ellipse 80% 60% at 0% 0%, #7C4DFF18 0%, hsl(var(--card)) 60%)`,
+          background: `radial-gradient(ellipse 90% 70% at 100% 0%, #7C4DFF22 0%, hsl(var(--card)) 55%), radial-gradient(ellipse 70% 50% at 0% 100%, #10B98115 0%, transparent 60%)`,
           borderColor: "hsl(var(--border))",
         }}
       >
-        <div className="absolute -top-12 -left-12 w-56 h-56 rounded-full blur-3xl pointer-events-none bg-purple-500/15" />
+        {/* Animated orbs */}
+        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full blur-3xl pointer-events-none animate-pulse"
+          style={{ background: "#7C4DFF22", animationDuration: "5s" }} />
+        <div className="absolute -bottom-20 -left-12 w-56 h-56 rounded-full blur-3xl pointer-events-none animate-pulse"
+          style={{ background: "#10B98118", animationDuration: "7s" }} />
 
         <div className="relative">
+          {/* Section header */}
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-purple-400" /> Commission Earnings
-            </h3>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: "#7C4DFF20", border: "1px solid #7C4DFF40" }}>
+                <Wallet className="w-4 h-4 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-foreground">Commission Earnings</h3>
+                <p className="text-[10px] text-muted-foreground">Realtime payout intelligence</p>
+              </div>
+            </div>
             <span
               className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md flex items-center gap-1"
               style={{ background: "#7C4DFF20", color: "#A78BFA", border: "1px solid #7C4DFF40" }}
@@ -437,55 +467,168 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
             </span>
           </div>
 
-          {/* KPI grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            <CommissionKpi
-              icon={IndianRupee}
-              label="Total Earned"
-              value={fmt(commissionStats.totalEarned)}
-              color="#A78BFA"
-            />
-            <CommissionKpi
-              icon={Hourglass}
-              label="Pending Payout"
-              value={fmt(commissionStats.pending)}
-              color="#FBBF24"
-            />
-            <CommissionKpi
-              icon={BadgeCheck}
-              label="Paid Out"
-              value={fmt(commissionStats.paid)}
-              color="#10B981"
-            />
-            <CommissionKpi
-              icon={TrendingUp}
-              label="This Month"
-              value={fmt(commissionStats.thisMonth)}
-              color="#00E5FF"
-            />
-          </div>
+          {/* HERO: Paid vs Pending split */}
+          <div className="rounded-2xl border border-border/60 bg-background/40 backdrop-blur p-4 mb-4">
+            <div className="flex items-end justify-between mb-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Total Earned</div>
+                <div className="text-3xl font-black tracking-tight tabular-nums"
+                  style={{ background: "linear-gradient(135deg, #A78BFA, #10B981)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  {fmt(commissionStats.totalEarned)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">This Month</div>
+                <div className="text-base font-extrabold text-cyan-400 tabular-nums">{fmt(commissionStats.thisMonth)}</div>
+              </div>
+            </div>
 
-          {/* Conversion summary */}
-          <div className="rounded-xl bg-secondary/40 border border-border p-3 mb-4">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Users className="w-3.5 h-3.5" />
+            {/* Dual segmented bar (Paid vs Pending) */}
+            {commissionStats.totalEarned > 0 ? (
+              <>
+                <div className="h-3 rounded-full bg-secondary/60 overflow-hidden flex shadow-inner">
+                  <div
+                    className="h-full transition-all relative overflow-hidden"
+                    style={{
+                      width: `${commissionStats.paidPct}%`,
+                      background: "linear-gradient(90deg, #10B981, #34D399)",
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_2.5s_infinite]" />
+                  </div>
+                  <div
+                    className="h-full transition-all"
+                    style={{
+                      width: `${commissionStats.pendingPct}%`,
+                      background: "linear-gradient(90deg, #FBBF24, #F59E0B)",
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div className="rounded-xl p-2.5 border" style={{ background: "#10B98112", borderColor: "#10B98140" }}>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Paid Out</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <div className="text-lg font-black text-emerald-400 tabular-nums">{fmt(commissionStats.paid)}</div>
+                      <span className="text-[10px] text-emerald-400/70 font-bold">{commissionStats.paidPct}%</span>
+                    </div>
+                  </div>
+                  <div className="rounded-xl p-2.5 border" style={{ background: "#FBBF2412", borderColor: "#FBBF2440" }}>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Hourglass className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Pending Payout</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <div className="text-lg font-black text-amber-400 tabular-nums">{fmt(commissionStats.pending)}</div>
+                      <span className="text-[10px] text-amber-400/70 font-bold">{commissionStats.pendingPct}%</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground py-2 text-center">
+                No conversions yet. Paid commissions will appear here.
+              </p>
+            )}
+
+            {/* Conversion summary */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/40 text-[11px]">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Users className="w-3 h-3" />
                 <span>
-                  <span className="font-bold text-foreground">{commissionStats.conversions}</span> paid conversions
-                  {" "}from <span className="font-bold text-foreground">{totalJoins}</span> students
+                  <span className="font-bold text-foreground">{commissionStats.conversions}</span> of{" "}
+                  <span className="font-bold text-foreground">{totalJoins}</span> students converted
                 </span>
               </div>
               <span className="font-bold text-success">{commissionStats.conversionRate}%</span>
             </div>
           </div>
 
-          {/* Earnings by source */}
+          {/* PAYOUT SCHEDULE TIMELINE */}
+          {commissionStats.schedule.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <CalendarClock className="w-3.5 h-3.5 text-amber-400" /> Payout Schedule
+                </h4>
+                <span className="text-[10px] text-muted-foreground">Monthly · 1st of next month</span>
+              </div>
+              <div className="relative">
+                {/* Connector line */}
+                <div className="absolute left-3 top-3 bottom-3 w-px bg-gradient-to-b from-amber-400/40 via-border to-transparent" />
+                <div className="space-y-2">
+                  {commissionStats.schedule.map((b, i) => {
+                    const days = differenceInDays(b.date, new Date());
+                    const isNext = i === 0;
+                    return (
+                      <div key={b.date.toISOString()} className="relative flex items-start gap-3">
+                        {/* Node */}
+                        <div className="relative z-10 shrink-0">
+                          <div className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center border-2",
+                            isNext
+                              ? "bg-amber-500/20 border-amber-400 animate-pulse"
+                              : "bg-secondary border-border"
+                          )}>
+                            {isNext ? (
+                              <Zap className="w-3 h-3 text-amber-400" />
+                            ) : (
+                              <CalendarClock className="w-3 h-3 text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
+                        <div className={cn(
+                          "flex-1 rounded-xl p-2.5 border transition-colors",
+                          isNext
+                            ? "bg-amber-500/10 border-amber-500/40"
+                            : "bg-secondary/30 border-border/50"
+                        )}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className={cn(
+                                "text-xs font-bold",
+                                isNext ? "text-amber-400" : "text-foreground"
+                              )}>
+                                {format(b.date, "dd MMM yyyy")}
+                                {isNext && (
+                                  <span className="ml-1.5 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-400/40">
+                                    Next
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                {b.count} txn · {days > 0 ? `in ${days}d` : days === 0 ? "today" : `${Math.abs(days)}d ago`}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className={cn("text-sm font-extrabold tabular-nums", isNext ? "text-amber-400" : "text-foreground")}>
+                                {fmt(b.amount)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Earnings by source (drill-through) */}
           {commissionStats.sourceRows.length > 0 && (
             <div>
-              <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                Earnings by Source
-              </h4>
-              <div className="space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Breakdown by Source
+                </h4>
+                <span className="text-[9px] text-muted-foreground flex items-center gap-1">
+                  Tap to drill <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              </div>
+              <div className="space-y-1.5">
                 {commissionStats.sourceRows.map((r) => {
                   const pct = commissionStats.totalEarned
                     ? Math.round((r.earned / commissionStats.totalEarned) * 100)
@@ -495,19 +638,19 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                       key={r.source}
                       type="button"
                       onClick={() => setDrillSource(r.source)}
-                      className="w-full text-left rounded-lg p-2 -mx-2 hover:bg-secondary/40 transition-colors"
+                      className="w-full text-left rounded-xl p-2.5 bg-background/40 border border-border/40 hover:border-primary/40 hover:bg-secondary/30 transition-all group"
                     >
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-semibold text-foreground capitalize flex items-center gap-1.5">
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="font-bold text-foreground capitalize flex items-center gap-1.5">
                           <SourceDot source={r.source} />
                           {r.source}
                           <span className="text-[10px] text-muted-foreground font-normal">
-                            ({r.conversions}/{r.joins} converted)
+                            ({r.conversions}/{r.joins})
                           </span>
                         </span>
-                        <span className="font-bold text-foreground flex items-center gap-1">
+                        <span className="font-extrabold text-foreground tabular-nums flex items-center gap-1">
                           {fmt(r.earned)}
-                          <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                         </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden flex">
@@ -530,7 +673,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                           </>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-[10px]">
+                      <div className="flex items-center gap-3 mt-1.5 text-[10px]">
                         <span className="flex items-center gap-1 text-emerald-400 font-semibold">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                           Paid {fmt(r.paid)}
@@ -539,53 +682,11 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                           Pending {fmt(r.pending)}
                         </span>
+                        <span className="ml-auto text-muted-foreground font-semibold">{pct}%</span>
                       </div>
                     </button>
                   );
                 })}
-              </div>
-            </div>
-          )}
-
-          {/* Recent ledger */}
-          {commissions.length > 0 && (
-            <div className="mt-4">
-              <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                Recent Commissions
-              </h4>
-              <div className="space-y-1.5">
-                {commissions.slice(0, 6).map((c) => (
-                  <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold text-foreground capitalize flex items-center gap-1.5">
-                        <SourceDot source={c.source || "direct"} />
-                        {c.source || "direct"}
-                        <span className="text-muted-foreground font-normal">
-                          • gross {fmt(Number(c.gross_amount), c.currency)}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {format(new Date(c.created_at), "dd MMM yyyy")}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={cn(
-                          "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
-                          c.status === "paid" && "bg-success/15 text-success",
-                          c.status === "pending" && "bg-warning/15 text-warning",
-                          c.status === "approved" && "bg-primary/15 text-primary",
-                          c.status === "reversed" && "bg-destructive/15 text-destructive",
-                        )}
-                      >
-                        {c.status}
-                      </span>
-                      <span className="text-xs font-bold text-foreground">
-                        {fmt(Number(c.commission_amount), c.currency)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           )}
