@@ -124,6 +124,10 @@ export default function BatchManagement({ institutionId, institutionName }: Prop
 
   const handleCSVUpload = async () => {
     if (!csvFile || !selectedBatch) return;
+    if (selectedBatch.institution_id !== institutionId) {
+      toast({ title: "Scope error", description: "Batch does not belong to this institute", variant: "destructive" });
+      return;
+    }
     setUploading(true);
     try {
       const text = await csvFile.text();
@@ -155,7 +159,12 @@ export default function BatchManagement({ institutionId, institutionName }: Prop
   };
 
   const removeStudent = async (studentId: string) => {
-    await supabase.from("batch_students").delete().eq("id", studentId);
+    if (!selectedBatch || selectedBatch.institution_id !== institutionId) return;
+    await supabase
+      .from("batch_students")
+      .delete()
+      .eq("id", studentId)
+      .eq("batch_id", selectedBatch.id);
     if (selectedBatch) loadStudents(selectedBatch.id);
   };
 
