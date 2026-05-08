@@ -17,6 +17,7 @@ import {
 interface Props {
   institutionId: string;
   institutionName: string;
+  view?: "share" | "earnings" | "all";
 }
 
 interface InstMeta {
@@ -62,7 +63,9 @@ const CommissionKpi = ({
   </div>
 );
 
-export default function InstituteOnboardingTab({ institutionId, institutionName }: Props) {
+export default function InstituteOnboardingTab({ institutionId, institutionName, view = "all" }: Props) {
+  const showShare = view === "share" || view === "all";
+  const showEarnings = view === "earnings" || view === "all";
   const { toast } = useToast();
   const [meta, setMeta] = useState<InstMeta | null>(null);
   const [stats, setStats] = useState<SourceStat[]>([]);
@@ -297,6 +300,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
   return (
     <>
     <div className="space-y-5">
+      {showShare && <>
       {/* Hero with QR */}
       <div
         className="relative overflow-hidden rounded-3xl border border-border p-5"
@@ -459,7 +463,9 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
           </div>
         </div>
       </div>
+      </>}
 
+      {showEarnings && <>
       {/* Source attribution analytics */}
       <div className="rounded-2xl bg-card border border-border p-4">
         <div className="flex items-center justify-between mb-3">
@@ -792,6 +798,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
           <li>• Rotate the code when a campaign ends to keep analytics clean.</li>
         </ul>
       </div>
+      </>}
     </div>
 
     <Dialog open={!!drillSource} onOpenChange={(o) => !o && setDrillSource(null)}>
