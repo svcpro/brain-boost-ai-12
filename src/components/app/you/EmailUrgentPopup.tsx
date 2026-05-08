@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,11 +11,13 @@ interface Props {
 const EmailUrgentPopup = ({ onAction }: Props) => {
   const { user } = useAuth();
   const [dismissed, setDismissed] = useState(false);
+  const [host, setHost] = useState<Element | null>(null);
 
   // Reappear every session — but allow snooze for 30 min
   useEffect(() => {
     const snoozedUntil = Number(sessionStorage.getItem("email_urgent_snooze") || 0);
     if (snoozedUntil && Date.now() < snoozedUntil) setDismissed(true);
+    setHost(document.querySelector(".app-device-inner"));
   }, []);
 
   if (!user) return null;
@@ -31,6 +34,7 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
 
   if (!missing && !unverified) return null;
   if (dismissed) return null;
+  if (!host) return null;
 
   const title = missing ? "Add your email — urgent" : "Verify your email — urgent";
   const subtitle = missing
@@ -42,7 +46,7 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
     setDismissed(true);
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ y: 80, opacity: 0 }}
@@ -113,7 +117,8 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    host
   );
 };
 
