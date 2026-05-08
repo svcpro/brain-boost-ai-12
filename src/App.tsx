@@ -155,6 +155,7 @@ const App = () => (
                   <DebatePracticePage />
                 </ProtectedRoute>
               } />
+              <Route path="/invite/:token" element={<AcceptInvitePage />} />
               <Route path="/institute" element={
                 <ProtectedRoute>
                   <InstituteAdminPage />
