@@ -317,16 +317,6 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
         <div className="relative flex flex-col md:flex-row gap-5 items-center md:items-stretch">
           {/* Ultra-advanced QR with brand */}
           <div className="shrink-0 relative" style={{ width: 320 }}>
-            {/* Rotating conic gradient frame */}
-            <div
-              className="absolute -inset-2 rounded-[28px] opacity-80 blur-[2px]"
-              style={{
-                background: `conic-gradient(from 0deg, ${accent}, #7C4DFF, #00E5FF, ${accent})`,
-                animation: "spin 8s linear infinite",
-              }}
-            />
-            <div className="absolute -inset-4 rounded-[32px] blur-2xl opacity-50 pointer-events-none"
-              style={{ background: `radial-gradient(circle, ${accent}55, transparent 70%)` }} />
 
             {/* Card */}
             <div
