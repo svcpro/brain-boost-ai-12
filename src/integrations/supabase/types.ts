@@ -4926,6 +4926,62 @@ export type Database = {
           },
         ]
       }
+      institution_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string | null
+          expires_at: string
+          id: string
+          institution_id: string
+          invited_by: string
+          note: string | null
+          phone: string | null
+          role: string
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          institution_id: string
+          invited_by: string
+          note?: string | null
+          phone?: string | null
+          role?: string
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          institution_id?: string
+          invited_by?: string
+          note?: string | null
+          phone?: string | null
+          role?: string
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_invites_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institution_invoices: {
         Row: {
           amount: number
@@ -11769,6 +11825,7 @@ export type Database = {
     }
     Functions: {
       accept_freeze_gift: { Args: { gift_id: string }; Returns: undefined }
+      accept_institution_invite: { Args: { p_token: string }; Returns: Json }
       admin_list_public_tables: {
         Args: never
         Returns: {
@@ -11793,6 +11850,7 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      peek_institution_invite: { Args: { p_token: string }; Returns: Json }
       reset_monthly_api_usage: { Args: never; Returns: undefined }
       sms_quota_increment: { Args: { p_user_id: string }; Returns: number }
       sms_quota_remaining: { Args: { p_user_id: string }; Returns: number }
