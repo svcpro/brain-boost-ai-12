@@ -517,10 +517,6 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
               </div>
             </div>
           )}
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Recent ledger */}
           {commissions.length > 0 && (
