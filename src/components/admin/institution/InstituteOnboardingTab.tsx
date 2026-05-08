@@ -213,6 +213,8 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
     let totalEarned = 0, pending = 0, paid = 0, thisMonth = 0;
     let conversions = 0;
     const bySource: Record<string, { count: number; earned: number; pending: number; paid: number }> = {};
+    // Payout buckets: group PENDING by next 1st-of-month payout date
+    const buckets: Record<string, { date: Date; amount: number; count: number }> = {};
     commissions.forEach((c) => {
       const amt = Number(c.commission_amount || 0);
       totalEarned += amt;
@@ -224,8 +226,18 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
       if (!bySource[src]) bySource[src] = { count: 0, earned: 0, pending: 0, paid: 0 };
       bySource[src].count += 1;
       bySource[src].earned += amt;
-      if (c.status === "paid") bySource[src].paid += amt;
-      else if (c.status !== "reversed") bySource[src].pending += amt;
+      if (c.status === "paid") {
+        bySource[src].paid += amt;
+      } else if (c.status !== "reversed") {
+        bySource[src].pending += amt;
+        // Schedule: payouts on the 1st of the month AFTER the commission was earned
+        const created = new Date(c.created_at);
+        const payoutDate = startOfMonth(addMonths(created, 1));
+        const key = format(payoutDate, "yyyy-MM");
+        if (!buckets[key]) buckets[key] = { date: payoutDate, amount: 0, count: 0 };
+        buckets[key].amount += amt;
+        buckets[key].count += 1;
+      }
     });
     const sourceRows = Object.entries(bySource)
       .map(([source, v]) => ({
@@ -237,10 +249,15 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
         joins: stats.find((s) => s.source === source)?.count ?? 0,
       }))
       .sort((a, b) => b.earned - a.earned);
+    const schedule = Object.values(buckets)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 4);
     return {
       totalEarned, pending, paid, thisMonth, conversions,
-      sourceRows,
+      sourceRows, schedule,
       conversionRate: totalJoins ? Math.round((conversions / totalJoins) * 100) : 0,
+      paidPct: totalEarned ? Math.round((paid / totalEarned) * 100) : 0,
+      pendingPct: totalEarned ? Math.round((pending / totalEarned) * 100) : 0,
     };
   }, [commissions, stats, totalJoins]);
 
