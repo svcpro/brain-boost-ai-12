@@ -137,15 +137,64 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
   );
   const accent = meta?.primary_color || "#6366f1";
 
-  // Generate QR
+  // Generate QR with centered brand badge (uses error correction H ~30% tolerance)
   useEffect(() => {
     if (!joinUrl || !canvasRef.current) return;
-    QRCode.toCanvas(canvasRef.current, joinUrl, {
+    const canvas = canvasRef.current;
+    QRCode.toCanvas(canvas, joinUrl, {
       width: 280,
       margin: 1,
       color: { dark: "#0B0F1A", light: "#FFFFFF" },
       errorCorrectionLevel: "H",
-    }).catch(() => {});
+    })
+      .then(() => {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const w = canvas.width;
+        const badgeSize = Math.round(w * 0.22);
+        const cx = w / 2;
+        const cy = w / 2;
+        // White rounded square base
+        const r = badgeSize / 2;
+        const x = cx - r;
+        const y = cy - r;
+        const radius = badgeSize * 0.22;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + badgeSize, y, x + badgeSize, y + badgeSize, radius);
+        ctx.arcTo(x + badgeSize, y + badgeSize, x, y + badgeSize, radius);
+        ctx.arcTo(x, y + badgeSize, x, y, radius);
+        ctx.arcTo(x, y, x + badgeSize, y, radius);
+        ctx.closePath();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fill();
+        // Gradient brand chip
+        const grad = ctx.createLinearGradient(x, y, x + badgeSize, y + badgeSize);
+        grad.addColorStop(0, accent);
+        grad.addColorStop(0.5, "#7C4DFF");
+        grad.addColorStop(1, "#00E5FF");
+        const inset = badgeSize * 0.08;
+        ctx.beginPath();
+        const ix = x + inset, iy = y + inset, iw = badgeSize - inset * 2;
+        const ir = (badgeSize - inset * 2) * 0.22;
+        ctx.moveTo(ix + ir, iy);
+        ctx.arcTo(ix + iw, iy, ix + iw, iy + iw, ir);
+        ctx.arcTo(ix + iw, iy + iw, ix, iy + iw, ir);
+        ctx.arcTo(ix, iy + iw, ix, iy, ir);
+        ctx.arcTo(ix, iy, ix + iw, iy, ir);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+        // ACRY text
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = `900 ${Math.round(badgeSize * 0.32)}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("ACRY", cx, cy);
+        ctx.restore();
+      })
+      .catch(() => {});
     QRCode.toDataURL(joinUrl, {
       width: 800,
       margin: 2,
