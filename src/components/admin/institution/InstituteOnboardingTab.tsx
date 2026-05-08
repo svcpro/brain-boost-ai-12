@@ -5,10 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import {
   QrCode, Copy, Download, Share2, Link2, RefreshCw, MessageSquare,
   Sparkles, Loader2, CheckCircle2, Users, TrendingUp, IndianRupee,
-  Wallet, Hourglass, BadgeCheck, Percent,
+  Wallet, Hourglass, BadgeCheck, Percent, ChevronRight, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Props {
   institutionId: string;
