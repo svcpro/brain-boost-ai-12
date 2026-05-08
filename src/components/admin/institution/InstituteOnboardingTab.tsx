@@ -361,14 +361,103 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
           style={{ background: `${accent}25` }} />
 
         <div className="relative flex flex-col md:flex-row gap-5 items-center md:items-stretch">
-          {/* QR */}
-          <div className="shrink-0">
+          {/* Ultra-advanced QR with brand */}
+          <div className="shrink-0 relative" style={{ width: 320 }}>
+            {/* Rotating conic gradient frame */}
             <div
-              className="rounded-2xl p-4 bg-white shadow-2xl"
-              style={{ boxShadow: `0 25px 50px -12px ${accent}50` }}
+              className="absolute -inset-2 rounded-[28px] opacity-80 blur-[2px]"
+              style={{
+                background: `conic-gradient(from 0deg, ${accent}, #7C4DFF, #00E5FF, ${accent})`,
+                animation: "spin 8s linear infinite",
+              }}
+            />
+            <div className="absolute -inset-4 rounded-[32px] blur-2xl opacity-50 pointer-events-none"
+              style={{ background: `radial-gradient(circle, ${accent}55, transparent 70%)` }} />
+
+            {/* Card */}
+            <div
+              className="relative rounded-[24px] p-3 shadow-2xl"
+              style={{
+                background: "linear-gradient(180deg, #ffffff 0%, #f1f5ff 100%)",
+                boxShadow: `0 30px 60px -20px ${accent}66, 0 0 0 1px rgba(255,255,255,0.4) inset`,
+              }}
             >
-              <canvas ref={canvasRef} className="block" />
+              {/* Brand header bar */}
+              <div
+                className="flex items-center justify-between px-3 py-2 rounded-t-2xl rounded-b-md mb-2"
+                style={{
+                  background: `linear-gradient(135deg, ${accent}, #7C4DFF 60%, #00E5FF)`,
+                }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-md bg-white/95 flex items-center justify-center shadow-sm overflow-hidden">
+                    {meta?.logo_url ? (
+                      <img src={meta.logo_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[9px] font-black" style={{ color: accent }}>A</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-extrabold tracking-[0.18em] text-white uppercase">
+                    Acry · {institutionName}
+                  </span>
+                </div>
+                <span className="text-[8px] font-bold tracking-[0.18em] text-white/90 uppercase flex items-center gap-1">
+                  <Zap className="w-2.5 h-2.5" /> Live
+                </span>
+              </div>
+
+              {/* QR with viewfinder corner brackets + scan beam */}
+              <div className="relative rounded-xl overflow-hidden bg-white">
+                <canvas ref={canvasRef} className="block w-full h-auto" />
+                {/* Corner brackets */}
+                {[
+                  "top-1 left-1 border-t-2 border-l-2 rounded-tl-md",
+                  "top-1 right-1 border-t-2 border-r-2 rounded-tr-md",
+                  "bottom-1 left-1 border-b-2 border-l-2 rounded-bl-md",
+                  "bottom-1 right-1 border-b-2 border-r-2 rounded-br-md",
+                ].map((c, i) => (
+                  <span
+                    key={i}
+                    className={cn("absolute w-4 h-4 pointer-events-none", c)}
+                    style={{ borderColor: accent }}
+                  />
+                ))}
+                {/* Animated scan beam */}
+                <div
+                  className="absolute left-0 right-0 h-[2px] pointer-events-none opacity-90"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${accent}, #00E5FF, transparent)`,
+                    boxShadow: `0 0 12px ${accent}, 0 0 24px #00E5FF99`,
+                    animation: "scan-beam 2.4s ease-in-out infinite",
+                  }}
+                />
+              </div>
+
+              {/* Footer band */}
+              <div className="mt-2 px-2 pb-1 pt-2 rounded-b-xl flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Scan to join</span>
+                  <span className="text-[11px] font-mono font-extrabold text-slate-900">
+                    {BRAND_HOST}/i/<span style={{ color: accent }}>{referralCode}</span>
+                  </span>
+                </div>
+                <div
+                  className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-md tracking-widest"
+                  style={{ background: `${accent}18`, color: accent }}
+                >
+                  v2
+                </div>
+              </div>
             </div>
+
+            <style>{`
+              @keyframes scan-beam {
+                0% { top: 6%; opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { top: 94%; opacity: 0; }
+              }
+            `}</style>
           </div>
 
           {/* Right column */}
