@@ -70,19 +70,31 @@ export default function InstituteMembersTab({ institutionId, institutionName }: 
   };
 
   const revokeInvite = async (id: string) => {
-    await supabase.from("institution_invites").update({ status: "revoked" }).eq("id", id);
+    await supabase
+      .from("institution_invites")
+      .update({ status: "revoked" })
+      .eq("id", id)
+      .eq("institution_id", institutionId);
     toast({ title: "Invite revoked" });
     load();
   };
 
   const removeMember = async (id: string) => {
-    await supabase.from("institution_members").update({ is_active: false }).eq("id", id);
+    await supabase
+      .from("institution_members")
+      .update({ is_active: false })
+      .eq("id", id)
+      .eq("institution_id", institutionId);
     toast({ title: "Member deactivated" });
     load();
   };
 
   const updateMemberRole = async (id: string, role: string) => {
-    await supabase.from("institution_members").update({ role }).eq("id", id);
+    await supabase
+      .from("institution_members")
+      .update({ role })
+      .eq("id", id)
+      .eq("institution_id", institutionId);
     load();
   };
 
