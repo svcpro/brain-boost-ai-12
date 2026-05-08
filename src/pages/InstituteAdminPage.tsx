@@ -2,25 +2,14 @@ import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  Building2, Users, GraduationCap, Layers, Palette, Settings, Globe,
-  FileText, CreditCard, Fingerprint, Loader2, IndianRupee, Shield,
-  TrendingUp, AlertTriangle, ChevronRight, LogOut, BookOpen, Crown, QrCode
+  Building2, Users, GraduationCap, Loader2, IndianRupee,
+  TrendingUp, LogOut, BookOpen, Crown, Sparkles, Activity,
+  ArrowUpRight, Wallet, Zap, Target, Eye
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
-const BatchManagement = lazy(() => import("@/components/admin/institution/BatchManagement"));
-const FacultyDashboard = lazy(() => import("@/components/admin/institution/FacultyDashboard"));
-const BrandingConfig = lazy(() => import("@/components/admin/institution/BrandingConfig"));
-const FeatureToggles = lazy(() => import("@/components/admin/institution/FeatureToggles"));
-const DomainManagement = lazy(() => import("@/components/admin/institution/DomainManagement"));
-const ContractManagement = lazy(() => import("@/components/admin/institution/ContractManagement"));
-const LicenseBilling = lazy(() => import("@/components/admin/institution/LicenseBilling"));
-const InstitutionAuditLog = lazy(() => import("@/components/admin/institution/InstitutionAuditLog"));
-const InstituteMembersTab = lazy(() => import("@/components/admin/institution/InstituteMembersTab"));
 const InstituteStudentsTab = lazy(() => import("@/components/admin/institution/InstituteStudentsTab"));
 const InstituteOnboardingTab = lazy(() => import("@/components/admin/institution/InstituteOnboardingTab"));
 
@@ -31,23 +20,20 @@ interface Institution {
   type: string;
   logo_url: string | null;
   primary_color: string;
-  domain: string | null;
   is_active: boolean;
   student_count: number;
   teacher_count: number;
   city: string | null;
   branch: string | null;
-  license_status: string | null;
   max_students: number | null;
-  license_expires_at: string | null;
 }
 
-type Tab = "overview" | "students" | "earnings";
+type Tab = "command" | "students" | "earnings";
 
-const TABS: { key: Tab; label: string; icon: any; color: string }[] = [
-  { key: "overview", label: "Overview", icon: TrendingUp, color: "text-primary" },
-  { key: "students", label: "Students", icon: GraduationCap, color: "text-emerald-400" },
-  { key: "earnings", label: "Earnings", icon: IndianRupee, color: "text-success" },
+const TABS: { key: Tab; label: string; icon: any }[] = [
+  { key: "command", label: "Command", icon: Activity },
+  { key: "students", label: "Students", icon: GraduationCap },
+  { key: "earnings", label: "Earnings", icon: IndianRupee },
 ];
 
 const TYPE_ICON: Record<string, any> = {
@@ -58,67 +44,85 @@ const Loader = () => (
   <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
 );
 
+const fmtINR = (n: number) =>
+  n >= 100000 ? `₹${(n / 100000).toFixed(2)}L` :
+  n >= 1000 ? `₹${(n / 1000).toFixed(1)}K` : `₹${Math.round(n)}`;
+
 export default function InstituteAdminPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [institution, setInstitution] = useState<Institution | null>(null);
-  const [license, setLicense] = useState<any>(null);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [batches, setBatches] = useState<any[]>([]);
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("command");
+  const [metrics, setMetrics] = useState({
+    totalStudents: 0,
+    activeStudents7d: 0,
+    paidStudents: 0,
+    earnedTotal: 0,
+    earnedPending: 0,
+    earnedPaid: 0,
+    earned30d: 0,
+    commissionCount: 0,
+  });
 
   useEffect(() => {
     if (!user) { navigate("/institute/login"); return; }
-    loadInstitute();
+    loadAll();
   }, [user]);
 
-  const loadInstitute = async () => {
+  const loadAll = async () => {
     if (!user) return;
     setLoading(true);
-    // Resolve institution where current user is the admin
     const { data: inst } = await supabase
       .from("institutions")
       .select("*")
       .eq("admin_user_id", user.id)
       .maybeSingle();
 
-    if (!inst) {
-      setInstitution(null);
-      setLoading(false);
-      return;
-    }
-
+    if (!inst) { setInstitution(null); setLoading(false); return; }
     setInstitution(inst as any);
 
-    const [{ data: lic }, { data: inv }, { data: bch }] = await Promise.all([
-      supabase.from("institution_licenses").select("*").eq("institution_id", inst.id).eq("status", "active").maybeSingle(),
-      supabase.from("institution_invoices").select("*").eq("institution_id", inst.id).order("created_at", { ascending: false }).limit(20),
-      supabase.from("institution_batches").select("id, name, is_active").eq("institution_id", inst.id),
+    const [{ data: members }, { data: commissions }] = await Promise.all([
+      supabase.from("institution_members")
+        .select("user_id, joined_at, is_active")
+        .eq("institution_id", (inst as any).id)
+        .eq("role", "student"),
+      supabase.from("institution_commissions")
+        .select("commission_amount, status, created_at, user_id")
+        .eq("institution_id", (inst as any).id),
     ]);
-    setLicense(lic);
-    setInvoices((inv as any[]) || []);
-    setBatches((bch as any[]) || []);
+
+    const now = Date.now();
+    const cutoff7 = now - 7 * 24 * 3600 * 1000;
+    const cutoff30 = now - 30 * 24 * 3600 * 1000;
+    const list = (members || []) as any[];
+    const cms = (commissions || []) as any[];
+
+    const paidUserIds = new Set(cms.filter(c => c.status !== "reversed").map(c => c.user_id));
+
+    const earnedTotal = cms.filter(c => c.status !== "reversed").reduce((s, c) => s + Number(c.commission_amount || 0), 0);
+    const earnedPaid = cms.filter(c => c.status === "paid").reduce((s, c) => s + Number(c.commission_amount || 0), 0);
+    const earnedPending = cms.filter(c => c.status === "pending" || c.status === "approved").reduce((s, c) => s + Number(c.commission_amount || 0), 0);
+    const earned30d = cms.filter(c => c.status !== "reversed" && new Date(c.created_at).getTime() > cutoff30)
+      .reduce((s, c) => s + Number(c.commission_amount || 0), 0);
+
+    setMetrics({
+      totalStudents: list.length,
+      activeStudents7d: list.filter(m => m.joined_at && new Date(m.joined_at).getTime() > cutoff7).length,
+      paidStudents: paidUserIds.size,
+      earnedTotal, earnedPending, earnedPaid, earned30d,
+      commissionCount: cms.length,
+    });
+
     setLoading(false);
   };
 
-  const stats = useMemo(() => {
-    const paid = invoices.filter(i => i.status === "paid");
-    const pending = invoices.filter(i => i.status === "pending");
-    return {
-      revenue: paid.reduce((s, i) => s + Number(i.amount || 0), 0),
-      pending: pending.reduce((s, i) => s + Number(i.amount || 0), 0),
-      paidCount: paid.length,
-      activeBatches: batches.filter(b => b.is_active).length,
-      totalBatches: batches.length,
-    };
-  }, [invoices, batches]);
+  const conversionRate = useMemo(() => {
+    if (!metrics.totalStudents) return 0;
+    return Math.round((metrics.paidStudents / metrics.totalStudents) * 100);
+  }, [metrics]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/institute/login");
-  };
+  const handleSignOut = async () => { await signOut(); navigate("/institute/login"); };
 
   if (loading) {
     return (
@@ -137,12 +141,9 @@ export default function InstituteAdminPage() {
           </div>
           <h1 className="text-xl font-bold text-foreground">No Institute Linked</h1>
           <p className="text-sm text-muted-foreground">
-            Your account isn’t linked to any institute yet. Onboard your coaching, school or university in under a minute.
+            Your account isn't linked to any institute yet. Onboard your coaching, school or university in under a minute.
           </p>
-          <button
-            onClick={() => navigate("/institute/signup")}
-            className="w-full py-2.5 rounded-xl bg-primary text-sm font-bold text-primary-foreground hover:opacity-90"
-          >
+          <button onClick={() => navigate("/institute/signup")} className="w-full py-2.5 rounded-xl bg-primary text-sm font-bold text-primary-foreground hover:opacity-90">
             Onboard My Institute
           </button>
           <button onClick={handleSignOut} className="w-full py-2.5 rounded-xl bg-secondary text-sm font-medium text-foreground hover:bg-secondary/80">
@@ -154,48 +155,48 @@ export default function InstituteAdminPage() {
   }
 
   const TypeIcon = TYPE_ICON[institution.type] || Building2;
-  const expiringSoon = license?.expires_at &&
-    (new Date(license.expires_at).getTime() - Date.now()) < 7 * 24 * 60 * 60 * 1000 &&
-    (new Date(license.expires_at).getTime() - Date.now()) > 0;
-
-  const KPIS = [
-    { label: "Students", value: institution.student_count || 0, max: institution.max_students, icon: GraduationCap, color: "text-primary" },
-    { label: "Faculty", value: institution.teacher_count || 0, icon: Users, color: "text-blue-400" },
-    { label: "Active Batches", value: stats.activeBatches, icon: Layers, color: "text-emerald-400" },
-    { label: "Revenue", value: `₹${(stats.revenue / 1000).toFixed(1)}K`, icon: IndianRupee, color: "text-success" },
-  ];
+  const brand = institution.primary_color || "#7C4DFF";
 
   return (
-    <div className="min-h-[100dvh] bg-background">
+    <div className="min-h-[100dvh] bg-background relative overflow-x-hidden">
+      {/* Ambient gradient orbs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="absolute -top-40 -left-32 w-[28rem] h-[28rem] rounded-full opacity-30 blur-[120px] animate-pulse"
+          style={{ background: `radial-gradient(circle, ${brand}, transparent 70%)`, animationDuration: "6s" }}
+        />
+        <div
+          className="absolute -top-20 right-0 w-[24rem] h-[24rem] rounded-full opacity-25 blur-[120px] animate-pulse"
+          style={{ background: "radial-gradient(circle, hsl(var(--success)), transparent 70%)", animationDuration: "8s" }}
+        />
+        <div
+          className="absolute top-[40%] left-1/2 -translate-x-1/2 w-[20rem] h-[20rem] rounded-full opacity-15 blur-[100px]"
+          style={{ background: "radial-gradient(circle, #00E5FF, transparent 70%)" }}
+        />
+      </div>
+
       {/* Header */}
-      <div
-        className="relative overflow-hidden border-b border-border"
-        style={{ background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%)" }}
-      >
-        <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-primary/5 blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
-        <div className="relative max-w-6xl mx-auto px-4 py-5 flex items-center gap-3">
+      <div className="relative z-10 border-b border-border/40 backdrop-blur-xl bg-background/40">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-3">
           <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg"
-            style={{ background: `linear-gradient(135deg, ${institution.primary_color}, ${institution.primary_color}99)` }}
+            className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xl ring-2 ring-white/10 relative overflow-hidden"
+            style={{ background: `linear-gradient(135deg, ${brand}, ${brand}88)` }}
           >
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/30 to-transparent" />
             {institution.logo_url ? (
-              <img src={institution.logo_url} alt={institution.name} className="w-full h-full object-cover rounded-2xl" />
+              <img src={institution.logo_url} alt={institution.name} className="w-full h-full object-cover relative z-10" />
             ) : (
-              <TypeIcon className="w-6 h-6 text-white" />
+              <TypeIcon className="w-6 h-6 text-white relative z-10" />
             )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-extrabold text-foreground truncate">{institution.name}</h1>
+              <h1 className="text-base font-extrabold text-foreground truncate tracking-tight">{institution.name}</h1>
               <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-primary/15 text-primary capitalize">{institution.type}</span>
-              {institution.is_active ? (
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-success/15 text-success">Active</span>
-              ) : (
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-destructive/15 text-destructive">Inactive</span>
-              )}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {institution.city || "—"} {institution.branch ? `• ${institution.branch}` : ""} • Admin Panel
+            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5" />
+              Mission Control · {institution.city || "Global"}
             </p>
           </div>
           <button
@@ -207,104 +208,163 @@ export default function InstituteAdminPage() {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="max-w-6xl mx-auto px-4 pb-3 flex gap-1.5 overflow-x-auto scrollbar-hide">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all shrink-0",
-                tab === t.key
-                  ? "bg-card border border-border shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
-              )}
-            >
-              <t.icon className={cn("w-3.5 h-3.5", tab === t.key ? t.color : "")} />
-              {t.label}
-            </button>
-          ))}
+        {/* Tabs - segmented pill */}
+        <div className="max-w-6xl mx-auto px-4 pb-3">
+          <div className="flex gap-1 p-1 rounded-2xl bg-secondary/40 backdrop-blur border border-border/50 w-fit">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                  tab === t.key ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tab === t.key && (
+                  <motion.div
+                    layoutId="tabPill"
+                    className="absolute inset-0 rounded-xl shadow-lg"
+                    style={{ background: `linear-gradient(135deg, ${brand}33, ${brand}15)`, border: `1px solid ${brand}55` }}
+                    transition={{ type: "spring", duration: 0.4 }}
+                  />
+                )}
+                <t.icon className="w-3.5 h-3.5 relative z-10" />
+                <span className="relative z-10">{t.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-4 py-5">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 py-5">
         <AnimatePresence mode="wait">
           <motion.div
             key={tab}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.25 }}
           >
-            {tab === "overview" && (
+            {tab === "command" && (
               <div className="space-y-5">
-                {/* KPI Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {KPIS.map(k => (
-                    <div key={k.label} className="rounded-2xl bg-card border border-border p-4">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <k.icon className={cn("w-3.5 h-3.5", k.color)} />
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{k.label}</span>
+                {/* Hero dual focus: Students + Earnings */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Students Card */}
+                  <motion.button
+                    whileHover={{ scale: 1.01, y: -2 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => setTab("students")}
+                    className="relative overflow-hidden rounded-3xl p-5 text-left group"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%)",
+                      border: "1px solid hsl(var(--border))",
+                    }}
+                  >
+                    <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full opacity-30 blur-3xl group-hover:opacity-50 transition-opacity"
+                      style={{ background: "radial-gradient(circle, #10B981, transparent 70%)" }} />
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-500/15 ring-1 ring-emerald-500/30">
+                            <GraduationCap className="w-4.5 h-4.5 text-emerald-400" />
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Students</div>
+                            <div className="text-[9px] text-emerald-400 font-semibold">Monitor & Track</div>
+                          </div>
+                        </div>
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
                       </div>
-                      <div className="text-2xl font-extrabold text-foreground">{k.value}</div>
-                      {k.max && (
-                        <div className="text-[10px] text-muted-foreground mt-0.5">of {k.max} max</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* License (read-only) */}
-                <div className="rounded-2xl bg-card border border-border p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-primary" /> License
-                    </h3>
-                  </div>
-                  {license ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                      <div>
-                        <div className="text-muted-foreground text-[10px]">Plan</div>
-                        <div className="font-bold text-foreground capitalize">{license.plan_name}</div>
+                      <div className="flex items-end gap-2 mb-3">
+                        <div className="text-4xl font-black text-foreground tracking-tight tabular-nums">{metrics.totalStudents}</div>
+                        {institution.max_students && (
+                          <div className="text-[10px] text-muted-foreground mb-1.5">/ {institution.max_students}</div>
+                        )}
                       </div>
-                      <div>
-                        <div className="text-muted-foreground text-[10px]">Status</div>
-                        <div className="font-bold text-success capitalize">{license.status}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground text-[10px]">Expires</div>
-                        <div className={cn("font-bold", expiringSoon ? "text-warning" : "text-foreground")}>
-                          {license.expires_at ? format(new Date(license.expires_at), "dd MMM yyyy") : "—"}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-background/40 backdrop-blur p-2 border border-border/30">
+                          <div className="text-[9px] text-muted-foreground uppercase tracking-wide font-semibold">New (7d)</div>
+                          <div className="text-base font-extrabold text-emerald-400 tabular-nums">+{metrics.activeStudents7d}</div>
+                        </div>
+                        <div className="rounded-xl bg-background/40 backdrop-blur p-2 border border-border/30">
+                          <div className="text-[9px] text-muted-foreground uppercase tracking-wide font-semibold">Paid Conv.</div>
+                          <div className="text-base font-extrabold text-foreground tabular-nums">{conversionRate}%</div>
                         </div>
                       </div>
                     </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">No active license. Contact ACRY support.</p>
-                  )}
-                  {expiringSoon && (
-                    <div className="mt-3 p-2.5 rounded-xl bg-warning/10 border border-warning/30 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
-                      <span className="text-[11px] text-warning">License expires soon. Contact ACRY support to renew.</span>
+                  </motion.button>
+
+                  {/* Earnings Card */}
+                  <motion.button
+                    whileHover={{ scale: 1.01, y: -2 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => setTab("earnings")}
+                    className="relative overflow-hidden rounded-3xl p-5 text-left group"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%)",
+                      border: "1px solid hsl(var(--border))",
+                    }}
+                  >
+                    <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full opacity-30 blur-3xl group-hover:opacity-50 transition-opacity"
+                      style={{ background: `radial-gradient(circle, ${brand}, transparent 70%)` }} />
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center ring-1"
+                            style={{ background: `${brand}25`, borderColor: `${brand}55` }}>
+                            <Wallet className="w-4.5 h-4.5" style={{ color: brand }} />
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Earnings</div>
+                            <div className="text-[9px] font-semibold" style={{ color: brand }}>Commissions</div>
+                          </div>
+                        </div>
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"
+                          style={{ color: brand }} />
+                      </div>
+                      <div className="flex items-end gap-2 mb-3">
+                        <div className="text-4xl font-black tracking-tight tabular-nums"
+                          style={{ background: `linear-gradient(135deg, ${brand}, hsl(var(--success)))`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                          {fmtINR(metrics.earnedTotal)}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-background/40 backdrop-blur p-2 border border-border/30">
+                          <div className="text-[9px] text-emerald-400 uppercase tracking-wide font-semibold">Paid Out</div>
+                          <div className="text-base font-extrabold text-emerald-400 tabular-nums">{fmtINR(metrics.earnedPaid)}</div>
+                        </div>
+                        <div className="rounded-xl bg-background/40 backdrop-blur p-2 border border-border/30">
+                          <div className="text-[9px] text-amber-400 uppercase tracking-wide font-semibold">Pending</div>
+                          <div className="text-base font-extrabold text-amber-400 tabular-nums">{fmtINR(metrics.earnedPending)}</div>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </motion.button>
                 </div>
 
-                {/* Quick links */}
-                <div className="grid grid-cols-2 gap-2">
-                  {TABS.filter(t => t.key !== "overview").map(t => (
-                    <button
-                      key={t.key}
-                      onClick={() => setTab(t.key)}
-                      className="rounded-xl border border-border bg-card hover:bg-secondary/40 p-3 text-left transition-colors"
-                    >
-                      <t.icon className={cn("w-4 h-4 mb-1.5", t.color)} />
-                      <div className="text-xs font-bold text-foreground">{t.label}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {t.key === "students" ? "Monitor & track students" : "Track commission earnings"}
-                      </div>
-                    </button>
-                  ))}
+                {/* Live pulse strip */}
+                <div className="rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="relative">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping" />
+                    </div>
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-foreground">Live Pulse</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <PulseStat icon={Zap} label="Last 30d" value={fmtINR(metrics.earned30d)} accent="text-amber-400" />
+                    <PulseStat icon={Target} label="Conversions" value={`${metrics.paidStudents}`} accent="text-primary" />
+                    <PulseStat icon={Eye} label="Txns" value={`${metrics.commissionCount}`} accent="text-emerald-400" />
+                  </div>
+                </div>
+
+                {/* Footer hint */}
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground">
+                    <Sparkles className="w-2.5 h-2.5 inline mr-1" />
+                    Two missions. Track every student. Maximize every rupee.
+                  </p>
                 </div>
               </div>
             )}
@@ -316,6 +376,18 @@ export default function InstituteAdminPage() {
           </motion.div>
         </AnimatePresence>
       </div>
+    </div>
+  );
+}
+
+function PulseStat({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent: string }) {
+  return (
+    <div className="rounded-xl bg-background/40 p-2.5 border border-border/30">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className={cn("w-3 h-3", accent)} />
+        <span className="text-[9px] text-muted-foreground uppercase tracking-wide font-semibold">{label}</span>
+      </div>
+      <div className="text-sm font-extrabold text-foreground tabular-nums">{value}</div>
     </div>
   );
 }
