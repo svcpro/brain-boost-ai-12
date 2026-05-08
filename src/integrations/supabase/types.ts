@@ -11916,10 +11916,17 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
-      join_institution_by_referral: {
-        Args: { p_code: string; p_source?: string }
-        Returns: Json
-      }
+      join_institution_by_referral:
+        | { Args: { p_code: string; p_source?: string }; Returns: Json }
+        | {
+            Args: {
+              p_batch_id?: string
+              p_code: string
+              p_exam_type?: string
+              p_source?: string
+            }
+            Returns: Json
+          }
       peek_institution_by_referral: { Args: { p_code: string }; Returns: Json }
       peek_institution_invite: { Args: { p_token: string }; Returns: Json }
       record_referral_commission: {
