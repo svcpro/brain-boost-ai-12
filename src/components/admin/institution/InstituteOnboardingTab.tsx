@@ -17,6 +17,7 @@ import {
 interface Props {
   institutionId: string;
   institutionName: string;
+  view?: "share" | "earnings" | "all";
 }
 
 interface InstMeta {
