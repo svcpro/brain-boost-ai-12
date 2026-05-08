@@ -1,0 +1,366 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import QRCode from "qrcode";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import {
+  QrCode, Copy, Download, Share2, Link2, RefreshCw, MessageSquare,
+  Sparkles, Loader2, CheckCircle2, Users, TrendingUp,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  institutionId: string;
+  institutionName: string;
+}
+
+interface InstMeta {
+  referral_code: string;
+  primary_color: string | null;
+  logo_url: string | null;
+}
+
+interface SourceStat {
+  source: string;
+  count: number;
+}
+
+export default function InstituteOnboardingTab({ institutionId, institutionName }: Props) {
+  const { toast } = useToast();
+  const [meta, setMeta] = useState<InstMeta | null>(null);
+  const [stats, setStats] = useState<SourceStat[]>([]);
+  const [totalJoins, setTotalJoins] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [rotating, setRotating] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!institutionId) return;
+    load();
+  }, [institutionId]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [{ data: inst }, { data: members }] = await Promise.all([
+        supabase
+          .from("institutions")
+          .select("referral_code, primary_color, logo_url")
+          .eq("id", institutionId)
+          .maybeSingle(),
+        supabase
+          .from("institution_members")
+          .select("source")
+          .eq("institution_id", institutionId)
+          .eq("role", "student"),
+      ]);
+
+      setMeta(inst as any);
+
+      const counts: Record<string, number> = {};
+      (members || []).forEach((m: any) => {
+        const src = (m.source || "direct") as string;
+        counts[src] = (counts[src] || 0) + 1;
+      });
+      const arr = Object.entries(counts)
+        .map(([source, count]) => ({ source, count }))
+        .sort((a, b) => b.count - a.count);
+      setStats(arr);
+      setTotalJoins((members || []).length);
+    } catch (e: any) {
+      toast({ title: "Failed to load", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const referralCode = meta?.referral_code || "";
+  const joinUrl = useMemo(
+    () => (referralCode ? `${baseUrl}/join/${referralCode}` : ""),
+    [baseUrl, referralCode],
+  );
+  const accent = meta?.primary_color || "#6366f1";
+
+  // Generate QR
+  useEffect(() => {
+    if (!joinUrl || !canvasRef.current) return;
+    QRCode.toCanvas(canvasRef.current, joinUrl, {
+      width: 280,
+      margin: 1,
+      color: { dark: "#0B0F1A", light: "#FFFFFF" },
+      errorCorrectionLevel: "H",
+    }).catch(() => {});
+    QRCode.toDataURL(joinUrl, {
+      width: 800,
+      margin: 2,
+      color: { dark: "#0B0F1A", light: "#FFFFFF" },
+      errorCorrectionLevel: "H",
+    }).then(setQrDataUrl).catch(() => {});
+  }, [joinUrl]);
+
+  const copy = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: `${label} copied ✅` });
+    } catch {
+      toast({ title: "Copy failed", variant: "destructive" });
+    }
+  };
+
+  const downloadQR = () => {
+    if (!qrDataUrl) return;
+    const a = document.createElement("a");
+    a.href = qrDataUrl;
+    a.download = `${institutionName.replace(/\s+/g, "_")}_QR.png`;
+    a.click();
+  };
+
+  const shareWhatsApp = () => {
+    const msg = encodeURIComponent(
+      `Join ${institutionName} on ACRY 🚀\n\nUse this link to enroll instantly:\n${joinUrl}\n\nOr enter referral code: ${referralCode}`,
+    );
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  };
+
+  const nativeShare = async () => {
+    if (!navigator.share) {
+      copy(joinUrl, "Invite link");
+      return;
+    }
+    try {
+      await navigator.share({
+        title: `Join ${institutionName}`,
+        text: `Enroll at ${institutionName} on ACRY`,
+        url: joinUrl,
+      });
+    } catch {}
+  };
+
+  const rotateCode = async () => {
+    if (!confirm("Generating a new code will invalidate all existing QR codes and links. Continue?")) return;
+    setRotating(true);
+    try {
+      // Generate via DB-side via update to NULL then trigger fires? Trigger only on INSERT.
+      // Compute client-side fallback then check uniqueness via update with random retry
+      const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = "";
+      for (let i = 0; i < 7; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+      const { error } = await supabase
+        .from("institutions")
+        .update({ referral_code: code } as any)
+        .eq("id", institutionId);
+      if (error) throw error;
+      toast({ title: "New code generated 🔄" });
+      load();
+    } catch (e: any) {
+      toast({ title: "Rotation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Hero with QR */}
+      <div
+        className="relative overflow-hidden rounded-3xl border border-border p-5"
+        style={{
+          background: `radial-gradient(ellipse 80% 60% at 50% 0%, ${accent}18 0%, hsl(var(--card)) 60%)`,
+        }}
+      >
+        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full blur-3xl pointer-events-none"
+          style={{ background: `${accent}25` }} />
+
+        <div className="relative flex flex-col md:flex-row gap-5 items-center md:items-stretch">
+          {/* QR */}
+          <div className="shrink-0">
+            <div
+              className="rounded-2xl p-4 bg-white shadow-2xl"
+              style={{ boxShadow: `0 25px 50px -12px ${accent}50` }}
+            >
+              <canvas ref={canvasRef} className="block" />
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5" style={{ color: accent }} />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Instant Onboarding
+                </span>
+              </div>
+              <h2 className="text-xl font-extrabold text-foreground leading-tight">
+                Scan to join {institutionName}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Print this QR or share the link. Students get auto-mapped to your institute the moment they sign up.
+              </p>
+            </div>
+
+            {/* Referral code chip */}
+            <div className="flex items-center gap-2">
+              <div
+                className="flex-1 rounded-xl px-3 py-2.5 font-mono font-bold text-lg tracking-[0.3em] text-center text-foreground"
+                style={{ background: `${accent}12`, border: `1px solid ${accent}40` }}
+              >
+                {referralCode}
+              </div>
+              <button
+                onClick={() => copy(referralCode, "Referral code")}
+                className="p-2.5 rounded-xl border border-border hover:bg-secondary transition-colors"
+                title="Copy code"
+              >
+                <Copy className="w-4 h-4 text-foreground" />
+              </button>
+              <button
+                onClick={rotateCode}
+                disabled={rotating}
+                className="p-2.5 rounded-xl border border-border hover:bg-secondary transition-colors"
+                title="Rotate (invalidate old)"
+              >
+                {rotating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4 text-foreground" />}
+              </button>
+            </div>
+
+            {/* Share row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <ActionBtn icon={Download} label="QR PNG" onClick={downloadQR} accent={accent} />
+              <ActionBtn icon={MessageSquare} label="WhatsApp" onClick={shareWhatsApp} accent="#25D366" />
+              <ActionBtn icon={Share2} label="Share" onClick={nativeShare} accent={accent} />
+              <ActionBtn icon={Copy} label="Copy link" onClick={() => copy(joinUrl, "Invite link")} accent={accent} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Invite link box */}
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <div className="flex items-center gap-2 mb-2.5">
+          <Link2 className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-bold text-foreground">Public invite link</h3>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl bg-secondary/40 px-3 py-2.5">
+          <span className="text-xs font-mono text-foreground/80 truncate flex-1">{joinUrl}</span>
+          <button
+            onClick={() => copy(joinUrl, "Invite link")}
+            className="text-[11px] font-bold text-primary hover:underline shrink-0"
+          >
+            COPY
+          </button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Anyone opening this link signs up via OTP and is auto-enrolled as a student of your institute.
+        </p>
+      </div>
+
+      {/* Source attribution analytics */}
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-emerald-400" /> Source Attribution
+          </h3>
+          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <Users className="w-3 h-3" /> {totalJoins} total students
+          </span>
+        </div>
+
+        {stats.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2">
+            No students enrolled yet. Share your QR or link to start tracking.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {stats.map((s) => {
+              const pct = totalJoins ? Math.round((s.count / totalJoins) * 100) : 0;
+              return (
+                <div key={s.source}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-semibold text-foreground capitalize flex items-center gap-1.5">
+                      <SourceDot source={s.source} />
+                      {s.source}
+                    </span>
+                    <span className="text-muted-foreground">
+                      <span className="font-bold text-foreground">{s.count}</span> · {pct}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${pct}%`,
+                        background: sourceColor(s.source),
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Tips */}
+      <div
+        className="rounded-2xl border p-4"
+        style={{
+          background: `linear-gradient(135deg, ${accent}10, transparent)`,
+          borderColor: `${accent}30`,
+        }}
+      >
+        <h4 className="text-xs font-bold text-foreground flex items-center gap-2 mb-2">
+          <CheckCircle2 className="w-3.5 h-3.5" style={{ color: accent }} /> Pro tips
+        </h4>
+        <ul className="space-y-1 text-[11px] text-muted-foreground leading-relaxed">
+          <li>• Print the QR poster and place it at your front desk for instant enrollments.</li>
+          <li>• Put the invite link in your Instagram bio and YouTube descriptions for source tracking.</li>
+          <li>• Share via WhatsApp broadcast — every join is attributed back to your institute.</li>
+          <li>• Rotate the code when a campaign ends to keep analytics clean.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const ActionBtn = ({
+  icon: Icon, label, onClick, accent,
+}: { icon: any; label: string; onClick: () => void; accent: string }) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all hover:scale-[1.02]",
+    )}
+    style={{
+      background: `${accent}15`,
+      color: accent,
+      border: `1px solid ${accent}40`,
+    }}
+  >
+    <Icon className="w-3.5 h-3.5" /> {label}
+  </button>
+);
+
+const SourceDot = ({ source }: { source: string }) => (
+  <span className="w-1.5 h-1.5 rounded-full" style={{ background: sourceColor(source) }} />
+);
+
+function sourceColor(source: string) {
+  switch (source) {
+    case "qr": return "#00E5FF";
+    case "referral": return "#7C4DFF";
+    case "whatsapp": return "#25D366";
+    case "invite": return "#F59E0B";
+    case "direct":
+    default: return "#94A3B8";
+  }
+}
