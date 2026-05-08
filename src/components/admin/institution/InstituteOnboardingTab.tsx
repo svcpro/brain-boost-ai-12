@@ -6,9 +6,10 @@ import {
   QrCode, Copy, Download, Share2, Link2, RefreshCw, MessageSquare,
   Sparkles, Loader2, CheckCircle2, Users, TrendingUp, IndianRupee,
   Wallet, Hourglass, BadgeCheck, Percent, ChevronRight, X,
+  CalendarClock, ArrowRight, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, addMonths, startOfMonth, differenceInDays } from "date-fns";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
