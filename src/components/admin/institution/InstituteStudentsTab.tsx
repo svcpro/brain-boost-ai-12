@@ -147,7 +147,7 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
           is_trial: !!s.is_trial,
           sub_status: s.status ?? null,
           sub_amount: Number(s.amount || 0),
-          last_seen_at: p.last_active_at ?? s.updated_at ?? null,
+          last_seen_at: s.updated_at ?? null,
           trial_end_date: s.trial_end_date ?? null,
           ...e,
         };
