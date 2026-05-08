@@ -617,6 +617,68 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
         </ul>
       </div>
     </div>
+
+    <Dialog open={!!drillSource} onOpenChange={(o) => !o && setDrillSource(null)}>
+      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3">
+          <DialogTitle className="flex items-center gap-2 capitalize text-base">
+            {drillSource && <SourceDot source={drillSource} />}
+            {drillSource} commissions
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="px-5 pb-3 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg bg-secondary/40 p-2">
+            <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Total</div>
+            <div className="text-sm font-bold text-foreground">{fmt(drillTotals.total)}</div>
+          </div>
+          <div className="rounded-lg bg-emerald-500/10 p-2">
+            <div className="text-[9px] uppercase tracking-wide text-emerald-400">Paid</div>
+            <div className="text-sm font-bold text-emerald-400">{fmt(drillTotals.paid)}</div>
+          </div>
+          <div className="rounded-lg bg-amber-500/10 p-2">
+            <div className="text-[9px] uppercase tracking-wide text-amber-400">Pending</div>
+            <div className="text-sm font-bold text-amber-400">{fmt(drillTotals.pending)}</div>
+          </div>
+        </div>
+
+        <div className="max-h-[55vh] overflow-y-auto px-5 pb-5 space-y-1.5">
+          {drillRows.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">No commissions yet for this source.</p>
+          )}
+          {drillRows.map((c) => (
+            <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30 border border-border">
+              <div className="min-w-0">
+                <div className="text-[11px] text-muted-foreground">
+                  {format(new Date(c.created_at), "dd MMM yyyy, HH:mm")}
+                </div>
+                <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                  Gross {fmt(Number(c.gross_amount), c.currency)}
+                  {c.paid_at && ` • Paid ${format(new Date(c.paid_at), "dd MMM")}`}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span
+                  className={cn(
+                    "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
+                    c.status === "paid" && "bg-emerald-500/15 text-emerald-400",
+                    c.status === "pending" && "bg-amber-500/15 text-amber-400",
+                    c.status === "approved" && "bg-primary/15 text-primary",
+                    c.status === "reversed" && "bg-destructive/15 text-destructive",
+                  )}
+                >
+                  {c.status}
+                </span>
+                <span className="text-xs font-bold text-foreground">
+                  {fmt(Number(c.commission_amount), c.currency)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
