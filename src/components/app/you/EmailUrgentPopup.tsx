@@ -117,7 +117,8 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    host
   );
 };
 
