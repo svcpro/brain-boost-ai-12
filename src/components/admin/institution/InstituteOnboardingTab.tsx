@@ -201,7 +201,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
       color: { dark: "#0B0F1A", light: "#FFFFFF" },
       errorCorrectionLevel: "H",
     }).then(setQrDataUrl).catch(() => {});
-  }, [joinUrl]);
+  }, [joinUrl, accent]);
 
   const copy = async (text: string, label: string) => {
     try {
