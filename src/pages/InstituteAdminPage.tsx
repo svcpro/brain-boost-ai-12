@@ -54,6 +54,7 @@ export default function InstituteAdminPage() {
   const [loading, setLoading] = useState(true);
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [tab, setTab] = useState<Tab>("command");
+  const [livePulse, setLivePulse] = useState(0);
   const [metrics, setMetrics] = useState({
     totalStudents: 0,
     activeStudents7d: 0,
@@ -70,26 +71,15 @@ export default function InstituteAdminPage() {
     loadAll();
   }, [user]);
 
-  const loadAll = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data: inst } = await supabase
-      .from("institutions")
-      .select("*")
-      .eq("admin_user_id", user.id)
-      .maybeSingle();
-
-    if (!inst) { setInstitution(null); setLoading(false); return; }
-    setInstitution(inst as any);
-
+  const refreshMetrics = async (instId: string) => {
     const [{ data: members }, { data: commissions }] = await Promise.all([
       supabase.from("institution_members")
         .select("user_id, joined_at, is_active")
-        .eq("institution_id", (inst as any).id)
+        .eq("institution_id", instId)
         .eq("role", "student"),
       supabase.from("institution_commissions")
         .select("commission_amount, status, created_at, user_id")
-        .eq("institution_id", (inst as any).id),
+        .eq("institution_id", instId),
     ]);
 
     const now = Date.now();
@@ -99,7 +89,6 @@ export default function InstituteAdminPage() {
     const cms = (commissions || []) as any[];
 
     const paidUserIds = new Set(cms.filter(c => c.status !== "reversed").map(c => c.user_id));
-
     const earnedTotal = cms.filter(c => c.status !== "reversed").reduce((s, c) => s + Number(c.commission_amount || 0), 0);
     const earnedPaid = cms.filter(c => c.status === "paid").reduce((s, c) => s + Number(c.commission_amount || 0), 0);
     const earnedPending = cms.filter(c => c.status === "pending" || c.status === "approved").reduce((s, c) => s + Number(c.commission_amount || 0), 0);
@@ -113,9 +102,52 @@ export default function InstituteAdminPage() {
       earnedTotal, earnedPending, earnedPaid, earned30d,
       commissionCount: cms.length,
     });
+  };
 
+  const loadAll = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data: inst } = await supabase
+      .from("institutions")
+      .select("*")
+      .eq("admin_user_id", user.id)
+      .maybeSingle();
+
+    if (!inst) { setInstitution(null); setLoading(false); return; }
+    setInstitution(inst as any);
+    await refreshMetrics((inst as any).id);
     setLoading(false);
   };
+
+  // Realtime: live KPI updates from members + commissions
+  useEffect(() => {
+    if (!institution?.id) return;
+    let debounce: any;
+    const trigger = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        refreshMetrics(institution.id);
+        setLivePulse((p) => p + 1);
+      }, 350);
+    };
+    const channel = supabase
+      .channel(`inst-kpi-${institution.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "institution_members", filter: `institution_id=eq.${institution.id}` },
+        trigger,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "institution_commissions", filter: `institution_id=eq.${institution.id}` },
+        trigger,
+      )
+      .subscribe();
+    return () => {
+      clearTimeout(debounce);
+      supabase.removeChannel(channel);
+    };
+  }, [institution?.id]);
 
   const conversionRate = useMemo(() => {
     if (!metrics.totalStudents) return 0;
