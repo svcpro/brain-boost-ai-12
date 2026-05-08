@@ -4926,6 +4926,62 @@ export type Database = {
           },
         ]
       }
+      institution_commissions: {
+        Row: {
+          commission_amount: number
+          commission_rate: number
+          created_at: string
+          currency: string
+          gross_amount: number
+          id: string
+          institution_id: string
+          notes: string | null
+          paid_at: string | null
+          source: string | null
+          status: string
+          subscription_id: string
+          user_id: string
+        }
+        Insert: {
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string
+          currency?: string
+          gross_amount?: number
+          id?: string
+          institution_id: string
+          notes?: string | null
+          paid_at?: string | null
+          source?: string | null
+          status?: string
+          subscription_id: string
+          user_id: string
+        }
+        Update: {
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string
+          currency?: string
+          gross_amount?: number
+          id?: string
+          institution_id?: string
+          notes?: string | null
+          paid_at?: string | null
+          source?: string | null
+          status?: string
+          subscription_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_commissions_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institution_invites: {
         Row: {
           accepted_at: string | null
@@ -5144,6 +5200,7 @@ export type Database = {
           admin_user_id: string
           branch: string | null
           city: string | null
+          commission_rate: number
           created_at: string | null
           domain: string | null
           id: string
@@ -5167,6 +5224,7 @@ export type Database = {
           admin_user_id: string
           branch?: string | null
           city?: string | null
+          commission_rate?: number
           created_at?: string | null
           domain?: string | null
           id?: string
@@ -5190,6 +5248,7 @@ export type Database = {
           admin_user_id?: string
           branch?: string | null
           city?: string | null
+          commission_rate?: number
           created_at?: string | null
           domain?: string | null
           id?: string
@@ -11863,6 +11922,10 @@ export type Database = {
       }
       peek_institution_by_referral: { Args: { p_code: string }; Returns: Json }
       peek_institution_invite: { Args: { p_token: string }; Returns: Json }
+      record_referral_commission: {
+        Args: { p_subscription_id: string }
+        Returns: undefined
+      }
       reset_monthly_api_usage: { Args: never; Returns: undefined }
       sms_quota_increment: { Args: { p_user_id: string }; Returns: number }
       sms_quota_remaining: { Args: { p_user_id: string }; Returns: number }

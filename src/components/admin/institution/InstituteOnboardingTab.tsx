@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   QrCode, Copy, Download, Share2, Link2, RefreshCw, MessageSquare,
-  Sparkles, Loader2, CheckCircle2, Users, TrendingUp,
+  Sparkles, Loader2, CheckCircle2, Users, TrendingUp, IndianRupee,
+  Wallet, Hourglass, BadgeCheck, Percent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface Props {
   institutionId: string;
@@ -17,6 +19,7 @@ interface InstMeta {
   referral_code: string;
   primary_color: string | null;
   logo_url: string | null;
+  commission_rate: number | null;
 }
 
 interface SourceStat {
@@ -24,11 +27,23 @@ interface SourceStat {
   count: number;
 }
 
+interface CommissionRow {
+  id: string;
+  source: string | null;
+  gross_amount: number;
+  commission_amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  paid_at: string | null;
+}
+
 export default function InstituteOnboardingTab({ institutionId, institutionName }: Props) {
   const { toast } = useToast();
   const [meta, setMeta] = useState<InstMeta | null>(null);
   const [stats, setStats] = useState<SourceStat[]>([]);
   const [totalJoins, setTotalJoins] = useState(0);
+  const [commissions, setCommissions] = useState<CommissionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [rotating, setRotating] = useState(false);
@@ -42,10 +57,10 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: inst }, { data: members }] = await Promise.all([
+      const [{ data: inst }, { data: members }, { data: comm }] = await Promise.all([
         supabase
           .from("institutions")
-          .select("referral_code, primary_color, logo_url")
+          .select("referral_code, primary_color, logo_url, commission_rate")
           .eq("id", institutionId)
           .maybeSingle(),
         supabase
@@ -53,6 +68,11 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
           .select("source")
           .eq("institution_id", institutionId)
           .eq("role", "student"),
+        supabase
+          .from("institution_commissions")
+          .select("id, source, gross_amount, commission_amount, currency, status, created_at, paid_at")
+          .eq("institution_id", institutionId)
+          .order("created_at", { ascending: false }),
       ]);
 
       setMeta(inst as any);
@@ -67,6 +87,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
         .sort((a, b) => b.count - a.count);
       setStats(arr);
       setTotalJoins((members || []).length);
+      setCommissions(((comm as any[]) || []) as CommissionRow[]);
     } catch (e: any) {
       toast({ title: "Failed to load", description: e.message, variant: "destructive" });
     } finally {
@@ -159,6 +180,44 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
       setRotating(false);
     }
   };
+
+  // ───── Commission analytics ─────
+  const commissionStats = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    let totalEarned = 0, pending = 0, paid = 0, thisMonth = 0;
+    let conversions = 0;
+    const bySource: Record<string, { count: number; earned: number }> = {};
+    const seenUsers = new Set<string>();
+    commissions.forEach((c) => {
+      const amt = Number(c.commission_amount || 0);
+      totalEarned += amt;
+      if (c.status === "paid") paid += amt;
+      else if (c.status !== "reversed") pending += amt;
+      if (new Date(c.created_at).getTime() >= monthStart) thisMonth += amt;
+      conversions += 1;
+      const src = c.source || "direct";
+      if (!bySource[src]) bySource[src] = { count: 0, earned: 0 };
+      bySource[src].count += 1;
+      bySource[src].earned += amt;
+    });
+    const sourceRows = Object.entries(bySource)
+      .map(([source, v]) => ({
+        source,
+        conversions: v.count,
+        earned: v.earned,
+        joins: stats.find((s) => s.source === source)?.count ?? 0,
+      }))
+      .sort((a, b) => b.earned - a.earned);
+    return {
+      totalEarned, pending, paid, thisMonth, conversions,
+      sourceRows,
+      conversionRate: totalJoins ? Math.round((conversions / totalJoins) * 100) : 0,
+    };
+  }, [commissions, stats, totalJoins]);
+
+  const fmt = (n: number, currency = "INR") =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(n || 0);
 
   if (loading) {
     return (
@@ -310,6 +369,159 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
         )}
       </div>
 
+      {/* ───── Commission Analytics ───── */}
+      <div
+        className="relative overflow-hidden rounded-3xl border p-5"
+        style={{
+          background: `radial-gradient(ellipse 80% 60% at 0% 0%, #7C4DFF18 0%, hsl(var(--card)) 60%)`,
+          borderColor: "hsl(var(--border))",
+        }}
+      >
+        <div className="absolute -top-12 -left-12 w-56 h-56 rounded-full blur-3xl pointer-events-none bg-purple-500/15" />
+
+        <div className="relative">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-purple-400" /> Commission Earnings
+            </h3>
+            <span
+              className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md flex items-center gap-1"
+              style={{ background: "#7C4DFF20", color: "#A78BFA", border: "1px solid #7C4DFF40" }}
+            >
+              <Percent className="w-3 h-3" />
+              {Math.round((meta?.commission_rate ?? 0.2) * 100)}% rate
+            </span>
+          </div>
+
+          {/* KPI grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <CommissionKpi
+              icon={IndianRupee}
+              label="Total Earned"
+              value={fmt(commissionStats.totalEarned)}
+              color="#A78BFA"
+            />
+            <CommissionKpi
+              icon={Hourglass}
+              label="Pending Payout"
+              value={fmt(commissionStats.pending)}
+              color="#FBBF24"
+            />
+            <CommissionKpi
+              icon={BadgeCheck}
+              label="Paid Out"
+              value={fmt(commissionStats.paid)}
+              color="#10B981"
+            />
+            <CommissionKpi
+              icon={TrendingUp}
+              label="This Month"
+              value={fmt(commissionStats.thisMonth)}
+              color="#00E5FF"
+            />
+          </div>
+
+          {/* Conversion summary */}
+          <div className="rounded-xl bg-secondary/40 border border-border p-3 mb-4">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Users className="w-3.5 h-3.5" />
+                <span>
+                  <span className="font-bold text-foreground">{commissionStats.conversions}</span> paid conversions
+                  {" "}from <span className="font-bold text-foreground">{totalJoins}</span> students
+                </span>
+              </div>
+              <span className="font-bold text-success">{commissionStats.conversionRate}%</span>
+            </div>
+          </div>
+
+          {/* Earnings by source */}
+          {commissionStats.sourceRows.length > 0 && (
+            <div>
+              <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                Earnings by Source
+              </h4>
+              <div className="space-y-2">
+                {commissionStats.sourceRows.map((r) => {
+                  const pct = commissionStats.totalEarned
+                    ? Math.round((r.earned / commissionStats.totalEarned) * 100)
+                    : 0;
+                  return (
+                    <div key={r.source}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-semibold text-foreground capitalize flex items-center gap-1.5">
+                          <SourceDot source={r.source} />
+                          {r.source}
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            ({r.conversions}/{r.joins} converted)
+                          </span>
+                        </span>
+                        <span className="font-bold text-foreground">{fmt(r.earned)}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, background: sourceColor(r.source) }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent ledger */}
+          {commissions.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                Recent Commissions
+              </h4>
+              <div className="space-y-1.5">
+                {commissions.slice(0, 6).map((c) => (
+                  <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-foreground capitalize flex items-center gap-1.5">
+                        <SourceDot source={c.source || "direct"} />
+                        {c.source || "direct"}
+                        <span className="text-muted-foreground font-normal">
+                          • gross {fmt(Number(c.gross_amount), c.currency)}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {format(new Date(c.created_at), "dd MMM yyyy")}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={cn(
+                          "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
+                          c.status === "paid" && "bg-success/15 text-success",
+                          c.status === "pending" && "bg-warning/15 text-warning",
+                          c.status === "approved" && "bg-primary/15 text-primary",
+                          c.status === "reversed" && "bg-destructive/15 text-destructive",
+                        )}
+                      >
+                        {c.status}
+                      </span>
+                      <span className="text-xs font-bold text-foreground">
+                        {fmt(Number(c.commission_amount), c.currency)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {commissions.length === 0 && (
+            <p className="text-xs text-muted-foreground py-2 text-center">
+              No paid conversions yet. Commissions appear here automatically when a referred student subscribes.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Tips */}
       <div
         className="rounded-2xl border p-4"
@@ -364,3 +576,23 @@ function sourceColor(source: string) {
     default: return "#94A3B8";
   }
 }
+
+const CommissionKpi = ({
+  icon: Icon, label, value, color,
+}: { icon: any; label: string; value: string; color: string }) => (
+  <div
+    className="rounded-2xl p-3.5 border"
+    style={{
+      background: `linear-gradient(135deg, ${color}14, transparent)`,
+      borderColor: `${color}30`,
+    }}
+  >
+    <div className="flex items-center gap-1.5 mb-1.5">
+      <Icon className="w-3.5 h-3.5" style={{ color }} />
+      <span className="text-[10px] uppercase tracking-wide font-semibold" style={{ color }}>
+        {label}
+      </span>
+    </div>
+    <div className="text-xl font-extrabold text-foreground">{value}</div>
+  </div>
+);
