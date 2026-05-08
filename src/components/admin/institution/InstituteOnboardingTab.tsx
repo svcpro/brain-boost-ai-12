@@ -481,14 +481,42 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                         </span>
                         <span className="font-bold text-foreground">{fmt(r.earned)}</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${pct}%`, background: sourceColor(r.source) }}
-                        />
+                      <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden flex">
+                        {r.earned > 0 && (
+                          <>
+                            <div
+                              className="h-full transition-all"
+                              style={{
+                                width: `${Math.round((r.paid / r.earned) * pct)}%`,
+                                background: "#10B981",
+                              }}
+                            />
+                            <div
+                              className="h-full transition-all"
+                              style={{
+                                width: `${Math.round((r.pending / r.earned) * pct)}%`,
+                                background: "#FBBF24",
+                              }}
+                            />
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-[10px]">
+                        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          Paid {fmt(r.paid)}
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                          Pending {fmt(r.pending)}
+                        </span>
                       </div>
                     </div>
                   );
+                })}
+              </div>
+            </div>
+          )}
                 })}
               </div>
             </div>
