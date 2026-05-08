@@ -414,127 +414,67 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
               </p>
             </div>
 
-            {/* Referral code chip */}
-            <div className="flex items-center gap-2">
-              <div
-                className="flex-1 rounded-xl px-3 py-2.5 font-mono font-bold text-lg tracking-[0.3em] text-center text-foreground"
-                style={{ background: `${accent}12`, border: `1px solid ${accent}40` }}
-              >
-                {referralCode}
+            {/* Public invite link (merged) */}
+            <div
+              className="relative rounded-2xl p-[1.5px] overflow-hidden"
+              style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF 45%, #00E5FF)` }}
+            >
+              <div className="relative rounded-[14px] bg-card/95 backdrop-blur-xl p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-lg flex items-center justify-center"
+                      style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
+                    >
+                      <Link2 className="w-3 h-3 text-white" />
+                    </div>
+                    <h3 className="text-xs font-bold text-foreground leading-tight">Public invite link</h3>
+                  </div>
+                  <span
+                    className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider uppercase border"
+                    style={{
+                      borderColor: `${accent}55`,
+                      background: `linear-gradient(135deg, ${accent}22, #00E5FF22)`,
+                      color: accent,
+                    }}
+                  >
+                    <Sparkles className="w-2.5 h-2.5" /> ACRY.AI
+                  </span>
+                </div>
+
+                <div
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 border overflow-hidden"
+                  style={{
+                    borderColor: `${accent}40`,
+                    background: "linear-gradient(135deg, hsl(var(--secondary)/0.6), hsl(var(--card)/0.4))",
+                  }}
+                >
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                    style={{ background: `${accent}22`, color: accent }}
+                  >
+                    https://
+                  </span>
+                  <span className="text-sm font-mono font-bold text-foreground truncate flex-1 tracking-tight">
+                    <span className="text-foreground">{BRAND_HOST}</span>
+                    <span className="text-muted-foreground">/i/</span>
+                    <span
+                      className="bg-clip-text text-transparent font-extrabold"
+                      style={{ backgroundImage: `linear-gradient(135deg, ${accent}, #00E5FF)` }}
+                    >
+                      {referralCode || "—"}
+                    </span>
+                  </span>
+                </div>
               </div>
-              <button
-                onClick={() => copy(referralCode, "Referral code")}
-                className="p-2.5 rounded-xl border border-border hover:bg-secondary transition-colors"
-                title="Copy code"
-              >
-                <Copy className="w-4 h-4 text-foreground" />
-              </button>
-              <button
-                onClick={rotateCode}
-                disabled={rotating}
-                className="p-2.5 rounded-xl border border-border hover:bg-secondary transition-colors"
-                title="Rotate (invalidate old)"
-              >
-                {rotating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4 text-foreground" />}
-              </button>
             </div>
 
             {/* Share row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <ActionBtn icon={Download} label="QR PNG" onClick={downloadQR} accent={accent} />
               <ActionBtn icon={MessageSquare} label="WhatsApp" onClick={shareWhatsApp} accent="#25D366" />
               <ActionBtn icon={Share2} label="Share" onClick={nativeShare} accent={accent} />
-              <ActionBtn icon={Copy} label="Copy link" onClick={() => copy(joinUrl, "Invite link")} accent={accent} />
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Ultra-premium branded invite link */}
-      <div
-        className="relative rounded-2xl p-[1.5px] overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, ${accent}, #7C4DFF 45%, #00E5FF)`,
-        }}
-      >
-        <div className="absolute inset-0 opacity-40 pointer-events-none">
-          <div
-            className="absolute -top-10 -left-10 w-40 h-40 rounded-full blur-3xl"
-            style={{ background: `radial-gradient(circle, ${accent}55, transparent 70%)` }}
-          />
-          <div className="absolute -bottom-12 -right-12 w-44 h-44 rounded-full blur-3xl bg-[radial-gradient(circle,#00E5FF44,transparent_70%)]" />
-        </div>
-        <div className="relative rounded-[14px] bg-card/95 backdrop-blur-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
-              >
-                <Link2 className="w-3.5 h-3.5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-foreground leading-tight">Public invite link</h3>
-                <p className="text-[10px] text-muted-foreground leading-tight">Branded · One-tap enroll · Source-tracked</p>
-              </div>
-            </div>
-            <span
-              className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-extrabold tracking-wider uppercase border"
-              style={{
-                borderColor: `${accent}55`,
-                background: `linear-gradient(135deg, ${accent}22, #00E5FF22)`,
-                color: accent,
-              }}
-            >
-              <Sparkles className="w-2.5 h-2.5" /> ACRY.AI
-            </span>
-          </div>
-
-          <div
-            className="group relative flex items-center gap-2 rounded-xl px-3 py-3 border overflow-hidden"
-            style={{
-              borderColor: `${accent}40`,
-              background: "linear-gradient(135deg, hsl(var(--secondary)/0.6), hsl(var(--card)/0.4))",
-            }}
-          >
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span
-                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-                style={{ background: `${accent}22`, color: accent }}
-              >
-                https://
-              </span>
-            </div>
-            <span className="text-sm font-mono font-bold text-foreground truncate flex-1 tracking-tight">
-              <span className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                {BRAND_HOST}
-              </span>
-              <span className="text-muted-foreground">/i/</span>
-              <span
-                className="bg-clip-text text-transparent font-extrabold"
-                style={{ backgroundImage: `linear-gradient(135deg, ${accent}, #00E5FF)` }}
-              >
-                {referralCode || "—"}
-              </span>
-            </span>
-            <button
-              onClick={() => copy(joinUrl, "Invite link")}
-              className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold text-white shadow-lg transition-transform active:scale-95"
-              style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
-            >
-              <Copy className="w-3 h-3" /> COPY
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between gap-2 mt-3">
-            <p className="text-[11px] text-muted-foreground flex-1">
-              Anyone opening this link signs up via OTP and is auto-enrolled as your student. The shortest, most premium invite on the internet.
-            </p>
-            <span
-              className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-            >
-              <CheckCircle2 className="w-2.5 h-2.5" /> SSL · Verified
-            </span>
           </div>
         </div>
       </div>
