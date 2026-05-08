@@ -255,15 +255,12 @@ export default function InstituteAdminPage() {
                   ))}
                 </div>
 
-                {/* License */}
+                {/* License (read-only) */}
                 <div className="rounded-2xl bg-card border border-border p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Shield className="w-4 h-4 text-primary" /> License
                     </h3>
-                    <button onClick={() => setTab("billing")} className="text-[11px] text-primary hover:underline flex items-center gap-1">
-                      Manage <ChevronRight className="w-3 h-3" />
-                    </button>
                   </div>
                   {license ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
@@ -288,44 +285,14 @@ export default function InstituteAdminPage() {
                   {expiringSoon && (
                     <div className="mt-3 p-2.5 rounded-xl bg-warning/10 border border-warning/30 flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
-                      <span className="text-[11px] text-warning">License expires soon. Renew to avoid service interruption.</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Recent Invoices */}
-                <div className="rounded-2xl bg-card border border-border p-4">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
-                    <CreditCard className="w-4 h-4 text-success" /> Recent Invoices
-                  </h3>
-                  {invoices.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-2">No invoices yet</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {invoices.slice(0, 6).map(inv => (
-                        <div key={inv.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
-                          <div>
-                            <div className="text-[11px] font-mono text-foreground">{inv.invoice_number}</div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {inv.student_count || 0} students • {format(new Date(inv.created_at), "dd MMM")}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
-                              inv.status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
-                            )}>{inv.status}</span>
-                            <span className="text-xs font-bold text-foreground">₹{Number(inv.amount).toFixed(0)}</span>
-                          </div>
-                        </div>
-                      ))}
+                      <span className="text-[11px] text-warning">License expires soon. Contact ACRY support to renew.</span>
                     </div>
                   )}
                 </div>
 
                 {/* Quick links */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {TABS.filter(t => t.key !== "overview").slice(0, 4).map(t => (
+                <div className="grid grid-cols-2 gap-2">
+                  {TABS.filter(t => t.key !== "overview").map(t => (
                     <button
                       key={t.key}
                       onClick={() => setTab(t.key)}
@@ -333,7 +300,9 @@ export default function InstituteAdminPage() {
                     >
                       <t.icon className={cn("w-4 h-4 mb-1.5", t.color)} />
                       <div className="text-xs font-bold text-foreground">{t.label}</div>
-                      <div className="text-[10px] text-muted-foreground">Manage {t.label.toLowerCase()}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {t.key === "students" ? "Monitor & track students" : "Track commission earnings"}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -341,17 +310,8 @@ export default function InstituteAdminPage() {
             )}
 
             <Suspense fallback={<Loader />}>
-              {tab === "onboarding" && <InstituteOnboardingTab institutionId={institution.id} institutionName={institution.name} />}
               {tab === "students" && <InstituteStudentsTab institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "members" && <InstituteMembersTab institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "batches" && <BatchManagement institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "faculty" && <FacultyDashboard institutionId={institution.id} />}
-              {tab === "branding" && <BrandingConfig institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "features" && <FeatureToggles institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "domains" && <DomainManagement institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "contracts" && <ContractManagement institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "billing" && <LicenseBilling institutionId={institution.id} institutionName={institution.name} />}
-              {tab === "audit" && <InstitutionAuditLog institutionId={institution.id} institutionName={institution.name} />}
+              {tab === "earnings" && <InstituteOnboardingTab institutionId={institution.id} institutionName={institution.name} />}
             </Suspense>
           </motion.div>
         </AnimatePresence>
