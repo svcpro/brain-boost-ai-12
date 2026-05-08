@@ -225,6 +225,17 @@ export default function InstituteAdminPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-base font-extrabold text-foreground truncate tracking-tight">{institution.name}</h1>
               <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-primary/15 text-primary capitalize">{institution.type}</span>
+              <span
+                key={livePulse}
+                className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 animate-fade-in"
+                title="Realtime sync active"
+              >
+                <span className="relative flex w-1.5 h-1.5">
+                  <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping" />
+                  <span className="relative w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                </span>
+                LIVE
+              </span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
               <Sparkles className="w-2.5 h-2.5" />
