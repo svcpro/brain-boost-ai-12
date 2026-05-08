@@ -113,24 +113,41 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
       const ids = (members || []).map((m) => m.user_id);
       let profilesById: Record<string, any> = {};
       let subsById: Record<string, any> = {};
+      let leadsById: Record<string, any> = {};
+      let batchById: Record<string, any> = {};
       const earnings: Record<string, { earned: number; paid: number; pending: number; txns: number }> = {};
 
       if (ids.length > 0) {
-        const [{ data: profs }, { data: subs }, { data: cms }] = await Promise.all([
-          supabase.from("profiles").select("id, display_name, email, phone, avatar_url").in("id", ids),
+        const [
+          { data: profs },
+          { data: subs },
+          { data: cms },
+          { data: leadsRows },
+          { data: batchRows },
+        ] = await Promise.all([
+          supabase.from("profiles").select("id, display_name, email, phone, avatar_url, exam_type").in("id", ids),
           supabase.from("user_subscriptions")
-            .select("user_id, plan_id, status, is_trial, amount, trial_end_date, updated_at")
+            .select("user_id, plan_id, status, is_trial, amount, currency, billing_cycle, trial_start_date, trial_end_date, expires_at, updated_at")
             .in("user_id", ids),
           supabase.from("institution_commissions")
             .select("user_id, commission_amount, status")
             .eq("institution_id", institutionId)
             .in("user_id", ids),
+          supabase.from("leads")
+            .select("user_id, stage, score, study_hours_7d, streak_days, exam_count, last_active_at")
+            .in("user_id", ids),
+          supabase.from("batch_students")
+            .select("student_user_id, roll_number, batch:institution_batches(name, academic_year, institution_id)")
+            .in("student_user_id", ids),
         ]);
         (profs || []).forEach((p: any) => (profilesById[p.id] = p));
         (subs || []).forEach((s: any) => {
-          // Prefer most recent
           const prev = subsById[s.user_id];
           if (!prev || new Date(s.updated_at) > new Date(prev.updated_at)) subsById[s.user_id] = s;
+        });
+        (leadsRows || []).forEach((l: any) => (leadsById[l.user_id] = l));
+        (batchRows || []).forEach((b: any) => {
+          if (b.batch?.institution_id === institutionId) batchById[b.student_user_id] = b;
         });
         (cms || []).forEach((c: any) => {
           const k = c.user_id;
@@ -148,6 +165,8 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
       const merged: StudentRow[] = (members || []).map((m: any) => {
         const p = profilesById[m.user_id] || {};
         const s = subsById[m.user_id] || {};
+        const l = leadsById[m.user_id] || {};
+        const b = batchById[m.user_id];
         const e = earnings[m.user_id] || { earned: 0, paid: 0, pending: 0, txns: 0 };
         return {
           id: m.id,
@@ -159,12 +178,26 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
           email: p.email ?? null,
           phone: p.phone ?? null,
           avatar_url: p.avatar_url ?? null,
+          exam_type: p.exam_type ?? null,
           plan_id: s.plan_id ?? null,
           is_trial: !!s.is_trial,
           sub_status: s.status ?? null,
           sub_amount: Number(s.amount || 0),
-          last_seen_at: s.updated_at ?? null,
+          sub_currency: s.currency ?? null,
+          billing_cycle: s.billing_cycle ?? null,
+          trial_start_date: s.trial_start_date ?? null,
           trial_end_date: s.trial_end_date ?? null,
+          sub_expires_at: s.expires_at ?? null,
+          last_seen_at: s.updated_at ?? null,
+          stage: l.stage ?? null,
+          lead_score: Number(l.score || 0),
+          study_hours_7d: Number(l.study_hours_7d || 0),
+          streak_days: Number(l.streak_days || 0),
+          exam_count: Number(l.exam_count || 0),
+          lead_last_active_at: l.last_active_at ?? null,
+          batch_name: b?.batch?.name ?? null,
+          batch_year: b?.batch?.academic_year ?? null,
+          roll_number: b?.roll_number ?? null,
           ...e,
         };
       });
