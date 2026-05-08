@@ -207,8 +207,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     let totalEarned = 0, pending = 0, paid = 0, thisMonth = 0;
     let conversions = 0;
-    const bySource: Record<string, { count: number; earned: number }> = {};
-    const seenUsers = new Set<string>();
+    const bySource: Record<string, { count: number; earned: number; pending: number; paid: number }> = {};
     commissions.forEach((c) => {
       const amt = Number(c.commission_amount || 0);
       totalEarned += amt;
@@ -217,15 +216,19 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
       if (new Date(c.created_at).getTime() >= monthStart) thisMonth += amt;
       conversions += 1;
       const src = c.source || "direct";
-      if (!bySource[src]) bySource[src] = { count: 0, earned: 0 };
+      if (!bySource[src]) bySource[src] = { count: 0, earned: 0, pending: 0, paid: 0 };
       bySource[src].count += 1;
       bySource[src].earned += amt;
+      if (c.status === "paid") bySource[src].paid += amt;
+      else if (c.status !== "reversed") bySource[src].pending += amt;
     });
     const sourceRows = Object.entries(bySource)
       .map(([source, v]) => ({
         source,
         conversions: v.count,
         earned: v.earned,
+        pending: v.pending,
+        paid: v.paid,
         joins: stats.find((s) => s.source === source)?.count ?? 0,
       }))
       .sort((a, b) => b.earned - a.earned);
@@ -478,11 +481,35 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                         </span>
                         <span className="font-bold text-foreground">{fmt(r.earned)}</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${pct}%`, background: sourceColor(r.source) }}
-                        />
+                      <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden flex">
+                        {r.earned > 0 && (
+                          <>
+                            <div
+                              className="h-full transition-all"
+                              style={{
+                                width: `${Math.round((r.paid / r.earned) * pct)}%`,
+                                background: "#10B981",
+                              }}
+                            />
+                            <div
+                              className="h-full transition-all"
+                              style={{
+                                width: `${Math.round((r.pending / r.earned) * pct)}%`,
+                                background: "#FBBF24",
+                              }}
+                            />
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-[10px]">
+                        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          Paid {fmt(r.paid)}
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                          Pending {fmt(r.pending)}
+                        </span>
                       </div>
                     </div>
                   );
