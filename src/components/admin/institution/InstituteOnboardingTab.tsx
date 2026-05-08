@@ -442,12 +442,15 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                   </span>
                 </div>
 
-                <div
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 border overflow-hidden"
+                <button
+                  type="button"
+                  onClick={() => copy(joinUrl, "Invite link")}
+                  className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 border overflow-hidden text-left transition-all hover:scale-[1.01] active:scale-[0.99] group"
                   style={{
                     borderColor: `${accent}40`,
                     background: "linear-gradient(135deg, hsl(var(--secondary)/0.6), hsl(var(--card)/0.4))",
                   }}
+                  title="Tap to copy invite link"
                 >
                   <span
                     className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
@@ -465,7 +468,13 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                       {referralCode || "—"}
                     </span>
                   </span>
-                </div>
+                  <span
+                    className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold text-white shadow-lg"
+                    style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
+                  >
+                    <Copy className="w-3 h-3" /> COPY
+                  </span>
+                </button>
               </div>
             </div>
 
