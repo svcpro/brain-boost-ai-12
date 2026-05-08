@@ -6,10 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, Building2, Smartphone, MessageSquare, ArrowLeft, ShieldCheck, CheckCircle2,
+  Users, GraduationCap,
 } from "lucide-react";
 
 type Channel = "sms" | "whatsapp";
-type Step = "loading" | "intro" | "otp" | "verify" | "joining" | "done" | "invalid";
+type Step = "loading" | "choose" | "otp" | "verify" | "joining" | "done" | "invalid";
+
+interface Batch {
+  id: string;
+  name: string;
+  description: string | null;
+  academic_year: string | null;
+}
 
 interface InstPreview {
   institution_id: string;
@@ -19,7 +27,14 @@ interface InstPreview {
   primary_color: string | null;
   city: string | null;
   branch: string | null;
+  batches?: Batch[];
+  exam_types?: string[];
 }
+
+const DEFAULT_EXAMS = [
+  "UPSC CSE", "SSC CGL", "NEET", "JEE Main", "JEE Advanced",
+  "CAT", "GATE", "Bank PO", "CLAT", "CUET",
+];
 
 export default function InstituteJoinPage() {
   const { code } = useParams<{ code: string }>();
@@ -30,7 +45,11 @@ export default function InstituteJoinPage() {
   const [step, setStep] = useState<Step>("loading");
   const [preview, setPreview] = useState<InstPreview | null>(null);
   const [channel, setChannel] = useState<Channel>("sms");
+  const [isAuthed, setIsAuthed] = useState(false);
   const accent = preview?.primary_color || (channel === "whatsapp" ? "#25D366" : "#00E5FF");
+
+  const [selectedBatch, setSelectedBatch] = useState<string>("");
+  const [examType, setExamType] = useState<string>("");
 
   const [countryCode] = useState("91");
   const [mobile, setMobile] = useState("");
@@ -43,23 +62,25 @@ export default function InstituteJoinPage() {
   const isValidMobile = mobile.replace(/\D/g, "").length >= 10;
   const sourceParam = (search.get("src") || "qr").toLowerCase();
 
+  const batches: Batch[] = preview?.batches || [];
+  const examOptions: string[] =
+    (preview?.exam_types && preview.exam_types.length > 0)
+      ? preview.exam_types
+      : DEFAULT_EXAMS;
+  const canContinue = (batches.length === 0 || !!selectedBatch) && !!examType;
+
   useEffect(() => {
     if (!code) return;
     (async () => {
-      // 1) Look up institute
       const { data, error } = await supabase.rpc("peek_institution_by_referral", { p_code: code });
       if (error || !data || (data as any).ok === false) {
         setStep("invalid");
         return;
       }
       setPreview(data as any);
-      // 2) If already authenticated, auto-join
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await joinNow(code!);
-      } else {
-        setStep("intro");
-      }
+      setIsAuthed(!!session);
+      setStep("choose");
     })();
   }, [code]);
 
@@ -75,7 +96,9 @@ export default function InstituteJoinPage() {
       const { data, error } = await supabase.rpc("join_institution_by_referral", {
         p_code: codeArg,
         p_source: sourceParam,
-      });
+        p_batch_id: selectedBatch || null,
+        p_exam_type: examType || null,
+      } as any);
       if (error) throw error;
       if (!(data as any)?.ok) throw new Error((data as any)?.error || "Join failed");
       setStep("done");
@@ -83,7 +106,25 @@ export default function InstituteJoinPage() {
       setTimeout(() => navigate("/app", { replace: true }), 1200);
     } catch (e: any) {
       toast({ title: "Could not join", description: e.message, variant: "destructive" });
-      setStep("intro");
+      setStep("choose");
+    }
+  };
+
+  const handleContinue = () => {
+    if (!canContinue) {
+      toast({
+        title: "Select your details",
+        description: batches.length > 0
+          ? "Pick a batch and exam to continue."
+          : "Pick your exam to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isAuthed) {
+      joinNow(code!);
+    } else {
+      setStep("otp");
     }
   };
 
@@ -191,7 +232,7 @@ export default function InstituteJoinPage() {
             </div>
             <h1 className="text-xl font-bold text-white">Invalid invite code</h1>
             <p className="text-sm text-white/50">
-              This referral code doesn’t exist or has been deactivated. Ask your institute for a fresh link.
+              This referral code doesn't exist or has been deactivated. Ask your institute for a fresh link.
             </p>
             <Button
               onClick={() => navigate("/")}
@@ -207,7 +248,11 @@ export default function InstituteJoinPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
               <button
-                onClick={() => (step === "verify" ? setStep("otp") : navigate("/"))}
+                onClick={() => {
+                  if (step === "verify") setStep("otp");
+                  else if (step === "otp") setStep("choose");
+                  else navigate("/");
+                }}
                 className="text-white/60 hover:text-white p-2 -ml-2"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -233,7 +278,7 @@ export default function InstituteJoinPage() {
                   <Building2 className="w-7 h-7" style={{ color: accent }} />
                 )}
               </div>
-              <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">You’re joining</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">You're joining</p>
               <h1 className="text-2xl font-extrabold text-white">{preview.name}</h1>
               <p className="text-xs text-white/50 mt-1 capitalize">
                 {preview.type}
@@ -242,17 +287,90 @@ export default function InstituteJoinPage() {
               </p>
             </div>
 
-            {step === "intro" && (
-              <Button
-                onClick={() => setStep("otp")}
-                className="w-full h-12 rounded-xl font-semibold text-black"
-                style={{
-                  background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  boxShadow: `0 10px 30px -10px ${accent}80`,
-                }}
-              >
-                Enroll with Mobile OTP
-              </Button>
+            {step === "choose" && (
+              <div className="space-y-5">
+                {/* Batch */}
+                {batches.length > 0 && (
+                  <div>
+                    <label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/50 font-bold mb-2">
+                      <Users className="w-3.5 h-3.5" style={{ color: accent }} /> Choose your batch
+                    </label>
+                    <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                      {batches.map((b) => {
+                        const active = selectedBatch === b.id;
+                        return (
+                          <button
+                            key={b.id}
+                            onClick={() => setSelectedBatch(b.id)}
+                            className="w-full text-left rounded-xl p-3 transition-all"
+                            style={{
+                              background: active
+                                ? `linear-gradient(135deg, ${accent}25, ${accent}08)`
+                                : "rgba(255,255,255,0.03)",
+                              border: `1px solid ${active ? accent + "80" : "rgba(255,255,255,0.08)"}`,
+                              boxShadow: active ? `0 6px 20px -10px ${accent}80` : "none",
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-semibold text-white">{b.name}</span>
+                              {b.academic_year && (
+                                <span className="text-[10px] text-white/50 font-medium">
+                                  {b.academic_year}
+                                </span>
+                              )}
+                            </div>
+                            {b.description && (
+                              <p className="text-[11px] text-white/50 mt-0.5 line-clamp-1">
+                                {b.description}
+                              </p>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Exam */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/50 font-bold mb-2">
+                    <GraduationCap className="w-3.5 h-3.5" style={{ color: accent }} /> Target exam
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {examOptions.map((ex) => {
+                      const active = examType === ex;
+                      return (
+                        <button
+                          key={ex}
+                          onClick={() => setExamType(ex)}
+                          className="rounded-xl py-2.5 text-xs font-semibold transition-all"
+                          style={{
+                            background: active
+                              ? `linear-gradient(135deg, ${accent}25, ${accent}08)`
+                              : "rgba(255,255,255,0.03)",
+                            color: active ? "#fff" : "rgba(255,255,255,0.7)",
+                            border: `1px solid ${active ? accent + "80" : "rgba(255,255,255,0.08)"}`,
+                          }}
+                        >
+                          {ex}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleContinue}
+                  disabled={!canContinue}
+                  className="w-full h-12 rounded-xl font-semibold text-black disabled:opacity-50"
+                  style={{
+                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
+                    boxShadow: `0 10px 30px -10px ${accent}80`,
+                  }}
+                >
+                  {isAuthed ? "Enroll Now" : "Continue with Mobile OTP"}
+                </Button>
+              </div>
             )}
 
             {step === "otp" && (
