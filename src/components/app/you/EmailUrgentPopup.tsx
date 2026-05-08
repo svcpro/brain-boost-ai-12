@@ -46,7 +46,7 @@ const EmailUrgentPopup = ({ onAction }: Props) => {
     setDismissed(true);
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ y: 80, opacity: 0 }}
