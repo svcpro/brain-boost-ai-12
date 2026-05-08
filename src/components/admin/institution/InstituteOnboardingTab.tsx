@@ -149,7 +149,6 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
       margin: 4,
       color: { dark: "#000000", light: "#FFFFFF" },
       errorCorrectionLevel: "H",
-      rendererOpts: { quality: 1 },
     }).then((url) => {
       if (!cancelled) setQrDataUrl(url);
     }).catch(() => {
@@ -376,7 +375,18 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                     style={{ borderColor: accent }}
                   />
                 ))}
-                <canvas ref={canvasRef} className="block" />
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt={`ACRY invite QR code for ${institutionName}`}
+                    className="block w-[280px] h-[280px] max-w-full object-contain"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="w-[280px] h-[280px] max-w-full grid place-items-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    Generating QR
+                  </div>
+                )}
               </div>
 
               {/* Footer band */}
