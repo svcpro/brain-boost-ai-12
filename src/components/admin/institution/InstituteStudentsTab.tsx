@@ -101,7 +101,7 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
 
       if (ids.length > 0) {
         const [{ data: profs }, { data: subs }, { data: cms }] = await Promise.all([
-          supabase.from("profiles").select("id, display_name, email, phone, avatar_url, last_active_at").in("id", ids),
+          supabase.from("profiles").select("id, display_name, email, phone, avatar_url").in("id", ids),
           supabase.from("user_subscriptions")
             .select("user_id, plan_id, status, is_trial, amount, trial_end_date, updated_at")
             .in("user_id", ids),
