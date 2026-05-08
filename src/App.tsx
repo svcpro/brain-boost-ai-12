@@ -55,6 +55,7 @@ const MyRankLanding = lazy(() => import("./pages/myrank/MyRankLanding"));
 const MyRankTest = lazy(() => import("./pages/myrank/MyRankTest"));
 const MyRankResult = lazy(() => import("./pages/myrank/MyRankResult"));
 const MyRankLeaderboard = lazy(() => import("./pages/myrank/MyRankLeaderboard"));
+const InstituteAdminPage = lazy(() => import("./pages/InstituteAdminPage"));
 
 // Lazy load heavy components
 const PWAInstallBanner = lazy(() => import("@/components/app/PWAInstallBanner"));
@@ -151,6 +152,11 @@ const App = () => (
               <Route path="/debate" element={
                 <ProtectedRoute>
                   <DebatePracticePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/institute" element={
+                <ProtectedRoute>
+                  <InstituteAdminPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/login" element={<AdminLogin />} />
