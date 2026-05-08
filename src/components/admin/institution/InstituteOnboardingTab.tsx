@@ -597,22 +597,3 @@ function sourceColor(source: string) {
   }
 }
 
-const CommissionKpi = ({
-  icon: Icon, label, value, color,
-}: { icon: any; label: string; value: string; color: string }) => (
-  <div
-    className="rounded-2xl p-3.5 border"
-    style={{
-      background: `linear-gradient(135deg, ${color}14, transparent)`,
-      borderColor: `${color}30`,
-    }}
-  >
-    <div className="flex items-center gap-1.5 mb-1.5">
-      <Icon className="w-3.5 h-3.5" style={{ color }} />
-      <span className="text-[10px] uppercase tracking-wide font-semibold" style={{ color }}>
-        {label}
-      </span>
-    </div>
-    <div className="text-xl font-extrabold text-foreground">{value}</div>
-  </div>
-);
