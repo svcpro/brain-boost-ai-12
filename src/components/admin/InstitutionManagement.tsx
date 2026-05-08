@@ -110,7 +110,7 @@ export default function InstitutionManagement() {
     if (!user) { setCreating(false); return; }
     const { error } = await supabase.from("institutions").insert({
       name: newName.trim(), slug, type: newType, city: newCity || null, admin_user_id: user.id,
-    });
+    } as any);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {

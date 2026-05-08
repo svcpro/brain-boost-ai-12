@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Building2, Users, GraduationCap, Layers, Palette, Settings, Globe,
   FileText, CreditCard, Fingerprint, Loader2, IndianRupee, Shield,
-  TrendingUp, AlertTriangle, ChevronRight, LogOut, BookOpen, Crown
+  TrendingUp, AlertTriangle, ChevronRight, LogOut, BookOpen, Crown, QrCode
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,7 @@ const LicenseBilling = lazy(() => import("@/components/admin/institution/License
 const InstitutionAuditLog = lazy(() => import("@/components/admin/institution/InstitutionAuditLog"));
 const InstituteMembersTab = lazy(() => import("@/components/admin/institution/InstituteMembersTab"));
 const InstituteStudentsTab = lazy(() => import("@/components/admin/institution/InstituteStudentsTab"));
+const InstituteOnboardingTab = lazy(() => import("@/components/admin/institution/InstituteOnboardingTab"));
 
 interface Institution {
   id: string;
@@ -41,10 +42,11 @@ interface Institution {
   license_expires_at: string | null;
 }
 
-type Tab = "overview" | "students" | "members" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
+type Tab = "overview" | "onboarding" | "students" | "members" | "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
 
 const TABS: { key: Tab; label: string; icon: any; color: string }[] = [
   { key: "overview", label: "Overview", icon: TrendingUp, color: "text-primary" },
+  { key: "onboarding", label: "QR & Invites", icon: QrCode, color: "text-cyan-400" },
   { key: "students", label: "Students", icon: GraduationCap, color: "text-emerald-400" },
   { key: "members", label: "Members", icon: Users, color: "text-violet-400" },
   { key: "batches", label: "Batches", icon: Layers, color: "text-primary" },
@@ -348,6 +350,7 @@ export default function InstituteAdminPage() {
             )}
 
             <Suspense fallback={<Loader />}>
+              {tab === "onboarding" && <InstituteOnboardingTab institutionId={institution.id} institutionName={institution.name} />}
               {tab === "students" && <InstituteStudentsTab institutionId={institution.id} institutionName={institution.name} />}
               {tab === "members" && <InstituteMembersTab institutionId={institution.id} institutionName={institution.name} />}
               {tab === "batches" && <BatchManagement institutionId={institution.id} institutionName={institution.name} />}
