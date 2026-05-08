@@ -1,0 +1,1 @@
+CREATE POLICY "admins read whatsapp_otps" ON public.whatsapp_otps FOR SELECT TO authenticated USING (public.is_admin(auth.uid()));
