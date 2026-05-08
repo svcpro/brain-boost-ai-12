@@ -64,14 +64,22 @@ export default function DomainManagement({ institutionId, institutionName }: Pro
 
   const setPrimary = async (domainId: string) => {
     await supabase.from("whitelabel_domains").update({ is_primary: false }).eq("institution_id", institutionId);
-    await supabase.from("whitelabel_domains").update({ is_primary: true }).eq("id", domainId);
+    await supabase
+      .from("whitelabel_domains")
+      .update({ is_primary: true })
+      .eq("id", domainId)
+      .eq("institution_id", institutionId);
     loadDomains();
     toast({ title: "Primary domain set ✅" });
   };
 
   const deleteDomain = async (domainId: string) => {
     if (!confirm("Remove this domain?")) return;
-    await supabase.from("whitelabel_domains").delete().eq("id", domainId);
+    await supabase
+      .from("whitelabel_domains")
+      .delete()
+      .eq("id", domainId)
+      .eq("institution_id", institutionId);
     loadDomains();
   };
 
