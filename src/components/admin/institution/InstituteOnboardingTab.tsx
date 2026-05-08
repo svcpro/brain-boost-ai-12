@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   QrCode, Copy, Download, Share2, Link2, RefreshCw, MessageSquare,
-  Sparkles, Loader2, CheckCircle2, Users, TrendingUp,
+  Sparkles, Loader2, CheckCircle2, Users, TrendingUp, IndianRupee,
+  Wallet, Hourglass, BadgeCheck, Percent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface Props {
   institutionId: string;
