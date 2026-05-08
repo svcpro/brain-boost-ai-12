@@ -523,7 +523,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName 
                           Pending {fmt(r.pending)}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
