@@ -87,13 +87,21 @@ export default function BatchManagement({ institutionId, institutionName }: Prop
   };
 
   const toggleBatch = async (batch: Batch) => {
-    await supabase.from("institution_batches").update({ is_active: !batch.is_active }).eq("id", batch.id);
+    await supabase
+      .from("institution_batches")
+      .update({ is_active: !batch.is_active })
+      .eq("id", batch.id)
+      .eq("institution_id", institutionId);
     loadBatches();
   };
 
   const deleteBatch = async (batchId: string) => {
     if (!confirm("Delete this batch and all student assignments?")) return;
-    await supabase.from("institution_batches").delete().eq("id", batchId);
+    await supabase
+      .from("institution_batches")
+      .delete()
+      .eq("id", batchId)
+      .eq("institution_id", institutionId);
     if (selectedBatch?.id === batchId) setSelectedBatch(null);
     loadBatches();
   };
