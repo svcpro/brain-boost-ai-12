@@ -626,6 +626,11 @@ export default function InstitutionManagement() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-foreground truncate">{inst.name}</span>
                       <span className={cn("text-[8px] font-extrabold px-2 py-0.5 rounded-md capitalize", cfg.bg, cfg.color)}>{inst.type}</span>
+                      {inst.source === "self_signup" && (
+                        <span className="text-[8px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5" /> Self Signup
+                        </span>
+                      )}
                       {instLicense && <span className="text-[8px] font-bold px-2 py-0.5 rounded-md bg-success/15 text-success capitalize">{instLicense.plan_name}</span>}
                       {!inst.is_active && <span className="text-[8px] font-bold px-2 py-0.5 rounded-md bg-destructive/15 text-destructive">Inactive</span>}
                     </div>
