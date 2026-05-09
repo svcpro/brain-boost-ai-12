@@ -75,6 +75,8 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [rotating, setRotating] = useState(false);
+  const [qrZoom, setQrZoom] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (!institutionId) return;
