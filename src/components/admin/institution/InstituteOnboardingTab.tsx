@@ -6,7 +6,7 @@ import {
   QrCode, Copy, Download, Share2, Link2, RefreshCw, MessageSquare,
   Sparkles, Loader2, CheckCircle2, Users, TrendingUp, IndianRupee,
   Wallet, Hourglass, BadgeCheck, Percent, ChevronRight, X,
-  CalendarClock, ArrowRight, Zap,
+  CalendarClock, ArrowRight, Zap, Send, Mail, Maximize2, Eye, Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, addMonths, startOfMonth, differenceInDays } from "date-fns";
