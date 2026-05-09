@@ -11,7 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format, addMonths, startOfMonth, differenceInDays } from "date-fns";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose,
 } from "@/components/ui/dialog";
 
 interface Props {
