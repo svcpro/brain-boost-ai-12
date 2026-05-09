@@ -215,6 +215,7 @@ const OnboardingPage = () => {
   const [examType, setExamType] = useState("");
   const [examCategory, setExamCategory] = useState("government");
   const [customExam, setCustomExam] = useState("");
+  const [examPreset, setExamPreset] = useState(false);
   const [examDate, setExamDate] = useState("");
   const [subjects, setSubjects] = useState<string[]>([]);
   const [newSubject, setNewSubject] = useState("");
@@ -240,6 +241,36 @@ const OnboardingPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Pre-fill exam from profile (e.g. set during institute join) so user
+  // doesn't have to pick the exam twice.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("exam_type, display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!data) return;
+      if (data.display_name && !displayName) setDisplayName(data.display_name);
+      const ex = (data.exam_type || "").trim();
+      if (!ex) return;
+      const match = EXAM_TYPES.find(
+        e => e.label.toLowerCase() === ex.toLowerCase() || e.id.toLowerCase() === ex.toLowerCase()
+      );
+      if (match) {
+        setExamCategory(match.category);
+        setExamType(match.id);
+      } else {
+        setExamCategory("government");
+        setExamType("other_gov");
+        setCustomExam(ex);
+      }
+      setExamPreset(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const totalSteps = 6;
 
   // Intercept the browser/device back button so users on /onboarding don't get
@@ -252,7 +283,10 @@ const OnboardingPage = () => {
     const handlePopState = (_e: PopStateEvent) => {
       // Always re-arm the sentinel so the next Back press is also captured.
       window.history.pushState({ acryOnboarding: true }, "");
-      setStep((s) => (s > 0 ? s - 1 : 0));
+      setStep((s) => {
+        if (s === 2 && examPreset) return 0;
+        return s > 0 ? s - 1 : 0;
+      });
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -379,6 +413,11 @@ const OnboardingPage = () => {
 
   const handleNext = () => {
     if (step === 3 && subjects.length > 0 && !activeSubject) setActiveSubject(subjects[0]);
+    // Skip exam-pick step when exam was already chosen (e.g. via institute join link).
+    if (step === 0 && examPreset && examType) {
+      setStep(2);
+      return;
+    }
     if (step < totalSteps - 1) setStep(step + 1);
     else handleFinish();
   };
@@ -1133,7 +1172,7 @@ const OnboardingPage = () => {
           className="flex gap-2.5 px-5 pt-3 pb-6 relative z-10"
         >
           {step > 0 && (
-            <motion.button whileTap={{ scale: 0.96 }} onClick={() => setStep(step - 1)}
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => setStep(step === 2 && examPreset ? 0 : step - 1)}
               className="px-5 py-2.5 rounded-xl text-xs font-medium transition-all"
               style={{ background: "#ffffff06", border: "1px solid #ffffff0a", color: "#ffffff80" }}
             >Back</motion.button>
