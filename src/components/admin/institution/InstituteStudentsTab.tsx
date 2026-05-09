@@ -300,17 +300,32 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
           <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           {FILTERS.map((f) => {
             const active = filter === f.key;
+            const isStatus = f.key === "active" || f.key === "revoked";
+            const statusTone =
+              f.key === "active"
+                ? active
+                  ? "bg-success/20 text-success border-success/50"
+                  : "bg-success/5 text-success/80 border-success/30 hover:bg-success/10"
+                : f.key === "revoked"
+                  ? active
+                    ? "bg-destructive/20 text-destructive border-destructive/50"
+                    : "bg-destructive/5 text-destructive/80 border-destructive/30 hover:bg-destructive/10"
+                  : "";
             return (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
                 className={cn(
-                  "text-[11px] font-bold px-2.5 py-1 rounded-lg whitespace-nowrap border transition-all shrink-0",
-                  active
-                    ? "bg-primary/15 text-primary border-primary/40"
-                    : "bg-secondary/40 text-muted-foreground border-border/40 hover:text-foreground"
+                  "inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg whitespace-nowrap border transition-all shrink-0",
+                  isStatus
+                    ? statusTone
+                    : active
+                      ? "bg-primary/15 text-primary border-primary/40"
+                      : "bg-secondary/40 text-muted-foreground border-border/40 hover:text-foreground"
                 )}
               >
+                {f.key === "active" && <span className="w-1.5 h-1.5 rounded-full bg-success" />}
+                {f.key === "revoked" && <span className="w-1.5 h-1.5 rounded-full bg-destructive" />}
                 {f.label}
               </button>
             );
