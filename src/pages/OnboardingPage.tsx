@@ -410,6 +410,11 @@ const OnboardingPage = () => {
 
   const handleNext = () => {
     if (step === 3 && subjects.length > 0 && !activeSubject) setActiveSubject(subjects[0]);
+    // Skip exam-pick step when exam was already chosen (e.g. via institute join link).
+    if (step === 0 && examPreset && examType) {
+      setStep(2);
+      return;
+    }
     if (step < totalSteps - 1) setStep(step + 1);
     else handleFinish();
   };
