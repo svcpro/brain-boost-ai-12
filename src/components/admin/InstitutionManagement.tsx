@@ -415,8 +415,8 @@ export default function InstitutionManagement() {
         )}
       </AnimatePresence>
 
-      {/* ─── TYPE DISTRIBUTION + WEBHOOKS ROW ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* ─── TYPE DISTRIBUTION ─── */}
+      <div className="grid grid-cols-1 gap-4">
         {/* Type Distribution */}
         <motion.div custom={4} variants={cardVariants} initial="hidden" animate="visible"
           className="rounded-2xl p-4 border border-border/40 bg-card/60"
