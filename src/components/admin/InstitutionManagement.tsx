@@ -566,6 +566,23 @@ export default function InstitutionManagement() {
         </div>
       </motion.div>
 
+      {/* ─── SOURCE FILTER (Self-Signup vs Admin-Created) ─── */}
+      <motion.div custom={7} variants={cardVariants} initial="hidden" animate="visible" className="flex items-center gap-2 flex-wrap -mt-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Onboarded via:</span>
+        <button onClick={() => setSourceFilter("all")}
+          className={cn("px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all", sourceFilter === "all" ? "bg-primary/15 text-primary border border-primary/20" : "bg-secondary/30 text-muted-foreground hover:text-foreground")}>
+          All Sources ({institutions.length})
+        </button>
+        <button onClick={() => setSourceFilter("self_signup")}
+          className={cn("flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all", sourceFilter === "self_signup" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" : "bg-secondary/30 text-muted-foreground hover:text-foreground")}>
+          <Sparkles className="w-3 h-3" /> Self Signup ({selfSignupCount})
+        </button>
+        <button onClick={() => setSourceFilter("admin")}
+          className={cn("flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all", sourceFilter === "admin" ? "bg-primary/15 text-primary border border-primary/20" : "bg-secondary/30 text-muted-foreground hover:text-foreground")}>
+          <Shield className="w-3 h-3" /> Admin Created ({adminCreatedCount})
+        </button>
+      </motion.div>
+
       {/* ─── INSTITUTION LIST ─── */}
       <div className="space-y-2.5">
         {filtered.length === 0 ? (
