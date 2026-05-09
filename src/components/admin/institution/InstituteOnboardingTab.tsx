@@ -1220,6 +1220,33 @@ const ActionBtn = ({
   </button>
 );
 
+const ShareTile = ({
+  icon: Icon, label, onClick, accent,
+}: { icon: any; label: string; onClick: () => void; accent: string }) => (
+  <button
+    onClick={onClick}
+    className="group relative flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-xl border transition-all hover:scale-[1.05] active:scale-[0.97] overflow-hidden"
+    style={{
+      background: `linear-gradient(135deg, ${accent}18, ${accent}08)`,
+      borderColor: `${accent}40`,
+    }}
+  >
+    <span
+      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+      style={{ background: `radial-gradient(ellipse 80% 80% at 50% 100%, ${accent}30, transparent 70%)` }}
+    />
+    <span
+      className="relative w-7 h-7 rounded-lg grid place-items-center shadow-sm"
+      style={{ background: `linear-gradient(135deg, ${accent}, ${accent}AA)` }}
+    >
+      <Icon className="w-3.5 h-3.5 text-white" />
+    </span>
+    <span className="relative text-[9px] font-extrabold uppercase tracking-wider" style={{ color: accent }}>
+      {label}
+    </span>
+  </button>
+);
+
 const SourceDot = ({ source }: { source: string }) => (
   <span className="w-1.5 h-1.5 rounded-full" style={{ background: sourceColor(source) }} />
 );
