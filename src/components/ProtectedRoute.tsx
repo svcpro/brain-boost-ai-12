@@ -65,9 +65,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         const sub = subRes.data;
         const prefs = data?.study_preferences as Record<string, unknown> | null;
 
-        // Legacy users: if they have an exam_type + display_name set,
-        // treat them as onboarded even when the explicit flag is missing.
-        const hasLegacyOnboardingData = !!(data?.exam_type && data?.display_name);
+        // Legacy users: only treat as onboarded when there are NO study_preferences yet
+        // (truly pre-flag accounts). If prefs exist but lack the flag, force onboarding —
+        // this catches institute-link joiners whose exam_type was pre-filled by the RPC.
+        const hasLegacyOnboardingData = !prefs && !!(data?.exam_type && data?.display_name);
         const isOnboarded = !!prefs?.onboarded || hasLegacyOnboardingData;
 
         if (data?.is_banned) {
