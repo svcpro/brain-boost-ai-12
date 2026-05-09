@@ -102,8 +102,8 @@ export default function InstituteJoinPage() {
       if (error) throw error;
       if (!(data as any)?.ok) throw new Error((data as any)?.error || "Join failed");
       setStep("done");
-      toast({ title: `Welcome to ${preview?.name || "your institute"} 🎉` });
-      setTimeout(() => navigate("/app", { replace: true }), 1200);
+      toast({ title: `Welcome to ${preview?.name || "your institute"} 🎉`, description: "Let's finish your setup." });
+      setTimeout(() => navigate("/onboarding", { replace: true }), 1200);
     } catch (e: any) {
       toast({ title: "Could not join", description: e.message, variant: "destructive" });
       setStep("choose");
