@@ -152,7 +152,7 @@ export default function InstitutionManagement() {
 
   const openInstitution = (inst: Institution) => {
     setSelectedInst(inst);
-    setDetailTab("batches");
+    setDetailTab("students");
     setView("institution-detail");
   };
 
