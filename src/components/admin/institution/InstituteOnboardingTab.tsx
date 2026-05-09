@@ -505,7 +505,11 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                     <button
                       type="button"
                       onClick={() => setQrZoom(true)}
-                      className="block w-full relative group/qr"
+                      className="block w-full relative group/qr focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 rounded-md"
+                      style={{ ["--tw-ring-color" as any]: `${accent}80` }}
+                      aria-label={`Open fullscreen QR code for ${institutionName}`}
+                      aria-haspopup="dialog"
+                      aria-expanded={qrZoom}
                       title="Tap to zoom"
                     >
                       <img
