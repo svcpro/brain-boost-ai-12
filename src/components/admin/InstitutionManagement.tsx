@@ -11,14 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow } from "date-fns";
-import BatchManagement from "./institution/BatchManagement";
-import FacultyDashboard from "./institution/FacultyDashboard";
+import InstituteStudentsTab from "./institution/InstituteStudentsTab";
 import LicenseBilling from "./institution/LicenseBilling";
-import BrandingConfig from "./institution/BrandingConfig";
-import FeatureToggles from "./institution/FeatureToggles";
-import ContractManagement from "./institution/ContractManagement";
-import DomainManagement from "./institution/DomainManagement";
-import InstitutionAuditLog from "./institution/InstitutionAuditLog";
 
 interface Institution {
   id: string;
@@ -40,7 +34,7 @@ interface Institution {
 }
 
 type DashboardView = "overview" | "institution-detail";
-type DetailTab = "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
+type DetailTab = "students" | "billing";
 
 const TYPE_CONFIG: Record<string, { color: string; bg: string; gradient: string; icon: any }> = {
   coaching: { color: "text-primary", bg: "bg-primary/15", gradient: "from-primary/20 to-primary/5", icon: BookOpen },
@@ -50,14 +44,8 @@ const TYPE_CONFIG: Record<string, { color: string; bg: string; gradient: string;
 };
 
 const DETAIL_TABS: { key: DetailTab; label: string; icon: any; color: string }[] = [
-  { key: "batches", label: "Batches", icon: Layers, color: "text-primary" },
-  { key: "faculty", label: "Faculty", icon: Users, color: "text-blue-400" },
-  { key: "branding", label: "Branding", icon: Palette, color: "text-pink-400" },
-  { key: "features", label: "Features", icon: Settings, color: "text-amber-400" },
-  { key: "domains", label: "Domains", icon: Globe, color: "text-emerald-400" },
-  { key: "contracts", label: "Contracts", icon: FileText, color: "text-violet-400" },
-  { key: "billing", label: "Billing", icon: CreditCard, color: "text-success" },
-  { key: "audit", label: "Audit Log", icon: Fingerprint, color: "text-red-400" },
+  { key: "students", label: "Students & Details", icon: Users, color: "text-primary" },
+  { key: "billing", label: "Earnings", icon: IndianRupee, color: "text-success" },
 ];
 
 const cardVariants = {
@@ -83,7 +71,7 @@ export default function InstitutionManagement() {
   const [newCity, setNewCity] = useState("");
   const [creating, setCreating] = useState(false);
   const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
-  const [detailTab, setDetailTab] = useState<DetailTab>("batches");
+  const [detailTab, setDetailTab] = useState<DetailTab>("students");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "self_signup" | "admin">("all");
 
@@ -158,7 +146,7 @@ export default function InstitutionManagement() {
 
   const openInstitution = (inst: Institution) => {
     setSelectedInst(inst);
-    setDetailTab("batches");
+    setDetailTab("students");
     setView("institution-detail");
   };
 
@@ -284,14 +272,8 @@ export default function InstitutionManagement() {
         {/* Detail Content */}
         <AnimatePresence mode="wait">
           <motion.div key={detailTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
-            {detailTab === "batches" && <BatchManagement institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "faculty" && <FacultyDashboard institutionId={selectedInst.id} />}
-            {detailTab === "branding" && <BrandingConfig institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "features" && <FeatureToggles institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "domains" && <DomainManagement institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "contracts" && <ContractManagement institutionId={selectedInst.id} institutionName={selectedInst.name} />}
+            {detailTab === "students" && <InstituteStudentsTab institutionId={selectedInst.id} institutionName={selectedInst.name} />}
             {detailTab === "billing" && <LicenseBilling institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "audit" && <InstitutionAuditLog institutionId={selectedInst.id} institutionName={selectedInst.name} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -433,8 +415,8 @@ export default function InstitutionManagement() {
         )}
       </AnimatePresence>
 
-      {/* ─── TYPE DISTRIBUTION + WEBHOOKS ROW ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* ─── TYPE DISTRIBUTION ─── */}
+      <div className="grid grid-cols-1 gap-4">
         {/* Type Distribution */}
         <motion.div custom={4} variants={cardVariants} initial="hidden" animate="visible"
           className="rounded-2xl p-4 border border-border/40 bg-card/60"
@@ -472,38 +454,6 @@ export default function InstitutionManagement() {
           </div>
         </motion.div>
 
-        {/* Webhooks Summary */}
-        <motion.div custom={5} variants={cardVariants} initial="hidden" animate="visible"
-          className="rounded-2xl p-4 border border-border/40 bg-card/60"
-        >
-          <h4 className="text-xs font-bold text-foreground mb-3 flex items-center gap-2">
-            <Webhook className="w-4 h-4 text-accent" /> Webhook Endpoints
-            <span className="ml-auto text-[9px] font-bold px-2 py-0.5 rounded-md bg-accent/15 text-accent">{activeWebhooks}/{webhooks.length}</span>
-          </h4>
-          {webhooks.length === 0 ? (
-            <div className="text-center py-6">
-              <Server className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">No webhook endpoints configured</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
-              {webhooks.slice(0, 5).map(wh => (
-                <div key={wh.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-secondary/30">
-                  <div className={cn("w-2 h-2 rounded-full shrink-0", wh.is_active ? "bg-success animate-pulse" : "bg-muted-foreground")} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-mono text-foreground truncate">{wh.url}</p>
-                    <span className="text-[9px] text-muted-foreground">{(wh.events || []).length} events</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 flex flex-wrap gap-1">
-            {["session_completed", "score_changed", "topic_mastered", "streak_broken"].map(e => (
-              <span key={e} className="px-1.5 py-0.5 rounded-md bg-secondary/50 text-[8px] font-mono text-muted-foreground">{e}</span>
-            ))}
-          </div>
-        </motion.div>
       </div>
 
       {/* ─── RECENT REVENUE ─── */}
