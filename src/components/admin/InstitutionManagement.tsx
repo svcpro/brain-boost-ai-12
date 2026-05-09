@@ -178,10 +178,14 @@ export default function InstitutionManagement() {
 
   const filtered = useMemo(() => institutions.filter(i =>
     (typeFilter === "all" || i.type === typeFilter) &&
+    (sourceFilter === "all" || (i.source || "admin") === sourceFilter) &&
     (i.name.toLowerCase().includes(search.toLowerCase()) ||
     i.slug.toLowerCase().includes(search.toLowerCase()) ||
     (i.city || "").toLowerCase().includes(search.toLowerCase()))
-  ), [institutions, search, typeFilter]);
+  ), [institutions, search, typeFilter, sourceFilter]);
+
+  const selfSignupCount = useMemo(() => institutions.filter(i => i.source === "self_signup").length, [institutions]);
+  const adminCreatedCount = institutions.length - selfSignupCount;
 
   const typeDistribution = useMemo(() => {
     const dist: Record<string, number> = {};
