@@ -1169,7 +1169,7 @@ const OnboardingPage = () => {
           className="flex gap-2.5 px-5 pt-3 pb-6 relative z-10"
         >
           {step > 0 && (
-            <motion.button whileTap={{ scale: 0.96 }} onClick={() => setStep(step - 1)}
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => setStep(step === 2 && examPreset ? 0 : step - 1)}
               className="px-5 py-2.5 rounded-xl text-xs font-medium transition-all"
               style={{ background: "#ffffff06", border: "1px solid #ffffff0a", color: "#ffffff80" }}
             >Back</motion.button>
