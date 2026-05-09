@@ -85,6 +85,7 @@ export default function InstitutionManagement() {
   const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("batches");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "self_signup" | "admin">("all");
 
   useEffect(() => { loadAll(); }, []);
 
