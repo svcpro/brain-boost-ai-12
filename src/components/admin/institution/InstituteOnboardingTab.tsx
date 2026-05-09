@@ -343,189 +343,444 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
     <>
     <div className="space-y-5">
       {showShare && <>
-      {/* Hero with QR */}
+      {/* ═══════════ ULTRA INVITE COMMAND CENTER ═══════════ */}
       <div
-        className="relative overflow-hidden rounded-3xl border border-border p-5"
+        className="relative overflow-hidden rounded-[28px] border border-border/60 p-5 sm:p-6"
         style={{
-          background: `radial-gradient(ellipse 80% 60% at 50% 0%, ${accent}18 0%, hsl(var(--card)) 60%)`,
+          background: `
+            radial-gradient(ellipse 90% 70% at 0% 0%, ${accent}22 0%, transparent 55%),
+            radial-gradient(ellipse 90% 70% at 100% 100%, #7C4DFF1F 0%, transparent 55%),
+            radial-gradient(ellipse 70% 50% at 50% 100%, #00E5FF18 0%, transparent 55%),
+            linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--background)) 100%)
+          `,
         }}
       >
-        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full blur-3xl pointer-events-none"
-          style={{ background: `${accent}25` }} />
+        {/* mesh */}
+        <div
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+            maskImage: "radial-gradient(ellipse 70% 60% at 50% 30%, black 30%, transparent 80%)",
+          }}
+        />
+        {/* orbs */}
+        <div className="absolute -top-20 -right-16 w-72 h-72 rounded-full blur-3xl pointer-events-none animate-pulse"
+          style={{ background: `${accent}30`, animationDuration: "6s" }} />
+        <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full blur-3xl pointer-events-none animate-pulse"
+          style={{ background: "#7C4DFF22", animationDuration: "8s" }} />
 
-        <div className="relative flex flex-col md:flex-row gap-5 items-center md:items-stretch">
-          {/* Ultra-advanced QR with brand */}
-          <div className="shrink-0 relative" style={{ width: 320 }}>
+        <div className="relative">
+          {/* ─── Top header strip ─── */}
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-2xl blur-md opacity-70" style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }} />
+                <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center"
+                  style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}>
+                  <QrCode className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground">
+                  Invite Command Center
+                </div>
+                <h3 className="text-base font-black text-foreground leading-tight">
+                  Get students enrolled in seconds
+                </h3>
+              </div>
+            </div>
 
-            {/* Card */}
-            <div
-              className="relative rounded-[24px] p-3 shadow-2xl"
-              style={{
-                background: "linear-gradient(180deg, #ffffff 0%, #f1f5ff 100%)",
-                boxShadow: `0 30px 60px -20px ${accent}66, 0 0 0 1px rgba(255,255,255,0.4) inset`,
-              }}
-            >
-              {/* Brand header bar */}
-              <div
-                className="flex items-center justify-between px-3 py-2 rounded-t-2xl rounded-b-md mb-2"
-                style={{
-                  background: `linear-gradient(135deg, ${accent}, #7C4DFF 60%, #00E5FF)`,
-                }}
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider backdrop-blur"
+                style={{ background: "#10B98120", color: "#10B981", border: "1px solid #10B98150" }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" /> Live
+              </span>
+              <button
+                onClick={rotateCode}
+                disabled={rotating}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider backdrop-blur transition hover:scale-105 disabled:opacity-50"
+                style={{ background: `${accent}18`, color: accent, border: `1px solid ${accent}50` }}
+                title="Regenerate code (invalidates current link/QR)"
               >
-                <div className="flex items-center gap-1.5">
-                  <div className="w-5 h-5 rounded-md bg-white/95 flex items-center justify-center shadow-sm overflow-hidden">
-                    {meta?.logo_url ? (
-                      <img src={meta.logo_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[9px] font-black" style={{ color: accent }}>A</span>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-extrabold tracking-[0.18em] text-white uppercase">
-                    Acry · {institutionName}
-                  </span>
-                </div>
-                <span className="text-[8px] font-bold tracking-[0.18em] text-white/90 uppercase flex items-center gap-1">
-                  <Zap className="w-2.5 h-2.5" /> Live
-                </span>
-              </div>
-
-              {/* QR – kept fully clean for reliable scanning. Brackets sit OUTSIDE the QR. */}
-              <div className="relative bg-white p-3 rounded-xl">
-                {/* Outer viewfinder corner brackets (do NOT overlap QR finder patterns) */}
-                {[
-                  "top-0 left-0 border-t-2 border-l-2 rounded-tl-md",
-                  "top-0 right-0 border-t-2 border-r-2 rounded-tr-md",
-                  "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-md",
-                  "bottom-0 right-0 border-b-2 border-r-2 rounded-br-md",
-                ].map((c, i) => (
-                  <span
-                    key={i}
-                    className={cn("absolute w-3 h-3 pointer-events-none", c)}
-                    style={{ borderColor: accent }}
-                  />
-                ))}
-                {qrDataUrl ? (
-                  <img
-                    src={qrDataUrl}
-                    alt={`ACRY invite QR code for ${institutionName}`}
-                    className="block w-[280px] h-[280px] max-w-full object-contain"
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="w-[280px] h-[280px] max-w-full grid place-items-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                    Generating QR
-                  </div>
-                )}
-              </div>
-
-              {/* Footer band */}
-              <div className="mt-2 px-2 pb-1 pt-2 rounded-b-xl flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Scan to join</span>
-                  <span className="text-[11px] font-mono font-extrabold text-slate-900">
-                    {BRAND_HOST}/i/<span style={{ color: accent }}>{referralCode}</span>
-                  </span>
-                </div>
-                <div
-                  className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-md tracking-widest"
-                  style={{ background: `${accent}18`, color: accent }}
-                >
-                  v2
-                </div>
-              </div>
+                {rotating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                Rotate
+              </button>
             </div>
           </div>
 
-          {/* Right column */}
-          <div className="flex-1 min-w-0 flex flex-col justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Sparkles className="w-3.5 h-3.5" style={{ color: accent }} />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Instant Onboarding
-                </span>
+          {/* ─── Mini-stats ribbon ─── */}
+          <div className="grid grid-cols-3 gap-2 mb-5">
+            {[
+              { label: "Total joins", value: totalJoins, icon: Users, color: accent },
+              { label: "QR scans", value: stats.find((s) => s.source === "qr")?.count || 0, icon: QrCode, color: "#00E5FF" },
+              { label: "Conversion", value: `${commissionStats.conversionRate}%`, icon: TrendingUp, color: "#10B981" },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="rounded-xl px-2.5 py-2 border backdrop-blur"
+                style={{ background: `${s.color}10`, borderColor: `${s.color}30` }}
+              >
+                <div className="flex items-center gap-1 mb-0.5">
+                  <s.icon className="w-3 h-3" style={{ color: s.color }} />
+                  <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">{s.label}</span>
+                </div>
+                <div className="text-base font-black text-foreground tabular-nums">{s.value}</div>
               </div>
-              <h2 className="text-xl font-extrabold text-foreground leading-tight">
-                Scan to join {institutionName}
-              </h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Print this QR or share the link. Students get auto-mapped to your institute the moment they sign up.
-              </p>
-            </div>
+            ))}
+          </div>
 
-            {/* Public invite link (merged) */}
-            <div
-              className="relative rounded-2xl p-[1.5px] overflow-hidden"
-              style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF 45%, #00E5FF)` }}
-            >
-              <div className="relative rounded-[14px] bg-card/95 backdrop-blur-xl p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded-lg flex items-center justify-center"
-                      style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
-                    >
-                      <Link2 className="w-3 h-3 text-white" />
+          {/* ─── Main grid: QR + actions ─── */}
+          <div className="flex flex-col md:flex-row gap-5 items-center md:items-stretch">
+
+            {/* ┌── HOLOGRAPHIC QR CARD ──┐ */}
+            <div className="shrink-0 relative group" style={{ width: 300 }}>
+              {/* animated halo */}
+              <div className="absolute -inset-[2px] rounded-[26px] opacity-70 blur-[6px] pointer-events-none group-hover:opacity-100 transition-opacity"
+                style={{
+                  background: `conic-gradient(from 0deg, ${accent}, #7C4DFF, #00E5FF, ${accent})`,
+                  animation: "share-card-rotate 8s linear infinite",
+                }} />
+
+              <div
+                className="relative rounded-[24px] p-3 shadow-2xl"
+                style={{
+                  background: "linear-gradient(180deg, #ffffff 0%, #f4f6ff 100%)",
+                  boxShadow: `0 30px 60px -20px ${accent}66, 0 0 0 1px rgba(255,255,255,0.4) inset`,
+                }}
+              >
+                {/* Brand header */}
+                <div
+                  className="flex items-center justify-between px-3 py-2 rounded-t-2xl rounded-b-md mb-2"
+                  style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF 60%, #00E5FF)` }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded-md bg-white/95 flex items-center justify-center shadow-sm overflow-hidden">
+                      {meta?.logo_url ? (
+                        <img src={meta.logo_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[9px] font-black" style={{ color: accent }}>A</span>
+                      )}
                     </div>
-                    <h3 className="text-xs font-bold text-foreground leading-tight">Public invite link</h3>
+                    <span className="text-[10px] font-extrabold tracking-[0.18em] text-white uppercase truncate max-w-[150px]">
+                      Acry · {institutionName}
+                    </span>
                   </div>
-                  <span
-                    className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider uppercase border"
-                    style={{
-                      borderColor: `${accent}55`,
-                      background: `linear-gradient(135deg, ${accent}22, #00E5FF22)`,
-                      color: accent,
-                    }}
-                  >
-                    <Sparkles className="w-2.5 h-2.5" /> ACRY.AI
+                  <span className="text-[8px] font-bold tracking-[0.18em] text-white/90 uppercase flex items-center gap-1">
+                    <Zap className="w-2.5 h-2.5" /> Live
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => copy(joinUrl, "Invite link")}
-                  className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 border overflow-hidden text-left transition-all hover:scale-[1.01] active:scale-[0.99] group"
-                  style={{
-                    borderColor: `${accent}40`,
-                    background: "linear-gradient(135deg, hsl(var(--secondary)/0.6), hsl(var(--card)/0.4))",
-                  }}
-                  title="Tap to copy invite link"
-                >
-                  <span
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
-                    style={{ background: `${accent}22`, color: accent }}
-                  >
-                    https://
-                  </span>
-                  <span className="text-sm font-mono font-bold text-foreground truncate flex-1 tracking-tight">
-                    <span className="text-foreground">{BRAND_HOST}</span>
-                    <span className="text-muted-foreground">/i/</span>
+                {/* QR */}
+                <div className="relative bg-white p-3 rounded-xl">
+                  {[
+                    "top-0 left-0 border-t-2 border-l-2 rounded-tl-md",
+                    "top-0 right-0 border-t-2 border-r-2 rounded-tr-md",
+                    "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-md",
+                    "bottom-0 right-0 border-b-2 border-r-2 rounded-br-md",
+                  ].map((c, i) => (
                     <span
-                      className="bg-clip-text text-transparent font-extrabold"
-                      style={{ backgroundImage: `linear-gradient(135deg, ${accent}, #00E5FF)` }}
+                      key={i}
+                      className={cn("absolute w-3 h-3 pointer-events-none", c)}
+                      style={{ borderColor: accent }}
+                    />
+                  ))}
+                  {qrDataUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setQrZoom(true)}
+                      className="block w-full relative group/qr"
+                      title="Tap to zoom"
                     >
-                      {referralCode || "—"}
+                      <img
+                        src={qrDataUrl}
+                        alt={`ACRY invite QR code for ${institutionName}`}
+                        className="block w-[260px] h-[260px] max-w-full object-contain mx-auto"
+                        draggable={false}
+                      />
+                      <span className="absolute top-1 right-1 w-7 h-7 rounded-lg bg-black/70 backdrop-blur grid place-items-center opacity-0 group-hover/qr:opacity-100 transition">
+                        <Maximize2 className="w-3.5 h-3.5 text-white" />
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="w-[260px] h-[260px] max-w-full grid place-items-center text-[10px] font-bold uppercase tracking-widest text-slate-500 mx-auto">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="mt-2 px-2 pb-1 pt-2 rounded-b-xl flex items-center justify-between">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Scan to join</span>
+                    <span className="text-[11px] font-mono font-extrabold text-slate-900 truncate">
+                      {BRAND_HOST}/i/<span style={{ color: accent }}>{referralCode}</span>
                     </span>
-                  </span>
-                  <span
-                    className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold text-white shadow-lg"
-                    style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
+                  </div>
+                  <div
+                    className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-md tracking-widest shrink-0"
+                    style={{ background: `${accent}18`, color: accent }}
                   >
-                    <Copy className="w-3 h-3" /> COPY
-                  </span>
+                    HD · v2
+                  </div>
+                </div>
+              </div>
+
+              {/* Below-card chips */}
+              <div className="flex gap-1.5 mt-2.5 justify-center">
+                <button
+                  onClick={() => setQrZoom(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold backdrop-blur transition hover:scale-105"
+                  style={{ background: `${accent}18`, color: accent, border: `1px solid ${accent}40` }}
+                >
+                  <Eye className="w-3 h-3" /> Preview
+                </button>
+                <button
+                  onClick={downloadQR}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold backdrop-blur transition hover:scale-105"
+                  style={{ background: `${accent}18`, color: accent, border: `1px solid ${accent}40` }}
+                >
+                  <Download className="w-3 h-3" /> PNG
+                </button>
+                <button
+                  onClick={printQR}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold backdrop-blur transition hover:scale-105"
+                  style={{ background: `${accent}18`, color: accent, border: `1px solid ${accent}40` }}
+                >
+                  <Printer className="w-3 h-3" /> Print
                 </button>
               </div>
             </div>
 
-            {/* Share row */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <ActionBtn icon={Download} label="QR PNG" onClick={downloadQR} accent={accent} />
-              <ActionBtn icon={MessageSquare} label="WhatsApp" onClick={shareWhatsApp} accent="#25D366" />
-              <ActionBtn icon={Share2} label="Share" onClick={nativeShare} accent={accent} />
+            {/* ┌── RIGHT COLUMN ──┐ */}
+            <div className="flex-1 min-w-0 w-full flex flex-col gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: accent }} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Instant Onboarding
+                  </span>
+                </div>
+                <h2 className="text-2xl font-black text-foreground leading-tight">
+                  One link.<br/>
+                  <span
+                    className="bg-clip-text text-transparent"
+                    style={{ backgroundImage: `linear-gradient(135deg, ${accent}, #7C4DFF, #00E5FF)` }}
+                  >
+                    Infinite enrollments.
+                  </span>
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  Share the QR or link anywhere. Students get auto-mapped to <span className="font-bold text-foreground">{institutionName}</span> the moment they sign up — no codes, no manual approval.
+                </p>
+              </div>
+
+              {/* PUBLIC INVITE LINK – premium */}
+              <div
+                className="relative rounded-2xl p-[1.5px] overflow-hidden"
+                style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF 45%, #00E5FF)` }}
+              >
+                {/* shimmer */}
+                <div
+                  className="absolute inset-0 opacity-40 pointer-events-none"
+                  style={{
+                    background: "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.5) 50%, transparent 70%)",
+                    backgroundSize: "200% 100%",
+                    animation: "sureshot-shimmer 4s ease-in-out infinite",
+                  }}
+                />
+                <div className="relative rounded-[14px] bg-card/95 backdrop-blur-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded-lg flex items-center justify-center shadow-md"
+                        style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
+                      >
+                        <Link2 className="w-3 h-3 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-extrabold text-foreground leading-none">Public invite link</h3>
+                        <span className="text-[9px] text-muted-foreground">Tap to copy · auto-tracked</span>
+                      </div>
+                    </div>
+                    <span
+                      className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider uppercase border"
+                      style={{
+                        borderColor: `${accent}55`,
+                        background: `linear-gradient(135deg, ${accent}22, #00E5FF22)`,
+                        color: accent,
+                      }}
+                    >
+                      <Sparkles className="w-2.5 h-2.5" /> ACRY.AI
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => copy(joinUrl, "Invite link")}
+                    className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 border overflow-hidden text-left transition-all hover:scale-[1.01] active:scale-[0.99] group"
+                    style={{
+                      borderColor: `${accent}40`,
+                      background: "linear-gradient(135deg, hsl(var(--secondary)/0.6), hsl(var(--card)/0.4))",
+                    }}
+                    title="Tap to copy invite link"
+                  >
+                    <span
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                      style={{ background: `${accent}22`, color: accent }}
+                    >
+                      https://
+                    </span>
+                    <span className="text-sm font-mono font-bold text-foreground truncate flex-1 tracking-tight">
+                      <span className="text-foreground">{BRAND_HOST}</span>
+                      <span className="text-muted-foreground">/i/</span>
+                      <span
+                        className="bg-clip-text text-transparent font-extrabold"
+                        style={{ backgroundImage: `linear-gradient(135deg, ${accent}, #00E5FF)` }}
+                      >
+                        {referralCode || "—"}
+                      </span>
+                    </span>
+                    <span
+                      className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold text-white shadow-lg transition-all"
+                      style={{
+                        background: linkCopied
+                          ? "linear-gradient(135deg, #10B981, #34D399)"
+                          : `linear-gradient(135deg, ${accent}, #7C4DFF)`,
+                      }}
+                    >
+                      {linkCopied ? (
+                        <><CheckCircle2 className="w-3 h-3" /> COPIED</>
+                      ) : (
+                        <><Copy className="w-3 h-3" /> COPY</>
+                      )}
+                    </span>
+                  </button>
+
+                  {/* referral code chip */}
+                  <div className="mt-2 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-border/50 bg-background/40">
+                    <span className="text-[9px] uppercase tracking-widest font-bold text-muted-foreground">Code</span>
+                    <button
+                      onClick={() => copy(referralCode, "Referral code")}
+                      className="text-sm font-mono font-black tracking-[0.25em] flex items-center gap-1.5 hover:opacity-80"
+                      style={{ color: accent }}
+                    >
+                      {referralCode || "—"} <Copy className="w-3 h-3 opacity-60" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Share grid — 6 channels */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Share2 className="w-3 h-3" style={{ color: accent }} />
+                  <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted-foreground">
+                    Share via
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  <ShareTile icon={MessageSquare} label="WhatsApp" onClick={shareWhatsApp} accent="#25D366" />
+                  <ShareTile icon={Send} label="Telegram" onClick={shareTelegram} accent="#0088CC" />
+                  <ShareTile icon={Mail} label="Email" onClick={shareEmail} accent="#EA4335" />
+                  <ShareTile icon={MessageSquare} label="SMS" onClick={shareSMS} accent="#7C4DFF" />
+                  <ShareTile icon={Copy} label="Copy" onClick={() => copy(joinUrl, "Invite link")} accent={accent} />
+                  <ShareTile icon={Share2} label="More" onClick={nativeShare} accent="#00E5FF" />
+                </div>
+              </div>
+
+              {/* How it works strip */}
+              <div className="rounded-xl border border-border/50 bg-background/40 backdrop-blur p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-3 h-3" style={{ color: accent }} />
+                  <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted-foreground">
+                    How it works
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { n: "01", t: "Share", d: "Send link or QR" },
+                    { n: "02", t: "Sign up", d: "Student joins instantly" },
+                    { n: "03", t: "Earn", d: "Auto commission" },
+                  ].map((s, i) => (
+                    <div key={s.n} className="relative">
+                      <div className="flex items-start gap-1.5">
+                        <span
+                          className="text-[10px] font-black tabular-nums px-1.5 py-0.5 rounded-md shrink-0"
+                          style={{ background: `${accent}20`, color: accent }}
+                        >
+                          {s.n}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-extrabold text-foreground leading-tight">{s.t}</div>
+                          <div className="text-[9px] text-muted-foreground leading-tight">{s.d}</div>
+                        </div>
+                      </div>
+                      {i < 2 && (
+                        <ArrowRight className="hidden sm:block absolute -right-1 top-1 w-3 h-3 text-muted-foreground/40" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ─── QR Zoom Dialog ─── */}
+      <Dialog open={qrZoom} onOpenChange={setQrZoom}>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 bg-transparent shadow-none">
+          <div
+            className="relative rounded-[28px] p-5"
+            style={{
+              background: "linear-gradient(180deg, #ffffff 0%, #f4f6ff 100%)",
+              boxShadow: `0 30px 80px -20px ${accent}80`,
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle className="sr-only">Scan to join {institutionName}</DialogTitle>
+            </DialogHeader>
+            <div
+              className="flex items-center justify-between px-3 py-2 rounded-xl mb-3"
+              style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF 60%, #00E5FF)` }}
+            >
+              <span className="text-xs font-extrabold tracking-widest text-white uppercase">
+                Scan to join
+              </span>
+              <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase">
+                {institutionName}
+              </span>
+            </div>
+            {qrDataUrl && (
+              <img src={qrDataUrl} alt="QR" className="block w-full rounded-xl" />
+            )}
+            <div className="mt-3 text-center">
+              <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Public invite</div>
+              <div className="text-sm font-mono font-extrabold text-slate-900">
+                {BRAND_HOST}/i/<span style={{ color: accent }}>{referralCode}</span>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={downloadQR}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-extrabold text-white shadow-lg"
+                style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
+              >
+                <Download className="w-3.5 h-3.5" /> Download
+              </button>
+              <button
+                onClick={printQR}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-extrabold border-2"
+                style={{ borderColor: accent, color: accent, background: "white" }}
+              >
+                <Printer className="w-3.5 h-3.5" /> Print
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       </>}
 
       {showEarnings && <>
