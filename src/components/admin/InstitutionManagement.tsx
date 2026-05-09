@@ -75,6 +75,35 @@ export default function InstitutionManagement() {
   const [detailTab, setDetailTab] = useState<DetailTab>("students");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "self_signup" | "admin">("all");
+  const [commissionInput, setCommissionInput] = useState<string>("");
+  const [savingCommission, setSavingCommission] = useState(false);
+
+  useEffect(() => {
+    if (selectedInst) {
+      const pct = ((selectedInst.commission_rate ?? 0.20) * 100).toFixed(2).replace(/\.?0+$/, "");
+      setCommissionInput(pct);
+    }
+  }, [selectedInst]);
+
+  const saveCommission = async () => {
+    if (!selectedInst) return;
+    const pct = parseFloat(commissionInput);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      toast({ title: "Invalid value", description: "Enter 0–100 (%)", variant: "destructive" });
+      return;
+    }
+    setSavingCommission(true);
+    const rate = +(pct / 100).toFixed(4);
+    const { error } = await supabase.from("institutions").update({ commission_rate: rate } as any).eq("id", selectedInst.id);
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Commission updated ✅", description: `Set to ${pct}%` });
+      setSelectedInst({ ...selectedInst, commission_rate: rate });
+      setInstitutions(prev => prev.map(i => i.id === selectedInst.id ? { ...i, commission_rate: rate } : i));
+    }
+    setSavingCommission(false);
+  };
 
   useEffect(() => { loadAll(); }, []);
 
