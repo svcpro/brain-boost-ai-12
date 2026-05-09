@@ -215,6 +215,7 @@ const OnboardingPage = () => {
   const [examType, setExamType] = useState("");
   const [examCategory, setExamCategory] = useState("government");
   const [customExam, setCustomExam] = useState("");
+  const [examPreset, setExamPreset] = useState(false);
   const [examDate, setExamDate] = useState("");
   const [subjects, setSubjects] = useState<string[]>([]);
   const [newSubject, setNewSubject] = useState("");
