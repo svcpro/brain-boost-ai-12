@@ -272,14 +272,8 @@ export default function InstitutionManagement() {
         {/* Detail Content */}
         <AnimatePresence mode="wait">
           <motion.div key={detailTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
-            {detailTab === "batches" && <BatchManagement institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "faculty" && <FacultyDashboard institutionId={selectedInst.id} />}
-            {detailTab === "branding" && <BrandingConfig institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "features" && <FeatureToggles institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "domains" && <DomainManagement institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "contracts" && <ContractManagement institutionId={selectedInst.id} institutionName={selectedInst.name} />}
+            {detailTab === "students" && <InstituteStudentsTab institutionId={selectedInst.id} institutionName={selectedInst.name} />}
             {detailTab === "billing" && <LicenseBilling institutionId={selectedInst.id} institutionName={selectedInst.name} />}
-            {detailTab === "audit" && <InstitutionAuditLog institutionId={selectedInst.id} institutionName={selectedInst.name} />}
           </motion.div>
         </AnimatePresence>
       </div>
