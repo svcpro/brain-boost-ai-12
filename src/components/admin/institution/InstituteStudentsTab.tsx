@@ -332,23 +332,23 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
         ) : (
           <>
             {/* Header row (md+) */}
-            <div className="hidden md:grid grid-cols-[1.6fr_0.8fr_0.9fr_0.9fr_0.9fr_auto] gap-3 px-4 py-2.5 border-b border-border/60 bg-secondary/20 text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+            <div className="hidden md:grid grid-cols-[1.6fr_0.9fr_0.9fr_0.9fr_0.9fr_0.9fr_auto] gap-3 px-4 py-2.5 border-b border-border/60 bg-secondary/20 text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
               <div>Student</div>
               <div>Status</div>
               <div>Plan</div>
               <div>Joined</div>
               <div>Last Active</div>
               <div className="text-right">Earned</div>
+              <div className="text-right">Action</div>
             </div>
             <div className="divide-y divide-border/50">
               {filtered.map((s) => (
-                <button
+                <div
                   key={s.id}
-                  onClick={() => setDrill(s)}
-                  className="w-full text-left grid md:grid-cols-[1.6fr_0.8fr_0.9fr_0.9fr_0.9fr_auto] grid-cols-1 gap-3 items-center px-4 py-3 hover:bg-secondary/30 transition-colors group"
+                  className="grid md:grid-cols-[1.6fr_0.9fr_0.9fr_0.9fr_0.9fr_0.9fr_auto] grid-cols-1 gap-3 items-center px-4 py-3 hover:bg-secondary/30 transition-colors group"
                 >
-                  {/* Student */}
-                  <div className="flex items-center gap-3 min-w-0">
+                  {/* Student (clickable to drill) */}
+                  <button onClick={() => setDrill(s)} className="flex items-center gap-3 min-w-0 text-left">
                     <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-border/60">
                       {s.avatar_url ? (
                         <img src={s.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -359,12 +359,12 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
                       )}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-sm font-bold text-foreground truncate">{s.display_name || "Unnamed"}</div>
+                      <div className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">{s.display_name || "Unnamed"}</div>
                       <div className="text-[11px] text-muted-foreground truncate">
                         {s.email || s.phone || "—"}
                       </div>
                     </div>
-                  </div>
+                  </button>
                   {/* Status */}
                   <div>
                     <span
@@ -395,15 +395,35 @@ export default function InstituteStudentsTab({ institutionId, institutionName }:
                     <Activity className="w-3 h-3" />
                     {s.last_seen_at ? formatDistanceToNow(new Date(s.last_seen_at), { addSuffix: true }) : "—"}
                   </div>
-                  {/* Earned + drill */}
-                  <div className="flex items-center justify-end gap-2">
-                    <div className="text-right">
-                      <div className="text-sm font-extrabold text-emerald-400 tabular-nums">{fmtINR(s.earned)}</div>
-                      {s.txns > 0 && <div className="text-[9px] text-muted-foreground">{s.txns} txn</div>}
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                  {/* Earned */}
+                  <div className="text-right">
+                    <div className="text-sm font-extrabold text-emerald-400 tabular-nums">{fmtINR(s.earned)}</div>
+                    {s.txns > 0 && <div className="text-[9px] text-muted-foreground">{s.txns} txn</div>}
                   </div>
-                </button>
+                  {/* Action: toggle status + view */}
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleActive(s); }}
+                      disabled={busy === s.id}
+                      title={s.is_active ? "Revoke access" : "Restore access"}
+                      className={cn(
+                        "p-1.5 rounded-lg border transition-colors disabled:opacity-50",
+                        s.is_active
+                          ? "border-destructive/30 text-destructive hover:bg-destructive/10"
+                          : "border-success/30 text-success hover:bg-success/10",
+                      )}
+                    >
+                      {busy === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : s.is_active ? <ShieldOff className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => setDrill(s)}
+                      className="p-1.5 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                      title="View full details"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </>
