@@ -751,7 +751,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
       {/* ─── Fully Accessible Fullscreen QR Modal ─── */}
       <Dialog open={qrZoom} onOpenChange={setQrZoom}>
         <DialogContent
-          className="max-w-md p-0 overflow-hidden border-0 bg-transparent shadow-none focus:outline-none"
+          className="max-w-md w-[calc(100vw-2rem)] max-h-[90dvh] overflow-y-auto p-0 border-0 bg-transparent shadow-none focus:outline-none top-1/2 -translate-y-1/2"
           aria-labelledby="qr-modal-title"
           aria-describedby="qr-modal-desc"
           onOpenAutoFocus={(e) => {
@@ -805,7 +805,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                 <img
                   src={qrDataUrl}
                   alt={`QR code containing the public invite link for ${institutionName}: ${joinUrlDisplay}`}
-                  className="block w-full rounded-xl"
+                  className="block w-full max-h-[45dvh] object-contain rounded-xl mx-auto"
                   role="img"
                 />
               ) : (
