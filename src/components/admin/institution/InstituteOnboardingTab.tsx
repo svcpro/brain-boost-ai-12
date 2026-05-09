@@ -163,6 +163,10 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
     try {
       await navigator.clipboard.writeText(text);
       toast({ title: `${label} copied ✅` });
+      if (label === "Invite link") {
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 1800);
+      }
     } catch {
       toast({ title: "Copy failed", variant: "destructive" });
     }
@@ -176,11 +180,44 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
     a.click();
   };
 
+  const printQR = () => {
+    if (!qrDataUrl) return;
+    const w = window.open("", "_blank", "width=600,height=800");
+    if (!w) return;
+    w.document.write(`
+      <html><head><title>${institutionName} – Join QR</title>
+      <style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui;background:#fff;color:#000}
+      img{width:380px;height:380px}h1{margin:24px 0 4px;font-size:22px}p{margin:0;font-size:14px;color:#555}</style>
+      </head><body>
+      <img src="${qrDataUrl}" alt="QR" />
+      <h1>Join ${institutionName}</h1>
+      <p>${joinUrlDisplay}</p>
+      <script>window.onload=()=>{window.print();}</script>
+      </body></html>`);
+    w.document.close();
+  };
+
   const shareWhatsApp = () => {
     const msg = encodeURIComponent(
       `Join ${institutionName} on ACRY 🚀\n\nUse this link to enroll instantly:\n${joinUrl}\n\nOr enter referral code: ${referralCode}`,
     );
     window.open(`https://wa.me/?text=${msg}`, "_blank");
+  };
+
+  const shareTelegram = () => {
+    const text = encodeURIComponent(`Join ${institutionName} on ACRY 🚀`);
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(joinUrl)}&text=${text}`, "_blank");
+  };
+
+  const shareEmail = () => {
+    const subject = encodeURIComponent(`Join ${institutionName} on ACRY`);
+    const body = encodeURIComponent(`Hi,\n\nUse this link to enroll instantly at ${institutionName}:\n${joinUrl}\n\nReferral code: ${referralCode}\n\n— ACRY AI`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const shareSMS = () => {
+    const body = encodeURIComponent(`Join ${institutionName} on ACRY: ${joinUrl}`);
+    window.location.href = `sms:?body=${body}`;
   };
 
   const nativeShare = async () => {
