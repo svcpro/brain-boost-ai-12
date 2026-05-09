@@ -159,6 +159,21 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
     return () => { cancelled = true; };
   }, [joinUrl]);
 
+  // Keyboard shortcuts inside fullscreen QR modal: D = download, P = print, C = copy link
+  useEffect(() => {
+    if (!qrZoom) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const k = e.key.toLowerCase();
+      if (k === "d") { e.preventDefault(); downloadQR(); }
+      else if (k === "p") { e.preventDefault(); printQR(); }
+      else if (k === "c") { e.preventDefault(); copy(joinUrl, "Invite link"); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qrZoom, qrDataUrl, joinUrl]);
+
   const copy = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
