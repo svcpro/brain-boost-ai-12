@@ -11,14 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow } from "date-fns";
-import BatchManagement from "./institution/BatchManagement";
-import FacultyDashboard from "./institution/FacultyDashboard";
+import InstituteStudentsTab from "./institution/InstituteStudentsTab";
 import LicenseBilling from "./institution/LicenseBilling";
-import BrandingConfig from "./institution/BrandingConfig";
-import FeatureToggles from "./institution/FeatureToggles";
-import ContractManagement from "./institution/ContractManagement";
-import DomainManagement from "./institution/DomainManagement";
-import InstitutionAuditLog from "./institution/InstitutionAuditLog";
 
 interface Institution {
   id: string;
