@@ -40,7 +40,7 @@ interface Institution {
 }
 
 type DashboardView = "overview" | "institution-detail";
-type DetailTab = "batches" | "faculty" | "branding" | "features" | "domains" | "contracts" | "billing" | "audit";
+type DetailTab = "students" | "billing";
 
 const TYPE_CONFIG: Record<string, { color: string; bg: string; gradient: string; icon: any }> = {
   coaching: { color: "text-primary", bg: "bg-primary/15", gradient: "from-primary/20 to-primary/5", icon: BookOpen },
@@ -50,14 +50,8 @@ const TYPE_CONFIG: Record<string, { color: string; bg: string; gradient: string;
 };
 
 const DETAIL_TABS: { key: DetailTab; label: string; icon: any; color: string }[] = [
-  { key: "batches", label: "Batches", icon: Layers, color: "text-primary" },
-  { key: "faculty", label: "Faculty", icon: Users, color: "text-blue-400" },
-  { key: "branding", label: "Branding", icon: Palette, color: "text-pink-400" },
-  { key: "features", label: "Features", icon: Settings, color: "text-amber-400" },
-  { key: "domains", label: "Domains", icon: Globe, color: "text-emerald-400" },
-  { key: "contracts", label: "Contracts", icon: FileText, color: "text-violet-400" },
-  { key: "billing", label: "Billing", icon: CreditCard, color: "text-success" },
-  { key: "audit", label: "Audit Log", icon: Fingerprint, color: "text-red-400" },
+  { key: "students", label: "Students & Details", icon: Users, color: "text-primary" },
+  { key: "billing", label: "Earnings", icon: IndianRupee, color: "text-success" },
 ];
 
 const cardVariants = {
