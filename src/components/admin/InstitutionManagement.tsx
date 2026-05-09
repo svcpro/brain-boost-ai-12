@@ -454,38 +454,6 @@ export default function InstitutionManagement() {
           </div>
         </motion.div>
 
-        {/* Webhooks Summary */}
-        <motion.div custom={5} variants={cardVariants} initial="hidden" animate="visible"
-          className="rounded-2xl p-4 border border-border/40 bg-card/60"
-        >
-          <h4 className="text-xs font-bold text-foreground mb-3 flex items-center gap-2">
-            <Webhook className="w-4 h-4 text-accent" /> Webhook Endpoints
-            <span className="ml-auto text-[9px] font-bold px-2 py-0.5 rounded-md bg-accent/15 text-accent">{activeWebhooks}/{webhooks.length}</span>
-          </h4>
-          {webhooks.length === 0 ? (
-            <div className="text-center py-6">
-              <Server className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">No webhook endpoints configured</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
-              {webhooks.slice(0, 5).map(wh => (
-                <div key={wh.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-secondary/30">
-                  <div className={cn("w-2 h-2 rounded-full shrink-0", wh.is_active ? "bg-success animate-pulse" : "bg-muted-foreground")} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-mono text-foreground truncate">{wh.url}</p>
-                    <span className="text-[9px] text-muted-foreground">{(wh.events || []).length} events</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 flex flex-wrap gap-1">
-            {["session_completed", "score_changed", "topic_mastered", "streak_broken"].map(e => (
-              <span key={e} className="px-1.5 py-0.5 rounded-md bg-secondary/50 text-[8px] font-mono text-muted-foreground">{e}</span>
-            ))}
-          </div>
-        </motion.div>
       </div>
 
       {/* ─── RECENT REVENUE ─── */}
