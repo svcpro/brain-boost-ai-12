@@ -241,6 +241,36 @@ const OnboardingPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Pre-fill exam from profile (e.g. set during institute join) so user
+  // doesn't have to pick the exam twice.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("exam_type, display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!data) return;
+      if (data.display_name && !displayName) setDisplayName(data.display_name);
+      const ex = (data.exam_type || "").trim();
+      if (!ex) return;
+      const match = EXAM_TYPES.find(
+        e => e.label.toLowerCase() === ex.toLowerCase() || e.id.toLowerCase() === ex.toLowerCase()
+      );
+      if (match) {
+        setExamCategory(match.category);
+        setExamType(match.id);
+      } else {
+        setExamCategory("government");
+        setExamType("other_gov");
+        setCustomExam(ex);
+      }
+      setExamPreset(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const totalSteps = 6;
 
   // Intercept the browser/device back button so users on /onboarding don't get
