@@ -283,7 +283,10 @@ const OnboardingPage = () => {
     const handlePopState = (_e: PopStateEvent) => {
       // Always re-arm the sentinel so the next Back press is also captured.
       window.history.pushState({ acryOnboarding: true }, "");
-      setStep((s) => (s > 0 ? s - 1 : 0));
+      setStep((s) => {
+        if (s === 2 && examPreset) return 0;
+        return s > 0 ? s - 1 : 0;
+      });
     };
 
     window.addEventListener("popstate", handlePopState);
