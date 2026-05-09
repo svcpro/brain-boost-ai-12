@@ -170,6 +170,7 @@ export default function InstituteSignupPage() {
         is_active: true,
         primary_color: "#6366f1",
         secondary_color: "#8b5cf6",
+        source: "self_signup",
       } as any);
       if (insErr) throw insErr;
 

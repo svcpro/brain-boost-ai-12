@@ -5215,6 +5215,7 @@ export type Database = {
           secondary_color: string | null
           settings: Json | null
           slug: string
+          source: string
           student_count: number | null
           teacher_count: number | null
           type: string
@@ -5239,6 +5240,7 @@ export type Database = {
           secondary_color?: string | null
           settings?: Json | null
           slug: string
+          source?: string
           student_count?: number | null
           teacher_count?: number | null
           type?: string
@@ -5263,6 +5265,7 @@ export type Database = {
           secondary_color?: string | null
           settings?: Json | null
           slug?: string
+          source?: string
           student_count?: number | null
           teacher_count?: number | null
           type?: string

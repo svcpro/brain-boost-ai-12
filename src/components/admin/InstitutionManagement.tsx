@@ -36,6 +36,7 @@ interface Institution {
   branch: string | null;
   license_status: string | null;
   max_students: number | null;
+  source: string | null;
 }
 
 type DashboardView = "overview" | "institution-detail";
@@ -84,6 +85,7 @@ export default function InstitutionManagement() {
   const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("batches");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "self_signup" | "admin">("all");
 
   useEffect(() => { loadAll(); }, []);
 
@@ -176,10 +178,14 @@ export default function InstitutionManagement() {
 
   const filtered = useMemo(() => institutions.filter(i =>
     (typeFilter === "all" || i.type === typeFilter) &&
+    (sourceFilter === "all" || (i.source || "admin") === sourceFilter) &&
     (i.name.toLowerCase().includes(search.toLowerCase()) ||
     i.slug.toLowerCase().includes(search.toLowerCase()) ||
     (i.city || "").toLowerCase().includes(search.toLowerCase()))
-  ), [institutions, search, typeFilter]);
+  ), [institutions, search, typeFilter, sourceFilter]);
+
+  const selfSignupCount = useMemo(() => institutions.filter(i => i.source === "self_signup").length, [institutions]);
+  const adminCreatedCount = institutions.length - selfSignupCount;
 
   const typeDistribution = useMemo(() => {
     const dist: Record<string, number> = {};
@@ -560,6 +566,23 @@ export default function InstitutionManagement() {
         </div>
       </motion.div>
 
+      {/* ─── SOURCE FILTER (Self-Signup vs Admin-Created) ─── */}
+      <motion.div custom={7} variants={cardVariants} initial="hidden" animate="visible" className="flex items-center gap-2 flex-wrap -mt-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Onboarded via:</span>
+        <button onClick={() => setSourceFilter("all")}
+          className={cn("px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all", sourceFilter === "all" ? "bg-primary/15 text-primary border border-primary/20" : "bg-secondary/30 text-muted-foreground hover:text-foreground")}>
+          All Sources ({institutions.length})
+        </button>
+        <button onClick={() => setSourceFilter("self_signup")}
+          className={cn("flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all", sourceFilter === "self_signup" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" : "bg-secondary/30 text-muted-foreground hover:text-foreground")}>
+          <Sparkles className="w-3 h-3" /> Self Signup ({selfSignupCount})
+        </button>
+        <button onClick={() => setSourceFilter("admin")}
+          className={cn("flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all", sourceFilter === "admin" ? "bg-primary/15 text-primary border border-primary/20" : "bg-secondary/30 text-muted-foreground hover:text-foreground")}>
+          <Shield className="w-3 h-3" /> Admin Created ({adminCreatedCount})
+        </button>
+      </motion.div>
+
       {/* ─── INSTITUTION LIST ─── */}
       <div className="space-y-2.5">
         {filtered.length === 0 ? (
@@ -603,6 +626,11 @@ export default function InstitutionManagement() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-foreground truncate">{inst.name}</span>
                       <span className={cn("text-[8px] font-extrabold px-2 py-0.5 rounded-md capitalize", cfg.bg, cfg.color)}>{inst.type}</span>
+                      {inst.source === "self_signup" && (
+                        <span className="text-[8px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5" /> Self Signup
+                        </span>
+                      )}
                       {instLicense && <span className="text-[8px] font-bold px-2 py-0.5 rounded-md bg-success/15 text-success capitalize">{instLicense.plan_name}</span>}
                       {!inst.is_active && <span className="text-[8px] font-bold px-2 py-0.5 rounded-md bg-destructive/15 text-destructive">Inactive</span>}
                     </div>
