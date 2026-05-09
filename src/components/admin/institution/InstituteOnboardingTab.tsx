@@ -805,7 +805,7 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
                 <img
                   src={qrDataUrl}
                   alt={`QR code containing the public invite link for ${institutionName}: ${joinUrlDisplay}`}
-                  className="block w-full rounded-xl"
+                  className="block w-full max-h-[45dvh] object-contain rounded-xl mx-auto"
                   role="img"
                 />
               ) : (
