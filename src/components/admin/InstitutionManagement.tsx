@@ -36,6 +36,7 @@ interface Institution {
   branch: string | null;
   license_status: string | null;
   max_students: number | null;
+  source: string | null;
 }
 
 type DashboardView = "overview" | "institution-detail";
