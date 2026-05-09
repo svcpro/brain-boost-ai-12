@@ -31,6 +31,7 @@ interface Institution {
   license_status: string | null;
   max_students: number | null;
   source: string | null;
+  commission_rate: number | null;
 }
 
 type DashboardView = "overview" | "institution-detail";
