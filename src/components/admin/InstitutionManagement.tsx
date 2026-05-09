@@ -77,7 +77,7 @@ export default function InstitutionManagement() {
   const [newCity, setNewCity] = useState("");
   const [creating, setCreating] = useState(false);
   const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
-  const [detailTab, setDetailTab] = useState<DetailTab>("batches");
+  const [detailTab, setDetailTab] = useState<DetailTab>("students");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "self_signup" | "admin">("all");
 
