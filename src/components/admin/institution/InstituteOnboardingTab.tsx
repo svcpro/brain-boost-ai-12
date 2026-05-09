@@ -174,6 +174,27 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qrZoom, qrDataUrl, joinUrl]);
 
+  // Lock body scroll while QR modal is open (prevents background scroll & bounce on mobile)
+  useEffect(() => {
+    if (!qrZoom) return;
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+    const originalPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [qrZoom]);
+
   const copy = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
