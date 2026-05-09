@@ -744,54 +744,151 @@ export default function InstituteOnboardingTab({ institutionId, institutionName,
         </div>
       </div>
 
-      {/* ─── QR Zoom Dialog ─── */}
+      {/* ─── Fully Accessible Fullscreen QR Modal ─── */}
       <Dialog open={qrZoom} onOpenChange={setQrZoom}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-0 bg-transparent shadow-none">
+        <DialogContent
+          className="max-w-md p-0 overflow-hidden border-0 bg-transparent shadow-none focus:outline-none"
+          aria-labelledby="qr-modal-title"
+          aria-describedby="qr-modal-desc"
+          onOpenAutoFocus={(e) => {
+            // Focus the primary download action for fast keyboard access
+            e.preventDefault();
+            requestAnimationFrame(() => {
+              document.getElementById("qr-download-btn")?.focus();
+            });
+          }}
+        >
           <div
-            className="relative rounded-[28px] p-5"
+            className="relative rounded-[28px] p-5 text-slate-900"
             style={{
               background: "linear-gradient(180deg, #ffffff 0%, #f4f6ff 100%)",
               boxShadow: `0 30px 80px -20px ${accent}80`,
             }}
+            role="document"
           >
-            <DialogHeader>
-              <DialogTitle className="sr-only">Scan to join {institutionName}</DialogTitle>
+            <DialogHeader className="text-left">
+              <DialogTitle
+                id="qr-modal-title"
+                className="text-base font-black text-slate-900"
+              >
+                Scan to join {institutionName}
+              </DialogTitle>
+              <DialogDescription
+                id="qr-modal-desc"
+                className="text-xs text-slate-600"
+              >
+                Point any camera at the code below, or download and share the image. Press D to download, P to print, C to copy the link, or Escape to close.
+              </DialogDescription>
             </DialogHeader>
+
+            {/* Brand band */}
             <div
-              className="flex items-center justify-between px-3 py-2 rounded-xl mb-3"
+              className="mt-3 flex items-center justify-between px-3 py-2 rounded-xl mb-3"
               style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF 60%, #00E5FF)` }}
+              aria-hidden="true"
             >
               <span className="text-xs font-extrabold tracking-widest text-white uppercase">
                 Scan to join
               </span>
-              <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase">
+              <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase truncate max-w-[200px]">
                 {institutionName}
               </span>
             </div>
-            {qrDataUrl && (
-              <img src={qrDataUrl} alt="QR" className="block w-full rounded-xl" />
-            )}
-            <div className="mt-3 text-center">
-              <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Public invite</div>
-              <div className="text-sm font-mono font-extrabold text-slate-900">
-                {BRAND_HOST}/i/<span style={{ color: accent }}>{referralCode}</span>
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+
+            {/* QR image */}
+            <figure className="m-0">
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt={`QR code containing the public invite link for ${institutionName}: ${joinUrlDisplay}`}
+                  className="block w-full rounded-xl"
+                  role="img"
+                />
+              ) : (
+                <div
+                  className="w-full aspect-square rounded-xl bg-slate-100 grid place-items-center text-xs font-bold text-slate-500"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" />
+                  <span className="sr-only">Generating QR code</span>
+                </div>
+              )}
+              <figcaption className="mt-3 text-center">
+                <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                  Public invite link
+                </div>
+                <div className="text-sm font-mono font-extrabold text-slate-900 break-all">
+                  {BRAND_HOST}/i/<span style={{ color: accent }}>{referralCode}</span>
+                </div>
+              </figcaption>
+            </figure>
+
+            {/* Primary actions */}
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <button
+                id="qr-download-btn"
                 onClick={downloadQR}
-                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-extrabold text-white shadow-lg"
-                style={{ background: `linear-gradient(135deg, ${accent}, #7C4DFF)` }}
+                disabled={!qrDataUrl}
+                aria-label={`Download QR code for ${institutionName} as a PNG image`}
+                aria-keyshortcuts="D"
+                className="flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-extrabold text-white shadow-lg disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                style={{
+                  background: `linear-gradient(135deg, ${accent}, #7C4DFF)`,
+                  // @ts-ignore CSS custom prop for ring color
+                  ["--tw-ring-color" as any]: `${accent}80`,
+                }}
               >
-                <Download className="w-3.5 h-3.5" /> Download
+                <Download className="w-4 h-4" aria-hidden="true" /> Download
+                <kbd className="ml-1 text-[9px] font-mono px-1 py-0.5 rounded bg-white/25" aria-hidden="true">D</kbd>
               </button>
               <button
                 onClick={printQR}
-                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-extrabold border-2"
-                style={{ borderColor: accent, color: accent, background: "white" }}
+                disabled={!qrDataUrl}
+                aria-label={`Print QR code for ${institutionName}`}
+                aria-keyshortcuts="P"
+                className="flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-extrabold border-2 disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                style={{
+                  borderColor: accent,
+                  color: accent,
+                  background: "white",
+                  ["--tw-ring-color" as any]: `${accent}80`,
+                }}
               >
-                <Printer className="w-3.5 h-3.5" /> Print
+                <Printer className="w-4 h-4" aria-hidden="true" /> Print
+                <kbd className="ml-1 text-[9px] font-mono px-1 py-0.5 rounded" style={{ background: `${accent}22`, color: accent }} aria-hidden="true">P</kbd>
               </button>
+            </div>
+
+            {/* Secondary actions */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => copy(joinUrl, "Invite link")}
+                aria-label="Copy public invite link to clipboard"
+                aria-keyshortcuts="C"
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              >
+                {linkCopied ? (
+                  <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" /> Copied</>
+                ) : (
+                  <><Copy className="w-3.5 h-3.5" aria-hidden="true" /> Copy link</>
+                )}
+                <kbd className="ml-1 text-[9px] font-mono px-1 py-0.5 rounded bg-slate-200" aria-hidden="true">C</kbd>
+              </button>
+              <DialogClose asChild>
+                <button
+                  aria-label="Close QR code dialog"
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                >
+                  <X className="w-3.5 h-3.5" aria-hidden="true" /> Close
+                  <kbd className="ml-1 text-[9px] font-mono px-1 py-0.5 rounded bg-slate-200" aria-hidden="true">Esc</kbd>
+                </button>
+              </DialogClose>
+            </div>
+
+            {/* Live region for status updates (copy/download confirmations) */}
+            <div role="status" aria-live="polite" className="sr-only">
+              {linkCopied ? "Invite link copied to clipboard" : ""}
             </div>
           </div>
         </DialogContent>
