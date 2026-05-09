@@ -278,6 +278,43 @@ export default function InstitutionManagement() {
           )}
         </motion.div>
 
+        {/* Commission Rate Editor */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          className="rounded-2xl p-4 bg-card border border-border flex flex-col sm:flex-row sm:items-center gap-3"
+        >
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+              <IndianRupee className="w-5 h-5 text-success" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-sm font-bold text-foreground">Institute Commission</h4>
+              <p className="text-[11px] text-muted-foreground">Share of paid subscription revenue from this institute's students.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={commissionInput}
+                onChange={e => setCommissionInput(e.target.value)}
+                className="w-28 bg-secondary/40 border border-border/50 rounded-xl pl-3 pr-8 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+            </div>
+            <button
+              onClick={saveCommission}
+              disabled={savingCommission}
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {savingCommission ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              Save
+            </button>
+          </div>
+        </motion.div>
+
         {/* Detail Tab Navigation */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin"
