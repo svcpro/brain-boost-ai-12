@@ -72,6 +72,7 @@ const TermsPage = () => (
       <p>We may update these Terms from time to time. Continued use of the Service after changes constitutes acceptance. For questions, contact <a href="mailto:support@acry.ai" className="text-primary hover:underline">support@acry.ai</a>.</p>
     </Section>
   </StaticPageLayout>
+  </>
 );
 
 export default TermsPage;
