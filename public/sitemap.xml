@@ -9,6 +9,7 @@
   <url><loc>https://acry.ai/cookie-policy</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
   <url><loc>https://acry.ai/auth</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>https://acry.ai/myrank</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://acry.ai/myrank/leaderboard</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://acry.ai/community</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://acry.ai/institute/login</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>https://acry.ai/institute/signup</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
