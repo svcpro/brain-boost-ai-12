@@ -71,6 +71,11 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden">
+      <SEO
+        title="ACRY AI – Your AI Second Brain. Crack Any Exam."
+        description="India's #1 AI Study Brain. Predicts what you'll forget, builds your perfect plan, and pushes your rank up every day. Join 50,000+ toppers."
+        path="/"
+      />
       <NeuralBackground />
       
       {/* Sticky Navbar */}
