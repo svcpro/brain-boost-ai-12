@@ -21,6 +21,18 @@ const stats = [
 
 const AboutPage = () => (
   <div className="min-h-screen bg-background flex flex-col">
+    <SEO
+      title="About ACRY AI – Mission, Team & The AI Second Brain"
+      description="Meet the team behind ACRY AI, India's #1 AI Second Brain helping 50,000+ students crack UPSC, NEET, JEE, CAT, SSC and more."
+      path="/about"
+      jsonLd={{
+        "@context": "https://schema.org",
+        "@type": "AboutPage",
+        name: "About ACRY AI",
+        url: "https://acry.ai/about",
+        about: { "@type": "Organization", name: "ACRY AI", url: "https://acry.ai" },
+      }}
+    />
     {/* Navbar */}
     <nav className="sticky top-0 z-50 glass-strong border-b border-border">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
