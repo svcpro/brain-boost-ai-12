@@ -1,4 +1,5 @@
 import StaticPageLayout from "@/components/landing/StaticPageLayout";
+import SEO from "@/components/SEO";
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
