@@ -1,4 +1,5 @@
 import StaticPageLayout from "@/components/landing/StaticPageLayout";
+import SEO from "@/components/SEO";
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
@@ -8,6 +9,12 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const RefundPolicyPage = () => (
+  <>
+    <SEO
+      title="Refund Policy – ACRY AI"
+      description="ACRY AI's refund policy for Pro Brain and Ultra Brain subscriptions, free trials and yearly plans."
+      path="/refund-policy"
+    />
   <StaticPageLayout
     title="Refund Policy"
     subtitle="Our commitment to fair billing and refunds."
@@ -56,6 +63,7 @@ const RefundPolicyPage = () => (
       <p>For refund inquiries, contact us at <a href="mailto:support@acry.ai" className="text-primary hover:underline">support@acry.ai</a>.</p>
     </Section>
   </StaticPageLayout>
+  </>
 );
 
 export default RefundPolicyPage;

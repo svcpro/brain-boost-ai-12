@@ -1,4 +1,5 @@
 import StaticPageLayout from "@/components/landing/StaticPageLayout";
+import SEO from "@/components/SEO";
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
@@ -8,6 +9,12 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const CookiePolicyPage = () => (
+  <>
+    <SEO
+      title="Cookie Policy – ACRY AI"
+      description="How ACRY AI uses cookies and similar technologies to authenticate, personalize and improve the platform."
+      path="/cookie-policy"
+    />
   <StaticPageLayout
     title="Cookie Policy"
     subtitle="How ACRY uses cookies and similar technologies."
@@ -55,6 +62,7 @@ const CookiePolicyPage = () => (
       <p>For questions about our cookie practices, contact <a href="mailto:support@acry.ai" className="text-primary hover:underline">support@acry.ai</a>.</p>
     </Section>
   </StaticPageLayout>
+  </>
 );
 
 export default CookiePolicyPage;

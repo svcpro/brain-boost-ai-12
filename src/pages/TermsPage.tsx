@@ -1,4 +1,5 @@
 import StaticPageLayout from "@/components/landing/StaticPageLayout";
+import SEO from "@/components/SEO";
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
@@ -8,6 +9,12 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const TermsPage = () => (
+  <>
+    <SEO
+      title="Terms of Service – ACRY AI"
+      description="The terms governing your use of ACRY AI's AI-powered study platform, subscriptions and community."
+      path="/terms"
+    />
   <StaticPageLayout
     title="Terms of Service"
     subtitle="Please read these terms carefully before using ACRY."
@@ -65,6 +72,7 @@ const TermsPage = () => (
       <p>We may update these Terms from time to time. Continued use of the Service after changes constitutes acceptance. For questions, contact <a href="mailto:support@acry.ai" className="text-primary hover:underline">support@acry.ai</a>.</p>
     </Section>
   </StaticPageLayout>
+  </>
 );
 
 export default TermsPage;

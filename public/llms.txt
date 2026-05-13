@@ -1,0 +1,23 @@
+# ACRY AI
+
+> India's #1 AI Second Brain for exam preparation. Predicts what you'll forget, builds a personalized study plan, and pushes your rank up every day.
+
+ACRY AI helps students cracking UPSC, NEET, JEE, CAT, SSC, GATE and other competitive exams with adaptive spaced repetition, rank prediction, and an AI tutor.
+
+## Pages
+
+- [Home](/): Overview of the AI Second Brain platform.
+- [About](/about): Mission, team and how the AI brain works.
+- [Contact](/contact): Reach the ACRY AI team.
+- [MyRank](/myrank): Free AI rank-prediction test for competitive exams.
+- [Community](/community): Topper community, discussions and study circles.
+- [Sign In](/auth): Log in or sign up with passwordless OTP.
+- [Institute Login](/institute/login): Coaching institute admin portal.
+- [Institute Signup](/institute/signup): Onboard a coaching institute.
+
+## Optional
+
+- [Privacy Policy](/privacy)
+- [Terms of Service](/terms)
+- [Refund Policy](/refund-policy)
+- [Cookie Policy](/cookie-policy)

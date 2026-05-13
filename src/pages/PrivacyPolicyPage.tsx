@@ -1,4 +1,5 @@
 import StaticPageLayout from "@/components/landing/StaticPageLayout";
+import SEO from "@/components/SEO";
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
@@ -8,6 +9,12 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const PrivacyPolicyPage = () => (
+  <>
+    <SEO
+      title="Privacy Policy – ACRY AI"
+      description="How ACRY AI collects, uses, stores and protects your study data and personal information."
+      path="/privacy"
+    />
   <StaticPageLayout
     title="Privacy Policy"
     subtitle="Your privacy is critically important to us at ACRY."
@@ -69,6 +76,7 @@ const PrivacyPolicyPage = () => (
       <p>For privacy-related questions, reach us at <a href="mailto:support@acry.ai" className="text-primary hover:underline">support@acry.ai</a>.</p>
     </Section>
   </StaticPageLayout>
+  </>
 );
 
 export default PrivacyPolicyPage;
