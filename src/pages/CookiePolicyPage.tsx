@@ -62,6 +62,7 @@ const CookiePolicyPage = () => (
       <p>For questions about our cookie practices, contact <a href="mailto:support@acry.ai" className="text-primary hover:underline">support@acry.ai</a>.</p>
     </Section>
   </StaticPageLayout>
+  </>
 );
 
 export default CookiePolicyPage;
