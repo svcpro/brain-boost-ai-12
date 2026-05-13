@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 const MyRankRewards = lazy(() => import("@/components/myrank/MyRankRewards"));
+import SEO from "@/components/SEO";
 
 const setSeo = (title: string, desc: string) => {
   document.title = title;
