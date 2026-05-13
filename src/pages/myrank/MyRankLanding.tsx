@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 const MyRankRewards = lazy(() => import("@/components/myrank/MyRankRewards"));
+import SEO from "@/components/SEO";
 
 const setSeo = (title: string, desc: string) => {
   document.title = title;
@@ -165,6 +166,11 @@ const MyRankLanding = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-foreground">
+      <SEO
+        title="MyRank – Check Your India Rank in 60 Seconds | ACRY AI"
+        description="Free AI rank predictor for UPSC, NEET, JEE, CAT, SSC, GATE and more. Get your India rank in 60 seconds and see how you stack up against 50,000+ toppers."
+        path="/myrank"
+      />
       {/* Animated cosmic background */}
       <AuroraBackground />
 
