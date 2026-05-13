@@ -3,6 +3,7 @@ import { Brain, Target, Users, Sparkles, Shield, Zap, Globe, Award } from "lucid
 import Footer from "@/components/landing/Footer";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { Link } from "react-router-dom";
+import SEO from "@/components/SEO";
 
 const values = [
   { icon: Brain, title: "AI-First Learning", desc: "We leverage cutting-edge AI to predict what you'll forget and optimize when you study." },
