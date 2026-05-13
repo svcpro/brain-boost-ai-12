@@ -9,6 +9,12 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const PrivacyPolicyPage = () => (
+  <>
+    <SEO
+      title="Privacy Policy – ACRY AI"
+      description="How ACRY AI collects, uses, stores and protects your study data and personal information."
+      path="/privacy"
+    />
   <StaticPageLayout
     title="Privacy Policy"
     subtitle="Your privacy is critically important to us at ACRY."
