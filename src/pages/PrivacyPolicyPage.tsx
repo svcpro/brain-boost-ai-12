@@ -76,6 +76,7 @@ const PrivacyPolicyPage = () => (
       <p>For privacy-related questions, reach us at <a href="mailto:support@acry.ai" className="text-primary hover:underline">support@acry.ai</a>.</p>
     </Section>
   </StaticPageLayout>
+  </>
 );
 
 export default PrivacyPolicyPage;
