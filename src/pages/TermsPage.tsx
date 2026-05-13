@@ -9,6 +9,12 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const TermsPage = () => (
+  <>
+    <SEO
+      title="Terms of Service – ACRY AI"
+      description="The terms governing your use of ACRY AI's AI-powered study platform, subscriptions and community."
+      path="/terms"
+    />
   <StaticPageLayout
     title="Terms of Service"
     subtitle="Please read these terms carefully before using ACRY."
