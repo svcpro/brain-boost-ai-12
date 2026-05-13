@@ -34,4 +34,8 @@ window.addEventListener("beforeinstallprompt", (e) => {
   (window as any).__pwaInstallPrompt = e;
 });
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <HelmetProvider>
+    <App />
+  </HelmetProvider>
+);
