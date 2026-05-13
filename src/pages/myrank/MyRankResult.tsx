@@ -665,30 +665,72 @@ const MyRankResult = () => {
       {showConfetti && <Confetti colors={cfg.confettiColors} />}
       {showShareBoost && <ShareBoostBurst colors={cfg.confettiColors} />}
 
-      {/* Back to Home — only for unauthenticated visitors (shared links) */}
-      {!user && (
-        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 animate-[fade-in_0.4s_ease-out] safe-top">
-          <div className="relative">
-            {/* Outer pulsing glow ring */}
-            <span className="absolute -inset-2 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 opacity-70 blur-xl animate-pulse" />
-            <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 opacity-90 blur-md" />
-            <button
-              onClick={() => navigate("/app")}
-              className="group relative inline-flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full border-2 border-white/40 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white text-[13px] font-extrabold tracking-wide shadow-[0_10px_40px_-5px_rgba(168,85,247,0.8)] transition-all duration-300 hover:scale-110 active:scale-95 overflow-hidden"
-            >
-              {/* Shimmer sweep */}
-              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700" />
-              <ArrowLeft className="relative w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
-              <Home className="relative w-4 h-4 transition-transform duration-500 group-hover:rotate-[-12deg] group-hover:scale-125" strokeWidth={2.5} />
-              <span className="relative uppercase">Back to Home</span>
-              <span className="relative flex w-2 h-2">
-                <span className="absolute inline-flex w-full h-full rounded-full bg-white opacity-80 animate-ping" />
-                <span className="relative inline-flex w-2 h-2 rounded-full bg-white" />
-              </span>
-            </button>
-          </div>
+      {/* Back to Home — irresistible animated CTA (always visible) */}
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[60] safe-top animate-[mr-back-drop_0.6s_cubic-bezier(0.34,1.56,0.64,1)_both]">
+        <div className="relative">
+          {/* Spinning conic aura */}
+          <span
+            aria-hidden
+            className="absolute -inset-[14px] rounded-full opacity-80 blur-2xl pointer-events-none"
+            style={{
+              background:
+                "conic-gradient(from 0deg, #22d3ee, #a855f7, #ec4899, #f59e0b, #22d3ee)",
+              animation: "mr-back-spin 5s linear infinite",
+            }}
+          />
+          {/* Inner pulsing halo */}
+          <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-amber-400 opacity-90 blur-md animate-pulse pointer-events-none" />
+
+          <button
+            onClick={() => navigate("/app")}
+            aria-label="Back to Home"
+            className="group relative inline-flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full border-2 border-white/50 bg-[linear-gradient(110deg,#0ea5e9_0%,#a855f7_45%,#ec4899_100%)] text-white text-[13px] font-black tracking-wide shadow-[0_12px_45px_-6px_rgba(168,85,247,0.95),0_0_0_1px_rgba(255,255,255,0.15)_inset] hover:scale-110 active:scale-95 transition-transform duration-300 overflow-hidden animate-[mr-back-bob_2.4s_ease-in-out_infinite]"
+          >
+            {/* Shimmer sweep */}
+            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-700" />
+            {/* Auto shimmer (idle) */}
+            <span
+              aria-hidden
+              className="absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none"
+              style={{ animation: "mr-back-shimmer 2.8s linear infinite" }}
+            />
+            {/* Home icon in chip */}
+            <span className="relative flex items-center justify-center w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm ring-1 ring-white/40 group-hover:rotate-[-10deg] transition-transform duration-300">
+              <Home className="w-3.5 h-3.5" strokeWidth={2.8} />
+            </span>
+            <span className="relative uppercase leading-none whitespace-nowrap">
+              Back to <span className="text-amber-200">Home</span>
+            </span>
+            <ArrowLeft className="relative w-3.5 h-3.5 -scale-x-100 transition-transform duration-300 group-hover:translate-x-1" />
+            {/* Heartbeat dot */}
+            <span className="relative flex w-2 h-2 ml-0.5">
+              <span className="absolute inline-flex w-full h-full rounded-full bg-amber-300 opacity-80 animate-ping" />
+              <span className="relative inline-flex w-2 h-2 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.9)]" />
+            </span>
+          </button>
+
+          {/* Tiny urgency tag below */}
+          <span className="absolute left-1/2 -translate-x-1/2 -bottom-4 text-[9px] font-bold uppercase tracking-[0.2em] text-amber-200/90 whitespace-nowrap drop-shadow-[0_0_6px_rgba(252,211,77,0.6)]">
+            ✨ Your brain awaits
+          </span>
         </div>
-      )}
+
+        <style>{`
+          @keyframes mr-back-spin { to { transform: rotate(360deg); } }
+          @keyframes mr-back-bob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(3px); }
+          }
+          @keyframes mr-back-shimmer {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(400%); }
+          }
+          @keyframes mr-back-drop {
+            from { opacity: 0; transform: translate(-50%, -24px) scale(0.8); }
+            to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+          }
+        `}</style>
+      </div>
 
       <div className={`relative z-10 max-w-md mx-auto px-4 ${!user ? "pt-20" : "pt-4"} space-y-5`}>
         {/* Live social proof ticker */}
