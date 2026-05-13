@@ -63,6 +63,7 @@ const RefundPolicyPage = () => (
       <p>For refund inquiries, contact us at <a href="mailto:support@acry.ai" className="text-primary hover:underline">support@acry.ai</a>.</p>
     </Section>
   </StaticPageLayout>
+  </>
 );
 
 export default RefundPolicyPage;
