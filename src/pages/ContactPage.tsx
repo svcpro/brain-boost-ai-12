@@ -52,6 +52,17 @@ const ContactPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO
+        title="Contact ACRY AI – Support, Feedback & Partnerships"
+        description="Reach the ACRY AI team for support, feedback, partnership or press queries. We respond within 24 hours."
+        path="/contact"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "ContactPage",
+          name: "Contact ACRY AI",
+          url: "https://acry.ai/contact",
+        }}
+      />
       {/* Navbar */}
       <nav className="sticky top-0 z-50 glass-strong border-b border-border">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
