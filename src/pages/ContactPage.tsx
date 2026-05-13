@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import Footer from "@/components/landing/Footer";
 import ACRYLogo from "@/components/landing/ACRYLogo";
 import { Link } from "react-router-dom";
+import SEO from "@/components/SEO";
 
 const contactSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100, "Name must be under 100 characters"),
