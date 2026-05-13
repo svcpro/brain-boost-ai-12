@@ -9,6 +9,12 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const CookiePolicyPage = () => (
+  <>
+    <SEO
+      title="Cookie Policy – ACRY AI"
+      description="How ACRY AI uses cookies and similar technologies to authenticate, personalize and improve the platform."
+      path="/cookie-policy"
+    />
   <StaticPageLayout
     title="Cookie Policy"
     subtitle="How ACRY uses cookies and similar technologies."
