@@ -732,7 +732,7 @@ const MyRankResult = () => {
         `}</style>
       </div>
 
-      <div className={`relative z-10 max-w-md mx-auto px-4 ${!user ? "pt-20" : "pt-4"} space-y-5`}>
+      <div className="relative z-10 max-w-md mx-auto px-4 pt-20 space-y-5">
         {/* Live social proof ticker */}
         <div className="flex justify-center pt-1">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/20 bg-emerald-500/[0.08] backdrop-blur-md text-[10px] font-bold animate-[fade-in_0.4s_ease-out]">
