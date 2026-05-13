@@ -10,6 +10,7 @@ import ACRYLogo from "@/components/landing/ACRYLogo";
 import MobileLanding from "@/components/landing/MobileLanding";
 import { Link } from "react-router-dom";
 import { Rocket } from "lucide-react";
+import SEO from "@/components/SEO";
 
 
 // Lazy load below-fold sections
