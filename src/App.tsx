@@ -103,8 +103,12 @@ const GlobalErrorCatcher = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => {
+const MetaPixelTracker = () => {
   useMetaPixel();
+  return null;
+};
+
+const App = () => {
   return (
   <ErrorBoundary>
   <GlobalErrorCatcher>
