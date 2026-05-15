@@ -11,6 +11,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useMetaPixel } from "@/hooks/useMetaPixel";
 
 const retryLazy = (
   factory: () => Promise<{ default: ComponentType<any> }>,
