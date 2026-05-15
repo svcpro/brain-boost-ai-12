@@ -11,6 +11,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useMetaPixel } from "@/hooks/useMetaPixel";
 
 const retryLazy = (
   factory: () => Promise<{ default: ComponentType<any> }>,
@@ -102,7 +103,9 @@ const GlobalErrorCatcher = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
+const App = () => {
+  useMetaPixel();
+  return (
   <ErrorBoundary>
   <GlobalErrorCatcher>
   <ThemeProvider>
@@ -204,6 +207,7 @@ const App = () => (
   </ThemeProvider>
   </GlobalErrorCatcher>
   </ErrorBoundary>
-);
+  );
+};
 
 export default App;
