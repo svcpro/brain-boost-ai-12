@@ -78,9 +78,18 @@ export function useMetaPixel() {
     })();
   }, []);
 
-  // Track page view on route changes (single-page app navigation)
+  // Track page view on route changes (single-page app navigation).
+  // fbq is initialized from index.html on first paint, so we rely on window.fbq
+  // existing rather than the module-level pixelLoaded flag (which only tracks
+  // the dynamic loader path).
+  const isFirstRoute = useRef(true);
   useEffect(() => {
-    if (typeof window !== "undefined" && window.fbq && pixelLoaded) {
+    if (isFirstRoute.current) {
+      // Initial PageView already fired by index.html / loader — skip duplicate.
+      isFirstRoute.current = false;
+      return;
+    }
+    if (typeof window !== "undefined" && typeof window.fbq === "function") {
       window.fbq("track", "PageView");
     }
   }, [location.pathname]);
