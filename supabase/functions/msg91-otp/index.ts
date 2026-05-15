@@ -384,7 +384,7 @@ async function findOrCreateUserAndGetSession(adminClient: ReturnType<typeof getA
       user_metadata: {
         phone: phoneE164,
         signup_method: "mobile_otp",
-        display_name: `User${normalizedMobile.slice(-4)}`,
+        // Do NOT auto-generate display_name. User enters their real name during onboarding.
       },
     });
     if (createError) throw createError;
