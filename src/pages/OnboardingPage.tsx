@@ -232,14 +232,8 @@ const OnboardingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Pre-fill display name from auth metadata once user becomes available.
-  useEffect(() => {
-    if (!user) return;
-    const meta = user.user_metadata as Record<string, any> | undefined;
-    const name = meta?.full_name || meta?.name || meta?.display_name || "";
-    if (name && !displayName) setDisplayName(name);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  // NOTE: Display name is intentionally NOT pre-filled. The user must enter
+  // their own name during onboarding (mandatory field, no auto-generation).
 
   // Pre-fill exam from profile (e.g. set during institute join) so user
   // doesn't have to pick the exam twice.
@@ -248,11 +242,10 @@ const OnboardingPage = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("exam_type, display_name")
+        .select("exam_type")
         .eq("id", user.id)
         .maybeSingle();
       if (!data) return;
-      if (data.display_name && !displayName) setDisplayName(data.display_name);
       const ex = (data.exam_type || "").trim();
       if (!ex) return;
       const match = EXAM_TYPES.find(
