@@ -67,7 +67,7 @@ import SmsCommandCenter from "@/components/admin/SmsCommandCenter";
 import SmsAlertsCenter from "@/components/admin/SmsAlertsCenter";
 import WhatsAppCommandCenter from "@/components/admin/WhatsAppCommandCenter";
 import ReferralHandlesAdmin from "@/components/admin/ReferralHandlesAdmin";
-import MetaCapiManagement from "@/components/admin/MetaCapiManagement";
+
 import { Link as LinkIcon } from "lucide-react";
 type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "incidents" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles" | "meta_capi";
 
