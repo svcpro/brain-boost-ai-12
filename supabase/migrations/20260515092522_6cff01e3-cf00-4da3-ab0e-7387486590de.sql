@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public.meta_capi_events CASCADE; DROP TABLE IF EXISTS public.meta_capi_config CASCADE;
