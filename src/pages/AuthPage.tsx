@@ -275,7 +275,22 @@ const AuthPage = () => {
       const { data, error } = await supabase.functions.invoke("msg91-otp", {
         body: { action: "verify", mobile: fullMobile, otp },
       });
-      if (error) throw error;
+      // On non-2xx, supabase-js sets `error` but does NOT parse the JSON body.
+      // Read the body from error.context to surface the real message.
+      if (error) {
+        let serverMsg = "";
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx?.json) {
+            const j = await ctx.json();
+            serverMsg = j?.error || j?.message || "";
+          } else if (ctx?.text) {
+            const t = await ctx.text();
+            try { serverMsg = JSON.parse(t)?.error || JSON.parse(t)?.message || t; } catch { serverMsg = t; }
+          }
+        } catch {}
+        throw new Error(serverMsg || error.message || "Verification failed");
+      }
       if (data?.error) throw new Error(data.error);
 
       if (!data?.verified) {
