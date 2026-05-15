@@ -72,15 +72,10 @@ Deno.serve(async (req) => {
     const ln = await hashIfPresent(user_data.last_name); if (ln) ud.ln = [ln];
     const ct = await hashIfPresent(user_data.city); if (ct) ud.ct = [ct];
     const country = await hashIfPresent(user_data.country); if (country) ud.country = [country];
-    const external_id = await hashIfPresent(user_data.external_id || user_id || crypto.randomUUID());
+    const external_id = await hashIfPresent(user_data.external_id || user_id || undefined);
     if (external_id) ud.external_id = [external_id];
-
-    // Auto-fill IP + UA from request headers if missing — required by Meta for matching
-    const xff = req.headers.get("x-forwarded-for") || "";
-    const ip = user_data.client_ip_address || xff.split(",")[0].trim() || req.headers.get("cf-connecting-ip") || "";
-    const ua = user_data.client_user_agent || req.headers.get("user-agent") || "";
-    if (ip) ud.client_ip_address = ip;
-    if (ua) ud.client_user_agent = ua;
+    if (user_data.client_ip_address) ud.client_ip_address = user_data.client_ip_address;
+    if (user_data.client_user_agent) ud.client_user_agent = user_data.client_user_agent;
     if (user_data.fbc) ud.fbc = user_data.fbc;
     if (user_data.fbp) ud.fbp = user_data.fbp;
 

@@ -84,7 +84,7 @@ const MetaCapiManagement = () => {
     const { data, error } = await supabase.functions.invoke("meta-capi-track", {
       body: {
         event_name: "TestEvent",
-        event_source_url: "https://acry.ai/admin",
+        event_source_url: window.location.href,
         custom_data: { test: true, value: 0 },
       },
     });
