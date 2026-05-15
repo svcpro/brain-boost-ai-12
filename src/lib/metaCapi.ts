@@ -33,7 +33,7 @@ export async function trackMetaEvent(p: MetaCapiPayload): Promise<void> {
   try {
     const enriched: MetaCapiPayload = {
       ...p,
-      event_source_url: p.event_source_url ?? (typeof window !== "undefined" ? window.location.href : undefined),
+      event_source_url: p.event_source_url ?? (typeof window !== "undefined" ? `https://acry.ai${window.location.pathname}${window.location.search}` : "https://acry.ai"),
       user_data: {
         client_user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
         fbc: getCookie("_fbc"),
