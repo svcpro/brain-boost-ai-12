@@ -67,8 +67,9 @@ import SmsCommandCenter from "@/components/admin/SmsCommandCenter";
 import SmsAlertsCenter from "@/components/admin/SmsAlertsCenter";
 import WhatsAppCommandCenter from "@/components/admin/WhatsAppCommandCenter";
 import ReferralHandlesAdmin from "@/components/admin/ReferralHandlesAdmin";
+import MetaCapiManagement from "@/components/admin/MetaCapiManagement";
 import { Link as LinkIcon } from "lucide-react";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "incidents" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "incidents" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles" | "meta_capi";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -180,6 +181,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "apis", label: "API & Keys", icon: Key, roles: ["super_admin", "admin", "api_admin"] },
       { key: "services", label: "3rd Party Services", icon: Globe, roles: ["super_admin", "admin", "api_admin"] },
       { key: "seo", label: "SEO Manager", icon: SearchIcon, roles: ["super_admin", "admin"] },
+      { key: "meta_capi", label: "Meta Conversion API", icon: Megaphone, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
       { key: "monitoring", label: "System Monitor", icon: Activity, roles: ["super_admin", "admin"] },
       { key: "traffic", label: "Traffic Monitor", icon: TrendingUp, roles: ["super_admin", "admin"], badge: "LIVE", badgeColor: "bg-emerald-500/20 text-emerald-400" },
       { key: "incidents", label: "Incident History", icon: Clock, roles: ["super_admin", "admin"], badge: "NEW", badgeColor: "bg-accent/20 text-accent" },
@@ -578,6 +580,7 @@ const AdminPanel = () => {
               {section === "competitive_intel" && <CompetitiveIntelAdmin />}
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
+              {section === "meta_capi" && <MetaCapiManagement />}
               {section === "finance" && <FinanceManagement />}
               
               
