@@ -62,17 +62,20 @@ export function useMetaPixel() {
     if (initRef.current) return;
     initRef.current = true;
 
-    supabase
-      .from("meta_capi_config")
-      .select("pixel_id,enabled")
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("meta_capi_config")
+          .select("pixel_id,enabled")
+          .limit(1)
+          .maybeSingle();
         if (data?.enabled && data.pixel_id) {
           loadPixelScript(data.pixel_id);
         }
-      })
-      .catch(() => {});
+      } catch {
+        // swallow
+      }
+    })();
   }, []);
 
   // Track page view on route changes (single-page app navigation)
