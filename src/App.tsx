@@ -103,7 +103,9 @@ const GlobalErrorCatcher = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
+const App = () => {
+  useMetaPixel();
+  return (
   <ErrorBoundary>
   <GlobalErrorCatcher>
   <ThemeProvider>
