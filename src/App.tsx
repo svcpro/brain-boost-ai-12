@@ -118,6 +118,7 @@ const App = () => {
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <MetaPixelTracker />
         <AuthProvider>
           <Suspense fallback={<PageFallback />}>
             <Routes>
