@@ -580,7 +580,7 @@ const AdminPanel = () => {
               {section === "competitive_intel" && <CompetitiveIntelAdmin />}
               {section === "apis" && <ApiManagement />}
               {section === "services" && <ThirdPartyServices />}
-              {section === "meta_capi" && <MetaCapiManagement />}
+              
               {section === "finance" && <FinanceManagement />}
               
               
