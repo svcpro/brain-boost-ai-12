@@ -207,6 +207,7 @@ const App = () => {
   </ThemeProvider>
   </GlobalErrorCatcher>
   </ErrorBoundary>
-);
+  );
+};
 
 export default App;
