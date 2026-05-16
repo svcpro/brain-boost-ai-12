@@ -1179,7 +1179,7 @@ const OnboardingPage = () => {
             }}
           >
             {loading ? "Setting up..." : step < totalSteps - 1 ? (
-              <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-3.5 h-3.5" /></>
+              <>Continue <ChevronRight className="w-3.5 h-3.5" /></>
             ) : (
               <>Launch ACRY <Sparkles className="w-3.5 h-3.5" /></>
             )}
