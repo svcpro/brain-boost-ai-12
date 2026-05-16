@@ -848,7 +848,7 @@ const UserDetail = ({ user, plans, subscriptions, onBack, toast }: {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-foreground">{user.display_name || "Anonymous"}</h2>
+            <h2 className="text-xl font-bold text-foreground">{user.display_name || (user.phone || user.whatsapp_number ? `+${user.phone || user.whatsapp_number}` : "Unnamed")}{!user.display_name && <span className="ml-2 text-[10px] font-medium text-warning">(Onboarding pending)</span>}</h2>
                      {isBanned && <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-destructive/15 text-destructive">BANNED</span>}
                   </div>
                   <p className="text-[10px] text-muted-foreground">{(user.email && !/@(phone|mobile|otp)\.acry\.ai$/i.test(user.email) ? user.email : "No email")}{(user.phone || user.whatsapp_number) ? ` · ${user.phone || user.whatsapp_number}` : ""}</p>
