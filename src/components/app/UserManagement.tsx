@@ -448,19 +448,34 @@ const UserManagement = () => {
                 className="flex items-center gap-3 flex-1 min-w-0"
                 onClick={() => setSelectedUser(u)}
               >
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 relative ${u.is_banned ? 'bg-destructive/15' : 'bg-primary/15'}`}>
-                  <span className={`text-sm font-bold ${u.is_banned ? 'text-destructive' : 'text-primary'}`}>{(u.display_name || "?")[0].toUpperCase()}</span>
-                  {u.is_banned && <Ban className="w-3 h-3 text-destructive absolute -bottom-0.5 -right-0.5" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground truncate">{u.display_name || "Anonymous"}</p>
-                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${PLAN_COLORS[planKey] || PLAN_COLORS.free}`}>{planName}</span>
-                    {u.is_banned && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">Banned</span>}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground truncate">{u.email || "No email"}{(u.phone || u.whatsapp_number) ? ` · ${u.phone || u.whatsapp_number}` : ""}</p>
-                  <p className="text-[10px] text-muted-foreground">{u.exam_type || "No exam"} · Goal: {u.daily_study_goal_minutes}min/day · Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</p>
-                </div>
+                {(() => {
+                  const phone = u.phone || u.whatsapp_number || "";
+                  const isPhoneEmail = u.email ? /@(phone|mobile|otp)\.acry\.ai$/i.test(u.email) : false;
+                  const cleanEmail = u.email && !isPhoneEmail ? u.email : "";
+                  const fallbackLabel = phone ? `+${phone}` : (cleanEmail ? cleanEmail.split("@")[0] : "Unnamed");
+                  const displayLabel = u.display_name || fallbackLabel;
+                  const onboardingPending = !u.display_name || !u.exam_type;
+                  return (
+                    <>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 relative ${u.is_banned ? 'bg-destructive/15' : 'bg-primary/15'}`}>
+                        <span className={`text-sm font-bold ${u.is_banned ? 'text-destructive' : 'text-primary'}`}>{displayLabel[0].toUpperCase()}</span>
+                        {u.is_banned && <Ban className="w-3 h-3 text-destructive absolute -bottom-0.5 -right-0.5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium text-foreground truncate">{displayLabel}</p>
+                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${PLAN_COLORS[planKey] || PLAN_COLORS.free}`}>{planName}</span>
+                          {u.is_banned && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">Banned</span>}
+                          {onboardingPending && !u.is_banned && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/15 text-warning">Onboarding pending</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground truncate">{cleanEmail || (phone ? `+${phone}` : "No contact")}{cleanEmail && phone ? ` · +${phone}` : ""}</p>
+                        <p className="text-[10px] text-muted-foreground">{u.exam_type || "Exam not set"} · Goal: {u.daily_study_goal_minutes}min/day · Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</p>
+                      </div>
+                    </>
+                  );
+                })()}
                 <MiniSparkline data={studyActivity[u.id] || []} />
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
               </div>
