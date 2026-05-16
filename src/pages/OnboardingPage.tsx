@@ -399,7 +399,7 @@ const OnboardingPage = () => {
     if (step === 1) return examType !== "" && (!examType.startsWith("other_") || validateAcademicTerm(customExam).valid);
     if (step === 2) return examDate !== "";
     if (step === 3) return subjects.length > 0;
-    if (step === 4) return true;
+    if (step === 4) return subjects.length > 0 && subjects.every(s => (topicsBySubject[s] || []).length > 0);
     if (step === 5) return studyMode !== "";
     return false;
   };
