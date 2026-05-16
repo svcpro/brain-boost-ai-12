@@ -404,7 +404,29 @@ const OnboardingPage = () => {
     return false;
   };
 
+  const stepValidationMessage = (): string | null => {
+    if (step === 0 && displayName.trim().length < 2) return "Please enter your name (min 2 characters).";
+    if (step === 1) {
+      if (!examType) return "Please select your exam.";
+      if (examType.startsWith("other_") && !validateAcademicTerm(customExam).valid) return "Please enter a valid custom exam name.";
+    }
+    if (step === 2 && !examDate) return "Please select your exam date.";
+    if (step === 3 && subjects.length === 0) return "Please add at least one subject.";
+    if (step === 4) {
+      if (subjects.length === 0) return "Please add at least one subject first.";
+      const missing = subjects.find(s => (topicsBySubject[s] || []).length === 0);
+      if (missing) return `Please add at least one topic for "${missing}".`;
+    }
+    if (step === 5 && !studyMode) return "Please choose a study mode.";
+    return null;
+  };
+
   const handleNext = () => {
+    const msg = stepValidationMessage();
+    if (msg) {
+      toast({ title: "Complete this step", description: msg, variant: "destructive" });
+      return;
+    }
     if (step === 3 && subjects.length > 0 && !activeSubject) setActiveSubject(subjects[0]);
     // Skip exam-pick step when exam was already chosen (e.g. via institute join link).
     if (step === 0 && examPreset && examType) {
