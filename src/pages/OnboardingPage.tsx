@@ -399,7 +399,7 @@ const OnboardingPage = () => {
     if (step === 1) return examType !== "" && (!examType.startsWith("other_") || validateAcademicTerm(customExam).valid);
     if (step === 2) return examDate !== "";
     if (step === 3) return subjects.length > 0;
-    if (step === 4) return true;
+    if (step === 4) return subjects.length > 0 && subjects.every(s => (topicsBySubject[s] || []).length > 0);
     if (step === 5) return studyMode !== "";
     return false;
   };
@@ -1179,7 +1179,7 @@ const OnboardingPage = () => {
             }}
           >
             {loading ? "Setting up..." : step < totalSteps - 1 ? (
-              <>{step === 4 ? (totalTopics > 0 ? "Continue" : "Skip for now") : "Continue"} <ChevronRight className="w-3.5 h-3.5" /></>
+              <>Continue <ChevronRight className="w-3.5 h-3.5" /></>
             ) : (
               <>Launch ACRY <Sparkles className="w-3.5 h-3.5" /></>
             )}
