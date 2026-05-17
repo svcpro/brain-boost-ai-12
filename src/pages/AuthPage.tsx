@@ -348,6 +348,24 @@ const AuthPage = () => {
 
   const handleSendOtp = authMethod === "whatsapp" ? handleSendWhatsAppOtp : handleSendMobileOtp;
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast({ title: "Google sign-in failed", description: result.error.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+    } catch (e: any) {
+      toast({ title: "Google sign-in failed", description: e?.message || "Try again", variant: "destructive" });
+      setLoading(false);
+    }
+  };
+
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
     const newCode = [...otpCode];
