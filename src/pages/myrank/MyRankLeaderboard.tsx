@@ -49,11 +49,10 @@ const getInitials = (name: string) =>
     .join("")
     .toUpperCase();
 
-// SECURITY: Only render the real profile name on the row that the backend
-// flagged as is_me. Every other row gets a generic, non-identifying label so
-// a user can never accidentally see another user's name attached to a rank.
+// Show the user's real display name when available; fall back to rank label
+// only when the backend didn't return a name for that row.
 const displayNameFor = (row: { is_me: boolean; name: string; position: number }) =>
-  row.is_me ? (row.name || "You") : `Rank #${row.position}`;
+  row.is_me ? (row.name || "You") : (row.name || `Rank #${row.position}`);
 
 const MyRankLeaderboard = () => {
   const navigate = useNavigate();
