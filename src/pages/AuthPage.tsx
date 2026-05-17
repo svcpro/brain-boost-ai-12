@@ -9,6 +9,75 @@ import { useInstitution } from "@/contexts/InstitutionContext";
 
 type AuthMethod = "mobile" | "whatsapp";
 
+/* ─── Major Country Codes (WhatsApp) ─── */
+const COUNTRY_CODES: { code: string; name: string; flag: string }[] = [
+  { code: "91", name: "India", flag: "🇮🇳" },
+  { code: "1", name: "USA / Canada", flag: "🇺🇸" },
+  { code: "44", name: "UK", flag: "🇬🇧" },
+  { code: "61", name: "Australia", flag: "🇦🇺" },
+  { code: "971", name: "UAE", flag: "🇦🇪" },
+  { code: "966", name: "Saudi Arabia", flag: "🇸🇦" },
+  { code: "65", name: "Singapore", flag: "🇸🇬" },
+  { code: "60", name: "Malaysia", flag: "🇲🇾" },
+  { code: "62", name: "Indonesia", flag: "🇮🇩" },
+  { code: "63", name: "Philippines", flag: "🇵🇭" },
+  { code: "66", name: "Thailand", flag: "🇹🇭" },
+  { code: "84", name: "Vietnam", flag: "🇻🇳" },
+  { code: "81", name: "Japan", flag: "🇯🇵" },
+  { code: "82", name: "South Korea", flag: "🇰🇷" },
+  { code: "86", name: "China", flag: "🇨🇳" },
+  { code: "852", name: "Hong Kong", flag: "🇭🇰" },
+  { code: "880", name: "Bangladesh", flag: "🇧🇩" },
+  { code: "92", name: "Pakistan", flag: "🇵🇰" },
+  { code: "94", name: "Sri Lanka", flag: "🇱🇰" },
+  { code: "977", name: "Nepal", flag: "🇳🇵" },
+  { code: "975", name: "Bhutan", flag: "🇧🇹" },
+  { code: "960", name: "Maldives", flag: "🇲🇻" },
+  { code: "93", name: "Afghanistan", flag: "🇦🇫" },
+  { code: "98", name: "Iran", flag: "🇮🇷" },
+  { code: "964", name: "Iraq", flag: "🇮🇶" },
+  { code: "972", name: "Israel", flag: "🇮🇱" },
+  { code: "974", name: "Qatar", flag: "🇶🇦" },
+  { code: "973", name: "Bahrain", flag: "🇧🇭" },
+  { code: "968", name: "Oman", flag: "🇴🇲" },
+  { code: "965", name: "Kuwait", flag: "🇰🇼" },
+  { code: "20", name: "Egypt", flag: "🇪🇬" },
+  { code: "27", name: "South Africa", flag: "🇿🇦" },
+  { code: "234", name: "Nigeria", flag: "🇳🇬" },
+  { code: "254", name: "Kenya", flag: "🇰🇪" },
+  { code: "255", name: "Tanzania", flag: "🇹🇿" },
+  { code: "256", name: "Uganda", flag: "🇺🇬" },
+  { code: "212", name: "Morocco", flag: "🇲🇦" },
+  { code: "33", name: "France", flag: "🇫🇷" },
+  { code: "49", name: "Germany", flag: "🇩🇪" },
+  { code: "39", name: "Italy", flag: "🇮🇹" },
+  { code: "34", name: "Spain", flag: "🇪🇸" },
+  { code: "31", name: "Netherlands", flag: "🇳🇱" },
+  { code: "32", name: "Belgium", flag: "🇧🇪" },
+  { code: "41", name: "Switzerland", flag: "🇨🇭" },
+  { code: "46", name: "Sweden", flag: "🇸🇪" },
+  { code: "47", name: "Norway", flag: "🇳🇴" },
+  { code: "45", name: "Denmark", flag: "🇩🇰" },
+  { code: "358", name: "Finland", flag: "🇫🇮" },
+  { code: "353", name: "Ireland", flag: "🇮🇪" },
+  { code: "351", name: "Portugal", flag: "🇵🇹" },
+  { code: "30", name: "Greece", flag: "🇬🇷" },
+  { code: "90", name: "Turkey", flag: "🇹🇷" },
+  { code: "7", name: "Russia", flag: "🇷🇺" },
+  { code: "380", name: "Ukraine", flag: "🇺🇦" },
+  { code: "48", name: "Poland", flag: "🇵🇱" },
+  { code: "420", name: "Czech Republic", flag: "🇨🇿" },
+  { code: "36", name: "Hungary", flag: "🇭🇺" },
+  { code: "40", name: "Romania", flag: "🇷🇴" },
+  { code: "55", name: "Brazil", flag: "🇧🇷" },
+  { code: "52", name: "Mexico", flag: "🇲🇽" },
+  { code: "54", name: "Argentina", flag: "🇦🇷" },
+  { code: "56", name: "Chile", flag: "🇨🇱" },
+  { code: "57", name: "Colombia", flag: "🇨🇴" },
+  { code: "51", name: "Peru", flag: "🇵🇪" },
+  { code: "64", name: "New Zealand", flag: "🇳🇿" },
+];
+
 /* ─── Animated SMS Icon ─── */
 const AnimatedSmsIcon = ({ active }: { active: boolean }) => (
   <motion.div className="relative flex items-center justify-center w-8 h-8">
@@ -640,22 +709,38 @@ const AuthPage = () => {
 
                   {/* Phone input */}
                   <div className="flex gap-2">
-                    <motion.div
-                      className="relative w-[72px]"
-                      whileFocus={{ scale: 1.02 }}
-                    >
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "#ffffff50" }}>+</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={countryCode}
-                        onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                        className="w-full rounded-xl pl-6 pr-2 py-3 text-sm text-center focus:outline-none transition-all"
-                        style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                        onFocus={(e) => { e.target.style.borderColor = `${accentColor}40`; setInputFocused(true); }}
-                        onBlur={(e) => { e.target.style.borderColor = "#ffffff0a"; setInputFocused(false); }}
-                      />
-                    </motion.div>
+                    {authMethod === "whatsapp" ? (
+                      <motion.div className="relative w-[110px]" whileFocus={{ scale: 1.02 }}>
+                        <select
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value)}
+                          className="w-full appearance-none rounded-xl px-2 py-3 text-sm text-center focus:outline-none transition-all cursor-pointer"
+                          style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                          onFocus={(e) => { e.target.style.borderColor = `${accentColor}40`; setInputFocused(true); }}
+                          onBlur={(e) => { e.target.style.borderColor = "#ffffff0a"; setInputFocused(false); }}
+                        >
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={c.code + c.name} value={c.code} style={{ background: "#0B0F1A", color: "#ffffffdd" }}>
+                              {c.flag} +{c.code} {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </motion.div>
+                    ) : (
+                      <motion.div className="relative w-[72px]" whileFocus={{ scale: 1.02 }}>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "#ffffff50" }}>+</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                          className="w-full rounded-xl pl-6 pr-2 py-3 text-sm text-center focus:outline-none transition-all"
+                          style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                          onFocus={(e) => { e.target.style.borderColor = `${accentColor}40`; setInputFocused(true); }}
+                          onBlur={(e) => { e.target.style.borderColor = "#ffffff0a"; setInputFocused(false); }}
+                        />
+                      </motion.div>
+                    )}
                     <div className="relative flex-1">
                       <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
                       <input
