@@ -29,7 +29,7 @@ function getAdminClient() {
   );
 }
 
-/** Normalize mobile numbers to E.164-ish digits (country code + subscriber, no '+'). */
+/** Normalize Indian mobile numbers to 91XXXXXXXXXX format */
 function normalizeIndianMobile(rawMobile: unknown): string | null {
   if (rawMobile === null || rawMobile === undefined) return null;
   const raw = typeof rawMobile === "string" || typeof rawMobile === "number" ? String(rawMobile) : "";
@@ -38,12 +38,9 @@ function normalizeIndianMobile(rawMobile: unknown): string | null {
 
   const cleaned = digits.startsWith("00") ? digits.slice(2) : digits;
 
-  // Indian-friendly shortcuts (bare 10-digit or leading 0)
   if (/^\d{10}$/.test(cleaned)) return `91${cleaned}`;
   if (/^0\d{10}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
-
-  // International: 7–15 digits total (E.164 max). Country code already prefixed.
-  if (/^\d{7,15}$/.test(cleaned)) return cleaned;
+  if (/^91\d{10}$/.test(cleaned)) return cleaned;
 
   return null;
 }

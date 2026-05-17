@@ -920,23 +920,6 @@ const AuthPage = () => {
                       {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
                     </button>
                   </div>
-
-                  {/* WhatsApp → SMS fallback */}
-                  {authMethod === "whatsapp" && (
-                    <button
-                      onClick={async () => {
-                        setAuthMethod("mobile");
-                        setOtpCode(["", "", "", ""]);
-                        setResendCooldown(0);
-                        await handleSendMobileOtp();
-                      }}
-                      disabled={loading}
-                      className="w-full text-[10px] pt-2 hover:underline disabled:opacity-40"
-                      style={{ color: "#00E5FFcc" }}
-                    >
-                      Didn't receive WhatsApp OTP? → Get code via SMS instead
-                    </button>
-                  )}
                 </>
               )}
             </motion.div>
