@@ -6,6 +6,7 @@ import { ArrowLeft, Phone, Shield, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/splash/SplashScreen";
 import { useInstitution } from "@/contexts/InstitutionContext";
+import { lovable } from "@/integrations/lovable";
 
 type AuthMethod = "mobile" | "whatsapp";
 
