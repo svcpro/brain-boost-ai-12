@@ -168,7 +168,7 @@ const AuthPage = () => {
     }
   }, [rawRedirect]);
   const [isLogin, setIsLogin] = useState(true);
-  const [authMethod, setAuthMethod] = useState<AuthMethod>("mobile");
+  const [authMethod, setAuthMethod] = useState<AuthMethod>("whatsapp");
   const [mobile, setMobile] = useState("");
   const [countryCode, setCountryCode] = useState("91");
   const [loading, setLoading] = useState(false);
@@ -537,7 +537,7 @@ const AuthPage = () => {
                 className="absolute top-1 bottom-1 rounded-xl"
                 style={{ width: "calc(50% - 4px)" }}
                 animate={{
-                  left: authMethod === "mobile" ? 4 : "calc(50% + 0px)",
+                  left: authMethod === "whatsapp" ? 4 : "calc(50% + 0px)",
                   background: authMethod === "whatsapp"
                     ? "linear-gradient(135deg, #25D36612, #128C7E10)"
                     : "linear-gradient(135deg, #00E5FF10, #7C4DFF08)",
@@ -546,7 +546,7 @@ const AuthPage = () => {
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               />
 
-              {(["mobile", "whatsapp"] as AuthMethod[]).map((method) => (
+              {(["whatsapp", "mobile"] as AuthMethod[]).map((method) => (
                 <motion.button
                   key={method}
                   onClick={() => { setAuthMethod(method); resetOtp(); }}
