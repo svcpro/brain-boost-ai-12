@@ -640,22 +640,38 @@ const AuthPage = () => {
 
                   {/* Phone input */}
                   <div className="flex gap-2">
-                    <motion.div
-                      className="relative w-[72px]"
-                      whileFocus={{ scale: 1.02 }}
-                    >
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "#ffffff50" }}>+</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={countryCode}
-                        onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                        className="w-full rounded-xl pl-6 pr-2 py-3 text-sm text-center focus:outline-none transition-all"
-                        style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
-                        onFocus={(e) => { e.target.style.borderColor = `${accentColor}40`; setInputFocused(true); }}
-                        onBlur={(e) => { e.target.style.borderColor = "#ffffff0a"; setInputFocused(false); }}
-                      />
-                    </motion.div>
+                    {authMethod === "whatsapp" ? (
+                      <motion.div className="relative w-[110px]" whileFocus={{ scale: 1.02 }}>
+                        <select
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value)}
+                          className="w-full appearance-none rounded-xl px-2 py-3 text-sm text-center focus:outline-none transition-all cursor-pointer"
+                          style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                          onFocus={(e) => { e.target.style.borderColor = `${accentColor}40`; setInputFocused(true); }}
+                          onBlur={(e) => { e.target.style.borderColor = "#ffffff0a"; setInputFocused(false); }}
+                        >
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={c.code + c.name} value={c.code} style={{ background: "#0B0F1A", color: "#ffffffdd" }}>
+                              {c.flag} +{c.code} {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </motion.div>
+                    ) : (
+                      <motion.div className="relative w-[72px]" whileFocus={{ scale: 1.02 }}>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "#ffffff50" }}>+</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                          className="w-full rounded-xl pl-6 pr-2 py-3 text-sm text-center focus:outline-none transition-all"
+                          style={{ background: "#ffffff08", border: "1px solid #ffffff0a", color: "#ffffffdd" }}
+                          onFocus={(e) => { e.target.style.borderColor = `${accentColor}40`; setInputFocused(true); }}
+                          onBlur={(e) => { e.target.style.borderColor = "#ffffff0a"; setInputFocused(false); }}
+                        />
+                      </motion.div>
+                    )}
                     <div className="relative flex-1">
                       <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#ffffff30" }} />
                       <input
