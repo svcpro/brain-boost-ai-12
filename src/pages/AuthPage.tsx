@@ -749,37 +749,77 @@ const AuthPage = () => {
                     {loading && <OtpProgressBar color={accentColor} />}
                   </AnimatePresence>
 
-                  {/* Divider */}
+                  {/* Divider with shimmer */}
                   <div className="flex items-center gap-3 py-1">
-                    <div className="flex-1 h-px" style={{ background: "#ffffff10" }} />
-                    <span className="text-[10px] uppercase tracking-widest" style={{ color: "#ffffff40" }}>or</span>
-                    <div className="flex-1 h-px" style={{ background: "#ffffff10" }} />
+                    <motion.div
+                      className="flex-1 h-px"
+                      style={{ background: "linear-gradient(90deg, transparent, #ffffff25, transparent)" }}
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <span className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "#ffffff50" }}>or</span>
+                    <motion.div
+                      className="flex-1 h-px"
+                      style={{ background: "linear-gradient(90deg, transparent, #ffffff25, transparent)" }}
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+                    />
                   </div>
 
-                  {/* Google Sign-In (international users) */}
+                  {/* Google Sign-In — glassmorphic with shimmer + breathing glow */}
                   <motion.button
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={handleGoogleSignIn}
                     disabled={loading}
                     type="button"
-                    className="w-full py-3 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-40 transition-all flex items-center justify-center gap-3"
+                    className="w-full py-3 rounded-xl font-semibold text-sm tracking-wide disabled:opacity-40 transition-all relative overflow-hidden flex items-center justify-center gap-3"
                     style={{
-                      background: "#ffffff",
-                      color: "#0B0F1A",
-                      border: "1px solid #ffffff20",
-                      boxShadow: "0 4px 24px #ffffff10",
+                      background: "linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))",
+                      backdropFilter: "blur(12px)",
+                      WebkitBackdropFilter: "blur(12px)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: "#ffffffee",
                     }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.6 6.3 29.1 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
-                      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.6 6.3 29.1 4.5 24 4.5 16.3 4.5 9.7 8.9 6.3 14.7z"/>
-                      <path fill="#4CAF50" d="M24 43.5c5 0 9.5-1.7 13-4.7l-6-5.1c-2 1.4-4.4 2.3-7 2.3-5.3 0-9.7-3.1-11.3-7.4l-6.5 5C9.6 39.1 16.2 43.5 24 43.5z"/>
-                      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4-4 5.3l6 5.1C40.9 35.4 43.5 30.1 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
-                    </svg>
-                    Continue with Google
+                    <motion.div
+                      className="absolute inset-0 rounded-xl pointer-events-none"
+                      animate={{
+                        boxShadow: [
+                          "inset 0 0 0px transparent, 0 0 12px rgba(66,133,244,0.10)",
+                          "inset 0 0 24px rgba(66,133,244,0.10), 0 0 28px rgba(66,133,244,0.22)",
+                          "inset 0 0 0px transparent, 0 0 12px rgba(66,133,244,0.10)",
+                        ],
+                      }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <motion.div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)" }}
+                      animate={{ x: ["-100%", "200%"] }}
+                      transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 2.5 }}
+                    />
+                    <motion.div
+                      className="absolute inset-x-6 -bottom-px h-[2px] rounded-full pointer-events-none"
+                      style={{ background: "linear-gradient(90deg, #4285F4, #34A853, #FBBC05, #EA4335)" }}
+                      animate={{ opacity: [0.4, 0.9, 0.4] }}
+                      transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <motion.span
+                      className="relative z-10 flex items-center justify-center"
+                      animate={{ scale: [1, 1.06, 1] }}
+                      transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.6 6.3 29.1 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
+                        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.6 6.3 29.1 4.5 24 4.5 16.3 4.5 9.7 8.9 6.3 14.7z"/>
+                        <path fill="#4CAF50" d="M24 43.5c5 0 9.5-1.7 13-4.7l-6-5.1c-2 1.4-4.4 2.3-7 2.3-5.3 0-9.7-3.1-11.3-7.4l-6.5 5C9.6 39.1 16.2 43.5 24 43.5z"/>
+                        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4-4 5.3l6 5.1C40.9 35.4 43.5 30.1 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
+                      </svg>
+                    </motion.span>
+                    <span className="relative z-10">Continue with Google</span>
                   </motion.button>
-                  <p className="text-[10px] text-center" style={{ color: "#ffffff35" }}>
+                  <p className="text-[10px] text-center" style={{ color: "#ffffff40" }}>
                     Recommended for international users
                   </p>
                 </>
