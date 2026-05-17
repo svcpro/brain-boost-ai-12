@@ -153,13 +153,10 @@ async function fetchLeaderboardData(supabaseAdmin: any, currentUserId: string | 
       const rank = latestRanks.get(uid);
       const profile = profileMap.get(uid);
       const displayName = profile?.display_name || "Anonymous";
-      const safeName = displayName.length > 2
-        ? displayName.slice(0, 2) + "***"
-        : displayName;
 
       return {
         user_id: uid,
-        display_name: safeName,
+        display_name: displayName,
         full_display_name: profile?.display_name || "You",
         avatar_url: profile?.avatar_url || null,
         is_current_user: false,
