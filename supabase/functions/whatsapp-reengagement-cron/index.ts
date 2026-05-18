@@ -25,8 +25,8 @@ type Tier = "never_signed_in" | "inactive_24h" | "inactive_3d" | "inactive_7d";
 const TIER_MSG91_TEMPLATE: Record<Tier, string> = {
   never_signed_in: "re_engagement_message",
   inactive_24h: "re_enguage_two",
-  inactive_3d: "recovery_trust",
-  inactive_7d: "recovery_trust",
+  inactive_3d: "re_enguage_two",
+  inactive_7d: "re_enguage_two",
 };
 
 const TIER_CATEGORY: Record<Tier, string> = {
