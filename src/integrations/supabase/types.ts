@@ -11459,6 +11459,39 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_reengagement_log: {
+        Row: {
+          ai_message: string | null
+          id: string
+          metadata: Json | null
+          sent_at: string
+          status: string
+          template_name: string
+          tier: string
+          user_id: string
+        }
+        Insert: {
+          ai_message?: string | null
+          id?: string
+          metadata?: Json | null
+          sent_at?: string
+          status?: string
+          template_name: string
+          tier: string
+          user_id: string
+        }
+        Update: {
+          ai_message?: string | null
+          id?: string
+          metadata?: Json | null
+          sent_at?: string
+          status?: string
+          template_name?: string
+          tier?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_scheduled_sends: {
         Row: {
           audience_filters: Json | null

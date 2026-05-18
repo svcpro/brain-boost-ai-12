@@ -1,0 +1,253 @@
+// ═══════════════════════════════════════════════════════════════════
+// WhatsApp Re-engagement Cron (MSG91 Marketing API)
+// Scans inactive users (never-signed-in, 24h, 3d, 7d) and sends an
+// AI-generated WhatsApp nudge via the existing whatsapp-notify pipeline.
+// Idempotent: dedup via whatsapp_reengagement_log per (user_id, tier).
+// ═══════════════════════════════════════════════════════════════════
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const json = (d: unknown, status = 200) =>
+  new Response(JSON.stringify(d), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+type Tier = "never_signed_in" | "inactive_24h" | "inactive_3d" | "inactive_7d";
+
+// Inactivity tier → template (admin-managed in `whatsapp_templates`)
+const TIER_TEMPLATES: Record<Tier, string> = {
+  never_signed_in: "ai_new_user_welcome",
+  inactive_24h: "ai_inactivity_nudge",
+  inactive_3d: "ai_promo_reengagement",
+  inactive_7d: "ai_promo_reengagement",
+};
+
+const TIER_CATEGORY: Record<Tier, string> = {
+  never_signed_in: "engagement",
+  inactive_24h: "engagement",
+  inactive_3d: "engagement",
+  inactive_7d: "engagement",
+};
+
+// Minimum hours between re-sends for the same tier (dedup window)
+const TIER_COOLDOWN_HOURS: Record<Tier, number> = {
+  never_signed_in: 72,
+  inactive_24h: 72,
+  inactive_3d: 96,
+  inactive_7d: 168,
+};
+
+async function generateAIMessage(
+  tier: Tier,
+  user: { display_name?: string | null; exam_type?: string | null; days_inactive: number },
+): Promise<{ headline: string; body: string }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const name = user.display_name?.split(" ")[0] || "Champion";
+  const exam = user.exam_type || "your exam";
+
+  const fallback = {
+    never_signed_in: {
+      headline: `${name}, your ACRY brain is ready`,
+      body: `Your personalized ${exam} plan is waiting. 2 minutes today = 1 week ahead.`,
+    },
+    inactive_24h: {
+      headline: `${name}, don't break the rhythm`,
+      body: `One quick 3-minute session keeps your ${exam} momentum alive.`,
+    },
+    inactive_3d: {
+      headline: `${name}, your rank is slipping`,
+      body: `3 days off the grid. Top rankers fight back today — your ${exam} brain misses you.`,
+    },
+    inactive_7d: {
+      headline: `${name}, last call from ACRY`,
+      body: `7 days silent. Your forgetting curve is steep. Open the app and we'll rebuild instantly.`,
+    },
+  }[tier];
+
+  if (!LOVABLE_API_KEY) return fallback;
+
+  const prompt = `You are ACRY AI, a study coach for Indian exam aspirants. Generate a WhatsApp re-engagement nudge.
+User: ${name} | Exam: ${exam} | Inactive: ${user.days_inactive} day(s) | Tier: ${tier}
+Rules: Warm, urgent, no clichés. Use first name. Mention exam. Max 1 emoji.
+Return ONLY JSON: {"headline":"<= 60 chars","body":"<= 140 chars"}`;
+
+  try {
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!r.ok) return fallback;
+    const data = await r.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    const cleaned = content.replace(/```json\n?|```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      headline: String(parsed.headline || fallback.headline).slice(0, 80),
+      body: String(parsed.body || fallback.body).slice(0, 160),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    const body = await req.json().catch(() => ({}));
+    const dryRun = body.dry_run === true;
+    const onlyTier: Tier | null = body.tier || null;
+    const limit = Math.min(Number(body.limit) || 500, 2000);
+
+    // Pull eligible profiles (must have phone + opt-in) — fetch all auth pages we need
+    const authMap = new Map<string, { last_sign_in_at: string | null; created_at: string }>();
+    const PER_PAGE = 1000;
+    for (let page = 1; page <= 10; page++) {
+      const { data: pageData } = await supabase.auth.admin.listUsers({ page, perPage: PER_PAGE });
+      const users = pageData?.users || [];
+      for (const u of users) {
+        authMap.set(u.id, { last_sign_in_at: u.last_sign_in_at || null, created_at: u.created_at });
+      }
+      if (users.length < PER_PAGE) break;
+    }
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, display_name, exam_type, phone, whatsapp_enabled, whatsapp_opted_in, is_banned")
+      .eq("whatsapp_enabled", true)
+      .eq("is_banned", false)
+      .not("phone", "is", null)
+      .limit(limit);
+
+    if (!profiles?.length) return json({ processed: 0, reason: "no_eligible_users" });
+
+    const profileIds = profiles.map((p: any) => p.id);
+
+    // Batch fetch latest study_log per user
+    const { data: logs } = await supabase
+      .from("study_logs")
+      .select("user_id, created_at")
+      .in("user_id", profileIds)
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    const lastLogMap = new Map<string, number>();
+    for (const l of logs || []) {
+      if (!lastLogMap.has(l.user_id)) lastLogMap.set(l.user_id, new Date(l.created_at).getTime());
+    }
+
+    // Batch fetch recent reengagement logs for cooldown
+    const maxCooldownHours = Math.max(...Object.values(TIER_COOLDOWN_HOURS));
+    const { data: recentSends } = await supabase
+      .from("whatsapp_reengagement_log")
+      .select("user_id, tier, sent_at")
+      .in("user_id", profileIds)
+      .gte("sent_at", new Date(Date.now() - maxCooldownHours * 3600000).toISOString());
+    const cooldownMap = new Map<string, number>(); // key: user_id|tier => sent_at ms
+    for (const r of recentSends || []) {
+      const k = `${r.user_id}|${r.tier}`;
+      const ms = new Date(r.sent_at).getTime();
+      if (!cooldownMap.has(k) || cooldownMap.get(k)! < ms) cooldownMap.set(k, ms);
+    }
+
+    const now = Date.now();
+    const tally = { scanned: 0, never_signed_in: 0, inactive_24h: 0, inactive_3d: 0, inactive_7d: 0, sent: 0, skipped_cooldown: 0, skipped_no_auth: 0, errors: 0 };
+
+    for (const profile of profiles) {
+      tally.scanned++;
+      const auth = authMap.get(profile.id);
+      if (!auth) { tally.skipped_no_auth++; continue; }
+
+      const signinMs = auth.last_sign_in_at ? new Date(auth.last_sign_in_at).getTime() : 0;
+      const createdMs = new Date(auth.created_at).getTime();
+      const logMs = lastLogMap.get(profile.id) || 0;
+
+      const lastActiveMs = Math.max(signinMs, logMs);
+      const hoursSinceSignup = (now - createdMs) / 3600000;
+      const hoursSinceActive = lastActiveMs ? (now - lastActiveMs) / 3600000 : Infinity;
+
+      let tier: Tier | null = null;
+      if (!signinMs && hoursSinceSignup >= 24) tier = "never_signed_in";
+      else if (hoursSinceActive >= 168) tier = "inactive_7d";
+      else if (hoursSinceActive >= 72) tier = "inactive_3d";
+      else if (hoursSinceActive >= 24) tier = "inactive_24h";
+
+      if (!tier) continue;
+      if (onlyTier && tier !== onlyTier) continue;
+      tally[tier]++;
+
+      // Cooldown check (in-memory)
+      const cooldownMs = TIER_COOLDOWN_HOURS[tier] * 3600000;
+      const lastSentMs = cooldownMap.get(`${profile.id}|${tier}`) || 0;
+      if (lastSentMs && now - lastSentMs < cooldownMs) { tally.skipped_cooldown++; continue; }
+
+      if (dryRun) { tally.sent++; continue; }
+
+      const daysInactive = Math.floor(hoursSinceActive / 24);
+      const ai = await generateAIMessage(tier, {
+        display_name: profile.display_name,
+        exam_type: profile.exam_type,
+        days_inactive: isFinite(daysInactive) ? daysInactive : Math.floor(hoursSinceSignup / 24),
+      });
+
+      // Send via existing whatsapp-notify
+      try {
+        const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-notify?action=send`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "send",
+            user_id: profile.id,
+            template_name: TIER_TEMPLATES[tier],
+            category: TIER_CATEGORY[tier],
+            variables: {
+              user_name: profile.display_name?.split(" ")[0] || "Champion",
+              exam_type: profile.exam_type || "your exam",
+              headline: ai.headline,
+              body: ai.body,
+              days: String(daysInactive || ""),
+              cta_url: "https://acry.ai/app",
+            },
+            source: "reengagement_cron",
+            triggered_by: `tier:${tier}`,
+          }),
+        });
+        const out = await sendRes.json().catch(() => ({}));
+        const ok = !!out.ok;
+
+        await supabase.from("whatsapp_reengagement_log").insert({
+          user_id: profile.id,
+          tier,
+          template_name: TIER_TEMPLATES[tier],
+          ai_message: `${ai.headline} — ${ai.body}`,
+          status: ok ? "sent" : (out.blocked || "failed"),
+          metadata: { headline: ai.headline, body: ai.body, days_inactive: daysInactive, send_result: out },
+        });
+
+        if (ok) tally.sent++;
+        else tally.errors++;
+      } catch (e) {
+        tally.errors++;
+        console.error("[wa-reeng] send error", profile.id, e);
+      }
+    }
+
+    return json({ ok: true, dry_run: dryRun, ...tally });
+  } catch (e) {
+    console.error("[wa-reeng] fatal", e);
+    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
