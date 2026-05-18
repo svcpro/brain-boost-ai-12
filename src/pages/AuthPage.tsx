@@ -216,7 +216,7 @@ const AuthPage = () => {
   const accentColor = authMethod === "whatsapp" ? "#25D366" : "#00E5FF";
   const fullMobile = `${countryCode}${mobile.replace(/\D/g, "")}`;
 
-  /* ═══ WhatsApp OTP ═══ */
+  /* ═══ WhatsApp OTP (auto-fallback to SMS on failure) ═══ */
   const handleSendWhatsAppOtp = async () => {
     if (!mobile || mobile.replace(/\D/g, "").length < 10) {
       toast({ title: "Enter a valid mobile number", variant: "destructive" });
@@ -233,8 +233,30 @@ const AuthPage = () => {
       setResendCooldown(30);
       toast({ title: "OTP Sent!", description: `Code sent to WhatsApp +${fullMobile}` });
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (waError: any) {
+      console.warn("[Auth] WhatsApp OTP failed, falling back to SMS:", waError?.message);
+      // Auto-fallback to SMS OTP
+      try {
+        const { data: smsData, error: smsError } = await supabase.functions.invoke("msg91-otp", {
+          body: { action: "send", mobile: fullMobile },
+        });
+        if (smsError) throw smsError;
+        if (smsData?.error) throw new Error(smsData.error);
+        setAuthMethod("mobile");
+        setOtpSent(true);
+        setResendCooldown(30);
+        toast({
+          title: "Switched to SMS",
+          description: `WhatsApp unavailable. SMS code sent to +${fullMobile}`,
+        });
+        setTimeout(() => otpRefs.current[0]?.focus(), 100);
+      } catch (smsErr: any) {
+        toast({
+          title: "Could not send OTP",
+          description: smsErr?.message || waError?.message || "Please try again",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
