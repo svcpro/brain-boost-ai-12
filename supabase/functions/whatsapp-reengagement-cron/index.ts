@@ -20,12 +20,13 @@ const json = (d: unknown, status = 200) =>
 
 type Tier = "never_signed_in" | "inactive_24h" | "inactive_3d" | "inactive_7d";
 
-// Inactivity tier → template (admin-managed in `whatsapp_templates`)
-const TIER_TEMPLATES: Record<Tier, string> = {
-  never_signed_in: "ai_new_user_welcome",
-  inactive_24h: "ai_inactivity_nudge",
-  inactive_3d: "ai_promo_reengagement",
-  inactive_7d: "ai_promo_reengagement",
+// Inactivity tier → MSG91 approved template name
+// Both templates accept a single {{customer_name}} body parameter.
+const TIER_MSG91_TEMPLATE: Record<Tier, string> = {
+  never_signed_in: "re_engagement_message",
+  inactive_24h: "re_engagement_message",
+  inactive_3d: "recovery_trust",
+  inactive_7d: "recovery_trust",
 };
 
 const TIER_CATEGORY: Record<Tier, string> = {
@@ -214,6 +215,7 @@ Deno.serve(async (req) => {
 
         const firstName = (profile.display_name?.split(" ")[0] || "Champion").slice(0, 50);
 
+        const templateName = TIER_MSG91_TEMPLATE[tier];
         const msg91Body = {
           integrated_number: "918796032562",
           content_type: "template",
@@ -221,7 +223,7 @@ Deno.serve(async (req) => {
             messaging_product: "whatsapp",
             type: "template",
             template: {
-              name: "re_engagement_message",
+              name: templateName,
               language: { code: "en", policy: "deterministic" },
               namespace: "5a93dcbd_6802_42d5_af95_17d4fd2d7441",
               to_and_components: [
@@ -257,7 +259,7 @@ Deno.serve(async (req) => {
         await supabase.from("whatsapp_reengagement_log").insert({
           user_id: profile.id,
           tier,
-          template_name: "re_engagement_message",
+          template_name: templateName,
           ai_message: `${ai.headline} — ${ai.body}`,
           status: ok ? "sent" : "failed",
           metadata: {
@@ -278,7 +280,7 @@ Deno.serve(async (req) => {
         await supabase.from("whatsapp_reengagement_log").insert({
           user_id: profile.id,
           tier,
-          template_name: "re_engagement_message",
+          template_name: TIER_MSG91_TEMPLATE[tier],
           status: "failed",
           metadata: { error: e instanceof Error ? e.message : String(e) },
         }).then(() => {}, () => {});
