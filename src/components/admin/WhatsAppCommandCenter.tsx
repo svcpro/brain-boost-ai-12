@@ -3,14 +3,14 @@ import { motion } from "framer-motion";
 import {
   MessageSquare, Send, Clock, BarChart3, Zap, Settings2,
   CheckCircle2, XCircle, Loader2, Search, RefreshCw, AlertTriangle,
-  CalendarClock, Users, FileText, ShieldCheck, Plus, Trash2, ExternalLink, Phone, Reply, Copy, Check
+  CalendarClock, Users, FileText, ShieldCheck, Plus, Trash2, ExternalLink, Phone, Reply, Copy, Check, Sparkles, PlayCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
 
-type Tab = "compose" | "history" | "quotas" | "templates" | "meta" | "rules" | "schedule" | "analytics" | "settings";
+type Tab = "compose" | "history" | "quotas" | "templates" | "meta" | "rules" | "schedule" | "ai_reengagement" | "analytics" | "settings";
 
 interface Template { id: string; name: string; body_template: string; category: string; variables: string[]; is_active: boolean; }
 interface Message { id: string; user_id: string | null; to_number: string; template_name: string | null; status: string; category: string; error_message: string | null; created_at: string; }
@@ -73,6 +73,7 @@ const WhatsAppCommandCenter = () => {
           { key: "meta" as Tab, label: "Meta Approval", icon: ShieldCheck },
           { key: "rules" as Tab, label: "Automation", icon: Zap },
           { key: "schedule" as Tab, label: "Schedule", icon: CalendarClock },
+          { key: "ai_reengagement" as Tab, label: "AI Reengagement", icon: Sparkles },
           { key: "analytics" as Tab, label: "Analytics", icon: BarChart3 },
           { key: "settings" as Tab, label: "Settings", icon: Settings2 },
         ]).map(t => (
@@ -98,6 +99,7 @@ const WhatsAppCommandCenter = () => {
         {tab === "meta" && <MetaTemplatesTab />}
         {tab === "rules" && <RulesTab />}
         {tab === "schedule" && <ScheduleTab />}
+        {tab === "ai_reengagement" && <AIReengagementTab />}
         {tab === "analytics" && <AnalyticsTab />}
         {tab === "settings" && <SettingsTab />}
       </div>
@@ -889,6 +891,173 @@ const MetaTemplatesTab = () => {
           ))}
         {!loading && filtered.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-8">No templates in this category</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── AI Reengagement ────────────────────────────────────
+const REENGAGE_TIERS = [
+  { key: "never_signed_in", label: "Never Signed In", trigger: "24h after signup", template: "ai_new_user_welcome", cooldown: "72h", color: "text-blue-400 bg-blue-500/10 border-blue-500/30" },
+  { key: "inactive_24h", label: "Inactive 24h", trigger: "No activity in 24h", template: "ai_inactivity_nudge", cooldown: "72h", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30" },
+  { key: "inactive_3d", label: "Inactive 3 days", trigger: "No activity in 72h", template: "ai_inactivity_nudge", cooldown: "120h", color: "text-amber-400 bg-amber-500/10 border-amber-500/30" },
+  { key: "inactive_7d", label: "Inactive 7 days", trigger: "No activity in 7d", template: "ai_promo_reengagement", cooldown: "168h", color: "text-rose-400 bg-rose-500/10 border-rose-500/30" },
+];
+
+const AIReengagementTab = () => {
+  const { toast } = useToast();
+  const [logs, setLogs] = useState<any[]>([]);
+  const [stats, setStats] = useState<Record<string, { sent: number; failed: number }>>({});
+  const [running, setRunning] = useState<"dry" | "live" | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadLogs = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("whatsapp_reengagement_log")
+      .select("*")
+      .order("sent_at", { ascending: false })
+      .limit(50);
+    const rows = data || [];
+    setLogs(rows);
+    const s: Record<string, { sent: number; failed: number }> = {};
+    REENGAGE_TIERS.forEach(t => { s[t.key] = { sent: 0, failed: 0 }; });
+    rows.forEach((r: any) => {
+      if (!s[r.tier]) s[r.tier] = { sent: 0, failed: 0 };
+      if (r.status === "sent") s[r.tier].sent++;
+      else s[r.tier].failed++;
+    });
+    setStats(s);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadLogs(); }, []);
+
+  const trigger = async (dryRun: boolean) => {
+    setRunning(dryRun ? "dry" : "live");
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-reengagement-cron", {
+        body: { dry_run: dryRun },
+      });
+      if (error) throw error;
+      toast({
+        title: dryRun ? "Dry run complete" : "Cron triggered",
+        description: `Scanned: ${data?.scanned ?? 0} · Eligible: ${data?.eligible ?? 0}${dryRun ? "" : ` · Sent: ${data?.sent ?? 0}`}`,
+      });
+      if (!dryRun) loadLogs();
+    } catch (e: any) {
+      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setRunning(null);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-cyan-500/5 to-transparent p-4">
+        <div className="flex items-start gap-3">
+          <Sparkles className="w-5 h-5 text-purple-400 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="text-sm font-bold text-foreground">AI-Suggested WhatsApp Re-engagement</h3>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Fully automated. Scans inactive users twice daily (10 AM &amp; 6 PM IST), uses Gemini to write personalized headlines, and sends via MSG91 Marketing WhatsApp templates. Cooldowns prevent spam.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Schedule + Triggers */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Schedule (IST)</p>
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm font-semibold text-foreground">10:00 AM · 6:00 PM</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1.5">via pg_cron · twice daily</p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Manual Controls</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => trigger(true)}
+              disabled={running !== null}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-muted/40 border border-border/50 text-xs font-medium hover:bg-muted/60 disabled:opacity-50"
+            >
+              {running === "dry" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+              Dry Run
+            </button>
+            <button
+              onClick={() => trigger(false)}
+              disabled={running !== null}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-xs font-semibold text-purple-300 hover:bg-purple-500/25 disabled:opacity-50"
+            >
+              {running === "live" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlayCircle className="w-3.5 h-3.5" />}
+              Run Now
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tier Cards */}
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Inactivity Tiers</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {REENGAGE_TIERS.map(t => {
+            const st = stats[t.key] || { sent: 0, failed: 0 };
+            return (
+              <div key={t.key} className={`rounded-xl border p-3.5 ${t.color}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-foreground">{t.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t.trigger}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-mono font-bold text-foreground">{st.sent}</p>
+                    <p className="text-[9px] text-muted-foreground">sent (50)</p>
+                  </div>
+                </div>
+                <div className="mt-2.5 pt-2.5 border-t border-border/30 flex items-center justify-between text-[10px]">
+                  <span className="font-mono text-muted-foreground truncate">{t.template}</span>
+                  <span className="text-muted-foreground">cooldown {t.cooldown}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Recent Sends */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Recent Sends</p>
+          <button onClick={loadLogs} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+        </div>
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-8 text-xs text-muted-foreground border border-dashed border-border/40 rounded-xl">
+            No re-engagement messages sent yet. Run the cron manually or wait for the next scheduled run.
+          </div>
+        ) : (
+          <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+            {logs.map((l: any) => (
+              <div key={l.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/40">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {l.status === "sent" ? <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" /> : <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" />}
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-mono text-foreground truncate">{l.tier} · {l.template_name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{l.user_id?.slice(0, 8)}… {l.error_message ? `· ${l.error_message}` : ""}</p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground shrink-0">{formatDistanceToNow(new Date(l.sent_at), { addSuffix: true })}</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
