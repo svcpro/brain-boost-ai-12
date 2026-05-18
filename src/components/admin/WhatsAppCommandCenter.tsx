@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
 
-type Tab = "compose" | "history" | "quotas" | "templates" | "meta" | "rules" | "schedule" | "analytics" | "settings";
+type Tab = "compose" | "history" | "quotas" | "templates" | "meta" | "rules" | "schedule" | "ai_reengagement" | "analytics" | "settings";
 
 interface Template { id: string; name: string; body_template: string; category: string; variables: string[]; is_active: boolean; }
 interface Message { id: string; user_id: string | null; to_number: string; template_name: string | null; status: string; category: string; error_message: string | null; created_at: string; }
