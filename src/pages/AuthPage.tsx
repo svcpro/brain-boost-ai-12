@@ -349,7 +349,7 @@ const AuthPage = () => {
     }
   };
 
-  /* ═══ Resend ═══ */
+  /* ═══ Resend (with WhatsApp→SMS fallback) ═══ */
   const handleResend = async () => {
     if (resendCooldown > 0 || loading) return;
     setLoading(true);
@@ -359,10 +359,28 @@ const AuthPage = () => {
         body: { action, mobile: fullMobile },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setResendCooldown(30);
       toast({ title: "OTP Resent", description: data?.message || `Check your ${authMethod === "whatsapp" ? "WhatsApp" : "phone"}` });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (err: any) {
+      // If WhatsApp resend failed, automatically retry over SMS
+      if (authMethod === "whatsapp") {
+        try {
+          const { data: smsData, error: smsError } = await supabase.functions.invoke("msg91-otp", {
+            body: { action: "send", mobile: fullMobile },
+          });
+          if (smsError) throw smsError;
+          if (smsData?.error) throw new Error(smsData.error);
+          setAuthMethod("mobile");
+          setResendCooldown(30);
+          toast({ title: "Switched to SMS", description: `WhatsApp unavailable. SMS code sent to +${fullMobile}` });
+          return;
+        } catch (smsErr: any) {
+          toast({ title: "Error", description: smsErr?.message || err?.message, variant: "destructive" });
+          return;
+        }
+      }
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
