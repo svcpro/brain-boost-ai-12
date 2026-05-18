@@ -48,7 +48,75 @@ Deno.serve(async (req) => {
     }
 
 
-    // ─── 3. PUSH NOTIFICATION (enabled by default) ───
+    // ─── 2. WHATSAPP WELCOME (recovery_trust template via MSG91) ───
+    try {
+      const MSG91_AUTH_KEY = Deno.env.get("MSG91_AUTH_KEY");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("phone, whatsapp_enabled, is_banned")
+        .eq("id", user_id)
+        .maybeSingle();
+
+      const rawPhone = String(profile?.phone || "").replace(/\D/g, "");
+      const phone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
+
+      const { data: tpl } = await supabase
+        .from("whatsapp_msg91_templates")
+        .select("is_active")
+        .eq("template_name", "recovery_trust")
+        .maybeSingle();
+      const tplActive = tpl?.is_active !== false;
+
+      if (!MSG91_AUTH_KEY) {
+        results.whatsapp = { status: "skipped", reason: "no_msg91_key" };
+      } else if (!profile || profile.is_banned || profile.whatsapp_enabled === false) {
+        results.whatsapp = { status: "skipped", reason: "not_eligible" };
+      } else if (phone.length < 10) {
+        results.whatsapp = { status: "skipped", reason: "no_phone" };
+      } else if (!tplActive) {
+        results.whatsapp = { status: "skipped", reason: "template_inactive" };
+      } else {
+        const firstName = (userName?.split(" ")[0] || "Champion").slice(0, 50);
+        const waResp = await fetch(
+          "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", authkey: MSG91_AUTH_KEY },
+            body: JSON.stringify({
+              integrated_number: "918796032562",
+              content_type: "template",
+              payload: {
+                messaging_product: "whatsapp",
+                type: "template",
+                template: {
+                  name: "recovery_trust",
+                  language: { code: "en", policy: "deterministic" },
+                  namespace: "5a93dcbd_6802_42d5_af95_17d4fd2d7441",
+                  to_and_components: [{
+                    to: [phone],
+                    components: {
+                      body_customer_name: {
+                        type: "text",
+                        value: firstName,
+                        parameter_name: "customer_name",
+                      },
+                    },
+                  }],
+                },
+              },
+            }),
+          },
+        );
+        const waOut = await waResp.json().catch(() => ({}));
+        results.whatsapp = { status: waResp.ok ? "sent" : "failed", response: waOut };
+        console.log("WhatsApp result:", JSON.stringify(results.whatsapp));
+      }
+    } catch (e) {
+      results.whatsapp = { status: "error", message: e instanceof Error ? e.message : "unknown" };
+      console.error("WhatsApp error:", e);
+    }
+
+
     try {
       // Check if user has push subscription
       const { data: pushSubs } = await supabase
