@@ -99,6 +99,7 @@ const WhatsAppCommandCenter = () => {
         {tab === "meta" && <MetaTemplatesTab />}
         {tab === "rules" && <RulesTab />}
         {tab === "schedule" && <ScheduleTab />}
+        {tab === "ai_reengagement" && <AIReengagementTab />}
         {tab === "analytics" && <AnalyticsTab />}
         {tab === "settings" && <SettingsTab />}
       </div>
