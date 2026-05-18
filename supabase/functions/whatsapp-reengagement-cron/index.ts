@@ -20,12 +20,13 @@ const json = (d: unknown, status = 200) =>
 
 type Tier = "never_signed_in" | "inactive_24h" | "inactive_3d" | "inactive_7d";
 
-// Inactivity tier → template (admin-managed in `whatsapp_templates`)
-const TIER_TEMPLATES: Record<Tier, string> = {
-  never_signed_in: "ai_new_user_welcome",
-  inactive_24h: "ai_inactivity_nudge",
-  inactive_3d: "ai_promo_reengagement",
-  inactive_7d: "ai_promo_reengagement",
+// Inactivity tier → MSG91 approved template name
+// Both templates accept a single {{customer_name}} body parameter.
+const TIER_MSG91_TEMPLATE: Record<Tier, string> = {
+  never_signed_in: "re_engagement_message",
+  inactive_24h: "re_engagement_message",
+  inactive_3d: "recovery_trust",
+  inactive_7d: "recovery_trust",
 };
 
 const TIER_CATEGORY: Record<Tier, string> = {
