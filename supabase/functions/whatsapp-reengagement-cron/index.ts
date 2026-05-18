@@ -280,7 +280,7 @@ Deno.serve(async (req) => {
         await supabase.from("whatsapp_reengagement_log").insert({
           user_id: profile.id,
           tier,
-          template_name: "re_engagement_message",
+          template_name: TIER_MSG91_TEMPLATE[tier],
           status: "failed",
           metadata: { error: e instanceof Error ? e.message : String(e) },
         }).then(() => {}, () => {});
