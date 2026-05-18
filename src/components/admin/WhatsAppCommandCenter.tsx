@@ -73,6 +73,7 @@ const WhatsAppCommandCenter = () => {
           { key: "meta" as Tab, label: "Meta Approval", icon: ShieldCheck },
           { key: "rules" as Tab, label: "Automation", icon: Zap },
           { key: "schedule" as Tab, label: "Schedule", icon: CalendarClock },
+          { key: "ai_reengagement" as Tab, label: "AI Reengagement", icon: Sparkles },
           { key: "analytics" as Tab, label: "Analytics", icon: BarChart3 },
           { key: "settings" as Tab, label: "Settings", icon: Settings2 },
         ]).map(t => (
