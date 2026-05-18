@@ -911,6 +911,31 @@ const AIReengagementTab = () => {
   const [stats, setStats] = useState<Record<string, { sent: number; failed: number }>>({});
   const [running, setRunning] = useState<"dry" | "live" | null>(null);
   const [loading, setLoading] = useState(true);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [togglingTpl, setTogglingTpl] = useState<string | null>(null);
+
+  const loadTemplates = async () => {
+    const { data } = await supabase
+      .from("whatsapp_msg91_templates")
+      .select("*")
+      .order("template_name");
+    setTemplates(data || []);
+  };
+
+  const toggleTemplate = async (name: string, next: boolean) => {
+    setTogglingTpl(name);
+    const { error } = await supabase
+      .from("whatsapp_msg91_templates")
+      .update({ is_active: next })
+      .eq("template_name", name);
+    setTogglingTpl(null);
+    if (error) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: next ? "Template activated" : "Template deactivated", description: name });
+    loadTemplates();
+  };
 
   const loadLogs = async () => {
     setLoading(true);
@@ -932,7 +957,7 @@ const AIReengagementTab = () => {
     setLoading(false);
   };
 
-  useEffect(() => { loadLogs(); }, []);
+  useEffect(() => { loadLogs(); loadTemplates(); }, []);
 
   const trigger = async (dryRun: boolean) => {
     setRunning(dryRun ? "dry" : "live");
