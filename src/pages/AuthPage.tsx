@@ -342,8 +342,27 @@ const AuthPage = () => {
       // honored by OnboardingPage / ProtectedRoute after onboarding completes.
       setTimeout(() => navigate("/app"), 800);
     } catch (error: any) {
-      toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
       setOtpCode(["", "", "", ""]);
+      // Auto-fallback: if WhatsApp OTP verification failed, switch to SMS and resend
+      if (authMethod === "whatsapp") {
+        try {
+          const { data: smsData, error: smsErr } = await supabase.functions.invoke("msg91-otp", {
+            body: { action: "send", mobile: fullMobile },
+          });
+          if (smsErr || smsData?.error) throw smsErr || new Error(smsData?.error);
+          setAuthMethod("mobile");
+          setResendCooldown(30);
+          toast({
+            title: "Switched to SMS",
+            description: "WhatsApp verification failed. We've sent a fresh code via SMS.",
+          });
+          setTimeout(() => otpRefs.current[0]?.focus(), 100);
+        } catch {
+          toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
+        }
+      } else {
+        toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
