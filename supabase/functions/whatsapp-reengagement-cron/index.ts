@@ -203,38 +203,71 @@ Deno.serve(async (req) => {
         days_inactive: isFinite(daysInactive) ? daysInactive : Math.floor(hoursSinceSignup / 24),
       });
 
-      // Send via existing whatsapp-notify
+      // ─── MSG91 Bulk WhatsApp (re_engagement_message template) ───
       try {
-        const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-notify?action=send`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "send",
-            user_id: profile.id,
-            template_name: TIER_TEMPLATES[tier],
-            category: TIER_CATEGORY[tier],
-            variables: {
-              user_name: profile.display_name?.split(" ")[0] || "Champion",
-              exam_type: profile.exam_type || "your exam",
-              headline: ai.headline,
-              body: ai.body,
-              days: String(daysInactive || ""),
-              cta_url: "https://acry.ai/app",
+        const MSG91_AUTH_KEY = Deno.env.get("MSG91_AUTH_KEY");
+        if (!MSG91_AUTH_KEY) throw new Error("MSG91_AUTH_KEY missing");
+
+        const rawPhone = String(profile.phone || "").replace(/\D/g, "");
+        const phone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
+        if (phone.length < 10) { tally.errors++; continue; }
+
+        const firstName = (profile.display_name?.split(" ")[0] || "Champion").slice(0, 50);
+
+        const msg91Body = {
+          integrated_number: "918796032562",
+          content_type: "template",
+          payload: {
+            messaging_product: "whatsapp",
+            type: "template",
+            template: {
+              name: "re_engagement_message",
+              language: { code: "en", policy: "deterministic" },
+              namespace: "5a93dcbd_6802_42d5_af95_17d4fd2d7441",
+              to_and_components: [
+                {
+                  to: [phone],
+                  components: {
+                    body_customer_name: {
+                      type: "text",
+                      value: firstName,
+                      parameter_name: "customer_name",
+                    },
+                  },
+                },
+              ],
             },
-            source: "reengagement_cron",
-            triggered_by: `tier:${tier}`,
-          }),
-        });
+          },
+        };
+
+        const sendRes = await fetch(
+          "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              authkey: MSG91_AUTH_KEY,
+            },
+            body: JSON.stringify(msg91Body),
+          },
+        );
         const out = await sendRes.json().catch(() => ({}));
-        const ok = !!out.ok;
+        const ok = sendRes.ok && (out?.type === "success" || out?.status === "success" || !out?.error);
 
         await supabase.from("whatsapp_reengagement_log").insert({
           user_id: profile.id,
           tier,
-          template_name: TIER_TEMPLATES[tier],
+          template_name: "re_engagement_message",
           ai_message: `${ai.headline} — ${ai.body}`,
-          status: ok ? "sent" : (out.blocked || "failed"),
-          metadata: { headline: ai.headline, body: ai.body, days_inactive: daysInactive, send_result: out },
+          status: ok ? "sent" : "failed",
+          metadata: {
+            headline: ai.headline,
+            body: ai.body,
+            days_inactive: daysInactive,
+            phone,
+            msg91_response: out,
+            http_status: sendRes.status,
+          },
         });
 
         if (ok) tally.sent++;
@@ -242,6 +275,13 @@ Deno.serve(async (req) => {
       } catch (e) {
         tally.errors++;
         console.error("[wa-reeng] send error", profile.id, e);
+        await supabase.from("whatsapp_reengagement_log").insert({
+          user_id: profile.id,
+          tier,
+          template_name: "re_engagement_message",
+          status: "failed",
+          metadata: { error: e instanceof Error ? e.message : String(e) },
+        }).then(() => {}, () => {});
       }
     }
 
