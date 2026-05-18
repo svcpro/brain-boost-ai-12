@@ -911,6 +911,31 @@ const AIReengagementTab = () => {
   const [stats, setStats] = useState<Record<string, { sent: number; failed: number }>>({});
   const [running, setRunning] = useState<"dry" | "live" | null>(null);
   const [loading, setLoading] = useState(true);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [togglingTpl, setTogglingTpl] = useState<string | null>(null);
+
+  const loadTemplates = async () => {
+    const { data } = await supabase
+      .from("whatsapp_msg91_templates")
+      .select("*")
+      .order("template_name");
+    setTemplates(data || []);
+  };
+
+  const toggleTemplate = async (name: string, next: boolean) => {
+    setTogglingTpl(name);
+    const { error } = await supabase
+      .from("whatsapp_msg91_templates")
+      .update({ is_active: next })
+      .eq("template_name", name);
+    setTogglingTpl(null);
+    if (error) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: next ? "Template activated" : "Template deactivated", description: name });
+    loadTemplates();
+  };
 
   const loadLogs = async () => {
     setLoading(true);
@@ -932,7 +957,7 @@ const AIReengagementTab = () => {
     setLoading(false);
   };
 
-  useEffect(() => { loadLogs(); }, []);
+  useEffect(() => { loadLogs(); loadTemplates(); }, []);
 
   const trigger = async (dryRun: boolean) => {
     setRunning(dryRun ? "dry" : "live");
@@ -999,6 +1024,40 @@ const AIReengagementTab = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* MSG91 Templates Control */}
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">MSG91 Templates · Active / Inactive</p>
+        <div className="rounded-xl border border-border/50 bg-card/40 divide-y divide-border/40">
+          {templates.length === 0 ? (
+            <div className="px-3 py-4 text-xs text-muted-foreground text-center">Loading templates…</div>
+          ) : templates.map((t: any) => (
+            <div key={t.template_name} className="flex items-center justify-between gap-3 px-3 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground truncate">{t.display_name}</p>
+                  <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${t.is_active ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/15 text-rose-300 border border-rose-500/30"}`}>
+                    {t.is_active ? "ACTIVE" : "INACTIVE"}
+                  </span>
+                </div>
+                <p className="text-[10px] font-mono text-muted-foreground mt-0.5 truncate">{t.template_name}</p>
+                {t.description && <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{t.description}</p>}
+              </div>
+              <button
+                onClick={() => toggleTemplate(t.template_name, !t.is_active)}
+                disabled={togglingTpl === t.template_name}
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${t.is_active ? "bg-emerald-500" : "bg-muted"}`}
+                aria-label={`Toggle ${t.template_name}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${t.is_active ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
+          Disabling a template skips that tier in the cron run. Changes apply on the next scheduled or manual run.
+        </p>
       </div>
 
       {/* Tier Cards */}

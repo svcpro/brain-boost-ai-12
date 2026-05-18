@@ -11330,6 +11330,33 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_msg91_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string
+          is_active: boolean
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name: string
+          is_active?: boolean
+          template_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          is_active?: boolean
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_otps: {
         Row: {
           channel: string
