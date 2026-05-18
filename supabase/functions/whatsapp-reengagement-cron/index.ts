@@ -135,6 +135,34 @@ Deno.serve(async (req) => {
 
     if (!profiles?.length) return json({ processed: 0, reason: "no_eligible_users" });
 
+    const profileIds = profiles.map((p: any) => p.id);
+
+    // Batch fetch latest study_log per user
+    const { data: logs } = await supabase
+      .from("study_logs")
+      .select("user_id, created_at")
+      .in("user_id", profileIds)
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    const lastLogMap = new Map<string, number>();
+    for (const l of logs || []) {
+      if (!lastLogMap.has(l.user_id)) lastLogMap.set(l.user_id, new Date(l.created_at).getTime());
+    }
+
+    // Batch fetch recent reengagement logs for cooldown
+    const maxCooldownHours = Math.max(...Object.values(TIER_COOLDOWN_HOURS));
+    const { data: recentSends } = await supabase
+      .from("whatsapp_reengagement_log")
+      .select("user_id, tier, sent_at")
+      .in("user_id", profileIds)
+      .gte("sent_at", new Date(Date.now() - maxCooldownHours * 3600000).toISOString());
+    const cooldownMap = new Map<string, number>(); // key: user_id|tier => sent_at ms
+    for (const r of recentSends || []) {
+      const k = `${r.user_id}|${r.tier}`;
+      const ms = new Date(r.sent_at).getTime();
+      if (!cooldownMap.has(k) || cooldownMap.get(k)! < ms) cooldownMap.set(k, ms);
+    }
+
     const now = Date.now();
     const tally = { scanned: 0, never_signed_in: 0, inactive_24h: 0, inactive_3d: 0, inactive_7d: 0, sent: 0, skipped_cooldown: 0, skipped_no_auth: 0, errors: 0 };
 
@@ -143,24 +171,14 @@ Deno.serve(async (req) => {
       const auth = authMap.get(profile.id);
       if (!auth) { tally.skipped_no_auth++; continue; }
 
-      // Latest activity = max(last_sign_in_at, latest study_log)
       const signinMs = auth.last_sign_in_at ? new Date(auth.last_sign_in_at).getTime() : 0;
       const createdMs = new Date(auth.created_at).getTime();
-
-      const { data: lastLog } = await supabase
-        .from("study_logs")
-        .select("created_at")
-        .eq("user_id", profile.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const logMs = lastLog?.created_at ? new Date(lastLog.created_at).getTime() : 0;
+      const logMs = lastLogMap.get(profile.id) || 0;
 
       const lastActiveMs = Math.max(signinMs, logMs);
       const hoursSinceSignup = (now - createdMs) / 3600000;
       const hoursSinceActive = lastActiveMs ? (now - lastActiveMs) / 3600000 : Infinity;
 
-      // Determine tier (highest matching wins, but escalate)
       let tier: Tier | null = null;
       if (!signinMs && hoursSinceSignup >= 24) tier = "never_signed_in";
       else if (hoursSinceActive >= 168) tier = "inactive_7d";
@@ -171,17 +189,12 @@ Deno.serve(async (req) => {
       if (onlyTier && tier !== onlyTier) continue;
       tally[tier]++;
 
-      // Cooldown check
+      // Cooldown check (in-memory)
       const cooldownMs = TIER_COOLDOWN_HOURS[tier] * 3600000;
-      const { data: recent } = await supabase
-        .from("whatsapp_reengagement_log")
-        .select("sent_at")
-        .eq("user_id", profile.id)
-        .eq("tier", tier)
-        .gte("sent_at", new Date(now - cooldownMs).toISOString())
-        .limit(1)
-        .maybeSingle();
-      if (recent) { tally.skipped_cooldown++; continue; }
+      const lastSentMs = cooldownMap.get(`${profile.id}|${tier}`) || 0;
+      if (lastSentMs && now - lastSentMs < cooldownMs) { tally.skipped_cooldown++; continue; }
+
+      if (dryRun) { tally.sent++; continue; }
 
       const daysInactive = Math.floor(hoursSinceActive / 24);
       const ai = await generateAIMessage(tier, {
@@ -189,11 +202,6 @@ Deno.serve(async (req) => {
         exam_type: profile.exam_type,
         days_inactive: isFinite(daysInactive) ? daysInactive : Math.floor(hoursSinceSignup / 24),
       });
-
-      if (dryRun) {
-        tally.sent++;
-        continue;
-      }
 
       // Send via existing whatsapp-notify
       try {
