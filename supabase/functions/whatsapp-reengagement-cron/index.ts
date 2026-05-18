@@ -215,6 +215,7 @@ Deno.serve(async (req) => {
 
         const firstName = (profile.display_name?.split(" ")[0] || "Champion").slice(0, 50);
 
+        const templateName = TIER_MSG91_TEMPLATE[tier];
         const msg91Body = {
           integrated_number: "918796032562",
           content_type: "template",
@@ -222,7 +223,7 @@ Deno.serve(async (req) => {
             messaging_product: "whatsapp",
             type: "template",
             template: {
-              name: "re_engagement_message",
+              name: templateName,
               language: { code: "en", policy: "deterministic" },
               namespace: "5a93dcbd_6802_42d5_af95_17d4fd2d7441",
               to_and_components: [
