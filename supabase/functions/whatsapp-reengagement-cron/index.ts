@@ -113,14 +113,16 @@ Deno.serve(async (req) => {
     const onlyTier: Tier | null = body.tier || null;
     const limit = Math.min(Number(body.limit) || 500, 2000);
 
-    // Pull eligible profiles (must have phone + opt-in) — use auth.users for sign-in info
-    const { data: authUsers } = await supabase.auth.admin.listUsers({ page: 1, perPage: limit });
+    // Pull eligible profiles (must have phone + opt-in) — fetch all auth pages we need
     const authMap = new Map<string, { last_sign_in_at: string | null; created_at: string }>();
-    for (const u of authUsers?.users || []) {
-      authMap.set(u.id, {
-        last_sign_in_at: u.last_sign_in_at || null,
-        created_at: u.created_at,
-      });
+    const PER_PAGE = 1000;
+    for (let page = 1; page <= 10; page++) {
+      const { data: pageData } = await supabase.auth.admin.listUsers({ page, perPage: PER_PAGE });
+      const users = pageData?.users || [];
+      for (const u of users) {
+        authMap.set(u.id, { last_sign_in_at: u.last_sign_in_at || null, created_at: u.created_at });
+      }
+      if (users.length < PER_PAGE) break;
     }
 
     const { data: profiles } = await supabase
