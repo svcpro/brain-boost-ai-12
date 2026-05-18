@@ -114,6 +114,15 @@ Deno.serve(async (req) => {
     const onlyTier: Tier | null = body.tier || null;
     const limit = Math.min(Number(body.limit) || 500, 2000);
 
+    // Load template active flags from admin-controlled table
+    const { data: tplRows } = await supabase
+      .from("whatsapp_msg91_templates")
+      .select("template_name, is_active");
+    const tplActive = new Map<string, boolean>(
+      (tplRows || []).map((r: any) => [r.template_name, r.is_active !== false]),
+    );
+    const isTierActive = (t: Tier) => tplActive.get(TIER_MSG91_TEMPLATE[t]) !== false;
+
     // Pull eligible profiles (must have phone + opt-in) — fetch all auth pages we need
     const authMap = new Map<string, { last_sign_in_at: string | null; created_at: string }>();
     const PER_PAGE = 1000;
