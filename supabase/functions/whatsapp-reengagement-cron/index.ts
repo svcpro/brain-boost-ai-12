@@ -197,6 +197,7 @@ Deno.serve(async (req) => {
 
       if (!tier) continue;
       if (onlyTier && tier !== onlyTier) continue;
+      if (!isTierActive(tier)) continue;
       tally[tier]++;
 
       // Cooldown check (in-memory)
