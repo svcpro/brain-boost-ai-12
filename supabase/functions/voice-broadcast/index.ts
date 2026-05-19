@@ -424,7 +424,7 @@ Deno.serve(async (req) => {
     if (action === "tts_broadcast") {
       const {
         text, phones, campaignName,
-        voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "broadcast",
+        voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "Transactional",
         scheduleAt,
       } = body;
       if (!text || !campaignName) return json({ error: "text and campaignName required" }, 400);
