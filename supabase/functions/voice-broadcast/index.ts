@@ -186,7 +186,7 @@ function buildSimpleIvrComposePayload(input: {
     smsSuccessApi: "{}",
     smsFailApi: "{}",
     smsDtmfApi: isSimpleIvr ? "" : "{}",
-    callDurationSMS: 0,
+    callDurationSMS: "0",
     retries: isSimpleIvr ? 0 : Number(input.retries ?? 0) || 0,
     retryInterval: isSimpleIvr ? 0 : Number(input.retryInterval ?? 0) || 0,
     agentRows: "\"\"",
