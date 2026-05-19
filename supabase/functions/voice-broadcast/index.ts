@@ -1,0 +1,352 @@
+// ═══════════════════════════════════════════════════════════════════
+// Voice Broadcast (OBD / IVR) — proxy to obdapi2.ivrsms.com
+// Multi-action endpoint: login, upload_voice, list_voices, upload_base,
+// compose, list_campaigns, analysis, pause, resume, stop,
+// send_to_user (one-tap re-engagement call)
+// ═══════════════════════════════════════════════════════════════════
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const OBD_BASE = "https://obdapi2.ivrsms.com";
+
+const json = (d: unknown, status = 200) =>
+  new Response(JSON.stringify(d), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+async function getToken(forceRefresh = false): Promise<{ token: string; userId: string }> {
+  const obdUserId = Deno.env.get("OBD_USER_ID") || "";
+  if (!forceRefresh) {
+    const { data: cached } = await supabase
+      .from("voice_broadcast_token_cache")
+      .select("token, user_id_obd, expires_at")
+      .eq("id", 1)
+      .maybeSingle();
+    if (cached?.token && new Date(cached.expires_at).getTime() > Date.now() + 60_000) {
+      return { token: cached.token, userId: cached.user_id_obd || obdUserId };
+    }
+  }
+  const username = Deno.env.get("OBD_USERNAME");
+  const password = Deno.env.get("OBD_PASSWORD");
+  if (!username || !password) throw new Error("OBD_USERNAME / OBD_PASSWORD not configured");
+
+  const res = await fetch(`${OBD_BASE}/api/obd/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.token) throw new Error(`OBD login failed: ${JSON.stringify(data)}`);
+
+  const expires = new Date(Date.now() + 4 * 3600 * 1000).toISOString();
+  await supabase.from("voice_broadcast_token_cache").upsert({
+    id: 1,
+    token: data.token,
+    user_id_obd: String(data.userid || obdUserId),
+    expires_at: expires,
+  });
+  return { token: data.token, userId: String(data.userid || obdUserId) };
+}
+
+async function obdFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const { token } = await getToken();
+  const headers = new Headers(init.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+  let res = await fetch(`${OBD_BASE}${path}`, { ...init, headers });
+  if (res.status === 401 || res.status === 403) {
+    const { token: t2 } = await getToken(true);
+    headers.set("Authorization", `Bearer ${t2}`);
+    res = await fetch(`${OBD_BASE}${path}`, { ...init, headers });
+  }
+  return res;
+}
+
+function pad2(n: number) { return n.toString().padStart(2, "0"); }
+function formatSchedule(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+function normalizePhone(raw: string): string {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 12 && digits.startsWith("91")) return digits;
+  return digits;
+}
+
+async function uploadBaseForPhones(phones: string[], baseName: string, userId: string) {
+  const csv = phones.map((p) => normalizePhone(p)).filter((p) => p.length >= 10).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const fd = new FormData();
+  fd.append("baseFile", blob, `${baseName}.csv`);
+  fd.append("userId", userId);
+  fd.append("baseName", baseName);
+  fd.append("contactList", "null");
+  const res = await obdFetch(`/api/obd/baseupload`, { method: "POST", body: fd });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.baseId) throw new Error(`baseupload failed: ${JSON.stringify(data)}`);
+  return String(data.baseId);
+}
+
+async function composeCampaign(payload: Record<string, unknown>) {
+  const res = await obdFetch(`/api/obd/campaign/compose`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`compose failed: ${JSON.stringify(data)}`);
+  return data;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const action = body.action as string;
+
+    // ─── status / config ───
+    if (action === "status") {
+      const hasCreds = !!(Deno.env.get("OBD_USERNAME") && Deno.env.get("OBD_PASSWORD"));
+      let loggedIn = false;
+      let obdUserId: string | null = null;
+      let error: string | null = null;
+      if (hasCreds) {
+        try {
+          const { userId } = await getToken();
+          loggedIn = true;
+          obdUserId = userId;
+        } catch (e) {
+          error = e instanceof Error ? e.message : String(e);
+        }
+      }
+      return json({ ok: true, hasCreds, loggedIn, obdUserId, error });
+    }
+
+    if (action === "login") {
+      const { token, userId } = await getToken(true);
+      return json({ ok: true, userId, token: token.slice(0, 20) + "..." });
+    }
+
+    // ─── voice prompts ───
+    if (action === "list_voices") {
+      const { userId } = await getToken();
+      const res = await obdFetch(`/api/obd/prompts/${userId}`, { method: "GET" });
+      const data = await res.json().catch(() => ({}));
+      return json({ ok: res.ok, prompts: Array.isArray(data) ? data : [], raw: data });
+    }
+
+    if (action === "upload_voice") {
+      // expects: fileBase64, fileName, fileType, promptCategory
+      const { fileBase64, fileName, fileType = "wav", promptCategory = "welcome" } = body;
+      if (!fileBase64 || !fileName) return json({ error: "fileBase64 and fileName required" }, 400);
+      const { userId } = await getToken();
+      const binary = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
+      const blob = new Blob([binary], { type: fileType === "mp3" ? "audio/mpeg" : "audio/wav" });
+      const fd = new FormData();
+      fd.append("waveFile", blob, `${fileName}.${fileType}`);
+      fd.append("userId", userId);
+      fd.append("fileName", fileName);
+      fd.append("promptCategory", promptCategory);
+      fd.append("fileType", fileType);
+      const res = await obdFetch(`/api/obd/promptupload`, { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.promptId) {
+        await supabase.from("voice_broadcast_voice_files").insert({
+          prompt_id: String(data.promptId),
+          file_name: fileName,
+          prompt_category: promptCategory,
+          prompt_status: 0,
+          is_active: true,
+        }).then(() => {}, () => {});
+      }
+      return json({ ok: res.ok, ...data });
+    }
+
+    // ─── base file ───
+    if (action === "upload_base") {
+      const { phones, baseName } = body;
+      if (!Array.isArray(phones) || phones.length === 0) return json({ error: "phones[] required" }, 400);
+      const { userId } = await getToken();
+      const baseId = await uploadBaseForPhones(phones, baseName || `base-${Date.now()}`, userId);
+      return json({ ok: true, baseId });
+    }
+
+    // ─── campaign management ───
+    if (action === "compose") {
+      const { userId } = await getToken();
+      const { campaignName, baseId, welcomePId, templateId = 0, scheduleAt, dtmf = "",
+        menuPId = "", noInputPId = "", wrongInputPId = "", thanksPId = "",
+        retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1 } = body;
+      if (!campaignName || !baseId || !welcomePId) return json({ error: "campaignName, baseId, welcomePId required" }, 400);
+
+      const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
+      const leadMin = cfg?.schedule_lead_minutes ?? 11;
+      const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
+      const scheduleTime = formatSchedule(schedDate);
+
+      const payload = {
+        userId, campaignName, templateId, dtmf,
+        baseId: Number(baseId), welcomePId: Number(welcomePId),
+        menuPId: menuPId || "", noInputPId: noInputPId || "",
+        wrongInputPId: wrongInputPId || "", thanksPId: thanksPId || "",
+        scheduleTime,
+        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
+        callDurationSMS: 0, retries, retryInterval,
+        agentRows: "", menuWaitTime, rePrompt,
+      };
+      const data = await composeCampaign(payload);
+      const externalId = String(data?.campaignId || data?.campId || "");
+      await supabase.from("voice_broadcast_campaigns").insert({
+        campaign_id_external: externalId || null,
+        base_id: String(baseId),
+        campaign_name: campaignName,
+        template_id: templateId,
+        prompt_id: String(welcomePId),
+        scheduled_at: schedDate.toISOString(),
+        status: "scheduled",
+        stats: data,
+      });
+      return json({ ok: true, response: data });
+    }
+
+    if (action === "list_campaigns") {
+      const { data } = await supabase
+        .from("voice_broadcast_campaigns")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      return json({ ok: true, campaigns: data || [] });
+    }
+
+    if (action === "analysis") {
+      const { userId } = await getToken();
+      const today = new Date();
+      const start = body.startDate || new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+      const end = body.endDate || today.toISOString().slice(0, 10);
+      const res = await obdFetch(`/api/obd/campaign/analysis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          startDate: start,
+          endDate: end,
+          campaignType: body.campaignType || "All",
+          campaignName: body.campaignName || "All",
+          username: body.username || "",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      return json({ ok: res.ok, data });
+    }
+
+    if (action === "pause" || action === "stop" || action === "resume") {
+      const { campaignId } = body;
+      if (!campaignId) return json({ error: "campaignId required" }, 400);
+      const { userId } = await getToken();
+      const payload: Record<string, unknown> = { campaignId: Number(campaignId) };
+      if (action === "resume") payload.userId = userId;
+      const res = await obdFetch(`/api/obd/campaign/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await supabase.from("voice_broadcast_campaigns").update({
+          status: action === "pause" ? "paused" : action === "stop" ? "stopped" : "scheduled",
+        }).eq("campaign_id_external", String(campaignId));
+      }
+      return json({ ok: res.ok, data });
+    }
+
+    // ─── one-shot per-user broadcast (used by signup & re-engagement) ───
+    if (action === "send_to_user") {
+      const { user_id, trigger_key = "manual", prompt_id: overridePromptId } = body;
+      if (!user_id) return json({ error: "user_id required" }, 400);
+
+      const { data: cfg } = await supabase
+        .from("voice_broadcast_config")
+        .select("*")
+        .maybeSingle();
+      if (!cfg?.is_enabled) {
+        return json({ ok: false, skipped: true, reason: "broadcast_disabled" });
+      }
+
+      const promptId = overridePromptId || cfg.default_welcome_prompt_id;
+      if (!promptId) return json({ ok: false, skipped: true, reason: "no_default_prompt" });
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("phone, display_name")
+        .eq("id", user_id)
+        .maybeSingle();
+
+      const phone = normalizePhone(profile?.phone || "");
+      if (phone.length < 10) {
+        await supabase.from("voice_broadcast_logs").insert({
+          user_id, phone, trigger_key, prompt_id: promptId,
+          status: "skipped", response: { reason: "no_phone" },
+        }).then(() => {}, () => {});
+        return json({ ok: false, skipped: true, reason: "no_phone" });
+      }
+
+      const { userId } = await getToken();
+      const baseName = `auto-${trigger_key}-${user_id.slice(0, 8)}-${Date.now()}`;
+      const baseId = await uploadBaseForPhones([phone], baseName, userId);
+
+      const schedDate = new Date(Date.now() + (cfg.schedule_lead_minutes ?? 11) * 60_000);
+      const composeRes = await composeCampaign({
+        userId,
+        campaignName: `${trigger_key}_${user_id.slice(0, 8)}_${Date.now()}`,
+        templateId: 0,
+        dtmf: "",
+        baseId: Number(baseId),
+        welcomePId: Number(promptId),
+        menuPId: "", noInputPId: "", wrongInputPId: "", thanksPId: "",
+        scheduleTime: formatSchedule(schedDate),
+        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
+        callDurationSMS: 0, retries: 2, retryInterval: 10,
+        agentRows: "", menuWaitTime: 5, rePrompt: 1,
+      });
+      const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
+
+      await supabase.from("voice_broadcast_logs").insert({
+        user_id, phone, trigger_key,
+        prompt_id: String(promptId),
+        campaign_id_external: externalId || null,
+        status: "queued",
+        response: composeRes,
+      }).then(() => {}, () => {});
+
+      await supabase.from("voice_broadcast_campaigns").insert({
+        campaign_id_external: externalId || null,
+        base_id: baseId,
+        campaign_name: `auto:${trigger_key}:${user_id.slice(0, 8)}`,
+        template_id: 0,
+        prompt_id: String(promptId),
+        scheduled_at: schedDate.toISOString(),
+        status: "scheduled",
+        stats: composeRes,
+      }).then(() => {}, () => {});
+
+      return json({ ok: true, campaignId: externalId, scheduled_at: schedDate.toISOString() });
+    }
+
+    return json({ error: `Unknown action: ${action}` }, 400);
+  } catch (e) {
+    console.error("[voice-broadcast]", e);
+    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});

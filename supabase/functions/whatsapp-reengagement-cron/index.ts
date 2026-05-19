@@ -295,6 +295,28 @@ Deno.serve(async (req) => {
           metadata: { error: e instanceof Error ? e.message : String(e) },
         }).then(() => {}, () => {});
       }
+
+      // ─── Voice Broadcast trigger (fire-and-forget) ───
+      try {
+        const { data: vbCfg } = await supabase
+          .from("voice_broadcast_config")
+          .select("is_enabled, inactive_trigger_enabled, inactive_tiers")
+          .maybeSingle();
+        if (
+          vbCfg?.is_enabled &&
+          vbCfg?.inactive_trigger_enabled &&
+          (vbCfg.inactive_tiers || []).includes(tier)
+        ) {
+          fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/voice-broadcast`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ action: "send_to_user", user_id: profile.id, trigger_key: tier }),
+          }).catch(() => {});
+        }
+      } catch (_e) { /* ignore */ }
     }
 
     return json({ ok: true, dry_run: dryRun, ...tally });

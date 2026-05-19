@@ -10715,6 +10715,186 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_broadcast_campaigns: {
+        Row: {
+          base_id: string | null
+          campaign_id_external: string | null
+          campaign_name: string
+          campaign_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          prompt_id: string | null
+          scheduled_at: string | null
+          stats: Json
+          status: string
+          template_id: number
+          updated_at: string
+        }
+        Insert: {
+          base_id?: string | null
+          campaign_id_external?: string | null
+          campaign_name: string
+          campaign_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          prompt_id?: string | null
+          scheduled_at?: string | null
+          stats?: Json
+          status?: string
+          template_id?: number
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string | null
+          campaign_id_external?: string | null
+          campaign_name?: string
+          campaign_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          prompt_id?: string | null
+          scheduled_at?: string | null
+          stats?: Json
+          status?: string
+          template_id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      voice_broadcast_config: {
+        Row: {
+          created_at: string
+          default_tts_text: string | null
+          default_welcome_prompt_id: string | null
+          id: string
+          inactive_tiers: string[]
+          inactive_trigger_enabled: boolean
+          is_enabled: boolean
+          schedule_lead_minutes: number
+          signup_trigger_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_tts_text?: string | null
+          default_welcome_prompt_id?: string | null
+          id?: string
+          inactive_tiers?: string[]
+          inactive_trigger_enabled?: boolean
+          is_enabled?: boolean
+          schedule_lead_minutes?: number
+          signup_trigger_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_tts_text?: string | null
+          default_welcome_prompt_id?: string | null
+          id?: string
+          inactive_tiers?: string[]
+          inactive_trigger_enabled?: boolean
+          is_enabled?: boolean
+          schedule_lead_minutes?: number
+          signup_trigger_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      voice_broadcast_logs: {
+        Row: {
+          campaign_id_external: string | null
+          created_at: string
+          id: string
+          phone: string | null
+          prompt_id: string | null
+          response: Json | null
+          status: string
+          trigger_key: string
+          user_id: string | null
+        }
+        Insert: {
+          campaign_id_external?: string | null
+          created_at?: string
+          id?: string
+          phone?: string | null
+          prompt_id?: string | null
+          response?: Json | null
+          status?: string
+          trigger_key?: string
+          user_id?: string | null
+        }
+        Update: {
+          campaign_id_external?: string | null
+          created_at?: string
+          id?: string
+          phone?: string | null
+          prompt_id?: string | null
+          response?: Json | null
+          status?: string
+          trigger_key?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      voice_broadcast_token_cache: {
+        Row: {
+          expires_at: string
+          id: number
+          token: string
+          updated_at: string
+          user_id_obd: string | null
+        }
+        Insert: {
+          expires_at: string
+          id?: number
+          token: string
+          updated_at?: string
+          user_id_obd?: string | null
+        }
+        Update: {
+          expires_at?: string
+          id?: number
+          token?: string
+          updated_at?: string
+          user_id_obd?: string | null
+        }
+        Relationships: []
+      }
+      voice_broadcast_voice_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: string
+          is_active: boolean
+          prompt_category: string | null
+          prompt_id: string
+          prompt_status: number | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          id?: string
+          is_active?: boolean
+          prompt_category?: string | null
+          prompt_id: string
+          prompt_status?: number | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          is_active?: boolean
+          prompt_category?: string | null
+          prompt_id?: string
+          prompt_status?: number | null
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       voice_notification_logs: {
         Row: {
           ai_generated: boolean
