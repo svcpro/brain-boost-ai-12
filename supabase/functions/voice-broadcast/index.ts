@@ -409,7 +409,7 @@ Deno.serve(async (req) => {
 
     // ─── TTS: generate voice from Hinglish/Hindi/English text and save as OBD prompt ───
     if (action === "tts_generate_voice") {
-      const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "welcome" } = body;
+      const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "Transactional" } = body;
       if (!text || !voiceName) return json({ error: "text and voiceName required" }, 400);
       const { userId } = await getToken();
       const audio = await elevenLabsTTS(String(text), String(voiceId));
