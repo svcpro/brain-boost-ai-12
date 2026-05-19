@@ -74,7 +74,9 @@ async function obdFetch(path: string, init: RequestInit = {}): Promise<Response>
 
 function pad2(n: number) { return n.toString().padStart(2, "0"); }
 function formatSchedule(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  // MSG91 OBD expects IST (Asia/Kolkata = UTC+5:30). Deno runs in UTC.
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  return `${ist.getUTCFullYear()}-${pad2(ist.getUTCMonth() + 1)}-${pad2(ist.getUTCDate())} ${pad2(ist.getUTCHours())}:${pad2(ist.getUTCMinutes())}:${pad2(ist.getUTCSeconds())}`;
 }
 
 function normalizePhone(raw: string): string {
