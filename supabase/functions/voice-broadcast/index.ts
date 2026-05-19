@@ -84,18 +84,30 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
+function normalizeBaseUploadPhone(raw: string): string {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
+  if (digits.length === 10) return digits;
+  return "";
+}
+
 async function uploadBaseForPhones(phones: string[], baseName: string, userId: string) {
-  const normalized = phones.map((p) => normalizePhone(p)).filter((p) => p.length >= 10);
-  // OBD requires CSV with a "Mobile" header column
+  const normalized = phones.map((p) => normalizeBaseUploadPhone(p)).filter(Boolean);
+  if (normalized.length === 0) throw new Error("No valid 10-digit mobile numbers for base upload");
+  const safeBaseName = String(baseName || `base-${Date.now()}`).replace(/[^a-zA-Z0-9]/g, "").slice(0, 45) || `base${Date.now()}`;
+  // OBD baseupload requires a CSV with a "Mobile" header and 10-digit Indian mobile numbers.
   const csv = ["Mobile", ...normalized].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const fd = new FormData();
-  fd.append("baseFile", blob, `${baseName}.csv`);
+  fd.append("baseFile", blob, `${safeBaseName}.csv`);
   fd.append("userId", userId);
-  fd.append("baseName", baseName);
+  fd.append("baseName", safeBaseName);
+  fd.append("contactList", "false");
   const res = await obdFetch(`/api/obd/baseupload`, { method: "POST", body: fd });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data?.baseId) throw new Error(`baseupload failed: ${JSON.stringify(data)}`);
+  const raw = await res.text();
+  const data = raw ? JSON.parse(raw) : {};
+  if (!res.ok || !data?.baseId) throw new Error(`baseupload failed: status ${res.status} ${raw || "empty response"}`);
   return String(data.baseId);
 }
 
