@@ -530,35 +530,6 @@ Deno.serve(async (req) => {
         pendingApproval: true,
         message: `Voice generated as prompt #${promptId}. OBD requires admin approval before campaign compose; sync Voice Library after approval, then schedule the broadcast.`,
       }, 202);
-
-      const baseId = await uploadBaseForPhones(phoneList, `${safeName}-base`, userId);
-      const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
-      const leadMin = cfg?.schedule_lead_minutes ?? 11;
-      const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
-
-      const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
-        userId,
-        campaignName: String(campaignName),
-        baseId,
-        welcomePId: promptId,
-        scheduleTime: formatSchedule(schedDate),
-      }));
-      const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
-      await supabase.from("voice_broadcast_campaigns").insert({
-        campaign_id_external: externalId || null,
-        base_id: String(baseId),
-        campaign_name: campaignName,
-        template_id: 0,
-        prompt_id: String(promptId),
-        scheduled_at: schedDate.toISOString(),
-        status: "scheduled",
-        stats: composeRes,
-      }).then(() => {}, () => {});
-
-      return json({
-        ok: true, promptId, baseId, campaignId: externalId,
-        scheduled_at: schedDate.toISOString(),
-      });
     }
 
     return json({ error: `Unknown action: ${action}` }, 400);
