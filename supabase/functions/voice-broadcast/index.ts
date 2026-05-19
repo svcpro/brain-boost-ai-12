@@ -324,16 +324,11 @@ Deno.serve(async (req) => {
       const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
       const scheduleTime = formatSchedule(schedDate);
 
-      const payload = {
-        userId, campaignName, templateId, dtmf,
-        baseId: Number(baseId), welcomePId: Number(welcomePId),
-        menuPId: menuPId || "", noInputPId: noInputPId || "",
-        wrongInputPId: wrongInputPId || "", thanksPId: thanksPId || "",
-        scheduleTime,
-        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
-        callDurationSMS: 0, retries, retryInterval,
-        agentRows: "", menuWaitTime, rePrompt,
-      };
+      const payload = buildSimpleIvrComposePayload({
+        userId, campaignName, templateId, dtmf, baseId, welcomePId,
+        menuPId, noInputPId, wrongInputPId, thanksPId, scheduleTime,
+        retries, retryInterval, menuWaitTime, rePrompt,
+      });
       const data = await composeCampaign(payload);
       const externalId = String(data?.campaignId || data?.campId || "");
       await supabase.from("voice_broadcast_campaigns").insert({
