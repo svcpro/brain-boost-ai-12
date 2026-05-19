@@ -74,7 +74,9 @@ async function obdFetch(path: string, init: RequestInit = {}): Promise<Response>
 
 function pad2(n: number) { return n.toString().padStart(2, "0"); }
 function formatSchedule(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  // MSG91 OBD expects IST (Asia/Kolkata = UTC+5:30). Deno runs in UTC.
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  return `${ist.getUTCFullYear()}-${pad2(ist.getUTCMonth() + 1)}-${pad2(ist.getUTCDate())} ${pad2(ist.getUTCHours())}:${pad2(ist.getUTCMinutes())}:${pad2(ist.getUTCSeconds())}`;
 }
 
 function normalizePhone(raw: string): string {
@@ -139,11 +141,15 @@ function buildSimpleIvrComposePayload(input: {
   menuWaitTime?: string | number;
   rePrompt?: string | number;
 }) {
+  const toNum = (v: unknown, d = 0) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : d;
+  };
   return {
     userId: String(input.userId),
     campaignName: String(input.campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50),
-    templateId: String(input.templateId ?? 0),
-    dtmf: input.dtmf ?? "",
+    templateId: toNum(input.templateId, 0),
+    dtmf: typeof input.dtmf === "string" && input.dtmf.length === 0 ? {} : (input.dtmf ?? {}),
     baseId: String(input.baseId),
     welcomePId: String(input.welcomePId),
     menuPId: input.menuPId ? String(input.menuPId) : "",
@@ -151,20 +157,20 @@ function buildSimpleIvrComposePayload(input: {
     wrongInputPId: input.wrongInputPId ? String(input.wrongInputPId) : "",
     thanksPId: input.thanksPId ? String(input.thanksPId) : "",
     scheduleTime: input.scheduleTime,
-    smsSuccessApi: "{}",
-    smsFailApi: "{}",
+    smsSuccessApi: "",
+    smsFailApi: "",
     smsDtmfApi: "",
     callDurationSMS: 0,
-    retries: input.retries ?? 0,
-    retryInterval: input.retryInterval ?? 0,
-    agentRows: "\"\"",
-    menuWaitTime: input.menuWaitTime ?? "",
-    rePrompt: input.rePrompt ?? "",
+    retries: toNum(input.retries, 0),
+    retryInterval: toNum(input.retryInterval, 0),
+    agentRows: [],
+    menuWaitTime: toNum(input.menuWaitTime, 5),
+    rePrompt: toNum(input.rePrompt, 1),
     location: "",
     clis: "",
     webhook: false,
     webhookId: "",
-    ttsRows: "[]",
+    ttsRows: [],
     gender: "",
     language: "",
     noAgentId: "",
