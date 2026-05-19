@@ -133,6 +133,31 @@ export default function VoiceBroadcastCenter() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
+  const handleTTS = async () => {
+    if (!ttsText.trim() || !ttsCampName.trim()) return toast.error("Text and name required");
+    if (ttsText.length > 1500) return toast.error("Keep text under 1500 chars");
+    setBusy(true);
+    try {
+      if (ttsMode === "save_only") {
+        const r = await callVB("tts_generate_voice", {
+          text: ttsText, voiceName: ttsCampName, voiceId: ttsVoiceId, promptCategory: "tts",
+        });
+        toast.success(`Voice saved · Prompt #${r.promptId}`);
+        setTtsText(""); setTtsCampName("");
+        refreshVoices();
+      } else {
+        const list = ttsPhones.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+        if (!list.length) return toast.error("Add phone numbers");
+        const r = await callVB("tts_broadcast", {
+          text: ttsText, phones: list, campaignName: ttsCampName, voiceId: ttsVoiceId,
+        });
+        toast.success(`Scheduled · Campaign #${r.campaignId || "—"}`);
+        setTtsText(""); setTtsCampName(""); setTtsPhones("");
+        refreshVoices(); refreshCampaigns();
+      }
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+  };
+
   const controlCampaign = async (action: "pause" | "resume" | "stop", id: string) => {
     try {
       await callVB(action, { campaignId: id });
