@@ -19,6 +19,7 @@ const TTS_VOICES = [
   { id: "Xb7hH8MSUJpSbSDYk0k2", label: "Alice — female, clear British" },
   { id: "cgSgspJ2msm6clMCkdW9", label: "Jessica — female, expressive" },
   { id: "FGY2WhTYpPnrIDTdsKH5", label: "Laura — female, upbeat" },
+  { id: "FZkK3TvQ0pjyDmT8fzIW", label: "Bunty — male, Hindi/Hinglish 🇮🇳" },
   // Male
   { id: "JBFqnCBsd6RMkjVDRZzb", label: "George — male, authoritative" },
   { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel — male, news anchor" },
