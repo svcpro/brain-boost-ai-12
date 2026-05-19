@@ -44,7 +44,7 @@ async function callVB(action: string, payload: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke("voice-broadcast", {
     body: { action, ...payload },
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message.replace(/^Edge function returned \d+: Error,\s*/i, ""));
   if (data?.error) throw new Error(data.error);
   return data;
 }
@@ -156,6 +156,10 @@ export default function VoiceBroadcastCenter() {
     try {
       const b = await callVB("upload_base", { phones: list, baseName: `${campName}-${Date.now()}` });
       const r = await callVB("compose", { campaignName: campName, baseId: b.baseId, welcomePId });
+      if (r.pendingApproval) {
+        toast.info(r.message || "Voice prompt is pending OBD approval.");
+        return;
+      }
       toast.success("Campaign scheduled");
       setPhones(""); setCampName("");
       refreshCampaigns();
