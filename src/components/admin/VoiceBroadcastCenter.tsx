@@ -169,7 +169,7 @@ export default function VoiceBroadcastCenter() {
     try {
       if (ttsMode === "save_only") {
         const r = await callVB("tts_generate_voice", {
-          text: ttsText, voiceName: ttsCampName, voiceId: ttsVoiceId, promptCategory: "tts",
+          text: ttsText, voiceName: ttsCampName, voiceId: ttsVoiceId, promptCategory: "welcome",
         });
         toast.success(`Voice saved · Prompt #${r.promptId}`);
         setTtsText(""); setTtsCampName("");
