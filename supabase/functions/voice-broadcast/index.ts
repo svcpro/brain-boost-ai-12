@@ -119,9 +119,26 @@ async function composeCampaign(payload: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`compose failed: ${JSON.stringify(data)}`);
+  const raw = await res.text();
+  const data = raw ? JSON.parse(raw) : {};
+  if (!res.ok) {
+    console.error("[voice-broadcast] compose rejected", JSON.stringify({ status: res.status, response: data, payload }));
+    throw new Error(`compose failed: status ${res.status} ${raw || "empty response"}`);
+  }
   return data;
+}
+
+async function assertPromptApproved(promptId: string | number) {
+  const id = String(promptId || "").trim();
+  if (!id) throw new Error("Voice prompt is required");
+  const { data: localPrompt } = await supabase
+    .from("voice_broadcast_voice_files")
+    .select("prompt_id, prompt_status, is_active")
+    .eq("prompt_id", id)
+    .maybeSingle();
+  if (localPrompt && (localPrompt.prompt_status !== 1 || !localPrompt.is_active)) {
+    throw new Error(`Voice prompt #${id} is still pending OBD admin approval. Sync Voice Library after approval, then schedule the broadcast.`);
+  }
 }
 
 function buildSimpleIvrComposePayload(input: {
@@ -236,7 +253,7 @@ async function uploadPromptToOBD(opts: {
     file_name: opts.fileName,
     prompt_category: promptCategory,
     prompt_status: 0,
-    is_active: true,
+    is_active: false,
   }).then(() => {}, () => {});
   return String(data.promptId);
 }
