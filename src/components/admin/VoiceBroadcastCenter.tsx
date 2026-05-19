@@ -189,13 +189,88 @@ export default function VoiceBroadcastCenter() {
         <Card className="p-3 border-destructive/40 bg-destructive/10 text-sm text-destructive">{status.error}</Card>
       )}
 
-      <Tabs defaultValue="settings">
+      <Tabs defaultValue="tts">
         <TabsList>
           <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="tts">✨ Text → Voice</TabsTrigger>
           <TabsTrigger value="voices">Voice Library</TabsTrigger>
           <TabsTrigger value="broadcast">New Broadcast</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
         </TabsList>
+
+        {/* TTS — type Hinglish / Hindi / English, system generates & broadcasts */}
+        <TabsContent value="tts">
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">AI Voice Broadcast — Hinglish / Hindi / English</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Type a message in Hinglish, Hindi or English. We generate a natural voice with ElevenLabs and place IVR calls automatically.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label>Campaign / Voice Name</Label>
+                <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="diwali-greeting-2026" />
+              </div>
+              <div>
+                <Label>Voice</Label>
+                <Select value={ttsVoiceId} onValueChange={setTtsVoiceId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TTS_VOICES.map((v) => <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Message Text ({ttsText.length}/1500)</Label>
+              <textarea
+                className="w-full min-h-[140px] p-2 border rounded bg-background text-sm"
+                value={ttsText}
+                onChange={(e) => setTtsText(e.target.value.slice(0, 1500))}
+                placeholder="Namaste! ACRY AI mein aapka swagat hai. Aaj hi apna AI Second Brain activate karein aur smart study shuru karein."
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Tip: Write Hinglish in Roman script (e.g. "Namaste, aap kaise hain") — multilingual voice handles it naturally.
+              </p>
+            </div>
+
+            <div>
+              <Label>Mode</Label>
+              <Select value={ttsMode} onValueChange={(v) => setTtsMode(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="broadcast">Generate + Broadcast now</SelectItem>
+                  <SelectItem value="save_only">Generate + Save to Voice Library</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {ttsMode === "broadcast" && (
+              <div>
+                <Label>Phone Numbers (comma / newline separated)</Label>
+                <textarea
+                  className="w-full min-h-[100px] p-2 border rounded bg-background text-sm font-mono"
+                  value={ttsPhones} onChange={(e) => setTtsPhones(e.target.value)}
+                  placeholder="9876543210, 9876543211"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {ttsPhones.split(/[\s,;\n]+/).filter(Boolean).length} numbers
+                </p>
+              </div>
+            )}
+
+            <Button onClick={handleTTS} disabled={busy} className="w-full">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Wand2 className="w-4 h-4 mr-1" />}
+              {ttsMode === "broadcast" ? "Generate Voice & Schedule Broadcast" : "Generate & Save Voice"}
+            </Button>
+          </Card>
+        </TabsContent>
+
+
 
         {/* SETTINGS */}
         <TabsContent value="settings">
