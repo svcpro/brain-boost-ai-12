@@ -585,12 +585,15 @@ Deno.serve(async (req) => {
       const baseId = await uploadBaseForPhones([phone], baseName, userId);
 
       const schedDate = new Date(Date.now() + (cfg.schedule_lead_minutes ?? 11) * 60_000);
+      const routing = getObdRoutingFields(body);
       const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
         userId,
         campaignName: `${trigger_key}_${user_id.slice(0, 8)}_${Date.now()}`,
         baseId,
         welcomePId: promptId,
         scheduleTime: formatSchedule(schedDate),
+        location: routing.location,
+        clis: routing.clis,
       }));
       const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
 
