@@ -622,28 +622,35 @@ Deno.serve(async (req) => {
         location: routing.location,
         clis: routing.clis,
       }));
-      const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
+      const externalId = String(composeRes?.campaignId ?? composeRes?.campId ?? "");
+      const idNum = Number(externalId);
+      const composeOk = externalId !== "" && Number.isFinite(idNum) && idNum > 0;
 
       await supabase.from("voice_broadcast_logs").insert({
         user_id, phone, trigger_key,
         prompt_id: String(promptId),
-        campaign_id_external: externalId || null,
-        status: "queued",
+        campaign_id_external: composeOk ? externalId : null,
+        status: composeOk ? "queued" : "failed",
         response: composeRes,
       }).then(() => {}, () => {});
 
       await supabase.from("voice_broadcast_campaigns").insert({
-        campaign_id_external: externalId || null,
+        campaign_id_external: composeOk ? externalId : null,
         base_id: baseId,
         campaign_name: `auto:${trigger_key}:${user_id.slice(0, 8)}`,
         template_id: 0,
         prompt_id: String(promptId),
         scheduled_at: schedDate.toISOString(),
-        status: "scheduled",
-        stats: composeRes,
+        status: composeOk ? "scheduled" : "compose_failed",
+        stats: composeOk ? composeRes : { obdSoftReject: true, response: composeRes },
       }).then(() => {}, () => {});
 
-      return json({ ok: true, campaignId: externalId, scheduled_at: schedDate.toISOString() });
+      return json({
+        ok: composeOk,
+        campaignId: composeOk ? externalId : null,
+        scheduled_at: schedDate.toISOString(),
+        message: composeOk ? undefined : String((composeRes as any)?.message || "OBD did not schedule the campaign."),
+      });
     }
 
     // ─── TTS Preview: generate a short sample and return as base64 (no OBD upload) ───
