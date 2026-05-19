@@ -375,6 +375,30 @@ Deno.serve(async (req) => {
         clis = Deno.env.get("OBD_CLIS_JSON") || "" } = body;
       if (!campaignName || !baseId || !welcomePId) return json({ error: "campaignName, baseId, welcomePId required" }, 400);
 
+      // ─── Strict pre-validation for OBD-required compose fields ───
+      // OBD's /compose endpoint returns "Parameters Incorrect" (400) when location or CLI
+      // allocation are missing/malformed for accounts that require them. Validate up front
+      // so we never hit the provider with a known-bad payload.
+      const validateObdJsonField = (raw: unknown, field: string): { ok: true; value: string } | { ok: false; error: string } => {
+        if (typeof raw !== "string" || raw.trim() === "") {
+          return { ok: false, error: `${field} is required. Set the ${field === "location" ? "OBD_LOCATION_JSON" : "OBD_CLIS_JSON"} secret or pass "${field}" in the request body as a JSON-encoded string (e.g. '[{"id":123,"weight":1}]').` };
+        }
+        try {
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed) || parsed.length === 0) {
+            return { ok: false, error: `${field} must be a non-empty JSON array (got ${Array.isArray(parsed) ? "empty array" : typeof parsed}).` };
+          }
+          return { ok: true, value: raw };
+        } catch {
+          return { ok: false, error: `${field} is not valid JSON. Expected a JSON array string like '[{"id":123,"weight":1}]'.` };
+        }
+      };
+
+      const locCheck = validateObdJsonField(location, "location");
+      if (!locCheck.ok) return json({ error: locCheck.error, field: "location" }, 400);
+      const cliCheck = validateObdJsonField(clis, "clis");
+      if (!cliCheck.ok) return json({ error: cliCheck.error, field: "clis" }, 400);
+
       const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
       const leadMin = cfg?.schedule_lead_minutes ?? 11;
       const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
