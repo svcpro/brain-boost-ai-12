@@ -122,6 +122,57 @@ async function composeCampaign(payload: Record<string, unknown>) {
   return data;
 }
 
+function buildSimpleIvrComposePayload(input: {
+  userId: string;
+  campaignName: string;
+  baseId: string | number;
+  welcomePId: string | number;
+  scheduleTime: string;
+  templateId?: string | number;
+  dtmf?: string;
+  menuPId?: string | number;
+  noInputPId?: string | number;
+  wrongInputPId?: string | number;
+  thanksPId?: string | number;
+  retries?: string | number;
+  retryInterval?: string | number;
+  menuWaitTime?: string | number;
+  rePrompt?: string | number;
+}) {
+  return {
+    userId: String(input.userId),
+    campaignName: String(input.campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50),
+    templateId: String(input.templateId ?? 0),
+    dtmf: input.dtmf ?? "",
+    baseId: String(input.baseId),
+    welcomePId: String(input.welcomePId),
+    menuPId: input.menuPId ? String(input.menuPId) : "",
+    noInputPId: input.noInputPId ? String(input.noInputPId) : "",
+    wrongInputPId: input.wrongInputPId ? String(input.wrongInputPId) : "",
+    thanksPId: input.thanksPId ? String(input.thanksPId) : "",
+    scheduleTime: input.scheduleTime,
+    smsSuccessApi: "{}",
+    smsFailApi: "{}",
+    smsDtmfApi: "",
+    callDurationSMS: 0,
+    retries: input.retries ?? 0,
+    retryInterval: input.retryInterval ?? 0,
+    agentRows: "\"\"",
+    menuWaitTime: input.menuWaitTime ?? "",
+    rePrompt: input.rePrompt ?? "",
+    location: "",
+    clis: "",
+    webhook: false,
+    webhookId: "",
+    ttsRows: "[]",
+    gender: "",
+    language: "",
+    noAgentId: "",
+    callPatchSuccessMessage: "",
+    callPatchFailMessage: "",
+  };
+}
+
 // ─── ElevenLabs TTS helper (supports Hinglish via multilingual_v2) ───
 async function elevenLabsTTS(text: string, voiceId: string): Promise<Uint8Array> {
   const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
