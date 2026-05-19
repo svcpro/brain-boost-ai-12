@@ -12,12 +12,25 @@ import { toast } from "sonner";
 import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square, Wand2 } from "lucide-react";
 
 const TTS_VOICES = [
-  { id: "pFZP5JQG7iQjIQuC4Bku", label: "Lily (female, warm)" },
-  { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda (female, friendly)" },
-  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah (female, professional)" },
-  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George (male, authoritative)" },
-  { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel (male, news anchor)" },
-  { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam (male, energetic)" },
+  // Female
+  { id: "pFZP5JQG7iQjIQuC4Bku", label: "Lily — female, warm" },
+  { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda — female, friendly" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — female, professional" },
+  { id: "Xb7hH8MSUJpSbSDYk0k2", label: "Alice — female, clear British" },
+  { id: "cgSgspJ2msm6clMCkdW9", label: "Jessica — female, expressive" },
+  { id: "FGY2WhTYpPnrIDTdsKH5", label: "Laura — female, upbeat" },
+  // Male
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George — male, authoritative" },
+  { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel — male, news anchor" },
+  { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam — male, energetic young" },
+  { id: "nPczCjzI2devNBz1zQrb", label: "Brian — male, deep narrator" },
+  { id: "cjVigY5qzO86Huf0OWal", label: "Eric — male, smooth American" },
+  { id: "iP95p4xoKVk53GoZ742B", label: "Chris — male, casual friendly" },
+  { id: "bIHbv24MWmeRgasZH58o", label: "Will — male, confident" },
+  { id: "pqHfZKP75CvOlQylNhV4", label: "Bill — male, mature storyteller" },
+  { id: "CwhRBWXzGAHq8TQ4Fs17", label: "Roger — male, classic broadcaster" },
+  { id: "IKne3meq5aSn9XLyUdCD", label: "Charlie — male, natural Australian" },
+  { id: "N2lVS1w4EtoT3dr4eOWO", label: "Callum — male, intense British" },
 ];
 
 type Voice = { id: string; prompt_id: string; file_name: string; prompt_category: string | null; is_active: boolean };
