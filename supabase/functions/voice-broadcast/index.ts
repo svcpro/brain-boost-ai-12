@@ -430,19 +430,13 @@ Deno.serve(async (req) => {
       const baseId = await uploadBaseForPhones([phone], baseName, userId);
 
       const schedDate = new Date(Date.now() + (cfg.schedule_lead_minutes ?? 11) * 60_000);
-      const composeRes = await composeCampaign({
+      const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
         userId,
         campaignName: `${trigger_key}_${user_id.slice(0, 8)}_${Date.now()}`,
-        templateId: 0,
-        dtmf: "",
-        baseId: Number(baseId),
-        welcomePId: Number(promptId),
-        menuPId: "", noInputPId: "", wrongInputPId: "", thanksPId: "",
+        baseId,
+        welcomePId: promptId,
         scheduleTime: formatSchedule(schedDate),
-        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
-        callDurationSMS: 0, retries: 2, retryInterval: 10,
-        agentRows: "", menuWaitTime: 5, rePrompt: 1,
-      });
+      }));
       const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
 
       await supabase.from("voice_broadcast_logs").insert({
@@ -511,15 +505,13 @@ Deno.serve(async (req) => {
       const leadMin = cfg?.schedule_lead_minutes ?? 11;
       const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
 
-      const composeRes = await composeCampaign({
-        userId, campaignName, templateId: 0, dtmf: "",
-        baseId: Number(baseId), welcomePId: Number(promptId),
-        menuPId: "", noInputPId: "", wrongInputPId: "", thanksPId: "",
+      const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
+        userId,
+        campaignName: String(campaignName),
+        baseId,
+        welcomePId: promptId,
         scheduleTime: formatSchedule(schedDate),
-        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
-        callDurationSMS: 0, retries: 2, retryInterval: 10,
-        agentRows: "", menuWaitTime: 5, rePrompt: 1,
-      });
+      }));
       const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
       await supabase.from("voice_broadcast_campaigns").insert({
         campaign_id_external: externalId || null,
