@@ -464,8 +464,13 @@ Deno.serve(async (req) => {
         throw e;
       }
 
+      // OBD requires unique campaign names per account. Always suffix with timestamp
+      // to prevent silent "-1" duplicate-name rejections that previously got
+      // stored as `scheduled` despite never actually being scheduled.
+      const uniqueCampaignName = `${String(campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 35)}_${Date.now().toString(36)}`;
+
       const payload = buildSimpleIvrComposePayload({
-        userId, campaignName, templateId, dtmf, baseId, welcomePId,
+        userId, campaignName: uniqueCampaignName, templateId, dtmf, baseId, welcomePId,
         menuPId, noInputPId, wrongInputPId, thanksPId, scheduleTime,
         retries, retryInterval, menuWaitTime, rePrompt, location: locationNorm, clis: clisNorm,
       });
@@ -477,7 +482,7 @@ Deno.serve(async (req) => {
           await supabase.from("voice_broadcast_campaigns").insert({
             campaign_id_external: null,
             base_id: String(baseId),
-            campaign_name: campaignName,
+            campaign_name: uniqueCampaignName,
             template_id: templateId,
             prompt_id: String(welcomePId),
             scheduled_at: schedDate.toISOString(),
@@ -493,17 +498,30 @@ Deno.serve(async (req) => {
         }
         throw e;
       }
-      const externalId = String(data?.campaignId || data?.campId || "");
+      const externalId = String(data?.campaignId ?? data?.campId ?? "");
+      // OBD returns campaignId === "-1" for duplicate-name / soft rejections.
+      // Treat any non-positive id as a failed schedule rather than silently
+      // recording it as "scheduled".
+      const idNum = Number(externalId);
+      const composeOk = externalId !== "" && Number.isFinite(idNum) && idNum > 0;
       await supabase.from("voice_broadcast_campaigns").insert({
-        campaign_id_external: externalId || null,
+        campaign_id_external: composeOk ? externalId : null,
         base_id: String(baseId),
-        campaign_name: campaignName,
+        campaign_name: uniqueCampaignName,
         template_id: templateId,
         prompt_id: String(welcomePId),
         scheduled_at: schedDate.toISOString(),
-        status: "scheduled",
-        stats: data,
+        status: composeOk ? "scheduled" : "compose_failed",
+        stats: composeOk ? data : { obdSoftReject: true, response: data },
       });
+      if (!composeOk) {
+        return json({
+          ok: false,
+          obdRejected: true,
+          message: String((data as any)?.message || "OBD did not schedule the campaign (no campaignId returned)."),
+          response: data,
+        }, 200);
+      }
       return json({ ok: true, response: data });
     }
 
