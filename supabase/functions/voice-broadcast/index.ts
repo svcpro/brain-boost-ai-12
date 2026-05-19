@@ -405,7 +405,30 @@ Deno.serve(async (req) => {
         menuPId, noInputPId, wrongInputPId, thanksPId, scheduleTime,
         retries, retryInterval, menuWaitTime, rePrompt, location, clis,
       });
-      const data = await composeCampaign(payload);
+      let data: Record<string, unknown>;
+      try {
+        data = await composeCampaign(payload);
+      } catch (e) {
+        if (e instanceof ObdComposeError) {
+          await supabase.from("voice_broadcast_campaigns").insert({
+            campaign_id_external: null,
+            base_id: String(baseId),
+            campaign_name: campaignName,
+            template_id: templateId,
+            prompt_id: String(welcomePId),
+            scheduled_at: schedDate.toISOString(),
+            status: "compose_failed",
+            stats: { obdRejected: true, status: e.status, response: e.response, payload: e.payload },
+          });
+          return json({
+            ok: false,
+            obdRejected: true,
+            message: "OBD rejected the compose request as Parameters Incorrect. The failed campaign was saved for review; verify OBD location/CLI allocation for this account.",
+            response: e.response,
+          }, 200);
+        }
+        throw e;
+      }
       const externalId = String(data?.campaignId || data?.campId || "");
       await supabase.from("voice_broadcast_campaigns").insert({
         campaign_id_external: externalId || null,
