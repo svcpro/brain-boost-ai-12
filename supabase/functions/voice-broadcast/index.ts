@@ -109,6 +109,61 @@ async function composeCampaign(payload: Record<string, unknown>) {
   return data;
 }
 
+// ─── ElevenLabs TTS helper (supports Hinglish via multilingual_v2) ───
+async function elevenLabsTTS(text: string, voiceId: string): Promise<Uint8Array> {
+  const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
+  if (!apiKey) throw new Error("ELEVENLABS_API_KEY not configured");
+  const res = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.4, use_speaker_boost: true },
+      }),
+    },
+  );
+  if (!res.ok) {
+    const errTxt = await res.text();
+    throw new Error(`ElevenLabs TTS failed: ${res.status} ${errTxt}`);
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function uploadPromptToOBD(opts: {
+  bytes: Uint8Array; fileName: string; fileType: "mp3" | "wav"; promptCategory: string; userId: string;
+}): Promise<string> {
+  const blob = new Blob([opts.bytes], { type: opts.fileType === "mp3" ? "audio/mpeg" : "audio/wav" });
+  const fd = new FormData();
+  fd.append("waveFile", blob, `${opts.fileName}.${opts.fileType}`);
+  fd.append("userId", opts.userId);
+  fd.append("fileName", opts.fileName);
+  fd.append("promptCategory", opts.promptCategory);
+  fd.append("fileType", opts.fileType);
+  const res = await obdFetch(`/api/obd/promptupload`, { method: "POST", body: fd });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.promptId) throw new Error(`promptupload failed: ${JSON.stringify(data)}`);
+  await supabase.from("voice_broadcast_voice_files").insert({
+    prompt_id: String(data.promptId),
+    file_name: opts.fileName,
+    prompt_category: opts.promptCategory,
+    prompt_status: 0,
+    is_active: true,
+  }).then(() => {}, () => {});
+  return String(data.promptId);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -342,6 +397,69 @@ Deno.serve(async (req) => {
       }).then(() => {}, () => {});
 
       return json({ ok: true, campaignId: externalId, scheduled_at: schedDate.toISOString() });
+    }
+
+    // ─── TTS: generate voice from Hinglish/Hindi/English text and save as OBD prompt ───
+    if (action === "tts_generate_voice") {
+      const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "welcome" } = body;
+      if (!text || !voiceName) return json({ error: "text and voiceName required" }, 400);
+      const { userId } = await getToken();
+      const audio = await elevenLabsTTS(String(text), String(voiceId));
+      const safeName = String(voiceName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
+      const promptId = await uploadPromptToOBD({
+        bytes: audio, fileName: safeName, fileType: "mp3", promptCategory, userId,
+      });
+      return json({ ok: true, promptId, fileName: safeName });
+    }
+
+    // ─── TTS Broadcast: text → voice → upload → schedule campaign in one shot ───
+    if (action === "tts_broadcast") {
+      const {
+        text, phones, campaignName,
+        voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "broadcast",
+        scheduleAt,
+      } = body;
+      if (!text || !campaignName) return json({ error: "text and campaignName required" }, 400);
+      const phoneList: string[] = Array.isArray(phones) ? phones : [];
+      if (phoneList.length === 0) return json({ error: "phones[] required" }, 400);
+
+      const { userId } = await getToken();
+      const audio = await elevenLabsTTS(String(text), String(voiceId));
+      const safeName = `tts-${String(campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40)}-${Date.now()}`;
+      const promptId = await uploadPromptToOBD({
+        bytes: audio, fileName: safeName, fileType: "mp3", promptCategory, userId,
+      });
+      const baseId = await uploadBaseForPhones(phoneList, `${safeName}-base`, userId);
+
+      const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
+      const leadMin = cfg?.schedule_lead_minutes ?? 11;
+      const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
+
+      const composeRes = await composeCampaign({
+        userId, campaignName, templateId: 0, dtmf: "",
+        baseId: Number(baseId), welcomePId: Number(promptId),
+        menuPId: "", noInputPId: "", wrongInputPId: "", thanksPId: "",
+        scheduleTime: formatSchedule(schedDate),
+        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
+        callDurationSMS: 0, retries: 2, retryInterval: 10,
+        agentRows: "", menuWaitTime: 5, rePrompt: 1,
+      });
+      const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
+      await supabase.from("voice_broadcast_campaigns").insert({
+        campaign_id_external: externalId || null,
+        base_id: String(baseId),
+        campaign_name: campaignName,
+        template_id: 0,
+        prompt_id: String(promptId),
+        scheduled_at: schedDate.toISOString(),
+        status: "scheduled",
+        stats: composeRes,
+      }).then(() => {}, () => {});
+
+      return json({
+        ok: true, promptId, baseId, campaignId: externalId,
+        scheduled_at: schedDate.toISOString(),
+      });
     }
 
     return json({ error: `Unknown action: ${action}` }, 400);

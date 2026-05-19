@@ -9,7 +9,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square } from "lucide-react";
+import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square, Wand2 } from "lucide-react";
+
+const TTS_VOICES = [
+  { id: "pFZP5JQG7iQjIQuC4Bku", label: "Lily (female, warm)" },
+  { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda (female, friendly)" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah (female, professional)" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George (male, authoritative)" },
+  { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel (male, news anchor)" },
+  { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam (male, energetic)" },
+];
 
 type Voice = { id: string; prompt_id: string; file_name: string; prompt_category: string | null; is_active: boolean };
 type Campaign = {
@@ -37,6 +46,13 @@ export default function VoiceBroadcastCenter() {
   const [upFile, setUpFile] = useState<File | null>(null);
   const [upName, setUpName] = useState("");
   const [upCat, setUpCat] = useState("welcome");
+
+  // TTS form
+  const [ttsText, setTtsText] = useState("");
+  const [ttsVoiceId, setTtsVoiceId] = useState(TTS_VOICES[0].id);
+  const [ttsCampName, setTtsCampName] = useState("");
+  const [ttsPhones, setTtsPhones] = useState("");
+  const [ttsMode, setTtsMode] = useState<"broadcast" | "save_only">("broadcast");
 
   // compose form
   const [phones, setPhones] = useState("");
@@ -117,6 +133,31 @@ export default function VoiceBroadcastCenter() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
+  const handleTTS = async () => {
+    if (!ttsText.trim() || !ttsCampName.trim()) return toast.error("Text and name required");
+    if (ttsText.length > 1500) return toast.error("Keep text under 1500 chars");
+    setBusy(true);
+    try {
+      if (ttsMode === "save_only") {
+        const r = await callVB("tts_generate_voice", {
+          text: ttsText, voiceName: ttsCampName, voiceId: ttsVoiceId, promptCategory: "tts",
+        });
+        toast.success(`Voice saved · Prompt #${r.promptId}`);
+        setTtsText(""); setTtsCampName("");
+        refreshVoices();
+      } else {
+        const list = ttsPhones.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+        if (!list.length) return toast.error("Add phone numbers");
+        const r = await callVB("tts_broadcast", {
+          text: ttsText, phones: list, campaignName: ttsCampName, voiceId: ttsVoiceId,
+        });
+        toast.success(`Scheduled · Campaign #${r.campaignId || "—"}`);
+        setTtsText(""); setTtsCampName(""); setTtsPhones("");
+        refreshVoices(); refreshCampaigns();
+      }
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+  };
+
   const controlCampaign = async (action: "pause" | "resume" | "stop", id: string) => {
     try {
       await callVB(action, { campaignId: id });
@@ -148,13 +189,88 @@ export default function VoiceBroadcastCenter() {
         <Card className="p-3 border-destructive/40 bg-destructive/10 text-sm text-destructive">{status.error}</Card>
       )}
 
-      <Tabs defaultValue="settings">
+      <Tabs defaultValue="tts">
         <TabsList>
           <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="tts">✨ Text → Voice</TabsTrigger>
           <TabsTrigger value="voices">Voice Library</TabsTrigger>
           <TabsTrigger value="broadcast">New Broadcast</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
         </TabsList>
+
+        {/* TTS — type Hinglish / Hindi / English, system generates & broadcasts */}
+        <TabsContent value="tts">
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">AI Voice Broadcast — Hinglish / Hindi / English</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Type a message in Hinglish, Hindi or English. We generate a natural voice with ElevenLabs and place IVR calls automatically.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label>Campaign / Voice Name</Label>
+                <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="diwali-greeting-2026" />
+              </div>
+              <div>
+                <Label>Voice</Label>
+                <Select value={ttsVoiceId} onValueChange={setTtsVoiceId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TTS_VOICES.map((v) => <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Message Text ({ttsText.length}/1500)</Label>
+              <textarea
+                className="w-full min-h-[140px] p-2 border rounded bg-background text-sm"
+                value={ttsText}
+                onChange={(e) => setTtsText(e.target.value.slice(0, 1500))}
+                placeholder="Namaste! ACRY AI mein aapka swagat hai. Aaj hi apna AI Second Brain activate karein aur smart study shuru karein."
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Tip: Write Hinglish in Roman script (e.g. "Namaste, aap kaise hain") — multilingual voice handles it naturally.
+              </p>
+            </div>
+
+            <div>
+              <Label>Mode</Label>
+              <Select value={ttsMode} onValueChange={(v) => setTtsMode(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="broadcast">Generate + Broadcast now</SelectItem>
+                  <SelectItem value="save_only">Generate + Save to Voice Library</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {ttsMode === "broadcast" && (
+              <div>
+                <Label>Phone Numbers (comma / newline separated)</Label>
+                <textarea
+                  className="w-full min-h-[100px] p-2 border rounded bg-background text-sm font-mono"
+                  value={ttsPhones} onChange={(e) => setTtsPhones(e.target.value)}
+                  placeholder="9876543210, 9876543211"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {ttsPhones.split(/[\s,;\n]+/).filter(Boolean).length} numbers
+                </p>
+              </div>
+            )}
+
+            <Button onClick={handleTTS} disabled={busy} className="w-full">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Wand2 className="w-4 h-4 mr-1" />}
+              {ttsMode === "broadcast" ? "Generate Voice & Schedule Broadcast" : "Generate & Save Voice"}
+            </Button>
+          </Card>
+        </TabsContent>
+
+
 
         {/* SETTINGS */}
         <TabsContent value="settings">
