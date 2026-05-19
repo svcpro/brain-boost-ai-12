@@ -141,15 +141,23 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+const VALID_PROMPT_CATEGORIES = new Set(["welcome", "menu", "thanks", "noinput", "wronginput"]);
+
+function normalizePromptCategory(value: unknown): string {
+  const category = String(value || "welcome").trim().toLowerCase();
+  return VALID_PROMPT_CATEGORIES.has(category) ? category : "welcome";
+}
+
 async function uploadPromptToOBD(opts: {
   bytes: Uint8Array; fileName: string; fileType: "mp3" | "wav"; promptCategory: string; userId: string;
 }): Promise<string> {
+  const promptCategory = normalizePromptCategory(opts.promptCategory);
   const blob = new Blob([opts.bytes], { type: opts.fileType === "mp3" ? "audio/mpeg" : "audio/wav" });
   const fd = new FormData();
   fd.append("waveFile", blob, `${opts.fileName}.${opts.fileType}`);
   fd.append("userId", opts.userId);
   fd.append("fileName", opts.fileName);
-  fd.append("promptCategory", opts.promptCategory);
+  fd.append("promptCategory", promptCategory);
   fd.append("fileType", opts.fileType);
   const res = await obdFetch(`/api/obd/promptupload`, { method: "POST", body: fd });
   const data = await res.json().catch(() => ({}));
@@ -157,7 +165,7 @@ async function uploadPromptToOBD(opts: {
   await supabase.from("voice_broadcast_voice_files").insert({
     prompt_id: String(data.promptId),
     file_name: opts.fileName,
-    prompt_category: opts.promptCategory,
+    prompt_category: promptCategory,
     prompt_status: 0,
     is_active: true,
   }).then(() => {}, () => {});
@@ -204,16 +212,17 @@ Deno.serve(async (req) => {
 
     if (action === "upload_voice") {
       // expects: fileBase64, fileName, fileType, promptCategory
-      const { fileBase64, fileName, fileType = "wav", promptCategory = "transactional" } = body;
+      const { fileBase64, fileName, fileType = "wav", promptCategory = "welcome" } = body;
       if (!fileBase64 || !fileName) return json({ error: "fileBase64 and fileName required" }, 400);
       const { userId } = await getToken();
+      const safePromptCategory = normalizePromptCategory(promptCategory);
       const binary = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
       const blob = new Blob([binary], { type: fileType === "mp3" ? "audio/mpeg" : "audio/wav" });
       const fd = new FormData();
       fd.append("waveFile", blob, `${fileName}.${fileType}`);
       fd.append("userId", userId);
       fd.append("fileName", fileName);
-      fd.append("promptCategory", promptCategory);
+      fd.append("promptCategory", safePromptCategory);
       fd.append("fileType", fileType);
       const res = await obdFetch(`/api/obd/promptupload`, { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
@@ -221,7 +230,7 @@ Deno.serve(async (req) => {
         await supabase.from("voice_broadcast_voice_files").insert({
           prompt_id: String(data.promptId),
           file_name: fileName,
-          prompt_category: promptCategory,
+          prompt_category: safePromptCategory,
           prompt_status: 0,
           is_active: true,
         }).then(() => {}, () => {});
@@ -409,7 +418,7 @@ Deno.serve(async (req) => {
 
     // ─── TTS: generate voice from Hinglish/Hindi/English text and save as OBD prompt ───
     if (action === "tts_generate_voice") {
-      const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "transactional" } = body;
+      const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "welcome" } = body;
       if (!text || !voiceName) return json({ error: "text and voiceName required" }, 400);
       const { userId } = await getToken();
       const audio = await elevenLabsTTS(String(text), String(voiceId));
@@ -424,7 +433,7 @@ Deno.serve(async (req) => {
     if (action === "tts_broadcast") {
       const {
         text, phones, campaignName,
-        voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "transactional",
+        voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "welcome",
         scheduleAt,
       } = body;
       if (!text || !campaignName) return json({ error: "text and campaignName required" }, 400);
