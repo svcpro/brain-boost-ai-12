@@ -166,14 +166,16 @@ function buildSimpleIvrComposePayload(input: {
   menuWaitTime?: string | number;
   rePrompt?: string | number;
 }) {
-  // Per OBD spec sample (Simple IVR templateId=0): all IDs as strings,
-  // retries/retryInterval as integer, agentRows="\"\"", ttsRows="[]",
-  // sms*Api as JSON-string or "{}", webhook as boolean.
+  // Per OBD spec sample for Simple IVR (templateId=0): IDs are strings,
+  // DTMF-only values (smsDtmfApi/menuWaitTime/rePrompt) must be empty strings,
+  // agentRows must be the literal JSON-string value "\"\"", and ttsRows="[]".
+  const templateId = String(input.templateId ?? 0);
+  const isSimpleIvr = templateId === "0";
   return {
     userId: String(input.userId),
     campaignName: String(input.campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50),
-    templateId: String(input.templateId ?? 0),
-    dtmf: typeof input.dtmf === "string" ? input.dtmf : "",
+    templateId,
+    dtmf: isSimpleIvr ? "" : typeof input.dtmf === "string" ? input.dtmf : "",
     baseId: String(input.baseId),
     welcomePId: String(input.welcomePId),
     menuPId: input.menuPId ? String(input.menuPId) : "",
@@ -183,13 +185,13 @@ function buildSimpleIvrComposePayload(input: {
     scheduleTime: input.scheduleTime,
     smsSuccessApi: "{}",
     smsFailApi: "{}",
-    smsDtmfApi: "{}",
+    smsDtmfApi: isSimpleIvr ? "" : "{}",
     callDurationSMS: 0,
-    retries: Number(input.retries ?? 0) || 0,
-    retryInterval: Number(input.retryInterval ?? 0) || 0,
+    retries: isSimpleIvr ? 0 : Number(input.retries ?? 0) || 0,
+    retryInterval: isSimpleIvr ? 0 : Number(input.retryInterval ?? 0) || 0,
     agentRows: "\"\"",
-    menuWaitTime: input.menuWaitTime != null && input.menuWaitTime !== "" ? String(input.menuWaitTime) : "",
-    rePrompt: input.rePrompt != null && input.rePrompt !== "" ? String(input.rePrompt) : "",
+    menuWaitTime: isSimpleIvr ? "" : input.menuWaitTime != null && input.menuWaitTime !== "" ? String(input.menuWaitTime) : "",
+    rePrompt: isSimpleIvr ? "" : input.rePrompt != null && input.rePrompt !== "" ? String(input.rePrompt) : "",
     location: "",
     clis: "",
     webhook: false,
