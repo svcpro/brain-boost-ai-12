@@ -244,7 +244,18 @@ export default function VoiceBroadcastCenter() {
                 <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="diwali-greeting-2026" />
               </div>
               <div>
-                <Label>Voice</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Voice</Label>
+                  <Button
+                    type="button" size="sm" variant="ghost"
+                    className="h-6 px-2 text-xs"
+                    onClick={handlePreviewVoice}
+                    disabled={previewing}
+                  >
+                    {previewing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Play className="w-3 h-3 mr-1" />}
+                    {previewAudio ? "Playing…" : "Preview"}
+                  </Button>
+                </div>
                 <Select value={ttsVoiceId} onValueChange={setTtsVoiceId}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
