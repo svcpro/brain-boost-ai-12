@@ -47,6 +47,13 @@ export default function VoiceBroadcastCenter() {
   const [upName, setUpName] = useState("");
   const [upCat, setUpCat] = useState("welcome");
 
+  // TTS form
+  const [ttsText, setTtsText] = useState("");
+  const [ttsVoiceId, setTtsVoiceId] = useState(TTS_VOICES[0].id);
+  const [ttsCampName, setTtsCampName] = useState("");
+  const [ttsPhones, setTtsPhones] = useState("");
+  const [ttsMode, setTtsMode] = useState<"broadcast" | "save_only">("broadcast");
+
   // compose form
   const [phones, setPhones] = useState("");
   const [campName, setCampName] = useState("");
