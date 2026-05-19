@@ -348,12 +348,31 @@ Deno.serve(async (req) => {
         menuPId = "", noInputPId = "", wrongInputPId = "", thanksPId = "",
         retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1 } = body;
       if (!campaignName || !baseId || !welcomePId) return json({ error: "campaignName, baseId, welcomePId required" }, 400);
-      await assertPromptApproved(welcomePId);
 
       const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
       const leadMin = cfg?.schedule_lead_minutes ?? 11;
       const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
       const scheduleTime = formatSchedule(schedDate);
+
+      try {
+        await assertPromptApproved(welcomePId);
+      } catch (e) {
+        if (e instanceof RequestError && e.status === 409) {
+          // Persist a pending row so it shows up in the Campaigns tab
+          await supabase.from("voice_broadcast_campaigns").insert({
+            campaign_id_external: null,
+            base_id: String(baseId),
+            campaign_name: campaignName,
+            template_id: templateId,
+            prompt_id: String(welcomePId),
+            scheduled_at: schedDate.toISOString(),
+            status: "pending_approval",
+            stats: { pendingApproval: true, message: e.message },
+          });
+          return json({ ok: false, pendingApproval: true, message: e.message }, 200);
+        }
+        throw e;
+      }
 
       const payload = buildSimpleIvrComposePayload({
         userId, campaignName, templateId, dtmf, baseId, welcomePId,
