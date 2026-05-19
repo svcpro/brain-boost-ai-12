@@ -104,7 +104,7 @@ function normalizeObdClis(raw: unknown): NormalizedObdField {
 }
 
 function getObdRoutingFields(body: Record<string, unknown> = {}) {
-  const loc = normalizeObdLocation(body.location ?? Deno.env.get("OBD_LOCATION_JSON") ?? "");
+  const loc = normalizeObdLocation(body.location ?? Deno.env.get("OBD_LOCATION_JSON") ?? DEFAULT_OBD_LOCATION_JSON);
   if (!loc.ok) throw new RequestError(loc.error, 400);
   const cli = normalizeObdClis(body.clis ?? Deno.env.get("OBD_CLIS_JSON") ?? "");
   if (!cli.ok) throw new RequestError(cli.error, 400);
@@ -200,11 +200,7 @@ async function uploadBaseForPhones(phones: string[], baseName: string, userId: s
 }
 
 async function composeCampaign(payload: Record<string, unknown>) {
-  const attempts = [
-    payload,
-    { ...payload, callDurationSMS: 0 },
-    { ...payload, templateId: Number(payload.templateId), baseId: Number(payload.baseId), welcomePId: Number(payload.welcomePId), callDurationSMS: 0 },
-  ].filter((p, i, arr) => arr.findIndex((x) => JSON.stringify(x) === JSON.stringify(p)) === i);
+  const attempts = [payload];
 
   let lastError: ObdComposeError | null = null;
   for (const attempt of attempts) {
