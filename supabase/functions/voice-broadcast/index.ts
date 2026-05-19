@@ -340,6 +340,7 @@ Deno.serve(async (req) => {
         menuPId = "", noInputPId = "", wrongInputPId = "", thanksPId = "",
         retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1 } = body;
       if (!campaignName || !baseId || !welcomePId) return json({ error: "campaignName, baseId, welcomePId required" }, 400);
+      await assertPromptApproved(welcomePId);
 
       const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
       const leadMin = cfg?.schedule_lead_minutes ?? 11;
@@ -449,6 +450,7 @@ Deno.serve(async (req) => {
 
       const { userId } = await getToken();
       const baseName = `auto-${trigger_key}-${user_id.slice(0, 8)}-${Date.now()}`;
+      await assertPromptApproved(promptId);
       const baseId = await uploadBaseForPhones([phone], baseName, userId);
 
       const schedDate = new Date(Date.now() + (cfg.schedule_lead_minutes ?? 11) * 60_000);
@@ -521,8 +523,15 @@ Deno.serve(async (req) => {
       const promptId = await uploadPromptToOBD({
         bytes: audio, fileName: safeName, fileType: "mp3", promptCategory, userId,
       });
-      const baseId = await uploadBaseForPhones(phoneList, `${safeName}-base`, userId);
+      return json({
+        ok: false,
+        promptId,
+        fileName: safeName,
+        pendingApproval: true,
+        message: `Voice generated as prompt #${promptId}. OBD requires admin approval before campaign compose; sync Voice Library after approval, then schedule the broadcast.`,
+      }, 202);
 
+      const baseId = await uploadBaseForPhones(phoneList, `${safeName}-base`, userId);
       const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
       const leadMin = cfg?.schedule_lead_minutes ?? 11;
       const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
