@@ -188,6 +188,31 @@ Deno.serve(async (req) => {
       console.error("Voice error:", e);
     }
 
+    // ─── 5. VOICE BROADCAST (OBD/IVR welcome call) ───
+    try {
+      const { data: vbCfg } = await supabase
+        .from("voice_broadcast_config")
+        .select("is_enabled, signup_trigger_enabled")
+        .maybeSingle();
+      if (vbCfg?.is_enabled && vbCfg?.signup_trigger_enabled) {
+        const vbResp = await fetch(`${SUPABASE_URL}/functions/v1/voice-broadcast`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "send_to_user", user_id, trigger_key: "signup" }),
+        });
+        const vbOut = await vbResp.json().catch(() => ({}));
+        results.voice_broadcast = { status: vbResp.ok ? "queued" : "failed", ...vbOut };
+      } else {
+        results.voice_broadcast = { status: "skipped", reason: "trigger_disabled" };
+      }
+    } catch (e) {
+      results.voice_broadcast = { status: "error", message: e instanceof Error ? e.message : "unknown" };
+      console.error("Voice broadcast error:", e);
+    }
+
     return new Response(JSON.stringify({ success: true, event, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
