@@ -45,6 +45,61 @@ class ObdComposeError extends Error {
   }
 }
 
+type NormalizedObdField = { ok: true; value: string } | { ok: false; error: string };
+
+// OBD compose docs: `location` and `clis` are mandatory JSON fields, but their
+// values may be empty strings. When provided, `location` must be sent as a
+// JSON-encoded string shaped like: {"locationList":[{"locationId":1,"locationName":"ahmedabad"}]}.
+function normalizeObdLocation(raw: unknown): NormalizedObdField {
+  if (raw == null || raw === "") return { ok: true, value: "" };
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj.locationList)) return { ok: true, value: JSON.stringify(obj) };
+    if (Array.isArray(raw)) return normalizeObdLocation(JSON.stringify(raw));
+    return { ok: false, error: 'location must be a JSON string, {"locationList":[...]}, or an array of locations' };
+  }
+  if (typeof raw !== "string") return { ok: false, error: "location must be a string" };
+  const trimmed = raw.trim();
+  if (trimmed === "") return { ok: true, value: "" };
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      const list = parsed
+        .map((it: any) => ({
+          locationId: Number(it?.locationId ?? it?.id),
+          locationName: String(it?.locationName ?? it?.name ?? ""),
+        }))
+        .filter((it) => Number.isFinite(it.locationId));
+      if (list.length === 0) return { ok: false, error: "location array has no valid {locationId,locationName} entries" };
+      return { ok: true, value: JSON.stringify({ locationList: list }) };
+    }
+    if (parsed && typeof parsed === "object" && Array.isArray((parsed as any).locationList)) {
+      return { ok: true, value: JSON.stringify(parsed) };
+    }
+    return { ok: false, error: 'location must be {"locationList":[{"locationId":1,"locationName":"ahmedabad"}]} or an array of {locationId,locationName}' };
+  } catch {
+    return { ok: false, error: "location is not valid JSON" };
+  }
+}
+
+function normalizeObdClis(raw: unknown): NormalizedObdField {
+  if (raw == null || raw === "") return { ok: true, value: "" };
+  if (typeof raw === "object") return { ok: true, value: JSON.stringify(raw) };
+  if (typeof raw !== "string") return { ok: false, error: "clis must be a string" };
+  const trimmed = raw.trim();
+  if (trimmed === "") return { ok: true, value: "" };
+  try { JSON.parse(trimmed); return { ok: true, value: trimmed }; }
+  catch { return { ok: false, error: "clis is not valid JSON" }; }
+}
+
+function getObdRoutingFields(body: Record<string, unknown> = {}) {
+  const loc = normalizeObdLocation(body.location ?? Deno.env.get("OBD_LOCATION_JSON") ?? "");
+  if (!loc.ok) throw new RequestError(loc.error, 400);
+  const cli = normalizeObdClis(body.clis ?? Deno.env.get("OBD_CLIS_JSON") ?? "");
+  if (!cli.ok) throw new RequestError(cli.error, 400);
+  return { location: loc.value, clis: cli.value };
+}
+
 async function getToken(forceRefresh = false): Promise<{ token: string; userId: string }> {
   const obdUserId = Deno.env.get("OBD_USER_ID") || "";
   if (!forceRefresh) {
@@ -370,61 +425,10 @@ Deno.serve(async (req) => {
       const { userId } = await getToken();
       const { campaignName, baseId, welcomePId, templateId = 0, scheduleAt, dtmf = "",
         menuPId = "", noInputPId = "", wrongInputPId = "", thanksPId = "",
-        retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1,
-        location = Deno.env.get("OBD_LOCATION_JSON") || "",
-        clis = Deno.env.get("OBD_CLIS_JSON") || "" } = body;
+        retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1 } = body;
       if (!campaignName || !baseId || !welcomePId) return json({ error: "campaignName, baseId, welcomePId required" }, 400);
 
-      // ─── OBD compose pre-validation (per official API spec, page 10-11) ───
-      // Per spec, for Simple IVR (templateId=0): location/clis are mandatory FIELDS but
-      // ACCEPT EMPTY STRINGS (""). When non-empty, location must be a JSON-stringified
-      // object: {"locationList":[{"locationId":1,"locationName":"ahmedabad"}, ...]}.
-      // We accept either that exact shape or a JS array of {locationId,locationName} (or
-      // {id,name}) from the OBD_LOCATION_JSON env, and normalize before sending.
-      const normalizeLocation = (raw: unknown): { ok: true; value: string } | { ok: false; error: string } => {
-        if (raw == null || raw === "") return { ok: true, value: "" };
-        if (typeof raw !== "string") return { ok: false, error: "location must be a string" };
-        const trimmed = raw.trim();
-        if (trimmed === "") return { ok: true, value: "" };
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (Array.isArray(parsed)) {
-            const list = parsed
-              .map((it: any) => ({
-                locationId: Number(it?.locationId ?? it?.id),
-                locationName: String(it?.locationName ?? it?.name ?? ""),
-              }))
-              .filter((it) => Number.isFinite(it.locationId));
-            if (list.length === 0) return { ok: false, error: "location array has no valid {locationId,locationName} entries" };
-            return { ok: true, value: JSON.stringify({ locationList: list }) };
-          }
-          if (parsed && typeof parsed === "object" && Array.isArray((parsed as any).locationList)) {
-            return { ok: true, value: JSON.stringify(parsed) };
-          }
-          return { ok: false, error: 'location must be {"locationList":[{"locationId":1,"locationName":"ahmedabad"}]} or an array of {locationId,locationName}' };
-        } catch {
-          return { ok: false, error: "location is not valid JSON" };
-        }
-      };
-      const normalizeClis = (raw: unknown): { ok: true; value: string } | { ok: false; error: string } => {
-        if (raw == null || raw === "") return { ok: true, value: "" };
-        if (typeof raw !== "string") return { ok: false, error: "clis must be a string" };
-        const trimmed = raw.trim();
-        if (trimmed === "") return { ok: true, value: "" };
-        try { JSON.parse(trimmed); return { ok: true, value: trimmed }; }
-        catch { return { ok: false, error: "clis is not valid JSON" }; }
-      };
-
-      const locCheck = normalizeLocation(location);
-      if (!locCheck.ok) return json({ error: locCheck.error, field: "location" }, 400);
-      const cliCheck = normalizeClis(clis);
-      if (!cliCheck.ok) return json({ error: cliCheck.error, field: "clis" }, 400);
-      // Spec note: "if you pass location then clis is mandatory"
-      if (locCheck.value !== "" && cliCheck.value === "") {
-        return json({ error: "clis is required when location is set. Provide the allocated CLI list (OBD_CLIS_JSON) matching the location.", field: "clis" }, 400);
-      }
-      const locationNorm = locCheck.value;
-      const clisNorm = cliCheck.value;
+      const { location: locationNorm, clis: clisNorm } = getObdRoutingFields(body);
 
       const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
       const leadMin = cfg?.schedule_lead_minutes ?? 11;
@@ -581,12 +585,15 @@ Deno.serve(async (req) => {
       const baseId = await uploadBaseForPhones([phone], baseName, userId);
 
       const schedDate = new Date(Date.now() + (cfg.schedule_lead_minutes ?? 11) * 60_000);
+      const routing = getObdRoutingFields(body);
       const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
         userId,
         campaignName: `${trigger_key}_${user_id.slice(0, 8)}_${Date.now()}`,
         baseId,
         welcomePId: promptId,
         scheduleTime: formatSchedule(schedDate),
+        location: routing.location,
+        clis: routing.clis,
       }));
       const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
 
