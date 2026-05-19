@@ -69,8 +69,8 @@ import WhatsAppCommandCenter from "@/components/admin/WhatsAppCommandCenter";
 import VoiceBroadcastCenter from "@/components/admin/VoiceBroadcastCenter";
 import ReferralHandlesAdmin from "@/components/admin/ReferralHandlesAdmin";
 
-import { Link as LinkIcon } from "lucide-react";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "incidents" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles";
+import { Link as LinkIcon, PhoneCall } from "lucide-react";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "voice_broadcast" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "incidents" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
