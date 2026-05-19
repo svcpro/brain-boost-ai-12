@@ -33,6 +33,18 @@ class RequestError extends Error {
   }
 }
 
+class ObdComposeError extends Error {
+  status: number;
+  response: unknown;
+  payload: Record<string, unknown>;
+  constructor(status: number, response: unknown, payload: Record<string, unknown>) {
+    super(`compose failed: status ${status} ${JSON.stringify(response)}`);
+    this.status = status;
+    this.response = response;
+    this.payload = payload;
+  }
+}
+
 async function getToken(forceRefresh = false): Promise<{ token: string; userId: string }> {
   const obdUserId = Deno.env.get("OBD_USER_ID") || "";
   if (!forceRefresh) {
@@ -122,18 +134,26 @@ async function uploadBaseForPhones(phones: string[], baseName: string, userId: s
 }
 
 async function composeCampaign(payload: Record<string, unknown>) {
-  const res = await obdFetch(`/api/obd/campaign/compose`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const raw = await res.text();
-  const data = raw ? JSON.parse(raw) : {};
-  if (!res.ok) {
-    console.error("[voice-broadcast] compose rejected", JSON.stringify({ status: res.status, response: data, payload }));
-    throw new Error(`compose failed: status ${res.status} ${raw || "empty response"}`);
+  const attempts = [
+    payload,
+    { ...payload, callDurationSMS: 0 },
+    { ...payload, templateId: Number(payload.templateId), baseId: Number(payload.baseId), welcomePId: Number(payload.welcomePId), callDurationSMS: 0 },
+  ].filter((p, i, arr) => arr.findIndex((x) => JSON.stringify(x) === JSON.stringify(p)) === i);
+
+  let lastError: ObdComposeError | null = null;
+  for (const attempt of attempts) {
+    const res = await obdFetch(`/api/obd/campaign/compose`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(attempt),
+    });
+    const raw = await res.text();
+    const data = raw ? JSON.parse(raw) : {};
+    if (res.ok) return data;
+    console.error("[voice-broadcast] compose rejected", JSON.stringify({ status: res.status, response: data, payload: attempt }));
+    lastError = new ObdComposeError(res.status, data, attempt);
   }
-  return data;
+  throw lastError || new ObdComposeError(500, { message: "empty response" }, payload);
 }
 
 async function assertPromptApproved(promptId: string | number) {
