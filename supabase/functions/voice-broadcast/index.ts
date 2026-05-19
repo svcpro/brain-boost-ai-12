@@ -25,6 +25,14 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+class RequestError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function getToken(forceRefresh = false): Promise<{ token: string; userId: string }> {
   const obdUserId = Deno.env.get("OBD_USER_ID") || "";
   if (!forceRefresh) {
@@ -119,9 +127,26 @@ async function composeCampaign(payload: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`compose failed: ${JSON.stringify(data)}`);
+  const raw = await res.text();
+  const data = raw ? JSON.parse(raw) : {};
+  if (!res.ok) {
+    console.error("[voice-broadcast] compose rejected", JSON.stringify({ status: res.status, response: data, payload }));
+    throw new Error(`compose failed: status ${res.status} ${raw || "empty response"}`);
+  }
   return data;
+}
+
+async function assertPromptApproved(promptId: string | number) {
+  const id = String(promptId || "").trim();
+  if (!id) throw new RequestError("Voice prompt is required", 400);
+  const { data: localPrompt } = await supabase
+    .from("voice_broadcast_voice_files")
+    .select("prompt_id, prompt_status, is_active")
+    .eq("prompt_id", id)
+    .maybeSingle();
+  if (localPrompt && (localPrompt.prompt_status !== 1 || !localPrompt.is_active)) {
+    throw new RequestError(`Voice prompt #${id} is still pending OBD admin approval. Sync Voice Library after approval, then schedule the broadcast.`, 409);
+  }
 }
 
 function buildSimpleIvrComposePayload(input: {
@@ -236,7 +261,7 @@ async function uploadPromptToOBD(opts: {
     file_name: opts.fileName,
     prompt_category: promptCategory,
     prompt_status: 0,
-    is_active: true,
+    is_active: false,
   }).then(() => {}, () => {});
   return String(data.promptId);
 }
@@ -301,7 +326,7 @@ Deno.serve(async (req) => {
           file_name: fileName,
           prompt_category: safePromptCategory,
           prompt_status: 0,
-          is_active: true,
+          is_active: false,
         }).then(() => {}, () => {});
       }
       return json({ ok: res.ok, ...data });
@@ -323,6 +348,7 @@ Deno.serve(async (req) => {
         menuPId = "", noInputPId = "", wrongInputPId = "", thanksPId = "",
         retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1 } = body;
       if (!campaignName || !baseId || !welcomePId) return json({ error: "campaignName, baseId, welcomePId required" }, 400);
+      await assertPromptApproved(welcomePId);
 
       const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
       const leadMin = cfg?.schedule_lead_minutes ?? 11;
@@ -432,6 +458,7 @@ Deno.serve(async (req) => {
 
       const { userId } = await getToken();
       const baseName = `auto-${trigger_key}-${user_id.slice(0, 8)}-${Date.now()}`;
+      await assertPromptApproved(promptId);
       const baseId = await uploadBaseForPhones([phone], baseName, userId);
 
       const schedDate = new Date(Date.now() + (cfg.schedule_lead_minutes ?? 11) * 60_000);
@@ -504,40 +531,18 @@ Deno.serve(async (req) => {
       const promptId = await uploadPromptToOBD({
         bytes: audio, fileName: safeName, fileType: "mp3", promptCategory, userId,
       });
-      const baseId = await uploadBaseForPhones(phoneList, `${safeName}-base`, userId);
-
-      const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
-      const leadMin = cfg?.schedule_lead_minutes ?? 11;
-      const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
-
-      const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
-        userId,
-        campaignName: String(campaignName),
-        baseId,
-        welcomePId: promptId,
-        scheduleTime: formatSchedule(schedDate),
-      }));
-      const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
-      await supabase.from("voice_broadcast_campaigns").insert({
-        campaign_id_external: externalId || null,
-        base_id: String(baseId),
-        campaign_name: campaignName,
-        template_id: 0,
-        prompt_id: String(promptId),
-        scheduled_at: schedDate.toISOString(),
-        status: "scheduled",
-        stats: composeRes,
-      }).then(() => {}, () => {});
-
       return json({
-        ok: true, promptId, baseId, campaignId: externalId,
-        scheduled_at: schedDate.toISOString(),
-      });
+        ok: false,
+        promptId,
+        fileName: safeName,
+        pendingApproval: true,
+        message: `Voice generated as prompt #${promptId}. OBD requires admin approval before campaign compose; sync Voice Library after approval, then schedule the broadcast.`,
+      }, 202);
     }
 
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (e) {
     console.error("[voice-broadcast]", e);
-    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    return json({ error: e instanceof Error ? e.message : String(e) }, e instanceof RequestError ? e.status : 500);
   }
 });

@@ -34,7 +34,7 @@ const TTS_VOICES = [
   { id: "N2lVS1w4EtoT3dr4eOWO", label: "Callum — male, intense British" },
 ];
 
-type Voice = { id: string; prompt_id: string; file_name: string; prompt_category: string | null; is_active: boolean };
+type Voice = { id: string; prompt_id: string; file_name: string; prompt_category: string | null; prompt_status: number | null; is_active: boolean };
 type Campaign = {
   id: string; campaign_id_external: string | null; campaign_name: string;
   template_id: number; status: string; scheduled_at: string | null; created_at: string;
@@ -180,6 +180,12 @@ export default function VoiceBroadcastCenter() {
         const r = await callVB("tts_broadcast", {
           text: ttsText, phones: list, campaignName: ttsCampName, voiceId: ttsVoiceId,
         });
+        if (r.pendingApproval) {
+          toast.info(r.message || `Voice saved as prompt #${r.promptId}. Schedule after OBD approval.`);
+          setTtsText(""); setTtsCampName(""); setTtsPhones("");
+          refreshVoices();
+          return;
+        }
         toast.success(`Scheduled · Campaign #${r.campaignId || "—"}`);
         setTtsText(""); setTtsCampName(""); setTtsPhones("");
         refreshVoices(); refreshCampaigns();
@@ -344,7 +350,7 @@ export default function VoiceBroadcastCenter() {
                     <Select value={config.default_welcome_prompt_id || ""} onValueChange={(v) => saveConfig({ default_welcome_prompt_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Pick a voice…" /></SelectTrigger>
                       <SelectContent>
-                        {voices.filter((v) => v.is_active).map((v) => (
+                        {voices.filter((v) => v.is_active && v.prompt_status === 1).map((v) => (
                           <SelectItem key={v.prompt_id} value={v.prompt_id}>
                             #{v.prompt_id} · {v.file_name} ({v.prompt_category})
                           </SelectItem>
@@ -429,7 +435,7 @@ export default function VoiceBroadcastCenter() {
               <Select value={welcomePId} onValueChange={setWelcomePId}>
                 <SelectTrigger><SelectValue placeholder="Pick a voice…" /></SelectTrigger>
                 <SelectContent>
-                  {voices.filter((v) => v.is_active).map((v) => (
+                    {voices.filter((v) => v.is_active && v.prompt_status === 1).map((v) => (
                     <SelectItem key={v.prompt_id} value={v.prompt_id}>
                       #{v.prompt_id} · {v.file_name}
                     </SelectItem>
