@@ -45,6 +45,61 @@ class ObdComposeError extends Error {
   }
 }
 
+type NormalizedObdField = { ok: true; value: string } | { ok: false; error: string };
+
+// OBD compose docs: `location` and `clis` are mandatory JSON fields, but their
+// values may be empty strings. When provided, `location` must be sent as a
+// JSON-encoded string shaped like: {"locationList":[{"locationId":1,"locationName":"ahmedabad"}]}.
+function normalizeObdLocation(raw: unknown): NormalizedObdField {
+  if (raw == null || raw === "") return { ok: true, value: "" };
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj.locationList)) return { ok: true, value: JSON.stringify(obj) };
+    if (Array.isArray(raw)) return normalizeObdLocation(JSON.stringify(raw));
+    return { ok: false, error: 'location must be a JSON string, {"locationList":[...]}, or an array of locations' };
+  }
+  if (typeof raw !== "string") return { ok: false, error: "location must be a string" };
+  const trimmed = raw.trim();
+  if (trimmed === "") return { ok: true, value: "" };
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      const list = parsed
+        .map((it: any) => ({
+          locationId: Number(it?.locationId ?? it?.id),
+          locationName: String(it?.locationName ?? it?.name ?? ""),
+        }))
+        .filter((it) => Number.isFinite(it.locationId));
+      if (list.length === 0) return { ok: false, error: "location array has no valid {locationId,locationName} entries" };
+      return { ok: true, value: JSON.stringify({ locationList: list }) };
+    }
+    if (parsed && typeof parsed === "object" && Array.isArray((parsed as any).locationList)) {
+      return { ok: true, value: JSON.stringify(parsed) };
+    }
+    return { ok: false, error: 'location must be {"locationList":[{"locationId":1,"locationName":"ahmedabad"}]} or an array of {locationId,locationName}' };
+  } catch {
+    return { ok: false, error: "location is not valid JSON" };
+  }
+}
+
+function normalizeObdClis(raw: unknown): NormalizedObdField {
+  if (raw == null || raw === "") return { ok: true, value: "" };
+  if (typeof raw === "object") return { ok: true, value: JSON.stringify(raw) };
+  if (typeof raw !== "string") return { ok: false, error: "clis must be a string" };
+  const trimmed = raw.trim();
+  if (trimmed === "") return { ok: true, value: "" };
+  try { JSON.parse(trimmed); return { ok: true, value: trimmed }; }
+  catch { return { ok: false, error: "clis is not valid JSON" }; }
+}
+
+function getObdRoutingFields(body: Record<string, unknown> = {}) {
+  const loc = normalizeObdLocation(body.location ?? Deno.env.get("OBD_LOCATION_JSON") ?? "");
+  if (!loc.ok) throw new RequestError(loc.error, 400);
+  const cli = normalizeObdClis(body.clis ?? Deno.env.get("OBD_CLIS_JSON") ?? "");
+  if (!cli.ok) throw new RequestError(cli.error, 400);
+  return { location: loc.value, clis: cli.value };
+}
+
 async function getToken(forceRefresh = false): Promise<{ token: string; userId: string }> {
   const obdUserId = Deno.env.get("OBD_USER_ID") || "";
   if (!forceRefresh) {
