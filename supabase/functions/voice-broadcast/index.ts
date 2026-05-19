@@ -454,7 +454,7 @@ Deno.serve(async (req) => {
       const payload = buildSimpleIvrComposePayload({
         userId, campaignName, templateId, dtmf, baseId, welcomePId,
         menuPId, noInputPId, wrongInputPId, thanksPId, scheduleTime,
-        retries, retryInterval, menuWaitTime, rePrompt, location, clis,
+        retries, retryInterval, menuWaitTime, rePrompt, location: locationNorm, clis: clisNorm,
       });
       let data: Record<string, unknown>;
       try {
