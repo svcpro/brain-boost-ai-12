@@ -141,15 +141,23 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+const VALID_PROMPT_CATEGORIES = new Set(["welcome", "menu", "thanks", "noinput", "wronginput"]);
+
+function normalizePromptCategory(value: unknown): string {
+  const category = String(value || "welcome").trim().toLowerCase();
+  return VALID_PROMPT_CATEGORIES.has(category) ? category : "welcome";
+}
+
 async function uploadPromptToOBD(opts: {
   bytes: Uint8Array; fileName: string; fileType: "mp3" | "wav"; promptCategory: string; userId: string;
 }): Promise<string> {
+  const promptCategory = normalizePromptCategory(opts.promptCategory);
   const blob = new Blob([opts.bytes], { type: opts.fileType === "mp3" ? "audio/mpeg" : "audio/wav" });
   const fd = new FormData();
   fd.append("waveFile", blob, `${opts.fileName}.${opts.fileType}`);
   fd.append("userId", opts.userId);
   fd.append("fileName", opts.fileName);
-  fd.append("promptCategory", opts.promptCategory);
+  fd.append("promptCategory", promptCategory);
   fd.append("fileType", opts.fileType);
   const res = await obdFetch(`/api/obd/promptupload`, { method: "POST", body: fd });
   const data = await res.json().catch(() => ({}));
@@ -157,7 +165,7 @@ async function uploadPromptToOBD(opts: {
   await supabase.from("voice_broadcast_voice_files").insert({
     prompt_id: String(data.promptId),
     file_name: opts.fileName,
-    prompt_category: opts.promptCategory,
+    prompt_category: promptCategory,
     prompt_status: 0,
     is_active: true,
   }).then(() => {}, () => {});
