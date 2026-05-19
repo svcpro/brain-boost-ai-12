@@ -113,7 +113,7 @@ async function uploadBaseForPhones(phones: string[], baseName: string, userId: s
   fd.append("baseFile", blob, `${safeBaseName}.csv`);
   fd.append("userId", userId);
   fd.append("baseName", safeBaseName);
-  fd.append("contactList", "false");
+  fd.append("contactList", "null");
   const res = await obdFetch(`/api/obd/baseupload`, { method: "POST", body: fd });
   const raw = await res.text();
   const data = raw ? JSON.parse(raw) : {};
