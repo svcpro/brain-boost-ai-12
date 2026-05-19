@@ -464,8 +464,13 @@ Deno.serve(async (req) => {
         throw e;
       }
 
+      // OBD requires unique campaign names per account. Always suffix with timestamp
+      // to prevent silent "-1" duplicate-name rejections that previously got
+      // stored as `scheduled` despite never actually being scheduled.
+      const uniqueCampaignName = `${String(campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 35)}_${Date.now().toString(36)}`;
+
       const payload = buildSimpleIvrComposePayload({
-        userId, campaignName, templateId, dtmf, baseId, welcomePId,
+        userId, campaignName: uniqueCampaignName, templateId, dtmf, baseId, welcomePId,
         menuPId, noInputPId, wrongInputPId, thanksPId, scheduleTime,
         retries, retryInterval, menuWaitTime, rePrompt, location: locationNorm, clis: clisNorm,
       });
@@ -477,7 +482,7 @@ Deno.serve(async (req) => {
           await supabase.from("voice_broadcast_campaigns").insert({
             campaign_id_external: null,
             base_id: String(baseId),
-            campaign_name: campaignName,
+            campaign_name: uniqueCampaignName,
             template_id: templateId,
             prompt_id: String(welcomePId),
             scheduled_at: schedDate.toISOString(),
@@ -493,17 +498,30 @@ Deno.serve(async (req) => {
         }
         throw e;
       }
-      const externalId = String(data?.campaignId || data?.campId || "");
+      const externalId = String(data?.campaignId ?? data?.campId ?? "");
+      // OBD returns campaignId === "-1" for duplicate-name / soft rejections.
+      // Treat any non-positive id as a failed schedule rather than silently
+      // recording it as "scheduled".
+      const idNum = Number(externalId);
+      const composeOk = externalId !== "" && Number.isFinite(idNum) && idNum > 0;
       await supabase.from("voice_broadcast_campaigns").insert({
-        campaign_id_external: externalId || null,
+        campaign_id_external: composeOk ? externalId : null,
         base_id: String(baseId),
-        campaign_name: campaignName,
+        campaign_name: uniqueCampaignName,
         template_id: templateId,
         prompt_id: String(welcomePId),
         scheduled_at: schedDate.toISOString(),
-        status: "scheduled",
-        stats: data,
+        status: composeOk ? "scheduled" : "compose_failed",
+        stats: composeOk ? data : { obdSoftReject: true, response: data },
       });
+      if (!composeOk) {
+        return json({
+          ok: false,
+          obdRejected: true,
+          message: String((data as any)?.message || "OBD did not schedule the campaign (no campaignId returned)."),
+          response: data,
+        }, 200);
+      }
       return json({ ok: true, response: data });
     }
 
@@ -604,28 +622,35 @@ Deno.serve(async (req) => {
         location: routing.location,
         clis: routing.clis,
       }));
-      const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
+      const externalId = String(composeRes?.campaignId ?? composeRes?.campId ?? "");
+      const idNum = Number(externalId);
+      const composeOk = externalId !== "" && Number.isFinite(idNum) && idNum > 0;
 
       await supabase.from("voice_broadcast_logs").insert({
         user_id, phone, trigger_key,
         prompt_id: String(promptId),
-        campaign_id_external: externalId || null,
-        status: "queued",
+        campaign_id_external: composeOk ? externalId : null,
+        status: composeOk ? "queued" : "failed",
         response: composeRes,
       }).then(() => {}, () => {});
 
       await supabase.from("voice_broadcast_campaigns").insert({
-        campaign_id_external: externalId || null,
+        campaign_id_external: composeOk ? externalId : null,
         base_id: baseId,
         campaign_name: `auto:${trigger_key}:${user_id.slice(0, 8)}`,
         template_id: 0,
         prompt_id: String(promptId),
         scheduled_at: schedDate.toISOString(),
-        status: "scheduled",
-        stats: composeRes,
+        status: composeOk ? "scheduled" : "compose_failed",
+        stats: composeOk ? composeRes : { obdSoftReject: true, response: composeRes },
       }).then(() => {}, () => {});
 
-      return json({ ok: true, campaignId: externalId, scheduled_at: schedDate.toISOString() });
+      return json({
+        ok: composeOk,
+        campaignId: composeOk ? externalId : null,
+        scheduled_at: schedDate.toISOString(),
+        message: composeOk ? undefined : String((composeRes as any)?.message || "OBD did not schedule the campaign."),
+      });
     }
 
     // ─── TTS Preview: generate a short sample and return as base64 (no OBD upload) ───
