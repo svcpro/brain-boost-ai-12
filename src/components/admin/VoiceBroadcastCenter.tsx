@@ -67,6 +67,21 @@ export default function VoiceBroadcastCenter() {
   const [ttsCampName, setTtsCampName] = useState("");
   const [ttsPhones, setTtsPhones] = useState("");
   const [ttsMode, setTtsMode] = useState<"broadcast" | "save_only">("broadcast");
+  const [previewing, setPreviewing] = useState(false);
+  const [previewAudio, setPreviewAudio] = useState<HTMLAudioElement | null>(null);
+
+  const handlePreviewVoice = async () => {
+    if (previewAudio) { previewAudio.pause(); setPreviewAudio(null); }
+    setPreviewing(true);
+    try {
+      const sample = ttsText.trim().slice(0, 300) || undefined;
+      const r = await callVB("tts_preview", { voiceId: ttsVoiceId, text: sample });
+      const audio = new Audio(`data:${r.mime};base64,${r.audioBase64}`);
+      setPreviewAudio(audio);
+      audio.onended = () => setPreviewAudio(null);
+      await audio.play();
+    } catch (e: any) { toast.error(e.message); } finally { setPreviewing(false); }
+  };
 
   // compose form
   const [phones, setPhones] = useState("");
