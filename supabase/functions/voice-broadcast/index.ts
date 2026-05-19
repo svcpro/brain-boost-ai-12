@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
           file_name: fileName,
           prompt_category: safePromptCategory,
           prompt_status: 0,
-          is_active: true,
+          is_active: false,
         }).then(() => {}, () => {});
       }
       return json({ ok: res.ok, ...data });
