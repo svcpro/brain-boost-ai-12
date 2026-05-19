@@ -106,8 +106,8 @@ async function uploadBaseForPhones(phones: string[], baseName: string, userId: s
   const normalized = phones.map((p) => normalizeBaseUploadPhone(p)).filter(Boolean);
   if (normalized.length === 0) throw new Error("No valid 10-digit mobile numbers for base upload");
   const safeBaseName = String(baseName || `base-${Date.now()}`).replace(/[^a-zA-Z0-9]/g, "").slice(0, 45) || `base${Date.now()}`;
-  // OBD baseupload requires a CSV with a "Mobile" header and 10-digit Indian mobile numbers.
-  const csv = ["Mobile", ...normalized].join("\n");
+  // OBD baseupload sample only sends raw mobile rows; adding a header can create an empty/invalid base.
+  const csv = normalized.join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const fd = new FormData();
   fd.append("baseFile", blob, `${safeBaseName}.csv`);
