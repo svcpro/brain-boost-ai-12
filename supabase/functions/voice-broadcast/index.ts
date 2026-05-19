@@ -85,7 +85,9 @@ function normalizeObdLocation(raw: unknown): NormalizedObdField {
       return { ok: true, value: JSON.stringify({ locationList: list }) };
     }
     if (parsed && typeof parsed === "object" && Array.isArray((parsed as any).locationList)) {
-      return { ok: true, value: JSON.stringify(parsed) };
+      const list = normalizeList((parsed as any).locationList);
+      if (list.length === 0) return { ok: false, error: "locationList has no valid {locationId,locationName} entries" };
+      return { ok: true, value: JSON.stringify({ locationList: list }) };
     }
     return { ok: false, error: 'location must be {"locationList":[{"locationId":1,"locationName":"ahmedabad"}]} or an array of {locationId,locationName}' };
   } catch {
@@ -284,8 +286,8 @@ function buildSimpleIvrComposePayload(input: {
     gender: "",
     language: "",
     noAgentId: "",
-    callPatchSuccessMessage: "{}",
-    callPatchFailMessage: "{}",
+    callPatchSuccessMessage: "",
+    callPatchFailMessage: "",
   };
 }
 
