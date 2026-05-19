@@ -141,11 +141,15 @@ function buildSimpleIvrComposePayload(input: {
   menuWaitTime?: string | number;
   rePrompt?: string | number;
 }) {
+  const toNum = (v: unknown, d = 0) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : d;
+  };
   return {
     userId: String(input.userId),
     campaignName: String(input.campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50),
-    templateId: String(input.templateId ?? 0),
-    dtmf: input.dtmf ?? "",
+    templateId: toNum(input.templateId, 0),
+    dtmf: typeof input.dtmf === "string" && input.dtmf.length === 0 ? {} : (input.dtmf ?? {}),
     baseId: String(input.baseId),
     welcomePId: String(input.welcomePId),
     menuPId: input.menuPId ? String(input.menuPId) : "",
@@ -153,20 +157,20 @@ function buildSimpleIvrComposePayload(input: {
     wrongInputPId: input.wrongInputPId ? String(input.wrongInputPId) : "",
     thanksPId: input.thanksPId ? String(input.thanksPId) : "",
     scheduleTime: input.scheduleTime,
-    smsSuccessApi: "{}",
-    smsFailApi: "{}",
+    smsSuccessApi: "",
+    smsFailApi: "",
     smsDtmfApi: "",
     callDurationSMS: 0,
-    retries: input.retries ?? 0,
-    retryInterval: input.retryInterval ?? 0,
-    agentRows: "\"\"",
-    menuWaitTime: input.menuWaitTime ?? "",
-    rePrompt: input.rePrompt ?? "",
+    retries: toNum(input.retries, 0),
+    retryInterval: toNum(input.retryInterval, 0),
+    agentRows: [],
+    menuWaitTime: toNum(input.menuWaitTime, 5),
+    rePrompt: toNum(input.rePrompt, 1),
     location: "",
     clis: "",
     webhook: false,
     webhookId: "",
-    ttsRows: "[]",
+    ttsRows: [],
     gender: "",
     language: "",
     noAgentId: "",
