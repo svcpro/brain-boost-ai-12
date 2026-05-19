@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
 
     if (action === "upload_voice") {
       // expects: fileBase64, fileName, fileType, promptCategory
-      const { fileBase64, fileName, fileType = "wav", promptCategory = "Transactional" } = body;
+      const { fileBase64, fileName, fileType = "wav", promptCategory = "transactional" } = body;
       if (!fileBase64 || !fileName) return json({ error: "fileBase64 and fileName required" }, 400);
       const { userId } = await getToken();
       const binary = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
@@ -409,7 +409,7 @@ Deno.serve(async (req) => {
 
     // ─── TTS: generate voice from Hinglish/Hindi/English text and save as OBD prompt ───
     if (action === "tts_generate_voice") {
-      const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "Transactional" } = body;
+      const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "transactional" } = body;
       if (!text || !voiceName) return json({ error: "text and voiceName required" }, 400);
       const { userId } = await getToken();
       const audio = await elevenLabsTTS(String(text), String(voiceId));
@@ -424,7 +424,7 @@ Deno.serve(async (req) => {
     if (action === "tts_broadcast") {
       const {
         text, phones, campaignName,
-        voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "Transactional",
+        voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "transactional",
         scheduleAt,
       } = body;
       if (!text || !campaignName) return json({ error: "text and campaignName required" }, 400);
