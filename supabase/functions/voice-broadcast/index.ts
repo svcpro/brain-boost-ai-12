@@ -270,9 +270,9 @@ function buildSimpleIvrComposePayload(input: {
     smsSuccessApi: "{}",
     smsFailApi: "{}",
     smsDtmfApi: isSimpleIvr ? "" : "{}",
-    callDurationSMS: "0",
-    retries: isSimpleIvr ? 0 : Number(input.retries ?? 0) || 0,
-    retryInterval: isSimpleIvr ? 0 : Number(input.retryInterval ?? 0) || 0,
+    callDurationSMS: "3",
+    retries: isSimpleIvr ? 0 : Number(input.retries ?? 2) || 0,
+    retryInterval: isSimpleIvr ? 0 : Number(input.retryInterval ?? 10) || 0,
     agentRows: "\"\"",
     menuWaitTime: isSimpleIvr ? "" : input.menuWaitTime != null && input.menuWaitTime !== "" ? String(input.menuWaitTime) : "",
     rePrompt: isSimpleIvr ? "" : input.rePrompt != null && input.rePrompt !== "" ? String(input.rePrompt) : "",
@@ -284,8 +284,8 @@ function buildSimpleIvrComposePayload(input: {
     gender: "",
     language: "",
     noAgentId: "",
-    callPatchSuccessMessage: "",
-    callPatchFailMessage: "",
+    callPatchSuccessMessage: "{}",
+    callPatchFailMessage: "{}",
   };
 }
 
