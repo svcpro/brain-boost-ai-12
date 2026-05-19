@@ -13,6 +13,12 @@ const corsHeaders = {
 };
 
 const OBD_BASE = "https://obdapi2.ivrsms.com";
+const DEFAULT_OBD_LOCATION_JSON = JSON.stringify({
+  locationList: [
+    { locationId: 1, locationName: "ahmedabad" },
+    { locationId: 3, locationName: "Bangalore" },
+  ],
+});
 
 const json = (d: unknown, status = 200) =>
   new Response(JSON.stringify(d), {
@@ -52,9 +58,19 @@ type NormalizedObdField = { ok: true; value: string } | { ok: false; error: stri
 // JSON-encoded string shaped like: {"locationList":[{"locationId":1,"locationName":"ahmedabad"}]}.
 function normalizeObdLocation(raw: unknown): NormalizedObdField {
   if (raw == null || raw === "") return { ok: true, value: "" };
+  const normalizeList = (items: unknown[]) => items
+    .map((it: any) => ({
+      locationId: Number(it?.locationId ?? it?.id),
+      locationName: String(it?.locationName ?? it?.name ?? ""),
+    }))
+    .filter((it) => Number.isFinite(it.locationId));
   if (typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
-    if (Array.isArray(obj.locationList)) return { ok: true, value: JSON.stringify(obj) };
+    if (Array.isArray(obj.locationList)) {
+      const list = normalizeList(obj.locationList);
+      if (list.length === 0) return { ok: false, error: "locationList has no valid {locationId,locationName} entries" };
+      return { ok: true, value: JSON.stringify({ locationList: list }) };
+    }
     if (Array.isArray(raw)) return normalizeObdLocation(JSON.stringify(raw));
     return { ok: false, error: 'location must be a JSON string, {"locationList":[...]}, or an array of locations' };
   }
@@ -64,12 +80,7 @@ function normalizeObdLocation(raw: unknown): NormalizedObdField {
   try {
     const parsed = JSON.parse(trimmed);
     if (Array.isArray(parsed)) {
-      const list = parsed
-        .map((it: any) => ({
-          locationId: Number(it?.locationId ?? it?.id),
-          locationName: String(it?.locationName ?? it?.name ?? ""),
-        }))
-        .filter((it) => Number.isFinite(it.locationId));
+      const list = normalizeList(parsed);
       if (list.length === 0) return { ok: false, error: "location array has no valid {locationId,locationName} entries" };
       return { ok: true, value: JSON.stringify({ locationList: list }) };
     }
