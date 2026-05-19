@@ -66,6 +66,7 @@ import AdminBackup from "@/components/admin/AdminBackup";
 import SmsCommandCenter from "@/components/admin/SmsCommandCenter";
 import SmsAlertsCenter from "@/components/admin/SmsAlertsCenter";
 import WhatsAppCommandCenter from "@/components/admin/WhatsAppCommandCenter";
+import VoiceBroadcastCenter from "@/components/admin/VoiceBroadcastCenter";
 import ReferralHandlesAdmin from "@/components/admin/ReferralHandlesAdmin";
 
 import { Link as LinkIcon } from "lucide-react";
