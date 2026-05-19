@@ -165,6 +165,8 @@ function buildSimpleIvrComposePayload(input: {
   retryInterval?: string | number;
   menuWaitTime?: string | number;
   rePrompt?: string | number;
+  location?: string;
+  clis?: string;
 }) {
   // Per OBD spec sample for Simple IVR (templateId=0): IDs are strings,
   // DTMF-only values (smsDtmfApi/menuWaitTime/rePrompt) must be empty strings,
@@ -192,8 +194,8 @@ function buildSimpleIvrComposePayload(input: {
     agentRows: "\"\"",
     menuWaitTime: isSimpleIvr ? "" : input.menuWaitTime != null && input.menuWaitTime !== "" ? String(input.menuWaitTime) : "",
     rePrompt: isSimpleIvr ? "" : input.rePrompt != null && input.rePrompt !== "" ? String(input.rePrompt) : "",
-    location: "",
-    clis: "",
+    location: typeof input.location === "string" ? input.location : "",
+    clis: typeof input.clis === "string" ? input.clis : "",
     webhook: false,
     webhookId: "",
     ttsRows: "[]",
