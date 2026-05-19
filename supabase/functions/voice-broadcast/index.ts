@@ -399,6 +399,14 @@ Deno.serve(async (req) => {
       return json({ ok: true, campaignId: externalId, scheduled_at: schedDate.toISOString() });
     }
 
+    // ─── TTS Preview: generate a short sample and return as base64 (no OBD upload) ───
+    if (action === "tts_preview") {
+      const { text, voiceId = "pFZP5JQG7iQjIQuC4Bku" } = body;
+      const sample = String(text || "Namaste! ACRY AI mein aapka swagat hai. Yeh ek sample voice preview hai.").slice(0, 400);
+      const audio = await elevenLabsTTS(sample, String(voiceId));
+      return json({ ok: true, audioBase64: bytesToBase64(audio), mime: "audio/mpeg" });
+    }
+
     // ─── TTS: generate voice from Hinglish/Hindi/English text and save as OBD prompt ───
     if (action === "tts_generate_voice") {
       const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "welcome" } = body;
