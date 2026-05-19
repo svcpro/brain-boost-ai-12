@@ -25,6 +25,14 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+class RequestError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function getToken(forceRefresh = false): Promise<{ token: string; userId: string }> {
   const obdUserId = Deno.env.get("OBD_USER_ID") || "";
   if (!forceRefresh) {
@@ -130,14 +138,14 @@ async function composeCampaign(payload: Record<string, unknown>) {
 
 async function assertPromptApproved(promptId: string | number) {
   const id = String(promptId || "").trim();
-  if (!id) throw new Error("Voice prompt is required");
+  if (!id) throw new RequestError("Voice prompt is required", 400);
   const { data: localPrompt } = await supabase
     .from("voice_broadcast_voice_files")
     .select("prompt_id, prompt_status, is_active")
     .eq("prompt_id", id)
     .maybeSingle();
   if (localPrompt && (localPrompt.prompt_status !== 1 || !localPrompt.is_active)) {
-    throw new Error(`Voice prompt #${id} is still pending OBD admin approval. Sync Voice Library after approval, then schedule the broadcast.`);
+    throw new RequestError(`Voice prompt #${id} is still pending OBD admin approval. Sync Voice Library after approval, then schedule the broadcast.`, 409);
   }
 }
 
@@ -535,6 +543,6 @@ Deno.serve(async (req) => {
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (e) {
     console.error("[voice-broadcast]", e);
-    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    return json({ error: e instanceof Error ? e.message : String(e) }, e instanceof RequestError ? e.status : 500);
   }
 });
