@@ -350,7 +350,9 @@ Deno.serve(async (req) => {
       const { userId } = await getToken();
       const { campaignName, baseId, welcomePId, templateId = 0, scheduleAt, dtmf = "",
         menuPId = "", noInputPId = "", wrongInputPId = "", thanksPId = "",
-        retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1 } = body;
+        retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1,
+        location = Deno.env.get("OBD_LOCATION_JSON") || "",
+        clis = Deno.env.get("OBD_CLIS_JSON") || "" } = body;
       if (!campaignName || !baseId || !welcomePId) return json({ error: "campaignName, baseId, welcomePId required" }, 400);
 
       const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
@@ -381,7 +383,7 @@ Deno.serve(async (req) => {
       const payload = buildSimpleIvrComposePayload({
         userId, campaignName, templateId, dtmf, baseId, welcomePId,
         menuPId, noInputPId, wrongInputPId, thanksPId, scheduleTime,
-        retries, retryInterval, menuWaitTime, rePrompt,
+        retries, retryInterval, menuWaitTime, rePrompt, location, clis,
       });
       const data = await composeCampaign(payload);
       const externalId = String(data?.campaignId || data?.campId || "");
