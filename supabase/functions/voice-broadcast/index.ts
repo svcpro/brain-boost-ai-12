@@ -106,14 +106,14 @@ async function uploadBaseForPhones(phones: string[], baseName: string, userId: s
   const normalized = phones.map((p) => normalizeBaseUploadPhone(p)).filter(Boolean);
   if (normalized.length === 0) throw new Error("No valid 10-digit mobile numbers for base upload");
   const safeBaseName = String(baseName || `base-${Date.now()}`).replace(/[^a-zA-Z0-9]/g, "").slice(0, 45) || `base${Date.now()}`;
-  // OBD baseupload requires a CSV with a "Mobile" header and 10-digit Indian mobile numbers.
-  const csv = ["Mobile", ...normalized].join("\n");
+  // OBD baseupload sample only sends raw mobile rows; adding a header can create an empty/invalid base.
+  const csv = normalized.join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const fd = new FormData();
   fd.append("baseFile", blob, `${safeBaseName}.csv`);
   fd.append("userId", userId);
   fd.append("baseName", safeBaseName);
-  fd.append("contactList", "false");
+  fd.append("contactList", "null");
   const res = await obdFetch(`/api/obd/baseupload`, { method: "POST", body: fd });
   const raw = await res.text();
   const data = raw ? JSON.parse(raw) : {};
@@ -165,15 +165,19 @@ function buildSimpleIvrComposePayload(input: {
   retryInterval?: string | number;
   menuWaitTime?: string | number;
   rePrompt?: string | number;
+  location?: string;
+  clis?: string;
 }) {
-  // Per OBD spec sample (Simple IVR templateId=0): all IDs as strings,
-  // retries/retryInterval as integer, agentRows="\"\"", ttsRows="[]",
-  // sms*Api as JSON-string or "{}", webhook as boolean.
+  // Per OBD spec sample for Simple IVR (templateId=0): IDs are strings,
+  // DTMF-only values (smsDtmfApi/menuWaitTime/rePrompt) must be empty strings,
+  // agentRows must be the literal JSON-string value "\"\"", and ttsRows="[]".
+  const templateId = String(input.templateId ?? 0);
+  const isSimpleIvr = templateId === "0";
   return {
     userId: String(input.userId),
     campaignName: String(input.campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50),
-    templateId: String(input.templateId ?? 0),
-    dtmf: typeof input.dtmf === "string" ? input.dtmf : "",
+    templateId,
+    dtmf: isSimpleIvr ? "" : typeof input.dtmf === "string" ? input.dtmf : "",
     baseId: String(input.baseId),
     welcomePId: String(input.welcomePId),
     menuPId: input.menuPId ? String(input.menuPId) : "",
@@ -183,15 +187,15 @@ function buildSimpleIvrComposePayload(input: {
     scheduleTime: input.scheduleTime,
     smsSuccessApi: "{}",
     smsFailApi: "{}",
-    smsDtmfApi: "{}",
-    callDurationSMS: 0,
-    retries: Number(input.retries ?? 0) || 0,
-    retryInterval: Number(input.retryInterval ?? 0) || 0,
+    smsDtmfApi: isSimpleIvr ? "" : "{}",
+    callDurationSMS: "0",
+    retries: isSimpleIvr ? 0 : Number(input.retries ?? 0) || 0,
+    retryInterval: isSimpleIvr ? 0 : Number(input.retryInterval ?? 0) || 0,
     agentRows: "\"\"",
-    menuWaitTime: input.menuWaitTime != null && input.menuWaitTime !== "" ? String(input.menuWaitTime) : "",
-    rePrompt: input.rePrompt != null && input.rePrompt !== "" ? String(input.rePrompt) : "",
-    location: "",
-    clis: "",
+    menuWaitTime: isSimpleIvr ? "" : input.menuWaitTime != null && input.menuWaitTime !== "" ? String(input.menuWaitTime) : "",
+    rePrompt: isSimpleIvr ? "" : input.rePrompt != null && input.rePrompt !== "" ? String(input.rePrompt) : "",
+    location: typeof input.location === "string" ? input.location : "",
+    clis: typeof input.clis === "string" ? input.clis : "",
     webhook: false,
     webhookId: "",
     ttsRows: "[]",
@@ -346,7 +350,9 @@ Deno.serve(async (req) => {
       const { userId } = await getToken();
       const { campaignName, baseId, welcomePId, templateId = 0, scheduleAt, dtmf = "",
         menuPId = "", noInputPId = "", wrongInputPId = "", thanksPId = "",
-        retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1 } = body;
+        retries = 2, retryInterval = 10, menuWaitTime = 5, rePrompt = 1,
+        location = Deno.env.get("OBD_LOCATION_JSON") || "",
+        clis = Deno.env.get("OBD_CLIS_JSON") || "" } = body;
       if (!campaignName || !baseId || !welcomePId) return json({ error: "campaignName, baseId, welcomePId required" }, 400);
 
       const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
@@ -377,7 +383,7 @@ Deno.serve(async (req) => {
       const payload = buildSimpleIvrComposePayload({
         userId, campaignName, templateId, dtmf, baseId, welcomePId,
         menuPId, noInputPId, wrongInputPId, thanksPId, scheduleTime,
-        retries, retryInterval, menuWaitTime, rePrompt,
+        retries, retryInterval, menuWaitTime, rePrompt, location, clis,
       });
       const data = await composeCampaign(payload);
       const externalId = String(data?.campaignId || data?.campId || "");
