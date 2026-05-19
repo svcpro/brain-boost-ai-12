@@ -399,6 +399,69 @@ Deno.serve(async (req) => {
       return json({ ok: true, campaignId: externalId, scheduled_at: schedDate.toISOString() });
     }
 
+    // ─── TTS: generate voice from Hinglish/Hindi/English text and save as OBD prompt ───
+    if (action === "tts_generate_voice") {
+      const { text, voiceName, voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "welcome" } = body;
+      if (!text || !voiceName) return json({ error: "text and voiceName required" }, 400);
+      const { userId } = await getToken();
+      const audio = await elevenLabsTTS(String(text), String(voiceId));
+      const safeName = String(voiceName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
+      const promptId = await uploadPromptToOBD({
+        bytes: audio, fileName: safeName, fileType: "mp3", promptCategory, userId,
+      });
+      return json({ ok: true, promptId, fileName: safeName });
+    }
+
+    // ─── TTS Broadcast: text → voice → upload → schedule campaign in one shot ───
+    if (action === "tts_broadcast") {
+      const {
+        text, phones, campaignName,
+        voiceId = "pFZP5JQG7iQjIQuC4Bku", promptCategory = "broadcast",
+        scheduleAt,
+      } = body;
+      if (!text || !campaignName) return json({ error: "text and campaignName required" }, 400);
+      const phoneList: string[] = Array.isArray(phones) ? phones : [];
+      if (phoneList.length === 0) return json({ error: "phones[] required" }, 400);
+
+      const { userId } = await getToken();
+      const audio = await elevenLabsTTS(String(text), String(voiceId));
+      const safeName = `tts-${String(campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40)}-${Date.now()}`;
+      const promptId = await uploadPromptToOBD({
+        bytes: audio, fileName: safeName, fileType: "mp3", promptCategory, userId,
+      });
+      const baseId = await uploadBaseForPhones(phoneList, `${safeName}-base`, userId);
+
+      const { data: cfg } = await supabase.from("voice_broadcast_config").select("schedule_lead_minutes").maybeSingle();
+      const leadMin = cfg?.schedule_lead_minutes ?? 11;
+      const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
+
+      const composeRes = await composeCampaign({
+        userId, campaignName, templateId: 0, dtmf: "",
+        baseId: Number(baseId), welcomePId: Number(promptId),
+        menuPId: "", noInputPId: "", wrongInputPId: "", thanksPId: "",
+        scheduleTime: formatSchedule(schedDate),
+        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
+        callDurationSMS: 0, retries: 2, retryInterval: 10,
+        agentRows: "", menuWaitTime: 5, rePrompt: 1,
+      });
+      const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
+      await supabase.from("voice_broadcast_campaigns").insert({
+        campaign_id_external: externalId || null,
+        base_id: String(baseId),
+        campaign_name: campaignName,
+        template_id: 0,
+        prompt_id: String(promptId),
+        scheduled_at: schedDate.toISOString(),
+        status: "scheduled",
+        stats: composeRes,
+      }).then(() => {}, () => {});
+
+      return json({
+        ok: true, promptId, baseId, campaignId: externalId,
+        scheduled_at: schedDate.toISOString(),
+      });
+    }
+
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (e) {
     console.error("[voice-broadcast]", e);
