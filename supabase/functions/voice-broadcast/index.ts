@@ -122,6 +122,57 @@ async function composeCampaign(payload: Record<string, unknown>) {
   return data;
 }
 
+function buildSimpleIvrComposePayload(input: {
+  userId: string;
+  campaignName: string;
+  baseId: string | number;
+  welcomePId: string | number;
+  scheduleTime: string;
+  templateId?: string | number;
+  dtmf?: string;
+  menuPId?: string | number;
+  noInputPId?: string | number;
+  wrongInputPId?: string | number;
+  thanksPId?: string | number;
+  retries?: string | number;
+  retryInterval?: string | number;
+  menuWaitTime?: string | number;
+  rePrompt?: string | number;
+}) {
+  return {
+    userId: String(input.userId),
+    campaignName: String(input.campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50),
+    templateId: String(input.templateId ?? 0),
+    dtmf: input.dtmf ?? "",
+    baseId: String(input.baseId),
+    welcomePId: String(input.welcomePId),
+    menuPId: input.menuPId ? String(input.menuPId) : "",
+    noInputPId: input.noInputPId ? String(input.noInputPId) : "",
+    wrongInputPId: input.wrongInputPId ? String(input.wrongInputPId) : "",
+    thanksPId: input.thanksPId ? String(input.thanksPId) : "",
+    scheduleTime: input.scheduleTime,
+    smsSuccessApi: "{}",
+    smsFailApi: "{}",
+    smsDtmfApi: "",
+    callDurationSMS: 0,
+    retries: input.retries ?? 0,
+    retryInterval: input.retryInterval ?? 0,
+    agentRows: "\"\"",
+    menuWaitTime: input.menuWaitTime ?? "",
+    rePrompt: input.rePrompt ?? "",
+    location: "",
+    clis: "",
+    webhook: false,
+    webhookId: "",
+    ttsRows: "[]",
+    gender: "",
+    language: "",
+    noAgentId: "",
+    callPatchSuccessMessage: "",
+    callPatchFailMessage: "",
+  };
+}
+
 // ─── ElevenLabs TTS helper (supports Hinglish via multilingual_v2) ───
 async function elevenLabsTTS(text: string, voiceId: string): Promise<Uint8Array> {
   const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
@@ -273,16 +324,11 @@ Deno.serve(async (req) => {
       const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
       const scheduleTime = formatSchedule(schedDate);
 
-      const payload = {
-        userId, campaignName, templateId, dtmf,
-        baseId: Number(baseId), welcomePId: Number(welcomePId),
-        menuPId: menuPId || "", noInputPId: noInputPId || "",
-        wrongInputPId: wrongInputPId || "", thanksPId: thanksPId || "",
-        scheduleTime,
-        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
-        callDurationSMS: 0, retries, retryInterval,
-        agentRows: "", menuWaitTime, rePrompt,
-      };
+      const payload = buildSimpleIvrComposePayload({
+        userId, campaignName, templateId, dtmf, baseId, welcomePId,
+        menuPId, noInputPId, wrongInputPId, thanksPId, scheduleTime,
+        retries, retryInterval, menuWaitTime, rePrompt,
+      });
       const data = await composeCampaign(payload);
       const externalId = String(data?.campaignId || data?.campId || "");
       await supabase.from("voice_broadcast_campaigns").insert({
@@ -384,19 +430,13 @@ Deno.serve(async (req) => {
       const baseId = await uploadBaseForPhones([phone], baseName, userId);
 
       const schedDate = new Date(Date.now() + (cfg.schedule_lead_minutes ?? 11) * 60_000);
-      const composeRes = await composeCampaign({
+      const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
         userId,
         campaignName: `${trigger_key}_${user_id.slice(0, 8)}_${Date.now()}`,
-        templateId: 0,
-        dtmf: "",
-        baseId: Number(baseId),
-        welcomePId: Number(promptId),
-        menuPId: "", noInputPId: "", wrongInputPId: "", thanksPId: "",
+        baseId,
+        welcomePId: promptId,
         scheduleTime: formatSchedule(schedDate),
-        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
-        callDurationSMS: 0, retries: 2, retryInterval: 10,
-        agentRows: "", menuWaitTime: 5, rePrompt: 1,
-      });
+      }));
       const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
 
       await supabase.from("voice_broadcast_logs").insert({
@@ -465,15 +505,13 @@ Deno.serve(async (req) => {
       const leadMin = cfg?.schedule_lead_minutes ?? 11;
       const schedDate = scheduleAt ? new Date(scheduleAt) : new Date(Date.now() + leadMin * 60_000);
 
-      const composeRes = await composeCampaign({
-        userId, campaignName, templateId: 0, dtmf: "",
-        baseId: Number(baseId), welcomePId: Number(promptId),
-        menuPId: "", noInputPId: "", wrongInputPId: "", thanksPId: "",
+      const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
+        userId,
+        campaignName: String(campaignName),
+        baseId,
+        welcomePId: promptId,
         scheduleTime: formatSchedule(schedDate),
-        smsSuccessApi: "{}", smsFailApi: "{}", smsDtmfApi: "{}",
-        callDurationSMS: 0, retries: 2, retryInterval: 10,
-        agentRows: "", menuWaitTime: 5, rePrompt: 1,
-      });
+      }));
       const externalId = String(composeRes?.campaignId || composeRes?.campId || "");
       await supabase.from("voice_broadcast_campaigns").insert({
         campaign_id_external: externalId || null,
