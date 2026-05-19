@@ -9,7 +9,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square } from "lucide-react";
+import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square, Wand2 } from "lucide-react";
+
+const TTS_VOICES = [
+  { id: "pFZP5JQG7iQjIQuC4Bku", label: "Lily (female, warm)" },
+  { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda (female, friendly)" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah (female, professional)" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George (male, authoritative)" },
+  { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel (male, news anchor)" },
+  { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam (male, energetic)" },
+];
 
 type Voice = { id: string; prompt_id: string; file_name: string; prompt_category: string | null; is_active: boolean };
 type Campaign = {
