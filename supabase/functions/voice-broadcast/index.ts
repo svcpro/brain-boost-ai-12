@@ -542,6 +542,9 @@ Deno.serve(async (req) => {
 
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (e) {
+    if (e instanceof RequestError && e.status === 409) {
+      return json({ ok: false, pendingApproval: true, message: e.message }, 200);
+    }
     console.error("[voice-broadcast]", e);
     return json({ error: e instanceof Error ? e.message : String(e) }, e instanceof RequestError ? e.status : 500);
   }
