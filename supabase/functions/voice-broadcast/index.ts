@@ -141,15 +141,14 @@ function buildSimpleIvrComposePayload(input: {
   menuWaitTime?: string | number;
   rePrompt?: string | number;
 }) {
-  const toNum = (v: unknown, d = 0) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : d;
-  };
+  // Per OBD spec sample (Simple IVR templateId=0): all IDs as strings,
+  // retries/retryInterval as integer, agentRows="\"\"", ttsRows="[]",
+  // sms*Api as JSON-string or "{}", webhook as boolean.
   return {
     userId: String(input.userId),
     campaignName: String(input.campaignName).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50),
-    templateId: toNum(input.templateId, 0),
-    dtmf: typeof input.dtmf === "string" && input.dtmf.length === 0 ? {} : (input.dtmf ?? {}),
+    templateId: String(input.templateId ?? 0),
+    dtmf: typeof input.dtmf === "string" ? input.dtmf : "",
     baseId: String(input.baseId),
     welcomePId: String(input.welcomePId),
     menuPId: input.menuPId ? String(input.menuPId) : "",
@@ -157,20 +156,20 @@ function buildSimpleIvrComposePayload(input: {
     wrongInputPId: input.wrongInputPId ? String(input.wrongInputPId) : "",
     thanksPId: input.thanksPId ? String(input.thanksPId) : "",
     scheduleTime: input.scheduleTime,
-    smsSuccessApi: "",
-    smsFailApi: "",
-    smsDtmfApi: "",
+    smsSuccessApi: "{}",
+    smsFailApi: "{}",
+    smsDtmfApi: "{}",
     callDurationSMS: 0,
-    retries: toNum(input.retries, 0),
-    retryInterval: toNum(input.retryInterval, 0),
-    agentRows: [],
-    menuWaitTime: toNum(input.menuWaitTime, 5),
-    rePrompt: toNum(input.rePrompt, 1),
+    retries: Number(input.retries ?? 0) || 0,
+    retryInterval: Number(input.retryInterval ?? 0) || 0,
+    agentRows: "\"\"",
+    menuWaitTime: input.menuWaitTime != null && input.menuWaitTime !== "" ? String(input.menuWaitTime) : "",
+    rePrompt: input.rePrompt != null && input.rePrompt !== "" ? String(input.rePrompt) : "",
     location: "",
     clis: "",
     webhook: false,
     webhookId: "",
-    ttsRows: [],
+    ttsRows: "[]",
     gender: "",
     language: "",
     noAgentId: "",
