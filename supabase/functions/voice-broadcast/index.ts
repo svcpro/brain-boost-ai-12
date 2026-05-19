@@ -85,13 +85,14 @@ function normalizePhone(raw: string): string {
 }
 
 async function uploadBaseForPhones(phones: string[], baseName: string, userId: string) {
-  const csv = phones.map((p) => normalizePhone(p)).filter((p) => p.length >= 10).join("\n");
+  const normalized = phones.map((p) => normalizePhone(p)).filter((p) => p.length >= 10);
+  // OBD requires CSV with a "Mobile" header column
+  const csv = ["Mobile", ...normalized].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const fd = new FormData();
   fd.append("baseFile", blob, `${baseName}.csv`);
   fd.append("userId", userId);
   fd.append("baseName", baseName);
-  fd.append("contactList", "null");
   const res = await obdFetch(`/api/obd/baseupload`, { method: "POST", body: fd });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data?.baseId) throw new Error(`baseupload failed: ${JSON.stringify(data)}`);
