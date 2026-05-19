@@ -158,6 +158,12 @@ export default function VoiceBroadcastCenter() {
       const r = await callVB("compose", { campaignName: campName, baseId: b.baseId, welcomePId });
       if (r.pendingApproval) {
         toast.info(r.message || "Voice prompt is pending OBD approval.");
+        refreshCampaigns();
+        return;
+      }
+      if (r.obdRejected) {
+        toast.error(r.message || "OBD rejected the compose request.");
+        refreshCampaigns();
         return;
       }
       toast.success("Campaign scheduled");
