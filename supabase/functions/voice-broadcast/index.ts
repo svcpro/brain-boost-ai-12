@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
 
     if (action === "upload_voice") {
       // expects: fileBase64, fileName, fileType, promptCategory
-      const { fileBase64, fileName, fileType = "wav", promptCategory = "welcome" } = body;
+      const { fileBase64, fileName, fileType = "wav", promptCategory = "Transactional" } = body;
       if (!fileBase64 || !fileName) return json({ error: "fileBase64 and fileName required" }, 400);
       const { userId } = await getToken();
       const binary = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
