@@ -592,6 +592,7 @@ const AdminPanel = () => {
               {section === "sms" && <SmsCommandCenter />}
               {section === "sms_alerts" && <SmsAlertsCenter />}
               {section === "whatsapp" && <WhatsAppCommandCenter />}
+              {section === "voice_broadcast" && <VoiceBroadcastCenter />}
               {section === "notify_intelligence" && <NotificationIntelligence />}
               {section === "growth_center" && <GrowthControlCenter />}
               {section === "referral_handles" && <ReferralHandlesAdmin />}
