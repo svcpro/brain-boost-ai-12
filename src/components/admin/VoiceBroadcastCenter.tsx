@@ -104,11 +104,24 @@ export default function VoiceBroadcastCenter() {
     if (previewAudio) { previewAudio.pause(); setPreviewAudio(null); }
     setPreviewing(true);
     try {
-      const sample = ttsText.trim().slice(0, 300) || undefined;
+      const sample = ttsText.trim().slice(0, 400) || undefined;
       const r = await callVB("tts_preview", { voiceId: ttsVoiceId, text: sample });
-      const audio = new Audio(`data:${r.mime};base64,${r.audioBase64}`);
+      // Decode base64 → Blob URL (data URIs cause early cutoff with MP3 in some browsers)
+      const bin = atob(r.audioBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: r.mime || "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.preload = "auto";
       setPreviewAudio(audio);
-      audio.onended = () => setPreviewAudio(null);
+      audio.onended = () => { setPreviewAudio(null); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setPreviewAudio(null); URL.revokeObjectURL(url); };
+      await new Promise<void>((resolve) => {
+        if (audio.readyState >= 3) resolve();
+        else audio.oncanplaythrough = () => resolve();
+        setTimeout(resolve, 1500);
+      });
       await audio.play();
     } catch (e: any) { toast.error(e.message); } finally { setPreviewing(false); }
   };
