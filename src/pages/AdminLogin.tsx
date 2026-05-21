@@ -45,9 +45,16 @@ const AdminLogin = () => {
       return;
     }
 
-    // OAuth users (Google, Apple) bypass MFA — provider-level security is sufficient
+    // OAuth users (Google, Apple) bypass MFA — provider-level security is sufficient.
+    // Lovable preview/sandbox hosts also bypass MFA (TOTP can't be completed there).
     const provider = user.app_metadata?.provider;
-    if (provider && provider !== "email") {
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    const isPreview =
+      host.endsWith(".lovableproject.com") ||
+      host.includes("id-preview--") ||
+      host === "localhost" ||
+      host === "127.0.0.1";
+    if (isPreview || (provider && provider !== "email")) {
       sessionStorage.setItem("admin_login_time", Date.now().toString());
       navigate("/admin");
       return;
