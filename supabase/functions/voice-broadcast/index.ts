@@ -633,6 +633,103 @@ Deno.serve(async (req) => {
       return json({ ok: true, obdOk, obdMsg, message: obdOk ? "Campaign deleted" : `Removed locally${obdMsg ? ` (OBD: ${obdMsg})` : ""}` });
     }
 
+    // ─── Event Automation: list / save mapping / test call / view logs ───
+    if (action === "list_event_voices") {
+      const { data } = await supabase
+        .from("voice_broadcast_event_voices")
+        .select("*")
+        .order("event_key");
+      return json({ ok: true, events: data || [] });
+    }
+
+    if (action === "save_event_voice") {
+      const { event_key, voice_prompt_id, is_active, cooldown_hours,
+        send_window_start, send_window_end, location_json } = body;
+      if (!event_key) return json({ error: "event_key required" }, 400);
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (voice_prompt_id !== undefined) patch.voice_prompt_id = voice_prompt_id || null;
+      if (is_active !== undefined) patch.is_active = !!is_active;
+      if (cooldown_hours !== undefined) patch.cooldown_hours = Number(cooldown_hours) || 72;
+      if (send_window_start !== undefined) patch.send_window_start = send_window_start;
+      if (send_window_end !== undefined) patch.send_window_end = send_window_end;
+      if (location_json !== undefined) patch.location_json = location_json;
+      const { error } = await supabase
+        .from("voice_broadcast_event_voices")
+        .update(patch)
+        .eq("event_key", event_key);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
+    if (action === "test_event_call") {
+      const { event_key, user_id } = body;
+      if (!event_key || !user_id) return json({ error: "event_key and user_id required" }, 400);
+      const { data: ev } = await supabase
+        .from("voice_broadcast_event_voices")
+        .select("*")
+        .eq("event_key", event_key)
+        .maybeSingle();
+      if (!ev?.voice_prompt_id) return json({ ok: false, error: "No voice assigned to this event" }, 400);
+
+      // Reuse send_to_user logic via internal recursion-safe path
+      const { data: profile } = await supabase
+        .from("profiles").select("phone").eq("id", user_id).maybeSingle();
+      const phone = normalizePhone(profile?.phone || "");
+      if (phone.length < 10) return json({ ok: false, error: "User has no phone" }, 400);
+
+      const { userId: obdUserId } = await getToken();
+      await assertPromptApproved(ev.voice_prompt_id);
+      const baseId = await uploadBaseForPhones([phone], `test-${event_key}-${Date.now()}`, obdUserId);
+      const schedDate = new Date(Date.now() + 11 * 60_000);
+      const routing = getObdRoutingFields({ location: ev.location_json });
+      const composeRes = await composeCampaign(buildSimpleIvrComposePayload({
+        userId: obdUserId,
+        campaignName: `test_${event_key}_${Date.now().toString(36)}`,
+        baseId,
+        welcomePId: ev.voice_prompt_id,
+        scheduleTime: formatSchedule(schedDate),
+        location: routing.location,
+        clis: routing.clis,
+      }));
+      const externalId = String(composeRes?.campaignId ?? "");
+      const composeOk = externalId !== "" && Number(externalId) > 0;
+      await supabase.from("voice_broadcast_event_logs").insert({
+        event_key, user_id,
+        voice_prompt_id: ev.voice_prompt_id,
+        campaign_id_external: composeOk ? externalId : null,
+        status: composeOk ? "queued" : "failed",
+        response: composeRes,
+      });
+      return json({ ok: composeOk, campaignId: externalId, response: composeRes });
+    }
+
+    if (action === "list_event_logs") {
+      const { event_key, limit = 100 } = body;
+      let q = supabase
+        .from("voice_broadcast_event_logs")
+        .select("*")
+        .order("sent_at", { ascending: false })
+        .limit(Math.min(Number(limit) || 100, 500));
+      if (event_key) q = q.eq("event_key", event_key);
+      const { data } = await q;
+      return json({ ok: true, logs: data || [] });
+    }
+
+    if (action === "run_event_now") {
+      const { event_key } = body;
+      if (!event_key) return json({ error: "event_key required" }, 400);
+      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/voice-broadcast-scheduler`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ event_key }),
+      });
+      const data = await res.json().catch(() => ({}));
+      return json({ ok: true, scheduler: data });
+    }
+
     // ─── one-shot per-user broadcast (used by signup & re-engagement) ───
     if (action === "send_to_user") {
       const { user_id, trigger_key = "manual", prompt_id: overridePromptId } = body;
