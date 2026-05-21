@@ -263,7 +263,7 @@ export default function VoiceBroadcastCenter() {
     try {
       if (ttsMode === "save_only") {
         const r = await callVB("tts_generate_voice", {
-          text: ttsText, voiceName: ttsCampName, voiceId: ttsVoiceId, promptCategory: "welcome",
+          text: ttsText, voiceName: finalName, voiceId: ttsVoiceId, promptCategory: "welcome",
         });
         toast.success(`Voice saved · Prompt #${r.promptId}`);
         setTtsText(""); setTtsCampName("");
@@ -272,7 +272,7 @@ export default function VoiceBroadcastCenter() {
         const list = ttsPhones.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
         if (!list.length) return toast.error("Add phone numbers");
         const r = await callVB("tts_broadcast", {
-          text: ttsText, phones: list, campaignName: ttsCampName, voiceId: ttsVoiceId,
+          text: ttsText, phones: list, campaignName: finalName, voiceId: ttsVoiceId,
         });
         if (r.pendingApproval) {
           toast.info(r.message || `Voice saved as prompt #${r.promptId}. Schedule after OBD approval.`);
