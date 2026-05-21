@@ -39,6 +39,36 @@ type Campaign = {
   id: string; campaign_id_external: string | null; campaign_name: string;
   template_id: number; status: string; scheduled_at: string | null; created_at: string;
 };
+type EventVoice = {
+  event_key: string;
+  voice_prompt_id: string | null;
+  is_active: boolean;
+  cooldown_hours: number;
+  send_window_start: string;
+  send_window_end: string;
+  location_json: string;
+  description: string | null;
+};
+type EventLog = {
+  id: string; event_key: string; user_id: string | null; phone: string | null;
+  voice_prompt_id: string | null; campaign_id_external: string | null;
+  status: string; sent_at: string; response: any;
+};
+
+const EVENT_LABELS: Record<string, string> = {
+  signup_welcome: "1. New Signup Welcome",
+  onboarding_incomplete: "2. Onboarding Incomplete",
+  inactive_24h: "3. Inactive within 24h",
+  inactive_24h_plus: "4. Inactive 24h+",
+  inactive_3d_7d: "5. Inactive 3–7 days",
+  daily_ai_tools_alert: "6. Daily AI Tools Alert",
+  leaderboard_alert: "7. Leaderboard Competition",
+  missing_activity: "8. Missing Activity Alert",
+  weekly_performance: "9. Weekly Performance Summary",
+  trial_end: "10. Trial End Alert",
+  premium_upgrade: "11. Premium Upgrade Nudge",
+  final_reengagement: "12. Final Re-engagement",
+};
 
 async function callVB(action: string, payload: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke("voice-broadcast", {
