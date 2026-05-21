@@ -10802,6 +10802,81 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_broadcast_event_logs: {
+        Row: {
+          campaign_id_external: string | null
+          event_key: string
+          id: string
+          phone: string | null
+          response: Json
+          sent_at: string
+          status: string
+          user_id: string | null
+          voice_prompt_id: string | null
+        }
+        Insert: {
+          campaign_id_external?: string | null
+          event_key: string
+          id?: string
+          phone?: string | null
+          response?: Json
+          sent_at?: string
+          status?: string
+          user_id?: string | null
+          voice_prompt_id?: string | null
+        }
+        Update: {
+          campaign_id_external?: string | null
+          event_key?: string
+          id?: string
+          phone?: string | null
+          response?: Json
+          sent_at?: string
+          status?: string
+          user_id?: string | null
+          voice_prompt_id?: string | null
+        }
+        Relationships: []
+      }
+      voice_broadcast_event_voices: {
+        Row: {
+          cooldown_hours: number
+          created_at: string
+          description: string | null
+          event_key: string
+          is_active: boolean
+          location_json: string
+          send_window_end: string
+          send_window_start: string
+          updated_at: string
+          voice_prompt_id: string | null
+        }
+        Insert: {
+          cooldown_hours?: number
+          created_at?: string
+          description?: string | null
+          event_key: string
+          is_active?: boolean
+          location_json?: string
+          send_window_end?: string
+          send_window_start?: string
+          updated_at?: string
+          voice_prompt_id?: string | null
+        }
+        Update: {
+          cooldown_hours?: number
+          created_at?: string
+          description?: string | null
+          event_key?: string
+          is_active?: boolean
+          location_json?: string
+          send_window_end?: string
+          send_window_start?: string
+          updated_at?: string
+          voice_prompt_id?: string | null
+        }
+        Relationships: []
+      }
       voice_broadcast_logs: {
         Row: {
           campaign_id_external: string | null
@@ -10865,6 +10940,7 @@ export type Database = {
       voice_broadcast_voice_files: {
         Row: {
           created_at: string
+          event_key: string | null
           file_name: string
           id: string
           is_active: boolean
@@ -10875,6 +10951,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          event_key?: string | null
           file_name: string
           id?: string
           is_active?: boolean
@@ -10885,6 +10962,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          event_key?: string | null
           file_name?: string
           id?: string
           is_active?: boolean
