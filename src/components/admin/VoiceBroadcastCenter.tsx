@@ -257,7 +257,7 @@ export default function VoiceBroadcastCenter() {
 
   const handleTTS = async () => {
     if (!ttsText.trim()) return toast.error("Enter message text");
-    if (ttsText.length > 1500) return toast.error("Keep text under 1500 chars");
+    if (ttsText.length > 400) return toast.error("Keep text under 400 chars (~30 sec voice)");
     const finalName = ttsCampName.trim() || autoVoiceName(ttsText);
     setBusy(true);
     try {
@@ -405,11 +405,11 @@ export default function VoiceBroadcastCenter() {
             </div>
 
             <div>
-              <Label>Message Text ({ttsText.length}/1500)</Label>
+              <Label>Message Text ({ttsText.length}/400 · ~30 sec)</Label>
               <textarea
                 className="w-full min-h-[140px] p-2 border rounded bg-background text-sm"
                 value={ttsText}
-                onChange={(e) => setTtsText(e.target.value.slice(0, 1500))}
+                onChange={(e) => setTtsText(e.target.value.slice(0, 400))}
                 placeholder="Namaste! ACRY AI mein aapka swagat hai. Aaj hi apna AI Second Brain activate karein aur smart study shuru karein."
               />
               <p className="text-xs text-muted-foreground mt-1">
