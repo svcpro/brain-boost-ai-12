@@ -533,15 +533,23 @@ export default function VoiceBroadcastCenter() {
                     <div className="md:col-span-2">
                       <Label className="text-xs">Voice</Label>
                       <Select value={ev.voice_prompt_id || ""} onValueChange={(v) => saveEventVoice(ev, { voice_prompt_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Pick a voice from library…" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder={voices.length ? "Pick a voice from library…" : "No voices uploaded yet"} /></SelectTrigger>
                         <SelectContent>
-                          {voices.filter((v) => v.is_active && v.prompt_status === 1).map((v) => (
-                            <SelectItem key={v.prompt_id} value={v.prompt_id}>
-                              #{v.prompt_id} · {v.file_name}
-                            </SelectItem>
-                          ))}
+                          {[...voices]
+                            .sort((a, b) => Number(b.prompt_status === 1) - Number(a.prompt_status === 1))
+                            .map((v) => {
+                              const approved = v.prompt_status === 1;
+                              return (
+                                <SelectItem key={v.prompt_id} value={v.prompt_id}>
+                                  {approved ? "✅" : "⏳"} #{v.prompt_id} · {v.file_name}{approved ? "" : " (pending approval)"}
+                                </SelectItem>
+                              );
+                            })}
                         </SelectContent>
                       </Select>
+                      {ev.voice_prompt_id && voices.find(v => v.prompt_id === ev.voice_prompt_id)?.prompt_status !== 1 && (
+                        <p className="text-[10px] text-amber-500 mt-1">Voice is pending OBD approval — real calls will be queued until approved.</p>
+                      )}
                     </div>
                     <div>
                       <Label className="text-xs">Cooldown (hrs)</Label>
