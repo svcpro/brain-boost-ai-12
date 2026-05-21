@@ -411,60 +411,6 @@ export default function VoiceBroadcastCenter() {
           </Card>
         </TabsContent>
 
-
-
-        {/* SETTINGS */}
-        <TabsContent value="settings">
-          <Card className="p-4 space-y-4">
-            {config && (
-              <>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Enable Voice Broadcast</Label>
-                    <p className="text-xs text-muted-foreground">Master kill-switch</p>
-                  </div>
-                  <Switch checked={config.is_enabled} onCheckedChange={(v) => saveConfig({ is_enabled: v })} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Auto-call on Signup</Label>
-                    <p className="text-xs text-muted-foreground">Place welcome IVR call to every new user</p>
-                  </div>
-                  <Switch checked={config.signup_trigger_enabled} onCheckedChange={(v) => saveConfig({ signup_trigger_enabled: v })} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Auto-call on Inactive (3d / 7d)</Label>
-                    <p className="text-xs text-muted-foreground">Hook into re-engagement cron</p>
-                  </div>
-                  <Switch checked={config.inactive_trigger_enabled} onCheckedChange={(v) => saveConfig({ inactive_trigger_enabled: v })} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label>Default Welcome Voice Prompt</Label>
-                    <Select value={config.default_welcome_prompt_id || ""} onValueChange={(v) => saveConfig({ default_welcome_prompt_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Pick a voice…" /></SelectTrigger>
-                      <SelectContent>
-                        {voices.filter((v) => v.is_active && v.prompt_status === 1).map((v) => (
-                          <SelectItem key={v.prompt_id} value={v.prompt_id}>
-                            #{v.prompt_id} · {v.file_name} ({v.prompt_category})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Schedule Lead (minutes)</Label>
-                    <Input type="number" defaultValue={config.schedule_lead_minutes}
-                      onBlur={(e) => saveConfig({ schedule_lead_minutes: parseInt(e.target.value) || 11 })} />
-                    <p className="text-xs text-muted-foreground mt-1">OBD requires min 10 min lead time</p>
-                  </div>
-                </div>
-              </>
-            )}
-          </Card>
-        </TabsContent>
-
         {/* VOICE LIBRARY */}
         <TabsContent value="voices">
           <Card className="p-4 space-y-4">
