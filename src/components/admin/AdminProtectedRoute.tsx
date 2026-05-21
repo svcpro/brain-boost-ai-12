@@ -6,6 +6,19 @@ import { Loader2 } from "lucide-react";
 
 const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
 
+// Bypass MFA inside Lovable preview/sandbox hosts (cannot complete TOTP there).
+// Production hosts (acry.ai, www.acry.ai, api.acry.ai) still enforce MFA.
+const isPreviewHost = () => {
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname;
+  return (
+    h.endsWith(".lovableproject.com") ||
+    h.includes("id-preview--") ||
+    h === "localhost" ||
+    h === "127.0.0.1"
+  );
+};
+
 const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const [checking, setChecking] = useState(true);
@@ -36,9 +49,10 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         // Check if user is api_admin — they bypass MFA
         const isApiAdmin = roles.some((r: any) => r.role === "api_admin");
 
-        // OAuth users (Google, Apple) bypass MFA — provider-level auth is sufficient
+        // OAuth users (Google, Apple) bypass MFA — provider-level auth is sufficient.
+        // Lovable preview/sandbox hosts also bypass MFA (TOTP cannot be completed there).
         const provider = user.app_metadata?.provider;
-        if (isApiAdmin || (provider && provider !== "email")) {
+        if (isApiAdmin || isPreviewHost() || (provider && provider !== "email")) {
           setHasMFA(true);
         } else {
           // Email/password users require MFA aal2
