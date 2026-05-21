@@ -374,8 +374,13 @@ export default function VoiceBroadcastCenter() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label>Voice Name</Label>
-                <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="welcome-friendly-hi" />
+                <Label>Voice Name <span className="text-muted-foreground font-normal">(auto)</span></Label>
+                <Input
+                  value={ttsCampName}
+                  onChange={(e) => setTtsCampName(e.target.value)}
+                  placeholder={ttsText.trim() ? autoVoiceName(ttsText) : "auto-generated from your text"}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Leave blank to auto-name from your text.</p>
               </div>
               <div>
                 <div className="flex items-center justify-between">
