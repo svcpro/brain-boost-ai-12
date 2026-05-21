@@ -525,6 +525,7 @@ export default function VoiceBroadcastCenter() {
                       <Button size="sm" variant="ghost" onClick={() => controlCampaign("stop", c.campaign_id_external!)} title="Stop"><Square className="w-3 h-3" /></Button>
                     </>
                   )}
+                  <Button size="sm" variant="ghost" onClick={() => deleteCampaign(c)} title="Delete" className="text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
                 </div>
               </div>
             ))}
