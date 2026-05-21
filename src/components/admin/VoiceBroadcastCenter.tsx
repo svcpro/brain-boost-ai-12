@@ -248,14 +248,22 @@ export default function VoiceBroadcastCenter() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
+  const autoVoiceName = (txt: string) => {
+    const slug = txt.trim().toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-").slice(0, 28).replace(/^-+|-+$/g, "") || "voice";
+    const stamp = new Date().toISOString().slice(2,16).replace(/[-:T]/g, "");
+    return `${slug}-${stamp}`;
+  };
+
   const handleTTS = async () => {
-    if (!ttsText.trim() || !ttsCampName.trim()) return toast.error("Text and name required");
+    if (!ttsText.trim()) return toast.error("Enter message text");
     if (ttsText.length > 1500) return toast.error("Keep text under 1500 chars");
+    const finalName = ttsCampName.trim() || autoVoiceName(ttsText);
     setBusy(true);
     try {
       if (ttsMode === "save_only") {
         const r = await callVB("tts_generate_voice", {
-          text: ttsText, voiceName: ttsCampName, voiceId: ttsVoiceId, promptCategory: "welcome",
+          text: ttsText, voiceName: finalName, voiceId: ttsVoiceId, promptCategory: "welcome",
         });
         toast.success(`Voice saved · Prompt #${r.promptId}`);
         setTtsText(""); setTtsCampName("");
@@ -264,7 +272,7 @@ export default function VoiceBroadcastCenter() {
         const list = ttsPhones.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
         if (!list.length) return toast.error("Add phone numbers");
         const r = await callVB("tts_broadcast", {
-          text: ttsText, phones: list, campaignName: ttsCampName, voiceId: ttsVoiceId,
+          text: ttsText, phones: list, campaignName: finalName, voiceId: ttsVoiceId,
         });
         if (r.pendingApproval) {
           toast.info(r.message || `Voice saved as prompt #${r.promptId}. Schedule after OBD approval.`);
@@ -366,8 +374,13 @@ export default function VoiceBroadcastCenter() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label>Voice Name</Label>
-                <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="welcome-friendly-hi" />
+                <Label>Voice Name <span className="text-muted-foreground font-normal">(auto)</span></Label>
+                <Input
+                  value={ttsCampName}
+                  onChange={(e) => setTtsCampName(e.target.value)}
+                  placeholder={ttsText.trim() ? autoVoiceName(ttsText) : "auto-generated from your text"}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Leave blank to auto-name from your text.</p>
               </div>
               <div>
                 <div className="flex items-center justify-between">
