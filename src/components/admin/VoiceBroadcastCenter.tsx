@@ -570,7 +570,7 @@ export default function VoiceBroadcastCenter() {
                     </div>
                   </div>
                   <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={() => testEventCall(ev.event_key)} disabled={busy || !ev.voice_prompt_id}>
+                    <Button size="sm" variant="outline" onClick={() => testEventCall(ev.event_key)} disabled={busy || !ev.voice_prompt_id || !testUserId.trim()}>
                       Test Call
                     </Button>
                     <Button size="sm" onClick={() => runEventNow(ev.event_key)} disabled={busy || !ev.is_active || !ev.voice_prompt_id}>
