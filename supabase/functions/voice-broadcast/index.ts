@@ -575,6 +575,64 @@ Deno.serve(async (req) => {
       return json({ ok: res.ok, data });
     }
 
+    if (action === "delete_voice") {
+      const { promptId } = body;
+      if (!promptId) return json({ error: "promptId required" }, 400);
+      let obdOk = false;
+      let obdMsg = "";
+      try {
+        const { userId } = await getToken();
+        // OBD delete endpoint (best-effort — varies by account)
+        const res = await obdFetch(`/api/obd/voicefile/delete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, promptId: Number(promptId) }),
+        });
+        const data = await res.json().catch(() => ({}));
+        obdOk = res.ok;
+        obdMsg = (data as any)?.message || (data as any)?.status || "";
+      } catch (e) {
+        obdMsg = (e as Error).message;
+      }
+      // Always remove local cache so UI stays clean
+      await supabase
+        .from("voice_broadcast_voice_files")
+        .delete()
+        .eq("prompt_id", String(promptId));
+      return json({ ok: true, obdOk, obdMsg, message: obdOk ? "Voice deleted" : `Removed locally${obdMsg ? ` (OBD: ${obdMsg})` : ""}` });
+    }
+
+    if (action === "delete_campaign") {
+      const { campaignId } = body;
+      if (!campaignId) return json({ error: "campaignId required" }, 400);
+      let obdOk = false;
+      let obdMsg = "";
+      try {
+        const { userId } = await getToken();
+        // Best-effort: stop first so it can be removed even if running
+        await obdFetch(`/api/obd/campaign/stop`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ campaignId: Number(campaignId) }),
+        }).catch(() => null);
+        const res = await obdFetch(`/api/obd/campaign/delete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, campaignId: Number(campaignId) }),
+        });
+        const data = await res.json().catch(() => ({}));
+        obdOk = res.ok;
+        obdMsg = (data as any)?.message || (data as any)?.status || "";
+      } catch (e) {
+        obdMsg = (e as Error).message;
+      }
+      await supabase
+        .from("voice_broadcast_campaigns")
+        .delete()
+        .eq("campaign_id_external", String(campaignId));
+      return json({ ok: true, obdOk, obdMsg, message: obdOk ? "Campaign deleted" : `Removed locally${obdMsg ? ` (OBD: ${obdMsg})` : ""}` });
+    }
+
     // ─── one-shot per-user broadcast (used by signup & re-engagement) ───
     if (action === "send_to_user") {
       const { user_id, trigger_key = "manual", prompt_id: overridePromptId } = body;

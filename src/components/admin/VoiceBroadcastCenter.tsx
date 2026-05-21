@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square, Wand2 } from "lucide-react";
+import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square, Wand2, Trash2 } from "lucide-react";
 
 const TTS_VOICES = [
   // Female
@@ -207,6 +207,30 @@ export default function VoiceBroadcastCenter() {
     try {
       await callVB(action, { campaignId: id });
       toast.success(`Campaign ${action}d`);
+      refreshCampaigns();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const deleteVoice = async (v: Voice) => {
+    if (!confirm(`Delete voice "${v.file_name}" (#${v.prompt_id})? This removes it from OBD and the library.`)) return;
+    try {
+      const r = await callVB("delete_voice", { promptId: v.prompt_id });
+      toast.success(r.message || "Voice deleted");
+      refreshVoices();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const deleteCampaign = async (c: Campaign) => {
+    if (!confirm(`Delete campaign "${c.campaign_name}"? This stops and removes it from OBD.`)) return;
+    try {
+      if (c.campaign_id_external) {
+        const r = await callVB("delete_campaign", { campaignId: c.campaign_id_external });
+        toast.success(r.message || "Campaign deleted");
+      } else {
+        // Local-only (compose_failed etc.) — just remove the row
+        await supabase.from("voice_broadcast_campaigns").delete().eq("id", c.id);
+        toast.success("Campaign removed");
+      }
       refreshCampaigns();
     } catch (e: any) { toast.error(e.message); }
   };
@@ -425,7 +449,12 @@ export default function VoiceBroadcastCenter() {
                     <span className="ml-2 font-medium">{v.file_name}</span>
                     <Badge variant="outline" className="ml-2">{v.prompt_category}</Badge>
                   </div>
-                  <Badge variant={v.is_active ? "default" : "secondary"}>{v.is_active ? "active" : "pending"}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={v.is_active ? "default" : "secondary"}>{v.is_active ? "active" : "pending"}</Badge>
+                    <Button size="sm" variant="ghost" onClick={() => deleteVoice(v)} title="Delete voice" className="text-destructive hover:text-destructive">
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -496,6 +525,7 @@ export default function VoiceBroadcastCenter() {
                       <Button size="sm" variant="ghost" onClick={() => controlCampaign("stop", c.campaign_id_external!)} title="Stop"><Square className="w-3 h-3" /></Button>
                     </>
                   )}
+                  <Button size="sm" variant="ghost" onClick={() => deleteCampaign(c)} title="Delete" className="text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
                 </div>
               </div>
             ))}
