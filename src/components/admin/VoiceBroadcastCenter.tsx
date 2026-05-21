@@ -334,32 +334,40 @@ export default function VoiceBroadcastCenter() {
         <Card className="p-3 border-destructive/40 bg-destructive/10 text-sm text-destructive">{status.error}</Card>
       )}
 
+      <Card className="p-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+        <div className="text-xs font-semibold text-muted-foreground mb-1">3-STEP FLOW</div>
+        <div className="flex items-center gap-2 text-sm font-medium flex-wrap">
+          <span className="px-2 py-1 rounded bg-primary/15">1. Text → Voice</span>
+          <span className="text-muted-foreground">→</span>
+          <span className="px-2 py-1 rounded bg-primary/15">2. Voice Library</span>
+          <span className="text-muted-foreground">→</span>
+          <span className="px-2 py-1 rounded bg-primary/15">3. AI Auto-Scheduled Events</span>
+        </div>
+      </Card>
+
       <Tabs defaultValue="tts">
         <TabsList>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="tts">✨ Text → Voice</TabsTrigger>
-          <TabsTrigger value="voices">Voice Library</TabsTrigger>
-          <TabsTrigger value="broadcast">New Broadcast</TabsTrigger>
-          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-          <TabsTrigger value="automation">🤖 Event Automation</TabsTrigger>
-          <TabsTrigger value="logs">Automation Logs</TabsTrigger>
+          <TabsTrigger value="tts">✨ 1. Text → Voice</TabsTrigger>
+          <TabsTrigger value="voices">🎙️ 2. Voice Library</TabsTrigger>
+          <TabsTrigger value="automation">🤖 3. Event Automation</TabsTrigger>
+          <TabsTrigger value="logs">📋 Automation Logs</TabsTrigger>
         </TabsList>
 
-        {/* TTS — type Hinglish / Hindi / English, system generates & broadcasts */}
+        {/* TTS — generate a voice and save to library (broadcast happens automatically via events) */}
         <TabsContent value="tts">
           <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2">
               <Wand2 className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">AI Voice Broadcast — Hinglish / Hindi / English</h3>
+              <h3 className="font-semibold">Step 1 — Generate Voice from Text</h3>
             </div>
             <p className="text-xs text-muted-foreground">
-              Type a message in Hinglish, Hindi or English. We generate a natural voice with ElevenLabs and place IVR calls automatically.
+              Type a message in Hinglish, Hindi or English. We generate a natural voice with ElevenLabs and save it to your Voice Library. Then assign it to a lifecycle event in Step 3 — the AI scheduler handles all calls automatically.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label>Campaign / Voice Name</Label>
-                <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="diwali-greeting-2026" />
+                <Label>Voice Name</Label>
+                <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="welcome-friendly-hi" />
               </div>
               <div>
                 <div className="flex items-center justify-between">
@@ -396,89 +404,10 @@ export default function VoiceBroadcastCenter() {
               </p>
             </div>
 
-            <div>
-              <Label>Mode</Label>
-              <Select value={ttsMode} onValueChange={(v) => setTtsMode(v as any)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="broadcast">Generate + Broadcast now</SelectItem>
-                  <SelectItem value="save_only">Generate + Save to Voice Library</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {ttsMode === "broadcast" && (
-              <div>
-                <Label>Phone Numbers (comma / newline separated)</Label>
-                <textarea
-                  className="w-full min-h-[100px] p-2 border rounded bg-background text-sm font-mono"
-                  value={ttsPhones} onChange={(e) => setTtsPhones(e.target.value)}
-                  placeholder="9876543210, 9876543211"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {ttsPhones.split(/[\s,;\n]+/).filter(Boolean).length} numbers
-                </p>
-              </div>
-            )}
-
-            <Button onClick={handleTTS} disabled={busy} className="w-full">
+            <Button onClick={() => { setTtsMode("save_only"); handleTTS(); }} disabled={busy} className="w-full">
               {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Wand2 className="w-4 h-4 mr-1" />}
-              {ttsMode === "broadcast" ? "Generate Voice & Schedule Broadcast" : "Generate & Save Voice"}
+              Generate & Save to Voice Library
             </Button>
-          </Card>
-        </TabsContent>
-
-
-
-        {/* SETTINGS */}
-        <TabsContent value="settings">
-          <Card className="p-4 space-y-4">
-            {config && (
-              <>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Enable Voice Broadcast</Label>
-                    <p className="text-xs text-muted-foreground">Master kill-switch</p>
-                  </div>
-                  <Switch checked={config.is_enabled} onCheckedChange={(v) => saveConfig({ is_enabled: v })} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Auto-call on Signup</Label>
-                    <p className="text-xs text-muted-foreground">Place welcome IVR call to every new user</p>
-                  </div>
-                  <Switch checked={config.signup_trigger_enabled} onCheckedChange={(v) => saveConfig({ signup_trigger_enabled: v })} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Auto-call on Inactive (3d / 7d)</Label>
-                    <p className="text-xs text-muted-foreground">Hook into re-engagement cron</p>
-                  </div>
-                  <Switch checked={config.inactive_trigger_enabled} onCheckedChange={(v) => saveConfig({ inactive_trigger_enabled: v })} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label>Default Welcome Voice Prompt</Label>
-                    <Select value={config.default_welcome_prompt_id || ""} onValueChange={(v) => saveConfig({ default_welcome_prompt_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Pick a voice…" /></SelectTrigger>
-                      <SelectContent>
-                        {voices.filter((v) => v.is_active && v.prompt_status === 1).map((v) => (
-                          <SelectItem key={v.prompt_id} value={v.prompt_id}>
-                            #{v.prompt_id} · {v.file_name} ({v.prompt_category})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Schedule Lead (minutes)</Label>
-                    <Input type="number" defaultValue={config.schedule_lead_minutes}
-                      onBlur={(e) => saveConfig({ schedule_lead_minutes: parseInt(e.target.value) || 11 })} />
-                    <p className="text-xs text-muted-foreground mt-1">OBD requires min 10 min lead time</p>
-                  </div>
-                </div>
-              </>
-            )}
           </Card>
         </TabsContent>
 
@@ -539,76 +468,6 @@ export default function VoiceBroadcastCenter() {
           </Card>
         </TabsContent>
 
-        {/* NEW BROADCAST */}
-        <TabsContent value="broadcast">
-          <Card className="p-4 space-y-3">
-            <h3 className="font-semibold">Compose Broadcast (Simple IVR)</h3>
-            <div>
-              <Label>Campaign Name</Label>
-              <Input value={campName} onChange={(e) => setCampName(e.target.value)} placeholder="festive-blast-2026" />
-            </div>
-            <div>
-              <Label>Voice Prompt</Label>
-              <Select value={welcomePId} onValueChange={setWelcomePId}>
-                <SelectTrigger><SelectValue placeholder="Pick a voice…" /></SelectTrigger>
-                <SelectContent>
-                    {voices.filter((v) => v.is_active && v.prompt_status === 1).map((v) => (
-                    <SelectItem key={v.prompt_id} value={v.prompt_id}>
-                      #{v.prompt_id} · {v.file_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Phone Numbers (comma / newline separated, 10 digits or +91…)</Label>
-              <textarea
-                className="w-full min-h-[120px] p-2 border rounded bg-background text-sm font-mono"
-                value={phones} onChange={(e) => setPhones(e.target.value)}
-                placeholder="9876543210, 9876543211" />
-              <p className="text-xs text-muted-foreground mt-1">
-                {phones.split(/[\s,;\n]+/).filter(Boolean).length} numbers
-              </p>
-            </div>
-            <Button onClick={handleCompose} disabled={busy} className="w-full">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <PhoneCall className="w-4 h-4 mr-1" />}
-              Schedule Broadcast
-            </Button>
-          </Card>
-        </TabsContent>
-
-        {/* CAMPAIGNS */}
-        <TabsContent value="campaigns">
-          <Card className="p-4 space-y-3">
-            <div className="flex justify-between">
-              <h3 className="font-semibold">Recent Campaigns</h3>
-              <Button size="sm" variant="outline" onClick={refreshCampaigns}><RefreshCcw className="w-4 h-4" /></Button>
-            </div>
-            {campaigns.length === 0 && <p className="text-sm text-muted-foreground">No campaigns yet.</p>}
-            {campaigns.map((c) => (
-              <div key={c.id} className="flex items-center justify-between p-3 border rounded text-sm">
-                <div>
-                  <div className="font-medium">{c.campaign_name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {c.campaign_id_external ? `#${c.campaign_id_external} · ` : ""}
-                    {c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : ""}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={c.status === "scheduled" ? "default" : "secondary"}>{c.status}</Badge>
-                  {c.campaign_id_external && (
-                    <>
-                      <Button size="sm" variant="ghost" onClick={() => controlCampaign("pause", c.campaign_id_external!)} title="Pause"><Pause className="w-3 h-3" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => controlCampaign("resume", c.campaign_id_external!)} title="Resume"><Play className="w-3 h-3" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => controlCampaign("stop", c.campaign_id_external!)} title="Stop"><Square className="w-3 h-3" /></Button>
-                    </>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => deleteCampaign(c)} title="Delete" className="text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
-                </div>
-              </div>
-            ))}
-          </Card>
-        </TabsContent>
 
         {/* EVENT AUTOMATION */}
         <TabsContent value="automation">
