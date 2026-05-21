@@ -449,7 +449,12 @@ export default function VoiceBroadcastCenter() {
                     <span className="ml-2 font-medium">{v.file_name}</span>
                     <Badge variant="outline" className="ml-2">{v.prompt_category}</Badge>
                   </div>
-                  <Badge variant={v.is_active ? "default" : "secondary"}>{v.is_active ? "active" : "pending"}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={v.is_active ? "default" : "secondary"}>{v.is_active ? "active" : "pending"}</Badge>
+                    <Button size="sm" variant="ghost" onClick={() => deleteVoice(v)} title="Delete voice" className="text-destructive hover:text-destructive">
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
