@@ -341,6 +341,8 @@ export default function VoiceBroadcastCenter() {
           <TabsTrigger value="voices">Voice Library</TabsTrigger>
           <TabsTrigger value="broadcast">New Broadcast</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsTrigger value="automation">🤖 Event Automation</TabsTrigger>
+          <TabsTrigger value="logs">Automation Logs</TabsTrigger>
         </TabsList>
 
         {/* TTS — type Hinglish / Hindi / English, system generates & broadcasts */}
