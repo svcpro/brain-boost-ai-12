@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square, Wand2 } from "lucide-react";
+import { Loader2, PhoneCall, Upload, RefreshCcw, Play, Pause, Square, Wand2, Trash2 } from "lucide-react";
 
 const TTS_VOICES = [
   // Female
