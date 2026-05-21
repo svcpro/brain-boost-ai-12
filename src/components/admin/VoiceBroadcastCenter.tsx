@@ -334,32 +334,40 @@ export default function VoiceBroadcastCenter() {
         <Card className="p-3 border-destructive/40 bg-destructive/10 text-sm text-destructive">{status.error}</Card>
       )}
 
+      <Card className="p-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+        <div className="text-xs font-semibold text-muted-foreground mb-1">3-STEP FLOW</div>
+        <div className="flex items-center gap-2 text-sm font-medium flex-wrap">
+          <span className="px-2 py-1 rounded bg-primary/15">1. Text → Voice</span>
+          <span className="text-muted-foreground">→</span>
+          <span className="px-2 py-1 rounded bg-primary/15">2. Voice Library</span>
+          <span className="text-muted-foreground">→</span>
+          <span className="px-2 py-1 rounded bg-primary/15">3. AI Auto-Scheduled Events</span>
+        </div>
+      </Card>
+
       <Tabs defaultValue="tts">
         <TabsList>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="tts">✨ Text → Voice</TabsTrigger>
-          <TabsTrigger value="voices">Voice Library</TabsTrigger>
-          <TabsTrigger value="broadcast">New Broadcast</TabsTrigger>
-          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-          <TabsTrigger value="automation">🤖 Event Automation</TabsTrigger>
-          <TabsTrigger value="logs">Automation Logs</TabsTrigger>
+          <TabsTrigger value="tts">✨ 1. Text → Voice</TabsTrigger>
+          <TabsTrigger value="voices">🎙️ 2. Voice Library</TabsTrigger>
+          <TabsTrigger value="automation">🤖 3. Event Automation</TabsTrigger>
+          <TabsTrigger value="logs">📋 Automation Logs</TabsTrigger>
         </TabsList>
 
-        {/* TTS — type Hinglish / Hindi / English, system generates & broadcasts */}
+        {/* TTS — generate a voice and save to library (broadcast happens automatically via events) */}
         <TabsContent value="tts">
           <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2">
               <Wand2 className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">AI Voice Broadcast — Hinglish / Hindi / English</h3>
+              <h3 className="font-semibold">Step 1 — Generate Voice from Text</h3>
             </div>
             <p className="text-xs text-muted-foreground">
-              Type a message in Hinglish, Hindi or English. We generate a natural voice with ElevenLabs and place IVR calls automatically.
+              Type a message in Hinglish, Hindi or English. We generate a natural voice with ElevenLabs and save it to your Voice Library. Then assign it to a lifecycle event in Step 3 — the AI scheduler handles all calls automatically.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label>Campaign / Voice Name</Label>
-                <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="diwali-greeting-2026" />
+                <Label>Voice Name</Label>
+                <Input value={ttsCampName} onChange={(e) => setTtsCampName(e.target.value)} placeholder="welcome-friendly-hi" />
               </div>
               <div>
                 <div className="flex items-center justify-between">
@@ -396,34 +404,9 @@ export default function VoiceBroadcastCenter() {
               </p>
             </div>
 
-            <div>
-              <Label>Mode</Label>
-              <Select value={ttsMode} onValueChange={(v) => setTtsMode(v as any)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="broadcast">Generate + Broadcast now</SelectItem>
-                  <SelectItem value="save_only">Generate + Save to Voice Library</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {ttsMode === "broadcast" && (
-              <div>
-                <Label>Phone Numbers (comma / newline separated)</Label>
-                <textarea
-                  className="w-full min-h-[100px] p-2 border rounded bg-background text-sm font-mono"
-                  value={ttsPhones} onChange={(e) => setTtsPhones(e.target.value)}
-                  placeholder="9876543210, 9876543211"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {ttsPhones.split(/[\s,;\n]+/).filter(Boolean).length} numbers
-                </p>
-              </div>
-            )}
-
-            <Button onClick={handleTTS} disabled={busy} className="w-full">
+            <Button onClick={() => { setTtsMode("save_only"); handleTTS(); }} disabled={busy} className="w-full">
               {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Wand2 className="w-4 h-4 mr-1" />}
-              {ttsMode === "broadcast" ? "Generate Voice & Schedule Broadcast" : "Generate & Save Voice"}
+              Generate & Save to Voice Library
             </Button>
           </Card>
         </TabsContent>
