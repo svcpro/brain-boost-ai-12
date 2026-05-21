@@ -49,9 +49,10 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         // Check if user is api_admin — they bypass MFA
         const isApiAdmin = roles.some((r: any) => r.role === "api_admin");
 
-        // OAuth users (Google, Apple) bypass MFA — provider-level auth is sufficient
+        // OAuth users (Google, Apple) bypass MFA — provider-level auth is sufficient.
+        // Lovable preview/sandbox hosts also bypass MFA (TOTP cannot be completed there).
         const provider = user.app_metadata?.provider;
-        if (isApiAdmin || (provider && provider !== "email")) {
+        if (isApiAdmin || isPreviewHost() || (provider && provider !== "email")) {
           setHasMFA(true);
         } else {
           // Email/password users require MFA aal2
