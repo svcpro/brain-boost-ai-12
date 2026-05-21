@@ -118,6 +118,12 @@ export default function VoiceBroadcastCenter() {
   const [campName, setCampName] = useState("");
   const [welcomePId, setWelcomePId] = useState("");
 
+  // event automation
+  const [eventVoices, setEventVoices] = useState<EventVoice[]>([]);
+  const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
+  const [testUserId, setTestUserId] = useState("");
+  const [logFilter, setLogFilter] = useState<string>("");
+
   const refreshStatus = async () => {
     try { setStatus(await callVB("status")); } catch (e: any) { toast.error(e.message); }
   };
