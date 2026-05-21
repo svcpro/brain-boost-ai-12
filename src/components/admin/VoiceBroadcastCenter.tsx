@@ -248,9 +248,17 @@ export default function VoiceBroadcastCenter() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
+  const autoVoiceName = (txt: string) => {
+    const slug = txt.trim().toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-").slice(0, 28).replace(/^-+|-+$/g, "") || "voice";
+    const stamp = new Date().toISOString().slice(2,16).replace(/[-:T]/g, "");
+    return `${slug}-${stamp}`;
+  };
+
   const handleTTS = async () => {
-    if (!ttsText.trim() || !ttsCampName.trim()) return toast.error("Text and name required");
+    if (!ttsText.trim()) return toast.error("Enter message text");
     if (ttsText.length > 1500) return toast.error("Keep text under 1500 chars");
+    const finalName = ttsCampName.trim() || autoVoiceName(ttsText);
     setBusy(true);
     try {
       if (ttsMode === "save_only") {
