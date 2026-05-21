@@ -104,7 +104,7 @@ export default function VoiceBroadcastCenter() {
     if (previewAudio) { previewAudio.pause(); setPreviewAudio(null); }
     setPreviewing(true);
     try {
-      const sample = ttsText.trim().slice(0, 300) || undefined;
+      const sample = ttsText.trim().slice(0, 400) || undefined;
       const r = await callVB("tts_preview", { voiceId: ttsVoiceId, text: sample });
       const audio = new Audio(`data:${r.mime};base64,${r.audioBase64}`);
       setPreviewAudio(audio);
