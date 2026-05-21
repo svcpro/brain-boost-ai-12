@@ -60,6 +60,7 @@ const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
 const InstituteLoginPage = lazy(() => import("./pages/InstituteLoginPage"));
 const InstituteSignupPage = lazy(() => import("./pages/InstituteSignupPage"));
 const InstituteJoinPage = lazy(() => import("./pages/InstituteJoinPage"));
+const CampusAmbassadorBlueprint = lazy(() => import("./pages/CampusAmbassadorBlueprint"));
 
 // Lazy load heavy components
 const PWAInstallBanner = lazy(() => import("@/components/app/PWAInstallBanner"));
