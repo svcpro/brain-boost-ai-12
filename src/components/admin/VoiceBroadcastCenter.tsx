@@ -158,9 +158,49 @@ export default function VoiceBroadcastCenter() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
+  const refreshEventVoices = async () => {
+    try { const r = await callVB("list_event_voices"); setEventVoices(r.events || []); } catch {}
+  };
+  const refreshEventLogs = async (key?: string) => {
+    try { const r = await callVB("list_event_logs", key ? { event_key: key } : {}); setEventLogs(r.logs || []); } catch {}
+  };
+
+  const saveEventVoice = async (ev: EventVoice, patch: Partial<EventVoice>) => {
+    try {
+      await callVB("save_event_voice", { event_key: ev.event_key, ...patch });
+      toast.success("Saved");
+      refreshEventVoices();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const runEventNow = async (key: string) => {
+    setBusy(true);
+    try {
+      const r = await callVB("run_event_now", { event_key: key });
+      const result = r.scheduler?.results?.[0];
+      if (result) toast.success(`Ran ${key}: ${result.sent || 0} sent, ${result.skipped || 0} skipped`);
+      else toast.info(`Ran ${key} (no eligible users)`);
+      refreshEventLogs(logFilter || undefined);
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+  };
+
+  const testEventCall = async (key: string) => {
+    if (!testUserId.trim()) return toast.error("Enter a user_id (UUID) to test");
+    setBusy(true);
+    try {
+      const r = await callVB("test_event_call", { event_key: key, user_id: testUserId.trim() });
+      if (r.ok) toast.success(`Test call scheduled · #${r.campaignId}`);
+      else toast.error(r.error || r.response?.message || "Test call failed");
+      refreshEventLogs(logFilter || undefined);
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+  };
+
   useEffect(() => {
     refreshStatus(); refreshConfig(); refreshVoices(); refreshCampaigns();
+    refreshEventVoices(); refreshEventLogs();
   }, []);
+
+  useEffect(() => { refreshEventLogs(logFilter || undefined); }, [logFilter]);
 
   const saveConfig = async (patch: Record<string, unknown>) => {
     if (!config?.id) return;
