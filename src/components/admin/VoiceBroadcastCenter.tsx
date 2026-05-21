@@ -211,6 +211,30 @@ export default function VoiceBroadcastCenter() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const deleteVoice = async (v: Voice) => {
+    if (!confirm(`Delete voice "${v.file_name}" (#${v.prompt_id})? This removes it from OBD and the library.`)) return;
+    try {
+      const r = await callVB("delete_voice", { promptId: v.prompt_id });
+      toast.success(r.message || "Voice deleted");
+      refreshVoices();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const deleteCampaign = async (c: Campaign) => {
+    if (!confirm(`Delete campaign "${c.campaign_name}"? This stops and removes it from OBD.`)) return;
+    try {
+      if (c.campaign_id_external) {
+        const r = await callVB("delete_campaign", { campaignId: c.campaign_id_external });
+        toast.success(r.message || "Campaign deleted");
+      } else {
+        // Local-only (compose_failed etc.) — just remove the row
+        await supabase.from("voice_broadcast_campaigns").delete().eq("id", c.id);
+        toast.success("Campaign removed");
+      }
+      refreshCampaigns();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
