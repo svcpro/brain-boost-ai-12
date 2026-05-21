@@ -39,6 +39,36 @@ type Campaign = {
   id: string; campaign_id_external: string | null; campaign_name: string;
   template_id: number; status: string; scheduled_at: string | null; created_at: string;
 };
+type EventVoice = {
+  event_key: string;
+  voice_prompt_id: string | null;
+  is_active: boolean;
+  cooldown_hours: number;
+  send_window_start: string;
+  send_window_end: string;
+  location_json: string;
+  description: string | null;
+};
+type EventLog = {
+  id: string; event_key: string; user_id: string | null; phone: string | null;
+  voice_prompt_id: string | null; campaign_id_external: string | null;
+  status: string; sent_at: string; response: any;
+};
+
+const EVENT_LABELS: Record<string, string> = {
+  signup_welcome: "1. New Signup Welcome",
+  onboarding_incomplete: "2. Onboarding Incomplete",
+  inactive_24h: "3. Inactive within 24h",
+  inactive_24h_plus: "4. Inactive 24h+",
+  inactive_3d_7d: "5. Inactive 3–7 days",
+  daily_ai_tools_alert: "6. Daily AI Tools Alert",
+  leaderboard_alert: "7. Leaderboard Competition",
+  missing_activity: "8. Missing Activity Alert",
+  weekly_performance: "9. Weekly Performance Summary",
+  trial_end: "10. Trial End Alert",
+  premium_upgrade: "11. Premium Upgrade Nudge",
+  final_reengagement: "12. Final Re-engagement",
+};
 
 async function callVB(action: string, payload: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke("voice-broadcast", {
@@ -88,6 +118,12 @@ export default function VoiceBroadcastCenter() {
   const [campName, setCampName] = useState("");
   const [welcomePId, setWelcomePId] = useState("");
 
+  // event automation
+  const [eventVoices, setEventVoices] = useState<EventVoice[]>([]);
+  const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
+  const [testUserId, setTestUserId] = useState("");
+  const [logFilter, setLogFilter] = useState<string>("");
+
   const refreshStatus = async () => {
     try { setStatus(await callVB("status")); } catch (e: any) { toast.error(e.message); }
   };
@@ -122,9 +158,49 @@ export default function VoiceBroadcastCenter() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
+  const refreshEventVoices = async () => {
+    try { const r = await callVB("list_event_voices"); setEventVoices(r.events || []); } catch {}
+  };
+  const refreshEventLogs = async (key?: string) => {
+    try { const r = await callVB("list_event_logs", key ? { event_key: key } : {}); setEventLogs(r.logs || []); } catch {}
+  };
+
+  const saveEventVoice = async (ev: EventVoice, patch: Partial<EventVoice>) => {
+    try {
+      await callVB("save_event_voice", { event_key: ev.event_key, ...patch });
+      toast.success("Saved");
+      refreshEventVoices();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const runEventNow = async (key: string) => {
+    setBusy(true);
+    try {
+      const r = await callVB("run_event_now", { event_key: key });
+      const result = r.scheduler?.results?.[0];
+      if (result) toast.success(`Ran ${key}: ${result.sent || 0} sent, ${result.skipped || 0} skipped`);
+      else toast.info(`Ran ${key} (no eligible users)`);
+      refreshEventLogs(logFilter || undefined);
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+  };
+
+  const testEventCall = async (key: string) => {
+    if (!testUserId.trim()) return toast.error("Enter a user_id (UUID) to test");
+    setBusy(true);
+    try {
+      const r = await callVB("test_event_call", { event_key: key, user_id: testUserId.trim() });
+      if (r.ok) toast.success(`Test call scheduled · #${r.campaignId}`);
+      else toast.error(r.error || r.response?.message || "Test call failed");
+      refreshEventLogs(logFilter || undefined);
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+  };
+
   useEffect(() => {
     refreshStatus(); refreshConfig(); refreshVoices(); refreshCampaigns();
+    refreshEventVoices(); refreshEventLogs();
   }, []);
+
+  useEffect(() => { refreshEventLogs(logFilter || undefined); }, [logFilter]);
 
   const saveConfig = async (patch: Record<string, unknown>) => {
     if (!config?.id) return;
@@ -265,6 +341,8 @@ export default function VoiceBroadcastCenter() {
           <TabsTrigger value="voices">Voice Library</TabsTrigger>
           <TabsTrigger value="broadcast">New Broadcast</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsTrigger value="automation">🤖 Event Automation</TabsTrigger>
+          <TabsTrigger value="logs">Automation Logs</TabsTrigger>
         </TabsList>
 
         {/* TTS — type Hinglish / Hindi / English, system generates & broadcasts */}
@@ -529,6 +607,127 @@ export default function VoiceBroadcastCenter() {
                 </div>
               </div>
             ))}
+          </Card>
+        </TabsContent>
+
+        {/* EVENT AUTOMATION */}
+        <TabsContent value="automation">
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold">AI Voice Automation</h3>
+                <p className="text-xs text-muted-foreground">
+                  Assign a voice to each lifecycle event. The scheduler runs every 15 minutes and places calls automatically (respecting cooldowns + send window).
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={refreshEventVoices}><RefreshCcw className="w-4 h-4" /></Button>
+            </div>
+
+            <div className="flex items-end gap-2 p-2 border rounded bg-muted/30">
+              <div className="flex-1">
+                <Label className="text-xs">Test user_id (UUID) — used by "Test Call" buttons below</Label>
+                <Input value={testUserId} onChange={(e) => setTestUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {eventVoices.length === 0 && <p className="text-sm text-muted-foreground">Loading events…</p>}
+              {eventVoices.map((ev) => (
+                <div key={ev.event_key} className="p-3 border rounded space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <div className="font-medium text-sm">{EVENT_LABELS[ev.event_key] || ev.event_key}</div>
+                      {ev.description && <div className="text-xs text-muted-foreground">{ev.description}</div>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={ev.is_active ? "default" : "secondary"}>{ev.is_active ? "ON" : "OFF"}</Badge>
+                      <Switch checked={ev.is_active} onCheckedChange={(v) => saveEventVoice(ev, { is_active: v })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs">Voice</Label>
+                      <Select value={ev.voice_prompt_id || ""} onValueChange={(v) => saveEventVoice(ev, { voice_prompt_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Pick a voice from library…" /></SelectTrigger>
+                        <SelectContent>
+                          {voices.filter((v) => v.is_active && v.prompt_status === 1).map((v) => (
+                            <SelectItem key={v.prompt_id} value={v.prompt_id}>
+                              #{v.prompt_id} · {v.file_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Cooldown (hrs)</Label>
+                      <Input type="number" defaultValue={ev.cooldown_hours}
+                        onBlur={(e) => saveEventVoice(ev, { cooldown_hours: parseInt(e.target.value) || 72 })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      <div>
+                        <Label className="text-xs">Window start</Label>
+                        <Input type="time" defaultValue={ev.send_window_start?.slice(0,5)}
+                          onBlur={(e) => saveEventVoice(ev, { send_window_start: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">end</Label>
+                        <Input type="time" defaultValue={ev.send_window_end?.slice(0,5)}
+                          onBlur={(e) => saveEventVoice(ev, { send_window_end: e.target.value })} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="outline" onClick={() => testEventCall(ev.event_key)} disabled={busy || !ev.voice_prompt_id}>
+                      Test Call
+                    </Button>
+                    <Button size="sm" onClick={() => runEventNow(ev.event_key)} disabled={busy || !ev.is_active || !ev.voice_prompt_id}>
+                      Run Now
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* AUTOMATION LOGS */}
+        <TabsContent value="logs">
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="font-semibold">Automation Logs</h3>
+              <div className="flex items-center gap-2">
+                <Select value={logFilter || "__all__"} onValueChange={(v) => setLogFilter(v === "__all__" ? "" : v)}>
+                  <SelectTrigger className="w-[240px]"><SelectValue placeholder="All events" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All events</SelectItem>
+                    {Object.entries(EVENT_LABELS).map(([k, l]) => (
+                      <SelectItem key={k} value={k}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" onClick={() => refreshEventLogs(logFilter || undefined)}>
+                  <RefreshCcw className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            {eventLogs.length === 0 && <p className="text-sm text-muted-foreground">No automation calls yet.</p>}
+            <div className="space-y-1">
+              {eventLogs.map((l) => (
+                <div key={l.id} className="flex items-center justify-between p-2 border rounded text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant="outline">{EVENT_LABELS[l.event_key]?.split(". ")[1] || l.event_key}</Badge>
+                    <span className="font-mono text-muted-foreground truncate max-w-[160px]">{l.user_id?.slice(0,8)}…</span>
+                    {l.campaign_id_external && <span className="font-mono text-muted-foreground">#{l.campaign_id_external}</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={l.status === "queued" ? "default" : l.status === "failed" ? "destructive" : "secondary"}>
+                      {l.status}
+                    </Badge>
+                    <span className="text-muted-foreground">{new Date(l.sent_at).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </Card>
         </TabsContent>
       </Tabs>
