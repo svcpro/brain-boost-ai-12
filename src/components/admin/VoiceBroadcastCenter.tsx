@@ -209,8 +209,10 @@ export default function VoiceBroadcastCenter() {
   };
 
   useEffect(() => {
-    refreshStatus(); refreshConfig(); refreshVoices(); refreshCampaigns();
+    refreshStatus(); refreshConfig(); refreshCampaigns();
     refreshEventVoices(); refreshEventLogs();
+    // Auto-sync voice library from OBD so approval status mirrors remote truth
+    syncRemoteVoices(true);
   }, []);
 
   useEffect(() => { refreshEventLogs(logFilter || undefined); }, [logFilter]);
