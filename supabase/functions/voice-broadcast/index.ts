@@ -807,18 +807,24 @@ Deno.serve(async (req) => {
       const promptId = overridePromptId || ev?.voice_prompt_id;
       if (!promptId) return json({ ok: false, skipped: true, reason: "no_prompt_assigned" });
 
-      // Fetch phones for all user_ids
-      const { data: profiles } = await supabase
-        .from("profiles").select("id, phone").in("id", user_ids);
+      // Fetch phones for all user_ids — chunk by 500 to bypass PostgREST 1000-row cap
+      // and ensure NO user is silently dropped from the cohort.
       const phoneMap = new Map<string, string>();
       const phones: string[] = [];
-      for (const p of profiles || []) {
-        const ph = normalizePhone(p.phone || "");
-        if (ph.length >= 10) {
-          phoneMap.set(p.id, ph);
-          phones.push(ph);
+      const PROFILE_CHUNK = 500;
+      for (let i = 0; i < user_ids.length; i += PROFILE_CHUNK) {
+        const slice = user_ids.slice(i, i + PROFILE_CHUNK);
+        const { data: profiles } = await supabase
+          .from("profiles").select("id, phone").in("id", slice);
+        for (const p of profiles || []) {
+          const ph = normalizePhone(p.phone || "");
+          if (ph.length >= 10 && !phoneMap.has(p.id)) {
+            phoneMap.set(p.id, ph);
+            phones.push(ph);
+          }
         }
       }
+      console.log(`[voice-broadcast] send_event_batch ${event_key}: requested=${user_ids.length} resolved_phones=${phones.length}`);
 
       if (phones.length === 0) {
         return json({ ok: false, skipped: true, reason: "no_valid_phones" });
