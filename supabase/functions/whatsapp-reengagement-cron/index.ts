@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const dryRun = body.dry_run === true;
     const onlyTier: Tier | null = body.tier || null;
-    const limit = Math.min(Number(body.limit) || 500, 2000);
+    const limit = Math.min(Number(body.limit) || 100000, 100000);
 
     // Load template active flags from admin-controlled table
     const { data: tplRows } = await supabase
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     // Pull eligible profiles (must have phone + opt-in) — fetch all auth pages we need
     const authMap = new Map<string, { last_sign_in_at: string | null; created_at: string }>();
     const PER_PAGE = 1000;
-    for (let page = 1; page <= 10; page++) {
+    for (let page = 1; page <= 100; page++) {
       const { data: pageData } = await supabase.auth.admin.listUsers({ page, perPage: PER_PAGE });
       const users = pageData?.users || [];
       for (const u of users) {
@@ -135,43 +135,76 @@ Deno.serve(async (req) => {
       if (users.length < PER_PAGE) break;
     }
 
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, display_name, exam_type, phone, whatsapp_enabled, whatsapp_opted_in, is_banned")
-      .eq("whatsapp_enabled", true)
-      .eq("is_banned", false)
-      .not("phone", "is", null)
-      .limit(limit);
+    // Paginate profiles to bypass PostgREST 1000-row cap
+    const profiles: any[] = [];
+    const PROF_PAGE = 1000;
+    for (let from = 0; from < limit; from += PROF_PAGE) {
+      const to = Math.min(from + PROF_PAGE - 1, limit - 1);
+      const { data: rows } = await supabase
+        .from("profiles")
+        .select("id, display_name, exam_type, phone, whatsapp_enabled, whatsapp_opted_in, is_banned")
+        .eq("whatsapp_enabled", true)
+        .eq("is_banned", false)
+        .not("phone", "is", null)
+        .range(from, to);
+      const arr = rows || [];
+      profiles.push(...arr);
+      if (arr.length < PROF_PAGE) break;
+    }
 
-    if (!profiles?.length) return json({ processed: 0, reason: "no_eligible_users" });
+    if (!profiles.length) return json({ processed: 0, reason: "no_eligible_users" });
 
     const profileIds = profiles.map((p: any) => p.id);
 
-    // Batch fetch latest study_log per user
-    const { data: logs } = await supabase
-      .from("study_logs")
-      .select("user_id, created_at")
-      .in("user_id", profileIds)
-      .order("created_at", { ascending: false })
-      .limit(5000);
+    // Chunked helper for .in() queries (avoid 1000-id URL limits and 1000-row returns)
+    const ID_CHUNK = 500;
+    const ROW_PAGE = 1000;
+    const chunkIds = <T,>(arr: T[], n: number): T[][] => {
+      const out: T[][] = [];
+      for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+      return out;
+    };
+
+    // Batch fetch latest study_log per user — chunk IDs, paginate within chunk
     const lastLogMap = new Map<string, number>();
-    for (const l of logs || []) {
-      if (!lastLogMap.has(l.user_id)) lastLogMap.set(l.user_id, new Date(l.created_at).getTime());
+    for (const ids of chunkIds(profileIds, ID_CHUNK)) {
+      for (let from = 0; from < 100000; from += ROW_PAGE) {
+        const { data: logs } = await supabase
+          .from("study_logs")
+          .select("user_id, created_at")
+          .in("user_id", ids)
+          .order("created_at", { ascending: false })
+          .range(from, from + ROW_PAGE - 1);
+        const arr = logs || [];
+        for (const l of arr) {
+          if (!lastLogMap.has(l.user_id)) lastLogMap.set(l.user_id, new Date(l.created_at).getTime());
+        }
+        if (arr.length < ROW_PAGE) break;
+      }
     }
 
-    // Batch fetch recent reengagement logs for cooldown
+    // Batch fetch recent reengagement logs for cooldown — chunked + paginated
     const maxCooldownHours = Math.max(...Object.values(TIER_COOLDOWN_HOURS));
-    const { data: recentSends } = await supabase
-      .from("whatsapp_reengagement_log")
-      .select("user_id, tier, sent_at")
-      .in("user_id", profileIds)
-      .gte("sent_at", new Date(Date.now() - maxCooldownHours * 3600000).toISOString());
+    const sinceIso = new Date(Date.now() - maxCooldownHours * 3600000).toISOString();
     const cooldownMap = new Map<string, number>(); // key: user_id|tier => sent_at ms
-    for (const r of recentSends || []) {
-      const k = `${r.user_id}|${r.tier}`;
-      const ms = new Date(r.sent_at).getTime();
-      if (!cooldownMap.has(k) || cooldownMap.get(k)! < ms) cooldownMap.set(k, ms);
+    for (const ids of chunkIds(profileIds, ID_CHUNK)) {
+      for (let from = 0; from < 100000; from += ROW_PAGE) {
+        const { data: recentSends } = await supabase
+          .from("whatsapp_reengagement_log")
+          .select("user_id, tier, sent_at")
+          .in("user_id", ids)
+          .gte("sent_at", sinceIso)
+          .range(from, from + ROW_PAGE - 1);
+        const arr = recentSends || [];
+        for (const r of arr) {
+          const k = `${r.user_id}|${r.tier}`;
+          const ms = new Date(r.sent_at).getTime();
+          if (!cooldownMap.has(k) || cooldownMap.get(k)! < ms) cooldownMap.set(k, ms);
+        }
+        if (arr.length < ROW_PAGE) break;
+      }
     }
+
 
     const now = Date.now();
     const tally = { scanned: 0, never_signed_in: 0, inactive_24h: 0, inactive_3d: 0, inactive_7d: 0, sent: 0, skipped_cooldown: 0, skipped_no_auth: 0, errors: 0 };

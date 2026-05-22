@@ -365,8 +365,21 @@ Deno.serve(async (req) => {
           if (job.audience_type === "select" && Array.isArray(job.audience_user_ids)) {
             userIds = job.audience_user_ids;
           } else if (job.audience_type === "all") {
-            const { data: users } = await supabase.from("profiles").select("id").eq("whatsapp_enabled", true).limit(2000);
-            userIds = (users || []).map((u: any) => u.id);
+            // Paginate to bypass PostgREST 1000-row cap
+            const MAX_USERS = 100000;
+            const PAGE = 1000;
+            const all: string[] = [];
+            for (let from = 0; from < MAX_USERS; from += PAGE) {
+              const { data: users } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("whatsapp_enabled", true)
+                .range(from, from + PAGE - 1);
+              const ids = (users || []).map((u: any) => u.id);
+              all.push(...ids);
+              if (ids.length < PAGE) break;
+            }
+            userIds = all;
           }
           let delivered = 0, failed = 0, blockedQuota = 0;
           for (const uid of userIds) {
