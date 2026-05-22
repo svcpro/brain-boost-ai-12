@@ -21,7 +21,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-const MAX_PER_EVENT_PER_RUN = 50; // safety cap
+const MAX_PER_EVENT_PER_RUN = 8; // safety cap (each user = 1 MSG91 campaign; MSG91 enforces ~50 campaigns/hour)
+const INTER_CALL_DELAY_MS = 1500; // throttle to stay under MSG91 burst limits
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type EventRow = {
   event_key: string;
