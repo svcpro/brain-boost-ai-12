@@ -633,6 +633,62 @@ Deno.serve(async (req) => {
       return json({ ok: true, obdOk, obdMsg, message: obdOk ? "Campaign deleted" : `Removed locally${obdMsg ? ` (OBD: ${obdMsg})` : ""}` });
     }
 
+    // ─── AI Auto-Assign: match approved voices to events by filename + set best send windows ───
+    if (action === "auto_assign_events") {
+      // 1. Pull approved voices from local cache (kept in sync with OBD)
+      const { data: voices } = await supabase
+        .from("voice_broadcast_voice_files")
+        .select("prompt_id, file_name, prompt_status")
+        .eq("prompt_status", 1);
+      const approved = (voices || []) as Array<{ prompt_id: string; file_name: string }>;
+
+      // 2. AI-best windows (IST) + cooldown per event, derived from EdTech engagement research
+      // Heavy windows match peak app-open hours (evening study + lunch breaks).
+      const PLAN: Record<string, {
+        window: [string, string];
+        cooldown: number;
+        match: RegExp;
+      }> = {
+        signup_welcome:        { window: ["09:00", "21:30"], cooldown: 168, match: /welcome.*signup|signup.*welcome|new[_ ]?signup/i },
+        onboarding_incomplete: { window: ["10:00", "20:00"], cooldown: 48,  match: /not[_ ]?onboarding|onboarding[_ ]?(complete|incomplete)/i },
+        inactive_24h:          { window: ["18:00", "21:00"], cooldown: 48,  match: /within[_ ]?24|inactive.*within.*24/i },
+        inactive_24h_plus:     { window: ["18:00", "21:00"], cooldown: 72,  match: /more[_ ]?than[_ ]?24/i },
+        inactive_3d_7d:        { window: ["11:00", "13:00"], cooldown: 96,  match: /more[_ ]?than[_ ]?3[_ ]?days?|3day|7day/i },
+        daily_ai_tools_alert:  { window: ["09:00", "10:30"], cooldown: 20,  match: /daily.*ai.*tools?|ai.*tools?.*alert/i },
+        leaderboard_alert:     { window: ["19:00", "21:00"], cooldown: 24,  match: /leaderboard|competition/i },
+        missing_activity:      { window: ["20:00", "21:30"], cooldown: 24,  match: /missing[_ ]?activity/i },
+        weekly_performance:    { window: ["18:00", "19:30"], cooldown: 144, match: /weekly[_ ]?performance|performance[_ ]?summary/i },
+        trial_end:             { window: ["11:00", "19:00"], cooldown: 48,  match: /trial[_ ]?end/i },
+        premium_upgrade:       { window: ["11:00", "19:00"], cooldown: 72,  match: /premium[_ ]?upgrade/i },
+        final_reengagement:    { window: ["17:00", "19:00"], cooldown: 168, match: /final[_ ]?re[-_ ]?engagement|re[-_ ]?engagement/i },
+      };
+
+      const assigned: Array<{ event_key: string; voice_prompt_id: string | null; file_name: string | null; window: string }> = [];
+      for (const [event_key, plan] of Object.entries(PLAN)) {
+        const match = approved.find(v => plan.match.test(v.file_name || ""));
+        const patch = {
+          voice_prompt_id: match?.prompt_id || null,
+          send_window_start: plan.window[0],
+          send_window_end: plan.window[1],
+          cooldown_hours: plan.cooldown,
+          is_active: !!match,
+          updated_at: new Date().toISOString(),
+        };
+        await supabase.from("voice_broadcast_event_voices")
+          .update(patch).eq("event_key", event_key);
+        assigned.push({
+          event_key,
+          voice_prompt_id: patch.voice_prompt_id,
+          file_name: match?.file_name || null,
+          window: `${plan.window[0]}–${plan.window[1]} IST`,
+        });
+      }
+      const matched = assigned.filter(a => a.voice_prompt_id).length;
+      return json({ ok: true, matched, total: assigned.length, assigned });
+    }
+
+
+
     // ─── Event Automation: list / save mapping / test call / view logs ───
     if (action === "list_event_voices") {
       const { data } = await supabase
