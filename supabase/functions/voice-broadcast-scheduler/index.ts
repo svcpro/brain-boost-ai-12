@@ -232,12 +232,25 @@ Deno.serve(async (req) => {
     const { data: events } = await q;
 
     const results = [];
+    let obdHourlyCapHit = false;
     for (const ev of (events || []) as EventRow[]) {
-      try { results.push(await processEvent(ev)); }
-      catch (e) { results.push({ event_key: ev.event_key, error: (e as Error).message }); }
+      if (obdHourlyCapHit) {
+        results.push({ event_key: ev.event_key, attempted: 0, sent: 0, skipped: 0, reasons: { deferred_obd_hourly_cap: 1 } });
+        continue;
+      }
+      try {
+        const r = await processEvent(ev);
+        results.push(r);
+        // Detect OBD provider hourly cap — stop remaining events this run
+        if (Object.keys(r.reasons || {}).some((k) => /hourly\s*limit/i.test(k))) {
+          obdHourlyCapHit = true;
+        }
+      } catch (e) {
+        results.push({ event_key: ev.event_key, error: (e as Error).message });
+      }
     }
 
-    return json({ ok: true, ran_at: new Date().toISOString(), results });
+    return json({ ok: true, ran_at: new Date().toISOString(), obd_hourly_cap_hit: obdHourlyCapHit, results });
   } catch (e) {
     return json({ ok: false, error: (e as Error).message }, 500);
   }
