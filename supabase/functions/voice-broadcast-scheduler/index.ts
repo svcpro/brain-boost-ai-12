@@ -21,8 +21,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-// Each event = 1 OBD campaign per run (batched). 200 recipients per campaign is safe.
-const MAX_PER_EVENT_PER_RUN = 200;
+// One OBD campaign per event per run, carrying ALL eligible users in a single bulk upload.
+// 5000 is OBD's practical per-campaign ceiling; raise only if your account allows more.
+const MAX_PER_EVENT_PER_RUN = 5000;
 
 type EventRow = {
   event_key: string;
