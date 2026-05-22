@@ -513,17 +513,26 @@ export default function VoiceBroadcastCenter() {
                   onClick={async () => {
                     setBusy(true);
                     try {
-                      // Make sure local cache mirrors OBD approvals first
+                      // 1. Mirror OBD approvals into local cache
                       await syncRemoteVoices(true);
+                      // 2. AI auto-map voices to events + set optimal send windows
                       const r = await callVB("auto_assign_events");
                       toast.success(`AI auto-assigned ${r.matched}/${r.total} events with optimal send windows`);
+                      // 3. Immediately kick the scheduler so broadcasts start now (respecting cooldowns + send window)
+                      try {
+                        const s = await callVB("run_event_now");
+                        const placed = s?.scheduler?.placed ?? s?.scheduler?.calls ?? s?.scheduler?.queued ?? 0;
+                        toast.success(`🚀 Scheduler started — ${placed} call(s) queued. Cron will continue every 15 min.`);
+                      } catch (se: any) {
+                        toast.error(`Auto-assigned, but scheduler kick failed: ${se.message}`);
+                      }
                       refreshEventVoices();
                     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
                   }}
                   disabled={busy}
                   className="bg-gradient-to-r from-primary to-primary/80"
                 >
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "🤖 Auto-Assign Voices + Best Time (AI)"}
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "🤖 Auto-Assign + Schedule + Start Broadcast (AI)"}
                 </Button>
                 <Button size="sm" variant="outline" onClick={refreshEventVoices}><RefreshCcw className="w-4 h-4" /></Button>
               </div>
