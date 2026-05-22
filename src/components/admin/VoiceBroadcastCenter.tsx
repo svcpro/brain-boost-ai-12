@@ -444,7 +444,7 @@ export default function VoiceBroadcastCenter() {
           <Card className="p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Voice Prompts</h3>
-              <Button size="sm" variant="outline" onClick={syncRemoteVoices} disabled={busy}>
+              <Button size="sm" variant="outline" onClick={() => syncRemoteVoices()} disabled={busy}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sync from OBD"}
               </Button>
             </div>
