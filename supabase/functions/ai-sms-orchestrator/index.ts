@@ -368,13 +368,24 @@ async function runOrchestration(triggeredBy: string, triggeredByUser: string | n
     return { ok: true, run_id: runRow.id, status: "no_events" };
   }
 
-  // Eligible users (have phone)
-  const { data: users } = await sb.from("profiles")
-    .select("id, display_name, exam_type, exam_date, onboarding_completed, created_at, phone")
-    .not("phone", "is", null)
-    .neq("phone", "")
-    .limit(cfg.max_users_per_run);
-  const eligibleUsers = users || [];
+  // Eligible users (have phone) — paginated so we don't silently miss anyone past PostgREST's 1000-row cap.
+  const eligibleUsers: Array<{ id: string; display_name: string | null; exam_type: string | null; exam_date: string | null; onboarding_completed: boolean | null; created_at: string; phone: string | null }> = [];
+  {
+    const PAGE = 1000;
+    let from = 0;
+    while (eligibleUsers.length < cfg.max_users_per_run) {
+      const to = Math.min(from + PAGE - 1, cfg.max_users_per_run - 1);
+      const { data, error } = await sb.from("profiles")
+        .select("id, display_name, exam_type, exam_date, onboarding_completed, created_at, phone")
+        .not("phone", "is", null)
+        .neq("phone", "")
+        .range(from, to);
+      if (error || !data || data.length === 0) break;
+      eligibleUsers.push(...data);
+      if (data.length < (to - from + 1)) break;
+      from = to + 1;
+    }
+  }
 
   let decisionsMade = 0;
   let smsSent = 0;
