@@ -21,9 +21,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-const MAX_PER_EVENT_PER_RUN = 8; // safety cap (each user = 1 MSG91 campaign; MSG91 enforces ~50 campaigns/hour)
-const INTER_CALL_DELAY_MS = 1500; // throttle to stay under MSG91 burst limits
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Each event = 1 OBD campaign per run (batched). 200 recipients per campaign is safe.
+const MAX_PER_EVENT_PER_RUN = 200;
 
 type EventRow = {
   event_key: string;
@@ -179,52 +178,40 @@ async function processEvent(ev: EventRow): Promise<{ event_key: string; attempte
     return { event_key: ev.event_key, attempted: 0, sent: 0, skipped: 0, reasons: { not_sunday: 1 } };
   }
 
-  const users = await eligibleUserIds(ev.event_key);
-  let hourlyLimitHit = false;
-  for (const userId of users) {
-    if (hourlyLimitHit) {
-      skipped++; reasons.hourly_limit_deferred = (reasons.hourly_limit_deferred || 0) + 1;
-      continue;
-    }
-    if (!(await passesCooldown(ev.event_key, userId, ev.cooldown_hours))) {
-      skipped++; reasons.cooldown = (reasons.cooldown || 0) + 1;
-      continue;
-    }
-    const resp = await callVoiceBroadcast({
-      action: "send_to_user",
-      user_id: userId,
-      trigger_key: ev.event_key,
-      prompt_id: ev.voice_prompt_id,
-      location: ev.location_json,
-    });
+  // 1. Resolve eligible users
+  const candidates = await eligibleUserIds(ev.event_key);
 
-    const msg = String(resp?.message || "");
-    const isHourlyLimit = /Hourly Limit/i.test(msg);
-
-    // Only log if we actually attempted (don't log deferred ones — they'll retry next cron)
-    if (!isHourlyLimit) {
-      await supabase.from("voice_broadcast_event_logs").insert({
-        event_key: ev.event_key,
-        user_id: userId,
-        voice_prompt_id: ev.voice_prompt_id,
-        campaign_id_external: resp?.campaignId || null,
-        status: resp?.ok ? "queued" : (resp?.skipped ? "skipped" : "failed"),
-        response: resp || {},
-      });
-    }
-
-    if (resp?.ok) sent++;
-    else if (isHourlyLimit) {
-      hourlyLimitHit = true;
-      reasons.hourly_limit_deferred = (reasons.hourly_limit_deferred || 0) + 1;
+  // 2. Filter by cooldown (per-user enforcement preserved)
+  const eligible: string[] = [];
+  for (const userId of candidates) {
+    if (await passesCooldown(ev.event_key, userId, ev.cooldown_hours)) {
+      eligible.push(userId);
     } else {
-      skipped++;
-      reasons[resp?.reason || msg || "unknown"] = (reasons[resp?.reason || msg || "unknown"] || 0) + 1;
+      skipped++; reasons.cooldown = (reasons.cooldown || 0) + 1;
     }
-
-    await sleep(INTER_CALL_DELAY_MS);
   }
-  return { event_key: ev.event_key, attempted: users.length, sent, skipped, reasons };
+
+  if (eligible.length === 0) {
+    return { event_key: ev.event_key, attempted: candidates.length, sent: 0, skipped, reasons };
+  }
+
+  // 3. ONE batched OBD campaign for all eligible users (avoids hourly campaign cap)
+  const resp = await callVoiceBroadcast({
+    action: "send_event_batch",
+    event_key: ev.event_key,
+    user_ids: eligible,
+    prompt_id: ev.voice_prompt_id,
+  });
+
+  if (resp?.ok) {
+    sent = Number(resp?.recipients ?? eligible.length);
+  } else {
+    skipped += eligible.length;
+    const key = resp?.reason || resp?.message || "unknown";
+    reasons[key] = (reasons[key] || 0) + eligible.length;
+  }
+
+  return { event_key: ev.event_key, attempted: candidates.length, sent, skipped, reasons };
 }
 
 Deno.serve(async (req) => {

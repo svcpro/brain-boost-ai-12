@@ -786,7 +786,107 @@ Deno.serve(async (req) => {
       return json({ ok: true, scheduler: data });
     }
 
+    // ─── BATCH event broadcast: ONE OBD campaign for ALL eligible users
+    // (Solves "Campaign Hourly Limit" by collapsing N campaigns → 1)
+    if (action === "send_event_batch") {
+      const { event_key, user_ids, prompt_id: overridePromptId } = body;
+      if (!event_key || !Array.isArray(user_ids) || user_ids.length === 0) {
+        return json({ error: "event_key and user_ids[] required" }, 400);
+      }
+
+      const { data: cfg } = await supabase
+        .from("voice_broadcast_config").select("*").maybeSingle();
+      if (!cfg?.is_enabled) {
+        return json({ ok: false, skipped: true, reason: "broadcast_disabled" });
+      }
+
+      const { data: ev } = await supabase
+        .from("voice_broadcast_event_voices")
+        .select("*").eq("event_key", event_key).maybeSingle();
+      const promptId = overridePromptId || ev?.voice_prompt_id;
+      if (!promptId) return json({ ok: false, skipped: true, reason: "no_prompt_assigned" });
+
+      // Fetch phones for all user_ids
+      const { data: profiles } = await supabase
+        .from("profiles").select("id, phone").in("id", user_ids);
+      const phoneMap = new Map<string, string>();
+      const phones: string[] = [];
+      for (const p of profiles || []) {
+        const ph = normalizePhone(p.phone || "");
+        if (ph.length >= 10) {
+          phoneMap.set(p.id, ph);
+          phones.push(ph);
+        }
+      }
+
+      if (phones.length === 0) {
+        return json({ ok: false, skipped: true, reason: "no_valid_phones" });
+      }
+
+      const { userId: obdUserId } = await getToken();
+      await assertPromptApproved(promptId);
+      const baseName = `evt-${event_key}-${Date.now()}`;
+      const baseId = await uploadBaseForPhones(phones, baseName, obdUserId);
+
+      const schedDate = new Date(Date.now() + (cfg.schedule_lead_minutes ?? 11) * 60_000);
+      const routing = getObdRoutingFields({ location: ev?.location_json });
+
+      let composeRes: any;
+      let composeOk = false;
+      let externalId = "";
+      try {
+        composeRes = await composeCampaign(buildSimpleIvrComposePayload({
+          userId: obdUserId,
+          campaignName: `${event_key}_${Date.now().toString(36)}`,
+          baseId,
+          welcomePId: promptId,
+          scheduleTime: formatSchedule(schedDate),
+          location: routing.location,
+          clis: routing.clis,
+        }));
+        externalId = String(composeRes?.campaignId ?? composeRes?.campId ?? "");
+        composeOk = externalId !== "" && Number(externalId) > 0;
+      } catch (e: any) {
+        composeRes = { ok: false, message: e?.message || String(e), response: e?.response };
+      }
+
+      // Bulk insert event logs — one row per user (so cooldowns work)
+      const rows = Array.from(phoneMap.entries()).map(([uid, ph]) => ({
+        event_key,
+        user_id: uid,
+        phone: ph,
+        voice_prompt_id: String(promptId),
+        campaign_id_external: composeOk ? externalId : null,
+        status: composeOk ? "queued" : "failed",
+        response: composeOk
+          ? { batched: true, campaignId: externalId, recipients: phones.length }
+          : composeRes,
+      }));
+      await supabase.from("voice_broadcast_event_logs").insert(rows).then(() => {}, () => {});
+
+      // Also write the campaign master row
+      await supabase.from("voice_broadcast_campaigns").insert({
+        campaign_id_external: composeOk ? externalId : null,
+        base_id: baseId,
+        campaign_name: `batch:${event_key}`,
+        template_id: 0,
+        prompt_id: String(promptId),
+        scheduled_at: schedDate.toISOString(),
+        status: composeOk ? "scheduled" : "compose_failed",
+        stats: { event_key, recipients: phones.length, response: composeRes },
+      }).then(() => {}, () => {});
+
+      return json({
+        ok: composeOk,
+        campaignId: composeOk ? externalId : null,
+        recipients: phones.length,
+        scheduled_at: schedDate.toISOString(),
+        message: composeOk ? "batch_scheduled" : String(composeRes?.message || "compose_failed"),
+      });
+    }
+
     // ─── one-shot per-user broadcast (used by signup & re-engagement) ───
+
     if (action === "send_to_user") {
       const { user_id, trigger_key = "manual", prompt_id: overridePromptId } = body;
       if (!user_id) return json({ error: "user_id required" }, 400);
