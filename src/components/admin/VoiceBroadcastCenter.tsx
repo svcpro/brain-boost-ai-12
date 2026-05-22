@@ -152,12 +152,12 @@ export default function VoiceBroadcastCenter() {
   const refreshCampaigns = async () => {
     try { const r = await callVB("list_campaigns"); setCampaigns(r.campaigns || []); } catch {}
   };
-  const syncRemoteVoices = async () => {
-    setBusy(true);
+  const syncRemoteVoices = async (silent = false) => {
+    if (!silent) setBusy(true);
     try {
       const r = await callVB("list_voices");
-      toast.success(`Fetched ${r.prompts?.length || 0} prompts from OBD`);
-      // upsert into local cache
+      if (!silent) toast.success(`Fetched ${r.prompts?.length || 0} prompts from OBD`);
+      // upsert into local cache (mirror OBD truth — approval status, active flag)
       for (const p of r.prompts || []) {
         await supabase.from("voice_broadcast_voice_files").upsert({
           prompt_id: String(p.promptId),
@@ -168,7 +168,7 @@ export default function VoiceBroadcastCenter() {
         }, { onConflict: "prompt_id" });
       }
       await refreshVoices();
-    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e: any) { if (!silent) toast.error(e.message); } finally { if (!silent) setBusy(false); }
   };
 
   const refreshEventVoices = async () => {
