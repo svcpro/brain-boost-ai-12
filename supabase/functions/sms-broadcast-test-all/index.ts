@@ -124,15 +124,44 @@ Deno.serve(async (req) => {
     const { data: events, error: evErr } = await evQuery;
     if (evErr) throw evErr;
 
-    // Pull users with phone numbers
-    let usrQuery = sb
-      .from("profiles")
-      .select("id, display_name, phone")
-      .not("phone", "is", null)
-      .neq("phone", "");
-    if (body.user_ids?.length) usrQuery = usrQuery.in("id", body.user_ids);
-    const { data: users, error: usrErr } = await usrQuery;
-    if (usrErr) throw usrErr;
+    // Pull users with phone numbers — PAGINATED to bypass PostgREST's
+    // default 1000-row cap. Without this, broadcasts to >1000 users would
+    // silently drop everyone beyond the first page.
+    const users: Array<{ id: string; display_name: string | null; phone: string | null }> = [];
+    if (body.user_ids?.length) {
+      // Explicit subset — chunk through .in() in 500s to avoid URL limits
+      const CHUNK = 500;
+      for (let i = 0; i < body.user_ids.length; i += CHUNK) {
+        const slice = body.user_ids.slice(i, i + CHUNK);
+        const { data, error } = await sb
+          .from("profiles")
+          .select("id, display_name, phone")
+          .not("phone", "is", null)
+          .neq("phone", "")
+          .in("id", slice);
+        if (error) throw error;
+        if (data) users.push(...data);
+      }
+    } else {
+      // Full-base broadcast — page through 1000 rows at a time
+      const PAGE = 1000;
+      let from = 0;
+      const MAX_USERS = 100_000;
+      while (users.length < MAX_USERS) {
+        const to = from + PAGE - 1;
+        const { data, error } = await sb
+          .from("profiles")
+          .select("id, display_name, phone")
+          .not("phone", "is", null)
+          .neq("phone", "")
+          .range(from, to);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        users.push(...data);
+        if (data.length < PAGE) break;
+        from = to + 1;
+      }
+    }
 
     const totalPairs = (events?.length || 0) * (users?.length || 0);
     console.log(
