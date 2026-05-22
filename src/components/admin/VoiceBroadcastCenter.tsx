@@ -507,8 +507,26 @@ export default function VoiceBroadcastCenter() {
                   Assign a voice to each lifecycle event. The scheduler runs every 15 minutes and places calls automatically (respecting cooldowns + send window).
                 </p>
               </div>
-              <Button size="sm" variant="outline" onClick={refreshEventVoices}><RefreshCcw className="w-4 h-4" /></Button>
-            </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      // Make sure local cache mirrors OBD approvals first
+                      await syncRemoteVoices(true);
+                      const r = await callVB("auto_assign_events");
+                      toast.success(`AI auto-assigned ${r.matched}/${r.total} events with optimal send windows`);
+                      refreshEventVoices();
+                    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+                  }}
+                  disabled={busy}
+                  className="bg-gradient-to-r from-primary to-primary/80"
+                >
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "🤖 Auto-Assign Voices + Best Time (AI)"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={refreshEventVoices}><RefreshCcw className="w-4 h-4" /></Button>
+              </div>
 
             <div className="flex items-end gap-2 p-2 border rounded bg-muted/30">
               <div className="flex-1">
