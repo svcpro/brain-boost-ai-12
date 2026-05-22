@@ -180,7 +180,12 @@ async function processEvent(ev: EventRow): Promise<{ event_key: string; attempte
   }
 
   const users = await eligibleUserIds(ev.event_key);
+  let hourlyLimitHit = false;
   for (const userId of users) {
+    if (hourlyLimitHit) {
+      skipped++; reasons.hourly_limit_deferred = (reasons.hourly_limit_deferred || 0) + 1;
+      continue;
+    }
     if (!(await passesCooldown(ev.event_key, userId, ev.cooldown_hours))) {
       skipped++; reasons.cooldown = (reasons.cooldown || 0) + 1;
       continue;
@@ -192,16 +197,32 @@ async function processEvent(ev: EventRow): Promise<{ event_key: string; attempte
       prompt_id: ev.voice_prompt_id,
       location: ev.location_json,
     });
-    await supabase.from("voice_broadcast_event_logs").insert({
-      event_key: ev.event_key,
-      user_id: userId,
-      voice_prompt_id: ev.voice_prompt_id,
-      campaign_id_external: resp?.campaignId || null,
-      status: resp?.ok ? "queued" : (resp?.skipped ? "skipped" : "failed"),
-      response: resp || {},
-    });
+
+    const msg = String(resp?.message || "");
+    const isHourlyLimit = /Hourly Limit/i.test(msg);
+
+    // Only log if we actually attempted (don't log deferred ones — they'll retry next cron)
+    if (!isHourlyLimit) {
+      await supabase.from("voice_broadcast_event_logs").insert({
+        event_key: ev.event_key,
+        user_id: userId,
+        voice_prompt_id: ev.voice_prompt_id,
+        campaign_id_external: resp?.campaignId || null,
+        status: resp?.ok ? "queued" : (resp?.skipped ? "skipped" : "failed"),
+        response: resp || {},
+      });
+    }
+
     if (resp?.ok) sent++;
-    else { skipped++; reasons[resp?.reason || resp?.message || "unknown"] = (reasons[resp?.reason || resp?.message || "unknown"] || 0) + 1; }
+    else if (isHourlyLimit) {
+      hourlyLimitHit = true;
+      reasons.hourly_limit_deferred = (reasons.hourly_limit_deferred || 0) + 1;
+    } else {
+      skipped++;
+      reasons[resp?.reason || msg || "unknown"] = (reasons[resp?.reason || msg || "unknown"] || 0) + 1;
+    }
+
+    await sleep(INTER_CALL_DELAY_MS);
   }
   return { event_key: ev.event_key, attempted: users.length, sent, skipped, reasons };
 }
