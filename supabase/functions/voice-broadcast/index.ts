@@ -688,6 +688,8 @@ Deno.serve(async (req) => {
     }
 
 
+
+    // ─── Event Automation: list / save mapping / test call / view logs ───
     if (action === "list_event_voices") {
       const { data } = await supabase
         .from("voice_broadcast_event_voices")
