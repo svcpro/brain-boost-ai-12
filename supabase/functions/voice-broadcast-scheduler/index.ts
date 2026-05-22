@@ -143,11 +143,13 @@ async function eligibleUserIds(eventKey: string): Promise<string[]> {
 
 async function passesCooldown(eventKey: string, userId: string, hours: number): Promise<boolean> {
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  // Only count successful sends — failed/deferred rows must NOT block re-attempts
   const { data } = await supabase
     .from("voice_broadcast_event_logs")
     .select("id")
     .eq("event_key", eventKey)
     .eq("user_id", userId)
+    .eq("status", "sent")
     .gte("sent_at", cutoff)
     .limit(1);
   return !data || data.length === 0;
@@ -206,6 +208,9 @@ async function processEvent(ev: EventRow): Promise<{ event_key: string; attempte
 
   if (resp?.ok) {
     sent = Number(resp?.recipients ?? eligible.length);
+  } else if (resp?.deferred) {
+    // Provider hourly cap — do NOT count as skipped failure; will retry next tick
+    reasons[resp.reason || "deferred"] = (reasons[resp.reason || "deferred"] || 0) + eligible.length;
   } else {
     skipped += eligible.length;
     const key = resp?.reason || resp?.message || "unknown";

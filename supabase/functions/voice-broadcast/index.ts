@@ -851,6 +851,22 @@ Deno.serve(async (req) => {
         composeRes = { ok: false, message: e?.message || String(e), response: e?.response };
       }
 
+      // Detect provider rate-limit so we can DEFER (not fail) and retry next tick
+      const msg = String(composeRes?.message || composeRes?.response?.message || "");
+      const isHourlyCap = /hourly\s*limit/i.test(msg);
+
+      // If hourly cap hit → skip writing per-user logs so the cohort is retried
+      // on the next scheduler tick (no false "failed" rows, no cooldown lockout).
+      if (!composeOk && isHourlyCap) {
+        return json({
+          ok: false,
+          deferred: true,
+          reason: "obd_hourly_cap",
+          message: msg,
+          recipients: phones.length,
+        });
+      }
+
       // Bulk insert event logs — one row per user (so cooldowns work)
       const rows = Array.from(phoneMap.entries()).map(([uid, ph]) => ({
         event_key,
