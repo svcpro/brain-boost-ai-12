@@ -208,6 +208,9 @@ async function processEvent(ev: EventRow): Promise<{ event_key: string; attempte
 
   if (resp?.ok) {
     sent = Number(resp?.recipients ?? eligible.length);
+  } else if (resp?.deferred) {
+    // Provider hourly cap — do NOT count as skipped failure; will retry next tick
+    reasons[resp.reason || "deferred"] = (reasons[resp.reason || "deferred"] || 0) + eligible.length;
   } else {
     skipped += eligible.length;
     const key = resp?.reason || resp?.message || "unknown";
