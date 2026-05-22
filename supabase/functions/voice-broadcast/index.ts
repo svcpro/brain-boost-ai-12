@@ -753,7 +753,7 @@ Deno.serve(async (req) => {
         event_key, user_id,
         voice_prompt_id: ev.voice_prompt_id,
         campaign_id_external: composeOk ? externalId : null,
-        status: composeOk ? "queued" : "failed",
+        status: composeOk ? "sent" : "failed",
         response: composeRes,
       });
       return json({ ok: composeOk, campaignId: externalId, response: composeRes });
@@ -858,7 +858,7 @@ Deno.serve(async (req) => {
         phone: ph,
         voice_prompt_id: String(promptId),
         campaign_id_external: composeOk ? externalId : null,
-        status: composeOk ? "queued" : "failed",
+        status: composeOk ? "sent" : "failed",
         response: composeOk
           ? { batched: true, campaignId: externalId, recipients: phones.length }
           : composeRes,
@@ -942,7 +942,7 @@ Deno.serve(async (req) => {
         user_id, phone, trigger_key,
         prompt_id: String(promptId),
         campaign_id_external: composeOk ? externalId : null,
-        status: composeOk ? "queued" : "failed",
+        status: composeOk ? "sent" : "failed",
         response: composeRes,
       }).then(() => {}, () => {});
 
