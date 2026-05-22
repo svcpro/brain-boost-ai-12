@@ -152,12 +152,12 @@ export default function VoiceBroadcastCenter() {
   const refreshCampaigns = async () => {
     try { const r = await callVB("list_campaigns"); setCampaigns(r.campaigns || []); } catch {}
   };
-  const syncRemoteVoices = async () => {
-    setBusy(true);
+  const syncRemoteVoices = async (silent = false) => {
+    if (!silent) setBusy(true);
     try {
       const r = await callVB("list_voices");
-      toast.success(`Fetched ${r.prompts?.length || 0} prompts from OBD`);
-      // upsert into local cache
+      if (!silent) toast.success(`Fetched ${r.prompts?.length || 0} prompts from OBD`);
+      // upsert into local cache (mirror OBD truth — approval status, active flag)
       for (const p of r.prompts || []) {
         await supabase.from("voice_broadcast_voice_files").upsert({
           prompt_id: String(p.promptId),
@@ -168,7 +168,7 @@ export default function VoiceBroadcastCenter() {
         }, { onConflict: "prompt_id" });
       }
       await refreshVoices();
-    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e: any) { if (!silent) toast.error(e.message); } finally { if (!silent) setBusy(false); }
   };
 
   const refreshEventVoices = async () => {
@@ -209,8 +209,10 @@ export default function VoiceBroadcastCenter() {
   };
 
   useEffect(() => {
-    refreshStatus(); refreshConfig(); refreshVoices(); refreshCampaigns();
+    refreshStatus(); refreshConfig(); refreshCampaigns();
     refreshEventVoices(); refreshEventLogs();
+    // Auto-sync voice library from OBD so approval status mirrors remote truth
+    syncRemoteVoices(true);
   }, []);
 
   useEffect(() => { refreshEventLogs(logFilter || undefined); }, [logFilter]);
@@ -442,7 +444,7 @@ export default function VoiceBroadcastCenter() {
           <Card className="p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Voice Prompts</h3>
-              <Button size="sm" variant="outline" onClick={syncRemoteVoices} disabled={busy}>
+              <Button size="sm" variant="outline" onClick={() => syncRemoteVoices()} disabled={busy}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sync from OBD"}
               </Button>
             </div>
