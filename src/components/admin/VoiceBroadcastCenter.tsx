@@ -527,6 +527,9 @@ export default function VoiceBroadcastCenter() {
                 </Button>
                 <Button size="sm" variant="outline" onClick={refreshEventVoices}><RefreshCcw className="w-4 h-4" /></Button>
               </div>
+            </div>
+
+
 
             <div className="flex items-end gap-2 p-2 border rounded bg-muted/30">
               <div className="flex-1">
