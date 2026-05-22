@@ -773,18 +773,19 @@ Deno.serve(async (req) => {
 
     if (action === "run_event_now") {
       const { event_key } = body;
-      if (!event_key) return json({ error: "event_key required" }, 400);
+      // event_key is optional — when omitted, scheduler runs ALL active events
       const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/voice-broadcast-scheduler`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
         },
-        body: JSON.stringify({ event_key }),
+        body: JSON.stringify(event_key ? { event_key } : {}),
       });
       const data = await res.json().catch(() => ({}));
       return json({ ok: true, scheduler: data });
     }
+
 
     // ─── BATCH event broadcast: ONE OBD campaign for ALL eligible users
     // (Solves "Campaign Hourly Limit" by collapsing N campaigns → 1)
