@@ -143,11 +143,13 @@ async function eligibleUserIds(eventKey: string): Promise<string[]> {
 
 async function passesCooldown(eventKey: string, userId: string, hours: number): Promise<boolean> {
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  // Only count successful sends — failed/deferred rows must NOT block re-attempts
   const { data } = await supabase
     .from("voice_broadcast_event_logs")
     .select("id")
     .eq("event_key", eventKey)
     .eq("user_id", userId)
+    .eq("status", "sent")
     .gte("sent_at", cutoff)
     .limit(1);
   return !data || data.length === 0;
