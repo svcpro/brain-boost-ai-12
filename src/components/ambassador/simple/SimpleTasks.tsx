@@ -147,7 +147,7 @@ export function SimpleTasks() {
               style={{ color: T.mute }}
             >
               <Brain className="h-3 w-3" style={{ color: T.purple }} />
-              AI Mission Brief · This week
+              AI Mission Brief · Auto-assigned weekly
             </div>
             <div className="mt-1 text-xl font-bold" style={{ color: T.text }}>
               {completed} / {tasks.length || 3} done
@@ -156,20 +156,13 @@ export function SimpleTasks() {
               </span>
             </div>
           </div>
-          <button
-            onClick={() => load(true)}
-            disabled={generating}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl disabled:opacity-50"
+          <div
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
             style={{ background: `${T.purple}22`, border: `1px solid ${T.purple}55` }}
-            aria-label="Regenerate tasks"
-            title="Regenerate AI tasks"
+            title="AI-automated weekly tasks"
           >
-            {generating ? (
-              <Loader2 className="h-4 w-4 animate-spin" style={{ color: T.purple }} />
-            ) : (
-              <RefreshCcw className="h-4 w-4" style={{ color: T.purple }} />
-            )}
-          </button>
+            <Sparkles className="h-4 w-4" style={{ color: T.purple }} />
+          </div>
         </div>
         <div
           className="mt-3 h-1.5 w-full overflow-hidden rounded-full"
