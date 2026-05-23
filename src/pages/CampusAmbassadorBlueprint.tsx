@@ -5,6 +5,7 @@ import {
   Briefcase, Star, MessageCircle, ArrowRight, Check, ChevronDown, MapPin,
   Calendar, Brain, Mic, Globe, Send, User, Phone, Mail, School, BookOpen,
   Instagram, Linkedin, Heart, Crown, Target, Zap, Play,
+  Medal, Flame, TrendingUp, Gift, Gem,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -1606,6 +1607,415 @@ const Path = () => {
 };
 
 /* ═════════════════════════════════════════════════════════════════════
+   LEADERBOARD & GAMIFICATION
+   ═════════════════════════════════════════════════════════════════════ */
+const TOP_AMBASSADORS = [
+  { rank: 1, name: "Aarav Mehta", college: "IIT Delhi", city: "Delhi", xp: 9840, workshops: 14, reach: "3.2K", streak: 42, badge: "Legend", avatar: "AM", hue: "#fbbf24" },
+  { rank: 2, name: "Ishita Rao", college: "BITS Pilani", city: "Pilani", xp: 8920, workshops: 12, reach: "2.8K", streak: 36, badge: "Pioneer", avatar: "IR", hue: "#e5e7eb" },
+  { rank: 3, name: "Karthik Nair", college: "NIT Trichy", city: "Trichy", xp: 8410, workshops: 11, reach: "2.4K", streak: 31, badge: "Trailblazer", avatar: "KN", hue: "#f59e0b" },
+  { rank: 4, name: "Sneha Kapoor", college: "DU North", city: "Delhi", xp: 7320, workshops: 9, reach: "1.9K", streak: 24, badge: "Rising Star", avatar: "SK", hue: "#a78bfa" },
+  { rank: 5, name: "Rohan Iyer", college: "IIIT Hyderabad", city: "Hyderabad", xp: 6890, workshops: 8, reach: "1.7K", streak: 22, badge: "Catalyst", avatar: "RI", hue: "#60a5fa" },
+];
+
+const TOP_CITIES = [
+  { city: "Bengaluru", ambassadors: 184, events: 92, growth: 38, color: "#4f46e5" },
+  { city: "Delhi NCR", ambassadors: 162, events: 81, growth: 32, color: "#7c3aed" },
+  { city: "Hyderabad", ambassadors: 128, events: 64, growth: 41, color: "#ec4899" },
+  { city: "Mumbai", ambassadors: 119, events: 58, growth: 27, color: "#06b6d4" },
+  { city: "Pune", ambassadors: 96, events: 47, growth: 33, color: "#10b981" },
+];
+
+const REWARDS = [
+  { icon: Gift, title: "Swag Kit", desc: "ACRY hoodie, stickers & limited drop merch.", tier: "Tier 1 · 1K XP", glow: "#4f46e5" },
+  { icon: Award, title: "Verified Certificate", desc: "LinkedIn-ready certificate + founder signature.", tier: "Tier 2 · 3K XP", glow: "#7c3aed" },
+  { icon: Briefcase, title: "Internship Track", desc: "Priority access to ACRY internship & roles.", tier: "Tier 3 · 5K XP", glow: "#ec4899" },
+  { icon: Gem, title: "Founder's Circle", desc: "1:1 mentorship, equity grants & alumni board.", tier: "Tier 4 · 8K XP", glow: "#fbbf24" },
+];
+
+const BADGES = [
+  { icon: Flame, label: "Streak Master", color: "#f97316" },
+  { icon: Brain, label: "AI Sensei", color: "#8b5cf6" },
+  { icon: Users, label: "Community Hero", color: "#06b6d4" },
+  { icon: Mic, label: "Workshop Pro", color: "#ec4899" },
+  { icon: Rocket, label: "Launchpad", color: "#10b981" },
+  { icon: Crown, label: "Campus King", color: "#fbbf24" },
+];
+
+const RankMedal = ({ rank }: { rank: number }) => {
+  const palettes: Record<number, [string, string]> = {
+    1: ["#fbbf24", "#f59e0b"],
+    2: ["#e5e7eb", "#9ca3af"],
+    3: ["#f59e0b", "#b45309"],
+  };
+  const [a, b] = palettes[rank] || [INDIGO.accent, INDIGO.glow];
+  return (
+    <div className="relative w-12 h-12 shrink-0">
+      <motion.div
+        className="absolute inset-0 rounded-xl"
+        style={{ background: `radial-gradient(circle at 50% 50%, ${a}55, transparent 70%)` }}
+        animate={{ scale: [1, 1.25, 1], opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <div
+        className="relative w-full h-full rounded-xl flex items-center justify-center font-bold text-base"
+        style={{
+          background: `linear-gradient(135deg, ${a}, ${b})`,
+          color: rank <= 3 ? "#1a1a1a" : "#fff",
+          boxShadow: `0 8px 24px -8px ${a}99, inset 0 1px 0 rgba(255,255,255,0.35)`,
+          fontFamily: fontHead.fontFamily,
+        }}
+      >
+        {rank <= 3 ? <Trophy className="w-5 h-5" /> : `#${rank}`}
+      </div>
+    </div>
+  );
+};
+
+const Leaderboard = () => {
+  return (
+    <Section id="leaderboard" className="relative overflow-hidden">
+      {/* Futuristic backdrop */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full opacity-40 blur-3xl"
+          style={{ background: `radial-gradient(circle, ${INDIGO.accent}55, transparent 65%)` }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage: `linear-gradient(${INDIGO.glow}33 1px, transparent 1px), linear-gradient(90deg, ${INDIGO.glow}33 1px, transparent 1px)`,
+            backgroundSize: "60px 60px",
+            maskImage: "radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 75%)",
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-6">
+        {/* Header */}
+        <div className="text-center mb-16 max-w-2xl mx-auto">
+          <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+            <Eyebrow>Leaderboard · Live Rankings</Eyebrow>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: 0.1 }}>
+            <Heading>Compete. Climb. Get crowned.</Heading>
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-5 text-white/55 text-lg leading-relaxed"
+            style={fontBody}
+          >
+            Earn XP for every workshop, post and student onboarded. Climb tiers, unlock rewards and put your campus on the map.
+          </motion.p>
+        </div>
+
+        {/* Top Ambassadors + Top Cities */}
+        <div className="grid lg:grid-cols-3 gap-6 mb-12">
+          {/* Top Ambassadors panel — spans 2 cols */}
+          <div className="lg:col-span-2 relative">
+            <div
+              className="relative rounded-2xl border backdrop-blur-xl overflow-hidden"
+              style={{
+                background: `linear-gradient(145deg, ${INDIGO.surface}f0, ${INDIGO.surface}88)`,
+                borderColor: `${INDIGO.accent}40`,
+                boxShadow: `0 30px 80px -30px ${INDIGO.accent}55, inset 0 1px 0 rgba(255,255,255,0.05)`,
+              }}
+            >
+              {/* Animated top border */}
+              <motion.div
+                className="absolute top-0 left-0 h-[2px] w-full"
+                style={{ background: `linear-gradient(90deg, transparent, ${INDIGO.glow}, transparent)` }}
+                animate={{ x: ["-100%", "100%"] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              />
+
+              <div className="flex items-center justify-between px-6 pt-6 pb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})`, boxShadow: `0 6px 20px ${INDIGO.accent}66` }}
+                  >
+                    <Trophy className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-base font-semibold text-white" style={fontHead}>Top Ambassadors</div>
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/45" style={fontBody}>This Month</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
+                    <span className="relative rounded-full bg-emerald-400 w-2 h-2" />
+                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-emerald-300" style={fontBody}>Live</span>
+                </div>
+              </div>
+
+              <div className="px-3 pb-4 space-y-2">
+                {TOP_AMBASSADORS.map((a, i) => (
+                  <motion.div
+                    key={a.name}
+                    initial={{ opacity: 0, x: -12 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, margin: "-40px" }}
+                    transition={{ duration: 0.45, delay: i * 0.06 }}
+                    whileHover={{ scale: 1.01, x: 2 }}
+                    className="group relative flex items-center gap-4 px-3 py-3 rounded-xl border transition-colors"
+                    style={{
+                      background: a.rank === 1 ? `linear-gradient(90deg, ${a.hue}18, transparent 70%)` : "transparent",
+                      borderColor: a.rank === 1 ? `${a.hue}55` : "transparent",
+                    }}
+                  >
+                    <RankMedal rank={a.rank} />
+                    {/* Avatar */}
+                    <div
+                      className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{
+                        background: `linear-gradient(135deg, ${a.hue}, ${INDIGO.accent})`,
+                        color: "#fff",
+                        boxShadow: `0 4px 16px -4px ${a.hue}77`,
+                        fontFamily: fontHead.fontFamily,
+                      }}
+                    >
+                      {a.avatar}
+                    </div>
+                    {/* Identity */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-semibold text-white truncate" style={fontHead}>{a.name}</div>
+                        <span
+                          className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
+                          style={{ background: `${a.hue}22`, color: a.hue, border: `1px solid ${a.hue}44` }}
+                        >
+                          {a.badge}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-white/45 truncate" style={fontBody}>
+                        {a.college} · {a.city}
+                      </div>
+                    </div>
+                    {/* Stats */}
+                    <div className="hidden sm:flex items-center gap-4 text-right">
+                      <div className="flex items-center gap-1 text-[11px] text-orange-300" style={fontBody}>
+                        <Flame className="w-3 h-3" />{a.streak}d
+                      </div>
+                      <div className="hidden md:block text-[11px] text-white/50" style={fontBody}>
+                        <span className="text-white font-semibold">{a.workshops}</span> events
+                      </div>
+                      <div className="hidden md:block text-[11px] text-white/50" style={fontBody}>
+                        <span className="text-white font-semibold">{a.reach}</span> reach
+                      </div>
+                    </div>
+                    {/* XP pill */}
+                    <div
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold tabular-nums"
+                      style={{
+                        background: `linear-gradient(135deg, ${INDIGO.accent}33, ${INDIGO.glow}22)`,
+                        border: `1px solid ${INDIGO.accent}55`,
+                        color: INDIGO.glow,
+                        fontFamily: fontHead.fontFamily,
+                      }}
+                    >
+                      {a.xp.toLocaleString()} XP
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Top Cities panel */}
+          <div className="relative">
+            <div
+              className="relative rounded-2xl border backdrop-blur-xl overflow-hidden h-full"
+              style={{
+                background: `linear-gradient(145deg, ${INDIGO.surface}f0, ${INDIGO.surface}88)`,
+                borderColor: `${INDIGO.accent}40`,
+                boxShadow: `0 30px 80px -30px ${INDIGO.accent}55, inset 0 1px 0 rgba(255,255,255,0.05)`,
+              }}
+            >
+              <div className="flex items-center justify-between px-6 pt-6 pb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ background: `linear-gradient(135deg, ${INDIGO.glow}, ${INDIGO.accent})`, boxShadow: `0 6px 20px ${INDIGO.accent}66` }}
+                  >
+                    <MapPin className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-base font-semibold text-white" style={fontHead}>Top Cities</div>
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/45" style={fontBody}>By Activity</div>
+                  </div>
+                </div>
+              </div>
+              <div className="px-5 pb-5 space-y-4">
+                {TOP_CITIES.map((c, i) => (
+                  <motion.div
+                    key={c.city}
+                    initial={{ opacity: 0, y: 8 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.45, delay: i * 0.08 }}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-white/40 tabular-nums" style={fontHead}>0{i + 1}</span>
+                        <span className="text-sm font-semibold text-white" style={fontHead}>{c.city}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-emerald-300" style={fontBody}>
+                        <TrendingUp className="w-3 h-3" />+{c.growth}%
+                      </div>
+                    </div>
+                    <div className="relative h-2 rounded-full overflow-hidden" style={{ background: `${INDIGO.accent}15` }}>
+                      <motion.div
+                        className="absolute inset-y-0 left-0 rounded-full"
+                        style={{ background: `linear-gradient(90deg, ${c.color}, ${INDIGO.glow})`, boxShadow: `0 0 12px ${c.color}88` }}
+                        initial={{ width: 0 }}
+                        whileInView={{ width: `${(c.ambassadors / TOP_CITIES[0].ambassadors) * 100}%` }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1, delay: 0.2 + i * 0.08, ease: "easeOut" }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5 text-[10px] text-white/45" style={fontBody}>
+                      <span><span className="text-white/80 font-semibold">{c.ambassadors}</span> ambassadors</span>
+                      <span><span className="text-white/80 font-semibold">{c.events}</span> events</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Rewards tier */}
+        <div className="mb-10 text-center">
+          <div className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-semibold mb-2" style={fontBody}>Unlock Rewards</div>
+          <div className="text-2xl md:text-3xl font-bold text-white" style={fontHead}>Climb the tiers. Claim the loot.</div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+          {REWARDS.map((r, i) => (
+            <motion.div
+              key={r.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.55, delay: i * 0.08 }}
+              whileHover={{ y: -6 }}
+              className="group relative rounded-2xl border backdrop-blur-xl p-5 overflow-hidden"
+              style={{
+                background: `linear-gradient(145deg, ${INDIGO.surface}e6, ${INDIGO.surface}77)`,
+                borderColor: `${r.glow}40`,
+                boxShadow: `0 20px 50px -20px ${r.glow}55`,
+              }}
+            >
+              {/* Glow halo */}
+              <div
+                className="absolute -top-16 -right-16 w-40 h-40 rounded-full opacity-30 group-hover:opacity-60 blur-2xl transition-opacity duration-500"
+                style={{ background: `radial-gradient(circle, ${r.glow}, transparent 70%)` }}
+              />
+              {/* Shine sweep */}
+              <motion.div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                style={{ background: `linear-gradient(115deg, transparent 30%, ${r.glow}33 50%, transparent 70%)` }}
+                animate={{ x: ["-100%", "120%"] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
+              />
+              <div className="relative">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+                  style={{
+                    background: `linear-gradient(135deg, ${r.glow}33, ${INDIGO.mid}99)`,
+                    border: `1px solid ${r.glow}66`,
+                    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 24px -8px ${r.glow}88`,
+                  }}
+                >
+                  <r.icon className="w-5 h-5" style={{ color: r.glow }} />
+                </div>
+                <div className="text-base font-semibold text-white mb-1.5" style={fontHead}>{r.title}</div>
+                <p className="text-[12px] text-white/55 leading-relaxed mb-4" style={fontBody}>{r.desc}</p>
+                <div
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider"
+                  style={{ background: `${r.glow}1a`, color: r.glow, border: `1px solid ${r.glow}44` }}
+                >
+                  <Sparkles className="w-3 h-3" />{r.tier}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Recognition badges */}
+        <div
+          className="relative rounded-2xl border backdrop-blur-xl p-6 md:p-8 overflow-hidden"
+          style={{
+            background: `linear-gradient(145deg, ${INDIGO.surface}f0, ${INDIGO.surface}88)`,
+            borderColor: `${INDIGO.accent}40`,
+            boxShadow: `0 30px 80px -30px ${INDIGO.accent}55`,
+          }}
+        >
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-semibold mb-2" style={fontBody}>Recognition Badges</div>
+              <div className="text-xl md:text-2xl font-bold text-white" style={fontHead}>Collect them all. Flex them everywhere.</div>
+            </div>
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider self-start"
+              style={{ background: `${INDIGO.accent}1a`, color: INDIGO.glow, border: `1px solid ${INDIGO.accent}44` }}
+            >
+              <Medal className="w-3 h-3" />24+ badges to unlock
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+            {BADGES.map((b, i) => (
+              <motion.div
+                key={b.label}
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.4, delay: i * 0.06, type: "spring", stiffness: 220, damping: 16 }}
+                whileHover={{ y: -4, scale: 1.05 }}
+                className="group relative flex flex-col items-center text-center"
+              >
+                <div className="relative w-16 h-16 mb-2">
+                  <motion.div
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: `radial-gradient(circle, ${b.color}55, transparent 65%)` }}
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2.5 + i * 0.2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <div
+                    className="relative w-full h-full rounded-full flex items-center justify-center"
+                    style={{
+                      background: `conic-gradient(from 180deg, ${b.color}, ${INDIGO.accent}, ${b.color})`,
+                      padding: "2px",
+                    }}
+                  >
+                    <div
+                      className="w-full h-full rounded-full flex items-center justify-center"
+                      style={{
+                        background: `linear-gradient(135deg, ${INDIGO.surface}, ${INDIGO.base})`,
+                        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1)`,
+                      }}
+                    >
+                      <b.icon className="w-6 h-6" style={{ color: b.color }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[11px] font-semibold text-white/80" style={fontHead}>{b.label}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Section>
+  );
+};
+
+/* ═════════════════════════════════════════════════════════════════════
    APPLICATION FORM
    ═════════════════════════════════════════════════════════════════════ */
 const schema = z.object({
@@ -2425,6 +2835,7 @@ const CampusAmbassadorBlueprint = () => {
         <Metrics />
         <Testimonials />
         <Path />
+        <Leaderboard />
         <Form formRef={formRef} />
         <FAQ />
         <FinalCTA scrollToForm={scrollToForm} />
