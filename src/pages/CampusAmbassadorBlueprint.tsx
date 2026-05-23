@@ -2499,6 +2499,35 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
                                 ...fontBody,
                               }}
                             />
+                          ) : f.name === "phone" ? (
+                            <div
+                              className="w-full rounded-xl flex items-center pr-10 transition-all overflow-hidden"
+                              style={{
+                                background: `${INDIGO.base}80`,
+                                border: `1px solid ${ok ? INDIGO.glow + "80" : INDIGO.accent + "33"}`,
+                              }}
+                            >
+                              <span
+                                className="pl-4 pr-2 py-3 text-white/70 select-none border-r"
+                                style={{ borderColor: INDIGO.accent + "33", ...fontBody }}
+                              >
+                                +91
+                              </span>
+                              <input
+                                type="tel"
+                                inputMode="numeric"
+                                autoComplete="tel-national"
+                                maxLength={10}
+                                value={v.replace(/^\+?91/, "").replace(/\D/g, "").slice(0, 10)}
+                                onChange={(e) => {
+                                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                  setData({ ...data, [f.name]: digits ? `+91${digits}` : "" });
+                                }}
+                                placeholder="98765 43210"
+                                className="flex-1 bg-transparent px-3 py-3 text-white placeholder:text-white/30 focus:outline-none"
+                                style={{ ...fontBody }}
+                              />
+                            </div>
                           ) : (
                             <input
                               type={f.type || "text"}
