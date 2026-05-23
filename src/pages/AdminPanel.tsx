@@ -54,6 +54,7 @@ import SureShotAdminPanel from "@/components/admin/SureShotAdminPanel";
 import ComingSoonControlPanel from "@/components/admin/ComingSoonControlPanel";
 import AutopilotAdminPanel from "@/components/admin/AutopilotAdminPanel";
 import InstitutionManagement from "@/components/admin/InstitutionManagement";
+import CampusAmbassadorManagement from "@/components/admin/CampusAmbassadorManagement";
 import TeacherModeAdmin from "@/components/admin/TeacherModeAdmin";
 import STQEngineAdmin from "@/components/admin/ai-command/STQEngineAdmin";
 import ExamIntelligenceAdmin from "@/components/admin/ai-command/ExamIntelligenceAdmin";
@@ -70,7 +71,7 @@ import VoiceBroadcastCenter from "@/components/admin/VoiceBroadcastCenter";
 import ReferralHandlesAdmin from "@/components/admin/ReferralHandlesAdmin";
 
 import { Link as LinkIcon, PhoneCall } from "lucide-react";
-type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "voice_broadcast" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "incidents" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles";
+type AdminSection = "dashboard" | "users" | "ai" | "chat" | "knowledge" | "community" | "seo" | "leaderboard" | "subscriptions" | "plan_gating" | "exam_countdown" | "sureshot" | "stq" | "exam_intel" | "current_affairs" | "policy_predictor" | "debate_engine" | "competitive_intel" | "apis" | "services" | "finance" | "notifications" | "email" | "push" | "voice" | "voice_broadcast" | "sms" | "sms_alerts" | "whatsapp" | "monitoring" | "traffic" | "incidents" | "admins" | "audit" | "settings" | "profile" | "notify_intelligence" | "growth_center" | "coming_soon" | "autopilot" | "institutions" | "teacher_mode" | "backup" | "referral_handles" | "campus_ambassador";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -199,6 +200,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "institutions", label: "Institutions", icon: Building2, roles: ["super_admin", "admin"], badge: "v6", badgeColor: "bg-rose-500/20 text-rose-400" },
       { key: "teacher_mode", label: "AI Teacher Mode", icon: GraduationCap, roles: ["super_admin", "admin", "ai_admin"], badge: "v6", badgeColor: "bg-rose-500/20 text-rose-400" },
+      { key: "campus_ambassador", label: "Campus Ambassadors", icon: GraduationCap, roles: ["super_admin", "admin", "support_admin"], badge: "NEW", badgeColor: "bg-emerald-500/20 text-emerald-400" },
     ],
   },
   {
@@ -600,6 +602,7 @@ const AdminPanel = () => {
               {section === "autopilot" && <AutopilotAdminPanel />}
               {section === "institutions" && <InstitutionManagement />}
               {section === "teacher_mode" && <TeacherModeAdmin />}
+              {section === "campus_ambassador" && <CampusAmbassadorManagement />}
               {section === "monitoring" && <SystemMonitor />}
               {section === "traffic" && (
                 <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading Traffic Monitor…</div>}>
