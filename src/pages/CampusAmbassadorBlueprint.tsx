@@ -21,12 +21,12 @@ import { z } from "zod";
    ═════════════════════════════════════════════════════════════════════ */
 
 const INDIGO = {
-  base: "#0a0a1a",
-  surface: "#141432",
-  mid: "#1e1e5a",
-  accent: "#4f46e5",
-  accentSoft: "#6366f1",
-  glow: "#818cf8",
+  base: "#031f1a",
+  surface: "#064e3b",
+  mid: "#0d7a5f",
+  accent: "#10b981",
+  accentSoft: "#34d399",
+  glow: "#c9a84c",
 };
 
 /* Load DM Sans + Space Grotesk once */
