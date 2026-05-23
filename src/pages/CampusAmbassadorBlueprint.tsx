@@ -432,70 +432,19 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
           AI student network.
         </motion.p>
 
-        {/* CTAs */}
+        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.4 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-3"
+          className="flex items-center justify-center"
         >
           <PrimaryCTA onClick={scrollToForm} large>
             <Rocket className="w-4 h-4" /> Apply Now
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </PrimaryCTA>
-          <button
-            onClick={() => setVideoOpen(true)}
-            className="group inline-flex items-center gap-3 px-6 py-4 rounded-full text-white/85 hover:text-white border border-white/15 hover:border-white/35 transition-all text-sm font-medium backdrop-blur-sm"
-            style={{ background: `${INDIGO.surface}55`, ...fontBody }}
-          >
-            <span
-              className="relative flex items-center justify-center w-7 h-7 rounded-full"
-              style={{
-                background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.accentSoft})`,
-                boxShadow: `0 0 14px ${INDIGO.accent}88`,
-              }}
-            >
-              <Play className="w-3 h-3 text-white fill-white ml-0.5" />
-              <span
-                className="absolute inset-0 rounded-full animate-ping"
-                style={{ background: `${INDIGO.accent}55` }}
-              />
-            </span>
-            Watch Intro Video
-          </button>
         </motion.div>
 
-        {/* Trust badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.55 }}
-          className="mt-12 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3"
-        >
-          {TRUST_BADGES.map((b, i) => (
-            <motion.div
-              key={b.label}
-              whileHover={{ y: -3, scale: 1.04 }}
-              transition={{ type: "spring", stiffness: 300, damping: 18 }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full backdrop-blur-md"
-              style={{
-                background: `linear-gradient(135deg, ${INDIGO.surface}aa, ${INDIGO.base}aa)`,
-                border: `1px solid ${INDIGO.accent}33`,
-                boxShadow: `0 8px 24px -10px ${INDIGO.accent}55`,
-              }}
-            >
-              <span
-                className="flex items-center justify-center w-6 h-6 rounded-full"
-                style={{ background: `${INDIGO.accent}33`, color: INDIGO.glow }}
-              >
-                <b.icon className="w-3.5 h-3.5" />
-              </span>
-              <span className="text-[12px] font-semibold text-white/85 tracking-wide" style={fontBody}>
-                {b.label}
-              </span>
-            </motion.div>
-          ))}
-        </motion.div>
       </motion.div>
 
       <motion.div
