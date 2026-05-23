@@ -2876,7 +2876,7 @@ const FinalCTA = ({ scrollToForm }: { scrollToForm: () => void }) => {
           style={{ background: `radial-gradient(ellipse at center, ${INDIGO.accent}33, transparent 65%)` }}
         />
         {/* Floating dust particles */}
-        <div aria-hidden className="absolute inset-不大pointer-events-none overflow-hidden">
+        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
           {[...Array(12)].map((_, i) => (
             <motion.span
               key={i}
