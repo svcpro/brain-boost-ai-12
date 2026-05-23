@@ -932,12 +932,153 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
   return (
     <Section id="apply">
       <div ref={formRef} />
-      <div className="text-center mb-12 max-w-2xl mx-auto">
-        <Eyebrow>Apply Now</Eyebrow>
-        <Heading>Start your journey.</Heading>
-        <p className="mt-5 text-white/60 text-lg" style={fontBody}>
-          Takes 90 seconds. No fee. Every application is personally reviewed.
-        </p>
+      {/* ───── Ultra Advanced "Start your journey" intro ───── */}
+      <div className="relative text-center mb-16 max-w-3xl mx-auto">
+        {/* Halo */}
+        <div
+          aria-hidden
+          className="absolute left-1/2 -translate-x-1/2 -top-24 w-[44rem] h-[44rem] rounded-full pointer-events-none opacity-70"
+          style={{
+            background: `radial-gradient(circle, ${INDIGO.accent}33 0%, ${INDIGO.mid}1a 35%, transparent 65%)`,
+            filter: "blur(40px)",
+          }}
+        />
+        {/* Orbiting particles */}
+        <div aria-hidden className="absolute left-1/2 -translate-x-1/2 top-2 w-[28rem] h-[28rem] pointer-events-none">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <motion.span
+              key={i}
+              className="absolute left-1/2 top-1/2 w-1.5 h-1.5 rounded-full"
+              style={{
+                background: i % 2 ? INDIGO.glow : INDIGO.accentSoft,
+                boxShadow: `0 0 12px ${INDIGO.glow}`,
+              }}
+              animate={{
+                x: [Math.cos((i / 6) * Math.PI * 2) * 180, Math.cos((i / 6) * Math.PI * 2 + Math.PI * 2) * 180],
+                y: [Math.sin((i / 6) * Math.PI * 2) * 80, Math.sin((i / 6) * Math.PI * 2 + Math.PI * 2) * 80],
+                opacity: [0.2, 1, 0.2],
+              }}
+              transition={{ duration: 14 + i * 2, repeat: Infinity, ease: "linear" }}
+            />
+          ))}
+        </div>
+
+        {/* Live status pill */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="relative inline-flex items-center gap-2.5 px-4 py-2 rounded-full mb-7 backdrop-blur-xl"
+          style={{
+            background: `linear-gradient(135deg, ${INDIGO.accent}1f, ${INDIGO.mid}1a)`,
+            border: `1px solid ${INDIGO.accent}55`,
+            boxShadow: `0 8px 32px -8px ${INDIGO.accent}55, inset 0 1px 0 rgba(255,255,255,0.08)`,
+          }}
+        >
+          <span className="relative flex w-2 h-2">
+            <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: "#34d399" }} />
+            <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "#34d399", boxShadow: "0 0 10px #34d399" }} />
+          </span>
+          <span className="text-xs font-semibold tracking-[0.18em] text-white/85 uppercase" style={fontBody}>
+            Applications · Live Now
+          </span>
+          <span className="text-xs text-white/45" style={fontBody}>·</span>
+          <Sparkles className="w-3.5 h-3.5" style={{ color: INDIGO.glow }} />
+          <span className="text-xs text-white/70" style={fontBody}>Batch 2026</span>
+        </motion.div>
+
+        {/* Holographic heading */}
+        <motion.h2
+          initial={{ opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="relative text-5xl md:text-7xl font-bold tracking-[-0.04em] leading-[0.95]"
+          style={fontHead}
+        >
+          <span
+            className="relative inline-block bg-clip-text text-transparent"
+            style={{
+              backgroundImage: `linear-gradient(180deg, #ffffff 0%, #e0e7ff 55%, ${INDIGO.glow} 100%)`,
+            }}
+          >
+            Start your
+          </span>{" "}
+          <span className="relative inline-block">
+            <span
+              className="relative bg-clip-text text-transparent"
+              style={{
+                backgroundImage: `linear-gradient(110deg, ${INDIGO.glow} 0%, #ffffff 30%, ${INDIGO.accentSoft} 60%, ${INDIGO.glow} 100%)`,
+                backgroundSize: "250% 100%",
+                WebkitBackgroundClip: "text",
+                animation: "ca-shimmer 5.5s linear infinite",
+              }}
+            >
+              journey
+            </span>
+            {/* Underline beam */}
+            <motion.span
+              aria-hidden
+              initial={{ scaleX: 0 }}
+              whileInView={{ scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1.1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute -bottom-2 left-0 right-0 h-[3px] origin-left rounded-full"
+              style={{
+                background: `linear-gradient(90deg, transparent, ${INDIGO.accent}, ${INDIGO.glow}, transparent)`,
+                boxShadow: `0 0 18px ${INDIGO.accent}`,
+              }}
+            />
+          </span>
+          <span className="text-white/85">.</span>
+        </motion.h2>
+
+        <style>{`
+          @keyframes ca-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        `}</style>
+
+        {/* Subcopy */}
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7, delay: 0.25 }}
+          className="mt-6 text-white/65 text-lg md:text-xl leading-relaxed max-w-xl mx-auto"
+          style={fontBody}
+        >
+          Takes <span className="text-white font-semibold">90 seconds</span>. No fee.
+          Every application is <span className="text-white font-semibold">personally reviewed</span>.
+        </motion.p>
+
+        {/* Trust chips */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.45 }}
+          className="mt-7 flex flex-wrap justify-center gap-2.5"
+        >
+          {[
+            { icon: Shield, label: "Encrypted" },
+            { icon: Zap, label: "Instant draft save" },
+            { icon: Award, label: "Merit-based" },
+            { icon: Users, label: "5,800+ applied" },
+          ].map(({ icon: Icon, label }) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white/75 backdrop-blur"
+              style={{
+                background: `linear-gradient(135deg, ${INDIGO.surface}cc, ${INDIGO.mid}66)`,
+                border: `1px solid ${INDIGO.accent}33`,
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+              }}
+            >
+              <Icon className="w-3.5 h-3.5" style={{ color: INDIGO.glow }} />
+              {label}
+            </span>
+          ))}
+        </motion.div>
       </div>
 
       {done ? (
