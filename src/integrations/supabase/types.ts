@@ -2147,6 +2147,63 @@ export type Database = {
         }
         Relationships: []
       }
+      campus_ambassador_applications: {
+        Row: {
+          city: string
+          college: string
+          course: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          instagram: string | null
+          leadership_experience: string | null
+          linkedin: string | null
+          phone: string
+          source: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+          why_join: string | null
+        }
+        Insert: {
+          city: string
+          college: string
+          course?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          instagram?: string | null
+          leadership_experience?: string | null
+          linkedin?: string | null
+          phone: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          why_join?: string | null
+        }
+        Update: {
+          city?: string
+          college?: string
+          course?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          instagram?: string | null
+          leadership_experience?: string | null
+          linkedin?: string | null
+          phone?: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          why_join?: string | null
+        }
+        Relationships: []
+      }
       channel_effectiveness: {
         Row: {
           channel: string
