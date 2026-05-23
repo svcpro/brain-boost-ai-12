@@ -772,8 +772,10 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
+          headline: string | null
           id: string
           instagram: string | null
+          interests: string[] | null
           joined_at: string
           last_active_at: string | null
           linkedin: string | null
@@ -806,8 +808,10 @@ export type Database = {
           created_at?: string
           email: string
           full_name: string
+          headline?: string | null
           id?: string
           instagram?: string | null
+          interests?: string[] | null
           joined_at?: string
           last_active_at?: string | null
           linkedin?: string | null
@@ -840,8 +844,10 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string
+          headline?: string | null
           id?: string
           instagram?: string | null
+          interests?: string[] | null
           joined_at?: string
           last_active_at?: string | null
           linkedin?: string | null
@@ -13305,8 +13311,10 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
+          headline: string | null
           id: string
           instagram: string | null
+          interests: string[] | null
           joined_at: string
           last_active_at: string | null
           linkedin: string | null
