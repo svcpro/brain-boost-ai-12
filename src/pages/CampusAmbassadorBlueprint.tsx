@@ -3283,7 +3283,7 @@ const CampusAmbassadorBlueprint = () => {
         <Trusted />
         <Benefits />
         <Role />
-        <Metrics />
+        {/* <Metrics /> hidden — duplicated stats already shown elsewhere */}
         <Testimonials />
         <Path />
         <Leaderboard />
