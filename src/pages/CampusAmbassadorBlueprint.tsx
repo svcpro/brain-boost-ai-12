@@ -2604,7 +2604,7 @@ const FAQ = () => {
       q: "Who can apply?",
       a: "Any college, university or coaching student in India — UG, PG, JEE/NEET aspirants, AI enthusiasts. All streams welcome.",
       icon: Users,
-      color: "#818cf8",
+      color: "#c9a84c",
     },
     {
       q: "Is it free?",
@@ -2622,13 +2622,13 @@ const FAQ = () => {
       q: "What are the benefits?",
       a: "AI training, leadership experience, certificates, networking, personal branding, internship opportunities, founder mentorship, campus recognition, and exclusive workshop access.",
       icon: Sparkles,
-      color: "#a78bfa",
+      color: "#8b5cf6",
     },
     {
       q: "Is this remote?",
       a: "Hybrid. Training and community are remote. Workshops and meetups happen on your campus or city.",
       icon: Globe,
-      color: "#60a5fa",
+      color: "#06b6d4",
     },
     {
       q: "How much time is needed?",
