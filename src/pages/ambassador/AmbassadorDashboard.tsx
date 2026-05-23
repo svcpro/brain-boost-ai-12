@@ -104,12 +104,34 @@ export default function AmbassadorDashboard() {
                 <BrandMark compact />
                 <button
                   className="grid h-10 w-10 place-items-center rounded-xl border"
-                  style={{ borderColor: AMB.border, background: "rgba(255,255,255,0.04)" }}
+                  style={{ borderColor: AMB.border, background: "rgba(255,244,234,0.04)" }}
                   onClick={() => setNavOpen(true)}
                   aria-label="Open menu"
                 >
                   <Menu className="h-5 w-5" />
                 </button>
+              </div>
+
+              {/* Desktop HUD top strip */}
+              <div
+                className="mb-5 hidden items-center justify-between rounded-xl border px-4 py-2 lg:flex"
+                style={{
+                  borderColor: AMB.border,
+                  background: "linear-gradient(90deg, rgba(255,107,53,0.06), rgba(251,191,36,0.04), rgba(181,61,255,0.06))",
+                  backdropFilter: "blur(12px)",
+                }}
+              >
+                <div className="flex items-center gap-4 text-[10px] uppercase tracking-[0.18em]" style={{ color: AMB.mute }}>
+                  <LiveDot color={AMB.cyan} label="Ambassador OS · Online" />
+                  <span className="hidden xl:inline">Sector: India · Network healthy</span>
+                </div>
+                <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em]" style={{ color: AMB.mute }}>
+                  <span style={{ color: AMB.amber }}>{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short" })}</span>
+                  <span>·</span>
+                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", color: AMB.text }}>
+                    {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
               </div>
 
               <SectionHeader active={active} />
