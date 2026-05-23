@@ -946,22 +946,69 @@ const Metrics = () => {
    TESTIMONIALS
    ═════════════════════════════════════════════════════════════════════ */
 const Testimonials = () => {
-  const t = [
-    { name: "Aarav Sharma", role: "IIT Delhi", text: "From curious student to leading 8 AI workshops in 4 months. ACRY made me the person I wanted to be." },
-    { name: "Ishita Verma", role: "BITS Pilani", text: "I built a 600-member AI community on my campus. The mentorship and brand backing is unreal." },
-    { name: "Rohan Mehta", role: "NIT Trichy", text: "Not just an ambassador program — a launchpad. Got my AI internship through this network." },
-    { name: "Priya Iyer", role: "VIT Vellore", text: "Founder mentorship sessions changed how I think about AI, leadership and my career." },
-    { name: "Karan Singh", role: "DTU", text: "Best decision of my college life. Period." },
-    { name: "Ananya Kapoor", role: "SRM", text: "I had zero leadership experience. Now I run my own AI club and speak at events." },
+  const testimonials = [
+    { name: "Aarav Sharma", role: "IIT Delhi", batch: "Batch '25", text: "From curious student to leading 8 AI workshops in 4 months. ACRY made me the person I wanted to be.", metric: "8 workshops · 1.2K reached" },
+    { name: "Ishita Verma", role: "BITS Pilani", batch: "Batch '24", text: "I built a 600-member AI community on my campus. The mentorship and brand backing is unreal.", metric: "600 members · 24 events" },
+    { name: "Rohan Mehta", role: "NIT Trichy", batch: "Batch '25", text: "Not just an ambassador program — a launchpad. Got my AI internship through this network.", metric: "Paid internship · Bengaluru" },
+    { name: "Priya Iyer", role: "VIT Vellore", batch: "Batch '24", text: "Founder mentorship sessions changed how I think about AI, leadership and my career.", metric: "12 mentor calls" },
+    { name: "Karan Singh", role: "DTU", batch: "Batch '25", text: "Best decision of my college life. Period.", metric: "AI Club founder" },
+    { name: "Ananya Kapoor", role: "SRM", batch: "Batch '26", text: "I had zero leadership experience. Now I run my own AI club and speak at events.", metric: "5 talks · 2.4K followers" },
   ];
+
+  const posts = [
+    { handle: "@aarav.builds", college: "IIT Delhi", caption: "Hosted my first AI workshop — 240 students showed up. The future is now ⚡", likes: "2.4K", comments: "186", emoji: "🚀", grad: ["#6366f1", "#ec4899"] },
+    { handle: "@ishita.codes", college: "BITS Pilani", caption: "Our AI club just crossed 600 members 🤯 Thank you @acry.ai for the playbook!", likes: "3.1K", comments: "312", emoji: "🧠", grad: ["#4f46e5", "#06b6d4"] },
+    { handle: "@rohan.ml", college: "NIT Trichy", caption: "From ambassador to AI intern in 90 days. Receipts in story 💼", likes: "1.8K", comments: "94", emoji: "💼", grad: ["#8b5cf6", "#f59e0b"] },
+    { handle: "@priya.prompts", college: "VIT Vellore", caption: "Mentor call with the ACRY founders today. Wild how much you learn in 30 mins.", likes: "1.2K", comments: "76", emoji: "✨", grad: ["#ec4899", "#6366f1"] },
+  ];
+
   return (
     <Section id="community">
-      <div className="text-center mb-16 max-w-2xl mx-auto">
-        <Eyebrow>Community</Eyebrow>
-        <Heading>Voices from the network.</Heading>
+      <div className="text-center mb-14 max-w-2xl mx-auto">
+        <Eyebrow>Community & Social Proof</Eyebrow>
+        <Heading>Join India's next-generation AI student movement.</Heading>
+        <p className="mt-5 text-white/60 text-lg" style={fontBody}>
+          Real ambassadors. Real campuses. Real momentum — from IITs to Tier-3 colleges, the AI revolution is already in motion.
+        </p>
       </div>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {t.map((x, i) => (
+
+      {/* Community growth bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+        className="max-w-5xl mx-auto mb-14"
+      >
+        <Card className="p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-40" style={{ background: `radial-gradient(600px circle at 20% 50%, ${INDIGO.accent}33, transparent 60%), radial-gradient(500px circle at 90% 50%, ${INDIGO.glow}22, transparent 60%)` }} />
+          <div className="relative grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4">
+            {[
+              { v: "50K+", l: "Students", sub: "Across India" },
+              { v: "120+", l: "Cities", sub: "Tier 1–3" },
+              { v: "850+", l: "Workshops", sub: "This year" },
+              { v: "98%", l: "Recommend", sub: "Net promoter" },
+            ].map((s, i) => (
+              <motion.div
+                key={s.l}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.08, type: "spring", stiffness: 180 }}
+                className="text-center md:text-left"
+              >
+                <div className="text-3xl md:text-4xl font-bold mb-1" style={{ background: `linear-gradient(135deg, ${INDIGO.glow}, white)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", ...fontHead }}>{s.v}</div>
+                <div className="text-sm font-semibold text-white" style={fontBody}>{s.l}</div>
+                <div className="text-[11px] text-white/45 tracking-wider uppercase" style={fontBody}>{s.sub}</div>
+              </motion.div>
+            ))}
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Testimonials grid */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
+        {testimonials.map((x, i) => (
           <motion.div
             key={x.name}
             initial={{ opacity: 0, y: 24 }}
@@ -969,27 +1016,231 @@ const Testimonials = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
           >
-            <Card interactive className="p-6 h-full">
-              <div className="flex items-center gap-3 mb-4">
+            <Card interactive className="p-6 h-full relative overflow-hidden group">
+              <div className="absolute top-4 right-4 text-5xl leading-none opacity-10 font-serif" style={{ color: INDIGO.glow }}>"</div>
+              <div className="flex items-center gap-3 mb-4 relative">
                 <div
-                  className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold"
+                  className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
                   style={{ background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})`, ...fontHead }}
                 >
                   {x.name[0]}
                 </div>
-                <div>
-                  <div className="text-white font-semibold text-sm" style={fontHead}>{x.name}</div>
-                  <div className="text-xs text-white/45" style={fontBody}>Ambassador · {x.role}</div>
+                <div className="min-w-0">
+                  <div className="text-white font-semibold text-sm flex items-center gap-1.5" style={fontHead}>
+                    {x.name}
+                    <Check className="w-3.5 h-3.5 p-0.5 rounded-full text-white" style={{ background: INDIGO.accent }} />
+                  </div>
+                  <div className="text-xs text-white/45" style={fontBody}>Ambassador · {x.role} · {x.batch}</div>
                 </div>
               </div>
               <div className="flex gap-0.5 mb-3">
                 {[...Array(5)].map((_, k) => <Star key={k} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />)}
               </div>
-              <p className="text-sm text-white/70 leading-relaxed" style={fontBody}>"{x.text}"</p>
+              <p className="text-sm text-white/75 leading-relaxed mb-4" style={fontBody}>"{x.text}"</p>
+              <div className="pt-3 border-t border-white/5">
+                <div className="text-[10px] font-bold tracking-[0.18em] uppercase" style={{ color: INDIGO.glow, ...fontBody }}>Impact</div>
+                <div className="text-xs text-white/65 mt-0.5" style={fontBody}>{x.metric}</div>
+              </div>
             </Card>
           </motion.div>
         ))}
       </div>
+
+      {/* Instagram-style community posts */}
+      <div className="mb-16">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, #f59e0b, #ec4899, #8b5cf6)` }}>
+              <Instagram className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="text-white font-semibold" style={fontHead}>Live from the community</div>
+              <div className="text-xs text-white/50" style={fontBody}>What our ambassadors are posting right now</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-emerald-400" style={fontBody}>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> 1.4K posts this week
+          </div>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {posts.map((p, i) => (
+            <motion.div
+              key={p.handle}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.08 }}
+              whileHover={{ y: -6 }}
+            >
+              <Card className="overflow-hidden h-full">
+                {/* Post header */}
+                <div className="flex items-center gap-2.5 p-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${p.grad[0]}, ${p.grad[1]})`, ...fontHead }}>
+                    {p.handle[1].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-white truncate" style={fontHead}>{p.handle}</div>
+                    <div className="text-[10px] text-white/45 truncate" style={fontBody}>{p.college}</div>
+                  </div>
+                  <div className="text-white/40 text-xl leading-none">⋯</div>
+                </div>
+                {/* Post image */}
+                <div className="relative aspect-square overflow-hidden" style={{ background: `linear-gradient(135deg, ${p.grad[0]}, ${p.grad[1]})` }}>
+                  <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), transparent 60%)` }} />
+                  <div className="absolute inset-0 flex items-center justify-center text-7xl">{p.emoji}</div>
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-bold text-white backdrop-blur-md bg-black/30 border border-white/20" style={fontBody}>
+                    ACRY · AMBASSADOR
+                  </div>
+                </div>
+                {/* Post actions */}
+                <div className="p-3">
+                  <div className="flex items-center gap-3 mb-2 text-white">
+                    <Heart className="w-4 h-4 fill-pink-500 text-pink-500" />
+                    <MessageCircle className="w-4 h-4" />
+                    <Send className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs font-semibold text-white mb-1" style={fontBody}>{p.likes} likes · {p.comments} comments</div>
+                  <p className="text-xs text-white/65 leading-relaxed line-clamp-2" style={fontBody}>
+                    <span className="font-semibold text-white">{p.handle}</span> {p.caption}
+                  </p>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Engagement screenshot mockup */}
+      <div className="grid lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
+        {/* Workshop engagement */}
+        <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+          <Card className="p-6 h-full">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${INDIGO.accent}33`, border: `1px solid ${INDIGO.accent}55` }}>
+                  <Mic className="w-4 h-4" style={{ color: INDIGO.glow }} />
+                </div>
+                <div className="text-sm font-semibold text-white" style={fontHead}>Workshop Engagement</div>
+              </div>
+              <div className="text-[10px] tracking-wider uppercase text-emerald-400 font-bold" style={fontBody}>↑ 142%</div>
+            </div>
+            <div className="space-y-3">
+              {[
+                { c: "IIT Delhi", v: 92 },
+                { c: "BITS Pilani", v: 88 },
+                { c: "NIT Trichy", v: 81 },
+                { c: "VIT Vellore", v: 76 },
+                { c: "DTU", v: 71 },
+              ].map((row, i) => (
+                <div key={row.c}>
+                  <div className="flex justify-between text-xs mb-1" style={fontBody}>
+                    <span className="text-white/70">{row.c}</span>
+                    <span className="text-white/50">{row.v}% attendance</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${row.v}%` }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1, delay: i * 0.1, ease: "easeOut" }}
+                      className="h-full rounded-full"
+                      style={{ background: `linear-gradient(to right, ${INDIGO.accent}, ${INDIGO.glow})`, boxShadow: `0 0 12px ${INDIGO.accent}88` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Growth chart */}
+        <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+          <Card className="p-6 h-full relative overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${INDIGO.accent}33`, border: `1px solid ${INDIGO.accent}55` }}>
+                  <Network className="w-4 h-4" style={{ color: INDIGO.glow }} />
+                </div>
+                <div className="text-sm font-semibold text-white" style={fontHead}>Community Growth</div>
+              </div>
+              <div className="text-[10px] tracking-wider uppercase text-emerald-400 font-bold" style={fontBody}>+12.4K this month</div>
+            </div>
+            <div className="relative h-48 mt-6">
+              <svg viewBox="0 0 300 140" className="w-full h-full" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={INDIGO.accent} stopOpacity="0.5" />
+                    <stop offset="100%" stopColor={INDIGO.accent} stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="growthLine" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor={INDIGO.accent} />
+                    <stop offset="100%" stopColor={INDIGO.glow} />
+                  </linearGradient>
+                </defs>
+                <motion.path
+                  d="M0,120 L40,108 L80,95 L120,82 L160,68 L200,48 L240,30 L300,12 L300,140 L0,140 Z"
+                  fill="url(#growthFill)"
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1, delay: 0.4 }}
+                />
+                <motion.path
+                  d="M0,120 L40,108 L80,95 L120,82 L160,68 L200,48 L240,30 L300,12"
+                  fill="none"
+                  stroke="url(#growthLine)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  initial={{ pathLength: 0 }}
+                  whileInView={{ pathLength: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1.4, ease: "easeOut" }}
+                  style={{ filter: `drop-shadow(0 0 6px ${INDIGO.accent})` }}
+                />
+                {[[40,108],[80,95],[120,82],[160,68],[200,48],[240,30],[300,12]].map(([x,y], i) => (
+                  <motion.circle
+                    key={i}
+                    cx={x} cy={y} r="3"
+                    fill={INDIGO.glow}
+                    initial={{ scale: 0 }}
+                    whileInView={{ scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.5 + i * 0.08, type: "spring", stiffness: 300 }}
+                  />
+                ))}
+              </svg>
+              <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-white/40 tracking-wider" style={fontBody}>
+                {["J","F","M","A","M","J","J","A"].map((m) => <span key={m}>{m}</span>)}
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-4 text-xs text-white/55" style={fontBody}>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: INDIGO.glow }} /> Ambassadors</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /> 8 months · 4.2× growth</span>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Movement banner */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+        className="max-w-3xl mx-auto mt-16 text-center"
+      >
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase mb-4"
+          style={{ background: `linear-gradient(135deg, ${INDIGO.accent}22, ${INDIGO.glow}22)`, border: `1px solid ${INDIGO.accent}55`, color: INDIGO.glow, ...fontBody }}>
+          <Sparkles className="w-3.5 h-3.5" /> The movement is here
+        </div>
+        <p className="text-2xl md:text-3xl font-semibold leading-tight" style={fontHead}>
+          <span className="text-white">Join India's </span>
+          <span style={{ background: `linear-gradient(135deg, ${INDIGO.glow}, ${INDIGO.accentSoft})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            next-generation AI student movement.
+          </span>
+        </p>
+      </motion.div>
     </Section>
   );
 };
