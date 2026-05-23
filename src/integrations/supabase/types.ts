@@ -1005,6 +1005,69 @@ export type Database = {
         }
         Relationships: []
       }
+      ambassador_tasks: {
+        Row: {
+          ai_reasoning: string | null
+          category: string
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          estimated_minutes: number | null
+          expires_at: string
+          id: string
+          priority: string
+          proof_uploaded_at: string | null
+          proof_url: string | null
+          requires_proof: boolean
+          reward_points: number
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          week_key: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_minutes?: number | null
+          expires_at?: string
+          id?: string
+          priority?: string
+          proof_uploaded_at?: string | null
+          proof_url?: string | null
+          requires_proof?: boolean
+          reward_points?: number
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          week_key: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_minutes?: number | null
+          expires_at?: string
+          id?: string
+          priority?: string
+          proof_uploaded_at?: string | null
+          proof_url?: string | null
+          requires_proof?: boolean
+          reward_points?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          week_key?: string
+        }
+        Relationships: []
+      }
       ambassador_training_modules: {
         Row: {
           category: string
