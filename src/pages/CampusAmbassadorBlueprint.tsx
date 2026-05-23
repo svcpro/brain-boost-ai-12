@@ -252,14 +252,105 @@ const Nav = ({ scrollToForm }: { scrollToForm: () => void }) => {
 /* ═════════════════════════════════════════════════════════════════════
    HERO — centered, ultra-clean, conversion-focused
    ═════════════════════════════════════════════════════════════════════ */
+const TRUST_BADGES = [
+  { icon: Brain, label: "AI Workshops" },
+  { icon: Users, label: "Student Community" },
+  { icon: Crown, label: "Leadership Program" },
+  { icon: Zap, label: "Future Skills" },
+];
+
+const FLOATING_CARDS = [
+  { icon: Sparkles, label: "Live AI Lab", sub: "Hands-on", className: "hidden md:flex top-[14%] left-[3%]", delay: 0.2, float: [0, -10, 0] },
+  { icon: Trophy, label: "Top 1% Cohort", sub: "Batch 2026", className: "hidden lg:flex top-[22%] right-[4%]", delay: 0.35, float: [0, 12, 0] },
+  { icon: Network, label: "50K+ Network", sub: "120+ cities", className: "hidden md:flex bottom-[18%] left-[5%]", delay: 0.5, float: [0, 10, 0] },
+  { icon: Award, label: "Certified", sub: "ACRY x Industry", className: "hidden lg:flex bottom-[24%] right-[5%]", delay: 0.65, float: [0, -12, 0] },
+];
+
 const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 600], [0, -80]);
   const op = useTransform(scrollY, [0, 500], [1, 0.4]);
+  const [videoOpen, setVideoOpen] = useState(false);
 
   return (
-    <section className="relative min-h-[100dvh] flex items-center justify-center px-6 pt-32 pb-20">
-      <motion.div style={{ y, opacity: op }} className="relative z-10 max-w-3xl mx-auto text-center">
+    <section className="relative min-h-[100dvh] flex items-center justify-center px-6 pt-32 pb-24 overflow-hidden">
+      {/* ───── AI-themed glowing backdrop ───── */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%]"
+          style={{
+            background: `radial-gradient(ellipse 60% 50% at 50% 40%, ${INDIGO.accent}33, transparent 60%), radial-gradient(circle at 20% 80%, ${INDIGO.glow}22, transparent 50%), radial-gradient(circle at 80% 20%, ${INDIGO.accentSoft}26, transparent 55%)`,
+            filter: "blur(20px)",
+          }}
+        />
+        {/* Grid mesh */}
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage: `linear-gradient(${INDIGO.glow} 1px, transparent 1px), linear-gradient(90deg, ${INDIGO.glow} 1px, transparent 1px)`,
+            backgroundSize: "56px 56px",
+            maskImage: "radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent 75%)",
+            WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent 75%)",
+          }}
+        />
+        {/* Orbiting AI nodes */}
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            className="absolute top-1/2 left-1/2 rounded-full"
+            style={{
+              width: 6 + i * 2,
+              height: 6 + i * 2,
+              background: INDIGO.glow,
+              boxShadow: `0 0 18px ${INDIGO.accent}`,
+            }}
+            animate={{
+              x: [Math.cos(i) * (140 + i * 40), Math.cos(i + Math.PI) * (140 + i * 40), Math.cos(i) * (140 + i * 40)],
+              y: [Math.sin(i) * (140 + i * 40), Math.sin(i + Math.PI) * (140 + i * 40), Math.sin(i) * (140 + i * 40)],
+              opacity: [0.4, 1, 0.4],
+            }}
+            transition={{ duration: 14 + i * 3, repeat: Infinity, ease: "easeInOut" }}
+          />
+        ))}
+      </div>
+
+      {/* ───── Floating UI cards ───── */}
+      {FLOATING_CARDS.map((c, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8, delay: c.delay, ease: [0.22, 1, 0.36, 1] }}
+          className={`absolute z-10 ${c.className}`}
+        >
+          <motion.div
+            animate={{ y: c.float }}
+            transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut" }}
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl"
+            style={{
+              background: `linear-gradient(135deg, ${INDIGO.surface}cc, ${INDIGO.base}cc)`,
+              border: `1px solid ${INDIGO.accent}40`,
+              boxShadow: `0 20px 60px -20px ${INDIGO.accent}55, inset 0 1px 0 ${INDIGO.glow}22`,
+            }}
+          >
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{
+                background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.accentSoft})`,
+                boxShadow: `0 0 18px ${INDIGO.accent}88`,
+              }}
+            >
+              <c.icon className="w-4 h-4 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="text-[13px] font-semibold text-white whitespace-nowrap" style={fontHead}>{c.label}</div>
+              <div className="text-[10px] uppercase tracking-[0.15em] text-white/55" style={fontBody}>{c.sub}</div>
+            </div>
+          </motion.div>
+        </motion.div>
+      ))}
+
+      <motion.div style={{ y, opacity: op }} className="relative z-20 max-w-4xl mx-auto text-center">
         {/* Live status pill */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -277,12 +368,12 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
           </span>
         </motion.div>
 
-        {/* Headline — Ultra Advanced holographic */}
+        {/* Headline */}
         <motion.h1
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="relative text-[2.75rem] sm:text-6xl md:text-7xl lg:text-[5.5rem] font-bold tracking-[-0.035em] leading-[1.02] text-white mb-7"
+          className="relative text-[2.5rem] sm:text-5xl md:text-6xl lg:text-[4.75rem] font-bold tracking-[-0.035em] leading-[1.04] text-white mb-6"
           style={fontHead}
         >
           <span
@@ -293,57 +384,47 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
               filter: "blur(50px)",
             }}
           />
-
-          <span className="relative inline-block">
-            <span
-              className="bg-clip-text text-transparent"
-              style={{ backgroundImage: `linear-gradient(180deg, #ffffff 0%, #e0e7ff 60%, ${INDIGO.glow} 100%)` }}
-            >
-              Lead the
-            </span>{" "}
-            <span className="relative inline-block">
-              <span
-                className="bg-clip-text text-transparent"
-                style={{
-                  backgroundImage: `linear-gradient(110deg, ${INDIGO.glow} 0%, #ffffff 30%, ${INDIGO.accentSoft} 60%, ${INDIGO.glow} 100%)`,
-                  backgroundSize: "250% 100%",
-                  WebkitBackgroundClip: "text",
-                  animation: "ca-hero-shimmer 5.5s linear infinite",
-                }}
-              >
-                AI
-              </span>
-              <motion.span
-                aria-hidden
-                className="absolute -inset-3 rounded-full pointer-events-none -z-10"
-                animate={{ opacity: [0.4, 0.85, 0.4] }}
-                transition={{ duration: 3, repeat: Infinity }}
-                style={{
-                  background: `radial-gradient(circle, ${INDIGO.accent}66, transparent 70%)`,
-                  filter: "blur(20px)",
-                }}
-              />
-            </span>
-          </span>
-          <br />
-
           <span
             className="bg-clip-text text-transparent"
             style={{ backgroundImage: `linear-gradient(180deg, #ffffff 0%, #e0e7ff 60%, ${INDIGO.glow} 100%)` }}
           >
-            revolution on
-          </span>{" "}
+            Become an{" "}
+          </span>
+          <span className="relative inline-block">
+            <span
+              className="bg-clip-text text-transparent"
+              style={{
+                backgroundImage: `linear-gradient(110deg, ${INDIGO.glow} 0%, #ffffff 30%, ${INDIGO.accentSoft} 60%, ${INDIGO.glow} 100%)`,
+                backgroundSize: "250% 100%",
+                WebkitBackgroundClip: "text",
+                animation: "ca-hero-shimmer 5.5s linear infinite",
+              }}
+            >
+              ACRY AI
+            </span>
+            <motion.span
+              aria-hidden
+              className="absolute -inset-3 rounded-full pointer-events-none -z-10"
+              animate={{ opacity: [0.4, 0.85, 0.4] }}
+              transition={{ duration: 3, repeat: Infinity }}
+              style={{
+                background: `radial-gradient(circle, ${INDIGO.accent}66, transparent 70%)`,
+                filter: "blur(20px)",
+              }}
+            />
+          </span>
+          <br />
           <span className="relative inline-block">
             <span
               className="relative bg-clip-text text-transparent"
               style={{
-                backgroundImage: `linear-gradient(110deg, ${INDIGO.glow} 0%, ${INDIGO.accentSoft} 25%, #ffffff 50%, ${INDIGO.accent} 75%, ${INDIGO.glow} 100%)`,
+                backgroundImage: `linear-gradient(110deg, #ffffff 0%, ${INDIGO.accentSoft} 35%, ${INDIGO.glow} 65%, #ffffff 100%)`,
                 backgroundSize: "300% 100%",
                 WebkitBackgroundClip: "text",
                 animation: "ca-hero-shimmer 6s linear infinite",
               }}
             >
-              your campus
+              Campus Ambassador
             </span>
             <motion.span
               aria-hidden
@@ -368,7 +449,6 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
               }}
             />
           </span>
-          <span className="text-white/85">.</span>
 
           <style>{`
             @keyframes ca-hero-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
@@ -379,13 +459,14 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.25 }}
-          className="text-lg md:text-xl text-white/65 max-w-xl mx-auto mb-10 leading-relaxed"
+          className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-10 leading-relaxed"
           style={fontBody}
         >
-          Join India's fastest-growing AI student network. Get trained, mentored, certified — and become
-          the AI leader your campus needs.
+          Lead the AI revolution in your campus and become part of India's fastest-growing
+          AI student network.
         </motion.p>
 
+        {/* CTAs */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -393,41 +474,114 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
           className="flex flex-col sm:flex-row items-center justify-center gap-3"
         >
           <PrimaryCTA onClick={scrollToForm} large>
-            <Rocket className="w-4 h-4" /> Apply Now — Free
+            <Rocket className="w-4 h-4" /> Apply Now
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </PrimaryCTA>
-          <a
-            href="#benefits"
-            className="inline-flex items-center gap-2 px-6 py-4 rounded-full text-white/80 hover:text-white border border-white/15 hover:border-white/30 transition-colors text-sm font-medium"
-            style={fontBody}
+          <button
+            onClick={() => setVideoOpen(true)}
+            className="group inline-flex items-center gap-3 px-6 py-4 rounded-full text-white/85 hover:text-white border border-white/15 hover:border-white/35 transition-all text-sm font-medium backdrop-blur-sm"
+            style={{ background: `${INDIGO.surface}55`, ...fontBody }}
           >
-            <Play className="w-3.5 h-3.5" /> See what you get
-          </a>
+            <span
+              className="relative flex items-center justify-center w-7 h-7 rounded-full"
+              style={{
+                background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.accentSoft})`,
+                boxShadow: `0 0 14px ${INDIGO.accent}88`,
+              }}
+            >
+              <Play className="w-3 h-3 text-white fill-white ml-0.5" />
+              <span
+                className="absolute inset-0 rounded-full animate-ping"
+                style={{ background: `${INDIGO.accent}55` }}
+              />
+            </span>
+            Watch Intro Video
+          </button>
         </motion.div>
 
-        {/* Quick proof */}
+        {/* Trust badges */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="mt-14 flex items-center justify-center gap-6 sm:gap-10 text-white/50 text-sm"
-          style={fontBody}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.55 }}
+          className="mt-12 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3"
         >
-          <div className="flex items-center gap-2"><Users className="w-4 h-4" style={{ color: INDIGO.glow }} /> 50K+ Students</div>
-          <div className="h-4 w-px bg-white/15" />
-          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" style={{ color: INDIGO.glow }} /> 120+ Cities</div>
-          <div className="h-4 w-px bg-white/15 hidden sm:block" />
-          <div className="hidden sm:flex items-center gap-2"><Trophy className="w-4 h-4" style={{ color: INDIGO.glow }} /> 850+ Events</div>
+          {TRUST_BADGES.map((b, i) => (
+            <motion.div
+              key={b.label}
+              whileHover={{ y: -3, scale: 1.04 }}
+              transition={{ type: "spring", stiffness: 300, damping: 18 }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full backdrop-blur-md"
+              style={{
+                background: `linear-gradient(135deg, ${INDIGO.surface}aa, ${INDIGO.base}aa)`,
+                border: `1px solid ${INDIGO.accent}33`,
+                boxShadow: `0 8px 24px -10px ${INDIGO.accent}55`,
+              }}
+            >
+              <span
+                className="flex items-center justify-center w-6 h-6 rounded-full"
+                style={{ background: `${INDIGO.accent}33`, color: INDIGO.glow }}
+              >
+                <b.icon className="w-3.5 h-3.5" />
+              </span>
+              <span className="text-[12px] font-semibold text-white/85 tracking-wide" style={fontBody}>
+                {b.label}
+              </span>
+            </motion.div>
+          ))}
         </motion.div>
       </motion.div>
 
       <motion.div
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/35 flex flex-col items-center gap-1"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/35 flex flex-col items-center gap-1 z-20"
       >
         <ChevronDown className="w-5 h-5" />
       </motion.div>
+
+      {/* ───── Intro Video Modal ───── */}
+      <AnimatePresence>
+        {videoOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setVideoOpen(false)}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-lg"
+            style={{ background: `${INDIGO.base}d9` }}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 20 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden"
+              style={{
+                border: `1px solid ${INDIGO.accent}55`,
+                boxShadow: `0 30px 80px -20px ${INDIGO.accent}88`,
+              }}
+            >
+              <button
+                onClick={() => setVideoOpen(false)}
+                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center text-white/80 hover:text-white"
+                style={{ background: `${INDIGO.base}cc`, border: `1px solid ${INDIGO.accent}55` }}
+                aria-label="Close video"
+              >
+                ✕
+              </button>
+              <iframe
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
+                title="ACRY AI Campus Ambassador Intro"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };
