@@ -3035,7 +3035,6 @@ const FinalCTA = ({ scrollToForm }: { scrollToForm: () => void }) => {
     </Section>
   );
 };
-</new_content>
 
 /* ═════════════════════════════════════════════════════════════════════
    FOOTER
