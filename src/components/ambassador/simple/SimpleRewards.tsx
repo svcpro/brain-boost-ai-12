@@ -1,5 +1,6 @@
 import { Btn, Card, ProgressBar, SectionTitle, Stat, T } from "./ui";
 import type { AmbassadorProfile } from "../useAmbassador";
+import { useReferralStats } from "./useReferralStats";
 import { Award, Gift, IndianRupee, Lock, CheckCircle2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,9 +13,10 @@ const REWARDS = [
 ];
 
 export function SimpleRewards({ profile }: { profile: AmbassadorProfile }) {
-  const refs = profile.points || 0;
-  const earned = Math.floor(refs * 0.4) * 50;
-  const pending = (refs - Math.floor(refs * 0.4)) * 50;
+  const stats = useReferralStats(profile.user_id);
+  const refs = stats.total;
+  const earned = stats.earnings;
+  const pending = stats.pending;
 
   return (
     <div className="space-y-4">
