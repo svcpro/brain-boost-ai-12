@@ -648,55 +648,281 @@ const schema = z.object({
   leadership_experience: z.string().trim().max(1000).optional().or(z.literal("")),
 });
 
+/* Per-field validity using the master schema (live) */
+const fieldSchemas: Record<string, z.ZodTypeAny> = (schema as any).shape ?? {};
+const isFieldValid = (name: string, value: string) => {
+  const s = fieldSchemas[name];
+  if (!s) return value.trim().length > 0;
+  const r = s.safeParse(value);
+  return r.success && (value ?? "").trim().length > 0;
+};
+
+type FieldDef = {
+  name: string; label: string; icon: any; placeholder: string;
+  required?: boolean; type?: string; multiline?: boolean;
+};
+
+const FORM_STEPS: { title: string; fields: FieldDef[] }[] = [
+  { title: "About You", fields: [
+    { name: "full_name", label: "Full Name", icon: User, placeholder: "Your full name", required: true },
+    { name: "phone", label: "Phone Number", icon: Phone, placeholder: "+91 98765 43210", required: true },
+    { name: "email", label: "Email", icon: Mail, placeholder: "you@email.com", required: true, type: "email" },
+  ]},
+  { title: "Your Campus", fields: [
+    { name: "college", label: "College / Coaching", icon: School, placeholder: "e.g. IIT Delhi", required: true },
+    { name: "city", label: "City", icon: MapPin, placeholder: "e.g. Bengaluru", required: true },
+    { name: "course", label: "Course / Year", icon: BookOpen, placeholder: "e.g. B.Tech CS · 2nd Year" },
+  ]},
+  { title: "Your Presence", fields: [
+    { name: "instagram", label: "Instagram", icon: Instagram, placeholder: "@yourhandle" },
+    { name: "linkedin", label: "LinkedIn", icon: Linkedin, placeholder: "linkedin.com/in/you" },
+  ]},
+  { title: "Your Story", fields: [
+    { name: "why_join", label: "Why do you want to join?", icon: Heart, placeholder: "Tell us your motivation...", multiline: true },
+    { name: "leadership_experience", label: "Leadership Experience", icon: Crown, placeholder: "Any past roles (optional)...", multiline: true },
+  ]},
+];
+
+/* ─── Live Progress Widget ────────────────────────────────────────────
+   Real-time per-field tracker. Auto-detects required vs optional fields,
+   shows step-by-step completion, and exposes a "Submit Now" CTA that
+   activates the moment every required field is valid.
+   ──────────────────────────────────────────────────────────────────── */
+const LiveProgress = ({
+  data, currentStep, onJumpStep, onSubmit, submitting, allValid, requiredValid,
+}: {
+  data: Record<string, string>;
+  currentStep: number;
+  onJumpStep: (i: number) => void;
+  onSubmit: () => void;
+  submitting: boolean;
+  allValid: boolean;
+  requiredValid: boolean;
+}) => {
+  const totalFields = FORM_STEPS.reduce((n, s) => n + s.fields.length, 0);
+  const filledFields = FORM_STEPS.reduce(
+    (n, s) => n + s.fields.filter((f) => isFieldValid(f.name, data[f.name] || "")).length, 0,
+  );
+  const pct = Math.round((filledFields / totalFields) * 100);
+  const C = 2 * Math.PI * 36; // circle circumference (r=36)
+
+  return (
+    <Card className="p-5 md:p-6 lg:sticky lg:top-24 self-start">
+      {/* Live header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
+            <span className="relative rounded-full bg-emerald-400 w-2 h-2" />
+          </span>
+          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-white/60" style={fontBody}>
+            Live Progress
+          </span>
+        </div>
+        <span className="text-[10px] text-white/40" style={fontBody}>
+          {filledFields}/{totalFields}
+        </span>
+      </div>
+
+      {/* Ring */}
+      <div className="flex items-center gap-5 mb-6">
+        <div className="relative w-[88px] h-[88px] flex-shrink-0">
+          <svg viewBox="0 0 88 88" className="w-full h-full -rotate-90">
+            <circle cx="44" cy="44" r="36" fill="none" stroke={`${INDIGO.accent}22`} strokeWidth="6" />
+            <motion.circle
+              cx="44" cy="44" r="36" fill="none"
+              stroke="url(#prog-grad)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={C}
+              animate={{ strokeDashoffset: C - (C * pct) / 100 }}
+              transition={{ type: "spring", stiffness: 80, damping: 18 }}
+            />
+            <defs>
+              <linearGradient id="prog-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor={INDIGO.accent} />
+                <stop offset="100%" stopColor={INDIGO.glow} />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <motion.span
+              key={pct}
+              initial={{ scale: 0.85, opacity: 0.6 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-xl font-bold text-white tabular-nums"
+              style={fontHead}
+            >
+              {pct}%
+            </motion.span>
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-white mb-0.5" style={fontHead}>
+            {pct === 100 ? "All set!" : pct >= 50 ? "Almost there." : pct > 0 ? "Great start." : "Let's begin."}
+          </div>
+          <div className="text-xs text-white/55 leading-snug" style={fontBody}>
+            {requiredValid
+              ? "Required fields done — you can submit anytime."
+              : "Fill required fields to unlock submit."}
+          </div>
+        </div>
+      </div>
+
+      {/* Per-field checklist */}
+      <div className="space-y-3 mb-5 max-h-[280px] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+        {FORM_STEPS.map((s, si) => {
+          const stepFilled = s.fields.filter((f) => isFieldValid(f.name, data[f.name] || "")).length;
+          const stepTotal = s.fields.length;
+          const stepDone = stepFilled === stepTotal;
+          const isCurrent = si === currentStep;
+          return (
+            <button
+              key={s.title}
+              type="button"
+              onClick={() => onJumpStep(si)}
+              className="w-full text-left rounded-xl p-3 transition-all"
+              style={{
+                background: isCurrent ? `${INDIGO.accent}1f` : `${INDIGO.base}66`,
+                border: `1px solid ${isCurrent ? INDIGO.glow : INDIGO.accent + "1f"}`,
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    style={{
+                      background: stepDone
+                        ? `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})`
+                        : `${INDIGO.accent}33`,
+                      color: "#fff",
+                      ...fontHead,
+                    }}
+                  >
+                    {stepDone ? <Check className="w-3 h-3" strokeWidth={3} /> : si + 1}
+                  </div>
+                  <span className="text-xs font-semibold text-white" style={fontHead}>{s.title}</span>
+                </div>
+                <span className="text-[10px] text-white/50 tabular-nums" style={fontBody}>
+                  {stepFilled}/{stepTotal}
+                </span>
+              </div>
+              <div className="space-y-1 pl-7">
+                {s.fields.map((f) => {
+                  const v = data[f.name] || "";
+                  const ok = isFieldValid(f.name, v);
+                  return (
+                    <div key={f.name} className="flex items-center gap-1.5 text-[11px]" style={fontBody}>
+                      {ok ? (
+                        <Check className="w-3 h-3 flex-shrink-0" style={{ color: INDIGO.glow }} strokeWidth={3} />
+                      ) : (
+                        <div
+                          className="w-3 h-3 rounded-full border flex-shrink-0"
+                          style={{ borderColor: f.required ? `${INDIGO.glow}66` : `${INDIGO.accent}33` }}
+                        />
+                      )}
+                      <span className={ok ? "text-white/75" : "text-white/40"}>
+                        {f.label}
+                      </span>
+                      {f.required && !ok && <span className="text-[9px] text-white/30">required</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Submit Now */}
+      <motion.button
+        onClick={onSubmit}
+        disabled={!requiredValid || submitting}
+        whileHover={requiredValid ? { scale: 1.02 } : {}}
+        whileTap={requiredValid ? { scale: 0.98 } : {}}
+        className="relative w-full inline-flex items-center justify-center gap-2 rounded-full py-3 font-semibold text-white text-sm overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+        style={{
+          background: requiredValid
+            ? `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.accentSoft})`
+            : `${INDIGO.surface}`,
+          boxShadow: requiredValid ? `0 10px 30px ${INDIGO.accent}66` : "none",
+          border: requiredValid ? "none" : `1px solid ${INDIGO.accent}33`,
+          ...fontBody,
+        }}
+      >
+        {requiredValid && (
+          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full animate-shimmer" />
+        )}
+        <Zap className="w-4 h-4 relative z-10" />
+        <span className="relative z-10">
+          {submitting ? "Submitting…" : allValid ? "Submit — All Complete" : requiredValid ? "Submit Application" : "Complete required fields"}
+        </span>
+      </motion.button>
+      <p className="text-[10px] text-white/40 text-center mt-2.5" style={fontBody}>
+        Auto-saved locally · Reviewed in 48 hours
+      </p>
+    </Card>
+  );
+};
+
 const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-  const [data, setData] = useState({
+  const [data, setData] = useState<Record<string, string>>({
     full_name: "", phone: "", email: "", college: "", city: "", course: "",
     instagram: "", linkedin: "", why_join: "", leadership_experience: "",
   });
 
-  const steps = [
-    { title: "About You", fields: [
-      { name: "full_name", label: "Full Name", icon: User, placeholder: "Your full name", required: true },
-      { name: "phone", label: "Phone Number", icon: Phone, placeholder: "+91 98765 43210", required: true },
-      { name: "email", label: "Email", icon: Mail, placeholder: "you@email.com", required: true, type: "email" },
-    ]},
-    { title: "Your Campus", fields: [
-      { name: "college", label: "College / Coaching", icon: School, placeholder: "e.g. IIT Delhi", required: true },
-      { name: "city", label: "City", icon: MapPin, placeholder: "e.g. Bengaluru", required: true },
-      { name: "course", label: "Course / Year", icon: BookOpen, placeholder: "e.g. B.Tech CS · 2nd Year" },
-    ]},
-    { title: "Your Presence", fields: [
-      { name: "instagram", label: "Instagram", icon: Instagram, placeholder: "@yourhandle" },
-      { name: "linkedin", label: "LinkedIn", icon: Linkedin, placeholder: "linkedin.com/in/you" },
-    ]},
-    { title: "Your Story", fields: [
-      { name: "why_join", label: "Why do you want to join?", icon: Heart, placeholder: "Tell us your motivation...", multiline: true },
-      { name: "leadership_experience", label: "Leadership Experience", icon: Crown, placeholder: "Any past roles (optional)...", multiline: true },
-    ]},
-  ];
+  /* Persist between reloads */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("acry_ca_draft");
+      if (raw) setData((d) => ({ ...d, ...JSON.parse(raw) }));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("acry_ca_draft", JSON.stringify(data)); } catch {}
+  }, [data]);
 
+  const steps = FORM_STEPS;
   const progress = ((step + 1) / steps.length) * 100;
 
-  const validate = () => {
-    for (const f of steps[step].fields as any[]) {
-      const v = (data as any)[f.name];
-      if (f.required && (!v || !v.trim())) { toast.error(`${f.label} is required`); return false; }
+  /* Live validity */
+  const requiredFields = steps.flatMap((s) => s.fields.filter((f) => f.required));
+  const requiredValid = requiredFields.every((f) => isFieldValid(f.name, data[f.name] || ""));
+  const allValid = steps
+    .flatMap((s) => s.fields)
+    .every((f) => f.required ? isFieldValid(f.name, data[f.name] || "") : true);
+
+  const validateCurrentStep = () => {
+    for (const f of steps[step].fields) {
+      const v = data[f.name];
+      if (f.required && !isFieldValid(f.name, v || "")) {
+        toast.error(`${f.label} is required`);
+        return false;
+      }
     }
     return true;
   };
 
   const submit = async () => {
     const parsed = schema.safeParse(data);
-    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      // jump to step containing the bad field
+      const badField = parsed.error.issues[0].path[0] as string;
+      const badStep = steps.findIndex((s) => s.fields.some((f) => f.name === badField));
+      if (badStep >= 0) setStep(badStep);
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: any = { ...parsed.data, user_agent: navigator.userAgent.slice(0, 500) };
       const { error } = await supabase.from("campus_ambassador_applications").insert(payload);
       if (error) throw error;
       setDone(true);
+      try { localStorage.removeItem("acry_ca_draft"); } catch {}
       toast.success("Application submitted!");
     } catch (e: any) {
       toast.error(e.message || "Submission failed. Try again.");
@@ -713,39 +939,47 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
           Takes 90 seconds. No fee. Every application is personally reviewed.
         </p>
       </div>
-      <div className="max-w-2xl mx-auto relative">
-        <div
-          className="absolute -inset-2 rounded-[28px] opacity-60 blur-2xl"
-          style={{ background: `linear-gradient(135deg, ${INDIGO.accent}66, ${INDIGO.mid}55)` }}
-        />
-        <Card className="relative p-6 md:p-10 overflow-hidden">
-          {done ? (
-            <div className="text-center py-10">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", bounce: 0.5 }}
-                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-                style={{ background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})`, boxShadow: `0 20px 50px ${INDIGO.accent}66` }}
-              >
-                <Check className="w-10 h-10 text-white" strokeWidth={3} />
-              </motion.div>
-              <h3 className="text-3xl font-bold text-white mb-3" style={fontHead}>Welcome to the movement.</h3>
-              <p className="text-white/65 max-w-md mx-auto mb-7" style={fontBody}>
-                We'll personally reach out within <span className="text-white font-semibold">48 hours</span> via WhatsApp & email.
-              </p>
-              <a
-                href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20just%20applied%20for%20the%20Campus%20Ambassador%20Program."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-500 hover:bg-green-600 text-white font-semibold transition-colors"
-                style={fontBody}
-              >
-                <MessageCircle className="w-4 h-4" /> Connect on WhatsApp
-              </a>
-            </div>
-          ) : (
-            <>
+
+      {done ? (
+        <div className="max-w-2xl mx-auto relative">
+          <div
+            className="absolute -inset-2 rounded-[28px] opacity-60 blur-2xl"
+            style={{ background: `linear-gradient(135deg, ${INDIGO.accent}66, ${INDIGO.mid}55)` }}
+          />
+          <Card className="relative p-10 text-center overflow-hidden">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", bounce: 0.5 }}
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+              style={{ background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})`, boxShadow: `0 20px 50px ${INDIGO.accent}66` }}
+            >
+              <Check className="w-10 h-10 text-white" strokeWidth={3} />
+            </motion.div>
+            <h3 className="text-3xl font-bold text-white mb-3" style={fontHead}>Welcome to the movement.</h3>
+            <p className="text-white/65 max-w-md mx-auto mb-7" style={fontBody}>
+              We'll personally reach out within <span className="text-white font-semibold">48 hours</span> via WhatsApp & email.
+            </p>
+            <a
+              href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20just%20applied%20for%20the%20Campus%20Ambassador%20Program."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-500 hover:bg-green-600 text-white font-semibold transition-colors"
+              style={fontBody}
+            >
+              <MessageCircle className="w-4 h-4" /> Connect on WhatsApp
+            </a>
+          </Card>
+        </div>
+      ) : (
+        <div className="max-w-5xl mx-auto grid lg:grid-cols-[1fr_320px] gap-6 items-start">
+          {/* Form card */}
+          <div className="relative">
+            <div
+              className="absolute -inset-2 rounded-[28px] opacity-60 blur-2xl"
+              style={{ background: `linear-gradient(135deg, ${INDIGO.accent}66, ${INDIGO.mid}55)` }}
+            />
+            <Card className="relative p-6 md:p-10 overflow-hidden">
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: INDIGO.glow, ...fontBody }}>
@@ -771,45 +1005,69 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
                   transition={{ duration: 0.25 }}
                   className="space-y-4"
                 >
-                  {steps[step].fields.map((f: any) => (
-                    <div key={f.name}>
-                      <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/60 mb-2" style={fontBody}>
-                        <f.icon className="w-3.5 h-3.5" style={{ color: INDIGO.glow }} />
-                        {f.label} {f.required && <span style={{ color: INDIGO.glow }}>*</span>}
-                      </label>
-                      {f.multiline ? (
-                        <textarea
-                          value={(data as any)[f.name]}
-                          onChange={(e) => setData({ ...data, [f.name]: e.target.value })}
-                          placeholder={f.placeholder}
-                          rows={4}
-                          className="w-full rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none transition-all resize-none"
-                          style={{
-                            background: `${INDIGO.base}80`,
-                            border: `1px solid ${INDIGO.accent}33`,
-                            ...fontBody,
-                          }}
-                          onFocus={(e) => (e.currentTarget.style.borderColor = INDIGO.glow)}
-                          onBlur={(e) => (e.currentTarget.style.borderColor = `${INDIGO.accent}33`)}
-                        />
-                      ) : (
-                        <input
-                          type={f.type || "text"}
-                          value={(data as any)[f.name]}
-                          onChange={(e) => setData({ ...data, [f.name]: e.target.value })}
-                          placeholder={f.placeholder}
-                          className="w-full rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none transition-all"
-                          style={{
-                            background: `${INDIGO.base}80`,
-                            border: `1px solid ${INDIGO.accent}33`,
-                            ...fontBody,
-                          }}
-                          onFocus={(e) => (e.currentTarget.style.borderColor = INDIGO.glow)}
-                          onBlur={(e) => (e.currentTarget.style.borderColor = `${INDIGO.accent}33`)}
-                        />
-                      )}
-                    </div>
-                  ))}
+                  {steps[step].fields.map((f) => {
+                    const v = data[f.name] || "";
+                    const ok = isFieldValid(f.name, v);
+                    return (
+                      <div key={f.name}>
+                        <label className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-white/60 mb-2" style={fontBody}>
+                          <span className="flex items-center gap-2">
+                            <f.icon className="w-3.5 h-3.5" style={{ color: INDIGO.glow }} />
+                            {f.label} {f.required && <span style={{ color: INDIGO.glow }}>*</span>}
+                          </span>
+                          {ok && (
+                            <motion.span
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              className="flex items-center gap-1 text-[10px] normal-case tracking-normal"
+                              style={{ color: INDIGO.glow }}
+                            >
+                              <Check className="w-3 h-3" strokeWidth={3} /> looks good
+                            </motion.span>
+                          )}
+                        </label>
+                        <div className="relative">
+                          {f.multiline ? (
+                            <textarea
+                              value={v}
+                              onChange={(e) => setData({ ...data, [f.name]: e.target.value })}
+                              placeholder={f.placeholder}
+                              rows={4}
+                              className="w-full rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none transition-all resize-none"
+                              style={{
+                                background: `${INDIGO.base}80`,
+                                border: `1px solid ${ok ? INDIGO.glow + "80" : INDIGO.accent + "33"}`,
+                                ...fontBody,
+                              }}
+                            />
+                          ) : (
+                            <input
+                              type={f.type || "text"}
+                              value={v}
+                              onChange={(e) => setData({ ...data, [f.name]: e.target.value })}
+                              placeholder={f.placeholder}
+                              className="w-full rounded-xl px-4 py-3 pr-10 text-white placeholder:text-white/30 focus:outline-none transition-all"
+                              style={{
+                                background: `${INDIGO.base}80`,
+                                border: `1px solid ${ok ? INDIGO.glow + "80" : INDIGO.accent + "33"}`,
+                                ...fontBody,
+                              }}
+                            />
+                          )}
+                          {!f.multiline && ok && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{ background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})` }}
+                            >
+                              <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                            </motion.div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </motion.div>
               </AnimatePresence>
               <div className="flex items-center justify-between mt-8 gap-3">
@@ -823,7 +1081,7 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
                 </button>
                 <PrimaryCTA
                   onClick={() => {
-                    if (!validate()) return;
+                    if (!validateCurrentStep()) return;
                     if (step < steps.length - 1) setStep(step + 1);
                     else submit();
                   }}
@@ -833,10 +1091,21 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
                   {!submitting && <ArrowRight className="w-4 h-4" />}
                 </PrimaryCTA>
               </div>
-            </>
-          )}
-        </Card>
-      </div>
+            </Card>
+          </div>
+
+          {/* Live progress widget */}
+          <LiveProgress
+            data={data}
+            currentStep={step}
+            onJumpStep={setStep}
+            onSubmit={submit}
+            submitting={submitting}
+            allValid={allValid}
+            requiredValid={requiredValid}
+          />
+        </div>
+      )}
     </Section>
   );
 };
