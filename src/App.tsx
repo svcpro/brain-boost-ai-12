@@ -194,6 +194,7 @@ const App = () => (
               <Route path="/cookie-policy" element={<CookiePolicyPage />} />
               <Route path="/campus-ambassador" element={<CampusAmbassadorBlueprint />} />
               <Route path="/blueprint/campus-ambassador" element={<CampusAmbassadorBlueprint />} />
+              <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
