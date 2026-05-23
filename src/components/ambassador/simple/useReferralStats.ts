@@ -53,7 +53,8 @@ export function useReferralStats(userId: string | undefined) {
         total: r.length,
         active,
         paid,
-        recent: r.slice(0, 5) as any,
+        conversions: active + paid,
+        recent: r.slice(0, 8) as any,
         loading: false,
       });
     })();
