@@ -3080,9 +3080,34 @@ const ScrollProgress = () => {
   );
 };
 
+/* ─── Performance & motion preference hook ──────────────────────────── */
+const usePerfMode = () => {
+  const [mode, setMode] = useState<{ reduced: boolean; lite: boolean }>(() => {
+    if (typeof window === "undefined") return { reduced: false, lite: false };
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const nav: any = navigator;
+    const cores = nav.hardwareConcurrency ?? 8;
+    const mem = nav.deviceMemory ?? 8;
+    const saveData = nav.connection?.saveData ?? false;
+    const slowNet = /(^|-)2g$/.test(nav.connection?.effectiveType ?? "");
+    const lite = reduced || saveData || slowNet || cores <= 4 || mem <= 4;
+    return { reduced, lite };
+  });
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setMode((m) => ({ ...m, reduced: mq.matches, lite: m.lite || mq.matches }));
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
+  }, []);
+  return mode;
+};
+
 /* ─── Floating AI particles (page-wide subtle layer) ────────────────── */
 const AIParticles = () => {
-  const particles = Array.from({ length: 18 });
+  const { reduced, lite } = usePerfMode();
+  if (reduced) return null;
+  const count = lite ? 6 : 18;
+  const particles = Array.from({ length: count });
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-[1]" aria-hidden>
       {particles.map((_, i) => {
@@ -3103,6 +3128,7 @@ const AIParticles = () => {
               height: size,
               background: i % 3 === 0 ? INDIGO.glow : INDIGO.accentSoft,
               boxShadow: `0 0 ${size * 3}px ${INDIGO.accent}`,
+              willChange: "transform, opacity",
             }}
           />
         );
@@ -3110,6 +3136,7 @@ const AIParticles = () => {
     </div>
   );
 };
+
 
 /* ─── First-paint loading overlay ───────────────────────────────────── */
 const LoadingOverlay = () => {
