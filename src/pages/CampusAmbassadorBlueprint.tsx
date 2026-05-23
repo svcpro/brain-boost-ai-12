@@ -5,7 +5,7 @@ import {
   Briefcase, Star, MessageCircle, ArrowRight, Check, ChevronDown, MapPin,
   Calendar, Brain, Mic, Globe, Send, User, Phone, Mail, School, BookOpen,
   Instagram, Linkedin, Heart, Crown, Target, Zap, Play,
-  Medal, Flame, TrendingUp, Gift, Gem,
+  Medal, Flame, TrendingUp, Gift, Gem, Clock, HelpCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
