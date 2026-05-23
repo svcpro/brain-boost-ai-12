@@ -182,7 +182,7 @@ export function SimpleTasks() {
         title="AI-assigned tasks"
         action={
           <span className="text-[10px]" style={{ color: T.mute }}>
-            Auto-refreshes weekly
+            Auto-refreshes every Monday
           </span>
         }
       />
@@ -191,7 +191,17 @@ export function SimpleTasks() {
         <Card className="p-6 text-center">
           <Loader2 className="mx-auto h-5 w-5 animate-spin" style={{ color: T.mute }} />
           <div className="mt-2 text-xs" style={{ color: T.mute }}>
-            Crafting your tasks…
+            AI is crafting your tasks…
+          </div>
+        </Card>
+      ) : tasks.length === 0 ? (
+        <Card className="p-6 text-center space-y-2">
+          <Sparkles className="mx-auto h-6 w-6" style={{ color: T.purple }} />
+          <div className="text-sm" style={{ color: T.text }}>
+            New tasks will appear shortly.
+          </div>
+          <div className="text-[11px]" style={{ color: T.mute }}>
+            The AI auto-assigns 3 fresh tasks every week.
           </div>
         </Card>
       ) : tasks.length === 0 ? (
