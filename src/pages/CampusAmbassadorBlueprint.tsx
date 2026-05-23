@@ -851,7 +851,7 @@ const LiveProgress = ({
         }}
       >
         {requiredValid && (
-          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full animate-[shimmer_2.5s_infinite]" />
+          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full animate-shimmer" />
         )}
         <Zap className="w-4 h-4 relative z-10" />
         <span className="relative z-10">
