@@ -352,8 +352,8 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
         }}
       />
 
-      <motion.div style={{ y: yContent, opacity }} className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-[1.3fr_1fr] gap-12 items-center">
-        <div className="text-center lg:text-left">
+      <motion.div style={{ y: yContent, opacity }} className="relative z-10 max-w-4xl mx-auto w-full flex flex-col items-center text-center">
+        <div className="text-center">
           {/* Live badge */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
