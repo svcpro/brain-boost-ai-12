@@ -2238,7 +2238,7 @@ const LiveProgress = ({
         )}
         <Zap className="w-4 h-4 relative z-10" />
         <span className="relative z-10">
-          {submitting ? "Submitting…" : allValid ? "Submit — All Complete" : requiredValid ? "Submit Application" : "Complete required fields"}
+          {submitting ? "Submitting…" : requiredValid ? "Apply Now & Become an AI Leader" : "Complete required fields"}
         </span>
       </motion.button>
       <p className="text-[10px] text-white/40 text-center mt-2.5" style={fontBody}>
@@ -2632,9 +2632,35 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
                   }}
                   large
                 >
-                  {submitting ? "Submitting..." : step === steps.length - 1 ? "Submit Application" : "Continue"}
+                  {submitting
+                    ? "Submitting..."
+                    : step === steps.length - 1
+                    ? "Apply Now & Become an AI Leader"
+                    : "Continue"}
                   {!submitting && <ArrowRight className="w-4 h-4" />}
                 </PrimaryCTA>
+              </div>
+
+              {/* WhatsApp alternative */}
+              <div className="mt-6 pt-5 border-t flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderColor: `${INDIGO.accent}1f` }}>
+                <div className="text-[11px] text-white/50 text-center sm:text-left" style={fontBody}>
+                  Prefer chatting? Send your details over WhatsApp — same review queue.
+                </div>
+                <a
+                  href={`https://wa.me/919999999999?text=${encodeURIComponent(
+                    `Hi ACRY AI, I want to apply for the Campus Ambassador Program.\n\nName: ${data.full_name || "-"}\nPhone: ${data.phone || "-"}\nEmail: ${data.email || "-"}\nCollege: ${data.college || "-"}\nCity: ${data.city || "-"}\nCourse: ${data.course || "-"}\nInstagram: ${data.instagram || "-"}\nLinkedIn: ${data.linkedin || "-"}\n\nWhy join: ${data.why_join || "-"}\nLeadership: ${data.leadership_experience || "-"}`,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-white transition-transform hover:scale-[1.03] shrink-0"
+                  style={{
+                    background: "linear-gradient(135deg, #25D366, #128C7E)",
+                    boxShadow: "0 8px 24px -8px rgba(37,211,102,0.55)",
+                    ...fontBody,
+                  }}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" /> Apply via WhatsApp
+                </a>
               </div>
             </Card>
           </div>
