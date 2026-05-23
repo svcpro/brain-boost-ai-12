@@ -3250,10 +3250,34 @@ const CampusAmbassadorBlueprint = () => {
         description="Join India's largest AI student community. Become an ACRY AI Campus Ambassador — leadership, AI training, certificates, mentorship & internship opportunities. Apply now."
         path="/campus-ambassador"
       />
+      {/* JSON-LD structured data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "EducationalOccupationalProgram",
+            name: "ACRY AI Campus Ambassador Program",
+            description:
+              "India's biggest AI student movement. Lead your campus, get AI training, certificates, mentorship and internship opportunities.",
+            provider: {
+              "@type": "Organization",
+              name: "ACRY AI",
+              url: "https://acry.ai",
+            },
+            url: "https://acry.ai/campus-ambassador",
+            educationalProgramMode: "online",
+            occupationalCategory: "Student Leadership",
+          }),
+        }}
+      />
+      <LoadingOverlay />
+      <ScrollProgress />
       <Atmosphere />
+      <AIParticles />
       <CursorLight />
 
-      <div className="relative z-10">
+      <div className="relative z-10" data-analytics-page="campus-ambassador">
         <Nav scrollToForm={scrollToForm} />
         <Hero scrollToForm={scrollToForm} />
         <Trusted />
