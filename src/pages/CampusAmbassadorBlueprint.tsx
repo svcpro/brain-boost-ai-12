@@ -3086,33 +3086,154 @@ const PageFooter = () => (
 /* ═════════════════════════════════════════════════════════════════════
    FLOATING CTAs
    ═════════════════════════════════════════════════════════════════════ */
-const FloatingCTAs = ({ scrollToForm }: { scrollToForm: () => void }) => (
-  <>
-    <a
-      href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20want%20to%20know%20more%20about%20the%20Campus%20Ambassador%20Program."
-      target="_blank"
-      rel="noopener noreferrer"
-      className="fixed bottom-20 md:bottom-6 right-5 z-40 w-13 h-13 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-2xl shadow-green-500/40 transition-all hover:scale-110"
-      style={{ width: 52, height: 52 }}
-      aria-label="WhatsApp"
-    >
-      <MessageCircle className="w-6 h-6 text-white" />
-      <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-300 animate-ping" />
-    </a>
-    <div
-      className="fixed bottom-0 inset-x-0 z-30 md:hidden p-3"
-      style={{ background: `linear-gradient(to top, ${INDIGO.base}, ${INDIGO.base}cc, transparent)` }}
-    >
-      <button
-        onClick={scrollToForm}
-        className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-full font-semibold text-white"
-        style={{ background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.accentSoft})`, boxShadow: `0 8px 24px ${INDIGO.accent}66`, ...fontBody }}
+const FloatingCTAs = ({ scrollToForm }: { scrollToForm: () => void }) => {
+  const [showWaTip, setShowWaTip] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShowWaTip(false), 6000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <>
+      {/* WhatsApp floating button with tooltip */}
+      <div className="fixed bottom-24 md:bottom-6 right-4 z-40 flex items-center gap-2">
+        <AnimatePresence>
+          {showWaTip && (
+            <motion.div
+              initial={{ opacity: 0, x: 10, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 10, scale: 0.9 }}
+              className="hidden sm:block px-3 py-2 rounded-xl text-xs font-medium text-white shadow-xl"
+              style={{ background: "#0f172a", border: "1px solid rgba(34,197,94,0.4)", ...fontBody }}
+            >
+              Chat with us on WhatsApp
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <a
+          href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20want%20to%20know%20more%20about%20the%20Campus%20Ambassador%20Program."
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => setShowWaTip(false)}
+          className="relative rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-2xl shadow-green-500/40 transition-all hover:scale-110"
+          style={{ width: 56, height: 56 }}
+          aria-label="WhatsApp"
+        >
+          <MessageCircle className="w-7 h-7 text-white" />
+          <span className="absolute inset-0 rounded-full ring-2 ring-green-400/60 animate-ping" />
+          <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-300" />
+        </a>
+      </div>
+
+      {/* Sticky mobile CTA */}
+      <div
+        className="fixed bottom-0 inset-x-0 z-30 md:hidden px-3 pb-[max(env(safe-area-inset-bottom),12px)] pt-3"
+        style={{ background: `linear-gradient(to top, ${INDIGO.base}, ${INDIGO.base}ee 60%, transparent)` }}
       >
-        <Rocket className="w-4 h-4" /> Apply Now <ArrowRight className="w-4 h-4" />
-      </button>
+        <motion.button
+          initial={{ y: 60, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.6, type: "spring", stiffness: 120 }}
+          onClick={scrollToForm}
+          className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-full font-semibold text-white relative overflow-hidden"
+          style={{ background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.accentSoft})`, boxShadow: `0 8px 24px ${INDIGO.accent}66`, ...fontBody }}
+        >
+          <motion.span
+            animate={{ x: ["-100%", "200%"] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-y-0 w-1/3"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)" }}
+          />
+          <Rocket className="w-4 h-4" /> Apply Now & Lead Your Campus <ArrowRight className="w-4 h-4" />
+        </motion.button>
+      </div>
+    </>
+  );
+};
+
+/* ─── Scroll progress bar (top) ─────────────────────────────────────── */
+const ScrollProgress = () => {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 24, mass: 0.4 });
+  return (
+    <motion.div
+      className="fixed top-0 left-0 right-0 h-[3px] z-[60] origin-left"
+      style={{
+        scaleX,
+        background: `linear-gradient(90deg, ${INDIGO.glow}, ${INDIGO.accent}, ${INDIGO.accentSoft})`,
+        boxShadow: `0 0 12px ${INDIGO.accent}99`,
+      }}
+    />
+  );
+};
+
+/* ─── Floating AI particles (page-wide subtle layer) ────────────────── */
+const AIParticles = () => {
+  const particles = Array.from({ length: 18 });
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-[1]" aria-hidden>
+      {particles.map((_, i) => {
+        const left = (i * 53) % 100;
+        const size = 2 + (i % 4);
+        const dur = 14 + (i % 9);
+        const delay = (i % 7) * 0.6;
+        return (
+          <motion.span
+            key={i}
+            initial={{ y: "110vh", opacity: 0 }}
+            animate={{ y: "-10vh", opacity: [0, 0.7, 0.7, 0] }}
+            transition={{ duration: dur, delay, repeat: Infinity, ease: "linear" }}
+            className="absolute rounded-full"
+            style={{
+              left: `${left}%`,
+              width: size,
+              height: size,
+              background: i % 3 === 0 ? INDIGO.glow : INDIGO.accentSoft,
+              boxShadow: `0 0 ${size * 3}px ${INDIGO.accent}`,
+            }}
+          />
+        );
+      })}
     </div>
-  </>
-);
+  );
+};
+
+/* ─── First-paint loading overlay ───────────────────────────────────── */
+const LoadingOverlay = () => {
+  const [show, setShow] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(false), 900);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="fixed inset-0 z-[80] flex items-center justify-center"
+          style={{ background: INDIGO.base }}
+        >
+          <div className="relative w-20 h-20">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 rounded-full"
+              style={{ border: `2px solid ${INDIGO.accent}44`, borderTopColor: INDIGO.glow }}
+            />
+            <motion.div
+              animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 1.6, repeat: Infinity }}
+              className="absolute inset-2 rounded-full flex items-center justify-center"
+              style={{ background: `radial-gradient(circle, ${INDIGO.accent}, ${INDIGO.mid})`, boxShadow: `0 0 30px ${INDIGO.accent}` }}
+            >
+              <Brain className="w-7 h-7 text-white" />
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
 
 /* ═════════════════════════════════════════════════════════════════════
    PAGE
@@ -3129,10 +3250,34 @@ const CampusAmbassadorBlueprint = () => {
         description="Join India's largest AI student community. Become an ACRY AI Campus Ambassador — leadership, AI training, certificates, mentorship & internship opportunities. Apply now."
         path="/campus-ambassador"
       />
+      {/* JSON-LD structured data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "EducationalOccupationalProgram",
+            name: "ACRY AI Campus Ambassador Program",
+            description:
+              "India's biggest AI student movement. Lead your campus, get AI training, certificates, mentorship and internship opportunities.",
+            provider: {
+              "@type": "Organization",
+              name: "ACRY AI",
+              url: "https://acry.ai",
+            },
+            url: "https://acry.ai/campus-ambassador",
+            educationalProgramMode: "online",
+            occupationalCategory: "Student Leadership",
+          }),
+        }}
+      />
+      <LoadingOverlay />
+      <ScrollProgress />
       <Atmosphere />
+      <AIParticles />
       <CursorLight />
 
-      <div className="relative z-10">
+      <div className="relative z-10" data-analytics-page="campus-ambassador">
         <Nav scrollToForm={scrollToForm} />
         <Hero scrollToForm={scrollToForm} />
         <Trusted />
