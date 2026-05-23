@@ -617,48 +617,147 @@ const Trusted = () => {
 };
 
 /* ═════════════════════════════════════════════════════════════════════
-   BENEFITS — Card Grid (the user's core value section)
+   WHY JOIN — 10 animated feature cards (ultra-premium edition)
    ═════════════════════════════════════════════════════════════════════ */
+const BenefitCard = ({ item, index }: { item: { icon: React.ElementType; title: string; desc: string }; index: number }) => {
+  const [hover, setHover] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 35, scale: 0.96 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.7, delay: index * 0.07, ease: [0.22, 1, 0.36, 1] }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className="group relative h-full"
+      style={{ perspective: 900 }}
+    >
+      <motion.div
+        animate={{ rotateX: hover ? -3 : 0, rotateY: hover ? (index % 2 === 0 ? 2 : -2) : 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 24 }}
+        className="relative h-full rounded-2xl p-6 overflow-hidden backdrop-blur-xl transition-all duration-500"
+        style={{
+          transformStyle: "preserve-3d",
+          background: hover
+            ? `linear-gradient(160deg, ${INDIGO.surface}e6, ${INDIGO.mid}99)`
+            : `linear-gradient(180deg, ${INDIGO.surface}b3, ${INDIGO.surface}66)`,
+          border: `1px solid ${hover ? INDIGO.accent + "aa" : INDIGO.accent + "26"}`,
+          boxShadow: hover
+            ? `0 28px 70px -24px ${INDIGO.accent}66, 0 0 50px ${INDIGO.accent}18, inset 0 1px 0 rgba(255,255,255,0.1)`
+            : `0 1px 0 rgba(255,255,255,0.04) inset, 0 24px 60px -30px ${INDIGO.accent}40`,
+        }}
+      >
+        {/* Animated border glow ring */}
+        <div
+          className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
+          style={{
+            padding: "1.5px",
+            background: `linear-gradient(${135 + index * 30}deg, ${INDIGO.accent}00, ${INDIGO.accent}99, ${INDIGO.glow}cc, ${INDIGO.accent}00)`,
+            WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+          }}
+        />
+
+        {/* Shine sweep */}
+        <div
+          className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] ease-out pointer-events-none"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)" }}
+        />
+
+        {/* Large index watermark */}
+        <div
+          className="absolute -top-1 right-2 text-[4.5rem] font-black tracking-tighter opacity-[0.035] group-hover:opacity-[0.1] transition-opacity duration-500 select-none leading-none"
+          style={{
+            fontFamily: "'Space Grotesk', system-ui, sans-serif",
+            background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})`,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          {String(index + 1).padStart(2, "0")}
+        </div>
+
+        {/* Icon */}
+        <div className="relative mb-5">
+          <motion.div
+            animate={{ scale: hover ? 1.1 : 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 15 }}
+            className="w-12 h-12 rounded-xl flex items-center justify-center relative z-10"
+            style={{
+              background: `linear-gradient(135deg, ${INDIGO.accent}44, ${INDIGO.mid}77)`,
+              border: `1px solid ${INDIGO.accent}55`,
+              boxShadow: hover ? `0 0 28px ${INDIGO.accent}55, 0 0 12px ${INDIGO.glow}33` : "none",
+            }}
+          >
+            <item.icon className="w-5 h-5" style={{ color: INDIGO.glow }} />
+          </motion.div>
+          {/* Orbiting dot */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 8 + index, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 w-12 h-12 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          >
+            <div
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
+              style={{ background: INDIGO.glow, boxShadow: `0 0 8px ${INDIGO.glow}` }}
+            />
+          </motion.div>
+        </div>
+
+        {/* Title */}
+        <h4
+          className="font-semibold text-white text-[15px] mb-2 transition-all duration-300 group-hover:translate-x-0.5"
+          style={fontHead}
+        >
+          {item.title}
+        </h4>
+
+        {/* Description */}
+        <p className="text-sm text-white/50 leading-relaxed group-hover:text-white/75 transition-colors duration-500" style={fontBody}>
+          {item.desc}
+        </p>
+
+        {/* Bottom accent line */}
+        <div
+          className="absolute bottom-0 left-8 right-8 h-[2px] rounded-full opacity-0 group-hover:opacity-100 transition-all duration-700 scale-x-0 group-hover:scale-x-100"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${INDIGO.accent}, ${INDIGO.glow}, ${INDIGO.accent}, transparent)`,
+            transformOrigin: "center",
+          }}
+        />
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const Benefits = () => {
   const items = [
-    { icon: Brain, title: "AI Training", desc: "Hands-on workshops in prompt engineering, applied ML & modern AI tools." },
-    { icon: Crown, title: "Leadership Identity", desc: "Real responsibility on your campus — résumé-defining, not symbolic." },
-    { icon: Award, title: "Official Certificate", desc: "Verified completion & performance certificate recognised by recruiters." },
-    { icon: Network, title: "National Network", desc: "Connect with 10,000+ ambassadors, founders & industry mentors." },
-    { icon: Briefcase, title: "Internship Pipeline", desc: "Top performers unlock paid internships & full-time roles at ACRY AI." },
-    { icon: Sparkles, title: "Founder Mentorship", desc: "Direct 1:1 sessions with our founders and senior leadership." },
-    { icon: Mic, title: "Lifetime Workshops", desc: "Free lifetime access to all premium ACRY AI workshops & summits." },
-    { icon: Star, title: "Personal Brand", desc: "Build your authority as the AI voice of your campus & city." },
+    { icon: Brain, title: "AI Training", desc: "Master prompt engineering, LLMs & real-world AI tools through hands-on workshops." },
+    { icon: Crown, title: "Leadership Experience", desc: "Lead initiatives on your campus. Real responsibility, not symbolic titles." },
+    { icon: Award, title: "Certificates", desc: "Earn verified, recruiter-recognised certificates that stand out on every profile." },
+    { icon: Network, title: "Networking Opportunities", desc: "Join 10,000+ ambassadors, founders & industry mentors nationwide." },
+    { icon: Star, title: "Personal Branding", desc: "Build authority as the AI voice of your campus and city." },
+    { icon: Briefcase, title: "Internship Opportunities", desc: "Top performers unlock paid internships and full-time roles at ACRY AI." },
+    { icon: Sparkles, title: "Founder Mentorship", desc: "Get direct 1:1 guidance from ACRY founders and senior leadership." },
+    { icon: Trophy, title: "Campus Recognition", desc: "Be the face of AI on campus. Earn official badges, perks and visibility." },
+    { icon: Mic, title: "AI Workshops Access", desc: "Lifetime free access to all premium ACRY AI workshops, bootcamps and summits." },
+    { icon: Users, title: "Real Community Building", desc: "Create AI clubs, study circles and a lasting network of peers." },
   ];
+
   return (
     <Section id="benefits">
       <div className="text-center mb-16 max-w-2xl mx-auto">
-        <Eyebrow>What You Get</Eyebrow>
-        <Heading>Eight reasons students join.</Heading>
+        <Eyebrow>Why Join</Eyebrow>
+        <Heading>10 reasons to become an ambassador.</Heading>
         <p className="mt-5 text-white/60 text-lg" style={fontBody}>
-          Not a sticker on your CV — a 6-month leadership identity built on AI, community, and real-world impact.
+          Not a sticker on your CV — a transformational identity built on AI, leadership, and real-world impact.
         </p>
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {items.map((b, i) => (
-          <motion.div
-            key={b.title}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.5, delay: (i % 4) * 0.06 }}
-          >
-            <Card interactive className="p-6 h-full group">
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110"
-                style={{ background: `linear-gradient(135deg, ${INDIGO.accent}33, ${INDIGO.mid}55)`, border: `1px solid ${INDIGO.accent}40` }}
-              >
-                <b.icon className="w-5 h-5" style={{ color: INDIGO.glow }} />
-              </div>
-              <h4 className="font-semibold text-white text-base mb-1.5" style={fontHead}>{b.title}</h4>
-              <p className="text-sm text-white/55 leading-relaxed" style={fontBody}>{b.desc}</p>
-            </Card>
-          </motion.div>
+          <BenefitCard key={b.title} item={b} index={i} />
         ))}
       </div>
     </Section>
