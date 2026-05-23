@@ -3,6 +3,7 @@ import { Btn, Card, Counter, ProgressBar, SectionTitle, Stat, T } from "./ui";
 import type { AmbassadorProfile } from "../useAmbassador";
 import { Share2, Users, Wallet, Gift, Trophy, ArrowRight, Copy } from "lucide-react";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
+import { useReferralStats } from "./useReferralStats";
 import { toast } from "sonner";
 
 const MILESTONES = [
@@ -20,9 +21,8 @@ export function SimpleHome({
   onGo: (key: string) => void;
 }) {
   const { shareUrl } = useReferralHandle();
-  const refs = profile.points || 0; // proxy: 1 point ≈ 1 referral until referrals table wired
-  const earnings = refs * 50; // ₹50 per paid referral (display)
-  const pending = Math.max(0, Math.floor(refs * 0.3)) * 50;
+  const stats = useReferralStats(profile.user_id);
+  const refs = stats.total;
 
   const next = useMemo(() => MILESTONES.find((m) => refs < m.count) ?? MILESTONES[MILESTONES.length - 1], [refs]);
   const prev = useMemo(() => {
@@ -95,8 +95,8 @@ export function SimpleHome({
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Referrals" value={refs} icon={<Users className="h-3.5 w-3.5" />} color={T.cyan} />
-        <Stat label="Earnings" value={`₹${earnings.toLocaleString()}`} icon={<Wallet className="h-3.5 w-3.5" />} color={T.green} />
-        <Stat label="Pending" value={`₹${pending.toLocaleString()}`} icon={<Gift className="h-3.5 w-3.5" />} color={T.amber} />
+        <Stat label="Earnings" value={`₹${stats.earnings.toLocaleString()}`} icon={<Wallet className="h-3.5 w-3.5" />} color={T.green} />
+        <Stat label="Pending" value={`₹${stats.pending.toLocaleString()}`} icon={<Gift className="h-3.5 w-3.5" />} color={T.amber} />
         <Stat label="Rank" value={profile.rank ?? "—"} icon={<Trophy className="h-3.5 w-3.5" />} color={T.pink} />
       </div>
 
@@ -110,13 +110,16 @@ export function SimpleHome({
             <div className="mt-0.5 text-base font-semibold" style={{ color: T.text }}>
               {next.reward}
             </div>
+            <div className="mt-1 text-[11px]" style={{ color: T.mute }}>
+              <Counter value={toGo} /> referrals away
+            </div>
           </div>
           <div className="text-right">
             <div className="text-xl font-bold" style={{ color: T.cyan }}>
-              <Counter value={toGo} />
+              {refs}/{next.count}
             </div>
             <div className="text-[10px] uppercase tracking-wider" style={{ color: T.mute }}>
-              to go
+              refs
             </div>
           </div>
         </div>
