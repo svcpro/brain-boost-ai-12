@@ -336,7 +336,7 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
   return (
     <section className="relative min-h-[100dvh] flex items-center overflow-hidden pt-28 pb-24 px-6">
       {/* Layered backdrop */}
-      <motion.div style={{ y: yBg }} className="absolute inset-0">
+      <motion.div style={{ y: yBg }} className="absolute inset-1">
         <AuroraMesh />
         <NeuralNetCanvas />
       </motion.div>
@@ -351,40 +351,6 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
           maskImage: "radial-gradient(ellipse at center, black 30%, transparent 80%)",
         }}
       />
-
-      {/* Orbiting AI rings */}
-      <div className="absolute right-[-200px] top-1/2 -translate-y-1/2 hidden lg:block">
-        <div className="relative w-[700px] h-[700px]">
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              animate={{ rotate: 360 }}
-              transition={{ duration: 40 + i * 15, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 rounded-full border border-white/[0.06]"
-              style={{ inset: i * 80 }}
-            >
-              <div
-                className="absolute w-3 h-3 rounded-full"
-                style={{
-                  top: "50%", left: 0, transform: "translate(-50%, -50%)",
-                  background: i === 0 ? "#22d3ee" : i === 1 ? "#a855f7" : "#3b82f6",
-                  boxShadow: `0 0 20px ${i === 0 ? "#22d3ee" : i === 1 ? "#a855f7" : "#3b82f6"}`,
-                }}
-              />
-            </motion.div>
-          ))}
-          {/* Core orb */}
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full"
-            style={{
-              background: "radial-gradient(circle, #a855f7, #3b82f6 50%, transparent 80%)",
-              filter: "blur(2px)",
-            }}
-          />
-        </div>
-      </div>
 
       <motion.div style={{ y: yContent, opacity }} className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-[1.3fr_1fr] gap-12 items-center">
         <div className="text-center lg:text-left">
