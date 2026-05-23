@@ -79,7 +79,7 @@ export default function AmbassadorDashboard() {
         <AmbParticles />
 
         {state.kind === "loading" && <FullScreen><Loader2 className="h-8 w-8 animate-spin" style={{ color: AMB.cyan }} /></FullScreen>}
-        {state.kind === "anonymous" && <SignInGate />}
+        {state.kind === "anonymous" && <AmbassadorSignInGate />}
         {state.kind === "not_approved" && <PendingGate email={state.email} />}
 
         {state.kind === "ready" && (
