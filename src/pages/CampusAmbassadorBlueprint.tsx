@@ -1532,17 +1532,17 @@ const TOP_AMBASSADORS = [
 ];
 
 const TOP_CITIES = [
-  { city: "Bengaluru", ambassadors: 184, events: 92, growth: 38, color: "#4f46e5" },
-  { city: "Delhi NCR", ambassadors: 162, events: 81, growth: 32, color: "#7c3aed" },
-  { city: "Hyderabad", ambassadors: 128, events: 64, growth: 41, color: "#ec4899" },
+  { city: "Bengaluru", ambassadors: 184, events: 92, growth: 38, color: "#10b981" },
+  { city: "Delhi NCR", ambassadors: 162, events: 81, growth: 32, color: "#0d7a5f" },
+  { city: "Hyderabad", ambassadors: 128, events: 64, growth: 41, color: "#34d399" },
   { city: "Mumbai", ambassadors: 119, events: 58, growth: 27, color: "#06b6d4" },
-  { city: "Pune", ambassadors: 96, events: 47, growth: 33, color: "#10b981" },
+  { city: "Pune", ambassadors: 96, events: 47, growth: 33, color: "#c9a84c" },
 ];
 
 const REWARDS = [
-  { icon: Gift, title: "Swag Kit", desc: "ACRY hoodie, stickers & limited drop merch.", tier: "Tier 1 · 1K XP", glow: "#4f46e5" },
-  { icon: Award, title: "Verified Certificate", desc: "LinkedIn-ready certificate + founder signature.", tier: "Tier 2 · 3K XP", glow: "#7c3aed" },
-  { icon: Briefcase, title: "Internship Track", desc: "Priority access to ACRY internship & roles.", tier: "Tier 3 · 5K XP", glow: "#ec4899" },
+  { icon: Gift, title: "Swag Kit", desc: "ACRY hoodie, stickers & limited drop merch.", tier: "Tier 1 · 1K XP", glow: "#10b981" },
+  { icon: Award, title: "Verified Certificate", desc: "LinkedIn-ready certificate + founder signature.", tier: "Tier 2 · 3K XP", glow: "#0d7a5f" },
+  { icon: Briefcase, title: "Internship Track", desc: "Priority access to ACRY internship & roles.", tier: "Tier 3 · 5K XP", glow: "#c9a84c" },
   { icon: Gem, title: "Founder's Circle", desc: "1:1 mentorship, equity grants & alumni board.", tier: "Tier 4 · 8K XP", glow: "#fbbf24" },
 ];
 
