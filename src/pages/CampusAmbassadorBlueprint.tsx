@@ -765,52 +765,142 @@ const Benefits = () => {
 };
 
 /* ═════════════════════════════════════════════════════════════════════
-   THE ROLE — what you'll do
+   WHAT WILL YOU DO — animated timeline
    ═════════════════════════════════════════════════════════════════════ */
 const Role = () => {
   const items = [
-    { icon: Mic, title: "Run AI Workshops", desc: "Host flagship workshops on your campus — fully supported by ACRY." },
-    { icon: Users, title: "Grow Community", desc: "Build your own AI club, study circles & ambassador network." },
-    { icon: Calendar, title: "Conduct Events", desc: "Host hackathons, meetups, demo days & AI challenges." },
-    { icon: Sparkles, title: "Create Content", desc: "Build a personal brand through reels, posts & tutorials." },
-    { icon: Globe, title: "Spread AI Awareness", desc: "Become the trusted voice of AI in your campus and city." },
-    { icon: Target, title: "Bridge to Careers", desc: "Connect students to real-world AI tools, jobs and opportunities." },
+    { icon: Mic, title: "Organize AI Workshops", desc: "Host flagship AI workshops on your campus — fully supported with playbooks, slides & swag from ACRY.", tag: "Lead" },
+    { icon: Users, title: "Build Student Communities", desc: "Launch your own AI club, study circles & a thriving ambassador chapter.", tag: "Grow" },
+    { icon: Globe, title: "Spread AI Awareness", desc: "Become the trusted voice of AI in your campus and city through talks, panels & live sessions.", tag: "Inspire" },
+    { icon: Calendar, title: "Conduct Campus Activities", desc: "Run hackathons, meetups, demo days, AI challenges and ambassador-only events.", tag: "Activate" },
+    { icon: Sparkles, title: "Create AI Content", desc: "Build a personal brand through reels, posts, tutorials & case studies amplified by ACRY.", tag: "Create" },
+    { icon: Target, title: "Connect Students to Future Skills", desc: "Bridge peers to real-world AI tools, internships, jobs and the ACRY ecosystem.", tag: "Bridge" },
   ];
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start 70%", "end 30%"] });
+  const lineScale = useTransform(scrollYProgress, [0, 1], [0, 1]);
+
   return (
     <Section id="role">
       <div className="text-center mb-16 max-w-2xl mx-auto">
-        <Eyebrow>The Role</Eyebrow>
-        <Heading>What you'll actually do.</Heading>
-        <p className="mt-5 text-white/60 text-lg" style={fontBody}>A clear playbook, not vague tasks. ~4–6 hours a week.</p>
+        <Eyebrow>What You'll Do</Eyebrow>
+        <Heading>Your ambassador playbook.</Heading>
+        <p className="mt-5 text-white/60 text-lg" style={fontBody}>
+          Six high-impact responsibilities. A clear timeline. ~4–6 hours a week to lead the AI movement on your campus.
+        </p>
       </div>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((it, i) => (
+
+      <div ref={sectionRef} className="relative max-w-5xl mx-auto">
+        {/* Vertical timeline rail */}
+        <div className="absolute left-6 md:left-1/2 top-0 bottom-0 w-px -translate-x-1/2">
+          <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, transparent, ${INDIGO.accent}22, ${INDIGO.accent}33, transparent)` }} />
           <motion.div
-            key={it.title}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: (i % 3) * 0.06 }}
-          >
-            <Card interactive className="p-6 h-full">
-              <div className="flex items-start gap-4">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: `linear-gradient(135deg, ${INDIGO.accent}33, ${INDIGO.mid}55)`, border: `1px solid ${INDIGO.accent}40` }}
-                >
-                  <it.icon className="w-5 h-5" style={{ color: INDIGO.glow }} />
+            className="absolute inset-x-0 top-0 origin-top"
+            style={{
+              scaleY: lineScale,
+              background: `linear-gradient(to bottom, ${INDIGO.glow}, ${INDIGO.accent}, ${INDIGO.accentSoft})`,
+              boxShadow: `0 0 20px ${INDIGO.accent}cc, 0 0 40px ${INDIGO.accent}66`,
+              height: "100%",
+              width: "2px",
+              left: "-0.5px",
+            }}
+          />
+        </div>
+
+        <div className="flex flex-col gap-10 md:gap-14">
+          {items.map((it, i) => {
+            const isLeft = i % 2 === 0;
+            return (
+              <motion.div
+                key={it.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.55, delay: 0.05, ease: [0.21, 0.6, 0.35, 1] }}
+                className={`relative grid md:grid-cols-2 items-center gap-6 md:gap-12 ${isLeft ? "" : "md:[&>*:first-child]:order-2"}`}
+              >
+                {/* Timeline node */}
+                <div className="absolute left-6 md:left-1/2 top-6 md:top-1/2 -translate-x-1/2 md:-translate-y-1/2 z-20">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    whileInView={{ scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.15 }}
+                    className="relative"
+                  >
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center"
+                      style={{
+                        background: `radial-gradient(circle at 30% 30%, ${INDIGO.glow}, ${INDIGO.accent})`,
+                        boxShadow: `0 0 0 4px ${INDIGO.base}, 0 0 0 5px ${INDIGO.accent}66, 0 0 24px ${INDIGO.accent}aa`,
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                    </div>
+                    <motion.span
+                      className="absolute inset-0 rounded-full"
+                      style={{ border: `2px solid ${INDIGO.glow}` }}
+                      animate={{ scale: [1, 2.2], opacity: [0.55, 0] }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut", delay: i * 0.25 }}
+                    />
+                  </motion.div>
                 </div>
-                <div>
-                  <div className="text-[10px] font-bold tracking-[0.18em] uppercase mb-1" style={{ color: INDIGO.glow, ...fontBody }}>
-                    Step {String(i + 1).padStart(2, "0")}
-                  </div>
-                  <h4 className="text-base font-semibold text-white mb-1.5" style={fontHead}>{it.title}</h4>
-                  <p className="text-sm text-white/55 leading-relaxed" style={fontBody}>{it.desc}</p>
+
+                {/* Card */}
+                <div className={`pl-16 md:pl-0 ${isLeft ? "md:pr-12 md:text-right" : "md:pl-12"}`}>
+                  <Card interactive className="p-6 md:p-7 relative overflow-hidden group">
+                    <div
+                      className="absolute -inset-px opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                      style={{ background: `radial-gradient(400px circle at 50% 0%, ${INDIGO.accent}22, transparent 60%)` }}
+                    />
+                    <div className={`flex items-start gap-4 ${isLeft ? "md:flex-row-reverse md:text-right" : ""}`}>
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 relative"
+                        style={{ background: `linear-gradient(135deg, ${INDIGO.accent}33, ${INDIGO.mid}66)`, border: `1px solid ${INDIGO.accent}55` }}
+                      >
+                        <it.icon className="w-5 h-5" style={{ color: INDIGO.glow }} />
+                        <span className="absolute -inset-2 rounded-2xl opacity-40" style={{ background: `radial-gradient(circle, ${INDIGO.accent}44, transparent 70%)` }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`flex items-center gap-2 mb-2 ${isLeft ? "md:justify-end" : ""}`}>
+                          <span className="text-[10px] font-bold tracking-[0.18em] uppercase" style={{ color: INDIGO.glow, ...fontBody }}>
+                            {String(i + 1).padStart(2, "0")} · {it.tag}
+                          </span>
+                        </div>
+                        <h4 className="text-lg font-semibold text-white mb-2 leading-tight" style={fontHead}>{it.title}</h4>
+                        <p className="text-sm text-white/60 leading-relaxed" style={fontBody}>{it.desc}</p>
+                      </div>
+                    </div>
+                  </Card>
                 </div>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
+
+                {/* Spacer on opposite side (desktop) */}
+                <div className="hidden md:block" />
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Timeline end cap */}
+        <div className="relative mt-6 flex justify-start md:justify-center pl-6 md:pl-0">
+          <div className="absolute left-6 md:left-1/2 -translate-x-1/2 -top-2">
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              whileInView={{ scale: 1, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ type: "spring", stiffness: 220, damping: 16 }}
+              className="px-4 py-1.5 rounded-full text-[11px] font-semibold tracking-wider uppercase whitespace-nowrap"
+              style={{
+                background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.accentSoft})`,
+                color: "white",
+                boxShadow: `0 8px 24px ${INDIGO.accent}66`,
+                ...fontBody,
+              }}
+            >
+              🚀 You become the AI leader of your campus
+            </motion.div>
+          </div>
+        </div>
       </div>
     </Section>
   );
