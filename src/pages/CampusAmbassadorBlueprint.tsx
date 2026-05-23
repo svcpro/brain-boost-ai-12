@@ -992,16 +992,37 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
     }
     setSubmitting(true);
     try {
-      const payload: any = { ...parsed.data, user_agent: navigator.userAgent.slice(0, 500) };
+      const applicationId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const payload: any = { id: applicationId, ...parsed.data, user_agent: navigator.userAgent.slice(0, 500) };
       const { error } = await supabase.from("campus_ambassador_applications").insert(payload);
       if (error) throw error;
       setDone(true);
       try { localStorage.removeItem("acry_ca_draft"); } catch {}
       toast.success("Application submitted!");
+
+      // Fire-and-forget: send branded instant confirmation email
+      if (parsed.data.email) {
+        supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "campus-ambassador-confirmation",
+            recipientEmail: parsed.data.email,
+            idempotencyKey: `ca-confirm-${applicationId}`,
+            templateData: {
+              name: parsed.data.full_name,
+              college: parsed.data.college_name,
+              city: parsed.data.city,
+            },
+          },
+        }).catch((err) => console.warn("[CA] confirmation email failed", err));
+      }
     } catch (e: any) {
       toast.error(e.message || "Submission failed. Try again.");
     } finally { setSubmitting(false); }
   };
+
 
   return (
     <Section id="apply">
