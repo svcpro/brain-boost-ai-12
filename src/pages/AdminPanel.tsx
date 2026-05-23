@@ -200,6 +200,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "institutions", label: "Institutions", icon: Building2, roles: ["super_admin", "admin"], badge: "v6", badgeColor: "bg-rose-500/20 text-rose-400" },
       { key: "teacher_mode", label: "AI Teacher Mode", icon: GraduationCap, roles: ["super_admin", "admin", "ai_admin"], badge: "v6", badgeColor: "bg-rose-500/20 text-rose-400" },
+      { key: "campus_ambassador", label: "Campus Ambassadors", icon: GraduationCap, roles: ["super_admin", "admin", "support_admin"], badge: "NEW", badgeColor: "bg-emerald-500/20 text-emerald-400" },
     ],
   },
   {
