@@ -2862,33 +2862,180 @@ const FAQ = () => {
 };
 
 /* ═════════════════════════════════════════════════════════════════════
-   FINAL CTA
+   FINAL CTA — Emotional closer with founder signature
    ═════════════════════════════════════════════════════════════════════ */
-const FinalCTA = ({ scrollToForm }: { scrollToForm: () => void }) => (
-  <Section className="overflow-hidden">
-    <Card className="relative p-10 md:p-20 text-center overflow-hidden">
-      <div
-        className="absolute inset-0"
-        style={{ background: `radial-gradient(ellipse at center, ${INDIGO.accent}33, transparent 65%)` }}
-      />
-      <div className="relative z-10">
-        <Eyebrow>Your Move</Eyebrow>
-        <Heading className="!text-5xl md:!text-7xl mb-5">
-          The future belongs to{" "}
-          <span style={{ background: `linear-gradient(135deg, ${INDIGO.glow}, ${INDIGO.accent})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            AI leaders.
-          </span>
-        </Heading>
-        <p className="text-lg text-white/65 max-w-xl mx-auto mb-10" style={fontBody}>
-          Join the movement. Build your future. Lead your campus.
-        </p>
-        <PrimaryCTA onClick={scrollToForm} large>
-          <Rocket className="w-4 h-4" /> Apply Now <ArrowRight className="w-4 h-4" />
-        </PrimaryCTA>
-      </div>
-    </Card>
-  </Section>
-);
+const FinalCTA = ({ scrollToForm }: { scrollToForm: () => void }) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Section className="overflow-hidden">
+      <Card className="relative p-10 md:p-20 text-center overflow-hidden">
+        {/* Animated radial backdrop */}
+        <div
+          className="absolute inset-0"
+          style={{ background: `radial-gradient(ellipse at center, ${INDIGO.accent}33, transparent 65%)` }}
+        />
+        {/* Floating dust particles */}
+        <div aria-hidden className="absolute inset-不大pointer-events-none overflow-hidden">
+          {[...Array(12)].map((_, i) => (
+            <motion.span
+              key={i}
+              className="absolute w-1 h-1 rounded-full"
+              style={{
+                background: i % 3 === 1 ? INDIGO.glow : i % 3 === 2 ? INDIGO.accentSoft : INDIGO.accent,
+                left: `${10 + (i * 7) % 80}%`,
+                top: `${15 + (i * 13) % 70}%`,
+                boxShadow: `0 0 8px ${INDIGO.glow}`,
+              }}
+              animate={{
+                y: [0, -20, 0],
+                opacity: [1, 0.4, 1],
+              }}
+              transition={{
+                duration: 8 + (i % 5),
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 0.4,
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center">
+          <Eyebrow>The Movement Starts Here</Eyebrow>
+
+          {/* Headline */}
+          <motion.div
+            initial={{ opacity: 1, y: 0 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <Heading className="!text-5xl md:!text-7xl mb-5">
+              The Future Belongs to{" "}
+              <span
+                className="bg-clip-text text-transparent"
+                style={{ backgroundImage: `linear-gradient(135deg, ${INDIGO.glow}, ${INDIGO.accent})` }}
+              >
+                AI Leaders.
+              </span>
+            </Heading>
+          </motion.div>
+
+          {/* Subheadline */}
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 1 }}
+            className="text-lg md:text-xl text-white/65 max-w-xl mx-auto mb-12 leading-relaxed"
+            style={fontBody}
+          >
+            Join the movement. Build your future. Lead your campus.
+          </motion.p>
+
+          {/* CTA Button */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 1 }}
+            className="mb-14"
+          >
+            <PrimaryCTA onClick={scrollToForm} large>
+              <Rocket className="w-5 h-5" /> Apply Now <ArrowRight className="w-5 h-5" />
+            </PrimaryCTA>
+          </motion.div>
+
+          {/* Founder signature-style visual */}
+          <motion.div
+            initial={{ opacity: 1, y: 0 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 1 }}
+            className="relative"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+          >
+            <div
+              className="relative rounded-2xl p-6 md:p-8 backdrop-blur-xl border"
+              style={{
+                background: `linear-gradient(135deg, ${INDIGO.surface}99, ${INDIGO.surface}66)`,
+                borderColor: `${INDIGO.accent}30`,
+                boxShadow: `0 16px 48px -12px ${INDIGO.accent}40, inset 1px 1px 0 rgba(255,255,255,0.06)`,
+              }}
+            >
+              {/* Glow halo behind signature */}
+              <motion.div
+                animate={{ scale: hovered ? 1.08 : 1, opacity: hovered ? 0.6 : 0.35 }}
+                transition={{ duration: 0.6 }}
+                className="absolute -top-8 left-1/2 -translate-x-1/2 w-64 h-32 rounded-full pointer-events-none"
+                style={{
+                  background: `radial-gradient(ellipse at center, ${INDIGO.glow}40, transparent 70%)`,
+                  filter: "blur(20px)",
+                }}
+              />
+
+              {/* Quote */}
+              <p className="text-sm md:text-base text-white/80 italic mb-6 max-w-md leading-relaxed" style={fontBody}>
+                "We are not just building an AI platform. We are building the leaders who will shape India's AI future. This is your invitation to be one of them."
+              </p>
+
+              {/* Signature visual */}
+              <div className="flex items-center justify-center gap-4">
+                <div className="h-px flex-1" style={{ background: `linear-gradient(to right, transparent, ${INDIGO.accent}40)` }} />
+                <div className="flex flex-col items-center">
+                  {/* Hand-drawn signature SVG */}
+                  <svg
+                    width="160"
+                    height="40"
+                    viewBox="0 0 160 40"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="mb-2"
+                  >
+                    <motion.path
+                      d="M10 30 C 15 10, 25 5, 30 20 C 35 35, 40 25, 45 18 C 50 10, 55 30, 60 25 C 65 20, 70 8, 75 15 C 80 22, 85 30, 90 20 C 95 10, 100 5, 105 15 C 110 25, 115 30, 120 22 C 125 15, 130 10, 135 18 C 140 25, 145 28, 150 20"
+                      stroke={INDIGO.glow}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      fill="none"
+                      initial={{ pathLength: 0, opacity: 0 }}
+                      whileInView={{ pathLength: 1, opacity: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1.5, ease: "easeInOut", delay: 0.2 }}
+                    />
+                  </svg>
+                  <span className="text-xs font-semibold tracking-[0.2em] uppercase" style={{ color: INDIGO.glow, ...fontBody }}>
+                    Abhinav Tripathi
+                  </span>
+                  <span className="text-[11px] text-white/40 mt-1" style={fontBody}>
+                    Founder & CEO, ACRY.ai
+                  </span>
+                </div>
+                <div className="h-px flex-1" style={{ background: `linear-gradient(to left, transparent, ${INDIGO.accent}40)` }} />
+              </div>
+
+              {/* Small avatar / stamp */}
+              <motion.div
+                animate={{ rotate: hovered ? [0, -5, 5, 1] : 0 }}
+                transition={{ duration: 0.6 }}
+                className="absolute -top-4 -right-4 w-12 h-12 rounded-full flex items-center justify-center border"
+                style={{
+                  background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})`,
+                  borderColor: `${INDIGO.glow}50`,
+                  boxShadow: `0 4px 16px ${INDIGO.accent}60`,
+                }}
+              >
+                <Star className="w-5 h-5 text-white" fill="white" />
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      </Card>
+    </Section>
+  );
+};
+</new_content>
 
 /* ═════════════════════════════════════════════════════════════════════
    FOOTER
