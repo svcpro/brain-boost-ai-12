@@ -373,35 +373,6 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             </span>
           </motion.div>
 
-          {/* Rejected line — struck through with animated red cross */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.05 }}
-            className="relative inline-block mb-5"
-          >
-            <span className="relative inline-block text-base sm:text-lg md:text-2xl font-semibold text-white/45 px-1">
-              Just another college student.
-              {/* Animated red strike-through line */}
-              <motion.span
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.7, delay: 0.9, ease: [0.65, 0, 0.35, 1] }}
-                style={{ transformOrigin: "left center" }}
-                className="pointer-events-none absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] md:h-[4px] rounded-full bg-gradient-to-r from-red-500 via-red-500 to-rose-600 shadow-[0_0_18px_rgba(239,68,68,0.85)]"
-              />
-              {/* Animated red X marks at ends */}
-              <motion.span
-                initial={{ opacity: 0, scale: 0, rotate: -90 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                transition={{ duration: 0.35, delay: 1.55, type: "spring", stiffness: 320 }}
-                className="absolute -right-5 -top-3 md:-right-7 md:-top-4 inline-flex items-center justify-center w-6 h-6 md:w-8 md:h-8 rounded-full bg-red-500/15 border border-red-500/60 backdrop-blur-sm text-red-400 text-sm md:text-base font-black shadow-[0_0_20px_rgba(239,68,68,0.6)]"
-              >
-                ✕
-              </motion.span>
-            </span>
-          </motion.div>
-
           {/* Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 40 }}
