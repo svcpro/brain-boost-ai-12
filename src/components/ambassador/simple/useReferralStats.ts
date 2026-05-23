@@ -5,6 +5,7 @@ export type RefStats = {
   total: number;
   active: number; // signed up, not yet paid
   paid: number;
+  conversions: number; // anyone who converted (active + paid)
   recent: Array<{
     id: string;
     referred_email: string | null;
@@ -22,6 +23,7 @@ export function useReferralStats(userId: string | undefined) {
     total: 0,
     active: 0,
     paid: 0,
+    conversions: 0,
     recent: [],
     loading: true,
   });
@@ -51,7 +53,8 @@ export function useReferralStats(userId: string | undefined) {
         total: r.length,
         active,
         paid,
-        recent: r.slice(0, 5) as any,
+        conversions: active + paid,
+        recent: r.slice(0, 8) as any,
         loading: false,
       });
     })();
