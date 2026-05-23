@@ -3185,7 +3185,9 @@ const CampusAmbassadorBlueprint = () => {
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="relative min-h-screen text-white overflow-x-hidden" style={{ background: INDIGO.base, ...fontBody }}>
+
       <SEO
         title="ACRY AI Campus Ambassador Program | Lead the AI Revolution"
         description="Join India's largest AI student community. Become an ACRY AI Campus Ambassador — leadership, AI training, certificates, mentorship & internship opportunities. Apply now."
