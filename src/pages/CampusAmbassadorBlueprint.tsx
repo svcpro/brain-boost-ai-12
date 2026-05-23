@@ -2238,7 +2238,7 @@ const LiveProgress = ({
         )}
         <Zap className="w-4 h-4 relative z-10" />
         <span className="relative z-10">
-          {submitting ? "Submitting…" : allValid ? "Submit — All Complete" : requiredValid ? "Submit Application" : "Complete required fields"}
+          {submitting ? "Submitting…" : requiredValid ? "Apply Now & Become an AI Leader" : "Complete required fields"}
         </span>
       </motion.button>
       <p className="text-[10px] text-white/40 text-center mt-2.5" style={fontBody}>
