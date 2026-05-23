@@ -277,28 +277,102 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
           </span>
         </motion.div>
 
-        {/* Headline */}
+        {/* Headline — Ultra Advanced holographic */}
         <motion.h1
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1 }}
-          className="text-[2.75rem] sm:text-6xl md:text-7xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.02] text-white mb-7"
+          transition={{ duration: 0.9, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="relative text-[2.75rem] sm:text-6xl md:text-7xl lg:text-[5.5rem] font-bold tracking-[-0.035em] leading-[1.02] text-white mb-7"
           style={fontHead}
         >
-          Lead the AI<br />
-          revolution on{" "}
           <span
-            className="relative inline-block"
+            aria-hidden
+            className="absolute left-1/2 -translate-x-1/2 -top-10 w-[80%] h-[120%] pointer-events-none opacity-70"
             style={{
-              background: `linear-gradient(135deg, ${INDIGO.glow}, ${INDIGO.accent})`,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+              background: `radial-gradient(ellipse at center, ${INDIGO.accent}33, transparent 65%)`,
+              filter: "blur(50px)",
             }}
-          >
-            your campus
+          />
+
+          <span className="relative inline-block">
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: `linear-gradient(180deg, #ffffff 0%, #e0e7ff 60%, ${INDIGO.glow} 100%)` }}
+            >
+              Lead the
+            </span>{" "}
+            <span className="relative inline-block">
+              <span
+                className="bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: `linear-gradient(110deg, ${INDIGO.glow} 0%, #ffffff 30%, ${INDIGO.accentSoft} 60%, ${INDIGO.glow} 100%)`,
+                  backgroundSize: "250% 100%",
+                  WebkitBackgroundClip: "text",
+                  animation: "ca-hero-shimmer 5.5s linear infinite",
+                }}
+              >
+                AI
+              </span>
+              <motion.span
+                aria-hidden
+                className="absolute -inset-3 rounded-full pointer-events-none -z-10"
+                animate={{ opacity: [0.4, 0.85, 0.4] }}
+                transition={{ duration: 3, repeat: Infinity }}
+                style={{
+                  background: `radial-gradient(circle, ${INDIGO.accent}66, transparent 70%)`,
+                  filter: "blur(20px)",
+                }}
+              />
+            </span>
           </span>
-          .
+          <br />
+
+          <span
+            className="bg-clip-text text-transparent"
+            style={{ backgroundImage: `linear-gradient(180deg, #ffffff 0%, #e0e7ff 60%, ${INDIGO.glow} 100%)` }}
+          >
+            revolution on
+          </span>{" "}
+          <span className="relative inline-block">
+            <span
+              className="relative bg-clip-text text-transparent"
+              style={{
+                backgroundImage: `linear-gradient(110deg, ${INDIGO.glow} 0%, ${INDIGO.accentSoft} 25%, #ffffff 50%, ${INDIGO.accent} 75%, ${INDIGO.glow} 100%)`,
+                backgroundSize: "300% 100%",
+                WebkitBackgroundClip: "text",
+                animation: "ca-hero-shimmer 6s linear infinite",
+              }}
+            >
+              your campus
+            </span>
+            <motion.span
+              aria-hidden
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 1 }}
+              transition={{ duration: 1.2, delay: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute -bottom-2 sm:-bottom-3 left-0 right-0 h-[3px] sm:h-[4px] origin-left rounded-full"
+              style={{
+                background: `linear-gradient(90deg, transparent, ${INDIGO.accent}, ${INDIGO.glow}, ${INDIGO.accent}, transparent)`,
+                boxShadow: `0 0 22px ${INDIGO.accent}, 0 0 40px ${INDIGO.glow}66`,
+              }}
+            />
+            <motion.span
+              aria-hidden
+              className="absolute -bottom-2 sm:-bottom-3 w-3 h-3 rounded-full"
+              animate={{ left: ["-2%", "100%"] }}
+              transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
+              style={{
+                background: "#ffffff",
+                boxShadow: `0 0 14px #ffffff, 0 0 28px ${INDIGO.glow}`,
+                transform: "translateY(-35%)",
+              }}
+            />
+          </span>
+          <span className="text-white/85">.</span>
+
+          <style>{`
+            @keyframes ca-hero-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+          `}</style>
         </motion.h1>
 
         <motion.p
