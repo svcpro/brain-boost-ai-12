@@ -871,10 +871,10 @@ const Testimonials = () => {
   ];
 
   const posts = [
-    { handle: "@aarav.builds", college: "IIT Delhi", caption: "Hosted my first AI workshop — 240 students showed up. The future is now ⚡", likes: "2.4K", comments: "186", emoji: "🚀", grad: ["#6366f1", "#ec4899"] },
-    { handle: "@ishita.codes", college: "BITS Pilani", caption: "Our AI club just crossed 600 members 🤯 Thank you @acry.ai for the playbook!", likes: "3.1K", comments: "312", emoji: "🧠", grad: ["#4f46e5", "#06b6d4"] },
+    { handle: "@aarav.builds", college: "IIT Delhi", caption: "Hosted my first AI workshop — 240 students showed up. The future is now ⚡", likes: "2.4K", comments: "186", emoji: "🚀", grad: ["#10b981", "#c9a84c"] },
+    { handle: "@ishita.codes", college: "BITS Pilani", caption: "Our AI club just crossed 600 members 🤯 Thank you @acry.ai for the playbook!", likes: "3.1K", comments: "312", emoji: "🧠", grad: ["#0d7a5f", "#06b6d4"] },
     { handle: "@rohan.ml", college: "NIT Trichy", caption: "From ambassador to AI intern in 90 days. Receipts in story 💼", likes: "1.8K", comments: "94", emoji: "💼", grad: ["#8b5cf6", "#f59e0b"] },
-    { handle: "@priya.prompts", college: "VIT Vellore", caption: "Mentor call with the ACRY founders today. Wild how much you learn in 30 mins.", likes: "1.2K", comments: "76", emoji: "✨", grad: ["#ec4899", "#6366f1"] },
+    { handle: "@priya.prompts", college: "VIT Vellore", caption: "Mentor call with the ACRY founders today. Wild how much you learn in 30 mins.", likes: "1.2K", comments: "76", emoji: "✨", grad: ["#ec4899", "#10b981"] },
   ];
 
   return (
