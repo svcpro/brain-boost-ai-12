@@ -2686,43 +2686,177 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
    ═════════════════════════════════════════════════════════════════════ */
 const FAQ = () => {
   const faqs = [
-    { q: "Who can apply?", a: "Any college, university or coaching student in India — UG, PG, JEE/NEET aspirants, AI enthusiasts. All streams welcome." },
-    { q: "Is it free?", a: "100% free. No application fee, no hidden cost, ever." },
-    { q: "Will I get a certificate?", a: "Yes — an official Campus Ambassador certificate and a verified performance certificate for top performers." },
-    { q: "Remote or in-person?", a: "Hybrid. Training and community are remote. Workshops and meetups happen on your campus / city." },
-    { q: "How much time?", a: "About 4–6 hours per week. Flexible around your studies." },
-    { q: "Workshops & events?", a: "Yes — monthly AI workshops, quarterly summits, plus events you organise with our full support." },
+    {
+      q: "Who can apply?",
+      a: "Any college, university or coaching student in India — UG, PG, JEE/NEET aspirants, AI enthusiasts. All streams welcome.",
+      icon: Users,
+      color: "#818cf8",
+    },
+    {
+      q: "Is it free?",
+      a: "100% free. No application fee, no hidden cost, ever.",
+      icon: Gift,
+      color: "#34d399",
+    },
+    {
+      q: "Will I get certificates?",
+      a: "Yes — an official Campus Ambassador certificate and a verified performance certificate for top performers.",
+      icon: Award,
+      color: "#fbbf24",
+    },
+    {
+      q: "What are the benefits?",
+      a: "AI training, leadership experience, certificates, networking, personal branding, internship opportunities, founder mentorship, campus recognition, and exclusive workshop access.",
+      icon: Sparkles,
+      color: "#a78bfa",
+    },
+    {
+      q: "Is this remote?",
+      a: "Hybrid. Training and community are remote. Workshops and meetups happen on your campus or city.",
+      icon: Globe,
+      color: "#60a5fa",
+    },
+    {
+      q: "How much time is needed?",
+      a: "About 4–6 hours per week. Flexible around your studies and exams.",
+      icon: Clock,
+      color: "#fb923c",
+    },
+    {
+      q: "Will there be workshops & events?",
+      a: "Yes — monthly AI workshops, quarterly summits, plus events you organise with our full support and resources.",
+      icon: Calendar,
+      color: "#f472b6",
+    },
   ];
   const [open, setOpen] = useState<number | null>(0);
   return (
     <Section id="faq">
       <div className="text-center mb-12 max-w-2xl mx-auto">
         <Eyebrow>FAQ</Eyebrow>
-        <Heading>Quick answers.</Heading>
+        <Heading>Got questions?</Heading>
+        <motion.p
+          initial={{ opacity: 1 }}
+          className="mt-3 text-white/55 text-sm"
+          style={fontBody}
+        >
+          Everything you need to know before applying.
+        </motion.p>
       </div>
       <div className="max-w-2xl mx-auto space-y-3">
-        {faqs.map((f, i) => (
-          <Card key={f.q} className="overflow-hidden">
-            <button onClick={() => setOpen(open === i ? null : i)} className="w-full px-6 py-5 flex items-center justify-between text-left">
-              <span className="font-semibold text-white pr-4" style={fontHead}>{f.q}</span>
-              <ChevronDown className={`w-5 h-5 flex-shrink-0 transition-transform ${open === i ? "rotate-180" : ""}`} style={{ color: INDIGO.glow }} />
-            </button>
-            <AnimatePresence>
-              {open === i && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
+        {faqs.map((f, i) => {
+          const isOpen = open === i;
+          const Icon = f.icon;
+          return (
+            <motion.div
+              key={f.q}
+              initial={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: i * 0.06 }}
+            >
+              <Card
+                className="overflow-hidden group"
+                interactive={!isOpen}
+              >
+                {/* Active left border accent */}
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-1 transition-opacity duration-300"
+                  style={{
+                    background: `linear-gradient(to bottom, ${f.color}, ${INDIGO.accent})`,
+                    opacity: isOpen ? 1 :  0.2,
+                  }}
+                />
+                <button
+                  onClick={() => setOpen(isOpen ? null : i)}
+                  className="w-full px-6 py-5 flex items-center gap-4 text-left"
                 >
-                  <p className="px-6 pb-5 text-white/65 leading-relaxed" style={fontBody}>{f.a}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Card>
-        ))}
+                  {/* Icon */}
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300"
+                    style={{
+                      background: isOpen ? `${f.color}22` : `${INDIGO.accent}1a`,
+                      border: `1px solid ${isOpen ? f.color + "44" : INDIGO.accent + "22"}`,
+                    }}
+                  >
+                    <Icon
+                      className="w-5 h-5 transition-colors duration-300"
+                      style={{ color: isOpen ? f.color : INDIGO.glow }}
+                    />
+                  </div>
+                  <span className="flex-1 font-semibold text-white pr-4" style={fontHead}>{f.q}</span>
+                  <motion.div
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <ChevronDown className="w-5 h-5 flex-shrink-1" style={{ color: INDIGO.glow }} />
+                  </motion.div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      key="content"
+                      initial={{ height: 1, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-6 pb-5 flex items-start gap-4">
+                        <div className="w-10 flex-shrink-0" />
+                        <div>
+                          <p className="text-white/70 leading-relaxed mb-3" style={fontBody}>{f.a}</p>
+                          <div
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
+                            style={{
+                              background: `${f.color}15`,
+                              color: f.color,
+                              border: `1px solid ${f.color}30`,
+                              ...fontBody,
+                            }}
+                          >
+                            <Check className="w-3 h-3" strokeWidth={3} />
+                            Verified answer
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
+      {/* Bottom helper */}
+      <motion.div
+        initial={{ opacity: 1, y: 0 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="max-w-2xl mx-auto mt-8 text-center"
+      >
+        <div
+          className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl"
+          style={{
+            background: `linear-gradient(135deg, ${INDIGO.surface}cc, ${INDIGO.mid}66)`,
+            border: `1px solid ${INDIGO.accent}33`,
+          }}
+        >
+          <HelpCircle className="w-5 h-5 flex-shrink-0" style={{ color: INDIGO.glow }} />
+          <span className="text-sm text-white/60" style={fontBody}>
+            Still have questions?{" "}
+            <a
+              href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20have%20a%20question%20about%20the%20Campus%20Ambassador%20Program."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white font-semibold hover:underline"
+              style={{ color: INDIGO.glow }}
+            >
+              Chat on WhatsApp
+            </a>
+          </span>
+        </div>
+      </motion.div>
     </Section>
   );
 };
