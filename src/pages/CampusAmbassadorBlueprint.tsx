@@ -52,7 +52,7 @@ const Atmosphere = () => (
       className="absolute inset-0 opacity-[0.06]"
       style={{
         backgroundImage:
-          "linear-gradient(rgba(99,102,241,1) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,1) 1px, transparent 1px)",
+          "linear-gradient(rgba(16,185,129,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.6) 1px, transparent 1px)",
         backgroundSize: "72px 72px",
         maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
       }}
