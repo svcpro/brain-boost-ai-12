@@ -1012,7 +1012,7 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
             idempotencyKey: `ca-confirm-${applicationId}`,
             templateData: {
               name: parsed.data.full_name,
-              college: parsed.data.college_name,
+              college: parsed.data.college,
               city: parsed.data.city,
             },
           },
