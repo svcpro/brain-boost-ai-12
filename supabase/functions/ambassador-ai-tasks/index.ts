@@ -122,11 +122,8 @@ Deno.serve(async (req) => {
     const weekKey = getWeekKey();
 
     // === CRON: auto-generate tasks for every ambassador ===
+    // Idempotent — skips ambassadors that already have >=3 tasks for the week.
     if (action === "cron_generate_all") {
-      const cronSecret = req.headers.get("x-cron-secret");
-      if (cronSecret !== SERVICE_ROLE) {
-        return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
       const { data: ambs } = await admin
         .from("ambassador_profiles")
         .select("user_id, full_name, college, city, ai_level, xp, weekly_xp")
