@@ -1246,55 +1246,360 @@ const Testimonials = () => {
 };
 
 /* ═════════════════════════════════════════════════════════════════════
-   PATH — 4-step journey
+   HOW IT WORKS — 6-step premium flow
    ═════════════════════════════════════════════════════════════════════ */
-const Path = () => {
-  const steps = [
-    { icon: Send, title: "Apply", desc: "90-second form. No fee." },
-    { icon: Users, title: "Onboard", desc: "Join the ambassador network & community." },
-    { icon: Brain, title: "Train", desc: "AI bootcamp, mentorship & resources." },
-    { icon: Crown, title: "Lead", desc: "Host events, build community, earn recognition." },
-  ];
+
+interface StepItem {
+  icon: React.ElementType;
+  title: string;
+  desc: string;
+}
+
+const StepCard = ({ step, index }: { step: StepItem; index: number }) => {
+  const [hover, setHover] = useState(false);
+  const rotateX = useSpring(0, { stiffness: 300, damping: 25 });
+  const rotateY = useSpring(0, { stiffness: 300, damping: 25 });
+
+  const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    rotateX.set(y * -10);
+    rotateY.set(x * 10);
+  };
+
+  const handleLeave = () => {
+    rotateX.set(1);
+    rotateY.set(0);
+    setHover(false);
+  };
+
   return (
-    <Section id="path">
-      <div className="text-center mb-16 max-w-2xl mx-auto">
-        <Eyebrow>The Path</Eyebrow>
-        <Heading>Four steps to AI leadership.</Heading>
-      </div>
-      <div className="grid md:grid-cols-4 gap-4 relative">
+    <motion.div
+      initial={{ opacity: 0, y: 40, scale: 0.95 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.65, delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
+      className="relative"
+      style={{ perspective: 900 }}
+      onMouseEnter={() => setHover(true)}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+    >
+      <motion.div
+        style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+        className="relative rounded-2xl border backdrop-blur-xl p-6 md:p-7 overflow-hidden group"
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      >
+        {/* Glass surface */}
         <div
-          className="hidden md:block absolute top-12 left-[12%] right-[12%] h-px"
-          style={{ background: `linear-gradient(90deg, transparent, ${INDIGO.accent}80, transparent)` }}
+          className="absolute inset-_0 rounded-2xl"
+          style={{
+            background: `linear-gradient(145deg, ${INDIGO.surface}e6 0%, ${INDIGO.surface}99 100%)`,
+            border: `1px solid ${INDIGO.accent}30`,
+            boxShadow: `0 1px 0 rgba(255,255,255,0.03) inset, 0 24px 60px -30px ${INDIGO.accent}40`,
+          }}
         />
-        {steps.map((s, i) => (
+        {/* Animated gradient border */}
+        <div
+          className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{
+            padding: 1.5,
+            background: `linear-gradient(135deg, ${INDIGO.accent}aa, ${INDIGO.glow}88, ${INDIGO.accent}aa)`,
+            mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            maskComposite: "exclude",
+            WebkitMaskComposite: "xor",
+          }}
+        />
+        {/* Hover radial glow */}
+        <div
+          className="absolute inset-0 rounded-2xl opacity- 0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle at 50% 0%, ${INDIGO.accent}22, transparent 70%)`,
+          }}
+        />
+        {/* Shine sweep */}
+        <motion.div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none"
+          initial={{ x: "-100%" }}
+          whileHover={{ x: "100%" }}
+          transition={{ duration: 0.9, ease: "easeInOut" }}
+          style={{
+            background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)",
+          }}
+        />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center text-center">
+          {/* Step number badge + icon container */}
+          <div className="relative mb-5">
+            <motion.div
+              className="relative w-[72px] h-[72px] rounded-2xl flex items-center justify-center"
+              style={{
+                background: `linear-gradient(135deg, ${INDIGO.accent}30, ${INDIGO.mid}80)`,
+                border: `1px solid ${INDIGO.accent}55`,
+                boxShadow: hover
+                  ? `0 12px 40px -12px ${INDIGO.accent}aa, 1nset 0 1px 0 rgba(255,255,255,0.08)`
+                  : `0 8px 30px -10px ${INDIGO.accent}60`,
+              }}
+              animate={{ scale: hover ? 1.08 : 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 18 }}
+            >
+              <step.icon className="w-7 h-7" style={{ color: INDIGO.glow }} />
+              {/* Orbiting dot */}
+              <motion.div
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                style={{ background: INDIGO.accent, ...fontHead }}
+                animate={{ scale: hover ? [1, 1.2, 1] : 1 }}
+                transition={{ duration: 0.6 }}
+              >
+                {index + 1}
+              </motion.div>
+            </motion.div>
+            {/* Glow ring on hover */}
+            <motion.div
+              className="absolute inset-0 rounded-2xl pointer-events-none"
+              animate={{ opacity: hover ? 1 : 1 }}
+              style={{
+                boxShadow: `0 0 30px ${INDIGO.accent}66`,
+              }}
+            />
+          </div>
+
+          {/* Title */}
+          <h4
+            className="text-lg font-semibold text-white mb-2 tracking-tight"
+            style={fontHead}
+          >
+            {step.title}
+          </h4>
+
+          {/* Description */}
+          <p className="text-sm text-white/55 leading-relaxed max-w-[220px]" style={fontBody}>
+            {step.desc}
+          </p>
+        </div>
+
+        {/* Watermark step number */}
+        <div
+          className="absolute -bottom-2 -right-2 text-[5rem] font-bold leading-none pointer-events-none select-none opacity-[0.04]"
+          style={{
+            fontFamily: "'Space Grotesk', system-ui, sans-serif",
+            background: `linear-gradient(135deg, ${INDIGO.accent}, ${INDIGO.glow})`,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          {String(index + 1).padStart(2, "0")}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const Path = () => {
+  const steps: StepItem[] = [
+    { icon: Send, title: "Apply Online", desc: "Complete the 90-second form. No application fee required." },
+    { icon: Users, title: "Join Community", desc: "Get instant access to India's largest AI student network." },
+    { icon: Brain, title: "Get AI Training", desc: "Attend exclusive AI bootcamps, mentorship sessions & workshops." },
+    { icon: Crown, title: "Become Campus Leader", desc: "Get officially recognized as the AI leader on your campus." },
+    { icon: Calendar, title: "Organize Workshops", desc: "Plan and host AI workshops, hackathons & awareness events." },
+    { icon: Network, title: "Grow Your Network", desc: "Connect with founders, mentors & thousands of AI enthusiasts." },
+  ];
+
+  return (
+    <Section id="how-it-works" className="py-24 md:py-32">
+      {/* Background glow */}
+      <div
+        aria-hidden
+        className="absolute left-1/2 -translate-x-1/2 top-1/3 w-[50rem] h-[30rem] rounded-full pointer-events-none opacity-40"
+        style={{
+          background: `radial-gradient(ellipse, ${INDIGO.accent}22 0%, transparent 70%)`,
+          filter: "blur(60px)",
+        }}
+      />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-6">
+        {/* Header */}
+        <div className="text-center mb-20 max-w-2xl mx-auto">
           <motion.div
-            key={s.title}
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: i * 0.1 }}
-            className="relative text-center"
+            transition={{ duration: 0.6 }}
           >
-            <div
-              className="relative mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
-              style={{
-                background: INDIGO.surface,
-                border: `1px solid ${INDIGO.accent}66`,
-                boxShadow: `0 10px 30px -10px ${INDIGO.accent}80`,
-              }}
-            >
-              <s.icon className="w-6 h-6" style={{ color: INDIGO.glow }} />
-              <div
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center text-white"
-                style={{ background: INDIGO.accent, ...fontHead }}
-              >
-                {i + 1}
-              </div>
-            </div>
-            <h4 className="text-base font-semibold text-white mb-1" style={fontHead}>{s.title}</h4>
-            <p className="text-sm text-white/55" style={fontBody}>{s.desc}</p>
+            <Eyebrow>How It Works</Eyebrow>
           </motion.div>
-        ))}
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, delay: 0.1 }}
+          >
+            <Heading>Your journey to AI leadership.</Heading>
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-5 text-white/55 text-lg leading-relaxed"
+            style={fontBody}
+          >
+            Six simple steps from application to running India's most impactful campus AI community.
+          </motion.p>
+        </div>
+
+        {/* Desktop: Horizontal flow with connecting path */}
+        <div className="hidden lg:block relative">
+          {/* Animated connecting line */}
+          <svg
+            className="absolute top-[60px] left-[8%] right-[8%] h-[4px] w-[84%] pointer-events-none"
+            preserveAspectRatio="none"
+            viewBox="0 0 1000 4"
+          >
+            <defs>
+              <linearGradient id="flowLine" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={`${INDIGO.accent}00`} />
+                <stop offset="15%" stopColor={`${INDIGO.accent}88`} />
+                <stop offset="50%" stopColor={`${INDIGO.glow}aa`} />
+                <stop offset="85%" stopColor={`${INDIGO.accent}88`} />
+                <stop offset="100%" stopColor={`${INDIGO.accent}00`} />
+              </linearGradient>
+            </defs>
+            <motion.line
+              x1="0" y1="2" x2="1000" y2="2"
+              stroke="url(#flowLine)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 1 }}
+              whileInView={{ pathLength: 1, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 2, delay: 0.3, ease: "easeInOut" }}
+            />
+            {/* Animated pulse dot traveling along the line */}
+            <motion.circle
+              r="5"
+              fill={INDIGO.glow}
+              filter="url(#glow)"
+              initial={{ cx: 0, opacity: 1 }}
+              whileInView={{ cx: 1000, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 2.5, delay: 0.8, ease: "easeInOut" }}
+            >
+              <animate
+                attributeName="opacity"
+                values="0;1;0"
+                dur="2.5s"
+                begin="0.8s"
+              />
+            </motion.circle>
+            <defs>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+                <feMerge>
+                  <feMergeNode in="coloredBlur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+          </svg>
+
+          {/* Steps grid */}
+          <div className="grid grid-cols-6 gap-5">
+            {steps.map((step, i) => (
+              <StepCard key={step.title} step={step} index={i} />
+            ))}
+          </div>
+        </div>
+
+        {/* Tablet: 3x2 grid with staggered line */}
+        <div className="hidden md:grid lg:hidden grid-cols-3 gap-6 relative">
+          {/* Row 1 connector */}
+          <div
+            className="absolute top-[52px] left-[12%] right-[12%] h-[2px]"
+            style={{ background: `linear-gradient(90deg, transparent, ${INDIGO.accent}66, transparent)` }}
+          />
+          {/* Row 2 connector */}
+          <div
+            className="absolute top-[calc(50%+52px)] left-[12%] right-[12%] h-[2px]"
+            style={{ background: `linear-gradient(90deg, transparent, ${INDIGO.accent}66, transparent)` }}
+          />
+          {steps.map((step, i) => (
+            <StepCard key={step.title} step={step} index={i} />
+          ))}
+        </div>
+
+        {/* Mobile: Vertical timeline */}
+        <div className="md:hidden relative">
+          {/* Vertical line */}
+          <motion.div
+            className="absolute left-8 top-0 bottom-0 w-[2px]"
+            style={{ background: `linear-gradient(to bottom, transparent, ${INDIGO.accent}aa, transparent)` }}
+            initial={{ scaleY: 0 }}
+            whileInView={{ scaleY: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
+          />
+          <div className="space-y-6">
+            {steps.map((step, i) => (
+              <motion.div
+                key={step.title}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className="relative pl-20"
+              >
+                {/* Timeline node */}
+                <motion.div
+                  className="absolute left-6 top-5 w-5 h-5 rounded-full"
+                  style={{
+                    background: INDIGO.accent,
+                    boxShadow: `0 0 20px ${INDIGO.accent}aa`,
+                  }}
+                  initial={{ scale: 1 }}
+                  whileInView={{ scale: [1, 1.3, 1] }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.1 + 0.2 }}
+                />
+                {/* Card */}
+                <div
+                  className="relative rounded-xl border backdrop-blur-xl p-5 overflow-hidden"
+                  style={{
+                    background: `linear-gradient(145deg, ${INDIGO.surface}e6, ${INDIGO.surface}99)`,
+                    borderColor: `${INDIGO.accent}30`,
+                    boxShadow: `0 1px 0 rgba(255,255,255,0.03) inset, 0 16px 40px -24px ${INDIGO.accent}35`,
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                      style={{
+                        background: `linear-gradient(135deg, ${INDIGO.accent}30, ${INDIGO.mid}80)`,
+                        border: `1px solid ${INDIGO.accent}55`,
+                      }}
+                    >
+                      <step.icon className="w-5 h-5" style={{ color: INDIGO.glow }} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                          style={{ background: INDIGO.accent }}
+                        >
+                          Step {i + 1}
+                        </span>
+                      </div>
+                      <h4 className="text-base font-semibold text-white" style={fontHead}>{step.title}</h4>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm text-white/50" style={fontBody}>{step.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </div>
     </Section>
   );
