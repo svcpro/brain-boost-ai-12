@@ -23,6 +23,7 @@ export function useReferralStats(userId: string | undefined) {
     total: 0,
     active: 0,
     paid: 0,
+    conversions: 0,
     recent: [],
     loading: true,
   });
