@@ -443,7 +443,7 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.8 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-w-2xl mx-auto lg:mx-0"
+            className="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-w-2xl mx-auto"
           >
             {badges.map((b, i) => (
               <motion.div
@@ -460,71 +460,6 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             ))}
           </motion.div>
         </div>
-
-        {/* Right column: holographic stack */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 40 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.4 }}
-          className="relative hidden lg:block"
-        >
-          <div className="relative space-y-4">
-            <TiltCard className="group">
-              <AITerminal />
-            </TiltCard>
-
-            {/* Floating stat card */}
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -left-12 -bottom-10 w-56"
-            >
-              <TiltCard className="group">
-                <Glass className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center">
-                      <Atom className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] uppercase tracking-widest text-cyan-300 font-bold">Live</div>
-                      <div className="text-white text-sm font-bold">Network Pulse</div>
-                    </div>
-                  </div>
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <div className="text-2xl font-black text-white">
-                        <Counter end={847} />
-                      </div>
-                      <div className="text-[10px] text-white/40 uppercase">apps / hour</div>
-                    </div>
-                    <div className="flex gap-0.5 items-end h-8">
-                      {[6, 10, 4, 14, 8, 18, 12, 22, 16, 26].map((h, i) => (
-                        <motion.div
-                          key={i}
-                          animate={{ height: [h, h * 1.4, h] }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
-                          className="w-1 rounded-full bg-gradient-to-t from-purple-500 to-cyan-400"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </Glass>
-              </TiltCard>
-            </motion.div>
-
-            {/* Floating badge */}
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute -right-8 -top-6"
-            >
-              <Glass className="px-3 py-2 flex items-center gap-2">
-                <Wand2 className="w-3.5 h-3.5 text-purple-300" />
-                <span className="text-xs font-bold text-white">AI-Powered</span>
-              </Glass>
-            </motion.div>
-          </div>
-        </motion.div>
       </motion.div>
 
       {/* Scroll cue */}
