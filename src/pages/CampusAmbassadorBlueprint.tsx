@@ -15,18 +15,18 @@ import { z } from "zod";
 
 /* ═════════════════════════════════════════════════════════════════════
    ACRY.ai CAMPUS AMBASSADOR — Midnight Indigo Edition
-   Palette: #0a0a1a · #141432 · #1e1e5a · #4f46e5
+   Palette: #031f1a · #064e3b · #0d7a5f · #10b981
    Type:    Space Grotesk (display) · DM Sans (body)
    Layout:  Hero + Card Grid · user-focused, conversion-led
    ═════════════════════════════════════════════════════════════════════ */
 
 const INDIGO = {
-  base: "#0a0a1a",
-  surface: "#141432",
-  mid: "#1e1e5a",
-  accent: "#4f46e5",
-  accentSoft: "#6366f1",
-  glow: "#818cf8",
+  base: "#031f1a",
+  surface: "#064e3b",
+  mid: "#0d7a5f",
+  accent: "#10b981",
+  accentSoft: "#34d399",
+  glow: "#c9a84c",
 };
 
 /* Load DM Sans + Space Grotesk once */
@@ -52,7 +52,7 @@ const Atmosphere = () => (
       className="absolute inset-0 opacity-[0.06]"
       style={{
         backgroundImage:
-          "linear-gradient(rgba(99,102,241,1) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,1) 1px, transparent 1px)",
+          "linear-gradient(rgba(16,185,129,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.6) 1px, transparent 1px)",
         backgroundSize: "72px 72px",
         maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
       }}
@@ -871,10 +871,10 @@ const Testimonials = () => {
   ];
 
   const posts = [
-    { handle: "@aarav.builds", college: "IIT Delhi", caption: "Hosted my first AI workshop — 240 students showed up. The future is now ⚡", likes: "2.4K", comments: "186", emoji: "🚀", grad: ["#6366f1", "#ec4899"] },
-    { handle: "@ishita.codes", college: "BITS Pilani", caption: "Our AI club just crossed 600 members 🤯 Thank you @acry.ai for the playbook!", likes: "3.1K", comments: "312", emoji: "🧠", grad: ["#4f46e5", "#06b6d4"] },
+    { handle: "@aarav.builds", college: "IIT Delhi", caption: "Hosted my first AI workshop — 240 students showed up. The future is now ⚡", likes: "2.4K", comments: "186", emoji: "🚀", grad: ["#10b981", "#c9a84c"] },
+    { handle: "@ishita.codes", college: "BITS Pilani", caption: "Our AI club just crossed 600 members 🤯 Thank you @acry.ai for the playbook!", likes: "3.1K", comments: "312", emoji: "🧠", grad: ["#0d7a5f", "#06b6d4"] },
     { handle: "@rohan.ml", college: "NIT Trichy", caption: "From ambassador to AI intern in 90 days. Receipts in story 💼", likes: "1.8K", comments: "94", emoji: "💼", grad: ["#8b5cf6", "#f59e0b"] },
-    { handle: "@priya.prompts", college: "VIT Vellore", caption: "Mentor call with the ACRY founders today. Wild how much you learn in 30 mins.", likes: "1.2K", comments: "76", emoji: "✨", grad: ["#ec4899", "#6366f1"] },
+    { handle: "@priya.prompts", college: "VIT Vellore", caption: "Mentor call with the ACRY founders today. Wild how much you learn in 30 mins.", likes: "1.2K", comments: "76", emoji: "✨", grad: ["#ec4899", "#10b981"] },
   ];
 
   return (
@@ -1532,17 +1532,17 @@ const TOP_AMBASSADORS = [
 ];
 
 const TOP_CITIES = [
-  { city: "Bengaluru", ambassadors: 184, events: 92, growth: 38, color: "#4f46e5" },
-  { city: "Delhi NCR", ambassadors: 162, events: 81, growth: 32, color: "#7c3aed" },
-  { city: "Hyderabad", ambassadors: 128, events: 64, growth: 41, color: "#ec4899" },
+  { city: "Bengaluru", ambassadors: 184, events: 92, growth: 38, color: "#10b981" },
+  { city: "Delhi NCR", ambassadors: 162, events: 81, growth: 32, color: "#0d7a5f" },
+  { city: "Hyderabad", ambassadors: 128, events: 64, growth: 41, color: "#34d399" },
   { city: "Mumbai", ambassadors: 119, events: 58, growth: 27, color: "#06b6d4" },
-  { city: "Pune", ambassadors: 96, events: 47, growth: 33, color: "#10b981" },
+  { city: "Pune", ambassadors: 96, events: 47, growth: 33, color: "#c9a84c" },
 ];
 
 const REWARDS = [
-  { icon: Gift, title: "Swag Kit", desc: "ACRY hoodie, stickers & limited drop merch.", tier: "Tier 1 · 1K XP", glow: "#4f46e5" },
-  { icon: Award, title: "Verified Certificate", desc: "LinkedIn-ready certificate + founder signature.", tier: "Tier 2 · 3K XP", glow: "#7c3aed" },
-  { icon: Briefcase, title: "Internship Track", desc: "Priority access to ACRY internship & roles.", tier: "Tier 3 · 5K XP", glow: "#ec4899" },
+  { icon: Gift, title: "Swag Kit", desc: "ACRY hoodie, stickers & limited drop merch.", tier: "Tier 1 · 1K XP", glow: "#10b981" },
+  { icon: Award, title: "Verified Certificate", desc: "LinkedIn-ready certificate + founder signature.", tier: "Tier 2 · 3K XP", glow: "#0d7a5f" },
+  { icon: Briefcase, title: "Internship Track", desc: "Priority access to ACRY internship & roles.", tier: "Tier 3 · 5K XP", glow: "#c9a84c" },
   { icon: Gem, title: "Founder's Circle", desc: "1:1 mentorship, equity grants & alumni board.", tier: "Tier 4 · 8K XP", glow: "#fbbf24" },
 ];
 
@@ -2604,7 +2604,7 @@ const FAQ = () => {
       q: "Who can apply?",
       a: "Any college, university or coaching student in India — UG, PG, JEE/NEET aspirants, AI enthusiasts. All streams welcome.",
       icon: Users,
-      color: "#818cf8",
+      color: "#c9a84c",
     },
     {
       q: "Is it free?",
@@ -2622,13 +2622,13 @@ const FAQ = () => {
       q: "What are the benefits?",
       a: "AI training, leadership experience, certificates, networking, personal branding, internship opportunities, founder mentorship, campus recognition, and exclusive workshop access.",
       icon: Sparkles,
-      color: "#a78bfa",
+      color: "#8b5cf6",
     },
     {
       q: "Is this remote?",
       a: "Hybrid. Training and community are remote. Workshops and meetups happen on your campus or city.",
       icon: Globe,
-      color: "#60a5fa",
+      color: "#06b6d4",
     },
     {
       q: "How much time is needed?",
