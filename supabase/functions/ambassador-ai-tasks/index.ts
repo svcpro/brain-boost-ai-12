@@ -177,10 +177,8 @@ Deno.serve(async (req) => {
     const user = userData?.user;
     if (!user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const body = await req.json().catch(() => ({}));
-    const action = body.action ?? "list";
-    const weekKey = getWeekKey();
+
+
 
     if (action === "list" || action === "generate") {
       const { data: existing } = await admin
