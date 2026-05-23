@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence, useInView, useMotionValue, useSpring, useScroll, useTransform } from "framer-motion";
+import { motion, AnimatePresence, useInView, useMotionValue, useSpring, useScroll, useTransform, MotionConfig } from "framer-motion";
 import {
   Rocket, Sparkles, Shield, Trophy, Users, GraduationCap, Award, Network,
   Briefcase, Star, MessageCircle, ArrowRight, Check, ChevronDown, MapPin,
