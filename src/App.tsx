@@ -61,6 +61,7 @@ const InstituteLoginPage = lazy(() => import("./pages/InstituteLoginPage"));
 const InstituteSignupPage = lazy(() => import("./pages/InstituteSignupPage"));
 const InstituteJoinPage = lazy(() => import("./pages/InstituteJoinPage"));
 const CampusAmbassadorBlueprint = lazy(() => import("./pages/CampusAmbassadorBlueprint"));
+const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 
 // Lazy load heavy components
 const PWAInstallBanner = lazy(() => import("@/components/app/PWAInstallBanner"));
@@ -193,6 +194,7 @@ const App = () => (
               <Route path="/cookie-policy" element={<CookiePolicyPage />} />
               <Route path="/campus-ambassador" element={<CampusAmbassadorBlueprint />} />
               <Route path="/blueprint/campus-ambassador" element={<CampusAmbassadorBlueprint />} />
+              <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
