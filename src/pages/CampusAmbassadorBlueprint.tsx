@@ -3237,7 +3237,9 @@ const CampusAmbassadorBlueprint = () => {
         <FloatingCTAs scrollToForm={scrollToForm} />
       </div>
     </div>
+    </MotionConfig>
   );
 };
+
 
 export default CampusAmbassadorBlueprint;
