@@ -2,7 +2,7 @@ import { Btn, Card, SectionTitle, Stat, T } from "./ui";
 import type { AmbassadorProfile } from "../useAmbassador";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
 import { useReferralStats } from "./useReferralStats";
-import { Copy, Share2, MessageCircle, Send, Instagram, Users, CheckCircle2, IndianRupee } from "lucide-react";
+import { Copy, Share2, MessageCircle, Send, Instagram, Users, CheckCircle2, IndianRupee, TrendingUp, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export function SimpleReferrals({ profile }: { profile: AmbassadorProfile }) {
