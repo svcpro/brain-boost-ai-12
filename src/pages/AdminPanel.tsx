@@ -602,6 +602,7 @@ const AdminPanel = () => {
               {section === "autopilot" && <AutopilotAdminPanel />}
               {section === "institutions" && <InstitutionManagement />}
               {section === "teacher_mode" && <TeacherModeAdmin />}
+              {section === "campus_ambassador" && <CampusAmbassadorManagement />}
               {section === "monitoring" && <SystemMonitor />}
               {section === "traffic" && (
                 <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading Traffic Monitor…</div>}>
