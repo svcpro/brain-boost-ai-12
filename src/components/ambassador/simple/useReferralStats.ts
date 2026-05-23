@@ -5,6 +5,7 @@ export type RefStats = {
   total: number;
   active: number; // signed up, not yet paid
   paid: number;
+  conversions: number; // anyone who converted (active + paid)
   recent: Array<{
     id: string;
     referred_email: string | null;
